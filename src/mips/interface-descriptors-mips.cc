@@ -318,13 +318,6 @@ void CompareDescriptor::InitializePlatformSpecific(
 }
 
 
-void CompareNilDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {a0};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
-}
-
-
 void ToBooleanDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a0};

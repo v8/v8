@@ -31,9 +31,9 @@ function assertTraps(code, msg) {
 
 function makeDivRem(opcode) {
   var kBodySize = 5;
-  var kNameMainOffset = 6 + 11 + kBodySize + 1;
+  var kNameMainOffset = kHeaderSize + 6 + 11 + kBodySize + 1;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstI32, kAstI32, // (int,int) -> int

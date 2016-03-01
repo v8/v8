@@ -37,16 +37,21 @@ void Interpreter::Initialize() {
     Do##Name(&assembler);                                               \
     Handle<Code> code = assembler.GenerateCode();                       \
     TraceCodegen(code, #Name);                                          \
-    int index = static_cast<int>(Bytecode::k##Name);                    \
-    dispatch_table_[index] = *code;                                     \
+    dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] = *code;      \
   }
   BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
 }
 
+Code* Interpreter::GetBytecodeHandler(Bytecode bytecode) {
+  DCHECK(IsDispatchTableInitialized());
+  return dispatch_table_[Bytecodes::ToByte(bytecode)];
+}
+
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
-  v->VisitPointers(&dispatch_table_[0],
-                   &dispatch_table_[0] + kDispatchTableSize);
+  v->VisitPointers(
+      reinterpret_cast<Object**>(&dispatch_table_[0]),
+      reinterpret_cast<Object**>(&dispatch_table_[0] + kDispatchTableSize));
 }
 
 // static
@@ -85,6 +90,9 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   BytecodeGenerator generator(info->isolate(), info->zone());
   info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
+
+  if (generator.HasStackOverflow()) return false;
+
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
     bytecodes->Print(os);
@@ -878,24 +886,40 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
 // Perform logical-not on the accumulator, first casting the
 // accumulator to a boolean value if required.
 void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kInterpreterLogicalNot, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  Node* to_boolean_value =
+      __ CallStub(callable.descriptor(), target, context, accumulator);
+  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
+  Node* true_value = __ BooleanConstant(true);
+  Node* false_value = __ BooleanConstant(false);
+  Node* condition = __ WordEqual(to_boolean_value, true_value);
+  __ Branch(condition, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    __ SetAccumulator(false_value);
+    __ Dispatch();
+  }
+  __ Bind(&if_false);
+  {
+    __ SetAccumulator(true_value);
+    __ Dispatch();
+  }
 }
-
 
 // TypeOf
 //
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::Typeof(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* result =
-      __ CallRuntime(Runtime::kInterpreterTypeOf, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1134,7 +1158,7 @@ void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterEquals, assembler);
+  DoBinaryOp(Runtime::kEqual, assembler);
 }
 
 
@@ -1142,7 +1166,7 @@ void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterNotEquals, assembler);
+  DoBinaryOp(Runtime::kNotEqual, assembler);
 }
 
 
@@ -1150,7 +1174,7 @@ void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterStrictEquals, assembler);
+  DoBinaryOp(Runtime::kStrictEqual, assembler);
 }
 
 
@@ -1159,7 +1183,7 @@ void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is not strictly equal to the
 // accumulator.
 void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterStrictNotEquals, assembler);
+  DoBinaryOp(Runtime::kStrictNotEqual, assembler);
 }
 
 
@@ -1167,7 +1191,7 @@ void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterLessThan, assembler);
+  DoBinaryOp(Runtime::kLessThan, assembler);
 }
 
 
@@ -1175,7 +1199,7 @@ void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterGreaterThan, assembler);
+  DoBinaryOp(Runtime::kGreaterThan, assembler);
 }
 
 
@@ -1184,7 +1208,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterLessThanOrEqual, assembler);
+  DoBinaryOp(Runtime::kLessThanOrEqual, assembler);
 }
 
 
@@ -1193,7 +1217,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterGreaterThanOrEqual, assembler);
+  DoBinaryOp(Runtime::kGreaterThanOrEqual, assembler);
 }
 
 
@@ -1214,16 +1238,22 @@ void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
   DoBinaryOp(Runtime::kInstanceOf, assembler);
 }
 
+void Interpreter::DoTypeConversionOp(Callable callable,
+                                     InterpreterAssembler* assembler) {
+  Node* target = __ HeapConstant(callable.code());
+  Node* accumulator = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result =
+      __ CallStub(callable.descriptor(), target, context, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 // ToName
 //
 // Cast the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToName, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToName(isolate_), assembler);
 }
 
 
@@ -1231,11 +1261,7 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToNumber, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToNumber(isolate_), assembler);
 }
 
 
@@ -1243,11 +1269,7 @@ void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a JSObject.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToObject, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToObject(isolate_), assembler);
 }
 
 
@@ -1355,10 +1377,12 @@ void Interpreter::DoJumpIfFalseConstantWide(InterpreterAssembler* assembler) {
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* relative_jump = __ BytecodeOperandImm(0);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
@@ -1372,10 +1396,12 @@ void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanTrueConstant(
     InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
@@ -1400,10 +1426,12 @@ void Interpreter::DoJumpIfToBooleanTrueConstantWide(
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* relative_jump = __ BytecodeOperandImm(0);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
@@ -1417,10 +1445,12 @@ void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanFalseConstant(
     InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
@@ -1565,7 +1595,20 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
+  Callable callable = CodeFactory::FastCloneRegExp(isolate_);
+  Node* target = __ HeapConstant(callable.code());
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* pattern = __ LoadConstantPoolEntry(index);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* flags_raw = __ BytecodeOperandImm(2);
+  Node* flags = __ SmiTag(flags_raw);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* context = __ GetContext();
+  Node* result = __ CallStub(callable.descriptor(), target, context, closure,
+                             literal_index, pattern, flags);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 
@@ -1574,7 +1617,7 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteralWide(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
+  DoCreateRegExpLiteral(assembler);
 }
 
 
@@ -1729,6 +1772,18 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// DebugBreak
+//
+// Call runtime to handle a debug break.
+#define DEBUG_BREAK(Name, ...)                                              \
+  void Interpreter::Do##Name(InterpreterAssembler* assembler) {             \
+    Node* context = __ GetContext();                                        \
+    Node* original_handler = __ CallRuntime(Runtime::kDebugBreak, context); \
+    __ DispatchToBytecodeHandler(original_handler);                         \
+  }
+DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
+#undef DEBUG_BREAK
+
 // ForInPrepare <cache_info_triple>
 //
 // Returns state for for..in loop execution based on the object in the
@@ -1775,11 +1830,38 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   Node* cache_type = __ LoadRegister(cache_type_reg);
   Node* cache_array_reg = __ NextRegister(cache_type_reg);
   Node* cache_array = __ LoadRegister(cache_array_reg);
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kForInNext, context, receiver,
-                                cache_array, cache_type, index);
-  __ SetAccumulator(result);
-  __ Dispatch();
+
+  // Load the next key from the enumeration array.
+  Node* key = __ LoadFixedArrayElementSmiIndex(cache_array, index);
+
+  // Check if we can use the for-in fast path potentially using the enum cache.
+  InterpreterAssembler::Label if_fast(assembler), if_slow(assembler);
+  Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
+  Node* condition = __ WordEqual(receiver_map, cache_type);
+  __ Branch(condition, &if_fast, &if_slow);
+  __ Bind(&if_fast);
+  {
+    // Enum cache in use for {receiver}, the {key} is definitely valid.
+    __ SetAccumulator(key);
+    __ Dispatch();
+  }
+  __ Bind(&if_slow);
+  {
+    // Record the fact that we hit the for-in slow path.
+    Node* vector_index = __ BytecodeOperandIdx(3);
+    Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+    Node* megamorphic_sentinel =
+        __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
+    __ StoreFixedArrayElementNoWriteBarrier(type_feedback_vector, vector_index,
+                                            megamorphic_sentinel);
+
+    // Need to filter the {key} for the {receiver}.
+    Node* context = __ GetContext();
+    Node* result =
+        __ CallRuntime(Runtime::kForInFilter, context, receiver, key);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 
@@ -1813,11 +1895,10 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
 // Increments the loop counter in register |index| and stores the result
 // in the accumulator.
 void Interpreter::DoForInStep(InterpreterAssembler* assembler) {
-  // TODO(oth): Implement directly rather than making a runtime call.
   Node* index_reg = __ BytecodeOperandReg(0);
   Node* index = __ LoadRegister(index_reg);
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kForInStep, context, index);
+  Node* one = __ SmiConstant(Smi::FromInt(1));
+  Node* result = __ SmiAdd(index, one);
   __ SetAccumulator(result);
   __ Dispatch();
 }

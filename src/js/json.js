@@ -51,7 +51,9 @@ function InternalizeJSONProperty(holder, name, reviver) {
         }
       }
     } else {
-      for (var p of %object_keys(val)) {
+      var keys = %object_keys(val);
+      for (var i = 0; i < keys.length; i++) {
+        var p = keys[i];
         var newElement = InternalizeJSONProperty(val, p, reviver);
         if (IS_UNDEFINED(newElement)) {
           %reflect_delete_property(val, p);
@@ -122,7 +124,9 @@ function SerializeObject(value, replacer, stack, indent, gap) {
       }
     }
   } else {
-    for (var p of %object_keys(value)) {
+    var keys = %object_keys(value);
+    for (var i = 0; i < keys.length; i++) {
+      var p = keys[i];
       var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
       if (!IS_UNDEFINED(strP)) {
         var member = %QuoteJSONString(p) + ":";

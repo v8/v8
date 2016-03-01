@@ -134,6 +134,9 @@
   'strong/load-property-mutate-backing-store': [SKIP],
   'strong/load-super': [SKIP],
   'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
+  'strong/object-delete': [SKIP],
+  'strong/object-freeze-property': [SKIP],
+  'strong/object-set-prototype': [SKIP],
 
   # Issue 4035: unexpected frame->context() in debugger
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
@@ -176,6 +179,9 @@
 
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
+
+  # TODO(turbofan): The escape analysis needs some investigation.
+  'compiler/escape-analysis-deopt-5': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -301,6 +307,9 @@
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
   'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
 
+  # TODO(bradnelson): Enable tests as the fixs land.
+  'wasm/embenchen/*': [SKIP],
+
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
@@ -385,6 +394,9 @@
 
   # BUG(v8:4754).
   'debug-referenced-by': [PASS, NO_VARIANTS],
+
+  # BUG(v8:4779): Crashes flakily with stress mode on arm64.
+  'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -764,29 +776,34 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ['ignition == True', {
-  # Skip strong mode tests since strong mode is unsupported on ignition.
-  'strong/*': [SKIP],
-
   # TODO(yangguo,4690): Requires debugger support.
-  'debug-*': [SKIP],
   'es6/debug*': [SKIP],
   'harmony/debug*': [SKIP],
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
 
+  # TODO(yangguo,4690): assertion failures in debugger tests.
+  'debug-allscopes-on-debugger': [FAIL],
+  'debug-liveedit-restart-frame': [FAIL],
+  'debug-return-value': [FAIL],
+  'debug-liveedit-literals': [FAIL],
+  'debug-liveedit-3': [FAIL],
+  'debug-liveedit-1': [FAIL],
+  'debug-liveedit-patch-positions-replace': [FAIL],
+  'debug-liveedit-patch-positions': [FAIL],
+  'debug-liveedit-stepin': [FAIL],
+  'debug-liveedit-newsource': [FAIL],
+  'debug-liveedit-stack-padding': [FAIL],
+  'debug-liveedit-breakpoints': [FAIL],
+  'debug-stepin-accessor-ic': [FAIL],
+  'debug-stepnext-do-while': [FAIL],
+
   # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
   # DCHECK(IsDebugBreak() || IsDebuggerStatement());
   'regress/regress-1523': [FAIL],
-  'regress/regress-102153': [FAIL],
-  'regress/regress-1586': [FAIL],
-  'regress/regress-2825': [FAIL],
-  'regress/regress-3960': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-crbug-467180': [FAIL],
-  'regress/regress-998565': [FAIL],
-  'regress/regress-crbug-432493': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
-  'regress/regress-crbug-481896': [FAIL],
 
   # TODO(rmcilroy,4681): Requires support for generators.
   'messages': [FAIL],
@@ -815,56 +832,33 @@
   'es6/typedarray': [FAIL],
   'es6/regress/regress-2681': [FAIL],
   'es6/regress/regress-2691': [FAIL],
-  'es6/regress/regress-455141': [FAIL],
   'es6/regress/regress-3280': [FAIL],
-  'harmony/destructuring-parameters-literalcount-nolazy': [FAIL],
   'harmony/destructuring-assignment': [FAIL],
   'harmony/function-sent': [FAIL],
-  'harmony/private-symbols': [FAIL],
-  'harmony/reflect-enumerate-delete': [FAIL],
-  'harmony/reflect-enumerate-special-cases': [FAIL],
-  'harmony/proxies-enumerate': [FAIL],
-  'harmony/reflect-enumerate-opt': [FAIL],
-  'harmony/reflect-enumerate': [FAIL],
   'harmony/destructuring': [FAIL],
   'harmony/regress/regress-4482': [FAIL],
-  'harmony/reflect': [FAIL],
   'harmony/generators': [FAIL],
   'harmony/iterator-close': [FAIL],
-  'regress/regress-572589': [FAIL],
   'harmony/reflect-construct': [FAIL],
   'es6/promises': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
+  'strong/function-arity': [FAIL],
+  'strong/undefined': [FAIL],
 
-  # TODO(rmcilroy,4680): Check failed in
-  # BytecodeGenerator::VisitFunctionLiteral - !shared_info.is_null().
-  'regress/regress-crbug-429159': [FAIL],
-
-  # TODO(rmcilroy,4680): Pass on debug, fail on release.
+  # TODO(rmcilroy,4680): Pass on debug, fail on release. Fails in both modes.
+  # the line numbers in the stack trace are incorrect. In debug mode somehow
+  # does not get flagged as a failure.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
 
   # TODO(rmcilroy,4680): Test assert failures.
   'array-literal-feedback': [FAIL],
-  'undetectable-compare': [FAIL],
   'debug-liveedit-2': [FAIL],
-  'compiler/deopt-tonumber-compare': [FAIL],
-  'es6/string-search': [FAIL],
   'es6/mirror-collections': [FAIL],
   'es6/regress/regress-468661': [FAIL],
-  'harmony/string-replace': [FAIL],
-  'harmony/string-match': [FAIL],
-  'harmony/string-split': [FAIL],
   'regress/regress-2618': [FAIL],
   'regress/regress-4121': [FAIL],
   'regress/regress-4266': [FAIL],
-  'harmony/simd': [FAIL],
   'regress/regress-crbug-109362': [FAIL],
-  'regress/regress-131994': [FAIL],
   'regress/regress-crbug-568477-2': [FAIL],
-  'regress/regress-crbug-568477-3': [FAIL],
-  'regress/regress-crbug-568477-1': [FAIL],
-  'regress/regress-2318': [FAIL],
-  'regress/regress-crbug-582051': [FAIL],
 
   # TODO(rmcilroy, 4680): new ES6 instanceof support
   'harmony/instanceof-es6': [SKIP],
@@ -878,20 +872,6 @@
   'regress/regress-1853': [SKIP],
   'regress/regress-crbug-424142': [SKIP],
 }],  # ignition == True
-
-['ignition == True and (mode == debug or dcheck_always_on == True)', {
-  # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
-  # DCHECK(IsDebugBreak() || IsDebuggerStatement());
-  'regress/regress-419663': [FAIL],
-  'regress/regress-4320': [FAIL],
-  'regress/regress-1639': [FAIL],
-  'regress/regress-94873': [FAIL],
-  'regress/regress-1639-2': [FAIL],
-  'regress/regress-crbug-387599': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-  'regress/regress-crbug-506443': [FAIL],
-  'regress/regress-crbug-507070': [FAIL],
-}], # ignition == True and mode == debug
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Fails on Arm64 due to expecting to take less than 3

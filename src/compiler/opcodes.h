@@ -21,6 +21,8 @@
   V(IfDefault)             \
   V(Merge)                 \
   V(Deoptimize)            \
+  V(DeoptimizeIf)          \
+  V(DeoptimizeUnless)      \
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \
@@ -202,7 +204,8 @@
   V(StoreElement)                  \
   V(ObjectIsNumber)                \
   V(ObjectIsReceiver)              \
-  V(ObjectIsSmi)
+  V(ObjectIsSmi)                   \
+  V(ObjectIsUndetectable)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \

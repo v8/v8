@@ -23,9 +23,6 @@ namespace internal {
     return *isolate->factory()->NewHeapNumber(std::name(x));   \
   }
 
-RUNTIME_UNARY_MATH(Acos, acos)
-RUNTIME_UNARY_MATH(Asin, asin)
-RUNTIME_UNARY_MATH(Atan, atan)
 RUNTIME_UNARY_MATH(LogRT, log)
 #undef RUNTIME_UNARY_MATH
 
@@ -225,16 +222,6 @@ RUNTIME_FUNCTION(Runtime_MathSqrt) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   lazily_initialize_fast_sqrt(isolate);
   return *isolate->factory()->NewNumber(fast_sqrt(x, isolate));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathFround) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  float xf = DoubleToFloat32(x);
-  return *isolate->factory()->NewNumber(xf);
 }
 
 

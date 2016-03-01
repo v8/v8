@@ -10,7 +10,6 @@ traps = [
     "getOwnPropertyDescriptor", "has", "get", "set", "deleteProperty",
     "defineProperty", "ownKeys", "apply", "construct"
 ];
-// TODO(neis): Fix enumerate.
 
 var {proxy, revoke} = Proxy.revocable({}, {});
 assertEquals(0, revoke.length);

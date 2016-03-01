@@ -40,41 +40,6 @@ class StoreBuffer {
   base::VirtualMemory* virtual_memory_;
 };
 
-
-class LocalStoreBuffer BASE_EMBEDDED {
- public:
-  explicit LocalStoreBuffer(Heap* heap)
-      : top_(new Node(nullptr)), heap_(heap) {}
-
-  ~LocalStoreBuffer() {
-    Node* current = top_;
-    while (current != nullptr) {
-      Node* tmp = current->next;
-      delete current;
-      current = tmp;
-    }
-  }
-
-  inline void Record(Address addr);
-  inline void Process(StoreBuffer* store_buffer);
-
- private:
-  static const int kBufferSize = 16 * KB;
-
-  struct Node : Malloced {
-    explicit Node(Node* next_node) : next(next_node), count(0) {}
-
-    inline bool is_full() { return count == kBufferSize; }
-
-    Node* next;
-    Address buffer[kBufferSize];
-    int count;
-  };
-
-  Node* top_;
-  Heap* heap_;
-};
-
 }  // namespace internal
 }  // namespace v8
 

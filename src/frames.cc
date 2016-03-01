@@ -134,12 +134,10 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 #undef FRAME_TYPE_CASE
 }
 
-
 // -------------------------------------------------------------------------
 
-
-JavaScriptFrameIterator::JavaScriptFrameIterator(
-    Isolate* isolate, StackFrame::Id id)
+JavaScriptFrameIterator::JavaScriptFrameIterator(Isolate* isolate,
+                                                 StackFrame::Id id)
     : iterator_(isolate) {
   while (!done()) {
     Advance();
@@ -403,6 +401,17 @@ void StackFrame::SetReturnAddressLocationResolver(
   return_address_location_resolver_ = resolver;
 }
 
+static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
+  Code* interpreter_entry_trampoline =
+      isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  Code* interpreter_bytecode_dispatch =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+
+  return (pc >= interpreter_entry_trampoline->instruction_start() &&
+          pc < interpreter_entry_trampoline->instruction_end()) ||
+         (pc >= interpreter_bytecode_dispatch->instruction_start() &&
+          pc < interpreter_bytecode_dispatch->instruction_end());
+}
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
@@ -429,6 +438,9 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         Memory::Object_at(state->fp + StandardFrameConstants::kMarkerOffset);
     if (marker->IsSmi()) {
       return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+    } else if (FLAG_ignition && IsInterpreterFramePc(iterator->isolate(),
+                                                     *(state->pc_address))) {
+      return INTERPRETED;
     } else {
       return JAVA_SCRIPT;
     }
@@ -446,7 +458,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       case Code::OPTIMIZED_FUNCTION:
         return OPTIMIZED;
       case Code::WASM_FUNCTION:
-        return STUB;
+        return WASM;
       case Code::BUILTIN:
         if (!marker->IsSmi()) {
           if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
@@ -493,16 +505,7 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 
 
 Address StackFrame::UnpaddedFP() const {
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  if (!is_optimized()) return fp();
-  int32_t alignment_state = Memory::int32_at(
-    fp() + JavaScriptFrameConstants::kDynamicAlignmentStateOffset);
-
-  return (alignment_state == kAlignmentPaddingPushed) ?
-    (fp() + kPointerSize) : fp();
-#else
   return fp();
-#endif
 }
 
 
@@ -1222,6 +1225,20 @@ void StackFrame::PrintIndex(StringStream* accumulator,
   accumulator->Add((mode == OVERVIEW) ? "%5d: " : "[%d]: ", index);
 }
 
+void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
+                      int index) const {
+  accumulator->Add("wasm frame");
+}
+
+Code* WasmFrame::unchecked_code() const {
+  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
+}
+
+void WasmFrame::Iterate(ObjectVisitor* v) const { IterateCompiledFrame(v); }
+
+Address WasmFrame::GetCallerStackPointer() const {
+  return fp() + ExitFrameConstants::kCallerSPDisplacement;
+}
 
 namespace {
 

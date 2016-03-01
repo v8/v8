@@ -66,13 +66,6 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallJSFunction::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  function()->PrintTo(stream);
-  stream->Add("#%d / ", arity());
-}
-
-
 void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
   for (int i = 0; i < InputCount(); i++) {
     InputAt(i)->PrintTo(stream);
@@ -132,20 +125,6 @@ void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
   base_object()->PrintTo(stream);
   stream->Add(" + ");
   offset()->PrintTo(stream);
-}
-
-
-void LCallFunction::PrintDataTo(StringStream* stream) {
-  context()->PrintTo(stream);
-  stream->Add(" ");
-  function()->PrintTo(stream);
-  if (hydrogen()->HasVectorAndSlot()) {
-    stream->Add(" (type-feedback-vector ");
-    temp_vector()->PrintTo(stream);
-    stream->Add(" ");
-    temp_slot()->PrintTo(stream);
-    stream->Add(")");
-  }
 }
 
 
@@ -993,7 +972,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       return new(zone()) LBranch(UseRegister(value), TempRegister(), NULL);
     }
 
-    ToBooleanStub::Types expected = instr->expected_input_types();
+    ToBooleanICStub::Types expected = instr->expected_input_types();
     bool needs_temps = expected.NeedsMap() || expected.IsEmpty();
     LOperand* temp1 = needs_temps ? TempRegister() : NULL;
     LOperand* temp2 = needs_temps ? TempRegister() : NULL;
@@ -1008,16 +987,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
           new(zone()) LBranch(UseRegister(value), temp1, temp2));
     }
   }
-}
-
-
-LInstruction* LChunkBuilder::DoCallJSFunction(
-    HCallJSFunction* instr) {
-  LOperand* function = UseFixed(instr->function(), x1);
-
-  LCallJSFunction* result = new(zone()) LCallJSFunction(function);
-
-  return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
 
@@ -1046,22 +1015,6 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
                                                                 ops,
                                                                 zone());
   return MarkAsCall(DefineFixed(result, x0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* function = UseFixed(instr->function(), x1);
-  LOperand* slot = NULL;
-  LOperand* vector = NULL;
-  if (instr->HasVectorAndSlot()) {
-    slot = FixedTemp(x3);
-    vector = FixedTemp(x2);
-  }
-
-  LCallFunction* call =
-      new (zone()) LCallFunction(context, function, slot, vector);
-  return MarkAsCall(DefineFixed(call, x0), instr);
 }
 
 

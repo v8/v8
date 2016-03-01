@@ -3198,18 +3198,35 @@ void MacroAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     uint32_t imm32;
     imm32 = jump_address(L);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      lui(at, (imm32 & kHiMask) >> kLuiShift);
-      ori(at, at, (imm32 & kImm16Mask));
+    if (IsMipsArchVariant(kMips32r6) && bdslot != USE_DELAY_SLOT) {
+      uint32_t lui_offset, jic_offset;
+      UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
+      {
+        BlockGrowBufferScope block_buf_growth(this);
+        // Buffer growth (and relocation) must be blocked for internal
+        // references until associated instructions are emitted and
+        // available to be patched.
+        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+        lui(at, lui_offset);
+        jic(at, jic_offset);
+      }
+      CheckBuffer();
+    } else {
+      {
+        BlockGrowBufferScope block_buf_growth(this);
+        // Buffer growth (and relocation) must be blocked for internal
+        // references
+        // until associated instructions are emitted and available to be
+        // patched.
+        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+        lui(at, (imm32 & kHiMask) >> kLuiShift);
+        ori(at, at, (imm32 & kImm16Mask));
+      }
+      CheckBuffer();
+      jr(at);
+      // Emit a nop in the branch delay slot if required.
+      if (bdslot == PROTECT) nop();
     }
-    jr(at);
-
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
   }
 }
 
@@ -3222,18 +3239,34 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     uint32_t imm32;
     imm32 = jump_address(L);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      lui(at, (imm32 & kHiMask) >> kLuiShift);
-      ori(at, at, (imm32 & kImm16Mask));
+    if (IsMipsArchVariant(kMips32r6) && bdslot != USE_DELAY_SLOT) {
+      uint32_t lui_offset, jic_offset;
+      UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
+      {
+        BlockGrowBufferScope block_buf_growth(this);
+        // Buffer growth (and relocation) must be blocked for internal
+        // references until associated instructions are emitted and
+        // available to be patched.
+        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+        lui(at, lui_offset);
+        jialc(at, jic_offset);
+      }
+      CheckBuffer();
+    } else {
+      {
+        BlockGrowBufferScope block_buf_growth(this);
+        // Buffer growth (and relocation) must be blocked for internal
+        // references
+        // until associated instructions are emitted and available to be
+        // patched.
+        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+        lui(at, (imm32 & kHiMask) >> kLuiShift);
+        ori(at, at, (imm32 & kImm16Mask));
+      }
+      jalr(at);
+      // Emit a nop in the branch delay slot if required.
+      if (bdslot == PROTECT) nop();
     }
-    jalr(at);
-
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
   }
 }
 

@@ -16,8 +16,8 @@ namespace internal {
 class Factory final {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
-                             Handle<Object> to_number, const char* type_of,
-                             byte kind);
+                             Handle<Object> to_number, bool to_boolean,
+                             const char* type_of, byte kind);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
@@ -548,6 +548,8 @@ class Factory final {
   Handle<Code> CopyCode(Handle<Code> code);
 
   Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
+
+  Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
   // Interface for creating error objects.
   Handle<Object> NewError(Handle<JSFunction> constructor,

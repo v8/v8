@@ -114,8 +114,13 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  opcode = cont->Encode(opcode);
+  if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
+                             cont->frame_state());
+  } else {
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  }
 }
 
 
@@ -979,6 +984,9 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right,
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
@@ -1084,9 +1092,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kMipsCmp, cont, false);
 }
 
-}  // namespace
-
-
 // Shared routine for word comparisons against zero.
 void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                           Node* value, FlagsContinuation* cont) {
@@ -1175,12 +1180,17 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand,
+                             g.TempImmediate(0), cont->frame_state());
   } else {
+    DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    g.TempImmediate(0));
   }
 }
 
+}  // namespace
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
@@ -1188,28 +1198,43 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kNotEqual, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kEqual, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   MipsOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
-  size_t table_space_cost = 9 + sw.value_range;
-  size_t table_time_cost = 3;
-  size_t lookup_space_cost = 2 + 2 * sw.case_count;
-  size_t lookup_time_cost = sw.case_count;
-  if (sw.case_count > 0 &&
-      table_space_cost + 3 * table_time_cost <=
-          lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
-    InstructionOperand index_operand = value_operand;
-    if (sw.min_value) {
-      index_operand = g.TempRegister();
-      Emit(kMipsSub, index_operand, value_operand,
-           g.TempImmediate(sw.min_value));
+  // TODO(mips): TableSwitch is broken, as it messes with ra without saving it
+  // properly (which breaks with frame elision, i.e. inside stubs).
+  if (false) {
+    // Emit either ArchTableSwitch or ArchLookupSwitch.
+    size_t table_space_cost = 9 + sw.value_range;
+    size_t table_time_cost = 3;
+    size_t lookup_space_cost = 2 + 2 * sw.case_count;
+    size_t lookup_time_cost = sw.case_count;
+    if (sw.case_count > 0 &&
+        table_space_cost + 3 * table_time_cost <=
+            lookup_space_cost + 3 * lookup_time_cost &&
+        sw.min_value > std::numeric_limits<int32_t>::min()) {
+      InstructionOperand index_operand = value_operand;
+      if (sw.min_value) {
+        index_operand = g.TempRegister();
+        Emit(kMipsSub, index_operand, value_operand,
+             g.TempImmediate(sw.min_value));
+      }
+      // Generate a table lookup.
+      return EmitTableSwitch(sw, index_operand);
     }
-    // Generate a table lookup.
-    return EmitTableSwitch(sw, index_operand);
   }
 
   // Generate a sequence of conditional jumps.
@@ -1218,7 +1243,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
     return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
@@ -1228,32 +1253,34 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt32LessThan(Node* node) {
-  FlagsContinuation cont(kSignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kMipsAddOvf, &cont);
   }
   FlagsContinuation cont;
@@ -1263,7 +1290,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kMipsSubOvf, &cont);
   }
   FlagsContinuation cont;
@@ -1272,37 +1299,39 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

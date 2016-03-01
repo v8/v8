@@ -77,6 +77,11 @@ config("internal_config_base") {
   include_dirs = [ "." ]
 }
 
+# This config should be applied to code using the libplatform.
+config("libplatform_config") {
+  include_dirs = [ "include" ]
+}
+
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
@@ -300,7 +305,6 @@ action("js2c_experimental") {
     "src/js/generator.js",
     "src/js/harmony-atomics.js",
     "src/js/harmony-regexp.js",
-    "src/js/harmony-reflect.js",
     "src/js/harmony-object-observe.js",
     "src/js/harmony-sharedarraybuffer.js",
     "src/js/harmony-simd.js",
@@ -1073,8 +1077,6 @@ source_set("v8_base") {
     "src/heap/scavenger.cc",
     "src/heap/scavenger.h",
     "src/heap/slot-set.h",
-    "src/heap/slots-buffer.cc",
-    "src/heap/slots-buffer.h",
     "src/heap/spaces-inl.h",
     "src/heap/spaces.cc",
     "src/heap/spaces.h",
@@ -1622,6 +1624,29 @@ source_set("v8_base") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
     ]
+  } else if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
+    sources += [
+      "src/s390/assembler-s390-inl.h",
+      "src/s390/assembler-s390.cc",
+      "src/s390/assembler-s390.h",
+      "src/s390/builtins-s390.cc",
+      "src/s390/code-stubs-s390.cc",
+      "src/s390/code-stubs-s390.h",
+      "src/s390/codegen-s390.cc",
+      "src/s390/codegen-s390.h",
+      "src/s390/constants-s390.cc",
+      "src/s390/constants-s390.h",
+      "src/s390/cpu-s390.cc",
+      "src/s390/deoptimizer-s390.cc",
+      "src/s390/disasm-s390.cc",
+      "src/s390/frames-s390.cc",
+      "src/s390/frames-s390.h",
+      "src/s390/interface-descriptors-s390.cc",
+      "src/s390/macro-assembler-s390.cc",
+      "src/s390/macro-assembler-s390.h",
+      "src/s390/simulator-s390.cc",
+      "src/s390/simulator-s390.h",
+    ]
   }
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -1819,6 +1844,7 @@ source_set("fuzzer_support") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config_base",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
@@ -1845,6 +1871,7 @@ if (current_toolchain == snapshot_toolchain) {
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
       ":internal_config",
+      ":libplatform_config",
       ":features",
       ":toolchain",
     ]
@@ -1957,6 +1984,7 @@ source_set("json_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
@@ -1975,6 +2003,7 @@ source_set("parser_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
@@ -1993,6 +2022,7 @@ source_set("regexp_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]

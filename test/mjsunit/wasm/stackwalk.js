@@ -8,13 +8,13 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 function makeFFI(func) {
   var kBodySize = 6;
-  var kNameFunOffset = 24 + kBodySize + 1;
+  var kNameFunOffset = kHeaderSize + 24 + kBodySize + 1;
   var kNameMainOffset = kNameFunOffset + 4;
 
   var ffi = new Object();
   ffi.fun = func;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstF64, kAstF64, // (f64,f64) -> int

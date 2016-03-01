@@ -642,7 +642,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!heap->lo_space()->Contains(*answer)) {
-    heap->CreateFillerObjectAt(end_of_string, delta);
+    heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
   heap->AdjustLiveBytes(*answer, -delta, Heap::CONCURRENT_TO_SWEEPER);
   return *answer;

@@ -62,9 +62,6 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
 
-  // Load an element from a fixed array on the heap.
-  compiler::Node* LoadFixedArrayElement(compiler::Node* fixed_array, int index);
-
   // Load a field from an object on the heap.
   compiler::Node* LoadObjectField(compiler::Node* object, int offset);
 
@@ -131,6 +128,13 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
 
   // Dispatch to the bytecode.
   void Dispatch();
+
+  // Dispatch to bytecode handler.
+  void DispatchToBytecodeHandler(compiler::Node* handler,
+                                 compiler::Node* bytecode_offset);
+  void DispatchToBytecodeHandler(compiler::Node* handler) {
+    DispatchToBytecodeHandler(handler, BytecodeOffset());
+  }
 
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);

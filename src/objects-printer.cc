@@ -952,6 +952,7 @@ void WeakCell::WeakCellPrint(std::ostream& os) {  // NOLINT
 
 void Code::CodePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Code");
+  os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_use_verbose_printer) {
     Disassemble(NULL, os);

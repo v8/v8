@@ -266,7 +266,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
     if (initialize != NULL) {
       block_->statements()->Add(
-          factory()->NewExpressionStatement(initialize, RelocInfo::kNoPosition),
+          factory()->NewExpressionStatement(initialize, initialize->position()),
           zone());
     }
   } else if (value != nullptr && (descriptor_->mode == CONST_LEGACY ||
@@ -282,7 +282,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
     // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : RelocInfo::kNoPosition;
+    int pos =
+        IsSubPattern() ? pattern->position() : descriptor_->initialization_pos;
     Assignment* assignment =
         factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
@@ -299,7 +300,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
     // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : RelocInfo::kNoPosition;
+    int pos =
+        IsSubPattern() ? pattern->position() : descriptor_->initialization_pos;
     Assignment* assignment =
         factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
@@ -488,8 +490,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
         empty_exprs,
         // Reuse pattern's literal index - it is unused since there is no
         // actual literal allocated.
-        node->literal_index(), is_strong(scope()->language_mode()),
-        RelocInfo::kNoPosition));
+        node->literal_index(), RelocInfo::kNoPosition));
 
     auto arguments = new (zone()) ZoneList<Expression*>(2, zone());
     arguments->Add(factory()->NewVariableProxy(array), zone());

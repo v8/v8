@@ -382,7 +382,8 @@ class PreParserStatement {
   }
 
   bool IsStringLiteral() {
-    return code_ == kStringLiteralExpressionStatement;
+    return code_ == kStringLiteralExpressionStatement
+        || IsUseStrictLiteral() || IsUseStrongLiteral();
   }
 
   bool IsUseStrictLiteral() {
@@ -430,18 +431,17 @@ class PreParserFactory {
   }
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
                                        int js_flags, int literal_index,
-                                       bool is_strong, int pos) {
+                                       int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
                                       int literal_index,
-                                      bool is_strong,
                                       int pos) {
     return PreParserExpression::ArrayLiteral();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
                                       int first_spread_index, int literal_index,
-                                      bool is_strong, int pos) {
+                                      int pos) {
     return PreParserExpression::ArrayLiteral();
   }
   PreParserExpression NewObjectLiteralProperty(PreParserExpression key,
@@ -461,7 +461,6 @@ class PreParserFactory {
                                        int literal_index,
                                        int boilerplate_properties,
                                        bool has_function,
-                                       bool is_strong,
                                        int pos) {
     return PreParserExpression::ObjectLiteral();
   }

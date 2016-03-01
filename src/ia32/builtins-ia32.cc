@@ -421,8 +421,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+
+  Label load_debug_bytecode_array, bytecode_array_loaded;
+  __ cmp(FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset),
+         Immediate(DebugInfo::uninitialized()));
+  __ j(not_equal, &load_debug_bytecode_array);
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
+  __ bind(&bytecode_array_loaded);
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.
@@ -503,6 +509,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Even though the first bytecode handler was called, we will never return.
   __ Abort(kUnexpectedReturnFromBytecodeHandler);
+
+  // Load debug copy of the bytecode array.
+  __ bind(&load_debug_bytecode_array);
+  Register debug_info = kInterpreterBytecodeArrayRegister;
+  __ mov(debug_info, FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset));
+  __ mov(kInterpreterBytecodeArrayRegister,
+         FieldOperand(debug_info, DebugInfo::kAbstractCodeIndex));
+  __ jmp(&bytecode_array_loaded);
 }
 
 

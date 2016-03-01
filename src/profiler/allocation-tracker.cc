@@ -226,7 +226,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
   // Mark the new block as FreeSpace to make sure the heap is iterable
   // while we are capturing stack trace.
-  heap->CreateFillerObjectAt(addr, size);
+  heap->CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
 
   Isolate* isolate = heap->isolate();
   int length = 0;

@@ -249,9 +249,9 @@ TEST_F(RegisterTranslatorTest, BadRange2) {
   Register cache_info_pair(194);
   Register cache_info_pair_translated(cache_info_pair.index() + window_width());
   uint32_t operands[] = {receiver.ToRawOperand(), index.ToRawOperand(),
-                         cache_info_pair.ToRawOperand()};
+                         cache_info_pair.ToRawOperand(), 1};
   ASSERT_DEATH_IF_SUPPORTED(
-      translator()->TranslateInputRegisters(Bytecode::kForInNext, operands, 3),
+      translator()->TranslateInputRegisters(Bytecode::kForInNext, operands, 4),
       kBadOperandRegex);
 }
 

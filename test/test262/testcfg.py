@@ -39,7 +39,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-ARCHIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.tar")
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+ARCHIVE = DATA + ".tar"
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
@@ -201,10 +202,13 @@ class Test262TestSuite(testsuite.TestSuite):
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
 
-    print "Extracting archive..."
-    tar = tarfile.open(ARCHIVE)
-    tar.extractall(path=os.path.dirname(ARCHIVE))
-    tar.close()
+    # The archive is created only on swarming. Local checkouts have the
+    # data folder.
+    if os.path.exists(ARCHIVE) and not os.path.exists(DATA):
+      print "Extracting archive..."
+      tar = tarfile.open(ARCHIVE)
+      tar.extractall(path=os.path.dirname(ARCHIVE))
+      tar.close()
 
 
 def GetSuite(name, root):

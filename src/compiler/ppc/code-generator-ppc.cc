@@ -32,6 +32,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
   RCBit OutputRCBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
+      case kFlags_deoptimize:
       case kFlags_set:
         return SetRC;
       case kFlags_none:
@@ -192,6 +193,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (!frame()->needs_frame()) {
@@ -200,7 +204,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(scratch1_);
     }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         EMIT_REMEMBERED_SET, save_fp_mode);
+                         remembered_set_action, save_fp_mode);
     if (offset_.is(no_reg)) {
       __ addi(scratch1_, object_, Operand(offset_immediate_));
     } else {
@@ -1586,6 +1590,9 @@ void CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
+  // TODO(turbofan): We should be able to generate better code by sharing the
+  // actual final call site and just bl'ing to it here, similar to what we do
+  // in the lithium backend.
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 

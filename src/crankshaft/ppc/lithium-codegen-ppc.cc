@@ -2103,29 +2103,30 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ cmpi(ip, Operand::Zero());
       EmitBranch(instr, ne);
     } else {
-      ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
+      ToBooleanICStub::Types expected =
+          instr->hydrogen()->expected_input_types();
       // Avoid deopts in the case where we've never executed this path before.
-      if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
+      if (expected.IsEmpty()) expected = ToBooleanICStub::Types::Generic();
 
-      if (expected.Contains(ToBooleanStub::UNDEFINED)) {
+      if (expected.Contains(ToBooleanICStub::UNDEFINED)) {
         // undefined -> false.
         __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
         __ beq(instr->FalseLabel(chunk_));
       }
-      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+      if (expected.Contains(ToBooleanICStub::BOOLEAN)) {
         // Boolean -> its value.
         __ CompareRoot(reg, Heap::kTrueValueRootIndex);
         __ beq(instr->TrueLabel(chunk_));
         __ CompareRoot(reg, Heap::kFalseValueRootIndex);
         __ beq(instr->FalseLabel(chunk_));
       }
-      if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
+      if (expected.Contains(ToBooleanICStub::NULL_TYPE)) {
         // 'null' -> false.
         __ CompareRoot(reg, Heap::kNullValueRootIndex);
         __ beq(instr->FalseLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::SMI)) {
+      if (expected.Contains(ToBooleanICStub::SMI)) {
         // Smis: 0 -> false, all other -> true.
         __ cmpi(reg, Operand::Zero());
         __ beq(instr->FalseLabel(chunk_));
@@ -2148,13 +2149,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         }
       }
 
-      if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
+      if (expected.Contains(ToBooleanICStub::SPEC_OBJECT)) {
         // spec object -> true.
         __ CompareInstanceType(map, ip, FIRST_JS_RECEIVER_TYPE);
         __ bge(instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::STRING)) {
+      if (expected.Contains(ToBooleanICStub::STRING)) {
         // String value -> false iff empty.
         Label not_string;
         __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
@@ -2166,20 +2167,20 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_string);
       }
 
-      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+      if (expected.Contains(ToBooleanICStub::SYMBOL)) {
         // Symbol value -> true.
         __ CompareInstanceType(map, ip, SYMBOL_TYPE);
         __ beq(instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
+      if (expected.Contains(ToBooleanICStub::SIMD_VALUE)) {
         // SIMD value -> true.
         Label not_simd;
         __ CompareInstanceType(map, ip, SIMD128_VALUE_TYPE);
         __ beq(instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
+      if (expected.Contains(ToBooleanICStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
         __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
@@ -3819,67 +3820,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
       __ CallJSEntry(ip);
     }
     generator.AfterCall();
-  }
-}
-
-
-void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
-  DCHECK(ToRegister(instr->function()).is(r4));
-  DCHECK(ToRegister(instr->result()).is(r3));
-
-  // Change context.
-  __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
-
-  // Always initialize new target and number of actual arguments.
-  __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
-  __ mov(r3, Operand(instr->arity()));
-
-  bool is_self_call = false;
-  if (instr->hydrogen()->function()->IsConstant()) {
-    HConstant* fun_const = HConstant::cast(instr->hydrogen()->function());
-    Handle<JSFunction> jsfun =
-        Handle<JSFunction>::cast(fun_const->handle(isolate()));
-    is_self_call = jsfun.is_identical_to(info()->closure());
-  }
-
-  if (is_self_call) {
-    __ CallSelf();
-  } else {
-    __ LoadP(ip, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
-    __ CallJSEntry(ip);
-  }
-
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
-}
-
-
-void LCodeGen::DoCallFunction(LCallFunction* instr) {
-  HCallFunction* hinstr = instr->hydrogen();
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->function()).is(r4));
-  DCHECK(ToRegister(instr->result()).is(r3));
-
-  int arity = instr->arity();
-  ConvertReceiverMode mode = hinstr->convert_mode();
-  if (hinstr->HasVectorAndSlot()) {
-    Register slot_register = ToRegister(instr->temp_slot());
-    Register vector_register = ToRegister(instr->temp_vector());
-    DCHECK(slot_register.is(r6));
-    DCHECK(vector_register.is(r5));
-
-    AllowDeferredHandleDereference vector_structure_check;
-    Handle<TypeFeedbackVector> vector = hinstr->feedback_vector();
-    int index = vector->GetIndex(hinstr->slot());
-
-    __ Move(vector_register, vector);
-    __ LoadSmiLiteral(slot_register, Smi::FromInt(index));
-
-    Handle<Code> ic =
-        CodeFactory::CallICInOptimizedCode(isolate(), arity, mode).code();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  } else {
-    __ mov(r3, Operand(arity));
-    CallCode(isolate()->builtins()->Call(mode), RelocInfo::CODE_TARGET, instr);
   }
 }
 

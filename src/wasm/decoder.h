@@ -99,11 +99,29 @@ class Decoder {
     }
     DCHECK_LE(ptr - (base + offset), kMaxDiff);
     *length = static_cast<int>(ptr - (base + offset));
-    if (ptr == end && (b & 0x80)) {
-      error(base, ptr, msg);
-      return 0;
+    if (ptr == end) {
+      if (*length == kMaxDiff && (b & 0xF0) != 0) {
+        error(base, ptr, "extra bits in LEB128");
+        return 0;
+      }
+      if ((b & 0x80) != 0) {
+        error(base, ptr, msg);
+        return 0;
+      }
     }
     return result;
+  }
+
+  // Reads a variable-length signed integer (little endian).
+  int32_t checked_read_i32v(const byte* base, int offset, int* length,
+                            const char* msg = "expected SLEB128") {
+    uint32_t result = checked_read_u32v(base, offset, length, msg);
+    if (*length == 5) return bit_cast<int32_t>(result);
+    if (*length > 0) {
+      int shift = 32 - 7 * *length;
+      return bit_cast<int32_t>(result << shift) >> shift;
+    }
+    return 0;
   }
 
   // Reads a single 16-bit unsigned integer (little endian).
@@ -232,12 +250,6 @@ class Decoder {
     }
   }
 
-  bool RangeOk(const byte* pc, int length) {
-    if (pc < start_ || pc_ >= limit_) return false;
-    if ((pc + length) >= limit_) return false;
-    return true;
-  }
-
   void error(const char* msg) { error(pc_, nullptr, msg); }
 
   void error(const byte* pc, const char* msg) { error(pc, nullptr, msg); }
@@ -287,8 +299,8 @@ class Decoder {
       result.start = start_;
       result.error_pc = error_pc_;
       result.error_pt = error_pt_;
-      result.error_msg = error_msg_;
-      error_msg_.Reset(nullptr);
+      // transfer ownership of the error to the result.
+      result.error_msg.Reset(error_msg_.Detach());
     } else {
       result.error_code = kSuccess;
     }
@@ -309,6 +321,9 @@ class Decoder {
 
   bool ok() const { return error_pc_ == nullptr; }
   bool failed() const { return error_pc_ != nullptr; }
+
+  const byte* start() { return start_; }
+  const byte* pc() { return pc_; }
 
  protected:
   const byte* start_;

@@ -198,24 +198,24 @@ void Counters::ResetHistograms() {
 class RuntimeCallStatEntries {
  public:
   void Print(std::ostream& os) {
-    if (total_call_count > 0) {
-      std::sort(entries.rbegin(), entries.rend());
-      os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(10)
-         << "Time" << std::setw(18) << "Count" << std::endl
-         << std::string(86, '=') << std::endl;
-      for (Entry& entry : entries) {
-        entry.SetTotal(total_time, total_call_count);
-        entry.Print(os);
-      }
-      os << std::string(86, '-') << std::endl;
-      Entry("Total", total_time, total_call_count).Print(os);
+    if (total_call_count == 0) return;
+    std::sort(entries.rbegin(), entries.rend());
+    os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(10)
+       << "Time" << std::setw(18) << "Count" << std::endl
+       << std::string(86, '=') << std::endl;
+    for (Entry& entry : entries) {
+      entry.SetTotal(total_time, total_call_count);
+      entry.Print(os);
     }
+    os << std::string(86, '-') << std::endl;
+    Entry("Total", total_time, total_call_count).Print(os);
   }
 
-  void Add(const char* name, RuntimeCallCounter counter) {
-    entries.push_back(Entry(name, counter.time, counter.count));
-    total_time += counter.time;
-    total_call_count += counter.count;
+  void Add(RuntimeCallCounter* counter) {
+    if (counter->count == 0) return;
+    entries.push_back(Entry(counter->name, counter->time, counter->count));
+    total_time += counter->time;
+    total_call_count += counter->count;
   }
 
  private:
@@ -246,7 +246,11 @@ class RuntimeCallStatEntries {
     }
 
     void SetTotal(base::TimeDelta total_time, uint64_t total_count) {
-      time_percent_ = 100.0 * time_ / total_time.InMilliseconds();
+      if (total_time.InMilliseconds() == 0) {
+        time_percent_ = 0;
+      } else {
+        time_percent_ = 100.0 * time_ / total_time.InMilliseconds();
+      }
       count_percent_ = 100.0 * count_ / total_count;
     }
 
@@ -269,45 +273,63 @@ void RuntimeCallCounter::Reset() {
 }
 
 void RuntimeCallStats::Enter(RuntimeCallCounter* counter) {
-  counter->count++;
-  counter->parent_counter = current_counter;
-  current_counter = counter;
+  Enter(new RuntimeCallTimer(counter, current_timer_));
 }
-void RuntimeCallStats::Leave(base::TimeDelta time) {
-  RuntimeCallCounter* counter = current_counter;
-  counter->time += time;
-  current_counter = counter->parent_counter;
-  counter->parent_counter = NULL;
-  if (current_counter != NULL) {
-    current_counter->time -= time;
-  }
+
+void RuntimeCallStats::Enter(RuntimeCallTimer* timer_) {
+  current_timer_ = timer_;
+  current_timer_->Start();
+}
+
+void RuntimeCallStats::Leave() {
+  RuntimeCallTimer* timer = current_timer_;
+  Leave(timer);
+  delete timer;
+}
+
+void RuntimeCallStats::Leave(RuntimeCallTimer* timer) {
+  current_timer_ = timer->Stop();
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
 
-#define PRINT_COUNTER(name, nargs, ressize)   \
-  if (this->Runtime_##name.count > 0) {       \
-    entries.Add(#name, this->Runtime_##name); \
-  }
+#define PRINT_COUNTER(name, nargs, ressize) entries.Add(&this->Runtime_##name);
   FOR_EACH_INTRINSIC(PRINT_COUNTER)
 #undef PRINT_COUNTER
-#define PRINT_COUNTER(name, type)             \
-  if (this->Builtin_##name.count > 0) {       \
-    entries.Add(#name, this->Builtin_##name); \
-  }
+
+#define PRINT_COUNTER(name, type) entries.Add(&this->Builtin_##name);
   BUILTIN_LIST_C(PRINT_COUNTER)
 #undef PRINT_COUNTER
+
+  entries.Add(&this->ExternalCallback);
+  entries.Add(&this->UnexpectedStubMiss);
+
   entries.Print(os);
 }
 
 void RuntimeCallStats::Reset() {
+  if (!FLAG_runtime_call_stats) return;
 #define RESET_COUNTER(name, nargs, ressize) this->Runtime_##name.Reset();
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
 #define RESET_COUNTER(name, type) this->Builtin_##name.Reset();
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
+                                             RuntimeCallCounter* counter)
+    : isolate_(isolate),
+      timer_(counter,
+             isolate->counters()->runtime_call_stats()->current_timer()) {
+  if (!FLAG_runtime_call_stats) return;
+  isolate->counters()->runtime_call_stats()->Enter(&timer_);
+}
+
+RuntimeCallTimerScope::~RuntimeCallTimerScope() {
+  if (!FLAG_runtime_call_stats) return;
+  isolate_->counters()->runtime_call_stats()->Leave(&timer_);
 }
 
 }  // namespace internal

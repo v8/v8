@@ -1003,6 +1003,24 @@ bool Object::FitsRepresentation(Representation representation) {
   return true;
 }
 
+bool Object::ToUint32(uint32_t* value) {
+  if (IsSmi()) {
+    int num = Smi::cast(this)->value();
+    if (num < 0) return false;
+    *value = static_cast<uint32_t>(num);
+    return true;
+  }
+  if (IsHeapNumber()) {
+    double num = HeapNumber::cast(this)->value();
+    if (num < 0) return false;
+    uint32_t uint_value = FastD2UI(num);
+    if (FastUI2D(uint_value) == num) {
+      *value = uint_value;
+      return true;
+    }
+  }
+  return false;
+}
 
 // static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
@@ -1011,6 +1029,12 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
   return ToObject(isolate, object, isolate->native_context());
 }
 
+
+// static
+MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
+  if (input->IsName()) return Handle<Name>::cast(input);
+  return ConvertToName(isolate, input);
+}
 
 // static
 MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
@@ -1353,6 +1377,10 @@ int HeapNumber::get_sign() {
 
 
 bool Simd128Value::Equals(Simd128Value* that) {
+  // TODO(bmeurer): This doesn't match the SIMD.js specification, but it seems
+  // to be consistent with what the CompareICStub does, and what is tested in
+  // the current SIMD.js testsuite.
+  if (this == that) return true;
 #define SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
   if (this->Is##Type()) {                                      \
     if (!that->Is##Type()) return false;                       \
@@ -1843,6 +1871,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
+ACCESSORS(Oddball, to_boolean, Oddball, kToBooleanOffset)
 ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
 
@@ -3898,9 +3927,8 @@ int BytecodeArray::parameter_count() const {
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
 ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
-ACCESSORS(BytecodeArray, source_position_table, FixedArray,
+ACCESSORS(BytecodeArray, source_position_table, ByteArray,
           kSourcePositionTableOffset)
-
 
 Address BytecodeArray::GetFirstBytecodeAddress() {
   return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
@@ -4686,8 +4714,7 @@ bool Code::IsCodeStubOrIC() {
   return kind() == STUB || kind() == HANDLER || kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC || kind() == CALL_IC || kind() == STORE_IC ||
          kind() == KEYED_STORE_IC || kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
-         kind() == TO_BOOLEAN_IC;
+         kind() == COMPARE_IC || kind() == TO_BOOLEAN_IC;
 }
 
 
@@ -4977,15 +5004,14 @@ bool Code::is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
 bool Code::is_call_stub() { return kind() == CALL_IC; }
 bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
-bool Code::is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
 bool Code::is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
 bool Code::is_optimized_code() { return kind() == OPTIMIZED_FUNCTION; }
-
+bool Code::is_wasm_code() { return kind() == WASM_FUNCTION; }
 
 bool Code::embeds_maps_weakly() {
   Kind k = kind();
   return (k == LOAD_IC || k == STORE_IC || k == KEYED_LOAD_IC ||
-          k == KEYED_STORE_IC || k == COMPARE_NIL_IC) &&
+          k == KEYED_STORE_IC) &&
          ic_state() == MONOMORPHIC;
 }
 
@@ -5131,11 +5157,50 @@ class Code::FindAndReplacePattern {
   friend class Code;
 };
 
-int AbstractCode::Size() {
+int AbstractCode::instruction_size() {
   if (IsCode()) {
     return GetCode()->instruction_size();
   } else {
     return GetBytecodeArray()->length();
+  }
+}
+
+int AbstractCode::ExecutableSize() {
+  if (IsCode()) {
+    return GetCode()->ExecutableSize();
+  } else {
+    return GetBytecodeArray()->BytecodeArraySize();
+  }
+}
+
+Address AbstractCode::instruction_start() {
+  if (IsCode()) {
+    return GetCode()->instruction_start();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress();
+  }
+}
+
+Address AbstractCode::instruction_end() {
+  if (IsCode()) {
+    return GetCode()->instruction_end();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress() +
+           GetBytecodeArray()->length();
+  }
+}
+
+bool AbstractCode::contains(byte* inner_pointer) {
+  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+}
+
+AbstractCode::Kind AbstractCode::kind() {
+  if (IsCode()) {
+    STATIC_ASSERT(AbstractCode::FUNCTION ==
+                  static_cast<AbstractCode::Kind>(Code::FUNCTION));
+    return static_cast<AbstractCode::Kind>(GetCode()->kind());
+  } else {
+    return INTERPRETED_FUNCTION;
   }
 }
 
@@ -5473,6 +5538,10 @@ ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, abstract_code, AbstractCode, kAbstractCodeIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
+BytecodeArray* DebugInfo::original_bytecode_array() {
+  return shared()->bytecode_array();
+}
+
 SMI_ACCESSORS(BreakPointInfo, code_offset, kCodeOffsetIndex)
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
 SMI_ACCESSORS(BreakPointInfo, statement_position, kStatementPositionIndex)
@@ -5626,6 +5695,13 @@ BOOL_GETTER(SharedFunctionInfo,
             optimization_disabled,
             kOptimizationDisabled)
 
+AbstractCode* SharedFunctionInfo::abstract_code() {
+  if (HasBytecodeArray()) {
+    return AbstractCode::cast(bytecode_array());
+  } else {
+    return AbstractCode::cast(code());
+  }
+}
 
 void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   set_compiler_hints(BooleanBit::set(compiler_hints(),
@@ -5816,6 +5892,10 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
   return FunctionTemplateInfo::cast(function_data());
 }
 
+void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
+  DCHECK(function_data()->IsUndefined());
+  set_function_data(data);
+}
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_data()->IsSmi();
@@ -5827,6 +5907,10 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
   return static_cast<BuiltinFunctionId>(Smi::cast(function_data())->value());
 }
 
+void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
+  DCHECK(function_data()->IsUndefined() || HasBuiltinFunctionId());
+  set_function_data(Smi::FromInt(id));
+}
 
 bool SharedFunctionInfo::HasBytecodeArray() {
   return function_data()->IsBytecodeArray();
@@ -5838,6 +5922,15 @@ BytecodeArray* SharedFunctionInfo::bytecode_array() {
   return BytecodeArray::cast(function_data());
 }
 
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
+  DCHECK(function_data()->IsUndefined());
+  set_function_data(bytecode);
+}
+
+void SharedFunctionInfo::ClearBytecodeArray() {
+  DCHECK(function_data()->IsUndefined() || HasBytecodeArray());
+  set_function_data(GetHeap()->undefined_value());
+}
 
 int SharedFunctionInfo::ic_age() {
   return ICAgeBits::decode(counters());
@@ -6000,6 +6093,14 @@ void Map::InobjectSlackTrackingStep() {
   }
 }
 
+AbstractCode* JSFunction::abstract_code() {
+  Code* code = this->code();
+  if (code->is_interpreter_entry_trampoline()) {
+    return AbstractCode::cast(shared()->bytecode_array());
+  } else {
+    return AbstractCode::cast(code);
+  }
+}
 
 Code* JSFunction::code() {
   return Code::cast(

@@ -32,6 +32,7 @@ class SemiSpace;
 class SkipList;
 class SlotsBuffer;
 class SlotSet;
+class TypedSlotSet;
 class Space;
 
 // -----------------------------------------------------------------------------
@@ -392,14 +393,14 @@ class MemoryChunk {
       + kPointerSize              // Heap* heap_
       + kIntSize;                 // int progress_bar_
 
-  static const size_t kSlotsBufferOffset =
+  static const size_t kOldToNewSlotsOffset =
       kLiveBytesOffset + kIntSize;  // int live_byte_count_
 
   static const size_t kWriteBarrierCounterOffset =
-      kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
-      + kPointerSize                     // SlotSet* old_to_new_slots_;
-      + kPointerSize                     // SlotSet* old_to_old_slots_;
-      + kPointerSize;                    // SkipList* skip_list_;
+      kOldToNewSlotsOffset + kPointerSize  // SlotSet* old_to_new_slots_;
+      + kPointerSize                       // SlotSet* old_to_old_slots_;
+      + kPointerSize   // TypedSlotSet* typed_old_to_old_slots_;
+      + kPointerSize;  // SkipList* skip_list_;
 
   static const size_t kMinHeaderSize =
       kWriteBarrierCounterOffset +
@@ -509,17 +510,18 @@ class MemoryChunk {
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
-  inline SlotsBuffer* slots_buffer() { return slots_buffer_; }
-
-  inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
-
   inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
   inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
+  inline TypedSlotSet* typed_old_to_old_slots() {
+    return typed_old_to_old_slots_;
+  }
 
   void AllocateOldToNewSlots();
   void ReleaseOldToNewSlots();
   void AllocateOldToOldSlots();
   void ReleaseOldToOldSlots();
+  void AllocateTypedOldToOldSlots();
+  void ReleaseTypedOldToOldSlots();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -593,12 +595,14 @@ class MemoryChunk {
 
   void MarkEvacuationCandidate() {
     DCHECK(!IsFlagSet(NEVER_EVACUATE));
-    DCHECK_NULL(slots_buffer_);
+    DCHECK_NULL(old_to_old_slots_);
+    DCHECK_NULL(typed_old_to_old_slots_);
     SetFlag(EVACUATION_CANDIDATE);
   }
 
   void ClearEvacuationCandidate() {
-    DCHECK(slots_buffer_ == NULL);
+    DCHECK_NULL(old_to_old_slots_);
+    DCHECK_NULL(typed_old_to_old_slots_);
     ClearFlag(EVACUATION_CANDIDATE);
   }
 
@@ -683,13 +687,12 @@ class MemoryChunk {
   // Count of bytes marked black on page.
   int live_byte_count_;
 
-  SlotsBuffer* slots_buffer_;
-
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
   SlotSet* old_to_new_slots_;
   SlotSet* old_to_old_slots_;
+  TypedSlotSet* typed_old_to_old_slots_;
 
   SkipList* skip_list_;
 
@@ -862,6 +865,12 @@ class LargePage : public MemoryChunk {
 
   inline void set_next_page(LargePage* page) { set_next_chunk(page); }
 
+  // A limit to guarantee that we do not overflow typed slot offset in
+  // the old to old remembered set.
+  // Note that this limit is higher than what assembler already imposes on
+  // x64 and ia32 architectures.
+  static const int kMaxCodePageSize = 512 * MB;
+
  private:
   static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk);
 
@@ -977,8 +986,8 @@ class MemoryChunkValidator {
   STATIC_ASSERT(MemoryChunk::kSizeOffset == offsetof(MemoryChunk, size_));
   STATIC_ASSERT(MemoryChunk::kLiveBytesOffset ==
                 offsetof(MemoryChunk, live_byte_count_));
-  STATIC_ASSERT(MemoryChunk::kSlotsBufferOffset ==
-                offsetof(MemoryChunk, slots_buffer_));
+  STATIC_ASSERT(MemoryChunk::kOldToNewSlotsOffset ==
+                offsetof(MemoryChunk, old_to_new_slots_));
   STATIC_ASSERT(MemoryChunk::kWriteBarrierCounterOffset ==
                 offsetof(MemoryChunk, write_barrier_counter_));
 
@@ -2988,24 +2997,41 @@ class LargeObjectIterator : public ObjectIterator {
   LargePage* current_;
 };
 
+class LargePageIterator BASE_EMBEDDED {
+ public:
+  explicit inline LargePageIterator(LargeObjectSpace* space);
+
+  inline LargePage* next();
+
+ private:
+  LargePage* next_page_;
+};
 
 // Iterates over the chunks (pages and large object pages) that can contain
-// pointers to new space.
-class PointerChunkIterator BASE_EMBEDDED {
+// pointers to new space or to evacuation candidates.
+class MemoryChunkIterator BASE_EMBEDDED {
  public:
-  inline explicit PointerChunkIterator(Heap* heap);
+  enum Mode { ALL, ALL_BUT_MAP_SPACE, ALL_BUT_CODE_SPACE };
+  inline explicit MemoryChunkIterator(Heap* heap, Mode mode);
 
   // Return NULL when the iterator is done.
   inline MemoryChunk* next();
 
  private:
-  enum State { kOldSpaceState, kMapState, kLargeObjectState, kFinishedState };
+  enum State {
+    kOldSpaceState,
+    kMapState,
+    kCodeState,
+    kLargeObjectState,
+    kFinishedState
+  };
   State state_;
+  const Mode mode_;
   PageIterator old_iterator_;
+  PageIterator code_iterator_;
   PageIterator map_iterator_;
-  LargeObjectIterator lo_iterator_;
+  LargePageIterator lo_iterator_;
 };
-
 
 #ifdef DEBUG
 struct CommentStatistic {

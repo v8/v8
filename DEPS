@@ -12,11 +12,11 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "e466f6ac8f60bb9697af4a91c6911c6fc4aec95f",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "ef3e530703353ba8ad094694ba7c156daddbddeb",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "14288a03a92856fe1fc296d39e6a25c2d83cd6cf",
   "v8/base/trace_event/common":
-    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "4b09207e447ae5bd34643b4c6321bee7b76d35f9",
+    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "e40c41030f44cbd5b6f54081436620f43c3bb08a",
   "v8/tools/swarming_client":
-    Var('git_url') + '/external/swarming.client.git' + '@' + "0b908f18767c8304dc089454bc1c91755d21f1f5",
+    Var('git_url') + '/external/swarming.client.git' + '@' + "a72f46e42dba1335e8001499b4621acad2d26728",
   "v8/testing/gtest":
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -27,9 +27,9 @@ deps = {
     Var("git_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
   "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "c8ef63c728283debc25891123eb00482fee4b8cd",
   "v8/test/test262/data":
-    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "738a24b109f3fa71be44d5c3701d73141d494510",
+    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "57d3e2216fa86ad63b6c0a54914ba9dcbff96003",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "a8adb78c8eda9bddb2aa9c51f3fee60296de1ad4",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "d53e60b4f31f03a6f719b13ed2de7389a4d89be4",
 }
 
 deps_os = {

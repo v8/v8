@@ -156,7 +156,6 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   return OpParameter<ElementAccess>(op);
 }
 
-
 #define PURE_OP_LIST(V)                                  \
   V(BooleanNot, Operator::kNoProperties, 1)              \
   V(BooleanToNumber, Operator::kNoProperties, 1)         \
@@ -188,7 +187,8 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ChangeBitToBool, Operator::kNoProperties, 1)         \
   V(ObjectIsNumber, Operator::kNoProperties, 1)          \
   V(ObjectIsReceiver, Operator::kNoProperties, 1)        \
-  V(ObjectIsSmi, Operator::kNoProperties, 1)
+  V(ObjectIsSmi, Operator::kNoProperties, 1)             \
+  V(ObjectIsUndetectable, Operator::kNoProperties, 1)
 
 #define NO_THROW_OP_LIST(V)                 \
   V(StringEqual, Operator::kCommutative, 2) \

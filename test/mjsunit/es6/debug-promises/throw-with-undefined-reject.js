@@ -28,6 +28,7 @@ function MyPromise(resolver) {
 };
 
 MyPromise.prototype = new Promise(function() {});
+MyPromise.__proto__ = Promise;
 p.constructor = MyPromise;
 
 var q = p.chain(

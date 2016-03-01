@@ -256,7 +256,7 @@ Register ToRegister(int num);
 
 // Coprocessor register
 struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 16; }
+  bool is_valid() const { return 0 <= reg_code && reg_code < 8; }
   bool is(CRegister creg) const { return reg_code == creg.reg_code; }
   int code() const {
     DCHECK(is_valid());
@@ -282,14 +282,6 @@ const CRegister cr4 = {4};
 const CRegister cr5 = {5};
 const CRegister cr6 = {6};
 const CRegister cr7 = {7};
-const CRegister cr8 = {8};
-const CRegister cr9 = {9};
-const CRegister cr10 = {10};
-const CRegister cr11 = {11};
-const CRegister cr12 = {12};
-const CRegister cr13 = {13};
-const CRegister cr14 = {14};
-const CRegister cr15 = {15};
 
 // TODO(ppc) Define SIMD registers.
 typedef DoubleRegister Simd128Register;

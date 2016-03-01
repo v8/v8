@@ -14,7 +14,6 @@ namespace internal {
                                                                                \
   V(k32BitValueInRegisterIsNotZeroExtended,                                    \
     "32 bit value in register is not zero-extended")                           \
-  V(kAlignmentMarkerExpected, "Alignment marker expected")                     \
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kArgumentsObjectValueInATestContext,                                       \
@@ -232,6 +231,7 @@ namespace internal {
     "Unexpected number of pre-allocated property fields")                      \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
   V(kUnexpectedSmi, "Unexpected smi value")                                    \
+  V(kUnexpectedStackDepth, "Unexpected operand stack depth in full-codegen")   \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringType, "Unexpected string type")                           \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \

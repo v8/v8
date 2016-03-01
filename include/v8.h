@@ -4886,7 +4886,6 @@ V8_INLINE Local<Primitive> Null(Isolate* isolate);
 V8_INLINE Local<Boolean> True(Isolate* isolate);
 V8_INLINE Local<Boolean> False(Isolate* isolate);
 
-
 /**
  * A set of constraints that specifies the limits of the runtime's memory use.
  * You must set the heap size before initializing the VM - the size cannot be
@@ -4895,6 +4894,9 @@ V8_INLINE Local<Boolean> False(Isolate* isolate);
  * If you are using threads then you should hold the V8::Locker lock while
  * setting the stack limit and you must set a non-default stack limit separately
  * for each thread.
+ *
+ * The arguments for set_max_semi_space_size, set_max_old_space_size,
+ * set_max_executable_size, set_code_range_size specify limits in MB.
  */
 class V8_EXPORT ResourceConstraints {
  public:
@@ -4913,17 +4915,23 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit);
 
   int max_semi_space_size() const { return max_semi_space_size_; }
-  void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
+  void set_max_semi_space_size(int limit_in_mb) {
+    max_semi_space_size_ = limit_in_mb;
+  }
   int max_old_space_size() const { return max_old_space_size_; }
-  void set_max_old_space_size(int value) { max_old_space_size_ = value; }
+  void set_max_old_space_size(int limit_in_mb) {
+    max_old_space_size_ = limit_in_mb;
+  }
   int max_executable_size() const { return max_executable_size_; }
-  void set_max_executable_size(int value) { max_executable_size_ = value; }
+  void set_max_executable_size(int limit_in_mb) {
+    max_executable_size_ = limit_in_mb;
+  }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
   size_t code_range_size() const { return code_range_size_; }
-  void set_code_range_size(size_t value) {
-    code_range_size_ = value;
+  void set_code_range_size(size_t limit_in_mb) {
+    code_range_size_ = limit_in_mb;
   }
 
  private:
@@ -5047,7 +5055,8 @@ class PromiseRejectMessage {
 
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
-// --- Microtask Callback ---
+// --- Microtasks Callbacks ---
+typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotaskCallback)(void* data);
 
 // --- Failed Access Check Callback ---
@@ -5471,6 +5480,11 @@ class V8_EXPORT Isolate {
     kHtmlComment = 21,
     kSloppyModeBlockScopedFunctionRedefinition = 22,
     kForInInitializer = 23,
+    kArrayProtectorDirtied = 24,
+    kArraySpeciesModified = 25,
+    kArrayPrototypeConstructorModified = 26,
+    kArrayInstanceProtoModified = 27,
+    kArrayInstanceConstructorModified = 28,
 
     // If you add new values here, you'll also need to update V8Initializer.cpp
     // in Chromium.
@@ -5881,6 +5895,25 @@ class V8_EXPORT Isolate {
    * run when the script call depth decrements to zero.
    */
   bool WillAutorunMicrotasks() const;
+
+  /**
+   * Experimental: adds a callback to notify the host application after
+   * microtasks were run. The callback is triggered by explicit RunMicrotasks
+   * call or automatic microtasks execution (see SetAutorunMicrotasks).
+   *
+   * Callback will trigger even if microtasks were attempted to run,
+   * but the microtasks queue was empty and no single microtask was actually
+   * executed.
+   *
+   * Executing scriptsinside the callback will not re-trigger microtasks and
+   * the callback.
+   */
+  void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
+
+  /**
+   * Removes callback that was installed by AddMicrotasksCompletedCallback.
+   */
+  void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
 
   /**
    * Sets a callback for counting the number of times a feature of V8 is used.
@@ -7131,7 +7164,7 @@ class Internals {
       1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset = 3 * kApiPointerSize;
 
-  static const int kOddballKindOffset = 4 * kApiPointerSize;
+  static const int kOddballKindOffset = 5 * kApiPointerSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;

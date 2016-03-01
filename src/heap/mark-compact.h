@@ -25,9 +25,7 @@ class CodeFlusher;
 class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
-class SlotsBuffer;
-class SlotsBufferAllocator;
-
+class LocalSlotsBuffer;
 
 class Marking : public AllStatic {
  public:
@@ -395,8 +393,8 @@ class MarkCompactCollector {
         ->IsEvacuationCandidate();
   }
 
-  void RecordRelocSlot(RelocInfo* rinfo, Object* target);
-  void RecordCodeEntrySlot(HeapObject* object, Address slot, Code* target);
+  void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
+  void RecordCodeEntrySlot(HeapObject* host, Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
   INLINE(void RecordSlot(HeapObject* object, Object** slot, Object* target));
   INLINE(void ForceRecordSlot(HeapObject* object, Object** slot,
@@ -407,8 +405,8 @@ class MarkCompactCollector {
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space,
-                     SlotsBuffer** evacuation_slots_buffer,
-                     LocalStoreBuffer* local_store_buffer);
+                     LocalSlotsBuffer* old_to_old_slots,
+                     LocalSlotsBuffer* old_to_new_slots);
 
   void InvalidateCode(Code* code);
 
@@ -484,9 +482,8 @@ class MarkCompactCollector {
   // whole transitive closure is known. They must be called before sweeping
   // when mark bits are still intact.
   bool IsSlotInBlackObject(Page* p, Address slot, HeapObject** out_object);
-  bool IsSlotInBlackObjectSlow(Page* p, Address slot);
+  HeapObject* FindBlackObjectBySlotSlow(Address slot);
   bool IsSlotInLiveObject(Address slot);
-  void VerifyIsSlotInLiveObject(Address slot, HeapObject* object);
 
   // Removes all the slots in the slot buffers that are within the given
   // address range.
@@ -520,8 +517,7 @@ class MarkCompactCollector {
   explicit MarkCompactCollector(Heap* heap);
 
   bool WillBeDeoptimized(Code* code);
-  void EvictPopularEvacuationCandidate(Page* page);
-  void ClearInvalidStoreAndSlotsBufferEntries();
+  void ClearInvalidRememberedSetSlots();
 
   void StartSweeperThreads();
 
@@ -549,10 +545,6 @@ class MarkCompactCollector {
   bool was_marked_incrementally_;
 
   bool evacuation_;
-
-  SlotsBufferAllocator* slots_buffer_allocator_;
-
-  SlotsBuffer* migration_slots_buffer_;
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();
@@ -707,9 +699,6 @@ class MarkCompactCollector {
   void EvacuateNewSpacePrologue();
   void EvacuateNewSpaceEpilogue();
 
-  void AddEvacuationSlotsBufferSynchronized(
-      SlotsBuffer* evacuation_slots_buffer);
-
   void EvacuatePagesInParallel();
 
   // The number of parallel compaction tasks, including the main thread.
@@ -745,16 +734,8 @@ class MarkCompactCollector {
 
   // Updates store buffer and slot buffer for a pointer in a migrating object.
   void RecordMigratedSlot(Object* value, Address slot,
-                          SlotsBuffer** evacuation_slots_buffer,
-                          LocalStoreBuffer* local_store_buffer);
-
-  // Adds the code entry slot to the slots buffer.
-  void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot,
-                                   SlotsBuffer** evacuation_slots_buffer);
-
-  // Adds the slot of a moved code object.
-  void RecordMigratedCodeObjectSlot(Address code_object,
-                                    SlotsBuffer** evacuation_slots_buffer);
+                          LocalSlotsBuffer* old_to_old_slots,
+                          LocalSlotsBuffer* old_to_new_slots);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;
@@ -773,14 +754,6 @@ class MarkCompactCollector {
 
   List<Page*> evacuation_candidates_;
   List<NewSpacePage*> newspace_evacuation_candidates_;
-
-  // The evacuation_slots_buffers_ are used by the compaction threads.
-  // When a compaction task finishes, it uses
-  // AddEvacuationSlotsbufferSynchronized to adds its slots buffer to the
-  // evacuation_slots_buffers_ list using the evacuation_slots_buffers_mutex_
-  // lock.
-  base::Mutex evacuation_slots_buffers_mutex_;
-  List<SlotsBuffer*> evacuation_slots_buffers_;
 
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;

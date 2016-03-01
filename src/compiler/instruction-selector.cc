@@ -34,6 +34,7 @@ InstructionSelector::InstructionSelector(
       instructions_(zone),
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
+      effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
       scheduler_(nullptr),
@@ -217,10 +218,26 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
-  return node->OwnedBy(user) &&
-         schedule()->block(node) == schedule()->block(user);
+  // 1. Both {user} and {node} must be in the same basic block.
+  if (schedule()->block(node) != schedule()->block(user)) {
+    return false;
+  }
+  // 2. Pure {node}s must be owned by the {user}.
+  if (node->op()->HasProperty(Operator::kPure)) {
+    return node->OwnedBy(user);
+  }
+  // 3. Impure {node}s must match the effect level of {user}.
+  if (GetEffectLevel(node) != GetEffectLevel(user)) {
+    return false;
+  }
+  // 4. Only {node} must have value edges pointing to {user}.
+  for (Edge const edge : node->use_edges()) {
+    if (edge.from() != user && NodeProperties::IsValueEdge(edge)) {
+      return false;
+    }
+  }
+  return true;
 }
-
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
   DCHECK_NOT_NULL(node);
@@ -280,6 +297,19 @@ void InstructionSelector::MarkAsUsed(Node* node) {
   used_[id] = true;
 }
 
+int InstructionSelector::GetEffectLevel(Node* node) const {
+  DCHECK_NOT_NULL(node);
+  size_t const id = node->id();
+  DCHECK_LT(id, effect_level_.size());
+  return effect_level_[id];
+}
+
+void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
+  DCHECK_NOT_NULL(node);
+  size_t const id = node->id();
+  DCHECK_LT(id, effect_level_.size());
+  effect_level_[id] = effect_level;
+}
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
                                                const InstructionOperand& op) {
@@ -669,6 +699,16 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   current_block_ = block;
   int current_block_end = static_cast<int>(instructions_.size());
 
+  int effect_level = 0;
+  for (Node* const node : *block) {
+    if (node->opcode() == IrOpcode::kStore ||
+        node->opcode() == IrOpcode::kCheckedStore ||
+        node->opcode() == IrOpcode::kCall) {
+      ++effect_level;
+    }
+    SetEffectLevel(node, effect_level);
+  }
+
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".
   VisitControl(block);
@@ -848,6 +888,10 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kCall:
       return VisitCall(node);
+    case IrOpcode::kDeoptimizeIf:
+      return VisitDeoptimizeIf(node);
+    case IrOpcode::kDeoptimizeUnless:
+      return VisitDeoptimizeUnless(node);
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
@@ -1602,25 +1646,41 @@ void InstructionSelector::VisitReturn(Node* ret) {
   }
 }
 
+Instruction* InstructionSelector::EmitDeoptimize(InstructionCode opcode,
+                                                 InstructionOperand output,
+                                                 InstructionOperand a,
+                                                 InstructionOperand b,
+                                                 Node* frame_state) {
+  size_t output_count = output.IsInvalid() ? 0 : 1;
+  InstructionOperand inputs[] = {a, b};
+  size_t input_count = arraysize(inputs);
+  return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
+                        frame_state);
+}
+
+Instruction* InstructionSelector::EmitDeoptimize(
+    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+    size_t input_count, InstructionOperand* inputs, Node* frame_state) {
+  OperandGenerator g(this);
+  FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
+  InstructionOperandVector args(instruction_zone());
+  args.reserve(input_count + 1 + descriptor->GetTotalSize());
+  for (size_t i = 0; i < input_count; ++i) {
+    args.push_back(inputs[i]);
+  }
+  opcode |= MiscField::encode(static_cast<int>(input_count));
+  InstructionSequence::StateId const state_id =
+      sequence()->AddFrameStateDescriptor(descriptor);
+  args.push_back(g.TempImmediate(state_id.ToInt()));
+  StateObjectDeduplicator deduplicator(instruction_zone());
+  AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
+                                  &args, FrameStateInputKind::kAny,
+                                  instruction_zone());
+  return Emit(opcode, output_count, outputs, args.size(), &args.front(), 0,
+              nullptr);
+}
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
-  OperandGenerator g(this);
-
-  FrameStateDescriptor* desc = GetFrameStateDescriptor(value);
-
-  InstructionOperandVector args(instruction_zone());
-  args.reserve(desc->GetTotalSize() + 1);  // Include deopt id.
-
-  InstructionSequence::StateId state_id =
-      sequence()->AddFrameStateDescriptor(desc);
-  args.push_back(g.TempImmediate(state_id.ToInt()));
-
-  StateObjectDeduplicator deduplicator(instruction_zone());
-
-  AddInputsToFrameStateDescriptor(desc, value, &g, &deduplicator, &args,
-                                  FrameStateInputKind::kAny,
-                                  instruction_zone());
-
   InstructionCode opcode = kArchDeoptimize;
   switch (kind) {
     case DeoptimizeKind::kEager:
@@ -1630,7 +1690,7 @@ void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
       opcode |= MiscField::encode(Deoptimizer::SOFT);
       break;
   }
-  Emit(opcode, 0, nullptr, args.size(), &args.front(), 0, nullptr);
+  EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, value);
 }
 
 

@@ -796,6 +796,7 @@ class MacroAssembler: public Assembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
+  void Move(Register dst, Handle<Object> handle) { LoadObject(dst, handle); }
   void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
 
   // Push a handle value.

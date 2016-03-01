@@ -29,8 +29,6 @@ class LCodeGen: public LCodeGenBase {
         jump_table_(4, info->zone()),
         scope_(info->scope()),
         deferred_(8, info->zone()),
-        dynamic_frame_alignment_(false),
-        support_aligned_spilled_doubles_(false),
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
@@ -300,7 +298,7 @@ class LCodeGen: public LCodeGenBase {
   template <class T>
   void EmitVectorStoreICRegisters(T* instr);
 
-  void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
+  void EmitReturn(LReturn* instr);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
@@ -319,8 +317,6 @@ class LCodeGen: public LCodeGenBase {
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   Scope* const scope_;
   ZoneList<LDeferredCode*> deferred_;
-  bool dynamic_frame_alignment_;
-  bool support_aligned_spilled_doubles_;
   bool frame_is_built_;
 
   // Builder that keeps track of safepoints in the code. The table

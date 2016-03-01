@@ -8,13 +8,13 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 function testStack(func, check) {
   var kBodySize = 2;
-  var kNameFunOffset = 22 + kBodySize + 1;
+  var kNameFunOffset = kHeaderSize + 22 + kBodySize + 1;
   var kNameMainOffset = kNameFunOffset + 4;
 
   var ffi = new Object();
   ffi.fun = func;
 
-  var data = bytes(
+  var data = bytesWithHeader(
       // signatures
       kDeclSignatures, 1,  //  --
       0, kAstStmt,         // () -> void
@@ -62,8 +62,11 @@ function check_STACK() {
 var expected = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:54:11)\n" +  // --
+    "    at <WASM> (<anonymous>)\n" +  // --
+    "    at <WASM> (<anonymous>)\n" +  // --
+    "    at <WASM> (<anonymous>)\n" +  // --
     "    at testStack (stack.js:43:10)\n" +
     // TODO(jfb) Add WebAssembly stack here.
-    "    at stack.js:69:1";
+    "    at stack.js:72:1";
 
 testStack(STACK, check_STACK);

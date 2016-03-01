@@ -100,6 +100,17 @@ class InstructionSelector final {
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
+  // ===== Architecture-independent deoptimization exit emission methods. ======
+  // ===========================================================================
+
+  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
+                              InstructionOperand a, InstructionOperand b,
+                              Node* frame_state);
+  Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
+                              InstructionOperand* outputs, size_t input_count,
+                              InstructionOperand* inputs, Node* frame_state);
+
+  // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
@@ -149,6 +160,9 @@ class InstructionSelector final {
   // Checks if {node} is currently live.
   bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
 
+  // Gets the effect level of {node}.
+  int GetEffectLevel(Node* node) const;
+
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
@@ -167,6 +181,9 @@ class InstructionSelector final {
   // Inform the instruction selection that {node} has at least one use and we
   // will need to generate code for it.
   void MarkAsUsed(Node* node);
+
+  // Sets the effect level of {node}.
+  void SetEffectLevel(Node* node, int effect_level);
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
@@ -237,6 +254,8 @@ class InstructionSelector final {
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
+  void VisitDeoptimizeIf(Node* node);
+  void VisitDeoptimizeUnless(Node* node);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
@@ -269,6 +288,7 @@ class InstructionSelector final {
   ZoneVector<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
+  IntVector effect_level_;
   IntVector virtual_registers_;
   InstructionScheduler* scheduler_;
   Frame* frame_;

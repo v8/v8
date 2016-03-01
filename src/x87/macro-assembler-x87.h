@@ -770,6 +770,7 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, const Immediate& x);
   void Move(const Operand& dst, const Immediate& x);
 
+  void Move(Register dst, Handle<Object> handle) { LoadObject(dst, handle); }
   void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
 
   // Push a handle value.

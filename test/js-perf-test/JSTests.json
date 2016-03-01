@@ -135,6 +135,22 @@
       "tests": [
         {"name": "Try-Catch"}
       ]
+    },
+    {
+      "name": "Keys",
+      "path": ["Keys"],
+      "main": "run.js",
+      "resources": ["keys.js"],
+      "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Object.keys()"},
+        {"name": "for (in)"},
+        {"name": "for (in) hasOwnProperty()"},
+        {"name": "for Object.keys()"},
+        {"name": "Object.keys().forEach()"},
+        {"name": "for (i < array.length)"},
+        {"name": "for (i < length)"}
+      ]
     }
   ]
 }

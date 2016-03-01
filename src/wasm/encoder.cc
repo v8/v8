@@ -333,7 +333,6 @@ void WasmDataSegmentEncoder::Serialize(byte* buffer, byte** header,
   (*body) += data_.size();
 }
 
-
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
     : zone_(zone),
       signatures_(zone),
@@ -341,8 +340,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       data_segments_(zone),
       indirect_functions_(zone),
       globals_(zone),
-      signature_map_(zone) {}
-
+      signature_map_(zone),
+      start_function_index_(-1) {}
 
 uint16_t WasmModuleBuilder::AddFunction() {
   functions_.push_back(new (zone_) WasmFunctionBuilder(zone_));
@@ -399,6 +398,9 @@ void WasmModuleBuilder::AddIndirectFunction(uint16_t index) {
   indirect_functions_.push_back(index);
 }
 
+void WasmModuleBuilder::MarkStartFunction(uint16_t index) {
+  start_function_index_ = index;
+}
 
 WasmModuleWriter* WasmModuleBuilder::Build(Zone* zone) {
   WasmModuleWriter* writer = new (zone) WasmModuleWriter(zone);
@@ -417,6 +419,7 @@ WasmModuleWriter* WasmModuleBuilder::Build(Zone* zone) {
   for (auto global : globals_) {
     writer->globals_.push_back(global);
   }
+  writer->start_function_index_ = start_function_index_;
   return writer;
 }
 
@@ -434,6 +437,14 @@ WasmModuleWriter::WasmModuleWriter(Zone* zone)
       indirect_functions_(zone),
       globals_(zone) {}
 
+size_t SizeOfVarInt(size_t value) {
+  size_t size = 0;
+  do {
+    size++;
+    value = value >> 7;
+  } while (value > 0);
+  return size;
+}
 
 struct Sizes {
   size_t header_size;
@@ -449,10 +460,7 @@ struct Sizes {
   void AddSection(size_t size) {
     if (size > 0) {
       Add(1, 0);
-      while (size > 0) {
-        Add(1, 0);
-        size = size >> 7;
-      }
+      Add(SizeOfVarInt(size), 0);
     }
   }
 };
@@ -460,6 +468,8 @@ struct Sizes {
 
 WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   Sizes sizes = {0, 0};
+
+  sizes.Add(2 * sizeof(uint32_t), 0);  // header
 
   sizes.Add(1, 0);
   sizes.Add(kDeclMemorySize, 0);
@@ -480,6 +490,11 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
               function->NameSize());
   }
 
+  if (start_function_index_ >= 0) {
+    sizes.Add(1, 0);
+    sizes.Add(SizeOfVarInt(start_function_index_), 0);
+  }
+
   sizes.AddSection(data_segments_.size());
   for (auto segment : data_segments_) {
     sizes.Add(segment->HeaderSize(), segment->BodySize());
@@ -494,6 +509,10 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   byte* buffer = &buffer_vector[0];
   byte* header = buffer;
   byte* body = buffer + sizes.header_size;
+
+  // -- emit magic -------------------------------------------------------------
+  EmitUint32(&header, kWasmMagic);
+  EmitUint32(&header, kWasmVersion);
 
   // -- emit memory declaration ------------------------------------------------
   EmitUint8(&header, kDeclMemory);
@@ -539,6 +558,12 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     for (auto func : functions_) {
       func->Serialize(buffer, &header, &body);
     }
+  }
+
+  // -- emit start function index ----------------------------------------------
+  if (start_function_index_ >= 0) {
+    EmitUint8(&header, kDeclStartFunction);
+    EmitVarInt(&header, start_function_index_);
   }
 
   // -- emit data segments -----------------------------------------------------

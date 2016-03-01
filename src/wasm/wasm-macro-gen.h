@@ -112,7 +112,7 @@
 #define WASM_CALL_IMPORT0(index) kExprCallImport, static_cast<byte>(index)
 #define WASM_CALL_INDIRECT0(index, func) \
   kExprCallIndirect, static_cast<byte>(index), func
-#define WASM_NOT(x) kExprBoolNot, x
+#define WASM_NOT(x) kExprI32Eqz, x
 
 //------------------------------------------------------------------------------
 // Constructs that are composed of multiple bytecodes.
@@ -264,5 +264,41 @@
 #define WASM_F64_REINTERPRET_I64(x) kExprF64ReinterpretI64, x
 #define WASM_I32_REINTERPRET_F32(x) kExprI32ReinterpretF32, x
 #define WASM_I64_REINTERPRET_F64(x) kExprI64ReinterpretF64, x
+
+#define U32_LE(v)                                    \
+  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
+      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
+
+#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
+
+#define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
+
+#define SIG_INDEX(v) U16_LE(v)
+#define FUNC_INDEX(v) U16_LE(v)
+#define NAME_OFFSET(v) U32_LE(v)
+
+#define MASK_7 ((1 << 7) - 1)
+#define MASK_14 ((1 << 14) - 1)
+#define MASK_21 ((1 << 21) - 1)
+#define MASK_28 ((1 << 28) - 1)
+
+#define U32V_1(x) static_cast<byte>(x & MASK_7)
+#define U32V_2(x) \
+  static_cast<byte>((x & MASK_7) | 0x80), static_cast<byte>((x >> 7) & MASK_7)
+#define U32V_3(x)                                    \
+  static_cast<byte>((x & MASK_7) | 0x80),            \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 14) & MASK_7)
+#define U32V_4(x)                                     \
+  static_cast<byte>((x & MASK_7) | 0x80),             \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 21) & MASK_7)
+#define U32V_5(x)                                     \
+  static_cast<byte>((x & MASK_7) | 0x80),             \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((x >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 28) & 0xF)
 
 #endif  // V8_WASM_MACRO_GEN_H_

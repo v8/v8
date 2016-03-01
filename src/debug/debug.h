@@ -142,6 +142,7 @@ class BreakLocation {
 
    protected:
     explicit Iterator(Handle<DebugInfo> debug_info);
+    int ReturnPosition();
 
     Handle<DebugInfo> debug_info_;
     int break_index_;
@@ -431,7 +432,7 @@ class Debug {
   // Internal logic
   bool Load();
   void Break(Arguments args, JavaScriptFrame*);
-  void SetAfterBreakTarget(JavaScriptFrame* frame);
+  Object* SetAfterBreakTarget(JavaScriptFrame* frame);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
@@ -616,6 +617,8 @@ class Debug {
   }
 
   void ThreadInit();
+
+  void PrintBreakLocation();
 
   // Global handles.
   Handle<Context> debug_context_;

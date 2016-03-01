@@ -161,7 +161,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(I32Clz, 0x57, i_i)            \
   V(I32Ctz, 0x58, i_i)            \
   V(I32Popcnt, 0x59, i_i)         \
-  V(BoolNot, 0x5a, i_i)           \
+  V(I32Eqz, 0x5a, i_i)            \
   V(I64Add, 0x5b, l_ll)           \
   V(I64Sub, 0x5c, l_ll)           \
   V(I64Mul, 0x5d, l_ll)           \

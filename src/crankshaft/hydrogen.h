@@ -400,9 +400,6 @@ class HGraph final : public ZoneObject {
     use_optimistic_licm_ = value;
   }
 
-  void MarkRecursive() { is_recursive_ = true; }
-  bool is_recursive() const { return is_recursive_; }
-
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
     if (depends_on_empty_array_proto_elements_) return;
@@ -482,7 +479,6 @@ class HGraph final : public ZoneObject {
   CallInterfaceDescriptor descriptor_;
   Zone* zone_;
 
-  bool is_recursive_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
@@ -1837,11 +1833,6 @@ class HGraphBuilder {
 
   HValue* BuildElementIndexHash(HValue* index);
 
-  enum MapEmbedding { kEmbedMapsDirectly, kEmbedMapsViaWeakCells };
-
-  void BuildCompareNil(HValue* value, Type* type, HIfContinuation* continuation,
-                       MapEmbedding map_embedding = kEmbedMapsDirectly);
-
   void BuildCreateAllocationMemento(HValue* previous_object,
                                     HValue* previous_object_size,
                                     HValue* payload);
@@ -2826,14 +2817,15 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
 
-  HInstruction* NewPlainFunctionCall(HValue* fun, int argument_count);
+  HInstruction* NewCallFunction(HValue* function, int argument_count,
+                                ConvertReceiverMode convert_mode);
 
-  HInstruction* NewArgumentAdaptorCall(HValue* fun, HValue* context,
-                                       int argument_count,
-                                       HValue* expected_param_count);
+  HInstruction* NewCallFunctionViaIC(HValue* function, int argument_count,
+                                     ConvertReceiverMode convert_mode,
+                                     FeedbackVectorSlot slot);
 
-  HInstruction* BuildCallConstantFunction(Handle<JSFunction> target,
-                                          int argument_count);
+  HInstruction* NewCallConstantFunction(Handle<JSFunction> target,
+                                        int argument_count);
 
   bool CanBeFunctionApplyArguments(Call* expr);
 

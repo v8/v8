@@ -75,11 +75,6 @@ function createHandler(obj) {
       obj[name] = val;  // bad behavior when set fails in sloppy mode
       return true;
     },
-    enumerate: function() {
-      var result = [];
-      for (var name in obj) { result.push(name); };
-      return result;
-    },
     keys: function() { return Object.keys(obj); }
   };
 }

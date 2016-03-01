@@ -1752,19 +1752,20 @@ static inline double ReadDoubleValue(const void* p) {
   return ReadUnalignedValue<double>(p);
 }
 
-
 static inline void WriteDoubleValue(void* p, double value) {
   WriteUnalignedValue(p, value);
 }
-
 
 static inline uint16_t ReadUnalignedUInt16(const void* p) {
   return ReadUnalignedValue<uint16_t>(p);
 }
 
-
 static inline void WriteUnalignedUInt16(void* p, uint16_t value) {
   WriteUnalignedValue(p, value);
+}
+
+static inline uint32_t ReadUnalignedUInt32(const void* p) {
+  return ReadUnalignedValue<uint32_t>(p);
 }
 
 static inline void WriteUnalignedUInt32(void* p, uint32_t value) {

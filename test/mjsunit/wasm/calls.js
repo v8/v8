@@ -8,9 +8,9 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 var module = (function () {
   var kBodySize = 5;
-  var kNameOffset = 21 + kBodySize + 1;
+  var kNameOffset = kHeaderSize + 21 + kBodySize + 1;
 
-  return _WASMEXP_.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- memory
     kDeclMemory,
     12, 12, 1,
@@ -62,9 +62,9 @@ assertEquals(-5555555, module.sub(3333333, 8888888));
 
 var module = (function() {
   var kBodySize = 1;
-  var kNameOffset2 = 19 + kBodySize + 1;
+  var kNameOffset2 = kHeaderSize + 19 + kBodySize + 1;
 
-  return _WASMEXP_.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- memory
     kDeclMemory,
     12, 12, 1,
@@ -113,9 +113,9 @@ assertEquals(undefined, module.nop());
 
 (function testLt() {
   var kBodySize = 5;
-  var kNameOffset = 21 + kBodySize + 1;
+  var kNameOffset = kHeaderSize + 21 + kBodySize + 1;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- memory
     kDeclMemory,
     12, 12, 1,

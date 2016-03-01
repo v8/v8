@@ -205,11 +205,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
-      .ForInNext(reg, reg, reg)
+      .ForInNext(reg, reg, reg, 1)
       .ForInStep(reg);
   builder.ForInPrepare(wide)
       .ForInDone(reg, other)
-      .ForInNext(wide, wide, wide)
+      .ForInNext(wide, wide, wide, 1024)
       .ForInStep(reg);
 
   // Wide constant pool loads
@@ -297,9 +297,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
   CHECK_EQ(scorecard[Bytecodes::ToByte(final_bytecode)], 1);
 
-#define CHECK_BYTECODE_PRESENT(Name, ...)     \
-  /* Check Bytecode is marked in scorecard */ \
-  CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);
+#define CHECK_BYTECODE_PRESENT(Name, ...)                                \
+  /* Check Bytecode is marked in scorecard, unless it's a debug break */ \
+  if (!Bytecodes::IsDebugBreak(Bytecode::k##Name)) {                     \
+    CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);        \
+  }
   BYTECODE_LIST(CHECK_BYTECODE_PRESENT)
 #undef CHECK_BYTECODE_PRESENT
 }

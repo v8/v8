@@ -112,12 +112,12 @@ Factory::NewSloppyBlockWithEvalContextExtension(
   return result;
 }
 
-
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
-                                    Handle<Object> to_number,
+                                    Handle<Object> to_number, bool to_boolean,
                                     const char* type_of, byte kind) {
   Handle<Oddball> oddball = New<Oddball>(map, OLD_SPACE);
-  Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
+  Oddball::Initialize(isolate(), oddball, to_string, to_number, to_boolean,
+                      type_of, kind);
   return oddball;
 }
 
@@ -1481,6 +1481,12 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
                      Code);
 }
 
+Handle<BytecodeArray> Factory::CopyBytecodeArray(
+    Handle<BytecodeArray> bytecode_array) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyBytecodeArray(*bytecode_array),
+                     BytecodeArray);
+}
 
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
@@ -2129,7 +2135,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_instance_class_name(*Object_string());
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_debug_info(DebugInfo::uninitialized(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackMetadata> feedback_metadata =
@@ -2248,7 +2254,10 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
   if (shared->HasBytecodeArray()) {
-    debug_info->set_abstract_code(AbstractCode::cast(shared->bytecode_array()));
+    // Create a copy for debugging.
+    Handle<BytecodeArray> original(shared->bytecode_array(), isolate());
+    Handle<BytecodeArray> copy = CopyBytecodeArray(original);
+    debug_info->set_abstract_code(AbstractCode::cast(*copy));
   } else {
     debug_info->set_abstract_code(AbstractCode::cast(shared->code()));
   }

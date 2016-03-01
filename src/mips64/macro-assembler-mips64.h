@@ -265,6 +265,7 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target);
 
+  void Move(Register dst, Handle<Object> handle) { li(dst, handle); }
   void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
@@ -699,6 +700,7 @@ class MacroAssembler: public Assembler {
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);
+  inline void LiLower32BitHelper(Register rd, Operand j);
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }

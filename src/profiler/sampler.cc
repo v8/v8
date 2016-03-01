@@ -731,7 +731,18 @@ void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
     frames[i++] = isolate->c_function();
   }
   while (!it.done() && i < frames_limit) {
-    frames[i++] = it.frame()->pc();
+    if (it.frame()->is_interpreted()) {
+      // For interpreted frames use the bytecode array pointer as the pc.
+      InterpretedFrame* frame = static_cast<InterpretedFrame*>(it.frame());
+      // Since the sampler can interrupt execution at any point the
+      // bytecode_array might be garbage, so don't dereference it.
+      Address bytecode_array =
+          reinterpret_cast<Address>(frame->GetBytecodeArray()) - kHeapObjectTag;
+      frames[i++] = bytecode_array + BytecodeArray::kHeaderSize +
+                    frame->GetBytecodeOffset();
+    } else {
+      frames[i++] = it.frame()->pc();
+    }
     it.Advance();
   }
   sample_info->frames_count = i;

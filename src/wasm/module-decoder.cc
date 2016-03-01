@@ -27,8 +27,8 @@ namespace wasm {
 class ModuleDecoder : public Decoder {
  public:
   ModuleDecoder(Zone* zone, const byte* module_start, const byte* module_end,
-                bool asm_js)
-      : Decoder(module_start, module_end), module_zone(zone), asm_js_(asm_js) {
+                ModuleOrigin origin)
+      : Decoder(module_start, module_end), module_zone(zone), origin_(origin) {
     result_.start = start_;
     if (limit_ < start_) {
       error(start_, "end is less than start");
@@ -49,15 +49,31 @@ class ModuleDecoder : public Decoder {
     module->max_mem_size_log2 = 0;
     module->mem_export = false;
     module->mem_external = false;
-    module->globals = new std::vector<WasmGlobal>();
-    module->signatures = new std::vector<FunctionSig*>();
-    module->functions = new std::vector<WasmFunction>();
-    module->data_segments = new std::vector<WasmDataSegment>();
-    module->function_table = new std::vector<uint16_t>();
-    module->import_table = new std::vector<WasmImport>();
+    module->origin = origin_;
 
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
+
+    const byte* pos = pc_;
+    uint32_t magic_word = consume_u32("wasm magic");
+#define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
+    if (magic_word != kWasmMagic) {
+      error(pos, pos,
+            "expected magic word %02x %02x %02x %02x, "
+            "found %02x %02x %02x %02x",
+            BYTES(kWasmMagic), BYTES(magic_word));
+      return toResult(module);
+    }
+
+    pos = pc_;
+    uint32_t magic_version = consume_u32("wasm version");
+    if (magic_version != kWasmVersion) {
+      error(pos, pos,
+            "expected version %02x %02x %02x %02x, "
+            "found %02x %02x %02x %02x",
+            BYTES(kWasmVersion), BYTES(magic_version));
+      return toResult(module);
+    }
 
     // Decode the module sections.
     while (pc_ < limit_) {
@@ -83,14 +99,14 @@ class ModuleDecoder : public Decoder {
         case kDeclSignatures: {
           int length;
           uint32_t signatures_count = consume_u32v(&length, "signatures count");
-          module->signatures->reserve(SafeReserve(signatures_count));
+          module->signatures.reserve(SafeReserve(signatures_count));
           // Decode signatures.
           for (uint32_t i = 0; i < signatures_count; i++) {
             if (failed()) break;
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             FunctionSig* s = consume_sig();  // read function sig.
-            module->signatures->push_back(s);
+            module->signatures.push_back(s);
           }
           break;
         }
@@ -99,27 +115,27 @@ class ModuleDecoder : public Decoder {
           CheckForPreviousSection(sections, kDeclSignatures, true);
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
-          module->functions->reserve(SafeReserve(functions_count));
+          module->functions.reserve(SafeReserve(functions_count));
           // Set up module environment for verification.
           ModuleEnv menv;
           menv.module = module;
           menv.instance = nullptr;
-          menv.asm_js = asm_js_;
+          menv.origin = origin_;
           // Decode functions.
           for (uint32_t i = 0; i < functions_count; i++) {
             if (failed()) break;
             TRACE("DecodeFunction[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->functions->push_back(
+            module->functions.push_back(
                 {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
-            WasmFunction* function = &module->functions->back();
+            WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
           }
           if (ok() && verify_functions) {
             for (uint32_t i = 0; i < functions_count; i++) {
               if (failed()) break;
-              WasmFunction* function = &module->functions->at(i);
+              WasmFunction* function = &module->functions[i];
               if (!function->external) {
                 VerifyFunctionBody(i, &menv, function);
                 if (result_.failed())
@@ -132,14 +148,14 @@ class ModuleDecoder : public Decoder {
         case kDeclGlobals: {
           int length;
           uint32_t globals_count = consume_u32v(&length, "globals count");
-          module->globals->reserve(SafeReserve(globals_count));
+          module->globals.reserve(SafeReserve(globals_count));
           // Decode globals.
           for (uint32_t i = 0; i < globals_count; i++) {
             if (failed()) break;
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->globals->push_back({0, MachineType::Int32(), 0, false});
-            WasmGlobal* global = &module->globals->back();
+            module->globals.push_back({0, MachineType::Int32(), 0, false});
+            WasmGlobal* global = &module->globals.back();
             DecodeGlobalInModule(global);
           }
           break;
@@ -148,14 +164,14 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t data_segments_count =
               consume_u32v(&length, "data segments count");
-          module->data_segments->reserve(SafeReserve(data_segments_count));
+          module->data_segments.reserve(SafeReserve(data_segments_count));
           // Decode data segments.
           for (uint32_t i = 0; i < data_segments_count; i++) {
             if (failed()) break;
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->data_segments->push_back({0, 0, 0});
-            WasmDataSegment* segment = &module->data_segments->back();
+            module->data_segments.push_back({0, 0, 0});
+            WasmDataSegment* segment = &module->data_segments.back();
             DecodeDataSegmentInModule(module, segment);
           }
           break;
@@ -166,18 +182,18 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t function_table_count =
               consume_u32v(&length, "function table count");
-          module->function_table->reserve(SafeReserve(function_table_count));
+          module->function_table.reserve(SafeReserve(function_table_count));
           // Decode function table.
           for (uint32_t i = 0; i < function_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             uint16_t index = consume_u16();
-            if (index >= module->functions->size()) {
+            if (index >= module->functions.size()) {
               error(pc_ - 2, "invalid function index");
               break;
             }
-            module->function_table->push_back(index);
+            module->function_table.push_back(index);
           }
           break;
         }
@@ -191,13 +207,13 @@ class ModuleDecoder : public Decoder {
           int length;
           const byte* before = pc_;
           uint32_t index = consume_u32v(&length, "start function index");
-          if (index >= module->functions->size()) {
+          if (index >= module->functions.size()) {
             error(before, "invalid start function index");
             break;
           }
           module->start_function_index = static_cast<int>(index);
           FunctionSig* sig =
-              module->signatures->at(module->functions->at(index).sig_index);
+              module->signatures[module->functions[index].sig_index];
           if (sig->parameter_count() > 0) {
             error(before, "invalid start function: non-zero parameter count");
             break;
@@ -210,27 +226,55 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t import_table_count =
               consume_u32v(&length, "import table count");
-          module->import_table->reserve(SafeReserve(import_table_count));
+          module->import_table.reserve(SafeReserve(import_table_count));
           // Decode import table.
           for (uint32_t i = 0; i < import_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->import_table->push_back({nullptr, 0, 0});
-            WasmImport* import = &module->import_table->back();
+            module->import_table.push_back({nullptr, 0, 0});
+            WasmImport* import = &module->import_table.back();
 
             const byte* sigpos = pc_;
             import->sig_index = consume_u16("signature index");
 
-            if (import->sig_index >= module->signatures->size()) {
+            if (import->sig_index >= module->signatures.size()) {
               error(sigpos, "invalid signature index");
             } else {
-              import->sig = module->signatures->at(import->sig_index);
+              import->sig = module->signatures[import->sig_index];
             }
             import->module_name_offset = consume_string("import module name");
             import->function_name_offset =
                 consume_string("import function name");
+          }
+          break;
+        }
+        case kDeclExportTable: {
+          // Declares an export table.
+          CheckForPreviousSection(sections, kDeclFunctions, true);
+          int length;
+          uint32_t export_table_count =
+              consume_u32v(&length, "export table count");
+          module->export_table.reserve(SafeReserve(export_table_count));
+          // Decode export table.
+          for (uint32_t i = 0; i < export_table_count; i++) {
+            if (failed()) break;
+            TRACE("DecodeExportTable[%d] module+%d\n", i,
+                  static_cast<int>(pc_ - start_));
+
+            module->export_table.push_back({0, 0});
+            WasmExport* exp = &module->export_table.back();
+
+            const byte* sigpos = pc_;
+            exp->func_index = consume_u16("function index");
+            if (exp->func_index >= module->functions.size()) {
+              error(sigpos, sigpos,
+                    "function index %u out of bounds (%d functions)",
+                    exp->func_index,
+                    static_cast<int>(module->functions.size()));
+            }
+            exp->name_offset = consume_string("export name");
           }
           break;
         }
@@ -331,7 +375,7 @@ class ModuleDecoder : public Decoder {
  private:
   Zone* module_zone;
   ModuleResult result_;
-  bool asm_js_;
+  ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
 
@@ -351,10 +395,10 @@ class ModuleDecoder : public Decoder {
     const byte* sigpos = pc_;
     function->sig_index = consume_u16("signature index");
 
-    if (function->sig_index >= module->signatures->size()) {
+    if (function->sig_index >= module->signatures.size()) {
       return error(sigpos, "invalid signature index");
     } else {
-      function->sig = module->signatures->at(function->sig_index);
+      function->sig = module->signatures[function->sig_index];
     }
 
     TRACE("  +%d  <function attributes:%s%s%s%s%s>\n",
@@ -579,22 +623,21 @@ class FunctionError : public FunctionResult {
   }
 };
 
-
 ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                               const byte* module_start, const byte* module_end,
-                              bool verify_functions, bool asm_js) {
+                              bool verify_functions, ModuleOrigin origin) {
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleError("start > end");
   if (size >= kMaxModuleSize) return ModuleError("size > maximum module size");
   WasmModule* module = new WasmModule();
-  ModuleDecoder decoder(zone, module_start, module_end, asm_js);
+  ModuleDecoder decoder(zone, module_start, module_end, origin);
   return decoder.DecodeModule(module, verify_functions);
 }
 
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
                                            const byte* end) {
-  ModuleDecoder decoder(zone, start, end, false);
+  ModuleDecoder decoder(zone, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(start);
 }
 
@@ -608,7 +651,7 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   if (size > kMaxFunctionSize)
     return FunctionError("size > maximum function size");
   WasmFunction* function = new WasmFunction();
-  ModuleDecoder decoder(zone, function_start, function_end, false);
+  ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);
 }
 }  // namespace wasm

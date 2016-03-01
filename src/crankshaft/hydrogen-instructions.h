@@ -59,8 +59,6 @@ class LChunkBuilder;
   V(BoundsCheckBaseIndexInformation)          \
   V(Branch)                                   \
   V(CallWithDescriptor)                       \
-  V(CallJSFunction)                           \
-  V(CallFunction)                             \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
   V(CapturedObject)                           \
@@ -1368,10 +1366,8 @@ class HUnaryControlInstruction : public HTemplateControlInstruction<2, 1> {
 class HBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HBranch, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*,
-                                 ToBooleanStub::Types);
-  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*,
-                                 ToBooleanStub::Types,
+  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*, ToBooleanICStub::Types);
+  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*, ToBooleanICStub::Types,
                                  HBasicBlock*, HBasicBlock*);
 
   Representation RequiredInputRepresentation(int index) override {
@@ -1383,23 +1379,22 @@ class HBranch final : public HUnaryControlInstruction {
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
-  ToBooleanStub::Types expected_input_types() const {
+  ToBooleanICStub::Types expected_input_types() const {
     return expected_input_types_;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Branch)
 
  private:
-  HBranch(HValue* value,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
-          HBasicBlock* true_target = NULL,
-          HBasicBlock* false_target = NULL)
+  HBranch(HValue* value, ToBooleanICStub::Types expected_input_types =
+                             ToBooleanICStub::Types(),
+          HBasicBlock* true_target = NULL, HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
         expected_input_types_(expected_input_types) {
     SetFlag(kAllowUndefinedAsNaN);
   }
 
-  ToBooleanStub::Types expected_input_types_;
+  ToBooleanICStub::Types expected_input_types_;
 };
 
 
@@ -2220,38 +2215,6 @@ class HBinaryCall : public HCall<2> {
 };
 
 
-class HCallJSFunction final : public HCall<1> {
- public:
-  static HCallJSFunction* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* function, int argument_count);
-
-  HValue* function() const { return OperandAt(0); }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) final {
-    DCHECK(index == 0);
-    return Representation::Tagged();
-  }
-
-  bool HasStackCheck() final { return has_stack_check_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
-
- private:
-  // The argument count includes the receiver.
-  HCallJSFunction(HValue* function,
-                  int argument_count,
-                  bool has_stack_check)
-      : HCall<1>(argument_count),
-        has_stack_check_(has_stack_check) {
-      SetOperandAt(0, function);
-  }
-
-  bool has_stack_check_;
-};
-
-
 enum CallMode { NORMAL_CALL, TAIL_CALL };
 
 
@@ -2264,7 +2227,7 @@ class HCallWithDescriptor final : public HInstruction {
                                   CallMode call_mode = NORMAL_CALL) {
     HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
         target, argument_count, descriptor, operands, call_mode, zone);
-    DCHECK(operands.length() == res->GetParameterCount());
+    DCHECK_EQ(operands.length(), res->GetParameterCount());
     return res;
   }
 
@@ -2387,49 +2350,6 @@ class HInvokeFunction final : public HBinaryCall {
   Handle<JSFunction> known_function_;
   int formal_parameter_count_;
   bool has_stack_check_;
-};
-
-
-class HCallFunction final : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallFunction, HValue*, int,
-                                              ConvertReceiverMode);
-
-  HValue* context() const { return first(); }
-  HValue* function() const { return second(); }
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertReceiverModeField::decode(bit_field_);
-  }
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-  bool HasVectorAndSlot() const { return !feedback_vector_.is_null(); }
-  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorSlot slot) {
-    feedback_vector_ = vector;
-    slot_ = slot;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallFunction)
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  int argument_delta() const override { return -argument_count(); }
-
- private:
-  HCallFunction(HValue* context, HValue* function, int argument_count,
-                ConvertReceiverMode convert_mode)
-      : HBinaryCall(context, function, argument_count),
-        bit_field_(ConvertReceiverModeField::encode(convert_mode)) {}
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-
-  class ConvertReceiverModeField : public BitField<ConvertReceiverMode, 0, 2> {
-  };
-
-  uint32_t bit_field_;
 };
 
 

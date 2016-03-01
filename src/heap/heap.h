@@ -188,7 +188,8 @@ namespace internal {
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(WeakCell, empty_weak_cell, EmptyWeakCell)
+  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
+  V(PropertyCell, species_protector, SpeciesProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -402,6 +403,7 @@ enum ArrayStorageAllocationMode {
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
 };
 
+enum class ClearRecordedSlots { kYes, kNo };
 
 class Heap {
  public:
@@ -631,8 +633,10 @@ class Heap {
   void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
 
   // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages.
-  void CreateFillerObjectAt(Address addr, int size);
+  // when introducing gaps within pages. If slots could have been recorded in
+  // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
+  // pass ClearRecordedSlots::kNo.
+  void CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
 
@@ -648,7 +652,7 @@ class Heap {
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Object* ToBoolean(bool condition);
+  inline Oddball* ToBoolean(bool condition);
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
@@ -821,7 +825,7 @@ class Heap {
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
 
   void SetOptimizeForLatency() { optimize_for_memory_usage_ = false; }
-  void SetOptimizeForMemoryUsage() { optimize_for_memory_usage_ = true; }
+  void SetOptimizeForMemoryUsage();
   bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
   // ===========================================================================
@@ -1059,7 +1063,7 @@ class Heap {
   }
 
   void ClearRecordedSlot(HeapObject* object, Object** slot);
-  void ClearRecordedSlotRange(HeapObject* object, Object** start, Object** end);
+  void ClearRecordedSlotRange(Address start, Address end);
 
   // ===========================================================================
   // Incremental marking API. ==================================================
@@ -1789,6 +1793,9 @@ class Heap {
                                             Vector<byte> reloc_info);
 
   MUST_USE_RESULT AllocationResult CopyCode(Code* code);
+
+  MUST_USE_RESULT AllocationResult
+  CopyBytecodeArray(BytecodeArray* bytecode_array);
 
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT AllocationResult

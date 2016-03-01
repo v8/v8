@@ -218,7 +218,6 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                  \
   V(harmony_simd, "harmony simd")                                            \
   V(harmony_do_expressions, "harmony do-expressions")                        \
-  V(harmony_iterator_close, "harmony iterator finalization")                 \
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
@@ -229,7 +228,6 @@ DEFINE_IMPLICATION(use_types, use_strict)
 #define HARMONY_STAGED(V)                                     \
   V(harmony_function_name, "harmony Function name inference") \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")   \
-  V(harmony_species, "harmony Symbol.species")                \
   V(harmony_instanceof, "harmony instanceof support")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -237,6 +235,7 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_default_parameters, "harmony default parameters")             \
   V(harmony_destructuring_assignment, "harmony destructuring assignment") \
   V(harmony_destructuring_bind, "harmony destructuring bind")             \
+  V(harmony_iterator_close, "harmony iterator finalization")              \
   V(harmony_tostring, "harmony toString")                                 \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_unicode_regexps, "harmony unicode regexps")                   \
@@ -245,7 +244,8 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_sloppy_function, "harmony sloppy function block scoping")     \
   V(harmony_proxies, "harmony proxies")                                   \
   V(harmony_reflect, "harmony Reflect API")                               \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")
+  V(harmony_regexp_subclass, "harmony regexp subclassing")                \
+  V(harmony_species, "harmony Symbol.species")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
@@ -429,7 +429,6 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 // Flags for TurboFan.
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
-DEFINE_IMPLICATION(turbo, turbo_inlining)
 DEFINE_BOOL(turbo_shipping, true, "enable TurboFan compiler on subset")
 DEFINE_BOOL(turbo_greedy_regalloc, false, "use the greedy register allocator")
 DEFINE_BOOL(turbo_sp_frame_access, false,
@@ -462,7 +461,7 @@ DEFINE_BOOL(function_context_specialization, false,
             "enable function context specialization in TurboFan")
 DEFINE_BOOL(native_context_specialization, true,
             "enable native context specialization in TurboFan")
-DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
+DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(loop_assignment_analysis, true, "perform loop assignment analysis")
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
@@ -645,6 +644,9 @@ DEFINE_INT(max_stack_trace_source_length, 300,
 // full-codegen.cc
 DEFINE_BOOL(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
+DEFINE_BOOL(verify_operand_stack_depth, false,
+            "emit debug code that verifies the static tracking of the operand "
+            "stack depth")
 
 // heap.cc
 DEFINE_INT(min_semi_space_size, 0,
@@ -995,6 +997,9 @@ DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
+
+// Debugger
+DEFINE_BOOL(print_break_location, false, "print source location on debug break")
 
 //
 // Logging and profiling flags

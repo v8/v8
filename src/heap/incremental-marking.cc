@@ -131,13 +131,11 @@ void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
   }
 }
 
-
-void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
-                                                 RelocInfo* rinfo,
+void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
                                                  Object* value) {
-  if (BaseRecordWrite(obj, value)) {
-      // Object is not going to be rescanned.  We need to record the slot.
-      heap_->mark_compact_collector()->RecordRelocSlot(rinfo, value);
+  if (BaseRecordWrite(host, value)) {
+    // Object is not going to be rescanned.  We need to record the slot.
+    heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
   }
 }
 
@@ -444,7 +442,16 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 
 
 bool IncrementalMarking::ShouldActivateEvenWithoutIdleNotification() {
+#ifndef DEBUG
+  static const intptr_t kActivationThreshold = 8 * MB;
+#else
+  // TODO(gc) consider setting this to some low level so that some
+  // debug tests run with incremental marking and some without.
+  static const intptr_t kActivationThreshold = 0;
+#endif
+  // Don't switch on for very small heaps.
   return CanBeActivated() &&
+         heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold &&
          heap_->HeapIsFullEnoughToStartIncrementalMarking(
              heap_->old_generation_allocation_limit());
 }
@@ -454,21 +461,12 @@ bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 
 bool IncrementalMarking::CanBeActivated() {
-#ifndef DEBUG
-  static const intptr_t kActivationThreshold = 8 * MB;
-#else
-  // TODO(gc) consider setting this to some low level so that some
-  // debug tests run with incremental marking and some without.
-  static const intptr_t kActivationThreshold = 0;
-#endif
   // Only start incremental marking in a safe state: 1) when incremental
   // marking is turned on, 2) when we are currently not in a GC, and
   // 3) when we are currently not serializing or deserializing the heap.
-  // Don't switch on for very small heaps.
   return FLAG_incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
          heap_->deserialization_complete() &&
-         !heap_->isolate()->serializer_enabled() &&
-         heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
+         !heap_->isolate()->serializer_enabled();
 }
 
 

@@ -18,13 +18,6 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
-#define BUILD(r, ...)                      \
-  do {                                     \
-    byte code[] = {__VA_ARGS__};           \
-    r.Build(code, code + arraysize(code)); \
-  } while (false)
-
-
 TEST(Run_WasmInt8Const) {
   WasmRunner<int32_t> r;
   const byte kExpectedValue = 121;
@@ -115,23 +108,6 @@ TEST(Run_WasmInt64Const_many) {
 }
 #endif
 
-TEST(Run_WasmI32ConvertI64) {
-  FOR_INT64_INPUTS(i) {
-    WasmRunner<int32_t> r;
-    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64(*i)));
-    CHECK_EQ(static_cast<int32_t>(*i), r.Call());
-  }
-}
-
-TEST(Run_WasmI64AndConstants) {
-  FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) {
-      WasmRunner<int32_t> r;
-      BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_AND(WASM_I64(*i), WASM_I64(*j))));
-      CHECK_EQ(static_cast<int32_t>(*i & *j), r.Call());
-    }
-  }
-}
 
 TEST(Run_WasmInt32Param0) {
   WasmRunner<int32_t> r(MachineType::Int32());
@@ -1534,7 +1510,7 @@ TEST(Run_Wasm_LoadMemI32_oob) {
 
 TEST(Run_Wasm_LoadMemI32_oob_asm) {
   TestingModule module;
-  module.asm_js = true;
+  module.origin = kAsmJsOrigin;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
   WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
@@ -2436,51 +2412,6 @@ TEST(Run_WasmCallF64StackParameter) {
   CHECK_EQ(256.5, result);
 }
 
-TEST(Run_WasmCallI64Parameter) {
-  // Build the target function.
-  LocalType param_types[20];
-  for (int i = 0; i < 20; i++) param_types[i] = kAstI64;
-  param_types[3] = kAstI32;
-  param_types[4] = kAstI32;
-  FunctionSig sig(1, 19, param_types);
-  for (int i = 0; i < 19; i++) {
-    TestingModule module;
-    WasmFunctionCompiler t(&sig, &module);
-    if (i == 2 || i == 3) {
-      continue;
-    } else {
-      BUILD(t, WASM_GET_LOCAL(i));
-    }
-    uint32_t index = t.CompileAndAdd();
-
-    // Build the calling function.
-    WasmRunner<int32_t> r;
-    r.env()->module = &module;
-    BUILD(r,
-          WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
-              index, WASM_I64(0xbcd12340000000b), WASM_I64(0xbcd12340000000c),
-              WASM_I32(0xd), WASM_I32_CONVERT_I64(WASM_I64(0xbcd12340000000e)),
-              WASM_I64(0xbcd12340000000f), WASM_I64(0xbcd1234000000010),
-              WASM_I64(0xbcd1234000000011), WASM_I64(0xbcd1234000000012),
-              WASM_I64(0xbcd1234000000013), WASM_I64(0xbcd1234000000014),
-              WASM_I64(0xbcd1234000000015), WASM_I64(0xbcd1234000000016),
-              WASM_I64(0xbcd1234000000017), WASM_I64(0xbcd1234000000018),
-              WASM_I64(0xbcd1234000000019), WASM_I64(0xbcd123400000001a),
-              WASM_I64(0xbcd123400000001b), WASM_I64(0xbcd123400000001c),
-              WASM_I64(0xbcd123400000001d))));
-
-    CHECK_EQ(i + 0xb, r.Call());
-  }
-}
-
-TEST(Run_WasmI64And) {
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ((*i) & (*j), r.Call(*i, *j)); }
-  }
-}
-
 TEST(Run_WasmCallVoid) {
   const byte kMemOffset = 8;
   const int32_t kElemNum = kMemOffset / sizeof(int32_t);
@@ -2526,7 +2457,6 @@ TEST(Run_WasmCall_Int32Add) {
     }
   }
 }
-
 
 #if WASM_64
 TEST(Run_WasmCall_Int64Sub) {
@@ -3167,8 +3097,9 @@ TEST(Run_Wasm_F64Max) {
   }
 }
 
-// TODO(ahaas): Fix on arm and reenable.
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64
+// TODO(ahaas): Fix on arm and mips and reenable.
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
+    !V8_TARGET_ARCH_MIPS64
 
 TEST(Run_Wasm_F32Min_Snan) {
   // Test that the instruction does not return a signalling NaN.

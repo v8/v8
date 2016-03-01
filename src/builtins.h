@@ -116,12 +116,19 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(GlobalEval, kTarget)                                       \
                                                                \
+  V(MathAcos, kNone)                                           \
+  V(MathAsin, kNone)                                           \
+  V(MathAtan, kNone)                                           \
+  V(MathFround, kNone)                                         \
+  V(MathImul, kNone)                                           \
+                                                               \
   V(ObjectAssign, kNone)                                       \
   V(ObjectCreate, kNone)                                       \
   V(ObjectFreeze, kNone)                                       \
   V(ObjectGetOwnPropertyDescriptor, kNone)                     \
   V(ObjectGetOwnPropertyNames, kNone)                          \
   V(ObjectGetOwnPropertySymbols, kNone)                        \
+  V(ObjectHasOwnProperty, kNone)                               \
   V(ObjectIs, kNone)                                           \
   V(ObjectIsExtensible, kNone)                                 \
   V(ObjectIsFrozen, kNone)                                     \

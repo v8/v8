@@ -34,6 +34,9 @@ class RawMachineLabel;
 class Schedule;
 
 #define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V) \
+  V(Float64Equal)                             \
+  V(Float64LessThan)                          \
+  V(Float64LessThanOrEqual)                   \
   V(IntPtrAdd)                                \
   V(IntPtrSub)                                \
   V(Int32Add)                                 \
@@ -103,9 +106,11 @@ class CodeStubAssembler {
   Node* Int32Constant(int value);
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
+  Node* SmiConstant(Smi* value);
   Node* HeapConstant(Handle<HeapObject> object);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
+  Node* Float64Constant(double value);
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -144,6 +149,7 @@ class CodeStubAssembler {
 
   // Conversions
   Node* ChangeInt32ToInt64(Node* value);
+  Node* ChangeUint32ToUint64(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);
@@ -195,6 +201,10 @@ class CodeStubAssembler {
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
 
+  // Smi operations.
+  Node* SmiAdd(Node* a, Node* b);
+  Node* SmiEqual(Node* a, Node* b);
+
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
 
@@ -210,6 +220,10 @@ class CodeStubAssembler {
   Node* LoadFixedArrayElementSmiIndex(Node* object, Node* smi_index,
                                       int additional_offset = 0);
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
+
+  // Store an array element to a FixedArray.
+  Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
+                                             Node* value);
 
  protected:
   // Protected helpers which delegate to RawMachineAssembler.

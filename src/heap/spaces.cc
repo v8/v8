@@ -8,7 +8,6 @@
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/heap/slot-set.h"
-#include "src/heap/slots-buffer.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
 #include "src/snapshot/snapshot.h"
@@ -478,9 +477,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = 0;
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
-  chunk->slots_buffer_ = nullptr;
   chunk->old_to_new_slots_ = nullptr;
   chunk->old_to_old_slots_ = nullptr;
+  chunk->typed_old_to_old_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
@@ -732,6 +731,10 @@ LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
   MemoryChunk* chunk =
       AllocateChunk(object_size, object_size, executable, owner);
   if (chunk == NULL) return NULL;
+  if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
+    STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
+    FATAL("Code page is too large.");
+  }
   return LargePage::Initialize(isolate_->heap(), chunk);
 }
 
@@ -932,8 +935,6 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemory() {
-  delete slots_buffer_;
-  slots_buffer_ = nullptr;
   delete skip_list_;
   skip_list_ = nullptr;
   delete mutex_;
@@ -972,6 +973,15 @@ void MemoryChunk::ReleaseOldToOldSlots() {
   old_to_old_slots_ = nullptr;
 }
 
+void MemoryChunk::AllocateTypedOldToOldSlots() {
+  DCHECK(nullptr == typed_old_to_old_slots_);
+  typed_old_to_old_slots_ = new TypedSlotSet(address());
+}
+
+void MemoryChunk::ReleaseTypedOldToOldSlots() {
+  delete typed_old_to_old_slots_;
+  typed_old_to_old_slots_ = nullptr;
+}
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
@@ -1432,7 +1442,8 @@ void LocalAllocationBuffer::Close() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
   }
 }
 
@@ -1443,7 +1454,8 @@ LocalAllocationBuffer::LocalAllocationBuffer(Heap* heap,
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
   }
 }
 
@@ -1526,7 +1538,7 @@ bool NewSpace::AddFreshPage() {
   }
 
   int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page);
+  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   pages_used_++;
   UpdateAllocationInfo();
 
@@ -2362,7 +2374,8 @@ void FreeList::Reset() {
 int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
 
-  owner()->heap()->CreateFillerObjectAt(start, size_in_bytes);
+  owner()->heap()->CreateFillerObjectAt(start, size_in_bytes,
+                                        ClearRecordedSlots::kNo);
 
   Page* page = Page::FromAddress(start);
 
@@ -2660,7 +2673,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
     int size = static_cast<int>(page->wasted_memory());
     if (size == 0) continue;
     Address address = page->OffsetToAddress(Page::kPageSize - size);
-    heap()->CreateFillerObjectAt(address, size);
+    heap()->CreateFillerObjectAt(address, size, ClearRecordedSlots::kNo);
   }
 }
 
@@ -2672,7 +2685,8 @@ void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
-    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining);
+    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining,
+                                 ClearRecordedSlots::kNo);
     allocation_info_.Reset(nullptr, nullptr);
   }
 }
@@ -3088,8 +3102,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      heap()->mark_compact_collector()->ReportDeleteIfNeeded(object,
-                                                             heap()->isolate());
       size_ -= static_cast<int>(page->size());
       AccountUncommitted(static_cast<intptr_t>(page->size()));
       objects_size_ -= object->Size();

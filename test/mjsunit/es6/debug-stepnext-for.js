@@ -91,7 +91,7 @@ print("log:\n"+ JSON.stringify(log));
 // based on other values.
 var expected = [
   // Entry
-  "a2","b2",
+  "a2",
   // Empty for-in-var: get enumerable
   "c16",
   // Empty for-in: get enumerable

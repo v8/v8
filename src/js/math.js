@@ -31,28 +31,13 @@ function MathAbs(x) {
   return (x > 0) ? x : 0 - x;
 }
 
-// ECMA 262 - 15.8.2.2
-function MathAcosJS(x) {
-  return %_MathAcos(+x);
-}
-
-// ECMA 262 - 15.8.2.3
-function MathAsinJS(x) {
-  return %_MathAsin(+x);
-}
-
-// ECMA 262 - 15.8.2.4
-function MathAtanJS(x) {
-  return %_MathAtan(+x);
-}
-
 // ECMA 262 - 15.8.2.5
 // The naming of y and x matches the spec, as does the order in which
 // ToNumber (valueOf) is called.
 function MathAtan2JS(y, x) {
   y = +y;
   x = +x;
-  return %_MathAtan2(y, x);
+  return %MathAtan2(y, x);
 }
 
 // ECMA 262 - 15.8.2.6
@@ -105,11 +90,6 @@ function MathRound(x) {
 // ECMA 262 - 15.8.2.17
 function MathSqrtJS(x) {
   return %_MathSqrt(+x);
-}
-
-// Non-standard extension.
-function MathImul(x, y) {
-  return %NumberImul(TO_NUMBER(x), TO_NUMBER(y));
 }
 
 // ES6 draft 09-27-13, section 20.2.2.28.
@@ -188,11 +168,6 @@ function MathHypot(x, y) {  // Function length is 2.
   return %_MathSqrt(sum) * max;
 }
 
-// ES6 draft 09-27-13, section 20.2.2.16.
-function MathFroundJS(x) {
-  return %MathFround(TO_NUMBER(x));
-}
-
 // ES6 draft 07-18-14, section 20.2.2.11
 function MathClz32JS(x) {
   return %_MathClz32(x >>> 0);
@@ -246,9 +221,6 @@ utils.InstallConstants(GlobalMath, [
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
-  "acos", MathAcosJS,
-  "asin", MathAsinJS,
-  "atan", MathAtanJS,
   "ceil", MathCeil,
   "exp", MathExp,
   "floor", MathFloorJS,
@@ -257,22 +229,17 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "sqrt", MathSqrtJS,
   "atan2", MathAtan2JS,
   "pow", MathPowJS,
-  "imul", MathImul,
   "sign", MathSign,
   "trunc", MathTrunc,
   "asinh", MathAsinh,
   "acosh", MathAcosh,
   "atanh", MathAtanh,
   "hypot", MathHypot,
-  "fround", MathFroundJS,
   "clz32", MathClz32JS,
   "cbrt", MathCbrt
 ]);
 
 %SetForceInlineFlag(MathAbs);
-%SetForceInlineFlag(MathAcosJS);
-%SetForceInlineFlag(MathAsinJS);
-%SetForceInlineFlag(MathAtanJS);
 %SetForceInlineFlag(MathAtan2JS);
 %SetForceInlineFlag(MathCeil);
 %SetForceInlineFlag(MathClz32JS);

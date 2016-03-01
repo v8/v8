@@ -33,9 +33,7 @@ class LCodeGen;
   V(BitI)                                    \
   V(BoundsCheck)                             \
   V(Branch)                                  \
-  V(CallJSFunction)                          \
   V(CallWithDescriptor)                      \
-  V(CallFunction)                            \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
   V(CheckArrayBufferNotNeutered)             \
@@ -1735,23 +1733,6 @@ class LDeclareGlobals final : public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCallJSFunction final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallJSFunction(LOperand* function) {
-    inputs_[0] = function;
-  }
-
-  LOperand* function() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction, "call-js-function")
-  DECLARE_HYDROGEN_ACCESSOR(CallJSFunction)
-
-  void PrintDataTo(StringStream* stream) override;
-
-  int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
 class LCallWithDescriptor final : public LTemplateResultInstruction<1> {
  public:
   LCallWithDescriptor(CallInterfaceDescriptor descriptor,
@@ -1806,29 +1787,6 @@ class LInvokeFunction final : public LTemplateInstruction<1, 2, 0> {
 
   void PrintDataTo(StringStream* stream) override;
 
-  int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-class LCallFunction final : public LTemplateInstruction<1, 2, 2> {
- public:
-  LCallFunction(LOperand* context, LOperand* function, LOperand* slot,
-                LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = function;
-    temps_[0] = slot;
-    temps_[1] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* function() { return inputs_[1]; }
-  LOperand* temp_slot() { return temps_[0]; }
-  LOperand* temp_vector() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
-  DECLARE_HYDROGEN_ACCESSOR(CallFunction)
-
-  void PrintDataTo(StringStream* stream) override;
   int arity() const { return hydrogen()->argument_count() - 1; }
 };
 

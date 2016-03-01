@@ -140,7 +140,6 @@ enum BindingFlags {
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
-  V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate)                       \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
@@ -185,7 +184,7 @@ enum BindingFlags {
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
   V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
-  V(TEMPLATE_INSTANTIATIONS_CACHE_INDEX, ObjectHashTable,                      \
+  V(TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,             \
     template_instantiations_cache)                                             \
   V(FUNCTION_FUNCTION_INDEX, JSFunction, function_function)                    \
   V(GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                             \

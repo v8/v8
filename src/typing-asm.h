@@ -92,7 +92,7 @@ class AsmTyper : public AstVisitor {
   Type* expected_type_;
   Type* computed_type_;
   VariableInfo* property_info_;
-  int intish_;  // How many ops we've gone without a x|0.
+  int32_t intish_;  // How many ops we've gone without a x|0.
 
   Type* return_type_;  // Return type of last function.
   size_t array_size_;  // Array size of last ArrayLiteral.

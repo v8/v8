@@ -98,13 +98,13 @@ function test() {
     assertEquals([3, 4, 6], [a, b, c]);           // B45
   }
 
-  var {                                           // B46
-    x: a,                                         // B47
-    y: b = 9                                      // B48
+  var {
+    x: a,                                         // B46
+    y: b = 9                                      // B47
   } = { x: 4 };
-  assertEquals([4, 9], [a, b]);                   // B49
-}                                                 // B50
+  assertEquals([4, 9], [a, b]);                   // B48
+}                                                 // B49
 
 test();
-Debug.setListener(null);                          // B51
+Debug.setListener(null);                          // B50
 assertNull(exception);

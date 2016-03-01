@@ -71,6 +71,21 @@ Bytecode Bytecodes::FromByte(uint8_t value) {
 
 
 // static
+Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
+  switch (Size(bytecode)) {
+#define CASE(Name, ...)                                  \
+  case BytecodeTraits<__VA_ARGS__, OPERAND_TERM>::kSize: \
+    return Bytecode::k##Name;
+    DEBUG_BREAK_BYTECODE_LIST(CASE)
+#undef CASE
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return static_cast<Bytecode>(-1);
+}
+
+// static
 int Bytecodes::Size(Bytecode bytecode) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
@@ -268,6 +283,27 @@ bool Bytecodes::IsCallOrNew(Bytecode bytecode) {
 }
 
 // static
+bool Bytecodes::IsCallRuntime(Bytecode bytecode) {
+  return bytecode == Bytecode::kCallRuntime ||
+         bytecode == Bytecode::kCallRuntimeWide ||
+         bytecode == Bytecode::kCallRuntimeForPair ||
+         bytecode == Bytecode::kCallRuntimeForPairWide;
+}
+
+// static
+bool Bytecodes::IsDebugBreak(Bytecode bytecode) {
+  switch (bytecode) {
+#define CASE(Name, ...) case Bytecode::k##Name:
+    DEBUG_BREAK_BYTECODE_LIST(CASE);
+#undef CASE
+    return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+// static
 bool Bytecodes::IsJumpOrReturn(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn || IsJump(bytecode);
 }
@@ -383,6 +419,9 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
   }
 
   os << bytecode << " ";
+
+  // Operands for the debug break are from the original instruction.
+  if (IsDebugBreak(bytecode)) return os;
 
   int number_of_operands = NumberOfOperands(bytecode);
   int range = 0;

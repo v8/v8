@@ -655,8 +655,7 @@ void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(Smi::FromInt(0));
 }
 
-
-Object* Heap::ToBoolean(bool condition) {
+Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
 

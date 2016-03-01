@@ -64,8 +64,9 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) return;
 
   i::Zone zone;
-  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, buffer.start, buffer.end, true, false);
+  internal::wasm::ModuleResult result =
+      internal::wasm::DecodeWasmModule(isolate, &zone, buffer.start, buffer.end,
+                                       true, internal::wasm::kWasmOrigin);
 
   if (result.failed()) {
     thrower.Failed("", result);
@@ -123,9 +124,10 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
     return nullptr;
   }
 
-  auto module = v8::internal::wasm::AsmWasmBuilder(
-                    info->isolate(), info->zone(), info->literal(), foreign)
-                    .Run();
+  auto module =
+      v8::internal::wasm::AsmWasmBuilder(info->isolate(), info->zone(),
+                                         info->literal(), foreign, &typer)
+          .Run();
 
   if (i::FLAG_dump_asmjs_wasm) {
     FILE* wasm_file = fopen(i::FLAG_asmjs_wasm_dumpfile, "wb");
@@ -138,10 +140,10 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
   return module;
 }
 
-
 void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
                              const byte* start, const byte* end,
-                             ErrorThrower* thrower, bool must_decode) {
+                             ErrorThrower* thrower,
+                             internal::wasm::ModuleOrigin origin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
@@ -155,9 +157,9 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
   // Verification will happen during compilation.
   i::Zone zone;
   internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, start, end, false, false);
+      isolate, &zone, start, end, false, origin);
 
-  if (result.failed() && must_decode) {
+  if (result.failed() && origin == internal::wasm::kAsmJsOrigin) {
     thrower->Error("Asm.js converted module failed to decode");
   } else if (result.failed()) {
     thrower->Failed("", result);
@@ -208,7 +210,8 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower, true);
+  InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower,
+                          internal::wasm::kAsmJsOrigin);
 }
 
 
@@ -220,7 +223,8 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   RawBuffer buffer = GetRawBufferArgument(thrower, args);
   if (buffer.start == nullptr) return;
 
-  InstantiateModuleCommon(args, buffer.start, buffer.end, &thrower, false);
+  InstantiateModuleCommon(args, buffer.start, buffer.end, &thrower,
+                          internal::wasm::kWasmOrigin);
 }
 }  // namespace
 

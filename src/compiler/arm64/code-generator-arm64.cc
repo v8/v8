@@ -288,6 +288,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlagClear(value_, scratch0_,
                           MemoryChunk::kPointersToHereAreInterestingMask,
                           exit());
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (!frame()->needs_frame()) {
@@ -295,7 +298,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr);
     }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         EMIT_REMEMBERED_SET, save_fp_mode);
+                         remembered_set_action, save_fp_mode);
     __ Add(scratch1_, object_, index_);
     __ CallStub(&stub);
     if (!frame()->needs_frame()) {
@@ -930,8 +933,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64ClaimCSP: {
       int count = i.InputInt32(0);
       Register prev = __ StackPointer();
-      __ SetStackPointer(csp);
-      __ Claim(count);
+      if (prev.Is(jssp)) {
+        __ AlignAndSetCSPForFrame();
+      }
+      if (count > 0) {
+        __ Claim(count);
+      }
       __ SetStackPointer(prev);
       frame_access_state()->IncreaseSPDelta(count);
       break;

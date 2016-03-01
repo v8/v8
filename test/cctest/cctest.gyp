@@ -81,7 +81,6 @@
         'compiler/test-run-jsops.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-native-calls.cc',
-        'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
@@ -168,7 +167,6 @@
         'test-sampler-api.cc',
         'test-serialize.cc',
         'test-simd.cc',
-        'test-slots-buffer.cc',
         'test-strings.cc',
         'test-symbols.cc',
         'test-strtod.cc',
@@ -189,6 +187,7 @@
         'test-weaksets.cc',
         'trace-extension.cc',
         'wasm/test-run-wasm.cc',
+        'wasm/test-run-wasm-64.cc',
         'wasm/test-run-wasm-js.cc',
         'wasm/test-run-wasm-module.cc',
         'wasm/test-signatures.h',
@@ -294,7 +293,8 @@
             },
           },
         }],
-        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64" \
+          or v8_target_arch=="arm" or v8_target_arch=="arm64"', {
           # disable fmadd/fmsub so that expected results match generated code in
           # RunFloat64MulAndFloat64Add1 and friends.
           'cflags': ['-ffp-contract=off'],

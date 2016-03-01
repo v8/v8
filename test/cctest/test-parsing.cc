@@ -6029,6 +6029,31 @@ TEST(LanguageModeDirectives) {
 }
 
 
+TEST(MultipleLanguageModeDirectives) {
+  const char* context_data[][2] = {
+    { "'use strict'; 'use strong';", "" },
+    { "'use strong'; 'use strict';", "" },
+    { "function f() { 'use strict'; 'use strong';", "}" },
+    { "function f() { 'use strong'; 'use strict';", "}" },
+    { NULL, NULL }
+  };
+
+  const char* strict_error_data[] = {
+    "var x = 42; delete x",
+    NULL};
+
+  const char* strong_error_data[] = {
+    "var x = 42",
+    NULL};
+
+  static const ParserFlag strong_mode_flags[] = {kAllowStrongMode};
+  RunParserSyncTest(context_data, strict_error_data, kError,
+                    strong_mode_flags, arraysize(strong_mode_flags));
+  RunParserSyncTest(context_data, strong_error_data, kError, NULL, 0,
+                    strong_mode_flags, arraysize(strong_mode_flags));
+}
+
+
 TEST(PropertyNameEvalArguments) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"'use strong';", ""},

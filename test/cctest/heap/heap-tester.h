@@ -29,6 +29,7 @@
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
   V(Regress587004)                                        \
+  V(Regress589413)                                        \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                       \

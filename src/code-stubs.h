@@ -67,7 +67,6 @@ namespace internal {
   V(ArraySingleArgumentConstructor)         \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
-  V(CompareNilIC)                           \
   V(CreateAllocationSite)                   \
   V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
@@ -96,12 +95,13 @@ namespace internal {
   V(StoreGlobalViaContext)                  \
   V(StoreScriptContextField)                \
   V(StringAdd)                              \
-  V(ToBoolean)                              \
+  V(ToBooleanIC)                            \
   V(TransitionElementsKind)                 \
   V(KeyedLoadIC)                            \
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
   V(StringLength)                           \
+  V(ToBoolean)                              \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(LoadConstant)                           \
@@ -631,6 +631,15 @@ class StringLengthStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(StringLength, TurboFanCodeStub);
 };
 
+class ToBooleanStub final : public TurboFanCodeStub {
+ public:
+  explicit ToBooleanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const final;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
+  DEFINE_CODE_STUB(ToBoolean, TurboFanCodeStub);
+};
 
 enum StringAddFlags {
   // Omit both parameter checks.
@@ -1701,96 +1710,6 @@ class CompareICStub : public PlatformCodeStub {
 };
 
 
-class CompareNilICStub : public HydrogenCodeStub  {
- public:
-  Type* GetType(Zone* zone, Handle<Map> map = Handle<Map>());
-  Type* GetInputType(Zone* zone, Handle<Map> map);
-
-  CompareNilICStub(Isolate* isolate, NilValue nil) : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(NilValueBits::encode(nil));
-  }
-
-  CompareNilICStub(Isolate* isolate, ExtraICState ic_state,
-                   InitializationState init_state = INITIALIZED)
-      : HydrogenCodeStub(isolate, init_state) {
-    set_sub_minor_key(ic_state);
-  }
-
-  static Handle<Code> GetUninitialized(Isolate* isolate,
-                                       NilValue nil) {
-    return CompareNilICStub(isolate, nil, UNINITIALIZED).GetCode();
-  }
-
-  InlineCacheState GetICState() const override {
-    State state = this->state();
-    if (state.Contains(GENERIC)) {
-      return MEGAMORPHIC;
-    } else if (state.Contains(MONOMORPHIC_MAP)) {
-      return MONOMORPHIC;
-    } else {
-      return PREMONOMORPHIC;
-    }
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::COMPARE_NIL_IC; }
-
-  ExtraICState GetExtraICState() const override { return sub_minor_key(); }
-
-  void UpdateStatus(Handle<Object> object);
-
-  bool IsMonomorphic() const { return state().Contains(MONOMORPHIC_MAP); }
-
-  NilValue nil_value() const { return NilValueBits::decode(sub_minor_key()); }
-
-  void ClearState() {
-    set_sub_minor_key(TypesBits::update(sub_minor_key(), 0));
-  }
-
-  void PrintState(std::ostream& os) const override;     // NOLINT
-  void PrintBaseName(std::ostream& os) const override;  // NOLINT
-
- private:
-  CompareNilICStub(Isolate* isolate, NilValue nil,
-                   InitializationState init_state)
-      : HydrogenCodeStub(isolate, init_state) {
-    set_sub_minor_key(NilValueBits::encode(nil));
-  }
-
-  enum CompareNilType {
-    UNDEFINED,
-    NULL_TYPE,
-    MONOMORPHIC_MAP,
-    GENERIC,
-    NUMBER_OF_TYPES
-  };
-
-  // At most 6 different types can be distinguished, because the Code object
-  // only has room for a single byte to hold a set and there are two more
-  // boolean flags we need to store. :-P
-  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
-
-  class State : public EnumSet<CompareNilType, byte> {
-   public:
-    State() : EnumSet<CompareNilType, byte>(0) { }
-    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
-  };
-  friend std::ostream& operator<<(std::ostream& os, const State& s);
-
-  State state() const { return State(TypesBits::decode(sub_minor_key())); }
-
-  class NilValueBits : public BitField<NilValue, 0, 1> {};
-  class TypesBits : public BitField<byte, 1, NUMBER_OF_TYPES> {};
-
-  friend class CompareNilIC;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CompareNil);
-  DEFINE_HYDROGEN_CODE_STUB(CompareNilIC, HydrogenCodeStub);
-};
-
-
-std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s);
-
-
 class CEntryStub : public PlatformCodeStub {
  public:
   CEntryStub(Isolate* isolate, int result_size,
@@ -2727,8 +2646,7 @@ class StoreElementStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
 };
 
-
-class ToBooleanStub: public HydrogenCodeStub {
+class ToBooleanICStub : public HydrogenCodeStub {
  public:
   enum Type {
     UNDEFINED,
@@ -2755,14 +2673,14 @@ class ToBooleanStub: public HydrogenCodeStub {
     bool UpdateStatus(Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const {
-      return Contains(ToBooleanStub::SPEC_OBJECT);
+      return Contains(ToBooleanICStub::SPEC_OBJECT);
     }
     bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
 
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
   };
 
-  ToBooleanStub(Isolate* isolate, ExtraICState state)
+  ToBooleanICStub(Isolate* isolate, ExtraICState state)
       : HydrogenCodeStub(isolate) {
     set_sub_minor_key(TypesBits::encode(static_cast<uint16_t>(state)));
   }
@@ -2776,7 +2694,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   bool SometimesSetsUpAFrame() override { return false; }
 
   static Handle<Code> GetUninitialized(Isolate* isolate) {
-    return ToBooleanStub(isolate, UNINITIALIZED).GetCode();
+    return ToBooleanICStub(isolate, UNINITIALIZED).GetCode();
   }
 
   ExtraICState GetExtraICState() const override { return types().ToIntegral(); }
@@ -2790,19 +2708,16 @@ class ToBooleanStub: public HydrogenCodeStub {
   }
 
  private:
-  ToBooleanStub(Isolate* isolate, InitializationState init_state)
-      : HydrogenCodeStub(isolate, init_state) {
-  }
+  ToBooleanICStub(Isolate* isolate, InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state) {}
 
   class TypesBits : public BitField<uint16_t, 0, NUMBER_OF_TYPES> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
-  DEFINE_HYDROGEN_CODE_STUB(ToBoolean, HydrogenCodeStub);
+  DEFINE_HYDROGEN_CODE_STUB(ToBooleanIC, HydrogenCodeStub);
 };
 
-
-std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& t);
-
+std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& t);
 
 class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
  public:

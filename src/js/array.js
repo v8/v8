@@ -214,15 +214,19 @@ function Join(array, length, separator, convert) {
     // Non-empty separator case.
     // If the first element is a number then use the heuristic that the
     // remaining elements are also likely to be numbers.
-    if (!IS_NUMBER(array[0])) {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
+    var e = array[0];
+    if (!IS_NUMBER(e)) {
+      if (!IS_STRING(e)) e = convert(e);
+      elements[0] = e;
+      for (var i = 1; i < length; i++) {
+        e = array[i];
         if (!IS_STRING(e)) e = convert(e);
         elements[i] = e;
       }
     } else {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
+      elements[0] = %_NumberToString(e);
+      for (var i = 1; i < length; i++) {
+        e = array[i];
         if (IS_NUMBER(e)) {
           e = %_NumberToString(e);
         } else if (!IS_STRING(e)) {
@@ -1247,10 +1251,19 @@ function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i, is_array)) {
-      var element = array[i];
-      %_Call(f, receiver, element, i, array);
+  if (IS_UNDEFINED(receiver)) {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        f(element, i, array);
+      }
+    }
+  } else {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        %_Call(f, receiver, element, i, array);
+      }
     }
   }
 }
@@ -1347,7 +1360,7 @@ function InnerArrayIndexOf(array, element, index, length) {
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from the end of the array.
     if (index < 0) {
       index = length + index;
@@ -1409,7 +1422,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (argumentsLength < 2) {
     index = length - 1;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from end of the array.
     if (index < 0) index += length;
     // If index is still negative, do not search the array.

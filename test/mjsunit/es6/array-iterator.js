@@ -160,7 +160,7 @@ function TestArrayIteratorPrototype() {
   assertArrayEquals(['next'],
       Object.getOwnPropertyNames(ArrayIteratorPrototype));
   assertHasOwnProperty(ArrayIteratorPrototype, 'next', DONT_ENUM);
-  assertHasOwnProperty(ArrayIteratorPrototype, Symbol.iterator, DONT_ENUM);
+  assertFalse(ArrayIteratorPrototype.hasOwnProperty(Symbol.iterator));
 
   assertEquals("[object Array Iterator]",
       Object.prototype.toString.call(iterator));

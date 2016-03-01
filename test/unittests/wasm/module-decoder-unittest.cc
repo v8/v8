@@ -5,20 +5,16 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-class WasmModuleVerifyTest : public TestWithZone {
- public:
-  ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
-    return DecodeWasmModule(nullptr, zone(), module_start, module_end, false,
-                            false);
-  }
-};
-
+#define EMPTY_FUNCTION(sig_index) 0, SIG_INDEX(sig_index), U16_LE(0)
+#define VOID_VOID_SIG 0, kLocalVoid
+#define INT_INT_SIG 1, kLocalI32, kLocalI32
 
 #define EXPECT_VERIFIES(data)                                         \
   do {                                                                \
@@ -27,14 +23,21 @@ class WasmModuleVerifyTest : public TestWithZone {
     if (result.val) delete result.val;                                \
   } while (false)
 
-
-#define EXPECT_FAILURE(data)                                          \
-  do {                                                                \
-    ModuleResult result = DecodeModule(data, data + arraysize(data)); \
-    EXPECT_FALSE(result.ok());                                        \
-    if (result.val) delete result.val;                                \
+#define EXPECT_FAILURE_LEN(data, length)                     \
+  do {                                                       \
+    ModuleResult result = DecodeModule(data, data + length); \
+    EXPECT_FALSE(result.ok());                               \
+    if (result.val) delete result.val;                       \
   } while (false)
 
+#define EXPECT_FAILURE(data) EXPECT_FAILURE_LEN(data, sizeof(data))
+
+#define EXPECT_OFF_END_FAILURE(data, min, max)          \
+  do {                                                  \
+    for (size_t length = min; length < max; length++) { \
+      EXPECT_FAILURE_LEN(data, length);                 \
+    }                                                   \
+  } while (false)
 
 struct LocalTypePair {
   uint8_t code;
@@ -44,39 +47,58 @@ struct LocalTypePair {
                    {kLocalF32, kAstF32},
                    {kLocalF64, kAstF64}};
 
-
-// TODO(titzer): use these macros everywhere below.
-#define U32_LE(v)                                    \
-  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
-      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
-
-
-#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
-
-
-TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
-  static const byte data[1]{kDeclEnd};
-  {
-    ModuleResult result = DecodeModule(data, data);
-    EXPECT_TRUE(result.ok());
-    if (result.val) delete result.val;
+class WasmModuleVerifyTest : public TestWithZone {
+ public:
+  ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
+    // Add the WASM magic and version number automatically.
+    size_t size = static_cast<size_t>(module_end - module_start);
+    byte header[] = {WASM_MODULE_HEADER};
+    size_t total = sizeof(header) + size;
+    auto temp = new byte[total];
+    memcpy(temp, header, sizeof(header));
+    memcpy(temp + sizeof(header), module_start, size);
+    ModuleResult result = DecodeWasmModule(nullptr, zone(), temp, temp + total,
+                                           false, kWasmOrigin);
+    delete[] temp;
+    return result;
   }
-  {
-    ModuleResult result = DecodeModule(data, data + 1);
-    EXPECT_TRUE(result.ok());
+  ModuleResult DecodeModuleNoHeader(const byte* module_start,
+                                    const byte* module_end) {
+    return DecodeWasmModule(nullptr, zone(), module_start, module_end, false,
+                            kWasmOrigin);
+  }
+};
+
+TEST_F(WasmModuleVerifyTest, WrongMagic) {
+  for (uint32_t x = 1; x; x <<= 1) {
+    const byte data[] = {U32_LE(kWasmMagic ^ x), U32_LE(kWasmVersion),
+                         kDeclEnd};
+    ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
+    EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;
   }
 }
 
+TEST_F(WasmModuleVerifyTest, WrongVersion) {
+  for (uint32_t x = 1; x; x <<= 1) {
+    const byte data[] = {U32_LE(kWasmMagic), U32_LE(kWasmVersion ^ x),
+                         kDeclEnd};
+    ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
+    EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
+  static const byte data[] = {kDeclEnd};
+  EXPECT_VERIFIES(data);
+}
 
 TEST_F(WasmModuleVerifyTest, OneGlobal) {
   static const byte data[] = {
       kDeclGlobals,
       1,
-      0,
-      0,
-      0,
-      0,        // name offset
+      NAME_OFFSET(0),
       kMemI32,  // memory type
       0,        // exported
   };
@@ -85,11 +107,11 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     // Should decode to exactly one global.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(1, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
+    EXPECT_EQ(1, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals->back();
+    WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Int32(), global->type);
@@ -99,12 +121,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 1; size < arraysize(data); size++) {
-    // Should fall off end of module bytes.
-    ModuleResult result = DecodeModule(data, data + size);
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
 
@@ -135,16 +152,17 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
-      0,       0, 0, 0,  // name offset
-      kMemI32,           // memory type
-      0,                 // exported
+      NAME_OFFSET(0),  // name offset
+      kMemI32,         // memory type
+      0,               // exported
   };
-  for (uint32_t i = 0; i < 1000000; i = i * 7 + 1) {
+
+  for (uint32_t i = 0; i < 1000000; i = i * 13 + 1) {
     std::vector<byte> buffer;
     buffer.push_back(kDeclGlobals);
     AppendUint32v(buffer, i);
     for (uint32_t j = 0; j < i; j++) {
-      buffer.insert(buffer.end(), data, data + arraysize(data));
+      buffer.insert(buffer.end(), data, data + sizeof(data));
     }
 
     ModuleResult result = DecodeModule(&buffer[0], &buffer[0] + buffer.size());
@@ -157,13 +175,10 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
   static const byte data[] = {
       kDeclGlobals,
-      1,  // declare one global
-      0,
-      3,
-      0,
-      0,        // name offset
-      kMemI32,  // memory type
-      0,        // exported
+      1,                 // declare one global
+      NAME_OFFSET(300),  // name offset
+      kMemI32,           // memory type
+      0,                 // exported
   };
 
   EXPECT_FAILURE(data);
@@ -173,13 +188,10 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
   static const byte data[] = {
       kDeclGlobals,
-      1,  // declare one global
-      0,
-      0,
-      0,
-      0,   // name offset
-      33,  // memory type
-      0,   // exported
+      1,               // declare one global
+      NAME_OFFSET(0),  // name offset
+      33,              // memory type
+      0,               // exported
   };
 
   EXPECT_FAILURE(data);
@@ -190,30 +202,24 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {
       kDeclGlobals,
       2,
-      0,
-      0,
-      0,
-      0,        // #0: name offset
-      kMemF32,  // memory type
-      0,        // exported
-      0,
-      0,
-      0,
-      0,        // #1: name offset
-      kMemF64,  // memory type
-      1,        // exported
+      NAME_OFFSET(0),  // #0: name offset
+      kMemF32,         // memory type
+      0,               // exported
+      NAME_OFFSET(0),  // #1: name offset
+      kMemF64,         // memory type
+      1,               // exported
   };
 
   {
     // Should decode to exactly two globals.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(2, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
+    EXPECT_EQ(2, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* g0 = &result.val->globals->at(0);
-    WasmGlobal* g1 = &result.val->globals->at(1);
+    WasmGlobal* g0 = &result.val->globals[0];
+    WasmGlobal* g1 = &result.val->globals[1];
 
     EXPECT_EQ(0, g0->name_offset);
     EXPECT_EQ(MachineType::Float32(), g0->type);
@@ -228,20 +234,20 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 1; size < arraysize(data); size++) {
-    // Should fall off end of module bytes.
-    ModuleResult result = DecodeModule(data, data + size);
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
 
 TEST_F(WasmModuleVerifyTest, OneSignature) {
-  static const byte data[] = {
-      kDeclSignatures, 1, 0, kLocalVoid  // void -> void
-  };
-  EXPECT_VERIFIES(data);
+  {
+    static const byte data[] = {kDeclSignatures, 1, VOID_VOID_SIG};
+    EXPECT_VERIFIES(data);
+  }
+
+  {
+    static const byte data[] = {kDeclSignatures, 1, INT_INT_SIG};
+    EXPECT_VERIFIES(data);
+  }
 }
 
 
@@ -262,24 +268,19 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(3, result.val->signatures->size());
-  if (result.val->signatures->size() == 3) {
-    EXPECT_EQ(0, result.val->signatures->at(0)->return_count());
-    EXPECT_EQ(1, result.val->signatures->at(1)->return_count());
-    EXPECT_EQ(1, result.val->signatures->at(2)->return_count());
+  EXPECT_EQ(3, result.val->signatures.size());
+  if (result.val->signatures.size() == 3) {
+    EXPECT_EQ(0, result.val->signatures[0]->return_count());
+    EXPECT_EQ(1, result.val->signatures[1]->return_count());
+    EXPECT_EQ(1, result.val->signatures[2]->return_count());
 
-    EXPECT_EQ(0, result.val->signatures->at(0)->parameter_count());
-    EXPECT_EQ(1, result.val->signatures->at(1)->parameter_count());
-    EXPECT_EQ(2, result.val->signatures->at(2)->parameter_count());
+    EXPECT_EQ(0, result.val->signatures[0]->parameter_count());
+    EXPECT_EQ(1, result.val->signatures[1]->parameter_count());
+    EXPECT_EQ(2, result.val->signatures[2]->parameter_count());
   }
   if (result.val) delete result.val;
 
-  for (size_t size = 1; size < arraysize(data); size++) {
-    ModuleResult result = DecodeModule(data, data + size);
-    // Should fall off the end of module bytes.
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
 
@@ -287,16 +288,16 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   static const byte data[] = {
       kDeclFunctions, 1,
       // func#0 ------------------------------------------------------
-      0, 0,        // signature index
-      0, 0, 0, 0,  // name offset
-      0, 0, 0, 0,  // code start offset
-      0, 0, 0, 0,  // code end offset
-      1, 2,        // local int32 count
-      3, 4,        // local int64 count
-      5, 6,        // local float32 count
-      7, 8,        // local float64 count
-      0,           // exported
-      1            // external
+      SIG_INDEX(0),    // signature index
+      NAME_OFFSET(0),  // name offset
+      U32_LE(0),       // code start offset
+      U32_LE(0),       // code end offset
+      U16_LE(899),     // local int32 count
+      U16_LE(799),     // local int64 count
+      U16_LE(699),     // local float32 count
+      U16_LE(599),     // local float64 count
+      0,               // exported
+      1                // external
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -306,23 +307,23 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
 
 
 TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
-  const int kCodeStartOffset = 23;
+  const int kCodeStartOffset = 31;
   const int kCodeEndOffset = kCodeStartOffset + 1;
 
   static const byte data[] = {
       kDeclSignatures, 1,
       // sig#0 -------------------------------------------------------
-      0, 0,  // void -> void
+      VOID_VOID_SIG,
       // func#0 ------------------------------------------------------
       kDeclFunctions, 1,
-      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName, 0,
-      0,           // signature index
-      9, 0, 0, 0,  // name offset
-      11, 2,       // local int32 count
-      13, 4,       // local int64 count
-      15, 6,       // local float32 count
-      17, 8,       // local float64 count
-      1, 0,        // size
+      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName,
+      SIG_INDEX(0),    // signature index
+      NAME_OFFSET(9),  // name offset
+      U16_LE(1466),    // local int32 count
+      U16_LE(1355),    // local int64 count
+      U16_LE(1244),    // local float32 count
+      U16_LE(1133),    // local float64 count
+      1, 0,            // size
       kExprNop,
   };
 
@@ -330,22 +331,22 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     // Should decode to exactly one function.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(1, result.val->signatures->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
-    EXPECT_EQ(0, result.val->function_table->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(1, result.val->signatures.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
+    EXPECT_EQ(0, result.val->function_table.size());
 
-    WasmFunction* function = &result.val->functions->back();
+    WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(9, function->name_offset);
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-    EXPECT_EQ(523, function->local_i32_count);
-    EXPECT_EQ(1037, function->local_i64_count);
-    EXPECT_EQ(1551, function->local_f32_count);
-    EXPECT_EQ(2065, function->local_f64_count);
+    EXPECT_EQ(1466, function->local_i32_count);
+    EXPECT_EQ(1355, function->local_i64_count);
+    EXPECT_EQ(1244, function->local_f32_count);
+    EXPECT_EQ(1133, function->local_f64_count);
 
     EXPECT_TRUE(function->exported);
     EXPECT_FALSE(function->external);
@@ -353,12 +354,7 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 5; size < arraysize(data); size++) {
-    // Should fall off end of module bytes.
-    ModuleResult result = DecodeModule(data, data + size);
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 5, sizeof(data));
 }
 
 
@@ -366,17 +362,16 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   static const byte data[] = {
       kDeclSignatures, 1,
       // sig#0 -------------------------------------------------------
-      0, 0,  // void -> void
-      kDeclFunctions, 1,
+      VOID_VOID_SIG, kDeclFunctions, 1,
       // func#0 ------------------------------------------------------
       kDeclFunctionImport,  // no name, no locals, imported
-      0, 0,                 // signature index
+      SIG_INDEX(0),
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(0, function->code_start_offset);
@@ -395,7 +390,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
 
 
 TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
-  static const byte kCodeStartOffset = 11;
+  static const byte kCodeStartOffset = 19;
   static const byte kCodeEndOffset = kCodeStartOffset + 1;
 
   static const byte data[] = {
@@ -412,8 +407,8 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -432,7 +427,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
 
 
 TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
-  static const byte kCodeStartOffset = 19;
+  static const byte kCodeStartOffset = 27;
   static const byte kCodeEndOffset = kCodeStartOffset + 1;
 
   static const byte data[] = {
@@ -452,8 +447,8 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -474,7 +469,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   static const byte kDeclMemorySize = 4;
   static const byte kCodeStartOffset =
-      2 + kDeclMemorySize + kDeclGlobalSize + 4 + 2 + 17;
+      8 + 2 + kDeclMemorySize + kDeclGlobalSize + 4 + 2 + 17;
   static const byte kCodeEndOffset = kCodeStartOffset + 3;
 
   static const byte data[] = {
@@ -509,18 +504,18 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   {
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(1, result.val->globals->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(1, result.val->data_segments->size());
+    EXPECT_EQ(1, result.val->globals.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals->back();
+    WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Uint8(), global->type);
     EXPECT_EQ(0, global->offset);
     EXPECT_FALSE(global->exported);
 
-    WasmFunction* function = &result.val->functions->back();
+    WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(9, function->name_offset);
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -529,7 +524,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_FALSE(function->exported);
     EXPECT_FALSE(function->external);
 
-    WasmDataSegment* segment = &result.val->data_segments->back();
+    WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x8b3ae, segment->dest_addr);
     EXPECT_EQ(15, segment->source_offset);
@@ -556,11 +551,11 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_VERIFIES(data);
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(1, result.val->data_segments->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmDataSegment* segment = &result.val->data_segments->back();
+    WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x9bbaa, segment->dest_addr);
     EXPECT_EQ(11, segment->source_offset);
@@ -570,12 +565,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 5; size < arraysize(data); size++) {
-    // Should fall off end of module bytes.
-    ModuleResult result = DecodeModule(data, data + size);
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 5, sizeof(data));
 }
 
 
@@ -600,12 +590,12 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   {
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(2, result.val->data_segments->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(2, result.val->data_segments.size());
 
-    WasmDataSegment* s0 = &result.val->data_segments->at(0);
-    WasmDataSegment* s1 = &result.val->data_segments->at(1);
+    WasmDataSegment* s0 = &result.val->data_segments[0];
+    WasmDataSegment* s1 = &result.val->data_segments[1];
 
     EXPECT_EQ(0x7ffee, s0->dest_addr);
     EXPECT_EQ(9, s0->source_offset);
@@ -620,19 +610,16 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 5; size < arraysize(data); size++) {
-    // Should fall off end of module bytes.
-    ModuleResult result = DecodeModule(data, data + size);
-    EXPECT_FALSE(result.ok());
-    if (result.val) delete result.val;
-  }
+  EXPECT_OFF_END_FAILURE(data, 5, sizeof(data));
 }
 
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
   const int dest_addr = 0x100;
   const byte mem_size_log2 = 15;
+  const int kHeaderSize = 8;
   const int kDataSize = 19;
+  const int kTotalSize = kHeaderSize + kDataSize;
 
   for (int source_offset = 0; source_offset < 5 + kDataSize; source_offset++) {
     for (int source_size = -1; source_size < 5 + kDataSize; source_size += 3) {
@@ -651,8 +638,8 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
 
       STATIC_ASSERT(kDataSize == arraysize(data));
 
-      if (source_offset < kDataSize && source_size >= 0 &&
-          (source_offset + source_size) <= kDataSize) {
+      if (source_offset < kTotalSize && source_size >= 0 &&
+          (source_offset + source_size) <= kTotalSize) {
         EXPECT_VERIFIES(data);
       } else {
         EXPECT_FAILURE(data);
@@ -712,10 +699,10 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
   if (result.ok()) {
-    EXPECT_EQ(1, result.val->signatures->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(1, result.val->function_table->size());
-    EXPECT_EQ(0, result.val->function_table->at(0));
+    EXPECT_EQ(1, result.val->signatures.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(1, result.val->function_table.size());
+    EXPECT_EQ(0, result.val->function_table[0]);
   }
   if (result.val) delete result.val;
 }
@@ -727,20 +714,30 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       kDeclSignatures, 2, 0, 0,  // void -> void
       0, kLocalI32,              // void -> i32
       // func#0 ------------------------------------------------------
-      kDeclFunctions, 4, FUNCTION(0, 1), FUNCTION(1, 1), FUNCTION(0, 1),
-      FUNCTION(1, 1),
+      kDeclFunctions, 4, FUNCTION(0, 1),  // --
+      FUNCTION(1, 1),                     // --
+      FUNCTION(0, 1),                     // --
+      FUNCTION(1, 1),                     // --
       // indirect table ----------------------------------------------
-      kDeclFunctionTable, 8, 0, 0, 1, 0, 2, 0, 3, 0, 0, 0, 1, 0, 2, 0, 3, 0,
+      kDeclFunctionTable, 8,
+      U16_LE(0),  // --
+      U16_LE(1),  // --
+      U16_LE(2),  // --
+      U16_LE(3),  // --
+      U16_LE(0),  // --
+      U16_LE(1),  // --
+      U16_LE(2),  // --
+      U16_LE(3),  // --
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
   if (result.ok()) {
-    EXPECT_EQ(2, result.val->signatures->size());
-    EXPECT_EQ(4, result.val->functions->size());
-    EXPECT_EQ(8, result.val->function_table->size());
+    EXPECT_EQ(2, result.val->signatures.size());
+    EXPECT_EQ(4, result.val->functions.size());
+    EXPECT_EQ(8, result.val->function_table.size());
     for (int i = 0; i < 8; i++) {
-      EXPECT_EQ(i & 3, result.val->function_table->at(i));
+      EXPECT_EQ(i & 3, result.val->function_table[i]);
     }
   }
   if (result.val) delete result.val;
@@ -1018,20 +1015,10 @@ TEST_F(WasmModuleVerifyTest, ImportTable_nosigs) {
 
 TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
   static const byte data[] = {
-      kDeclSignatures,
-      0,
-      kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      kDeclSignatures, 0, kDeclImportTable, 1,
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1),  // function name
   };
   EXPECT_FAILURE(data);
 }
@@ -1040,45 +1027,124 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
   static const byte data[] = {
       kDeclSignatures,
       1,
-      0,
-      static_cast<byte>(kAstStmt),
+      VOID_VOID_SIG,
       kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      1,               // --
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1)   // function name
   };
   EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
   static const byte data[] = {
-      kDeclSignatures,
-      1,
-      0,
-      static_cast<byte>(kAstStmt),
-      kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      kDeclSignatures, 1, VOID_VOID_SIG, kDeclImportTable, 1,
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1),  // function name
   };
 
-  for (size_t length = 5; length < sizeof(data); length++) {
+  EXPECT_OFF_END_FAILURE(data, 5, sizeof(data));
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_empty) {
+  static const byte data[] = {kDeclSignatures,  0, kDeclFunctions, 0,
+                              kDeclExportTable, 0};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions1) {
+  static const byte data[] = {kDeclSignatures, 0, kDeclExportTable, 0};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions2) {
+  static const byte data[] = {kDeclExportTable, 0};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableOne) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  1,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(0)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  2,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(1),        // --
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(2)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableThree) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    3,  // functions
+      EMPTY_FUNCTION(0),     // --
+      EMPTY_FUNCTION(0),     // --
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  3,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(1),        // --
+      FUNC_INDEX(1),         // --
+      NAME_OFFSET(2),        // --
+      FUNC_INDEX(2),         // --
+      NAME_OFFSET(2)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
+  for (int i = 0; i < 6; i++) {
+    const byte data[] = {
+        kDeclSignatures,   1,  // sigs
+        VOID_VOID_SIG,         // --
+        kDeclFunctions,    3,  // functions
+        EMPTY_FUNCTION(0),     // --
+        EMPTY_FUNCTION(0),     // --
+        EMPTY_FUNCTION(0),     // --
+        kDeclExportTable,  1,  // exports
+        FUNC_INDEX(i),         // --
+        NAME_OFFSET(1)         // --
+    };
+
+    if (i < 3) {
+      EXPECT_VERIFIES(data);
+    } else {
+      EXPECT_FAILURE(data);
+    }
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  1,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(0)         // --
+  };
+
+  for (int length = 13; length < sizeof(data); length++) {
     ModuleResult result = DecodeModule(data, data + length);
     EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;

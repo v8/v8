@@ -9,9 +9,9 @@ load("test/mjsunit/wasm/wasm-constants.js");
 var kReturnValue = 97;
 
 var kBodySize = 2;
-var kNameOffset = 15 + kBodySize + 1;
+var kNameOffset = kHeaderSize + 15 + kBodySize + 1;
 
-var data = bytes(
+var data = bytesWithHeader(
   // -- signatures
   kDeclSignatures, 1,
   0, kAstI32,                 // signature: void -> int

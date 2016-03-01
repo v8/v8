@@ -9,6 +9,11 @@ load("test/mjsunit/wasm/wasm-constants.js");
 function instantiate(sig, body) {
   var module = new Array();
   module = module.concat([
+    // -- header
+    kWasmH0, kWasmH1, kWasmH2, kWasmH3,
+    kWasmV0, kWasmV1, kWasmV2, kWasmV3
+  ]);
+  module = module.concat([
     // -- signatures
     kDeclSignatures, 1,
   ]);
@@ -63,7 +68,7 @@ assertFails([3, kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 
 (function testInvalidIndex() {
   var kBodySize = 1;
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt,
@@ -84,7 +89,7 @@ assertFails([3, kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 
 (function testTwoStartFuncs() {
   var kBodySize = 1;
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt,
@@ -109,7 +114,7 @@ assertFails([3, kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 (function testRun() {
   var kBodySize = 6;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     kDeclMemory,
     12, 12, 1,                  // memory
     // -- signatures
@@ -135,9 +140,9 @@ assertFails([3, kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 
 (function testStartFFI() {
   var kBodySize = 2;
-  var kNameOffset = 4 + 9 + 7 + 3;
+  var kNameOffset = kHeaderSize + 4 + 9 + 7 + 3;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt,

@@ -180,7 +180,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToString:
       return 1;
     case Runtime::kInlineCall:
-    case Runtime::kInlineTailCall:
     case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineThrowNotDateError:
       return 2;
@@ -401,7 +400,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved registers
       kNoCalleeSaved,                   // callee-saved fp
-      flags,                            // flags
+      CallDescriptor::kCanUseRoots |    // flags
+          flags,                        // flags
       descriptor.DebugName(isolate));
 }
 

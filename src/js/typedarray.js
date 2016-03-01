@@ -11,9 +11,11 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayFrom;
+var AddIndexedProperty;
 var ArrayToString;
 var ArrayValues;
+var GetIterator;
+var GetMethod;
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
@@ -67,9 +69,11 @@ endmacro
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
-  ArrayFrom = from.ArrayFrom;
+  AddIndexedProperty = from.AddIndexedProperty;
   ArrayToString = from.ArrayToString;
   ArrayValues = from.ArrayValues;
+  GetIterator = from.GetIterator;
+  GetMethod = from.GetMethod;
   InnerArrayCopyWithin = from.InnerArrayCopyWithin;
   InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFill = from.InnerArrayFill;
@@ -760,14 +764,50 @@ function TypedArrayOf() {
 }
 
 
+// ES#sec-iterabletoarraylike Runtime Semantics: IterableToArrayLike( items )
+function IterableToArrayLike(items) {
+  var iterable = GetMethod(items, iteratorSymbol);
+  if (!IS_UNDEFINED(iterable)) {
+    var internal_array = new InternalArray();
+    var i = 0;
+    for (var value of
+         { [iteratorSymbol]() { return GetIterator(items, iterable) } }) {
+      internal_array[i] = value;
+      i++;
+    }
+    var array = [];
+    %MoveArrayContents(internal_array, array);
+    return array;
+  }
+  return TO_OBJECT(items);
+}
+
+
+// ES#sec-%typedarray%.from
+// %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
 function TypedArrayFrom(source, mapfn, thisArg) {
-  // TODO(littledan): Investigate if there is a receiver which could be
-  // faster to accumulate on than Array, e.g., a TypedVector.
-  // TODO(littledan): Rewrite this code to ensure that things happen
-  // in the right order, e.g., the constructor needs to be called before
-  // the mapping function on array-likes.
-  var array = %_Call(ArrayFrom, GlobalArray, source, mapfn, thisArg);
-  return TypedArrayCreate(this, array);
+  if (!%IsConstructor(this)) throw MakeTypeError(kNotConstructor, this);
+  var mapping;
+  if (!IS_UNDEFINED(mapfn)) {
+    if (!IS_CALLABLE(mapfn)) throw MakeTypeError(kCalledNonCallable, this);
+    mapping = true;
+  } else {
+    mapping = false;
+  }
+  var arrayLike = IterableToArrayLike(source);
+  var length = TO_LENGTH(arrayLike.length);
+  var targetObject = TypedArrayCreate(this, length);
+  var value, mappedValue;
+  for (var i = 0; i < length; i++) {
+    value = arrayLike[i];
+    if (mapping) {
+      mappedValue = %_Call(mapfn, thisArg, value, i);
+    } else {
+      mappedValue = value;
+    }
+    targetObject[i] = mappedValue;
+  }
+  return targetObject;
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 
@@ -785,7 +825,7 @@ function TypedArray() {
 %FunctionSetPrototype(TypedArray, new GlobalObject());
 %AddNamedProperty(TypedArray.prototype,
                   "constructor", TypedArray, DONT_ENUM);
-utils.InstallFunctions(TypedArray, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+utils.InstallFunctions(TypedArray, DONT_ENUM, [
   "from", TypedArrayFrom,
   "of", TypedArrayOf
 ]);

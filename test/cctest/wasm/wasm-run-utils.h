@@ -51,6 +51,12 @@ static const uint32_t kMaxFunctions = 10;
 #define WASM_RUNNER_MAX_NUM_PARAMETERS 4
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
+#define BUILD(r, ...)                      \
+  do {                                     \
+    byte code[] = {__VA_ARGS__};           \
+    r.Build(code, code + arraysize(code)); \
+  } while (false)
+
 namespace {
 using namespace v8::base;
 using namespace v8::internal;
@@ -83,18 +89,14 @@ class TestingModule : public ModuleEnv {
     instance->globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    instance->function_code = nullptr;
     linker = nullptr;
-    asm_js = false;
+    origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }
 
   ~TestingModule() {
     if (instance->mem_start) {
       free(instance->mem_start);
-    }
-    if (instance->function_code) {
-      delete instance->function_code;
     }
   }
 
@@ -121,11 +123,8 @@ class TestingModule : public ModuleEnv {
   }
 
   byte AddSignature(FunctionSig* sig) {
-    if (!module->signatures) {
-      module->signatures = new std::vector<FunctionSig*>();
-    }
-    module->signatures->push_back(sig);
-    size_t size = module->signatures->size();
+    module->signatures.push_back(sig);
+    size_t size = module->signatures.size();
     CHECK(size < 127);
     return static_cast<byte>(size - 1);
   }
@@ -171,23 +170,21 @@ class TestingModule : public ModuleEnv {
   }
 
   int AddFunction(FunctionSig* sig, Handle<Code> code) {
-    if (module->functions == nullptr) {
-      module->functions = new std::vector<WasmFunction>();
+    if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
-      module->functions->reserve(kMaxFunctions);
-      instance->function_code = new std::vector<Handle<Code>>();
+      module->functions.reserve(kMaxFunctions);
     }
-    uint32_t index = static_cast<uint32_t>(module->functions->size());
-    module->functions->push_back(
+    uint32_t index = static_cast<uint32_t>(module->functions.size());
+    module->functions.push_back(
         {sig, index, 0, 0, 0, 0, 0, 0, 0, false, false});
-    instance->function_code->push_back(code);
+    instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
   }
 
   void SetFunctionCode(uint32_t index, Handle<Code> code) {
-    instance->function_code->at(index) = code;
+    instance->function_code[index] = code;
   }
 
   void AddIndirectFunctionTable(int* functions, int table_size) {
@@ -195,21 +192,21 @@ class TestingModule : public ModuleEnv {
     Handle<FixedArray> fixed =
         isolate->factory()->NewFixedArray(2 * table_size);
     instance->function_table = fixed;
-    module->function_table = new std::vector<uint16_t>();
+    DCHECK_EQ(0u, module->function_table.size());
     for (int i = 0; i < table_size; i++) {
-      module->function_table->push_back(functions[i]);
+      module->function_table.push_back(functions[i]);
     }
   }
 
   void PopulateIndirectFunctionTable() {
     if (instance->function_table.is_null()) return;
-    int table_size = static_cast<int>(module->function_table->size());
+    int table_size = static_cast<int>(module->function_table.size());
     for (int i = 0; i < table_size; i++) {
-      int function_index = module->function_table->at(i);
-      WasmFunction* function = &module->functions->at(function_index);
+      int function_index = module->function_table[i];
+      WasmFunction* function = &module->functions[function_index];
       instance->function_table->set(i, Smi::FromInt(function->sig_index));
-      instance->function_table->set(
-          i + table_size, *instance->function_code->at(function_index));
+      instance->function_table->set(i + table_size,
+                                    *instance->function_code[function_index]);
     }
   }
 
@@ -220,16 +217,13 @@ class TestingModule : public ModuleEnv {
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
 
   WasmGlobal* AddGlobal(MachineType mem_type) {
-    if (!module->globals) {
-      module->globals = new std::vector<WasmGlobal>();
-    }
     byte size = WasmOpcodes::MemSize(mem_type);
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module->globals->push_back({0, mem_type, global_offset, false});
+    module->globals.push_back({0, mem_type, global_offset, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
-    return &module->globals->back();
+    return &module->globals.back();
   }
 };
 
@@ -495,7 +489,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
 
   WasmFunction* function() {
     if (function_) return function_;
-    return &testing_module_->module->functions->at(function_index_);
+    return &testing_module_->module->functions[function_index_];
   }
 };
 

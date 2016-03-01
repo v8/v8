@@ -48,6 +48,7 @@ class FrameInspector {
   DeoptimizedFrameInfo* deoptimized_frame_;
   Isolate* isolate_;
   bool is_optimized_;
+  bool is_interpreted_;
   bool is_bottommost_;
   bool has_adapted_arguments_;
 

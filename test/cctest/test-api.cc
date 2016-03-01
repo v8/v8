@@ -21033,21 +21033,33 @@ TEST(RunMicrotasksIgnoresThrownExceptions) {
 }
 
 
+uint8_t microtasks_completed_callback_count = 0;
+
+
+static void MicrotasksCompletedCallback(v8::Isolate* isolate) {
+  ++microtasks_completed_callback_count;
+}
+
+
 TEST(SetAutorunMicrotasks) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  env->GetIsolate()->AddMicrotasksCompletedCallback(
+      &MicrotasksCompletedCallback);
   CompileRun(
       "var ext1Calls = 0;"
       "var ext2Calls = 0;");
   CompileRun("1+1;");
   CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(0u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskOne).ToLocalChecked());
   CompileRun("1+1;");
   CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(1u, microtasks_completed_callback_count);
 
   env->GetIsolate()->SetAutorunMicrotasks(false);
   env->GetIsolate()->EnqueueMicrotask(
@@ -21057,20 +21069,24 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(1u, microtasks_completed_callback_count);
 
   env->GetIsolate()->RunMicrotasks();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(2u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(2u, microtasks_completed_callback_count);
 
   env->GetIsolate()->RunMicrotasks();
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(3u, microtasks_completed_callback_count);
 
   env->GetIsolate()->SetAutorunMicrotasks(true);
   env->GetIsolate()->EnqueueMicrotask(
@@ -21078,6 +21094,7 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(4u, microtasks_completed_callback_count);
 
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
@@ -21086,11 +21103,22 @@ TEST(SetAutorunMicrotasks) {
     CompileRun("1+1;");
     CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
     CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+    CHECK_EQ(4u, microtasks_completed_callback_count);
   }
 
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(5u, microtasks_completed_callback_count);
+
+  env->GetIsolate()->RemoveMicrotasksCompletedCallback(
+      &MicrotasksCompletedCallback);
+  env->GetIsolate()->EnqueueMicrotask(
+      Function::New(env.local(), MicrotaskOne).ToLocalChecked());
+  CompileRun("1+1;");
+  CHECK_EQ(3, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(5u, microtasks_completed_callback_count);
 }
 
 
@@ -22037,7 +22065,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Strict(other, 'x')");
   CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
-  CheckCorrectThrow("%HasOwnProperty(other, 'x')");
+  CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
   CheckCorrectThrow("%HasProperty('x', other)");
   CheckCorrectThrow("%PropertyIsEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
@@ -22447,7 +22475,8 @@ THREADED_TEST(FunctionNew) {
                        ->serial_number()),
       i_isolate);
   auto cache = i_isolate->template_instantiations_cache();
-  CHECK(cache->Lookup(serial_number)->IsTheHole());
+  CHECK(cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
+        i::UnseededNumberDictionary::kNotFound);
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;
@@ -24422,30 +24451,6 @@ TEST(StrongModeArityCallFromApi2) {
         .ToLocalChecked();
     CHECK(!try_catch.HasCaught());
   }
-}
-
-
-TEST(StrongObjectDelete) {
-  i::FLAG_strong_mode = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<Object> obj;
-  {
-    v8::TryCatch try_catch(isolate);
-    obj = Local<Object>::Cast(CompileRun(
-        "'use strong';"
-        "({});"));
-    CHECK(!try_catch.HasCaught());
-  }
-  obj->DefineOwnProperty(env.local(), v8_str("foo"), v8_num(1), v8::None)
-      .FromJust();
-  obj->DefineOwnProperty(env.local(), v8_str("2"), v8_num(1), v8::None)
-      .FromJust();
-  CHECK(obj->HasOwnProperty(env.local(), v8_str("foo")).FromJust());
-  CHECK(obj->HasOwnProperty(env.local(), v8_str("2")).FromJust());
-  CHECK(!obj->Delete(env.local(), v8_str("foo")).FromJust());
-  CHECK(!obj->Delete(env.local(), 2).FromJust());
 }
 
 

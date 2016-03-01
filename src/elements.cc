@@ -705,7 +705,10 @@ class ElementsAccessorBase : public ElementsAccessor {
       array->initialize_elements();
     } else if (length <= capacity) {
       if (array->HasFastSmiOrObjectElements()) {
-        backing_store = JSObject::EnsureWritableFastElements(array);
+        JSObject::EnsureWritableFastElements(array);
+        if (array->elements() != *backing_store) {
+          backing_store = handle(array->elements(), isolate);
+        }
       }
       if (2 * length <= capacity) {
         // If more than half the elements won't be used, trim the array.

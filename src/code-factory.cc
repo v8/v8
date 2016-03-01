@@ -119,13 +119,6 @@ Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
 
 
 // static
-Callable CodeFactory::CompareNilIC(Isolate* isolate, NilValue nil_value) {
-  Handle<Code> code = CompareNilICStub::GetUninitialized(isolate, nil_value);
-  return Callable(code, CompareNilDescriptor(isolate));
-}
-
-
-// static
 Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
   BinaryOpICStub stub(isolate, op);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
@@ -141,8 +134,8 @@ Callable CodeFactory::InstanceOf(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToBoolean(Isolate* isolate) {
-  Handle<Code> code = ToBooleanStub::GetUninitialized(isolate);
-  return Callable(code, ToBooleanDescriptor(isolate));
+  ToBooleanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
 

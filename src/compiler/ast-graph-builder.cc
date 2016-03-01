@@ -2704,11 +2704,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  if (!is_strong(language_mode())) {
-    old_value = NewNode(javascript()->ToNumber(), old_value);
-    PrepareFrameState(old_value, expr->ToNumberId(),
-                      OutputFrameStateCombine::Push());
-  }
+  old_value = NewNode(javascript()->ToNumber(), old_value);
+  PrepareFrameState(old_value, expr->ToNumberId(),
+                    OutputFrameStateCombine::Push());
 
   // Create a proper eager frame state for the stores.
   environment()->Push(old_value);
@@ -2731,10 +2729,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     FrameStateBeforeAndAfter states(this, BailoutId::None());
     value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
                           expr->binary_op(), expr->CountBinOpFeedbackId());
-    // This should never deoptimize outside strong mode because otherwise we
-    // have converted to number before.
-    states.AddToNode(value, is_strong(language_mode()) ? expr->ToNumberId()
-                                                       : BailoutId::None(),
+    // This should never deoptimize because we have converted to number before.
+    states.AddToNode(value, BailoutId::None(),
                      OutputFrameStateCombine::Ignore());
   }
 

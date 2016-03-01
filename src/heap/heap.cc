@@ -945,7 +945,8 @@ void Heap::EnsureFillerObjectAtTop() {
     Page* page = Page::FromAddress(from_top);
     if (page->Contains(from_top)) {
       int remaining_in_page = static_cast<int>(page->area_end() - from_top);
-      CreateFillerObjectAt(from_top, remaining_in_page);
+      CreateFillerObjectAt(from_top, remaining_in_page,
+                           ClearRecordedSlots::kNo);
     }
   }
 }
@@ -1063,9 +1064,9 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     tracer()->ResetSurvivalEvents();
     old_generation_size_configured_ = false;
     MemoryReducer::Event event;
-    event.type = MemoryReducer::kContextDisposed;
+    event.type = MemoryReducer::kPossibleGarbage;
     event.time_ms = MonotonicallyIncreasingTimeInMs();
-    memory_reducer_->NotifyContextDisposed(event);
+    memory_reducer_->NotifyPossibleGarbage(event);
   }
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
@@ -1166,7 +1167,8 @@ bool Heap::ReserveSpace(Reservation* reservations) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space->address();
-            CreateFillerObjectAt(free_space_address, size);
+            CreateFillerObjectAt(free_space_address, size,
+                                 ClearRecordedSlots::kNo);
             DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -1999,7 +2001,7 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
 
 
 HeapObject* Heap::PrecedeWithFiller(HeapObject* object, int filler_size) {
-  CreateFillerObjectAt(object->address(), filler_size);
+  CreateFillerObjectAt(object->address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object->address() + filler_size);
 }
 
@@ -2015,7 +2017,8 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size)
-    CreateFillerObjectAt(object->address() + object_size, filler_size);
+    CreateFillerObjectAt(object->address() + object_size, filler_size,
+                         ClearRecordedSlots::kNo);
   return object;
 }
 
@@ -2133,7 +2136,7 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -2400,6 +2403,20 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_MAP
   }
 
+  {
+    AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_true_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kTrue);
+
+  {
+    AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_false_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kFalse);
+
   {  // Empty arrays
     {
       ByteArray* byte_array;
@@ -2617,48 +2634,54 @@ void Heap::CreateInitialObjects() {
   // Allocate initial string table.
   set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
+  // Allocate
+
   // Finish initializing oddballs after creating the string table.
   Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
-                      factory->nan_value(), "undefined", Oddball::kUndefined);
+                      factory->nan_value(), false, "undefined",
+                      Oddball::kUndefined);
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      handle(Smi::FromInt(0), isolate()), "object",
+                      handle(Smi::FromInt(0), isolate()), false, "object",
                       Oddball::kNull);
 
-  set_true_value(*factory->NewOddball(factory->boolean_map(), "true",
-                                      handle(Smi::FromInt(1), isolate()),
-                                      "boolean", Oddball::kTrue));
+  // Initialize the true_value.
+  Oddball::Initialize(isolate(), factory->true_value(), "true",
+                      handle(Smi::FromInt(1), isolate()), true, "boolean",
+                      Oddball::kTrue);
 
-  set_false_value(*factory->NewOddball(factory->boolean_map(), "false",
-                                       handle(Smi::FromInt(0), isolate()),
-                                       "boolean", Oddball::kFalse));
+  // Initialize the false_value.
+  Oddball::Initialize(isolate(), factory->false_value(), "false",
+                      handle(Smi::FromInt(0), isolate()), false, "boolean",
+                      Oddball::kFalse);
 
-  set_the_hole_value(*factory->NewOddball(factory->the_hole_map(), "hole",
-                                          handle(Smi::FromInt(-1), isolate()),
-                                          "undefined", Oddball::kTheHole));
+  set_the_hole_value(*factory->NewOddball(
+      factory->the_hole_map(), "hole", handle(Smi::FromInt(-1), isolate()),
+      false, "undefined", Oddball::kTheHole));
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
-                           handle(Smi::FromInt(-1), isolate()), "undefined",
-                           Oddball::kUninitialized));
+                           handle(Smi::FromInt(-1), isolate()), false,
+                           "undefined", Oddball::kUninitialized));
 
   set_arguments_marker(
       *factory->NewOddball(factory->arguments_marker_map(), "arguments_marker",
-                           handle(Smi::FromInt(-4), isolate()), "undefined",
-                           Oddball::kArgumentsMarker));
+                           handle(Smi::FromInt(-4), isolate()), false,
+                           "undefined", Oddball::kArgumentsMarker));
 
   set_no_interceptor_result_sentinel(*factory->NewOddball(
       factory->no_interceptor_result_sentinel_map(),
       "no_interceptor_result_sentinel", handle(Smi::FromInt(-2), isolate()),
-      "undefined", Oddball::kOther));
+      false, "undefined", Oddball::kOther));
 
   set_termination_exception(*factory->NewOddball(
       factory->termination_exception_map(), "termination_exception",
-      handle(Smi::FromInt(-3), isolate()), "undefined", Oddball::kOther));
+      handle(Smi::FromInt(-3), isolate()), false, "undefined",
+      Oddball::kOther));
 
   set_exception(*factory->NewOddball(factory->exception_map(), "exception",
-                                     handle(Smi::FromInt(-5), isolate()),
+                                     handle(Smi::FromInt(-5), isolate()), false,
                                      "undefined", Oddball::kException));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
@@ -2851,6 +2874,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(the_hole_value());
   set_empty_property_cell(*cell);
 
+  Handle<PropertyCell> species_cell = factory->NewPropertyCell();
+  species_cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  set_species_protector(*species_cell);
+
   set_weak_stack_trace_list(Smi::FromInt(0));
 
   set_noscript_shared_function_infos(Smi::FromInt(0));
@@ -3032,14 +3059,14 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
-  instance->set_source_position_table(empty_fixed_array());
+  instance->set_source_position_table(empty_byte_array());
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
 
   return result;
 }
 
-
-void Heap::CreateFillerObjectAt(Address addr, int size) {
+void Heap::CreateFillerObjectAt(Address addr, int size,
+                                ClearRecordedSlots mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3053,6 +3080,9 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
     filler->set_map_no_write_barrier(
         reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)));
     FreeSpace::cast(filler)->nobarrier_set_size(size);
+  }
+  if (mode == ClearRecordedSlots::kYes) {
+    ClearRecordedSlotRange(addr, addr + size);
   }
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are NULL.
@@ -3127,7 +3157,8 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(object->address(), bytes_to_trim);
+  CreateFillerObjectAt(object->address(), bytes_to_trim,
+                       ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3142,11 +3173,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   // Maintain consistency of live bytes during incremental marking
   Marking::TransferMark(this, object->address(), new_start);
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    // Array trimming during sweeping can add invalid slots in free list.
-    ClearRecordedSlotRange(object, former_start,
-                           HeapObject::RawField(new_object, 0));
-  }
   AdjustLiveBytes(new_object, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
 
   // Notify the heap profiler of change in object layout.
@@ -3206,12 +3232,7 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
-    CreateFillerObjectAt(new_end, bytes_to_trim);
-    if (mark_compact_collector()->sweeping_in_progress()) {
-      // Array trimming during sweeping can add invalid slots in free list.
-      ClearRecordedSlotRange(object, reinterpret_cast<Object**>(new_end),
-                             reinterpret_cast<Object**>(old_end));
-    }
+    CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
   }
 
   // Initialize header of the trimmed array. We are storing the new length
@@ -3315,7 +3336,8 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
         MemoryChunk::FromAddress(address)->owner()->identity() != LO_SPACE) {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
-      CreateFillerObjectAt(result->address(), object_size);
+      CreateFillerObjectAt(result->address(), object_size,
+                           ClearRecordedSlots::kNo);
       allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
       if (!allocation.To(&result)) return allocation;
       OnAllocationEvent(result, object_size);
@@ -3358,6 +3380,25 @@ AllocationResult Heap::CopyCode(Code* code) {
   return new_code;
 }
 
+AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
+  int size = BytecodeArray::SizeFor(bytecode_array->length());
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  result->set_map_no_write_barrier(bytecode_array_map());
+  BytecodeArray* copy = BytecodeArray::cast(result);
+  copy->set_length(bytecode_array->length());
+  copy->set_frame_size(bytecode_array->frame_size());
+  copy->set_parameter_count(bytecode_array->parameter_count());
+  copy->set_constant_pool(bytecode_array->constant_pool());
+  copy->set_handler_table(bytecode_array->handler_table());
+  copy->set_source_position_table(bytecode_array->source_position_table());
+  bytecode_array->CopyBytecodesTo(copy);
+  return copy;
+}
 
 AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Allocate ByteArray before the Code object, so that we do not risk
@@ -4113,6 +4154,20 @@ bool Heap::HasHighFragmentation(intptr_t used, intptr_t committed) {
   return committed - used > used + kSlack;
 }
 
+void Heap::SetOptimizeForMemoryUsage() {
+  // Activate memory reducer when switching to background if
+  // - there was no mark compact since the start.
+  // - the committed memory can be potentially reduced.
+  // 2 pages for the old, code, and map space + 1 page for new space.
+  const int kMinCommittedMemory = 7 * Page::kPageSize;
+  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory) {
+    MemoryReducer::Event event;
+    event.type = MemoryReducer::kPossibleGarbage;
+    event.time_ms = MonotonicallyIncreasingTimeInMs();
+    memory_reducer_->NotifyPossibleGarbage(event);
+  }
+  optimize_for_memory_usage_ = true;
+}
 
 void Heap::ReduceNewSpaceSize() {
   // TODO(ulan): Unify this constant with the similar constant in
@@ -5541,18 +5596,17 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
     Page* page = Page::FromAddress(slot_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
+    RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
 }
 
-void Heap::ClearRecordedSlotRange(HeapObject* object, Object** start,
-                                  Object** end) {
-  if (!InNewSpace(object)) {
+void Heap::ClearRecordedSlotRange(Address start, Address end) {
+  Page* page = Page::FromAddress(start);
+  if (!page->InNewSpace()) {
     store_buffer()->MoveEntriesToRememberedSet();
-    Address start_addr = reinterpret_cast<Address>(start);
-    Address end_addr = reinterpret_cast<Address>(end);
-    Page* page = Page::FromAddress(start_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start_addr, end_addr);
+    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end);
+    RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end);
   }
 }
 

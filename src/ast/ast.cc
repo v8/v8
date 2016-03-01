@@ -36,15 +36,9 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 #ifdef DEBUG
 
-void AstNode::Print() { Print(Isolate::Current()); }
-
-
 void AstNode::Print(Isolate* isolate) {
   AstPrinter::PrintOut(isolate, this);
 }
-
-
-void AstNode::PrettyPrint() { PrettyPrint(Isolate::Current()); }
 
 
 void AstNode::PrettyPrint(Isolate* isolate) {
@@ -154,15 +148,11 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
   }
 }
 
-
-void ForEachStatement::AssignFeedbackVectorSlots(
-    Isolate* isolate, FeedbackVectorSpec* spec,
-    FeedbackVectorSlotCache* cache) {
-  // TODO(adamk): for-of statements do not make use of this feedback slot.
-  // The each_slot_ should be specific to ForInStatement, and this work moved
-  // there.
-  if (IsForOfStatement()) return;
+void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
+                                               FeedbackVectorSpec* spec,
+                                               FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(each(), spec, &each_slot_);
+  for_in_feedback_slot_ = spec->AddGeneralSlot();
 }
 
 

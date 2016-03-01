@@ -22,6 +22,8 @@ namespace wasm {
 const size_t kMaxModuleSize = 1024 * 1024 * 1024;
 const size_t kMaxFunctionSize = 128 * 1024;
 const size_t kMaxStringSize = 256;
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x0a;
 
 enum WasmSectionDeclCode {
   kDeclMemory = 0x00,
@@ -33,6 +35,7 @@ enum WasmSectionDeclCode {
   kDeclEnd = 0x06,
   kDeclStartFunction = 0x07,
   kDeclImportTable = 0x08,
+  kDeclExportTable = 0x09,
   kDeclWLL = 0x11,
 };
 
@@ -74,6 +77,12 @@ struct WasmImport {
   uint32_t function_name_offset;  // offset in module bytes of the import name.
 };
 
+// Static representation of an exported WASM function.
+struct WasmExport {
+  uint16_t func_index;   // index into the function table.
+  uint32_t name_offset;  // offset in module bytes of the name to export.
+};
+
 // Static representation of a wasm global variable.
 struct WasmGlobal {
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
@@ -90,6 +99,8 @@ struct WasmDataSegment {
   bool init;               // true if loaded upon instantiation.
 };
 
+enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
+
 // Static representation of a module.
 struct WasmModule {
   static const uint8_t kMinMemSize = 12;  // Minimum memory size = 4kb
@@ -103,16 +114,17 @@ struct WasmModule {
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
   int start_function_index;   // start function, if any.
+  ModuleOrigin origin;        // origin of the module
 
-  std::vector<WasmGlobal>* globals;             // globals in this module.
-  std::vector<FunctionSig*>* signatures;        // signatures in this module.
-  std::vector<WasmFunction>* functions;         // functions in this module.
-  std::vector<WasmDataSegment>* data_segments;  // data segments in this module.
-  std::vector<uint16_t>* function_table;        // function table.
-  std::vector<WasmImport>* import_table;        // import table.
+  std::vector<WasmGlobal> globals;             // globals in this module.
+  std::vector<FunctionSig*> signatures;        // signatures in this module.
+  std::vector<WasmFunction> functions;         // functions in this module.
+  std::vector<WasmDataSegment> data_segments;  // data segments in this module.
+  std::vector<uint16_t> function_table;        // function table.
+  std::vector<WasmImport> import_table;        // import table.
+  std::vector<WasmExport> export_table;        // export table.
 
   WasmModule();
-  ~WasmModule();
 
   // Get a pointer to a string stored in the module bytes representing a name.
   const char* GetName(uint32_t offset) const {
@@ -141,8 +153,8 @@ struct WasmModuleInstance {
   Handle<JSArrayBuffer> mem_buffer;      // Handle to array buffer of memory.
   Handle<JSArrayBuffer> globals_buffer;  // Handle to array buffer of globals.
   Handle<FixedArray> function_table;     // indirect function table.
-  std::vector<Handle<Code>>* function_code;  // code objects for each function.
-  std::vector<Handle<Code>>* import_code;   // code objects for each import.
+  std::vector<Handle<Code>> function_code;  // code objects for each function.
+  std::vector<Handle<Code>> import_code;    // code objects for each import.
   // -- raw memory ------------------------------------------------------------
   byte* mem_start;  // start of linear memory.
   size_t mem_size;  // size of the linear memory.
@@ -152,7 +164,6 @@ struct WasmModuleInstance {
 
   explicit WasmModuleInstance(WasmModule* m)
       : module(m),
-        function_code(nullptr),
         mem_start(nullptr),
         mem_size(0),
         globals_start(nullptr),
@@ -168,46 +179,48 @@ struct ModuleEnv {
   WasmModule* module;
   WasmModuleInstance* instance;
   WasmLinker* linker;
-  bool asm_js;  // true if the module originated from asm.js.
+  ModuleOrigin origin;
 
   bool IsValidGlobal(uint32_t index) {
-    return module && index < module->globals->size();
+    return module && index < module->globals.size();
   }
   bool IsValidFunction(uint32_t index) {
-    return module && index < module->functions->size();
+    return module && index < module->functions.size();
   }
   bool IsValidSignature(uint32_t index) {
-    return module && index < module->signatures->size();
+    return module && index < module->signatures.size();
   }
   bool IsValidImport(uint32_t index) {
-    return module && index < module->import_table->size();
+    return module && index < module->import_table.size();
   }
   MachineType GetGlobalType(uint32_t index) {
     DCHECK(IsValidGlobal(index));
-    return module->globals->at(index).type;
+    return module->globals[index].type;
   }
   FunctionSig* GetFunctionSignature(uint32_t index) {
     DCHECK(IsValidFunction(index));
-    return module->functions->at(index).sig;
+    return module->functions[index].sig;
   }
   FunctionSig* GetImportSignature(uint32_t index) {
     DCHECK(IsValidImport(index));
-    return module->import_table->at(index).sig;
+    return module->import_table[index].sig;
   }
   FunctionSig* GetSignature(uint32_t index) {
     DCHECK(IsValidSignature(index));
-    return module->signatures->at(index);
+    return module->signatures[index];
   }
   size_t FunctionTableSize() {
-    return module && module->function_table ? module->function_table->size()
-                                            : 0;
+    return module ? module->function_table.size() : 0;
   }
+
+  bool asm_js() { return origin == kAsmJsOrigin; }
 
   Handle<Code> GetFunctionCode(uint32_t index);
   Handle<Code> GetImportCode(uint32_t index);
   Handle<FixedArray> GetFunctionTable();
 
-  compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone, FunctionSig* sig);
+  static compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone,
+                                                         FunctionSig* sig);
   static compiler::CallDescriptor* GetI32WasmCallDescriptor(
       Zone* zone, compiler::CallDescriptor* descriptor);
   compiler::CallDescriptor* GetCallDescriptor(Zone* zone, uint32_t index);

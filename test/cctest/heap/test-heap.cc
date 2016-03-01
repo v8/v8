@@ -2068,7 +2068,7 @@ static HeapObject* NewSpaceAllocateAligned(int size,
       heap->new_space()->AllocateRawAligned(size, alignment);
   HeapObject* obj = NULL;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj->address(), size);
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -2171,7 +2171,7 @@ static HeapObject* OldSpaceAllocateAligned(int size,
       heap->old_space()->AllocateRawAligned(size, alignment);
   HeapObject* obj = NULL;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj->address(), size);
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -4285,8 +4285,9 @@ TEST(Regress169928) {
           AllocationMemento::kSize + kPointerSize);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj->address();
-  CcTest::heap()->CreateFillerObjectAt(
-      addr_obj, AllocationMemento::kSize + kPointerSize);
+  CcTest::heap()->CreateFillerObjectAt(addr_obj,
+                                       AllocationMemento::kSize + kPointerSize,
+                                       ClearRecordedSlots::kNo);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);
@@ -6277,6 +6278,7 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   fun->ReplaceCode(*isolate->builtins()->CompileLazy());
   fun->shared()->ReplaceCode(*isolate->builtins()->CompileLazy());
+  fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
   isolate->heap()->CollectAllAvailableGarbage("remove code and gc");
 }
 
@@ -6529,6 +6531,81 @@ HEAP_TEST(Regress587004) {
   // Re-enable old space expansion to avoid OOM crash.
   heap->set_force_oom(false);
   heap->CollectGarbage(NEW_SPACE);
+}
+
+HEAP_TEST(Regress589413) {
+  FLAG_stress_compaction = true;
+  FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_parallel_compaction = false;
+  FLAG_concurrent_sweeping = false;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  // Get the heap in clean state.
+  heap->CollectGarbage(OLD_SPACE);
+  heap->CollectGarbage(OLD_SPACE);
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  // Fill the new space with byte arrays with elements looking like pointers.
+  const int M = 256;
+  ByteArray* byte_array;
+  while (heap->AllocateByteArray(M).To(&byte_array)) {
+    for (int j = 0; j < M; j++) {
+      byte_array->set(j, 0x31);
+    }
+    // Add the array in root set.
+    handle(byte_array);
+  }
+  // Make sure the byte arrays will be promoted on the next GC.
+  heap->CollectGarbage(NEW_SPACE);
+  // This number is close to large free list category threshold.
+  const int N = 0x3eee;
+  {
+    std::vector<FixedArray*> arrays;
+    std::set<Page*> pages;
+    FixedArray* array;
+    // Fill all pages with fixed arrays.
+    heap->set_force_oom(true);
+    while (heap->AllocateFixedArray(N, TENURED).To(&array)) {
+      arrays.push_back(array);
+      pages.insert(Page::FromAddress(array->address()));
+      // Add the array in root set.
+      handle(array);
+    }
+    // Expand and full one complete page with fixed arrays.
+    heap->set_force_oom(false);
+    while (heap->AllocateFixedArray(N, TENURED).To(&array)) {
+      arrays.push_back(array);
+      pages.insert(Page::FromAddress(array->address()));
+      // Add the array in root set.
+      handle(array);
+      // Do not expand anymore.
+      heap->set_force_oom(true);
+    }
+    // Expand and mark the new page as evacuation candidate.
+    heap->set_force_oom(false);
+    {
+      AlwaysAllocateScope always_allocate(isolate);
+      Handle<HeapObject> ec_obj = factory->NewFixedArray(5000, TENURED);
+      Page* ec_page = Page::FromAddress(ec_obj->address());
+      ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+      // Make all arrays point to evacuation candidate so that
+      // slots are recorded for them.
+      for (size_t j = 0; j < arrays.size(); j++) {
+        array = arrays[j];
+        for (int i = 0; i < N; i++) {
+          array->set(i, *ec_obj);
+        }
+      }
+    }
+    SimulateIncrementalMarking(heap);
+    for (size_t j = 0; j < arrays.size(); j++) {
+      heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(arrays[j], N - 1);
+    }
+  }
+  // Force allocation from the free list.
+  heap->set_force_oom(true);
+  heap->CollectGarbage(OLD_SPACE);
 }
 
 }  // namespace internal

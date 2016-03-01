@@ -774,7 +774,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsObject:
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
-    case HValue::kCallFunction:
     case HValue::kCallNewArray:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
@@ -832,7 +831,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
     case HValue::kBranch:
-    case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
     case HValue::kCallWithDescriptor:
     case HValue::kChange:
@@ -907,41 +905,9 @@ std::ostream& HUnaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << NameOf(function()) << " #" << argument_count();
-}
-
-
-HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
-                                      HValue* context, HValue* function,
-                                      int argument_count) {
-  bool has_stack_check = false;
-  if (function->IsConstant()) {
-    HConstant* fun_const = HConstant::cast(function);
-    Handle<JSFunction> jsfun =
-        Handle<JSFunction>::cast(fun_const->handle(isolate));
-    has_stack_check = !jsfun.is_null() &&
-        (jsfun->code()->kind() == Code::FUNCTION ||
-         jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
-  }
-
-  return new (zone) HCallJSFunction(function, argument_count, has_stack_check);
-}
-
-
 std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(first()) << " " << NameOf(second()) << " #"
             << argument_count();
-}
-
-
-std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << NameOf(context()) << " " << NameOf(function());
-  if (HasVectorAndSlot()) {
-    os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
-  }
-  os << " (convert mode" << convert_mode() << ")";
-  return os;
 }
 
 
@@ -1129,23 +1095,23 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_.Contains(ToBooleanStub::NULL_TYPE) ||
-      expected_input_types_.Contains(ToBooleanStub::SPEC_OBJECT) ||
-      expected_input_types_.Contains(ToBooleanStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanStub::SYMBOL) ||
-      expected_input_types_.Contains(ToBooleanStub::SIMD_VALUE)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::NULL_TYPE) ||
+      expected_input_types_.Contains(ToBooleanICStub::SPEC_OBJECT) ||
+      expected_input_types_.Contains(ToBooleanICStub::STRING) ||
+      expected_input_types_.Contains(ToBooleanICStub::SYMBOL) ||
+      expected_input_types_.Contains(ToBooleanICStub::SIMD_VALUE)) {
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
-    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
       return Representation::Double();
     }
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
     return Representation::Double();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::SMI)) {
     return Representation::Smi();
   }
   return Representation::None();
@@ -3270,6 +3236,17 @@ bool HIsUndetectableAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && value()->IsConstant()) {
     *block = HConstant::cast(value())->IsUndetectable()
         ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  if (value()->type().IsNull() || value()->type().IsUndefined()) {
+    *block = FirstSuccessor();
+    return true;
+  }
+  if (value()->type().IsBoolean() ||
+      value()->type().IsSmi() ||
+      value()->type().IsString() ||
+      value()->type().IsJSReceiver()) {
+    *block = SecondSuccessor();
     return true;
   }
   *block = NULL;

@@ -628,11 +628,19 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   __ Bind(&slow);
 
-  __ Push(lhs, rhs);
-  // Figure out which native to call and setup the arguments.
   if (cond == eq) {
-    __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(lhs, rhs);
+      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+    }
+    // Turn true into 0 and false into some non-zero value.
+    STATIC_ASSERT(EQUAL == 0);
+    __ LoadRoot(x1, Heap::kTrueValueRootIndex);
+    __ Sub(x0, x0, x1);
+    __ Ret();
   } else {
+    __ Push(lhs, rhs);
     int ncr;  // NaN compare result
     if ((cond == lt) || (cond == le)) {
       ncr = GREATER;

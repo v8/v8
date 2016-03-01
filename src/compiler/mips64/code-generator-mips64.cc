@@ -230,6 +230,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (!frame()->needs_frame()) {
@@ -237,7 +240,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(ra);
     }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         EMIT_REMEMBERED_SET, save_fp_mode);
+                         remembered_set_action, save_fp_mode);
     __ Daddu(scratch1_, object_, index_);
     __ CallStub(&stub);
     if (!frame()->needs_frame()) {

@@ -12,14 +12,14 @@ var module = (function () {
   var kBodySize1 = 5;
   var kBodySize2 = 8;
   var kFuncTableSize = 8;
-  var kSubOffset = 13 + kFuncWithBody + kBodySize1 + kFuncImported + kFuncWithBody + kBodySize2 + kFuncTableSize + 1;
+  var kSubOffset = kHeaderSize + 13 + kFuncWithBody + kBodySize1 + kFuncImported + kFuncWithBody + kBodySize2 + kFuncTableSize + 1;
   var kAddOffset = kSubOffset + 4;
   var kMainOffset = kAddOffset + 4;
 
   var ffi = new Object();
   ffi.add = (function(a, b) { return a + b | 0; });
 
-  return _WASMEXP_.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- signatures
     kDeclSignatures, 2,
     2, kAstI32, kAstI32, kAstI32, // int, int -> int

@@ -960,6 +960,7 @@ class Isolate {
   static const int kArrayProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
+  bool IsArraySpeciesLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -975,6 +976,7 @@ class Isolate {
   void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateArrayProtectorOnSetElement(object);
   }
+  void InvalidateArraySpeciesProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1058,6 +1060,10 @@ class Isolate {
   void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void FireBeforeCallEnteredCallback();
+
+  void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
+  void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
+  void FireMicrotasksCompletedCallback();
 
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
@@ -1207,6 +1213,8 @@ class Isolate {
   // the frame.
   void RemoveMaterializedObjectsOnUnwind(StackFrame* frame);
 
+  void RunMicrotasksInternal();
+
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
@@ -1327,6 +1335,9 @@ class Isolate {
 
   // List of callbacks when a Call completes.
   List<CallCompletedCallback> call_completed_callbacks_;
+
+  // List of callbacks after microtasks were run.
+  List<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
   BasicBlockProfiler* basic_block_profiler_;

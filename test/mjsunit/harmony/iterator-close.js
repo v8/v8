@@ -87,13 +87,15 @@ function* g() { yield 42; return 88 };
     for (x of g()) { break; }
   }, TypeError);
 
-  assertThrows(() => {
+  // Throw from the body of a for loop 'wins' vs throw
+  // originating from a bad 'return' value.
+  assertThrowsEquals(() => {
     for (let x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
-  assertThrows(() => {
+  assertThrowsEquals(() => {
     for (x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
   assertThrows(() => {
     for (let x of g()) { return 666; }
@@ -153,6 +155,13 @@ function* g() { yield 42; return 88 };
   log = [];
   assertEquals(42, eval('for (x of g()) { x; }'));
   assertEquals([], log);
+
+  // Even if doing the assignment throws, still call return
+  x = { set attr(_) { throw 1234; } };
+  assertThrowsEquals(() => {
+    for (x.attr of g()) { throw 456; }
+  }, 1234);
+  assertEquals([[]], log);
 }
 
 
