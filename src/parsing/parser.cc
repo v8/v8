@@ -2414,8 +2414,7 @@ Block* Parser::ParseVariableDeclarations(
 
     // Optional type annotation.
     if (scope_->typed() && Check(Token::COLON)) {
-      OTSTypeT type = ParseType(ok);
-      if (!*ok) return nullptr;
+      OTSTypeT type = ParseType(CHECK_OK);
       USE(type);
     }
 
@@ -4858,6 +4857,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
+    SET_ALLOW(harmony_types);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

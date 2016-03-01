@@ -255,6 +255,8 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
       bool use_strict_found = statement.IsUseStrictLiteral();
       bool use_strong_found =
           statement.IsUseStrongLiteral() && allow_strong_mode();
+      bool use_types_found =
+          statement.IsUseTypesLiteral() && allow_harmony_types();
 
       if (use_strict_found) {
         scope_->SetLanguageMode(
@@ -270,6 +272,17 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
           *ok = false;
           return;
         }
+      } else if (use_types_found) {
+        scope_->SetLanguageMode(
+            static_cast<LanguageMode>(scope_->language_mode() | STRICT));
+        // We do not allow "use types" directives in function scopes.
+        if (scope_->is_function_scope()) {
+          PreParserTraits::ReportMessageAt(
+              token_loc, MessageTemplate::kIllegalTypedModeDirective);
+          *ok = false;
+          return;
+        }
+        scope_->SetTyped();
       } else if (!statement.IsStringLiteral()) {
         directive_prologue = false;
       }

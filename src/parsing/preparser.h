@@ -224,6 +224,11 @@ class PreParserExpression {
            IsUseStrongField::decode(code_);
   }
 
+  bool IsUseTypesLiteral() const {
+    return TypeField::decode(code_) == kStringLiteralExpression &&
+           IsUseTypesField::decode(code_);
+  }
+
   bool IsThis() const {
     return TypeField::decode(code_) == kExpression &&
            ExpressionTypeField::decode(code_) == kThisExpression;
@@ -375,6 +380,9 @@ class PreParserStatement {
     if (expression.IsUseStrongLiteral()) {
       return PreParserStatement(kUseStrongExpressionStatement);
     }
+    if (expression.IsUseTypesLiteral()) {
+      return PreParserStatement(kUseTypesExpressionStatement);
+    }
     if (expression.IsStringLiteral()) {
       return PreParserStatement(kStringLiteralExpressionStatement);
     }
@@ -383,7 +391,7 @@ class PreParserStatement {
 
   bool IsStringLiteral() {
     return code_ == kStringLiteralExpressionStatement
-        || IsUseStrictLiteral() || IsUseStrongLiteral();
+        || IsUseStrictLiteral() || IsUseStrongLiteral() || IsUseTypesLiteral();
   }
 
   bool IsUseStrictLiteral() {
@@ -391,6 +399,8 @@ class PreParserStatement {
   }
 
   bool IsUseStrongLiteral() { return code_ == kUseStrongExpressionStatement; }
+
+  bool IsUseTypesLiteral() { return code_ == kUseTypesExpressionStatement; }
 
   bool IsFunctionDeclaration() {
     return code_ == kFunctionDeclaration;
@@ -407,7 +417,8 @@ class PreParserStatement {
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
     kUseStrongExpressionStatement,
-    kFunctionDeclaration
+    kFunctionDeclaration,
+    kUseTypesExpressionStatement
   };
 
   explicit PreParserStatement(Type code) : code_(code) {}
