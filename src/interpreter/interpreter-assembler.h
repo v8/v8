@@ -62,9 +62,6 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
 
-  // Load an element from a fixed array on the heap.
-  compiler::Node* LoadFixedArrayElement(compiler::Node* fixed_array, int index);
-
   // Load a field from an object on the heap.
   compiler::Node* LoadObjectField(compiler::Node* object, int offset);
 

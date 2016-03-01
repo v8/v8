@@ -119,7 +119,7 @@ Node* CodeStubAssembler::LoadStackPointer() {
 }
 
 Node* CodeStubAssembler::SmiShiftBitsConstant() {
-  return Int32Constant(kSmiShiftSize + kSmiTagSize);
+  return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
 
@@ -147,13 +147,17 @@ Node* CodeStubAssembler::ChangeInt32ToInt64(Node* value) {
   return raw_assembler_->ChangeInt32ToInt64(value);
 }
 
+Node* CodeStubAssembler::ChangeUint32ToUint64(Node* value) {
+  return raw_assembler_->ChangeUint32ToUint64(value);
+}
+
 Node* CodeStubAssembler::WordShl(Node* value, int shift) {
-  return raw_assembler_->WordShl(value, Int32Constant(shift));
+  return raw_assembler_->WordShl(value, IntPtrConstant(shift));
 }
 
 Node* CodeStubAssembler::WordIsSmi(Node* a) {
-  return WordEqual(raw_assembler_->WordAnd(a, Int32Constant(kSmiTagMask)),
-                   Int32Constant(0));
+  return WordEqual(raw_assembler_->WordAnd(a, IntPtrConstant(kSmiTagMask)),
+                   IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset) {
@@ -169,22 +173,22 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
                                                        Node* smi_index,
                                                        int additional_offset) {
-  Node* header_size = raw_assembler_->Int32Constant(
-      additional_offset + FixedArray::kHeaderSize - kHeapObjectTag);
+  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+  Node* header_size = IntPtrConstant(additional_offset +
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
   Node* scaled_index =
-      (kSmiShiftSize == 0)
-          ? raw_assembler_->Word32Shl(
-                smi_index, Int32Constant(kPointerSizeLog2 - kSmiTagSize))
-          : raw_assembler_->Word32Shl(SmiUntag(smi_index),
-                                      Int32Constant(kPointerSizeLog2));
-  Node* offset = raw_assembler_->Int32Add(scaled_index, header_size);
-  return raw_assembler_->Load(MachineType::AnyTagged(), object, offset);
+      (kSmiShiftBits > kPointerSizeLog2)
+          ? WordSar(smi_index, IntPtrConstant(kSmiShiftBits - kPointerSizeLog2))
+          : WordShl(smi_index,
+                    IntPtrConstant(kPointerSizeLog2 - kSmiShiftBits));
+  Node* offset = IntPtrAdd(scaled_index, header_size);
+  return Load(MachineType::AnyTagged(), object, offset);
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementConstantIndex(Node* object,
                                                             int index) {
-  Node* offset = raw_assembler_->Int32Constant(
-      FixedArray::kHeaderSize - kHeapObjectTag + index * kPointerSize);
+  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
+                                index * kPointerSize);
   return raw_assembler_->Load(MachineType::AnyTagged(), object, offset);
 }
 
@@ -192,7 +196,7 @@ Node* CodeStubAssembler::LoadRoot(Heap::RootListIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
-      return Int32Constant(Handle<Smi>::cast(root)->value());
+      return SmiConstant(Smi::cast(*root));
     } else {
       return HeapConstant(Handle<HeapObject>::cast(root));
     }

@@ -149,6 +149,7 @@ class CodeStubAssembler {
 
   // Conversions
   Node* ChangeInt32ToInt64(Node* value);
+  Node* ChangeUint32ToUint64(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);
