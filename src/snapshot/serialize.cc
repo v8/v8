@@ -2632,9 +2632,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
     }
-    isolate->logger()->CodeCreateEvent(Logger::SCRIPT_TAG,
-                                       AbstractCode::cast(result->code()),
-                                       *result, NULL, name);
+    isolate->logger()->CodeCreateEvent(
+        Logger::SCRIPT_TAG, result->abstract_code(), *result, NULL, name);
   }
   return scope.CloseAndEscape(result);
 }
