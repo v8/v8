@@ -869,10 +869,20 @@ class ParserBase : public Traits {
   }
 
   // Parsing optional types.
+  typename TypeSystem::Type ParseValidType(bool* ok);
   typename TypeSystem::Type ParseType(bool* ok);
   typename TypeSystem::Type ParseUnionOrIntersectionOrPrimaryType(bool* ok);
+  typename TypeSystem::Type ParseIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
+
+  typename TypeSystem::Type ValidateType(
+      typename TypeSystem::Type type, Scanner::Location location, bool* ok) {
+    typename TypeSystem::Type result = type->Uncover(ok);
+    if (*ok) return result;
+    ReportMessageAt(location, MessageTemplate::kInvalidType);
+    return type;
+  }
 
   // Used to validate property names in object literals and class literals
   enum PropertyKind {
@@ -3328,6 +3338,17 @@ void ParserBase<Traits>::CheckDestructuringElement(
   }
 }
 
+
+template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseValidType(bool* ok) {
+  Scanner::Location type_location = scanner()->peek_location();
+  typename TypeSystem::Type type = ParseType(CHECK_OK_TYPE);
+  type = ValidateType(type, type_location, CHECK_OK_TYPE);
+  return type;
+}
+
+
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
     bool* ok) {
@@ -3346,26 +3367,25 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
   // Parse optional 'new' and type parameters.
   bool has_new = Check(Token::NEW);
   typename TypeSystem::TypeParameters type_parameters =
-      this->EmptyTypeParameters();
+      this->NullTypeParameters();
   if (peek() == Token::LT)
     type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
   // If any of those were present, then only allow a parenthesized primary
   // type or a parameter list), else also allow unions and intersections.
   typename TypeSystem::Type type =
-      (has_new || !this->IsEmptyTypeParameters(type_parameters))
+      (has_new || !this->IsNullTypeParameters(type_parameters))
           ? ParsePrimaryTypeOrParameterList(ok)
           : ParseUnionOrIntersectionOrPrimaryType(ok);
   if (!*ok) return this->EmptyType();
   // Parse function and constructor types.
-  if (peek() == Token::ARROW) {
-    if (!type->IsValidParameterList()) {
+  if (Check(Token::ARROW)) {
+    typename TypeSystem::FormalParameters parameters =
+        type->AsValidParameterList(zone_, ok);
+    if (!*ok) {
       ReportUnexpectedToken(Token::ARROW);
-      *ok = false;
       return this->EmptyType();
     }
-    Consume(Token::ARROW);
-    typename TypeSystem::FormalParameters parameters = type->AsParameterList();
-    typename TypeSystem::Type result_type = ParseType(CHECK_OK_TYPE);
+    typename TypeSystem::Type result_type = ParseValidType(CHECK_OK_TYPE);
     return has_new
                ? factory()->NewConstructorType(type_parameters, parameters,
                                                result_type, pos)
@@ -3373,8 +3393,10 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
                                             result_type, pos);
   }
   // Report invalid function or constructor type.
-  if (has_new || !this->IsEmptyTypeParameters(type_parameters)) {
-    ReportMessage(MessageTemplate::kBadFunctionOrConstructorType);
+  if (has_new || !this->IsNullTypeParameters(type_parameters)) {
+    Scanner::Location next_location = scanner()->peek_location();
+    ReportMessageAt(next_location,
+                    MessageTemplate::kBadFunctionOrConstructorType);
     *ok = false;
     return this->EmptyType();
   }
@@ -3387,27 +3409,115 @@ template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::TypeParameters
 ParserBase<Traits>::ParseTypeParameters(bool* ok) {
   // wrong!!!
-  return this->EmptyTypeParameters();
+  return this->NullTypeParameters();
 }
 
 
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type
 ParserBase<Traits>::ParseUnionOrIntersectionOrPrimaryType(bool* ok) {
-  // wrong!!!
-  return ParsePrimaryTypeOrParameterList(ok);
+  Scanner::Location type_location = scanner()->peek_location();
+  typename TypeSystem::Type type =
+      ParseIntersectionOrPrimaryType(CHECK_OK_TYPE);
+  if (peek() == Token::BIT_OR) {  // braces required here
+    type = ValidateType(type, type_location, CHECK_OK_TYPE);
+  }
+  while (Check(Token::BIT_OR)) {
+    Scanner::Location rhs_location = scanner()->peek_location();
+    typename TypeSystem::Type rhs =
+        ParseIntersectionOrPrimaryType(CHECK_OK_TYPE);
+    rhs = ValidateType(rhs, rhs_location, CHECK_OK_TYPE);
+    type = factory()->NewUnionType(type, rhs, rhs_location.beg_pos);
+  }
+  return type;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseIntersectionOrPrimaryType(bool* ok) {
+  Scanner::Location type_location = scanner()->peek_location();
+  typename TypeSystem::Type type =
+      ParsePrimaryTypeOrParameterList(CHECK_OK_TYPE);
+  if (peek() == Token::BIT_AND) {  // braces required here
+    type = ValidateType(type, type_location, CHECK_OK_TYPE);
+  }
+  while (Check(Token::BIT_AND)) {
+    Scanner::Location rhs_location = scanner()->peek_location();
+    typename TypeSystem::Type rhs =
+        ParsePrimaryTypeOrParameterList(CHECK_OK_TYPE);
+    rhs = ValidateType(rhs, rhs_location, CHECK_OK_TYPE);
+    type = factory()->NewIntersectionType(type, rhs, rhs_location.beg_pos);
+  }
+  return type;
 }
 
 
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type
 ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
-  // wrong!!!
   int pos = peek_position();
-  IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
-  USE(name);
-  return factory()->NewPredefinedType(
-      typesystem::PredefinedType::kNumberType, pos);
+  typename TypeSystem::Type type = this->EmptyType();
+  switch (peek()) {
+    case Token::LPAREN: {
+      Consume(Token::LPAREN);
+      typename TypeSystem::TypeList type_list = this->EmptyTypeList();
+      if (peek() != Token::RPAREN) {
+        do {
+          type = ParseValidType(CHECK_OK_TYPE);
+          type_list->Add(type, zone_);
+        } while (Check(Token::COMMA));
+      }
+      Expect(Token::RPAREN, CHECK_OK_TYPE);
+      type = factory()->NewParenthesizedTypes(type_list, pos);
+      break;
+    }
+    case Token::IDENTIFIER: {
+      if (CheckContextualKeyword(CStrVector("any"))) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kAnyType, pos);
+      } else if (CheckContextualKeyword(CStrVector("boolean"))) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kBooleanType, pos);
+      } else if (CheckContextualKeyword(CStrVector("number"))) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kNumberType, pos);
+      } else if (CheckContextualKeyword(CStrVector("string"))) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kStringType, pos);
+      } else if (CheckContextualKeyword(CStrVector("symbol"))) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kSymbolType, pos);
+      } else if (Check(Token::VOID)) {
+        type = factory()->NewPredefinedType(
+            typesystem::PredefinedType::kVoidType, pos);
+      } else {
+        // missing!!! typeof
+        // missing!!! identifier
+      }
+      break;
+    }
+    case Token::THIS: {
+      Consume(Token::THIS);
+      type = factory()->NewThisType(pos);
+      break;
+    }
+    // missing!!! object types
+    // missing!!! tuple types
+    default:
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return type;
+  }
+
+  if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
+    while (Check(Token::LBRACK)) {  // braces required here
+      Expect(Token::RBRACK, CHECK_OK_TYPE);
+      type = factory()->NewArrayType(type, pos);
+    }
+  }
+
+  return type;
 }
 
 

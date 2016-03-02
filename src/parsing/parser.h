@@ -356,6 +356,7 @@ class ParserTraits {
 
     struct TypeSystem {
       typedef v8::internal::typesystem::Type* Type;
+      typedef ZoneList<v8::internal::typesystem::Type*>* TypeList;
       typedef v8::internal::typesystem::TypeParameter* TypeParameter;
       typedef ZoneList<v8::internal::typesystem::TypeParameter*>*
           TypeParameters;
@@ -508,13 +509,14 @@ class ParserTraits {
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
 
   static typesystem::Type* EmptyType() { return NULL; }
-  static ZoneList<typesystem::TypeParameter*>* EmptyTypeParameters() {
-    return NULL;
+  static ZoneList<typesystem::TypeParameter*>* NullTypeParameters() {
+    return nullptr;
   }
-  static bool IsEmptyTypeParameters(
+  static bool IsNullTypeParameters(
       ZoneList<typesystem::TypeParameter*>* typ_pars) {
     return typ_pars == nullptr;
   }
+  V8_INLINE ZoneList<typesystem::Type*>* EmptyTypeList() const;
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1101,6 +1103,11 @@ bool ParserTraits::IsFutureStrictReserved(
 Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
                               FunctionKind kind) {
   return parser_->NewScope(parent_scope, scope_type, kind);
+}
+
+
+ZoneList<typesystem::Type*>* ParserTraits::EmptyTypeList() const {
+  return new (parser_->zone()) ZoneList<typesystem::Type*>(1, parser_->zone());
 }
 
 

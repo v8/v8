@@ -102,10 +102,15 @@ namespace internal {
 // Visitors should not have to worry about them.
 #define TYPESYSTEM_NODE_LIST(V) \
   V(PredefinedType)             \
+  V(ThisType)                   \
+  V(UnionType)                  \
+  V(IntersectionType)           \
+  V(ArrayType)                  \
   V(FunctionType)               \
   V(ConstructorType)            \
   V(TypeParameter)              \
-  V(FormalParameter)
+  V(FormalParameter)            \
+  V(ParenthesizedTypes)
 
 // Forward declarations
 class AstNodeFactory;
@@ -2940,15 +2945,9 @@ class FormalParameter;
 
 class Type : public AstNode {
  public:
-  bool IsValidParameterList() const {
-    // wrong!!!
-    return true;
-  }
-
-  ZoneList<FormalParameter*>* AsParameterList() const {
-    // wrong!!!
-    return nullptr;
-  }
+  V8_INLINE Type* Uncover(bool* ok);
+  V8_INLINE ZoneList<FormalParameter*>* AsValidParameterList(Zone* zone,
+                                                             bool* ok) const;
 
  protected:
   explicit Type(Zone* zone, int position) : AstNode(position) {}
@@ -2979,6 +2978,63 @@ class PredefinedType : public Type {
 };
 
 
+class ThisType : public Type {
+ public:
+  DECLARE_NODE_TYPE(ThisType)
+
+ protected:
+  ThisType(Zone* zone, int pos) : Type(zone, pos) {}
+};
+
+
+class UnionType : public Type {
+ public:
+  DECLARE_NODE_TYPE(UnionType)
+
+  Type* left() const { return left_; }
+  Type* right() const { return right_; }
+
+ protected:
+  UnionType(Zone* zone, Type* left, Type* right, int pos)
+      : Type(zone, pos), left_(left), right_(right) {}
+
+ private:
+  Type* left_;
+  Type* right_;
+};
+
+
+class IntersectionType : public Type {
+ public:
+  DECLARE_NODE_TYPE(IntersectionType)
+
+  Type* left() const { return left_; }
+  Type* right() const { return right_; }
+
+ protected:
+  IntersectionType(Zone* zone, Type* left, Type* right, int pos)
+      : Type(zone, pos), left_(left), right_(right) {}
+
+ private:
+  Type* left_;
+  Type* right_;
+};
+
+
+class ArrayType : public Type {
+ public:
+  DECLARE_NODE_TYPE(ArrayType)
+
+  Type* base() const { return base_; }
+
+ protected:
+  ArrayType(Zone* zone, Type* base, int pos) : Type(zone, pos), base_(base) {}
+
+ private:
+  Type* base_;
+};
+
+
 class TypeParameter : public AstNode {
  public:
   DECLARE_NODE_TYPE(TypeParameter)
@@ -2994,6 +3050,8 @@ class FormalParameter : public AstNode {
 
  protected:
   FormalParameter(Zone* zone, int pos) : AstNode(pos) {}
+
+  friend class Type;
 };
 
 
@@ -3001,11 +3059,27 @@ class FunctionType : public Type {
  public:
   DECLARE_NODE_TYPE_INHERITABLE(FunctionType)
 
+  ZoneList<TypeParameter*>* type_parameters() const {
+    return type_parameters_;
+  }
+  ZoneList<FormalParameter*>* parameters() const {
+    return parameters_;
+  }
+  Type* result_type() const {
+    return result_type_;
+  }
+
  protected:
   FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
                ZoneList<FormalParameter*>* parameters, Type* result_type,
                int pos)
-      : Type(zone, pos) {}
+      : Type(zone, pos), type_parameters_(type_parameters),
+        parameters_(parameters), result_type_(result_type) {}
+
+ private:
+  ZoneList<TypeParameter*>* type_parameters_;
+  ZoneList<FormalParameter*>* parameters_;
+  Type* result_type_;
 };
 
 
@@ -3019,6 +3093,47 @@ class ConstructorType : public FunctionType {
                   int pos)
       : FunctionType(zone, type_parameters, parameters, result_type, pos) {}
 };
+
+
+class ParenthesizedTypes : public Type {
+ public:
+  DECLARE_NODE_TYPE(ParenthesizedTypes)
+
+  ZoneList<Type*>* types() const { return types_; }
+
+ protected:
+  ParenthesizedTypes(Zone* zone, ZoneList<Type*>* types, int pos)
+      : Type(zone, pos), types_(types) {}
+
+ private:
+  ZoneList<Type*>* types_;
+};
+
+
+V8_INLINE Type* Type::Uncover(bool* ok) {
+  if (!IsParenthesizedTypes()) return this;
+  ZoneList<Type*>* types = AsParenthesizedTypes()->types();
+  if (types->length() == 1) return types->at(0);
+  *ok = false;
+  return nullptr;
+}
+
+
+V8_INLINE ZoneList<FormalParameter*>*
+Type::AsValidParameterList(Zone* zone, bool* ok) const {
+  if (!IsParenthesizedTypes()) { *ok = false; return nullptr; }
+  ZoneList<Type*>* types = AsParenthesizedTypes()->types();
+  ZoneList<FormalParameter*>* parameters =
+      new (zone) ZoneList<FormalParameter*>(types->length(), zone);
+  for (int i = 0; i < types->length(); i++) {
+    Type* t = types->at(i);
+    FormalParameter* parameter =
+        new (zone) FormalParameter(zone, t->position());
+    parameters->Add(parameter, zone);
+  }
+  return parameters;
+}
+
 
 }  // namespace typesystem
 
@@ -3573,6 +3688,26 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (local_zone_) typesystem::PredefinedType(local_zone_, kind, pos);
   }
 
+  typesystem::ThisType* NewThisType(int pos) {
+    return new (local_zone_) typesystem::ThisType(local_zone_, pos);
+  }
+
+  typesystem::UnionType* NewUnionType(
+      typesystem::Type* left, typesystem::Type* right, int pos) {
+    return new (local_zone_) typesystem::UnionType(
+        local_zone_, left, right, pos);
+  }
+
+  typesystem::IntersectionType* NewIntersectionType(
+      typesystem::Type* left, typesystem::Type* right, int pos) {
+    return new (local_zone_) typesystem::IntersectionType(
+        local_zone_, left, right, pos);
+  }
+
+  typesystem::ArrayType* NewArrayType(typesystem::Type* base, int pos) {
+    return new (local_zone_) typesystem::ArrayType(local_zone_, base, pos);
+  }
+
   typesystem::FunctionType* NewFunctionType(
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
@@ -3587,6 +3722,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       typesystem::Type* result_type, int pos) {
     return new (local_zone_) typesystem::ConstructorType(
         local_zone_, type_parameters, parameters, result_type, pos);
+  }
+
+  typesystem::ParenthesizedTypes* NewParenthesizedTypes(
+      ZoneList<typesystem::Type*>* types, int pos) {
+    return new (local_zone_) typesystem::ParenthesizedTypes(
+        local_zone_, types, pos);
   }
 
   Zone* zone() const { return local_zone_; }
@@ -3658,6 +3799,22 @@ class AstNodeFactory final BASE_EMBEDDED {
                                     : NULL;                                   \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
+
+
+#define DECLARE_NODE_FUNCTIONS(type)                                          \
+  bool AstNode::Is##type() const { return node_type() == AstNode::k##type; }  \
+  typesystem::type* AstNode::As##type() {                                     \
+    return node_type() == AstNode::k##type                                    \
+        ? reinterpret_cast<typesystem::type*>(this)                           \
+        : NULL;                                                               \
+  }                                                                           \
+  const typesystem::type* AstNode::As##type() const {                         \
+    return node_type() == AstNode::k##type                                    \
+        ? reinterpret_cast<const typesystem::type*>(this)                     \
+        : NULL;                                                               \
+  }
+TYPESYSTEM_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
 

@@ -343,7 +343,7 @@ template <typename T>
 class PreParserList {
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
-  PreParserList() : length_(0) {}
+  explicit PreParserList(int length = 0) : length_(length) {}
   PreParserList* operator->() { return this; }
   void Add(T, void*) { ++length_; }
   int length() const { return length_; }
@@ -433,60 +433,41 @@ namespace typesystem {
 
 
 class PreParserTypeParameter {};
-
-
-class PreParserTypeParameters {
- public:
-  static PreParserTypeParameters Default() { return PreParserTypeParameters(); }
-
-  // Dummy implementation for making type_parameters->somefunc() work in
-  // both Parser and PreParser.
-  PreParserTypeParameters* operator->() { return this; }
-
-  bool is_empty() const { return is_empty_; }
-  void Add(const PreParserTypeParameter& p, void*) { is_empty_ = false; }
-
- private:
-  explicit PreParserTypeParameters() : is_empty_(true) {}
-
-  bool is_empty_;
-};
-
-
 class PreParserFormalParameter {};
 
 
-class PreParserFormalParameters {
- public:
-  static PreParserFormalParameters Default() {
-    return PreParserFormalParameters();
-  }
-
- private:
-  explicit PreParserFormalParameters() {}
-};
+typedef PreParserList<PreParserTypeParameter> PreParserTypeParameters;
+typedef PreParserList<PreParserFormalParameter> PreParserFormalParameters;
 
 
 class PreParserType {
  public:
   static PreParserType Default() { return PreParserType(); }
+  static PreParserType Parenthesized(int arity) {
+    return PreParserType(arity);
+  }
 
   // Dummy implementation for making type->somefunc() work in both Parser
   // and PreParser.
   PreParserType* operator->() { return this; }
 
-  bool IsValidParameterList() const {
-    // wrong!!!
-    return true;
-  }
+  PreParserType Uncover(bool* ok) { *ok = abs(arity_) == 1; return *this; }
 
-  PreParserFormalParameters AsParameterList() const {
-    return PreParserFormalParameters::Default();
+  PreParserFormalParameters AsValidParameterList(Zone* zone, bool* ok) const {
+    if (arity_ >= 0) PreParserFormalParameters(arity_);
+    *ok = false;
+    return PreParserFormalParameters();
   }
 
  private:
-  explicit PreParserType() {}
+  explicit PreParserType() : arity_(-1) {}
+  explicit PreParserType(int arity) : arity_(arity) {}
+
+  int arity_;
 };
+
+
+typedef PreParserList<PreParserType> PreParserTypeList;
 
 
 }  // namespace typesystem
@@ -635,6 +616,27 @@ class PreParserFactory {
     return typesystem::PreParserType::Default();
   }
 
+  typesystem::PreParserType NewThisType(int pos) {
+    return typesystem::PreParserType::Default();
+  }
+
+  typesystem::PreParserType NewUnionType(
+      const typesystem::PreParserType& left,
+      const typesystem::PreParserType& right, int pos) {
+    return typesystem::PreParserType::Default();
+  }
+
+  typesystem::PreParserType NewIntersectionType(
+      const typesystem::PreParserType& left,
+      const typesystem::PreParserType& right, int pos) {
+    return typesystem::PreParserType::Default();
+  }
+
+  typesystem::PreParserType NewArrayType(
+      const typesystem::PreParserType& base, int pos) {
+    return typesystem::PreParserType::Default();
+  }
+
   typesystem::PreParserType NewFunctionType(
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
@@ -647,6 +649,11 @@ class PreParserFactory {
       const typesystem::PreParserFormalParameters& parameters,
       typesystem::PreParserType result_type, int pos) {
     return typesystem::PreParserType::Default();
+  }
+
+  typesystem::PreParserType NewParenthesizedTypes(
+      const typesystem::PreParserTypeList& types, int pos) {
+    return typesystem::PreParserType::Parenthesized(types.length());
   }
 
   // Return the object itself as AstVisitor and implement the needed
@@ -702,6 +709,7 @@ class PreParserTraits {
 
     struct TypeSystem {
       typedef typesystem::PreParserType Type;
+      typedef typesystem::PreParserTypeList TypeList;
       typedef typesystem::PreParserTypeParameter TypeParameter;
       typedef typesystem::PreParserTypeParameters TypeParameters;
       typedef typesystem::PreParserFormalParameter FormalParameter;
@@ -867,12 +875,15 @@ class PreParserTraits {
   static typesystem::PreParserType EmptyType() {
     return typesystem::PreParserType::Default();
   }
-  static typesystem::PreParserTypeParameters EmptyTypeParameters() {
-    return typesystem::PreParserTypeParameters::Default();
+  static typesystem::PreParserTypeParameters NullTypeParameters() {
+    return typesystem::PreParserTypeParameters();
   }
-  static bool IsEmptyTypeParameters(
+  static bool IsNullTypeParameters(
       const typesystem::PreParserTypeParameters& typ_pars) {
-    return typ_pars.is_empty();
+    return typ_pars.length() == 0;
+  }
+  static typesystem::PreParserTypeList EmptyTypeList() {
+    return typesystem::PreParserTypeList();
   }
 
   // Odd-ball literal creators.
