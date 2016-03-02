@@ -5907,7 +5907,7 @@ TEST(RunTryTruncateFloat32ToUint64WithCheck) {
 
 TEST(RunTryTruncateFloat64ToUint64WithoutCheck) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float64());
-  m.Return(m.TruncateFloat64ToUint64(m.Parameter(0)));
+  m.Return(m.TryTruncateFloat64ToUint64(m.Parameter(0)));
 
   FOR_UINT64_INPUTS(j) {
     double input = static_cast<double>(*j);
