@@ -515,6 +515,9 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,
                                          module_end, false, kWasmOrigin);
   if (result.failed()) {
+    if (result.val) {
+      delete result.val;
+    }
     // Module verification failed. throw.
     std::ostringstream str;
     str << "WASM.compileRun() failed: " << result;

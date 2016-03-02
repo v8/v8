@@ -2044,3 +2044,41 @@ source_set("regexp_fuzzer") {
     ":toolchain",
   ]
 }
+
+source_set("wasm_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":libplatform_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
+source_set("wasm_asmjs_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-asmjs.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":libplatform_config",
+    ":features",
+    ":toolchain",
+  ]
+}
