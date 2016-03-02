@@ -992,27 +992,23 @@ template <class Traits>
 void ParserBase<Traits>::GetUnexpectedTokenMessage(
     Token::Value token, MessageTemplate::Template* message, const char** arg,
     MessageTemplate::Template default_) {
+  *arg = nullptr;
   switch (token) {
     case Token::EOS:
       *message = MessageTemplate::kUnexpectedEOS;
-      *arg = nullptr;
       break;
     case Token::SMI:
     case Token::NUMBER:
       *message = MessageTemplate::kUnexpectedTokenNumber;
-      *arg = nullptr;
       break;
     case Token::STRING:
       *message = MessageTemplate::kUnexpectedTokenString;
-      *arg = nullptr;
       break;
     case Token::IDENTIFIER:
       *message = MessageTemplate::kUnexpectedTokenIdentifier;
-      *arg = nullptr;
       break;
     case Token::FUTURE_RESERVED_WORD:
       *message = MessageTemplate::kUnexpectedReserved;
-      *arg = nullptr;
       break;
     case Token::LET:
     case Token::STATIC:
@@ -1021,17 +1017,17 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
       *message = is_strict(language_mode())
                      ? MessageTemplate::kUnexpectedStrictReserved
                      : MessageTemplate::kUnexpectedTokenIdentifier;
-      *arg = nullptr;
       break;
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
       *message = MessageTemplate::kUnexpectedTemplateString;
-      *arg = nullptr;
       break;
     case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::ESCAPED_KEYWORD:
       *message = MessageTemplate::kInvalidEscapedReservedWord;
-      *arg = nullptr;
+      break;
+    case Token::ILLEGAL:
+      *message = MessageTemplate::kInvalidOrUnexpectedToken;
       break;
     default:
       const char* name = Token::String(token);
