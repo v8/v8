@@ -473,6 +473,290 @@ void StringLengthStub::GenerateAssembly(
   assembler->Return(result);
 }
 
+void StrictEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  // Here's pseudo-code for the algorithm below:
+  //
+  // if (lhs == rhs) {
+  //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;
+  //   return true;
+  // }
+  // if (!lhs->IsSmi()) {
+  //   if (lhs->IsHeapNumber()) {
+  //     if (rhs->IsSmi()) {
+  //       return Smi::cast(rhs)->value() == HeapNumber::cast(lhs)->value();
+  //     } else if (rhs->IsHeapNumber()) {
+  //       return HeapNumber::cast(rhs)->value() ==
+  //       HeapNumber::cast(lhs)->value();
+  //     } else {
+  //       return false;
+  //     }
+  //   } else {
+  //     if (rhs->IsSmi()) {
+  //       return false;
+  //     } else {
+  //       if (lhs->IsString()) {
+  //         if (rhs->IsString()) {
+  //           return %StringEqual(lhs, rhs);
+  //         } else {
+  //           return false;
+  //         }
+  //       } else if (lhs->IsSimd128()) {
+  //         if (rhs->IsSimd128()) {
+  //           return %StrictEqual(lhs, rhs);
+  //         }
+  //       } else {
+  //         return false;
+  //       }
+  //     }
+  //   }
+  // } else {
+  //   if (rhs->IsSmi()) {
+  //     return false;
+  //   } else {
+  //     if (rhs->IsHeapNumber()) {
+  //       return Smi::cast(lhs)->value() == HeapNumber::cast(rhs)->value();
+  //     } else {
+  //       return false;
+  //     }
+  //   }
+  // }
+
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label if_true(assembler), if_false(assembler);
+
+  // Check if {lhs} and {rhs} refer to the same object.
+  Label if_same(assembler), if_notsame(assembler);
+  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+  assembler->Bind(&if_same);
+  {
+    // The {lhs} and {rhs} reference the exact same value, yet we need special
+    // treatment for HeapNumber, as NaN is not equal to NaN.
+    // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
+    // seems to be what is tested in the current SIMD.js testsuite.
+
+    // Check if {lhs} (and therefore {rhs}) is a Smi or a HeapObject.
+    Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    assembler->Bind(&if_lhsisnotsmi);
+    {
+      // Load the map of {lhs}.
+      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
+
+      // Check if {lhs} (and therefore {rhs}) is a HeapNumber.
+      Node* number_map = assembler->HeapNumberMapConstant();
+      Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
+      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                        &if_lhsisnumber, &if_lhsisnotnumber);
+
+      assembler->Bind(&if_lhsisnumber);
+      {
+        // Convert {lhs} (and therefore {rhs}) to floating point value.
+        Node* lhs_value = assembler->LoadHeapNumberValue(lhs);
+
+        // Check if the HeapNumber value is a NaN.
+        assembler->BranchIfFloat64IsNaN(lhs_value, &if_false, &if_true);
+      }
+
+      assembler->Bind(&if_lhsisnotnumber);
+      assembler->Goto(&if_true);
+    }
+
+    assembler->Bind(&if_lhsissmi);
+    assembler->Goto(&if_true);
+  }
+
+  assembler->Bind(&if_notsame);
+  {
+    // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber,
+    // String and Simd128Value they can still be considered equal.
+    Node* number_map = assembler->HeapNumberMapConstant();
+
+    // Check if {lhs} is a Smi or a HeapObject.
+    Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    assembler->Bind(&if_lhsisnotsmi);
+    {
+      // Load the map of {lhs}.
+      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
+
+      // Check if {lhs} is a HeapNumber.
+      Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
+      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                        &if_lhsisnumber, &if_lhsisnotnumber);
+
+      assembler->Bind(&if_lhsisnumber);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                          &if_rhsisnotsmi);
+
+        assembler->Bind(&if_rhsissmi);
+        {
+          // Convert {lhs} and {rhs} to floating point values.
+          Node* lhs_value = assembler->LoadHeapNumberValue(lhs);
+          Node* rhs_value = assembler->SmiToFloat64(rhs);
+
+          // Perform a floating point comparison of {lhs} and {rhs}.
+          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
+                                          &if_false);
+        }
+
+        assembler->Bind(&if_rhsisnotsmi);
+        {
+          // Load the map of {rhs}.
+          Node* rhs_map =
+              assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+
+          // Check if {rhs} is also a HeapNumber.
+          Label if_rhsisnumber(assembler), if_rhsisnotnumber(assembler);
+          assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                            &if_rhsisnumber, &if_rhsisnotnumber);
+
+          assembler->Bind(&if_rhsisnumber);
+          {
+            // Convert {lhs} and {rhs} to floating point values.
+            Node* lhs_value = assembler->LoadHeapNumberValue(lhs);
+            Node* rhs_value = assembler->LoadHeapNumberValue(rhs);
+
+            // Perform a floating point comparison of {lhs} and {rhs}.
+            assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
+                                            &if_false);
+          }
+
+          assembler->Bind(&if_rhsisnotnumber);
+          assembler->Goto(&if_false);
+        }
+      }
+
+      assembler->Bind(&if_lhsisnotnumber);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                          &if_rhsisnotsmi);
+
+        assembler->Bind(&if_rhsissmi);
+        assembler->Goto(&if_false);
+
+        assembler->Bind(&if_rhsisnotsmi);
+        {
+          // Load the instance type of {lhs}.
+          Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+
+          // Check if {lhs} is a String.
+          Label if_lhsisstring(assembler), if_lhsisnotstring(assembler);
+          assembler->Branch(assembler->Int32LessThan(
+                                lhs_instance_type,
+                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                            &if_lhsisstring, &if_lhsisnotstring);
+
+          assembler->Bind(&if_lhsisstring);
+          {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(assembler), if_rhsisnotstring(assembler);
+            assembler->Branch(assembler->Int32LessThan(
+                                  rhs_instance_type, assembler->Int32Constant(
+                                                         FIRST_NONSTRING_TYPE)),
+                              &if_rhsisstring, &if_rhsisnotstring);
+
+            assembler->Bind(&if_rhsisstring);
+            {
+              // TODO(bmeurer): Optimize this further once the StringEqual
+              // functionality is available in TurboFan land.
+              assembler->TailCallRuntime(Runtime::kStringEqual, context, lhs,
+                                         rhs);
+            }
+
+            assembler->Bind(&if_rhsisnotstring);
+            assembler->Goto(&if_false);
+          }
+
+          assembler->Bind(&if_lhsisnotstring);
+          {
+            // Check if {lhs} is a Simd128Value.
+            Label if_lhsissimd128value(assembler),
+                if_lhsisnotsimd128value(assembler);
+            assembler->Branch(assembler->Word32Equal(
+                                  lhs_instance_type,
+                                  assembler->Int32Constant(SIMD128_VALUE_TYPE)),
+                              &if_lhsissimd128value, &if_lhsisnotsimd128value);
+
+            assembler->Bind(&if_lhsissimd128value);
+            {
+              // TODO(bmeurer): Inline the Simd128Value equality check.
+              assembler->TailCallRuntime(Runtime::kStrictEqual, context, lhs,
+                                         rhs);
+            }
+
+            assembler->Bind(&if_lhsisnotsimd128value);
+            assembler->Goto(&if_false);
+          }
+        }
+      }
+    }
+
+    assembler->Bind(&if_lhsissmi);
+    {
+      // We already know that {lhs} and {rhs} are not reference equal, and {lhs}
+      // is a Smi; so {lhs} and {rhs} can only be strictly equal if {rhs} is a
+      // HeapNumber with an equal floating point value.
+
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                        &if_rhsisnotsmi);
+
+      assembler->Bind(&if_rhsissmi);
+      assembler->Goto(&if_false);
+
+      assembler->Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of the {rhs}.
+        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+
+        // The {rhs} could be a HeapNumber with the same value as {lhs}.
+        Label if_rhsisnumber(assembler), if_rhsisnotnumber(assembler);
+        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                          &if_rhsisnumber, &if_rhsisnotnumber);
+
+        assembler->Bind(&if_rhsisnumber);
+        {
+          // Convert {lhs} and {rhs} to floating point values.
+          Node* lhs_value = assembler->SmiToFloat64(lhs);
+          Node* rhs_value = assembler->LoadHeapNumberValue(rhs);
+
+          // Perform a floating point comparison of {lhs} and {rhs}.
+          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
+                                          &if_false);
+        }
+
+        assembler->Bind(&if_rhsisnotnumber);
+        assembler->Goto(&if_false);
+      }
+    }
+  }
+
+  assembler->Bind(&if_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&if_false);
+  assembler->Return(assembler->BooleanConstant(false));
+}
+
 void ToBooleanStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;

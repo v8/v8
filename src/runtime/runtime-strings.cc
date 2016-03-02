@@ -1145,22 +1145,12 @@ RUNTIME_FUNCTION(Runtime_NewString) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringEquals) {
+RUNTIME_FUNCTION(Runtime_StringEqual) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-
-  bool not_equal = !String::Equals(x, y);
-  // This is slightly convoluted because the value that signifies
-  // equality is 0 and inequality is 1 so we have to negate the result
-  // from String::Equals.
-  DCHECK(not_equal == 0 || not_equal == 1);
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(NOT_EQUAL == 1);
-  return Smi::FromInt(not_equal);
+  return isolate->heap()->ToBoolean(String::Equals(x, y));
 }
 
 

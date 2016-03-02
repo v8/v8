@@ -21,6 +21,7 @@ namespace internal {
 
 class CallInterfaceDescriptor;
 class Isolate;
+class Factory;
 class Zone;
 
 namespace compiler {
@@ -74,6 +75,7 @@ class Schedule;
 
 #define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
   V(ChangeFloat64ToUint32)                   \
+  V(ChangeInt32ToFloat64)                    \
   V(ChangeInt32ToInt64)                      \
   V(ChangeUint32ToFloat64)                   \
   V(ChangeUint32ToUint64)
@@ -124,6 +126,7 @@ class CodeStubAssembler {
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
+  Node* HeapNumberMapConstant();
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -204,7 +207,10 @@ class CodeStubAssembler {
                  Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                  Node* arg5, size_t result_size = 1);
 
-  Node* TailCallStub(CodeStub& stub, Node** args);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, Node* arg1, Node* arg2,
+                     size_t result_size = 1);
+
   Node* TailCall(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node** args, size_t result_size = 1);
 
@@ -216,7 +222,9 @@ class CodeStubAssembler {
   Node* SmiTag(Node* value);
   // Untag a Smi value as a Word.
   Node* SmiUntag(Node* value);
-  // Untag an Smi value as a 32-bit value.
+
+  // Smi conversions.
+  Node* SmiToFloat64(Node* value);
   Node* SmiToInt32(Node* value);
 
   // Smi operations.
@@ -233,8 +241,10 @@ class CodeStubAssembler {
   Node* LoadBufferObject(Node* buffer, int offset);
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);
-  // Load the HeapNumber value from a HeapNumber object.
+  // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
+  // Load the instance type of a Map.
+  Node* LoadMapInstanceType(Node* map);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElementSmiIndex(Node* object, Node* smi_index,
@@ -254,11 +264,19 @@ class CodeStubAssembler {
 
   Node* BitFieldDecode(Node* word32, uint32_t shift, uint32_t mask);
 
+  // Branching helpers.
+  // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIfFloat64Equal(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
+    BranchIfFloat64Equal(value, value, if_false, if_true);
+  }
+
  protected:
   // Protected helpers which delegate to RawMachineAssembler.
-  Graph* graph();
-  Isolate* isolate();
-  Zone* zone();
+  Graph* graph() const;
+  Factory* factory() const;
+  Isolate* isolate() const;
+  Zone* zone() const;
 
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();

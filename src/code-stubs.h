@@ -101,6 +101,7 @@ namespace internal {
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
   V(StringLength)                           \
+  V(StrictEqual)                            \
   V(ToBoolean)                              \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
@@ -629,6 +630,16 @@ class StringLengthStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_CODE_STUB(StringLength, TurboFanCodeStub);
+};
+
+class StrictEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit StrictEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const final;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_CODE_STUB(StrictEqual, TurboFanCodeStub);
 };
 
 class ToBooleanStub final : public TurboFanCodeStub {

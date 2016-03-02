@@ -105,6 +105,10 @@ Node* CodeStubAssembler::Float64Constant(double value) {
   return raw_assembler_->Float64Constant(value);
 }
 
+Node* CodeStubAssembler::HeapNumberMapConstant() {
+  return HeapConstant(isolate()->factory()->heap_number_map());
+}
+
 Node* CodeStubAssembler::Parameter(int value) {
   return raw_assembler_->Parameter(value);
 }
@@ -139,7 +143,6 @@ Node* CodeStubAssembler::SmiTag(Node* value) {
   return raw_assembler_->WordShl(value, SmiShiftBitsConstant());
 }
 
-
 Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
@@ -150,6 +153,10 @@ Node* CodeStubAssembler::SmiToInt32(Node* value) {
     result = raw_assembler_->TruncateInt64ToInt32(result);
   }
   return result;
+}
+
+Node* CodeStubAssembler::SmiToFloat64(Node* value) {
+  return ChangeInt32ToFloat64(SmiUntag(value));
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
@@ -188,9 +195,13 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
 }
 
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
-  return raw_assembler_->Load(
-      MachineType::Float64(), object,
-      IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+  return Load(MachineType::Float64(), object,
+              IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
+  return Load(MachineType::Uint8(), map,
+              IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
@@ -279,10 +290,7 @@ Node* CodeStubAssembler::Projection(int index, Node* value) {
 }
 
 Node* CodeStubAssembler::LoadInstanceType(Node* object) {
-  return raw_assembler_->Word32And(
-      LoadObjectField(LoadObjectField(object, HeapObject::kMapOffset),
-                      Map::kInstanceTypeOffset),
-      raw_assembler_->Int32Constant(255));
+  return LoadMapInstanceType(LoadObjectField(object, HeapObject::kMapOffset));
 }
 
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
@@ -290,6 +298,16 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
   return raw_assembler_->Word32Shr(
       raw_assembler_->Word32And(word32, raw_assembler_->Int32Constant(mask)),
       raw_assembler_->Int32Constant(shift));
+}
+
+void CodeStubAssembler::BranchIfFloat64Equal(Node* a, Node* b, Label* if_true,
+                                             Label* if_false) {
+  Label if_equal(this), if_notequal(this);
+  Branch(Float64Equal(a, b), &if_equal, &if_notequal);
+  Bind(&if_equal);
+  Goto(if_true);
+  Bind(&if_notequal);
+  Goto(if_false);
 }
 
 Node* CodeStubAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
@@ -468,12 +486,20 @@ Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
   return CallN(call_descriptor, target, args);
 }
 
-Node* CodeStubAssembler::TailCallStub(CodeStub& stub, Node** args) {
-  Node* code_target = HeapConstant(stub.GetCode());
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), stub.GetCallInterfaceDescriptor(),
-      stub.GetStackParameterCount(), CallDescriptor::kSupportsTailCalls);
-  return raw_assembler_->TailCallN(descriptor, code_target, args);
+Node* CodeStubAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                      Node* target, Node* context, Node* arg1,
+                                      Node* arg2, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(3);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = context;
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeStubAssembler::TailCall(
@@ -517,11 +543,15 @@ void CodeStubAssembler::Switch(Node* index, Label* default_label,
 }
 
 // RawMachineAssembler delegate helpers:
-Isolate* CodeStubAssembler::isolate() { return raw_assembler_->isolate(); }
+Isolate* CodeStubAssembler::isolate() const {
+  return raw_assembler_->isolate();
+}
 
-Graph* CodeStubAssembler::graph() { return raw_assembler_->graph(); }
+Factory* CodeStubAssembler::factory() const { return isolate()->factory(); }
 
-Zone* CodeStubAssembler::zone() { return raw_assembler_->zone(); }
+Graph* CodeStubAssembler::graph() const { return raw_assembler_->graph(); }
+
+Zone* CodeStubAssembler::zone() const { return raw_assembler_->zone(); }
 
 // The core implementation of Variable is stored through an indirection so
 // that it can outlive the often block-scoped Variable declarations. This is

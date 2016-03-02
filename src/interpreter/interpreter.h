@@ -58,6 +58,9 @@ class Interpreter {
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
+  // Generates code to perform the binary operations via |callable|.
+  void DoBinaryOp(Callable callable, InterpreterAssembler* assembler);
+
   // Generates code to perform the binary operations via |function_id|.
   void DoBinaryOp(Runtime::FunctionId function_id,
                   InterpreterAssembler* assembler);

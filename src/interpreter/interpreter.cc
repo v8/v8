@@ -744,6 +744,20 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+void Interpreter::DoBinaryOp(Callable callable,
+                             InterpreterAssembler* assembler) {
+  // TODO(bmeurer): Collect definition side type feedback for various
+  // binary operations.
+  Node* target = __ HeapConstant(callable.code());
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = __ CallStub(callable.descriptor(), target, context, lhs, rhs);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
                              InterpreterAssembler* assembler) {
   // TODO(rmcilroy): Call ICs which back-patch bytecode with type specialized
@@ -1174,7 +1188,7 @@ void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kStrictEqual, assembler);
+  DoBinaryOp(CodeFactory::StrictEqual(isolate_), assembler);
 }
 
 
