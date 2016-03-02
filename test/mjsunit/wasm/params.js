@@ -20,7 +20,7 @@ function testSelect2(type) {
     var data = bytesWithHeader(
       // -- memory
       kDeclMemory,
-      12, 12, 1,                  // memory
+      1, 1, 1,                    // memory
       // -- signatures
       kDeclSignatures, 1,
       2, type, type, type,        // signature: (t,t)->t
@@ -96,7 +96,7 @@ function testSelect10(type) {
     var t = type;
     var data = bytesWithHeader(
       kDeclMemory,
-      12, 12, 1,                  // memory
+      1, 1, 1,                    // memory
       // signatures
       kDeclSignatures, 1,
       10, t,t,t,t,t,t,t,t,t,t,t,  // (tx10)->t

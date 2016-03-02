@@ -616,7 +616,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
   const int dest_addr = 0x100;
-  const byte mem_size_log2 = 15;
+  const byte mem_pages = 1;
   const int kHeaderSize = 8;
   const int kDataSize = 19;
   const int kTotalSize = kHeaderSize + kDataSize;
@@ -625,8 +625,8 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
     for (int source_size = -1; source_size < 5 + kDataSize; source_size += 3) {
       byte data[] = {
           kDeclMemory,
-          mem_size_log2,
-          mem_size_log2,
+          mem_pages,
+          mem_pages,
           1,
           kDeclDataSegments,
           1,
@@ -653,15 +653,15 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
   const int source_size = 3;
   const int source_offset = 11;
 
-  for (byte mem_size_log2 = 12; mem_size_log2 < 20; mem_size_log2++) {
-    int mem_size = 1 << mem_size_log2;
+  for (byte mem_pages = 1; mem_pages < 16; mem_pages++) {
+    int mem_size = mem_pages * 0x10000;  // 64k pages.
 
     for (int dest_addr = mem_size - source_size;
          dest_addr < mem_size + source_size; dest_addr++) {
       byte data[] = {
           kDeclMemory,
-          mem_size_log2,
-          mem_size_log2,
+          mem_pages,
+          mem_pages,
           1,
           kDeclDataSegments,
           1,

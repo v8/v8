@@ -45,8 +45,8 @@ class ModuleDecoder : public Decoder {
     pc_ = start_;
     module->module_start = start_;
     module->module_end = limit_;
-    module->min_mem_size_log2 = 0;
-    module->max_mem_size_log2 = 0;
+    module->min_mem_pages = 0;
+    module->max_mem_pages = 0;
     module->mem_export = false;
     module->mem_external = false;
     module->origin = origin_;
@@ -92,8 +92,9 @@ class ModuleDecoder : public Decoder {
           limit_ = pc_;
           break;
         case kDeclMemory:
-          module->min_mem_size_log2 = consume_u8("min memory");
-          module->max_mem_size_log2 = consume_u8("max memory");
+          int length;
+          module->min_mem_pages = consume_u32v(&length, "min memory");
+          module->max_mem_pages = consume_u32v(&length, "max memory");
           module->mem_export = consume_u8("export memory") != 0;
           break;
         case kDeclSignatures: {
@@ -464,7 +465,8 @@ class ModuleDecoder : public Decoder {
 
     // Validate that the segment will fit into the (minimum) memory.
     uint32_t memory_limit =
-        1 << (module ? module->min_mem_size_log2 : WasmModule::kMaxMemSize);
+        WasmModule::kPageSize * (module ? module->min_mem_pages
+                                        : WasmModule::kMaxMemPages);
     if (!IsWithinLimit(memory_limit, segment->dest_addr,
                        segment->source_size)) {
       error(pc_ - sizeof(uint32_t), "segment out of bounds of memory");

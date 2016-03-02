@@ -103,14 +103,15 @@ enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
 
 // Static representation of a module.
 struct WasmModule {
-  static const uint8_t kMinMemSize = 12;  // Minimum memory size = 4kb
-  static const uint8_t kMaxMemSize = 30;  // Maximum memory size = 1gb
+  static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
+  static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
+  static const uint32_t kMaxMemPages = 16384;   // Maximum memory size =  1gb
 
   Isolate* shared_isolate;    // isolate for storing shared code.
   const byte* module_start;   // starting address for the module bytes.
   const byte* module_end;     // end address for the module bytes.
-  uint8_t min_mem_size_log2;  // minimum size of the memory (log base 2).
-  uint8_t max_mem_size_log2;  // maximum size of the memory (log base 2).
+  uint32_t min_mem_pages;     // minimum size of the memory in 64k pages.
+  uint32_t max_mem_pages;     // maximum size of the memory in 64k pages.
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
   int start_function_index;   // start function, if any.

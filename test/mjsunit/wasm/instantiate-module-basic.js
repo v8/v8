@@ -14,7 +14,7 @@ var kNameOffset = kHeaderSize + 19 + kBodySize + 1;
 var data = bytesWithHeader(
   // -- memory
   kDeclMemory,
-  10, 10, 1,
+  1, 1, 1,
   // -- signatures
   kDeclSignatures, 1,
   0, kAstI32,                 // signature: void -> int
@@ -51,7 +51,7 @@ for (var i = 0; i < 4; i++) {
   assertEquals(mem, module.memory);
 }
 
-assertEquals(1024, module.memory.byteLength);
+assertEquals(65536, module.memory.byteLength);
 
 // Check the properties of the main function.
 assertFalse(module.main === undefined);
