@@ -462,6 +462,31 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   return assembler.GenerateCode();
 }
 
+void AllocateHeapNumberStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  compiler::Node* result = assembler->Allocate(
+      HeapNumber::kSize, compiler::CodeStubAssembler::kNone);
+  compiler::Node* map_offset =
+      assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag);
+  compiler::Node* map = assembler->IntPtrAdd(result, map_offset);
+  assembler->StoreNoWriteBarrier(
+      MachineRepresentation::kTagged, map,
+      assembler->HeapConstant(isolate()->factory()->heap_number_map()));
+  assembler->Return(result);
+}
+
+void AllocateMutableHeapNumberStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  compiler::Node* result = assembler->Allocate(
+      HeapNumber::kSize, compiler::CodeStubAssembler::kNone);
+  compiler::Node* map_offset =
+      assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag);
+  compiler::Node* map = assembler->IntPtrAdd(result, map_offset);
+  assembler->StoreNoWriteBarrier(
+      MachineRepresentation::kTagged, map,
+      assembler->HeapConstant(isolate()->factory()->mutable_heap_number_map()));
+  assembler->Return(result);
+}
 
 void StringLengthStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {

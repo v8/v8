@@ -59,8 +59,6 @@ namespace internal {
   V(VectorStoreIC)                          \
   V(VectorKeyedStoreIC)                     \
   /* HydrogenCodeStubs */                   \
-  V(AllocateHeapNumber)                     \
-  V(AllocateMutableHeapNumber)              \
   V(AllocateInNewSpace)                     \
   V(ArrayNArgumentsConstructor)             \
   V(ArrayNoArgumentConstructor)             \
@@ -100,6 +98,8 @@ namespace internal {
   V(KeyedLoadIC)                            \
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
+  V(AllocateHeapNumber)                     \
+  V(AllocateMutableHeapNumber)              \
   V(StringLength)                           \
   V(StrictEqual)                            \
   V(ToBoolean)                              \
@@ -2429,26 +2429,28 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(TransitionElementsKind, HydrogenCodeStub);
 };
 
-
-class AllocateHeapNumberStub final : public HydrogenCodeStub {
+class AllocateHeapNumberStub : public TurboFanCodeStub {
  public:
   explicit AllocateHeapNumberStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) {}
+      : TurboFanCodeStub(isolate) {}
 
- private:
+  void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const override;
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
-  DEFINE_HYDROGEN_CODE_STUB(AllocateHeapNumber, HydrogenCodeStub);
+  DEFINE_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
 };
 
-
-class AllocateMutableHeapNumberStub final : public HydrogenCodeStub {
+class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
  public:
   explicit AllocateMutableHeapNumberStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) {}
+      : TurboFanCodeStub(isolate) {}
 
- private:
+  void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const override;
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateMutableHeapNumber);
-  DEFINE_HYDROGEN_CODE_STUB(AllocateMutableHeapNumber, HydrogenCodeStub);
+  DEFINE_CODE_STUB(AllocateMutableHeapNumber, TurboFanCodeStub);
 };
 
 

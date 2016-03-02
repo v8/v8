@@ -113,6 +113,14 @@ class CodeStubAssembler {
     Impl* impl_;
   };
 
+  enum AllocationFlag : uint8_t {
+    kNone = 0,
+    kDoubleAlignment = 1,
+    kPretenured = 1 << 1
+  };
+
+  typedef base::Flags<AllocationFlag> AllocationFlags;
+
   // ===========================================================================
   // Base Assembler
   // ===========================================================================
@@ -251,6 +259,9 @@ class CodeStubAssembler {
                                       int additional_offset = 0);
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
 
+  // Allocate an object of the given size.
+  Node* Allocate(int size, AllocationFlags flags);
+
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
                                              Node* value);
@@ -290,6 +301,11 @@ class CodeStubAssembler {
 
   Node* SmiShiftBitsConstant();
 
+  Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
+                           Node* top_address, Node* limit_address);
+  Node* AllocateRawUnaligned(Node* size_in_bytes, AllocationFlags flags,
+                             Node* top_adddress, Node* limit_address);
+
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;
   const char* name_;
@@ -298,6 +314,8 @@ class CodeStubAssembler {
 
   DISALLOW_COPY_AND_ASSIGN(CodeStubAssembler);
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
 class CodeStubAssembler::Label {
  public:
