@@ -47,7 +47,6 @@ class LookupIterator final BASE_EMBEDDED {
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = DEFAULT)
       : configuration_(ComputeConfiguration(configuration, name)),
-        state_(NOT_FOUND),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
@@ -55,21 +54,18 @@ class LookupIterator final BASE_EMBEDDED {
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
-        holder_(GetRoot(isolate_, receiver)),
-        initial_holder_(holder_),
-        number_(DescriptorArray::kNotFound) {
+        initial_holder_(GetRoot(isolate_, receiver)) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
 #endif  // DEBUG
-    Next();
+    Start();
   }
 
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
                  Configuration configuration = DEFAULT)
       : configuration_(ComputeConfiguration(configuration, name)),
-        state_(NOT_FOUND),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
@@ -77,51 +73,43 @@ class LookupIterator final BASE_EMBEDDED {
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
-        holder_(holder),
-        initial_holder_(holder_),
-        number_(DescriptorArray::kNotFound) {
+        initial_holder_(holder) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
 #endif  // DEBUG
-    Next();
+    Start();
   }
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Configuration configuration = DEFAULT)
       : configuration_(configuration),
-        state_(NOT_FOUND),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
         name_(),
         index_(index),
         receiver_(receiver),
-        holder_(GetRoot(isolate, receiver, index)),
-        initial_holder_(holder_),
-        number_(DescriptorArray::kNotFound) {
+        initial_holder_(GetRoot(isolate, receiver, index)) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
-    Next();
+    Start();
   }
 
   LookupIterator(Isolate* isolate, Handle<Object> receiver, uint32_t index,
                  Handle<JSReceiver> holder,
                  Configuration configuration = DEFAULT)
       : configuration_(configuration),
-        state_(NOT_FOUND),
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
         name_(),
         index_(index),
         receiver_(receiver),
-        holder_(holder),
-        initial_holder_(holder_),
-        number_(DescriptorArray::kNotFound) {
+        initial_holder_(holder) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
-    Next();
+    Start();
   }
 
   static LookupIterator PropertyOrElement(
@@ -184,7 +172,17 @@ class LookupIterator final BASE_EMBEDDED {
   Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const { return receiver_; }
-  Handle<JSObject> GetStoreTarget() const;
+
+  Handle<JSObject> GetStoreTarget() const {
+    if (receiver_->IsJSGlobalProxy()) {
+      Map* map = JSGlobalProxy::cast(*receiver_)->map();
+      if (map->has_hidden_prototype()) {
+        return handle(JSGlobalObject::cast(map->prototype()), isolate_);
+      }
+    }
+    return Handle<JSObject>::cast(receiver_);
+  }
+
   bool is_dictionary_holder() const { return !holder_->HasFastProperties(); }
   Handle<Map> transition_map() const {
     DCHECK_EQ(TRANSITION, state_);
@@ -259,6 +257,9 @@ class LookupIterator final BASE_EMBEDDED {
   void UpdateProtector();
 
  private:
+  void Start();
+  void NextInternal(Map* map, JSReceiver* holder);
+
   enum class InterceptorState {
     kUninitialized,
     kSkipNonMasking,
@@ -268,12 +269,17 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Map> GetReceiverMap() const;
 
   MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
-  inline State LookupInHolder(Map* map, JSReceiver* holder);
+  inline State LookupInHolder(Map* map, JSReceiver* holder) {
+    return map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE
+               ? LookupInSpecialHolder(map, holder)
+               : LookupInRegularHolder(map, holder);
+  }
+  State LookupInRegularHolder(Map* map, JSReceiver* holder);
+  State LookupInSpecialHolder(Map* map, JSReceiver* holder);
   void RestartLookupForNonMaskingInterceptors() {
     RestartInternal(InterceptorState::kProcessNonMasking);
   }
   void RestartInternal(InterceptorState interceptor_state);
-  State LookupNonMaskingInterceptorInHolder(Map* map, JSReceiver* holder);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
   inline bool SkipInterceptor(JSObject* holder);
