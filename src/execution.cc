@@ -59,45 +59,6 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
                                            Handle<Object> new_target) {
   DCHECK(!receiver->IsJSGlobalObject());
 
-  // API callbacks can be called directly.
-  if (target->IsJSFunction() &&
-      Handle<JSFunction>::cast(target)->shared()->IsApiFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    if (!function->IsConstructor()) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kNotConstructor, function),
-                      Object);
-    }
-    SaveContext save(isolate);
-    isolate->set_context(function->context());
-    // Do proper receiver conversion for non-strict mode api functions.
-    if (!receiver->IsJSReceiver() &&
-        is_sloppy(function->shared()->language_mode())) {
-      if (receiver->IsUndefined() || receiver->IsNull()) {
-        if (is_construct) {
-          receiver = isolate->factory()->the_hole_value();
-        } else {
-          receiver = handle(function->global_proxy(), isolate);
-        }
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                   Object::ToObject(isolate, receiver), Object);
-      }
-    }
-    DCHECK(function->context()->global_object()->IsJSGlobalObject());
-    auto value = Builtins::InvokeApiFunction(is_construct, function, receiver,
-                                             argc, args);
-    bool has_exception = value.is_null();
-    DCHECK(has_exception == isolate->has_pending_exception());
-    if (has_exception) {
-      isolate->ReportPendingMessages();
-      return MaybeHandle<Object>();
-    } else {
-      isolate->clear_pending_message();
-    }
-    return value;
-  }
-
   // Entering JavaScript.
   VMState<JS> state(isolate);
   CHECK(AllowJavascriptExecution::IsAllowed(isolate));
@@ -169,6 +130,35 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
   if (receiver->IsJSGlobalObject()) {
     receiver =
         handle(Handle<JSGlobalObject>::cast(receiver)->global_proxy(), isolate);
+  }
+
+  // api callbacks can be called directly.
+  if (callable->IsJSFunction() &&
+      Handle<JSFunction>::cast(callable)->shared()->IsApiFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
+    SaveContext save(isolate);
+    isolate->set_context(function->context());
+    // Do proper receiver conversion for non-strict mode api functions.
+    if (!receiver->IsJSReceiver() &&
+        is_sloppy(function->shared()->language_mode())) {
+      if (receiver->IsUndefined() || receiver->IsNull()) {
+        receiver = handle(function->global_proxy(), isolate);
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                   Object::ToObject(isolate, receiver), Object);
+      }
+    }
+    DCHECK(function->context()->global_object()->IsJSGlobalObject());
+    auto value = Builtins::InvokeApiFunction(function, receiver, argc, argv);
+    bool has_exception = value.is_null();
+    DCHECK(has_exception == isolate->has_pending_exception());
+    if (has_exception) {
+      isolate->ReportPendingMessages();
+      return MaybeHandle<Object>();
+    } else {
+      isolate->clear_pending_message();
+    }
+    return value;
   }
   return Invoke(isolate, false, callable, receiver, argc, argv,
                 isolate->factory()->undefined_value());

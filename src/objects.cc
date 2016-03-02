@@ -1081,8 +1081,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Handle<Object> getter(AccessorPair::cast(*structure)->getter(), isolate);
   if (getter->IsFunctionTemplateInfo()) {
     auto result = Builtins::InvokeApiFunction(
-        false, Handle<FunctionTemplateInfo>::cast(getter), receiver, 0,
-        nullptr);
+        Handle<FunctionTemplateInfo>::cast(getter), receiver, 0, nullptr);
     if (isolate->has_pending_exception()) {
       return MaybeHandle<Object>();
     }
@@ -1151,9 +1150,9 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
   if (setter->IsFunctionTemplateInfo()) {
     Handle<Object> argv[] = {value};
-    auto result = Builtins::InvokeApiFunction(
-        false, Handle<FunctionTemplateInfo>::cast(setter), receiver,
-        arraysize(argv), argv);
+    auto result =
+        Builtins::InvokeApiFunction(Handle<FunctionTemplateInfo>::cast(setter),
+                                    receiver, arraysize(argv), argv);
     if (isolate->has_pending_exception()) {
       return Nothing<bool>();
     }
