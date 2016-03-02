@@ -257,20 +257,6 @@
   'language/statements/try/tco-finally': [FAIL],
   'language/statements/while/tco-body': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4726
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-not-object-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-not-ctor-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-prototype-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-not-ctor': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-prototype-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-value-not-obj-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4727
   'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
   'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],

@@ -90,6 +90,7 @@ macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
 macro IS_SYMBOL_WRAPPER(arg)    = (%_ClassOf(arg) === 'Symbol');
+macro IS_TYPEDARRAY(arg)        = (%_IsTypedArray(arg));
 macro IS_UNDEFINED(arg)         = (arg === (void 0));
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
 macro IS_WEAKSET(arg)           = (%_ClassOf(arg) === 'WeakSet');
