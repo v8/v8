@@ -498,9 +498,14 @@ void StringLengthStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void StrictEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  // Here's pseudo-code for the algorithm below:
+namespace {
+
+enum StrictEqualMode { kStrictEqual, kStrictNotEqual };
+
+void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
+                         StrictEqualMode mode) {
+  // Here's pseudo-code for the algorithm below in case of kStrictEqual mode;
+  // for kStrictNotEqual mode we properly negate the result.
   //
   // if (lhs == rhs) {
   //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;
@@ -554,7 +559,7 @@ void StrictEqualStub::GenerateAssembly(
   Node* rhs = assembler->Parameter(1);
   Node* context = assembler->Parameter(2);
 
-  Label if_true(assembler), if_false(assembler);
+  Label if_equal(assembler), if_notequal(assembler);
 
   // Check if {lhs} and {rhs} refer to the same object.
   Label if_same(assembler), if_notsame(assembler);
@@ -588,15 +593,15 @@ void StrictEqualStub::GenerateAssembly(
         Node* lhs_value = assembler->LoadHeapNumberValue(lhs);
 
         // Check if the HeapNumber value is a NaN.
-        assembler->BranchIfFloat64IsNaN(lhs_value, &if_false, &if_true);
+        assembler->BranchIfFloat64IsNaN(lhs_value, &if_notequal, &if_equal);
       }
 
       assembler->Bind(&if_lhsisnotnumber);
-      assembler->Goto(&if_true);
+      assembler->Goto(&if_equal);
     }
 
     assembler->Bind(&if_lhsissmi);
-    assembler->Goto(&if_true);
+    assembler->Goto(&if_equal);
   }
 
   assembler->Bind(&if_notsame);
@@ -633,8 +638,8 @@ void StrictEqualStub::GenerateAssembly(
           Node* rhs_value = assembler->SmiToFloat64(rhs);
 
           // Perform a floating point comparison of {lhs} and {rhs}.
-          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
-                                          &if_false);
+          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal,
+                                          &if_notequal);
         }
 
         assembler->Bind(&if_rhsisnotsmi);
@@ -655,12 +660,12 @@ void StrictEqualStub::GenerateAssembly(
             Node* rhs_value = assembler->LoadHeapNumberValue(rhs);
 
             // Perform a floating point comparison of {lhs} and {rhs}.
-            assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
-                                            &if_false);
+            assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal,
+                                            &if_notequal);
           }
 
           assembler->Bind(&if_rhsisnotnumber);
-          assembler->Goto(&if_false);
+          assembler->Goto(&if_notequal);
         }
       }
 
@@ -672,7 +677,7 @@ void StrictEqualStub::GenerateAssembly(
                           &if_rhsisnotsmi);
 
         assembler->Bind(&if_rhsissmi);
-        assembler->Goto(&if_false);
+        assembler->Goto(&if_notequal);
 
         assembler->Bind(&if_rhsisnotsmi);
         {
@@ -702,12 +707,14 @@ void StrictEqualStub::GenerateAssembly(
             {
               // TODO(bmeurer): Optimize this further once the StringEqual
               // functionality is available in TurboFan land.
-              assembler->TailCallRuntime(Runtime::kStringEqual, context, lhs,
-                                         rhs);
+              Runtime::FunctionId function_id = (mode == kStrictEqual)
+                                                    ? Runtime::kStringEqual
+                                                    : Runtime::kStringNotEqual;
+              assembler->TailCallRuntime(function_id, context, lhs, rhs);
             }
 
             assembler->Bind(&if_rhsisnotstring);
-            assembler->Goto(&if_false);
+            assembler->Goto(&if_notequal);
           }
 
           assembler->Bind(&if_lhsisnotstring);
@@ -723,12 +730,14 @@ void StrictEqualStub::GenerateAssembly(
             assembler->Bind(&if_lhsissimd128value);
             {
               // TODO(bmeurer): Inline the Simd128Value equality check.
-              assembler->TailCallRuntime(Runtime::kStrictEqual, context, lhs,
-                                         rhs);
+              Runtime::FunctionId function_id = (mode == kStrictEqual)
+                                                    ? Runtime::kStrictEqual
+                                                    : Runtime::kStrictNotEqual;
+              assembler->TailCallRuntime(function_id, context, lhs, rhs);
             }
 
             assembler->Bind(&if_lhsisnotsimd128value);
-            assembler->Goto(&if_false);
+            assembler->Goto(&if_notequal);
           }
         }
       }
@@ -746,7 +755,7 @@ void StrictEqualStub::GenerateAssembly(
                         &if_rhsisnotsmi);
 
       assembler->Bind(&if_rhsissmi);
-      assembler->Goto(&if_false);
+      assembler->Goto(&if_notequal);
 
       assembler->Bind(&if_rhsisnotsmi);
       {
@@ -765,21 +774,33 @@ void StrictEqualStub::GenerateAssembly(
           Node* rhs_value = assembler->LoadHeapNumberValue(rhs);
 
           // Perform a floating point comparison of {lhs} and {rhs}.
-          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_true,
-                                          &if_false);
+          assembler->BranchIfFloat64Equal(lhs_value, rhs_value, &if_equal,
+                                          &if_notequal);
         }
 
         assembler->Bind(&if_rhsisnotnumber);
-        assembler->Goto(&if_false);
+        assembler->Goto(&if_notequal);
       }
     }
   }
 
-  assembler->Bind(&if_true);
-  assembler->Return(assembler->BooleanConstant(true));
+  assembler->Bind(&if_equal);
+  assembler->Return(assembler->BooleanConstant(mode == kStrictEqual));
 
-  assembler->Bind(&if_false);
-  assembler->Return(assembler->BooleanConstant(false));
+  assembler->Bind(&if_notequal);
+  assembler->Return(assembler->BooleanConstant(mode == kStrictNotEqual));
+}
+
+}  // namespace
+
+void StrictEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStrictEqual(assembler, kStrictEqual);
+}
+
+void StrictNotEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStrictEqual(assembler, kStrictNotEqual);
 }
 
 void ToBooleanStub::GenerateAssembly(

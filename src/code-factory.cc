@@ -201,6 +201,12 @@ Callable CodeFactory::StrictEqual(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::StrictNotEqual(Isolate* isolate) {
+  StrictNotEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);

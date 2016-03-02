@@ -89,7 +89,6 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
   }
 REPLACE_RUNTIME_CALL(JSEqual, Runtime::kEqual)
 REPLACE_RUNTIME_CALL(JSNotEqual, Runtime::kNotEqual)
-REPLACE_RUNTIME_CALL(JSStrictNotEqual, Runtime::kStrictNotEqual)
 REPLACE_RUNTIME_CALL(JSLessThan, Runtime::kLessThan)
 REPLACE_RUNTIME_CALL(JSGreaterThan, Runtime::kGreaterThan)
 REPLACE_RUNTIME_CALL(JSLessThanOrEqual, Runtime::kLessThanOrEqual)
@@ -99,13 +98,14 @@ REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
 REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
 #undef REPLACE_RUNTIME_CALL
 
-#define REPLACE_STUB_CALL(Op, Stub)                               \
-  void JSGenericLowering::Lower##Op(Node* node) {                 \
+#define REPLACE_STUB_CALL(Name)                                   \
+  void JSGenericLowering::LowerJS##Name(Node* node) {             \
     CallDescriptor::Flags flags = AdjustFrameStatesForCall(node); \
-    Callable callable = CodeFactory::Stub(isolate());             \
+    Callable callable = CodeFactory::Name(isolate());             \
     ReplaceWithStubCall(node, callable, flags);                   \
   }
-REPLACE_STUB_CALL(JSStrictEqual, StrictEqual)
+REPLACE_STUB_CALL(StrictEqual)
+REPLACE_STUB_CALL(StrictNotEqual)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,

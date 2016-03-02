@@ -76,6 +76,7 @@ class CodeFactory final {
   static Callable RegExpExec(Isolate* isolate);
 
   static Callable StrictEqual(Isolate* isolate);
+  static Callable StrictNotEqual(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
