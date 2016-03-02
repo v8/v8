@@ -490,13 +490,13 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
         info()->shared_info()->disable_optimization_reason());
   }
 
-  graph_builder_ = (info()->is_tracking_positions() || FLAG_trace_ic)
-                       ? new (info()->zone())
-                             HOptimizedGraphBuilderWithPositions(info())
-                       : new (info()->zone()) HOptimizedGraphBuilder(info());
+  HOptimizedGraphBuilder* graph_builder =
+      (info()->is_tracking_positions() || FLAG_trace_ic)
+          ? new (info()->zone()) HOptimizedGraphBuilderWithPositions(info())
+          : new (info()->zone()) HOptimizedGraphBuilder(info());
 
   Timer t(this, &time_taken_to_create_graph_);
-  graph_ = graph_builder_->CreateGraph();
+  graph_ = graph_builder->CreateGraph();
 
   if (isolate()->has_pending_exception()) {
     return SetLastStatus(FAILED);
@@ -533,7 +533,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
     chunk_ = LChunk::NewChunk(graph_);
     if (chunk_ != NULL) return SetLastStatus(SUCCEEDED);
   } else if (bailout_reason != kNoReason) {
-    graph_builder_->Bailout(bailout_reason);
+    info_->AbortOptimization(bailout_reason);
   }
 
   return SetLastStatus(BAILED_OUT);

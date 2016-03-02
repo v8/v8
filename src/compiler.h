@@ -509,7 +509,6 @@ class CompilationHandleScope BASE_EMBEDDED {
 
 
 class HGraph;
-class HOptimizedGraphBuilder;
 class LChunk;
 
 // A helper class that calls the three compilation phases in
@@ -522,7 +521,6 @@ class OptimizedCompileJob: public ZoneObject {
  public:
   explicit OptimizedCompileJob(CompilationInfo* info)
       : info_(info),
-        graph_builder_(NULL),
         graph_(NULL),
         chunk_(NULL),
         last_status_(FAILED),
@@ -559,7 +557,6 @@ class OptimizedCompileJob: public ZoneObject {
 
  private:
   CompilationInfo* info_;
-  HOptimizedGraphBuilder* graph_builder_;
   HGraph* graph_;
   LChunk* chunk_;
   base::TimeDelta time_taken_to_create_graph_;
