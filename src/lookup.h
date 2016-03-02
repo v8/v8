@@ -257,9 +257,17 @@ class LookupIterator final BASE_EMBEDDED {
   }
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
-  void UpdateProtector();
+  inline void UpdateProtector() {
+    if (FLAG_harmony_species && !IsElement() &&
+        (*name_ == heap()->constructor_string() ||
+         *name_ == heap()->species_symbol())) {
+      InternalUpdateProtector();
+    }
+  }
 
  private:
+  void InternalUpdateProtector();
+
   enum class InterceptorState {
     kUninitialized,
     kSkipNonMasking,

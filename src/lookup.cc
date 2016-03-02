@@ -171,10 +171,7 @@ bool LookupIterator::HolderIsInContextIndex(uint32_t index) const {
   return false;
 }
 
-void LookupIterator::UpdateProtector() {
-  if (!FLAG_harmony_species) return;
-
-  if (IsElement()) return;
+void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
   if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
 
