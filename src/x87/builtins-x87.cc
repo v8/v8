@@ -603,27 +603,24 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   //           they are to be pushed onto the stack.
   // -----------------------------------
 
-  // Save number of arguments on the stack below where arguments are going
-  // to be pushed.
-  __ mov(ecx, eax);
-  __ neg(ecx);
-  __ mov(Operand(esp, ecx, times_pointer_size, -kPointerSize), eax);
-  __ mov(eax, ecx);
-
   // Pop return address to allow tail-call after pushing arguments.
   __ Pop(ecx);
 
+  // Push edi in the slot meant for receiver. We need an extra register
+  // so store edi temporarily on stack.
+  __ Push(edi);
+
   // Find the address of the last argument.
-  __ shl(eax, kPointerSizeLog2);
-  __ add(eax, ebx);
+  __ mov(edi, eax);
+  __ neg(edi);
+  __ shl(edi, kPointerSizeLog2);
+  __ add(edi, ebx);
 
-  // Push padding for receiver.
-  __ Push(Immediate(0));
+  Generate_InterpreterPushArgs(masm, edi);
 
-  Generate_InterpreterPushArgs(masm, eax);
-
-  // Restore number of arguments from slot on stack.
-  __ mov(eax, Operand(esp, -kPointerSize));
+  // Restore the constructor from slot on stack. It was pushed at the slot
+  // meant for receiver.
+  __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
 
   // Re-push return address.
   __ Push(ecx);
