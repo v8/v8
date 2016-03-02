@@ -4139,9 +4139,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
   // interceptor calls.
   AssertNoContextChange ncc(it->isolate());
 
-  *found = true;
-
-  bool done = false;
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -4167,10 +4164,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
           if (!maybe_attributes.IsJust()) return Nothing<bool>();
-          done = maybe_attributes.FromJust() != ABSENT;
-          if (done && (maybe_attributes.FromJust() & READ_ONLY) != 0) {
+          if (maybe_attributes.FromJust() == ABSENT) break;
+          if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
+          *found = false;
+          return Nothing<bool>();
         }
         break;
 
@@ -4182,13 +4181,13 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         if (accessors->IsAccessorInfo() &&
             !it->HolderIsReceiverOrHiddenPrototype() &&
             AccessorInfo::cast(*accessors)->is_special_data_property()) {
-          done = true;
-          break;
+          *found = false;
+          return Nothing<bool>();
         }
         return SetPropertyWithAccessor(it, value, should_throw);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        // TODO(verwaest): We should throw an exception.
+        // TODO(verwaest): We should throw an exception if holder is receiver.
         return Just(true);
 
       case LookupIterator::DATA:
@@ -4198,15 +4197,11 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return SetDataProperty(it, value);
         }
-        done = true;
-        break;
-
+      // Fall through.
       case LookupIterator::TRANSITION:
-        done = true;
-        break;
+        *found = false;
+        return Nothing<bool>();
     }
-
-    if (done) break;
   }
 
   *found = false;
@@ -4217,7 +4212,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
                                 StoreFromKeyed store_mode) {
-  bool found = false;
+  bool found = true;
   Maybe<bool> result =
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
@@ -4242,7 +4237,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                      StoreFromKeyed store_mode) {
   Isolate* isolate = it->isolate();
 
-  bool found = false;
+  bool found = true;
   Maybe<bool> result =
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;

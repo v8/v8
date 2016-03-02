@@ -472,13 +472,13 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
+  if (*receiver_ == *holder_) return true;
   if (!receiver_->IsJSReceiver()) return false;
   JSReceiver* current = JSReceiver::cast(*receiver_);
   JSReceiver* object = *holder_;
-  if (current == object) return true;
   if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
-  if (current->IsJSProxy()) return false;
+  if (object->IsJSProxy()) return false;
   PrototypeIterator iter(isolate(), current,
                          PrototypeIterator::START_AT_PROTOTYPE,
                          PrototypeIterator::END_AT_NON_HIDDEN);
