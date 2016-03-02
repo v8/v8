@@ -6661,22 +6661,17 @@ class SharedFunctionInfo: public HeapObject {
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);
 
-  // Add a new entry to the optimized code map for context-independent code.
+  // Add or update entry in the optimized code map for context-independent code.
   static void AddSharedCodeToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                               Handle<Code> code);
 
-  // Add a new entry to the optimized code map for context-dependent code.
-  inline static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                           Handle<Context> native_context,
-                                           Handle<Code> code,
-                                           Handle<LiteralsArray> literals,
-                                           BailoutId osr_ast_id);
-
-  // We may already have cached the code, but want to store literals in the
-  // cache.
-  inline static void AddLiteralsToOptimizedCodeMap(
-      Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-      Handle<LiteralsArray> literals);
+  // Add or update entry in the optimized code map for context-dependent code.
+  // If {code} is not given, then an existing entry's code won't be overwritten.
+  static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
+                                    Handle<Context> native_context,
+                                    MaybeHandle<Code> code,
+                                    Handle<LiteralsArray> literals,
+                                    BailoutId osr_ast_id);
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
@@ -7287,13 +7282,6 @@ class SharedFunctionInfo: public HeapObject {
   // entry or a start index of the context-dependent entry.
   int SearchOptimizedCodeMapEntry(Context* native_context,
                                   BailoutId osr_ast_id);
-
-  // If code is undefined, then existing code won't be overwritten.
-  static void AddToOptimizedCodeMapInternal(Handle<SharedFunctionInfo> shared,
-                                            Handle<Context> native_context,
-                                            Handle<HeapObject> code,
-                                            Handle<LiteralsArray> literals,
-                                            BailoutId osr_ast_id);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

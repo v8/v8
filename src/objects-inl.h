@@ -6019,26 +6019,6 @@ bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
 }
 
 
-// static
-void SharedFunctionInfo::AddToOptimizedCodeMap(
-    Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    Handle<Code> code, Handle<LiteralsArray> literals, BailoutId osr_ast_id) {
-  AddToOptimizedCodeMapInternal(shared, native_context, code, literals,
-                                osr_ast_id);
-}
-
-
-// static
-void SharedFunctionInfo::AddLiteralsToOptimizedCodeMap(
-    Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    Handle<LiteralsArray> literals) {
-  Isolate* isolate = shared->GetIsolate();
-  Handle<Oddball> undefined = isolate->factory()->undefined_value();
-  AddToOptimizedCodeMapInternal(shared, native_context, undefined, literals,
-                                BailoutId::None());
-}
-
-
 bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
 }

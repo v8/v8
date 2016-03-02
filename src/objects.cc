@@ -12301,17 +12301,15 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
   }
 }
 
-
-void SharedFunctionInfo::AddToOptimizedCodeMapInternal(
+// static
+void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    Handle<HeapObject> code, Handle<LiteralsArray> literals,
+    MaybeHandle<Code> code, Handle<LiteralsArray> literals,
     BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
-  DCHECK(*code == isolate->heap()->undefined_value() ||
-         !shared->SearchOptimizedCodeMap(*native_context, osr_ast_id).code);
-  DCHECK(*code == isolate->heap()->undefined_value() ||
-         Code::cast(*code)->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code.is_null() ||
+         code.ToHandleChecked()->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 4);
   Handle<FixedArray> new_code_map;
@@ -12326,15 +12324,10 @@ void SharedFunctionInfo::AddToOptimizedCodeMapInternal(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
     if (entry > kSharedCodeIndex) {
-      // Found an existing context-specific entry. If the user provided valid
-      // code, it must not contain any code.
-      DCHECK(code->IsUndefined() ||
-             WeakCell::cast(old_code_map->get(entry + kCachedCodeOffset))
-                 ->cleared());
-
-      // Just set the code and literals to the entry.
-      if (!code->IsUndefined()) {
-        Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+      // Just set the code and literals of the entry.
+      if (!code.is_null()) {
+        Handle<WeakCell> code_cell =
+            isolate->factory()->NewWeakCell(code.ToHandleChecked());
         old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       }
       Handle<WeakCell> literals_cell =
@@ -12367,9 +12360,9 @@ void SharedFunctionInfo::AddToOptimizedCodeMapInternal(
     }
   }
 
-  Handle<WeakCell> code_cell = code->IsUndefined()
-                                   ? isolate->factory()->empty_weak_cell()
-                                   : isolate->factory()->NewWeakCell(code);
+  Handle<WeakCell> code_cell =
+      code.is_null() ? isolate->factory()->empty_weak_cell()
+                     : isolate->factory()->NewWeakCell(code.ToHandleChecked());
   Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
   WeakCell* context_cell = native_context->self_weak_cell();
 

@@ -547,10 +547,6 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(rmcilroy,4680): Check failed: fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft().
-  'test-compiler/OptimizedCodeSharing2': [FAIL],
-  'test-compiler/OptimizedCodeSharing3': [FAIL],
-
   # TODO(rmcilroy,4689): Stack trace line number failures.
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [FAIL],
