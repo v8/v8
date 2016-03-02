@@ -9,6 +9,7 @@
 
 #include "src/allocation.h"
 #include "src/bailout-reason.h"
+#include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/safepoint-table.h"
 #include "src/zone-allocator.h"

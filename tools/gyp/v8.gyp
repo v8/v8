@@ -731,6 +731,8 @@
         '../../src/conversions.h',
         '../../src/counters.cc',
         '../../src/counters.h',
+        '../../src/crankshaft/compilation-phase.cc',
+        '../../src/crankshaft/compilation-phase.h',
         '../../src/crankshaft/hydrogen-alias-analysis.h',
         '../../src/crankshaft/hydrogen-bce.cc',
         '../../src/crankshaft/hydrogen-bce.h',
