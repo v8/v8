@@ -242,7 +242,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
   CONVERT_ARG_HANDLE_CHECKED(String, s2, 1);
 
   Handle<JSArray> result = LiveEdit::CompareStrings(s1, s2);
-  uint32_t array_length;
+  uint32_t array_length = 0;
   CHECK(result->length()->ToArrayLength(&array_length));
   if (array_length > 0) {
     isolate->debug()->feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
