@@ -91,6 +91,8 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
   return_position_ =
       literal ? std::max(literal->start_position(), literal->end_position() - 1)
               : RelocInfo::kNoPosition;
+  LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(
+                               source_position_table_builder()));
 }
 
 BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
@@ -130,13 +132,18 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
   Handle<ByteArray> source_position_table =
       source_position_table_builder()->ToSourcePositionTable();
-  Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
+  Handle<BytecodeArray> bytecode_array = isolate_->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes_.front(), frame_size, parameter_count(),
       constant_pool);
-  output->set_handler_table(*handler_table);
-  output->set_source_position_table(*source_position_table);
+  bytecode_array->set_handler_table(*handler_table);
+  bytecode_array->set_source_position_table(*source_position_table);
+
+  void* line_info = source_position_table_builder()->DetachJITHandlerData();
+  LOG_CODE_EVENT(isolate_, CodeEndLinePosInfoRecordEvent(
+                               AbstractCode::cast(*bytecode_array), line_info));
+
   bytecode_generated_ = true;
-  return output;
+  return bytecode_array;
 }
 
 

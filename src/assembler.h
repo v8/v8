@@ -38,6 +38,7 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -1085,23 +1086,11 @@ struct PositionState {
   int written_statement_position;
 };
 
-
-class PositionsRecorder BASE_EMBEDDED {
+class AssemblerPositionsRecorder : public PositionsRecorder {
  public:
-  explicit PositionsRecorder(Assembler* assembler)
-      : assembler_(assembler) {
-    jit_handler_data_ = NULL;
-  }
+  explicit AssemblerPositionsRecorder(Assembler* assembler)
+      : assembler_(assembler) {}
 
-  void AttachJITHandlerData(void* user_data) {
-    jit_handler_data_ = user_data;
-  }
-
-  void* DetachJITHandlerData() {
-    void* old_data = jit_handler_data_;
-    jit_handler_data_ = NULL;
-    return old_data;
-  }
   // Set current position to pos.
   void RecordPosition(int pos);
 
@@ -1121,11 +1110,7 @@ class PositionsRecorder BASE_EMBEDDED {
   Assembler* assembler_;
   PositionState state_;
 
-  // Currently jit_handler_data_ is used to store JITHandler-specific data
-  // over the lifetime of a PositionsRecorder
-  void* jit_handler_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
+  DISALLOW_COPY_AND_ASSIGN(AssemblerPositionsRecorder);
 };
 
 

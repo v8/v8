@@ -8,6 +8,7 @@
 #include "src/assert-scope.h"
 #include "src/checks.h"
 #include "src/handles.h"
+#include "src/log.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -33,7 +34,7 @@ struct PositionTableEntry {
   bool is_statement;
 };
 
-class SourcePositionTableBuilder {
+class SourcePositionTableBuilder : public PositionsRecorder {
  public:
   explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),

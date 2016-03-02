@@ -983,11 +983,11 @@ TEST(BoundFunctionCall) {
   profile->Delete();
 }
 
-
 // This tests checks distribution of the samples through the source lines.
-TEST(TickLines) {
+static void TickLines(bool optimize) {
   CcTest::InitializeVM();
   LocalContext env;
+  i::FLAG_allow_natives_syntax = true;
   i::FLAG_turbo_source_positions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -996,6 +996,8 @@ TEST(TickLines) {
   i::EmbeddedVector<char, 512> script;
 
   const char* func_name = "func";
+  const char* opt_func =
+      optimize ? "%OptimizeFunctionOnNextCall" : "%NeverOptimizeFunction";
   i::SNPrintF(script,
               "function %s() {\n"
               "  var n = 0;\n"
@@ -1005,8 +1007,9 @@ TEST(TickLines) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
+              "%s(%s);\n"
               "%s();\n",
-              func_name, func_name);
+              func_name, opt_func, func_name, func_name);
 
   CompileRun(script.start());
 
@@ -1014,14 +1017,7 @@ TEST(TickLines) {
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(func->shared());
   CHECK(func->shared()->abstract_code());
-  i::AbstractCode* code = NULL;
-  if (func->abstract_code()->kind() == i::AbstractCode::OPTIMIZED_FUNCTION) {
-    code = func->abstract_code();
-  } else {
-    CHECK(func->shared()->abstract_code() == func->abstract_code() ||
-          !i::FLAG_crankshaft);
-    code = func->shared()->abstract_code();
-  }
+  i::AbstractCode* code = func->abstract_code();
   CHECK(code);
   i::Address code_address = code->instruction_start();
   CHECK(code_address);
@@ -1081,6 +1077,10 @@ TEST(TickLines) {
     }
   CHECK_EQ(hit_count, value);
 }
+
+TEST(TickLinesBaseline) { TickLines(false); }
+
+TEST(TickLinesOptimized) { TickLines(true); }
 
 static const char* call_function_test_source =
     "%NeverOptimizeFunction(bar);\n"

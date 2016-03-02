@@ -287,8 +287,15 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
         }
       }
     } else {
-      DCHECK(abstract_code->IsBytecodeArray());
-      // TODO(rmcilroy): source position tracking for bytecode arrays.
+      BytecodeArray* bytecode = abstract_code->GetBytecodeArray();
+      line_table = new JITLineInfoTable();
+      interpreter::SourcePositionTableIterator it(
+          bytecode->source_position_table());
+      for (; !it.done(); it.Advance()) {
+        int line_number = script->GetLineNumber(it.source_position()) + 1;
+        int pc_offset = it.bytecode_offset() + BytecodeArray::kHeaderSize;
+        line_table->SetPosition(pc_offset, line_number);
+      }
     }
   }
   rec->entry = profiles_->NewCodeEntry(

@@ -1107,7 +1107,9 @@ class Assembler : public AssemblerBase {
   void dp(uintptr_t data) { dq(data); }
   void dd(Label* label);
 
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+  AssemblerPositionsRecorder* positions_recorder() {
+    return &positions_recorder_;
+  }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -1490,8 +1492,8 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
 
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
+  AssemblerPositionsRecorder positions_recorder_;
+  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

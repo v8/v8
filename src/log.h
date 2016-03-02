@@ -441,6 +441,26 @@ class TimerEventScope {
   Isolate* isolate_;
 };
 
+class PositionsRecorder BASE_EMBEDDED {
+ public:
+  PositionsRecorder() { jit_handler_data_ = NULL; }
+
+  void AttachJITHandlerData(void* user_data) { jit_handler_data_ = user_data; }
+
+  void* DetachJITHandlerData() {
+    void* old_data = jit_handler_data_;
+    jit_handler_data_ = NULL;
+    return old_data;
+  }
+
+ protected:
+  // Currently jit_handler_data_ is used to store JITHandler-specific data
+  // over the lifetime of a PositionsRecorder
+  void* jit_handler_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
+};
 
 class CodeEventListener {
  public:
