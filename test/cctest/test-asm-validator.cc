@@ -2366,3 +2366,25 @@ TEST(StoreFloatFromDouble) {
   }
   CHECK_FUNC_TYPES_END
 }
+
+TEST(NegateDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0.0; x = -x; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(x, Bounds(cache.kAsmDouble));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
