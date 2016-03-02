@@ -142,11 +142,14 @@
       "main": "run.js",
       "resources": ["keys.js"],
       "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
+      "run_count": 3,
+      "run_count_android_arm": 2,
+      "run_count_android_arm64": 2,
       "tests": [
         {"name": "Object.keys()"},
-        {"name": "for (in)"},
-        {"name": "for (in) hasOwnProperty()"},
-        {"name": "for Object.keys()"},
+        {"name": "for-in"},
+        {"name": "for-in hasOwnProperty()"},
+        {"name": "for (i < Object.keys().length)"},
         {"name": "Object.keys().forEach()"},
         {"name": "for (i < array.length)"},
         {"name": "for (i < length)"}
