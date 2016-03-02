@@ -298,7 +298,7 @@ class LowLevelLogger : public CodeEventLogger {
   void CodeMoveEvent(AbstractCode* from, Address to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
-  void SnapshotPositionEvent(Address addr, int pos);
+  void SnapshotPositionEvent(HeapObject* obj, int pos);
   void CodeMovingGCEvent() override;
 
  private:
@@ -421,12 +421,12 @@ void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   LogWriteStruct(event);
 }
 
-void LowLevelLogger::SnapshotPositionEvent(Address addr, int pos) {
-  HeapObject* obj = HeapObject::FromAddress(addr);
+void LowLevelLogger::SnapshotPositionEvent(HeapObject* obj, int pos) {
   if (obj->IsAbstractCode()) {
     SnapshotPositionStruct event;
     event.address =
-        addr + (obj->IsCode() ? Code::kHeaderSize : BytecodeArray::kHeaderSize);
+        obj->address() +
+        (obj->IsCode() ? Code::kHeaderSize : BytecodeArray::kHeaderSize);
     event.position = pos;
     LogWriteStruct(event);
   }
@@ -1294,14 +1294,13 @@ void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   msg.WriteToLogFile();
 }
 
-
-void Logger::SnapshotPositionEvent(Address addr, int pos) {
+void Logger::SnapshotPositionEvent(HeapObject* obj, int pos) {
   if (!log_->IsEnabled()) return;
-  LL_LOG(SnapshotPositionEvent(addr, pos));
+  LL_LOG(SnapshotPositionEvent(obj, pos));
   if (!FLAG_log_snapshot_positions) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[SNAPSHOT_POSITION_EVENT]);
-  msg.AppendAddress(addr);
+  msg.AppendAddress(obj->address());
   msg.Append(",%d", pos);
   msg.WriteToLogFile();
 }

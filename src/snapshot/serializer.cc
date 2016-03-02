@@ -316,7 +316,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     LOG(serializer_->isolate_,
         CodeNameEvent(object_->address(), sink_->Position(), code_name));
     LOG(serializer_->isolate_,
-        SnapshotPositionEvent(object_->address(), sink_->Position()));
+        SnapshotPositionEvent(object_, sink_->Position()));
   }
 
   BackReference back_reference;

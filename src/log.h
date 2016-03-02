@@ -260,7 +260,7 @@ class Logger {
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
-  void SnapshotPositionEvent(Address addr, int pos);
+  void SnapshotPositionEvent(HeapObject* obj, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
