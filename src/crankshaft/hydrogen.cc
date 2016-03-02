@@ -2050,9 +2050,8 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   return Pop();
 }
 
-
-HValue* HGraphBuilder::BuildToNumber(HValue* input, Type* input_type) {
-  if (input->type().IsTaggedNumber() || input_type->Is(Type::Number())) {
+HValue* HGraphBuilder::BuildToNumber(HValue* input) {
+  if (input->type().IsTaggedNumber()) {
     return input;
   }
   Callable callable = CodeFactory::ToNumber(isolate());
@@ -11081,10 +11080,10 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
   // Special case for +x here.
   if (op == Token::MUL) {
     if (left->EqualsInteger32Constant(1)) {
-      return BuildToNumber(right, right_type);
+      return BuildToNumber(right);
     }
     if (right->EqualsInteger32Constant(1)) {
-      return BuildToNumber(left, left_type);
+      return BuildToNumber(left);
     }
   }
 
@@ -12307,8 +12306,7 @@ void HOptimizedGraphBuilder::GenerateToNumber(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   Callable callable = CodeFactory::ToNumber(isolate());
   HValue* input = Pop();
-  Type* input_type = Type::Any();
-  HValue* result = BuildToNumber(input, input_type);
+  HValue* result = BuildToNumber(input);
   if (result->HasObservableSideEffects()) {
     if (!ast_context()->IsEffect()) Push(result);
     Add<HSimulate>(call->id(), REMOVABLE_SIMULATE);
