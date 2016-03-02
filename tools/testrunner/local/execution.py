@@ -49,9 +49,8 @@ TEST_DIR = os.path.join(BASE_DIR, "test")
 
 
 class Instructions(object):
-  def __init__(self, command, dep_command, test_id, timeout, verbose):
+  def __init__(self, command, test_id, timeout, verbose):
     self.command = command
-    self.dep_command = dep_command
     self.id = test_id
     self.timeout = timeout
     self.verbose = verbose
@@ -112,12 +111,7 @@ def _GetInstructions(test, context):
   # the like.
   if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
     timeout *= 2
-  if test.dependency is not None:
-    dep_command = [ c.replace(test.path, test.dependency) for c in command ]
-  else:
-    dep_command = None
-  return Instructions(
-      command, dep_command, test.id, timeout, context.verbose)
+  return Instructions(command, test.id, timeout, context.verbose)
 
 
 class Job(object):
@@ -160,15 +154,6 @@ class TestJob(Job):
       return SetupProblem(e, self.test)
 
     start_time = time.time()
-    if instr.dep_command is not None:
-      dep_output = commands.Execute(
-          instr.dep_command, instr.verbose, instr.timeout)
-      # TODO(jkummerow): We approximate the test suite specific function
-      # IsFailureOutput() by just checking the exit code here. Currently
-      # only cctests define dependencies, for which this simplification is
-      # correct.
-      if dep_output.exit_code != 0:
-        return (instr.id, dep_output, time.time() - start_time)
     output = commands.Execute(instr.command, instr.verbose, instr.timeout)
     return (instr.id, output, time.time() - start_time)
 
