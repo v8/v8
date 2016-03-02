@@ -284,6 +284,7 @@
   'test-run-wasm-js/Run_JSSelect_4': [SKIP],
   'test-run-wasm-js/Run_JSSelect_5': [SKIP],
   'test-run-wasm-js/Run_JSSelect_6': [SKIP],
+  'test-run-wasm-64/Run_WasmI64*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
