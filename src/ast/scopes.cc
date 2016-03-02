@@ -818,23 +818,6 @@ Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
 }
 
 
-void Scope::GetNestedScopeChain(Isolate* isolate,
-                                List<Handle<ScopeInfo> >* chain, int position) {
-  if (!is_eval_scope()) chain->Add(Handle<ScopeInfo>(GetScopeInfo(isolate)));
-
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* scope = inner_scopes_[i];
-    int beg_pos = scope->start_position();
-    int end_pos = scope->end_position();
-    DCHECK(beg_pos >= 0 && end_pos >= 0);
-    if (beg_pos <= position && position < end_pos) {
-      scope->GetNestedScopeChain(isolate, chain, position);
-      return;
-    }
-  }
-}
-
-
 void Scope::CollectNonLocals(HashMap* non_locals) {
   // Collect non-local variables referenced in the scope.
   // TODO(yangguo): store non-local variables explicitly if we can no longer

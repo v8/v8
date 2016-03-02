@@ -556,13 +556,6 @@ class Scope: public ZoneObject {
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
-  // Get the chain of nested scopes within this scope for the source statement
-  // position. The scopes will be added to the list from the outermost scope to
-  // the innermost scope. Only nested block, catch or with scopes are tracked
-  // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(Isolate* isolate, List<Handle<ScopeInfo> >* chain,
-                           int statement_position);
-
   void CollectNonLocals(HashMap* non_locals);
 
   // ---------------------------------------------------------------------------
