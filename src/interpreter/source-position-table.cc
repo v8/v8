@@ -151,9 +151,10 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 }
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
+  if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
+
   Handle<ByteArray> table = isolate_->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), TENURED);
-  if (bytes_.empty()) return table;
 
   MemCopy(table->GetDataStartAddress(), &*bytes_.begin(), bytes_.size());
 

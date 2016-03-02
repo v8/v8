@@ -984,6 +984,13 @@ void FullCodeGenerator::EmitBreak(Statement* target) {
   __ jmp(current->AsBreakable()->break_label());
 }
 
+void FullCodeGenerator::EmitIllegalRedeclaration() {
+  Comment cmnt(masm_, "[ Declarations");
+  Expression* illegal = scope()->GetIllegalRedeclaration();
+  SetExpressionAsStatementPosition(illegal);
+  VisitForEffect(illegal);
+}
+
 void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   Comment cmnt(masm_, "[ BreakStatement");
   SetStatementPosition(stmt);

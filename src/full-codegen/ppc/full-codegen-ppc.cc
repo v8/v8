@@ -302,9 +302,7 @@ void FullCodeGenerator::Generate() {
   // Visit the declarations and body unless there is an illegal
   // redeclaration.
   if (scope()->HasIllegalRedeclaration()) {
-    Comment cmnt(masm_, "[ Declarations");
-    VisitForEffect(scope()->GetIllegalRedeclaration());
-
+    EmitIllegalRedeclaration();
   } else {
     PrepareForBailoutForId(BailoutId::FunctionEntry(), NO_REGISTERS);
     {

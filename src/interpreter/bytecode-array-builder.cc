@@ -1212,6 +1212,13 @@ void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
                                                        expr->position());
 }
 
+void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
+  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (exit_seen_in_block_) return;
+  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
+                                                      expr->position());
+}
+
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
   return temporary_register_allocator()->RegisterIsLive(reg);
 }

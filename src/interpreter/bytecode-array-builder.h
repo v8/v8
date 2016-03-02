@@ -263,6 +263,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
+  void SetExpressionAsStatementPosition(Expression* expr);
 
   // Accessors
   Zone* zone() const { return zone_; }
