@@ -103,6 +103,8 @@ namespace internal {
   V(StringLength)                           \
   V(StrictEqual)                            \
   V(StrictNotEqual)                         \
+  V(StringEqual)                            \
+  V(StringNotEqual)                         \
   V(ToBoolean)                              \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
@@ -651,6 +653,26 @@ class StrictNotEqualStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
   DEFINE_CODE_STUB(StrictNotEqual, TurboFanCodeStub);
+};
+
+class StringEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit StringEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const final;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_CODE_STUB(StringEqual, TurboFanCodeStub);
+};
+
+class StringNotEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit StringNotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const final;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_CODE_STUB(StringNotEqual, TurboFanCodeStub);
 };
 
 class ToBooleanStub final : public TurboFanCodeStub {

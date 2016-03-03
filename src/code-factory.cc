@@ -220,6 +220,17 @@ Callable CodeFactory::StringCompare(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
+// static
+Callable CodeFactory::StringEqual(Isolate* isolate) {
+  StringEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringNotEqual(Isolate* isolate) {
+  StringNotEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
 
 // static
 Callable CodeFactory::SubString(Isolate* isolate) {

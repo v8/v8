@@ -294,6 +294,10 @@ class RepresentationSelector {
       return NodeOutputInfo(MachineRepresentation::kTagged, Type::Any());
     }
 
+    static NodeOutputInfo BoolTagged() {
+      return NodeOutputInfo(MachineRepresentation::kTagged, Type::Boolean());
+    }
+
     static NodeOutputInfo NumberTagged() {
       return NodeOutputInfo(MachineRepresentation::kTagged, Type::Number());
     }
@@ -1139,8 +1143,20 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kStringEqual: {
-        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::Bool());
-        if (lower()) lowering->DoStringEqual(node);
+        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::BoolTagged());
+        if (lower()) {
+          // StringEqual(x, y) => Call(StringEqualStub, x, y, no-context)
+          Operator::Properties properties = node->op()->properties();
+          Callable callable = CodeFactory::StringEqual(jsgraph_->isolate());
+          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
+              flags, properties);
+          node->InsertInput(jsgraph_->zone(), 0,
+                            jsgraph_->HeapConstant(callable.code()));
+          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
+        }
         break;
       }
       case IrOpcode::kStringLessThan: {
@@ -1888,16 +1904,6 @@ void ReplaceEffectUses(Node* node, Node* replacement) {
 }
 
 }  // namespace
-
-
-void SimplifiedLowering::DoStringEqual(Node* node) {
-  Node* comparison = StringComparison(node);
-  ReplaceEffectUses(node, comparison);
-  node->ReplaceInput(0, comparison);
-  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
-  node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, machine()->WordEqual());
-}
 
 
 void SimplifiedLowering::DoStringLessThan(Node* node) {

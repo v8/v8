@@ -5193,10 +5193,18 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->left()).is(x1));
   DCHECK(ToRegister(instr->right()).is(x0));
 
-  Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
-  CallCode(code, RelocInfo::CODE_TARGET, instr);
+  if (Token::IsOrderedRelationalCompareOp(instr->op())) {
+    Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
+    CallCode(code, RelocInfo::CODE_TARGET, instr);
 
-  EmitCompareAndBranch(instr, TokenToCondition(instr->op(), false), x0, 0);
+    EmitCompareAndBranch(instr, TokenToCondition(instr->op(), false), x0, 0);
+  } else {
+    Handle<Code> code = CodeFactory::StringEqual(isolate()).code();
+    CallCode(code, RelocInfo::CODE_TARGET, instr);
+    __ CompareRoot(x0, Heap::kTrueValueRootIndex);
+
+    EmitBranch(instr, TokenToCondition(instr->op(), false));
+  }
 }
 
 
