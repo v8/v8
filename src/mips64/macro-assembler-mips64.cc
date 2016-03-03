@@ -1367,17 +1367,25 @@ static inline int64_t ShiftAndFixSignExtension(int64_t imm, int bitnum) {
   return imm;
 }
 
-void MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
+bool MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
+  bool higher_bits_sign_extended = false;
   if (is_int16(j.imm64_)) {
     daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
   } else if (!(j.imm64_ & kHiMask)) {
     ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
   } else if (!(j.imm64_ & kImm16Mask)) {
     lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
+    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
+      higher_bits_sign_extended = true;
+    }
   } else {
     lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
     ori(rd, rd, (j.imm64_ & kImm16Mask));
+    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
+      higher_bits_sign_extended = true;
+    }
   }
+  return higher_bits_sign_extended;
 }
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
@@ -1390,16 +1398,17 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     } else {
       if (kArchVariant == kMips64r6) {
         int64_t imm = j.imm64_;
-        LiLower32BitHelper(rd, j);
+        bool higher_bits_sign_extended = LiLower32BitHelper(rd, j);
         imm = ShiftAndFixSignExtension(imm, 32);
-        if (imm & kImm16Mask) {
+        // If LUI writes 1s to higher bits, we need both DAHI/DATI.
+        if ((imm & kImm16Mask) ||
+            (higher_bits_sign_extended && (j.imm64_ > 0))) {
           dahi(rd, imm & kImm16Mask);
         }
-        if (!is_int48(j.imm64_)) {
-          imm = ShiftAndFixSignExtension(imm, 16);
-          if (imm & kImm16Mask) {
-            dati(rd, imm & kImm16Mask);
-          }
+        imm = ShiftAndFixSignExtension(imm, 16);
+        if ((!is_int48(j.imm64_) && (imm & kImm16Mask)) ||
+            (higher_bits_sign_extended && (j.imm64_ > 0))) {
+          dati(rd, imm & kImm16Mask);
         }
       } else {
         if (is_int48(j.imm64_)) {
