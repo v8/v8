@@ -1941,13 +1941,15 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
     ld(at, MemOperand(at));
   } else {
     Label here;
-    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 7);
+    BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 11);
     Align(8);
+    push(ra);
     bal(&here);
     dsll(at, index, kPointerSizeLog2);  // Branch delay slot.
     bind(&here);
     daddu(at, at, ra);
-    ld(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
+    pop(ra);
+    ld(at, MemOperand(at, 6 * v8::internal::Assembler::kInstrSize));
   }
   jr(at);
   nop();  // Branch delay slot nop.
