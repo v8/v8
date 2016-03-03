@@ -932,28 +932,27 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
   if (result.val) delete result.val;
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionNoLen) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionNoLen) {
   const byte data[] = {
-      kDeclWLL,  // section without length.
+      kMaxModuleSectionCode,  // unknown section without length.
   };
   EXPECT_FAILURE(data);
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionEmpty) {
-  static const byte data[] = {
-      kDeclWLL, 0,  // empty section
-  };
-  ModuleResult result = DecodeModule(data, data + arraysize(data));
-  EXPECT_TRUE(result.ok());
-  if (result.val) delete result.val;
+TEST_F(WasmModuleVerifyTest, UnknownSectionEmpty) {
+  for (int i = 0; i < 255 - kMaxModuleSectionCode; ++i) {
+    const byte data[] = {
+        byte(kMaxModuleSectionCode + i), 0,  // empty unknown section
+    };
+    ModuleResult result = DecodeModule(data, data + arraysize(data));
+    EXPECT_TRUE(result.ok());
+    if (result.val) delete result.val;
+  }
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionOne) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionOne) {
   static const byte data[] = {
-      kDeclWLL,
+      kMaxModuleSectionCode,
       1,  // LEB128 1
       0,  // one byte section
   };
@@ -962,45 +961,106 @@ TEST_F(WasmModuleVerifyTest, WLLSectionOne) {
   if (result.val) delete result.val;
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionTen) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionTen) {
   static const byte data[] = {
-      kDeclWLL,
-      10,                                    // LEB128 10
-      1,        2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+      kMaxModuleSectionCode,
+      10,  // LEB128 10
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,  // 10 byte section
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
   if (result.val) delete result.val;
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionOverflow) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionOverflow) {
   static const byte data[] = {
-      kDeclWLL,
-      11,                                    // LEB128 11
-      1,        2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+      kMaxModuleSectionCode,
+      11,  // LEB128 11
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,  // 10 byte section
   };
   EXPECT_FAILURE(data);
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionUnderflow) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionUnderflow) {
   static const byte data[] = {
-      kDeclWLL, 0xff, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xffffffff
-      1,        2,    3,    4,                 // 4 byte section
+      kMaxModuleSectionCode,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0x0f,  // LEB128 0xffffffff
+      1,
+      2,
+      3,
+      4,  // 4 byte section
   };
   EXPECT_FAILURE(data);
 }
 
-
-TEST_F(WasmModuleVerifyTest, WLLSectionLoop) {
+TEST_F(WasmModuleVerifyTest, UnknownSectionLoop) {
   // Would infinite loop decoding if wrapping and allowed.
   static const byte data[] = {
-      kDeclWLL, 0xfa, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xfffffffa
-      1,        2,    3,    4,                 // 4 byte section
+      kMaxModuleSectionCode,
+      0xfa,
+      0xff,
+      0xff,
+      0xff,
+      0x0f,  // LEB128 0xfffffffa
+      1,
+      2,
+      3,
+      4,  // 4 byte section
   };
   EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
+  static const byte data[] = {
+      kMaxModuleSectionCode,
+      1,  // LEB128 1
+      0,  // one byte section
+      kDeclGlobals,
+      1,
+      0,
+      0,
+      0,
+      0,        // name offset
+      kMemI32,  // memory type
+      0,        // exported
+  };
+  ModuleResult result = DecodeModule(data, data + arraysize(data));
+  EXPECT_TRUE(result.ok());
+
+  EXPECT_EQ(1, result.val->globals.size());
+  EXPECT_EQ(0, result.val->functions.size());
+  EXPECT_EQ(0, result.val->data_segments.size());
+
+  WasmGlobal* global = &result.val->globals.back();
+
+  EXPECT_EQ(0, global->name_offset);
+  EXPECT_EQ(MachineType::Int32(), global->type);
+  EXPECT_EQ(0, global->offset);
+  EXPECT_FALSE(global->exported);
+
+  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_empty) {

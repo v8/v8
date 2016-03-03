@@ -231,9 +231,22 @@ class Decoder {
     return traceOffEnd<uint32_t>();
   }
 
+  // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
+  void consume_bytes(int size) {
+    if (checkAvailable(size)) {
+      pc_ += size;
+    } else {
+      pc_ = limit_;
+    }
+  }
+
   // Check that at least {size} bytes exist between {pc_} and {limit_}.
   bool checkAvailable(int size) {
-    if (pc_ < start_ || (pc_ + size) > limit_) {
+    intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
+    if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
+      error(pc_, nullptr, "reading %d bytes would underflow/overflow", size);
+      return false;
+    } else if (pc_ < start_ || limit_ < (pc_ + size)) {
       error(pc_, nullptr, "expected %d bytes, fell off end", size);
       return false;
     } else {

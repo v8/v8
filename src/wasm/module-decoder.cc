@@ -78,13 +78,20 @@ class ModuleDecoder : public Decoder {
     // Decode the module sections.
     while (pc_ < limit_) {
       TRACE("DecodeSection\n");
-      WasmSectionDeclCode section =
-          static_cast<WasmSectionDeclCode>(consume_u8("section"));
-      // Each section should appear at most once.
-      if (section < kMaxModuleSectionCode) {
-        CheckForPreviousSection(sections, section, false);
-        sections[section] = true;
+      uint8_t section_u8 = consume_u8("section");
+
+      if (section_u8 >= kMaxModuleSectionCode) {
+        // Skip unknown section.
+        int length;
+        uint32_t section_bytes = consume_u32v(&length, "section size");
+        consume_bytes(section_bytes);
+        continue;
       }
+
+      // Each section should appear at most once.
+      auto section = static_cast<WasmSectionDeclCode>(section_u8);
+      CheckForPreviousSection(sections, section, false);
+      sections[section] = true;
 
       switch (section) {
         case kDeclEnd:
@@ -279,23 +286,8 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
-        case kDeclWLL: {
-          // Reserved for experimentation by the Web Low-level Language project
-          // which is augmenting the binary encoding with source code meta
-          // information. This section does not affect the semantics of the code
-          // and can be ignored by the runtime. https://github.com/JSStats/wll
-          int length = 0;
-          uint32_t section_size = consume_u32v(&length, "section size");
-          if (pc_ + section_size > limit_ || pc_ + section_size < pc_) {
-            error(pc_ - length, "invalid section size");
-            break;
-          }
-          pc_ += section_size;
-          break;
-        }
-        default:
-          error(pc_ - 1, nullptr, "unrecognized section 0x%02x", section);
-          break;
+        case kMaxModuleSectionCode:
+          UNREACHABLE();  // Already skipped unknown sections.
       }
     }
 
