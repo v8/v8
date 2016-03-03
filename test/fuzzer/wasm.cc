@@ -8,6 +8,7 @@
 
 #include "include/v8.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -20,6 +21,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Isolate* isolate = support->GetIsolate();
   v8::internal::Isolate* i_isolate =
       reinterpret_cast<v8::internal::Isolate*>(isolate);
+
+  // Clear any pending exceptions from a prior run.
+  if (i_isolate->has_pending_exception()) {
+    i_isolate->clear_pending_exception();
+  }
+
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
