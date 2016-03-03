@@ -195,6 +195,30 @@ Callable CodeFactory::RegExpExec(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::LessThan(Isolate* isolate) {
+  LessThanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::LessThanOrEqual(Isolate* isolate) {
+  LessThanOrEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::GreaterThan(Isolate* isolate) {
+  GreaterThanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::GreaterThanOrEqual(Isolate* isolate) {
+  GreaterThanOrEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::StrictEqual(Isolate* isolate) {
   StrictEqualStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

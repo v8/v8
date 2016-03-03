@@ -862,6 +862,10 @@ namespace internal {
   F(StringTrim, 3, 1)                     \
   F(TruncateString, 2, 1)                 \
   F(NewString, 2, 1)                      \
+  F(StringLessThan, 2, 1)                 \
+  F(StringLessThanOrEqual, 2, 1)          \
+  F(StringGreaterThan, 2, 1)              \
+  F(StringGreaterThanOrEqual, 2, 1)       \
   F(StringEqual, 2, 1)                    \
   F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \

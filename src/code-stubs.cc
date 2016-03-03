@@ -501,10 +501,353 @@ void StringLengthStub::GenerateAssembly(
 
 namespace {
 
+enum AbstractRelationalComparisonMode {
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual
+};
+
+void GenerateAbstractRelationalComparison(
+    compiler::CodeStubAssembler* assembler,
+    AbstractRelationalComparisonMode mode) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  Label return_true(assembler), return_false(assembler);
+
+  // Shared entry for floating point comparison.
+  Label do_fcmp(assembler);
+  Variable var_fcmp_lhs(assembler, MachineRepresentation::kFloat64),
+      var_fcmp_rhs(assembler, MachineRepresentation::kFloat64);
+
+  // We might need to loop several times due to ToPrimitive and/or ToNumber
+  // conversions.
+  Variable var_lhs(assembler, MachineRepresentation::kTagged),
+      var_rhs(assembler, MachineRepresentation::kTagged);
+  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
+  Label loop(assembler, 2, loop_vars);
+  var_lhs.Bind(assembler->Parameter(0));
+  var_rhs.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {lhs} and {rhs} values.
+    Node* lhs = var_lhs.value();
+    Node* rhs = var_rhs.value();
+
+    // Check if the {lhs} is a Smi or a HeapObject.
+    Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    assembler->Bind(&if_lhsissmi);
+    {
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                        &if_rhsisnotsmi);
+
+      assembler->Bind(&if_rhsissmi);
+      {
+        // Both {lhs} and {rhs} are Smi, so just perform a fast Smi comparison.
+        switch (mode) {
+          case kLessThan:
+            assembler->BranchIfSmiLessThan(lhs, rhs, &return_true,
+                                           &return_false);
+            break;
+          case kLessThanOrEqual:
+            assembler->BranchIfSmiLessThanOrEqual(lhs, rhs, &return_true,
+                                                  &return_false);
+            break;
+          case kGreaterThan:
+            assembler->BranchIfSmiLessThan(rhs, lhs, &return_true,
+                                           &return_false);
+            break;
+          case kGreaterThanOrEqual:
+            assembler->BranchIfSmiLessThanOrEqual(rhs, lhs, &return_true,
+                                                  &return_false);
+            break;
+        }
+      }
+
+      assembler->Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of {rhs}.
+        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+
+        // Check if the {rhs} is a HeapNumber.
+        Node* number_map = assembler->HeapNumberMapConstant();
+        Label if_rhsisnumber(assembler),
+            if_rhsisnotnumber(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                          &if_rhsisnumber, &if_rhsisnotnumber);
+
+        assembler->Bind(&if_rhsisnumber);
+        {
+          // Convert the {lhs} and {rhs} to floating point values, and
+          // perform a floating point comparison.
+          var_fcmp_lhs.Bind(assembler->SmiToFloat64(lhs));
+          var_fcmp_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
+          assembler->Goto(&do_fcmp);
+        }
+
+        assembler->Bind(&if_rhsisnotnumber);
+        {
+          // Convert the {rhs} to a Number; we don't need to perform the
+          // dedicated ToPrimitive(rhs, hint Number) operation, as the
+          // ToNumber(rhs) will by itself already invoke ToPrimitive with
+          // a Number hint.
+          Callable callable = CodeFactory::ToNumber(assembler->isolate());
+          var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&if_lhsisnotsmi);
+    {
+      // Load the HeapNumber map for later comparisons.
+      Node* number_map = assembler->HeapNumberMapConstant();
+
+      // Load the map of {lhs}.
+      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
+
+      // Check if {rhs} is a Smi or a HeapObject.
+      Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                        &if_rhsisnotsmi);
+
+      assembler->Bind(&if_rhsissmi);
+      {
+        // Check if the {lhs} is a HeapNumber.
+        Label if_lhsisnumber(assembler),
+            if_lhsisnotnumber(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                          &if_lhsisnumber, &if_lhsisnotnumber);
+
+        assembler->Bind(&if_lhsisnumber);
+        {
+          // Convert the {lhs} and {rhs} to floating point values, and
+          // perform a floating point comparison.
+          var_fcmp_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
+          var_fcmp_rhs.Bind(assembler->SmiToFloat64(rhs));
+          assembler->Goto(&do_fcmp);
+        }
+
+        assembler->Bind(&if_lhsisnotnumber);
+        {
+          // Convert the {lhs} to a Number; we don't need to perform the
+          // dedicated ToPrimitive(lhs, hint Number) operation, as the
+          // ToNumber(lhs) will by itself already invoke ToPrimitive with
+          // a Number hint.
+          Callable callable = CodeFactory::ToNumber(assembler->isolate());
+          var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+          assembler->Goto(&loop);
+        }
+      }
+
+      assembler->Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of {rhs}.
+        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+
+        // Check if {lhs} is a HeapNumber.
+        Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
+        assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                          &if_lhsisnumber, &if_lhsisnotnumber);
+
+        assembler->Bind(&if_lhsisnumber);
+        {
+          // Check if {rhs} is also a HeapNumber.
+          Label if_rhsisnumber(assembler),
+              if_rhsisnotnumber(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(lhs_map, rhs_map),
+                            &if_rhsisnumber, &if_rhsisnotnumber);
+
+          assembler->Bind(&if_rhsisnumber);
+          {
+            // Convert the {lhs} and {rhs} to floating point values, and
+            // perform a floating point comparison.
+            var_fcmp_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
+            var_fcmp_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
+            assembler->Goto(&do_fcmp);
+          }
+
+          assembler->Bind(&if_rhsisnotnumber);
+          {
+            // Convert the {rhs} to a Number; we don't need to perform
+            // dedicated ToPrimitive(rhs, hint Number) operation, as the
+            // ToNumber(rhs) will by itself already invoke ToPrimitive with
+            // a Number hint.
+            Callable callable = CodeFactory::ToNumber(assembler->isolate());
+            var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+            assembler->Goto(&loop);
+          }
+        }
+
+        assembler->Bind(&if_lhsisnotnumber);
+        {
+          // Load the instance type of {lhs}.
+          Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+
+          // Check if {lhs} is a String.
+          Label if_lhsisstring(assembler),
+              if_lhsisnotstring(assembler, Label::kDeferred);
+          assembler->Branch(assembler->Int32LessThan(
+                                lhs_instance_type,
+                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                            &if_lhsisstring, &if_lhsisnotstring);
+
+          assembler->Bind(&if_lhsisstring);
+          {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = assembler->LoadMapInstanceType(rhs_map);
+
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(assembler),
+                if_rhsisnotstring(assembler, Label::kDeferred);
+            assembler->Branch(assembler->Int32LessThan(
+                                  rhs_instance_type, assembler->Int32Constant(
+                                                         FIRST_NONSTRING_TYPE)),
+                              &if_rhsisstring, &if_rhsisnotstring);
+
+            assembler->Bind(&if_rhsisstring);
+            {
+              // Both {lhs} and {rhs} are strings.
+              // TODO(bmeurer): Hook up String<Compare>Stub once we have it.
+              switch (mode) {
+                case kLessThan:
+                  assembler->TailCallRuntime(Runtime::kStringLessThan, context,
+                                             lhs, rhs);
+                  break;
+                case kLessThanOrEqual:
+                  assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual,
+                                             context, lhs, rhs);
+                  break;
+                case kGreaterThan:
+                  assembler->TailCallRuntime(Runtime::kStringGreaterThan,
+                                             context, lhs, rhs);
+                  break;
+                case kGreaterThanOrEqual:
+                  assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
+                                             context, lhs, rhs);
+                  break;
+              }
+            }
+
+            assembler->Bind(&if_rhsisnotstring);
+            {
+              // The {lhs} is a String, while {rhs} is neither a Number nor a
+              // String, so we need to call ToPrimitive(rhs, hint Number) if
+              // {rhs} is a receiver or ToNumber(lhs) and ToNumber(rhs) in the
+              // other cases.
+              STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+              Label if_rhsisreceiver(assembler, Label::kDeferred),
+                  if_rhsisnotreceiver(assembler, Label::kDeferred);
+              assembler->Branch(
+                  assembler->Int32LessThanOrEqual(
+                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                      rhs_instance_type),
+                  &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+              assembler->Bind(&if_rhsisreceiver);
+              {
+                // Convert {rhs} to a primitive first passing Number hint.
+                // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
+                var_rhs.Bind(assembler->CallRuntime(
+                    Runtime::kToPrimitive_Number, context, rhs));
+                assembler->Goto(&loop);
+              }
+
+              assembler->Bind(&if_rhsisnotreceiver);
+              {
+                // Convert both {lhs} and {rhs} to Number.
+                Callable callable = CodeFactory::ToNumber(assembler->isolate());
+                var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+                var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+                assembler->Goto(&loop);
+              }
+            }
+          }
+
+          assembler->Bind(&if_lhsisnotstring);
+          {
+            // The {lhs} is neither a Number nor a String, so we need to call
+            // ToPrimitive(lhs, hint Number) if {lhs} is a receiver or
+            // ToNumber(lhs) and ToNumber(rhs) in the other cases.
+            STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+            Label if_lhsisreceiver(assembler, Label::kDeferred),
+                if_lhsisnotreceiver(assembler, Label::kDeferred);
+            assembler->Branch(
+                assembler->Int32LessThanOrEqual(
+                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                    lhs_instance_type),
+                &if_lhsisreceiver, &if_lhsisnotreceiver);
+
+            assembler->Bind(&if_lhsisreceiver);
+            {
+              // Convert {lhs} to a primitive first passing Number hint.
+              // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
+              var_lhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive_Number,
+                                                  context, lhs));
+              assembler->Goto(&loop);
+            }
+
+            assembler->Bind(&if_lhsisnotreceiver);
+            {
+              // Convert both {lhs} and {rhs} to Number.
+              Callable callable = CodeFactory::ToNumber(assembler->isolate());
+              var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+              var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+              assembler->Goto(&loop);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  assembler->Bind(&do_fcmp);
+  {
+    // Load the {lhs} and {rhs} floating point values.
+    Node* lhs = var_fcmp_lhs.value();
+    Node* rhs = var_fcmp_rhs.value();
+
+    // Perform a fast floating point comparison.
+    switch (mode) {
+      case kLessThan:
+        assembler->BranchIfFloat64LessThan(lhs, rhs, &return_true,
+                                           &return_false);
+        break;
+      case kLessThanOrEqual:
+        assembler->BranchIfFloat64LessThanOrEqual(lhs, rhs, &return_true,
+                                                  &return_false);
+        break;
+      case kGreaterThan:
+        assembler->BranchIfFloat64GreaterThan(lhs, rhs, &return_true,
+                                              &return_false);
+        break;
+      case kGreaterThanOrEqual:
+        assembler->BranchIfFloat64GreaterThanOrEqual(lhs, rhs, &return_true,
+                                                     &return_false);
+        break;
+    }
+  }
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+}
+
 enum ResultMode { kDontNegateResult, kNegateResult };
 
 void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
-                         Isolate* isolate, ResultMode mode) {
+                         ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -706,9 +1049,10 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
 
             assembler->Bind(&if_rhsisstring);
             {
-              Callable callable = (mode == kDontNegateResult)
-                                      ? CodeFactory::StringEqual(isolate)
-                                      : CodeFactory::StringNotEqual(isolate);
+              Callable callable =
+                  (mode == kDontNegateResult)
+                      ? CodeFactory::StringEqual(assembler->isolate())
+                      : CodeFactory::StringNotEqual(assembler->isolate());
               assembler->TailCallStub(callable, context, lhs, rhs);
             }
 
@@ -969,14 +1313,34 @@ void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
 
 }  // namespace
 
+void LessThanStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateAbstractRelationalComparison(assembler, kLessThan);
+}
+
+void LessThanOrEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateAbstractRelationalComparison(assembler, kLessThanOrEqual);
+}
+
+void GreaterThanStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateAbstractRelationalComparison(assembler, kGreaterThan);
+}
+
+void GreaterThanOrEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateAbstractRelationalComparison(assembler, kGreaterThanOrEqual);
+}
+
 void StrictEqualStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
-  GenerateStrictEqual(assembler, isolate(), kDontNegateResult);
+  GenerateStrictEqual(assembler, kDontNegateResult);
 }
 
 void StrictNotEqualStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
-  GenerateStrictEqual(assembler, isolate(), kNegateResult);
+  GenerateStrictEqual(assembler, kNegateResult);
 }
 
 void StringEqualStub::GenerateAssembly(

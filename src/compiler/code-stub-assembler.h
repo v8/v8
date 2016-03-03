@@ -39,13 +39,17 @@ class Schedule;
   V(Float64Equal)                             \
   V(Float64LessThan)                          \
   V(Float64LessThanOrEqual)                   \
+  V(Float64GreaterThan)                       \
+  V(Float64GreaterThanOrEqual)                \
   V(IntPtrAdd)                                \
   V(IntPtrSub)                                \
   V(Int32Add)                                 \
   V(Int32Sub)                                 \
   V(Int32Mul)                                 \
+  V(Int32GreaterThan)                         \
   V(Int32GreaterThanOrEqual)                  \
   V(Int32LessThan)                            \
+  V(Int32LessThanOrEqual)                     \
   V(WordEqual)                                \
   V(WordNotEqual)                             \
   V(WordOr)                                   \
@@ -72,6 +76,8 @@ class Schedule;
   V(Word64Shr)                                \
   V(Word64Sar)                                \
   V(Word64Ror)                                \
+  V(IntPtrLessThan)                           \
+  V(IntPtrLessThanOrEqual)                    \
   V(UintPtrGreaterThanOrEqual)
 
 #define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
@@ -202,6 +208,9 @@ class CodeStubAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4);
 
+  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
+                 size_t result_size = 1);
+
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, size_t result_size = 1);
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
@@ -242,6 +251,8 @@ class CodeStubAssembler {
   // Smi operations.
   Node* SmiAdd(Node* a, Node* b);
   Node* SmiEqual(Node* a, Node* b);
+  Node* SmiLessThan(Node* a, Node* b);
+  Node* SmiLessThanOrEqual(Node* a, Node* b);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
@@ -281,17 +292,30 @@ class CodeStubAssembler {
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
+                                  Label* if_false);
   void BranchIfFloat64Equal(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfFloat64LessThan(Node* a, Node* b, Label* if_true,
+                               Label* if_false);
+  void BranchIfFloat64LessThanOrEqual(Node* a, Node* b, Label* if_true,
+                                      Label* if_false);
+  void BranchIfFloat64GreaterThan(Node* a, Node* b, Label* if_true,
+                                  Label* if_false);
+  void BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b, Label* if_true,
+                                         Label* if_false);
   void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
 
- protected:
-  // Protected helpers which delegate to RawMachineAssembler.
-  Graph* graph() const;
+  // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
   Isolate* isolate() const;
   Zone* zone() const;
+
+ protected:
+  // Protected helpers which delegate to RawMachineAssembler.
+  Graph* graph() const;
 
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
@@ -323,11 +347,21 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
 
 class CodeStubAssembler::Label {
  public:
-  explicit Label(CodeStubAssembler* assembler);
-  Label(CodeStubAssembler* assembler, int merged_variable_count,
-        CodeStubAssembler::Variable** merged_variables);
+  enum Type { kDeferred, kNonDeferred };
+
+  explicit Label(CodeStubAssembler* assembler,
+                 CodeStubAssembler::Label::Type type =
+                     CodeStubAssembler::Label::kNonDeferred)
+      : CodeStubAssembler::Label(assembler, 0, nullptr, type) {}
   Label(CodeStubAssembler* assembler,
-        CodeStubAssembler::Variable* merged_variable);
+        CodeStubAssembler::Variable* merged_variable,
+        CodeStubAssembler::Label::Type type =
+            CodeStubAssembler::Label::kNonDeferred)
+      : CodeStubAssembler::Label(assembler, 1, &merged_variable, type) {}
+  Label(CodeStubAssembler* assembler, int merged_variable_count,
+        CodeStubAssembler::Variable** merged_variables,
+        CodeStubAssembler::Label::Type type =
+            CodeStubAssembler::Label::kNonDeferred);
   ~Label() {}
 
  private:

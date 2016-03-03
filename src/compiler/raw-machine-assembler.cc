@@ -428,6 +428,7 @@ void RawMachineAssembler::Bind(RawMachineLabel* label) {
   DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);
+  current_block_->set_deferred(label->deferred_);
 }
 
 
@@ -479,11 +480,6 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   // so we disable checking input counts here.
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
-
-
-RawMachineLabel::RawMachineLabel()
-    : block_(nullptr), used_(false), bound_(false) {}
-
 
 RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
 

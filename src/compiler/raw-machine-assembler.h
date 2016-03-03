@@ -700,13 +700,17 @@ class RawMachineAssembler {
 
 class RawMachineLabel final {
  public:
-  RawMachineLabel();
+  enum Type { kDeferred, kNonDeferred };
+
+  explicit RawMachineLabel(Type type = kNonDeferred)
+      : deferred_(type == kDeferred) {}
   ~RawMachineLabel();
 
  private:
-  BasicBlock* block_;
-  bool used_;
-  bool bound_;
+  BasicBlock* block_ = nullptr;
+  bool used_ = false;
+  bool bound_ = false;
+  bool deferred_;
   friend class RawMachineAssembler;
   DISALLOW_COPY_AND_ASSIGN(RawMachineLabel);
 };

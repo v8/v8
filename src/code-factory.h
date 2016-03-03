@@ -75,6 +75,10 @@ class CodeFactory final {
   static Callable RegExpConstructResult(Isolate* isolate);
   static Callable RegExpExec(Isolate* isolate);
 
+  static Callable LessThan(Isolate* isolate);
+  static Callable LessThanOrEqual(Isolate* isolate);
+  static Callable GreaterThan(Isolate* isolate);
+  static Callable GreaterThanOrEqual(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
   static Callable StrictNotEqual(Isolate* isolate);
 

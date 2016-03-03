@@ -1205,7 +1205,7 @@ void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kLessThan, assembler);
+  DoBinaryOp(CodeFactory::LessThan(isolate_), assembler);
 }
 
 
@@ -1213,7 +1213,7 @@ void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kGreaterThan, assembler);
+  DoBinaryOp(CodeFactory::GreaterThan(isolate_), assembler);
 }
 
 
@@ -1222,7 +1222,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kLessThanOrEqual, assembler);
+  DoBinaryOp(CodeFactory::LessThanOrEqual(isolate_), assembler);
 }
 
 
@@ -1231,7 +1231,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kGreaterThanOrEqual, assembler);
+  DoBinaryOp(CodeFactory::GreaterThanOrEqual(isolate_), assembler);
 }
 
 

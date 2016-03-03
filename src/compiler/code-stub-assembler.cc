@@ -163,6 +163,14 @@ Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
 
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 
+Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {
+  return IntPtrLessThan(a, b);
+}
+
+Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
+  return IntPtrLessThanOrEqual(a, b);
+}
+
 #define DEFINE_CODE_STUB_ASSEMBER_BINARY_OP(name)   \
   Node* CodeStubAssembler::name(Node* a, Node* b) { \
     return raw_assembler_->name(a, b);              \
@@ -416,6 +424,27 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
       raw_assembler_->Int32Constant(shift));
 }
 
+void CodeStubAssembler::BranchIfSmiLessThan(Node* a, Node* b, Label* if_true,
+                                            Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(SmiLessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfSmiLessThanOrEqual(Node* a, Node* b,
+                                                   Label* if_true,
+                                                   Label* if_false) {
+  Label if_lessthanorequal(this), if_notlessthanorequal(this);
+  Branch(SmiLessThanOrEqual(a, b), &if_lessthanorequal, &if_notlessthanorequal);
+  Bind(&if_lessthanorequal);
+  Goto(if_true);
+  Bind(&if_notlessthanorequal);
+  Goto(if_false);
+}
+
 void CodeStubAssembler::BranchIfFloat64Equal(Node* a, Node* b, Label* if_true,
                                              Label* if_false) {
   Label if_equal(this), if_notequal(this);
@@ -423,6 +452,52 @@ void CodeStubAssembler::BranchIfFloat64Equal(Node* a, Node* b, Label* if_true,
   Bind(&if_equal);
   Goto(if_true);
   Bind(&if_notequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64LessThan(Node* a, Node* b,
+                                                Label* if_true,
+                                                Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(Float64LessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64LessThanOrEqual(Node* a, Node* b,
+                                                       Label* if_true,
+                                                       Label* if_false) {
+  Label if_lessthanorequal(this), if_notlessthanorequal(this);
+  Branch(Float64LessThanOrEqual(a, b), &if_lessthanorequal,
+         &if_notlessthanorequal);
+  Bind(&if_lessthanorequal);
+  Goto(if_true);
+  Bind(&if_notlessthanorequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64GreaterThan(Node* a, Node* b,
+                                                   Label* if_true,
+                                                   Label* if_false) {
+  Label if_greaterthan(this), if_notgreaterthan(this);
+  Branch(Float64GreaterThan(a, b), &if_greaterthan, &if_notgreaterthan);
+  Bind(&if_greaterthan);
+  Goto(if_true);
+  Bind(&if_notgreaterthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b,
+                                                          Label* if_true,
+                                                          Label* if_false) {
+  Label if_greaterthanorequal(this), if_notgreaterthanorequal(this);
+  Branch(Float64GreaterThanOrEqual(a, b), &if_greaterthanorequal,
+         &if_notgreaterthanorequal);
+  Bind(&if_greaterthanorequal);
+  Goto(if_true);
+  Bind(&if_notgreaterthanorequal);
   Goto(if_false);
 }
 
@@ -513,6 +588,12 @@ Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                          Node* arg3, Node* arg4) {
   return raw_assembler_->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
                                           context);
+}
+
+Node* CodeStubAssembler::CallStub(Callable const& callable, Node* context,
+                                  Node* arg1, size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), target, context, arg1, result_size);
 }
 
 Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
@@ -709,26 +790,19 @@ bool CodeStubAssembler::Variable::IsBound() const {
   return impl_->value_ != nullptr;
 }
 
-CodeStubAssembler::Label::Label(CodeStubAssembler* assembler)
-    : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
-  void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
-  label_ = new (buffer) RawMachineLabel();
-}
-
 CodeStubAssembler::Label::Label(CodeStubAssembler* assembler,
                                 int merged_value_count,
-                                CodeStubAssembler::Variable** merged_variables)
+                                CodeStubAssembler::Variable** merged_variables,
+                                CodeStubAssembler::Label::Type type)
     : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
   void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
-  label_ = new (buffer) RawMachineLabel();
+  label_ = new (buffer)
+      RawMachineLabel(type == kDeferred ? RawMachineLabel::kDeferred
+                                        : RawMachineLabel::kNonDeferred);
   for (int i = 0; i < merged_value_count; ++i) {
     variable_phis_[merged_variables[i]->impl_] = nullptr;
   }
 }
-
-CodeStubAssembler::Label::Label(CodeStubAssembler* assembler,
-                                CodeStubAssembler::Variable* merged_variable)
-    : CodeStubAssembler::Label(assembler, 1, &merged_variable) {}
 
 void CodeStubAssembler::Label::MergeVariables() {
   ++merge_count_;
@@ -760,16 +834,17 @@ void CodeStubAssembler::Label::MergeVariables() {
         assembler_->raw_assembler_->AppendPhiInput(phi->second, node);
       } else {
         auto i = variable_merges_.find(var);
-        USE(i);
-        // If the following assert fires, then you've declared a variable that
-        // has the same bound value along all paths up until the point you bound
-        // this label, but then later merged a path with a new value for the
-        // variable after the label bind (it's not possible to add phis to the
-        // bound label after the fact, just make sure to list the variable in
-        // the label's constructor's list of merged variables).
-        DCHECK(find_if(i->second.begin(), i->second.end(),
-                       [node](Node* e) -> bool { return node != e; }) ==
-               i->second.end());
+        if (i != variable_merges_.end()) {
+          // If the following assert fires, then you've declared a variable that
+          // has the same bound value along all paths up until the point you
+          // bound this label, but then later merged a path with a new value for
+          // the variable after the label bind (it's not possible to add phis to
+          // the bound label after the fact, just make sure to list the variable
+          // in the label's constructor's list of merged variables).
+          DCHECK(find_if(i->second.begin(), i->second.end(),
+                         [node](Node* e) -> bool { return node != e; }) ==
+                 i->second.end());
+        }
       }
     }
   }
