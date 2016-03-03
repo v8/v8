@@ -2260,6 +2260,12 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   __ cmp(r5, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(masm->isolate()->builtins()->CallBoundFunction(tail_call_mode),
           RelocInfo::CODE_TARGET, eq);
+
+  // Check if target has a [[Call]] internal method.
+  __ ldrb(r4, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(r4, Operand(1 << Map::kIsCallable));
+  __ b(eq, &non_callable);
+
   __ cmp(r5, Operand(JS_PROXY_TYPE));
   __ b(ne, &non_function);
 
@@ -2280,10 +2286,6 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   __ bind(&non_function);
-  // Check if target has a [[Call]] internal method.
-  __ ldrb(r4, FieldMemOperand(r4, Map::kBitFieldOffset));
-  __ tst(r4, Operand(1 << Map::kIsCallable));
-  __ b(eq, &non_callable);
   // Overwrite the original receiver the (original) target.
   __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   // Let the "call_as_function_delegate" take care of the rest.
