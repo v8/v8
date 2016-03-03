@@ -144,6 +144,8 @@
 #define WASM_I32_SHL(x, y) kExprI32Shl, x, y
 #define WASM_I32_SHR(x, y) kExprI32ShrU, x, y
 #define WASM_I32_SAR(x, y) kExprI32ShrS, x, y
+#define WASM_I32_ROR(x, y) kExprI32Ror, x, y
+#define WASM_I32_ROL(x, y) kExprI32Rol, x, y
 #define WASM_I32_EQ(x, y) kExprI32Eq, x, y
 #define WASM_I32_NE(x, y) kExprI32Ne, x, y
 #define WASM_I32_LTS(x, y) kExprI32LtS, x, y
@@ -174,6 +176,8 @@
 #define WASM_I64_SHL(x, y) kExprI64Shl, x, y
 #define WASM_I64_SHR(x, y) kExprI64ShrU, x, y
 #define WASM_I64_SAR(x, y) kExprI64ShrS, x, y
+#define WASM_I64_ROR(x, y) kExprI64Ror, x, y
+#define WASM_I64_ROL(x, y) kExprI64Rol, x, y
 #define WASM_I64_EQ(x, y) kExprI64Eq, x, y
 #define WASM_I64_NE(x, y) kExprI64Ne, x, y
 #define WASM_I64_LTS(x, y) kExprI64LtS, x, y

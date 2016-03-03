@@ -449,6 +449,11 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI32ShrS:
       op = m->Word32Sar();
       break;
+    case wasm::kExprI32Ror:
+      op = m->Word32Ror();
+      break;
+    case wasm::kExprI32Rol:
+      return BuildI32Rol(left, right);
     case wasm::kExprI32Eq:
       op = m->Word32Equal();
       break;
@@ -621,6 +626,11 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI64ShrS:
       op = m->Word64Sar();
       break;
+    case wasm::kExprI64Ror:
+      op = m->Word64Ror();
+      break;
+    case wasm::kExprI64Rol:
+      return BuildI64Rol(left, right);
 #endif
 
     case wasm::kExprF32CopySign:
@@ -1823,6 +1833,31 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
   return num;
 }
 
+Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
+  // Implement Rol by Ror since TurboFan does not have Rol opcode.
+  // TODO(weiliang): support Word32Rol opcode in TurboFan.
+  Int32Matcher m(right);
+  if (m.HasValue()) {
+    return Binop(wasm::kExprI32Ror, left,
+                 jsgraph()->Int32Constant(32 - m.Value()));
+  } else {
+    return Binop(wasm::kExprI32Ror, left,
+                 Binop(wasm::kExprI32Sub, jsgraph()->Int32Constant(32), right));
+  }
+}
+
+Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
+  // Implement Rol by Ror since TurboFan does not have Rol opcode.
+  // TODO(weiliang): support Word64Rol opcode in TurboFan.
+  Int64Matcher m(right);
+  if (m.HasValue()) {
+    return Binop(wasm::kExprI64Ror, left,
+                 jsgraph()->Int64Constant(64 - m.Value()));
+  } else {
+    return Binop(wasm::kExprI64Ror, left,
+                 Binop(wasm::kExprI64Sub, jsgraph()->Int64Constant(64), right));
+  }
+}
 
 Node* WasmGraphBuilder::Invert(Node* node) {
   return Unop(wasm::kExprI32Eqz, node);

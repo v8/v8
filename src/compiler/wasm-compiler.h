@@ -190,6 +190,8 @@ class WasmGraphBuilder {
   Node* BuildF64Floor(Node* input);
   Node* BuildF64Ceil(Node* input);
   Node* BuildF64NearestInt(Node* input);
+  Node* BuildI32Rol(Node* left, Node* right);
+  Node* BuildI64Rol(Node* left, Node* right);
 
   Node* BuildF64Acos(Node* input);
   Node* BuildF64Asin(Node* input);

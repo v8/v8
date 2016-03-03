@@ -252,7 +252,11 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(F64ConvertF32, 0xb2, d_f)     \
   V(F64ReinterpretI64, 0xb3, d_l) \
   V(I32ReinterpretF32, 0xb4, i_f) \
-  V(I64ReinterpretF64, 0xb5, l_d)
+  V(I64ReinterpretF64, 0xb5, l_d) \
+  V(I32Ror, 0xb6, i_ii)           \
+  V(I32Rol, 0xb7, i_ii)           \
+  V(I64Ror, 0xb8, l_ll)           \
+  V(I64Rol, 0xb9, l_ll)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
