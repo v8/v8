@@ -908,9 +908,7 @@ bool HeapObject::IsJSGlobalProxy() const {
 
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 
-bool HeapObject::IsUndetectableObject() const {
-  return map()->is_undetectable();
-}
+bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
 
 bool HeapObject::IsAccessCheckNeeded() const {
   if (IsJSGlobalProxy()) {

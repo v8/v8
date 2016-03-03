@@ -44,10 +44,10 @@ HType HType::FromValue(Handle<Object> value) {
   if (value->IsBoolean()) return HType::Boolean();
   if (value->IsUndefined()) return HType::Undefined();
   if (value->IsJSArray()) {
-    DCHECK(!value->IsUndetectableObject());
+    DCHECK(!value->IsUndetectable());
     return HType::JSArray();
   }
-  if (value->IsJSObject() && !value->IsUndetectableObject()) {
+  if (value->IsJSObject() && !value->IsUndetectable()) {
     return HType::JSObject();
   }
   DCHECK(value->IsHeapObject());

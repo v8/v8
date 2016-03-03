@@ -974,7 +974,7 @@ template <class C> inline bool Is(Object* obj);
   V(MapCache)                      \
   V(JSGlobalObject)                \
   V(JSGlobalProxy)                 \
-  V(UndetectableObject)            \
+  V(Undetectable)                  \
   V(AccessCheckNeeded)             \
   V(Callable)                      \
   V(Function)                      \

@@ -1281,16 +1281,16 @@ bool ToBooleanICStub::Types::UpdateStatus(Handle<Object> object) {
     return Smi::cast(*object)->value() != 0;
   } else if (object->IsJSReceiver()) {
     Add(SPEC_OBJECT);
-    return !object->IsUndetectableObject();
+    return !object->IsUndetectable();
   } else if (object->IsString()) {
-    DCHECK(!object->IsUndetectableObject());
+    DCHECK(!object->IsUndetectable());
     Add(STRING);
     return String::cast(*object)->length() != 0;
   } else if (object->IsSymbol()) {
     Add(SYMBOL);
     return true;
   } else if (object->IsHeapNumber()) {
-    DCHECK(!object->IsUndetectableObject());
+    DCHECK(!object->IsUndetectable());
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
     return value != 0 && !std::isnan(value);
