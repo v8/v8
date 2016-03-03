@@ -311,8 +311,16 @@
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
   'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
 
-  # TODO(bradnelson): Enable tests as the fixs land.
-  'wasm/embenchen/*': [SKIP],
+  # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
+  'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
+
+  # TODO(bradnelson) Fix and re-enable.
+  'wasm/embenchen/copy': [FAIL],  # wrong answer
+  'wasm/embenchen/box2d': [SKIP],   # hang
+  'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
+  'wasm/embenchen/fannkuch': [SKIP],  # crash (seems to be gc issue)
+  'wasm/embenchen/fasta': [SKIP],  # flaky crash
+  'wasm/embenchen/zlib': [SKIP],  # flaky crash
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
