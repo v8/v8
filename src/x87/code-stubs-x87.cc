@@ -2925,13 +2925,20 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
-  __ pop(tmp1);  // Return address.
-  __ push(left);
-  __ push(right);
-  __ push(tmp1);
   if (equality) {
-    __ TailCallRuntime(Runtime::kStringEquals);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(left);
+      __ Push(right);
+      __ CallRuntime(Runtime::kStringEqual);
+    }
+    __ sub(eax, Immediate(masm->isolate()->factory()->true_value()));
+    __ Ret();
   } else {
+    __ pop(tmp1);  // Return address.
+    __ push(left);
+    __ push(right);
+    __ push(tmp1);
     __ TailCallRuntime(Runtime::kStringCompare);
   }
 
