@@ -919,6 +919,14 @@ class Parser : public ParserBase<ParserTraits> {
   class CollectExpressionsInTailPositionToListScope;
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
+  // Parse a SubStatement in strict mode, or with an extra block scope in
+  // sloppy mode to handle
+  // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+  // The legacy parameter indicates whether function declarations are
+  // banned by the ES2015 specification in this location, and they are being
+  // permitted here to match previous V8 behavior.
+  Statement* ParseScopedStatement(ZoneList<const AstRawString*>* labels,
+                                  bool legacy, bool* ok);
 
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)

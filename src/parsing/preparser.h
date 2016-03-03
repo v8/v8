@@ -1030,6 +1030,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                           Scanner::BookmarkScope* bookmark = nullptr);
   Statement ParseStatement(bool* ok);
   Statement ParseSubStatement(bool* ok);
+  Statement ParseScopedStatement(bool legacy, bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);

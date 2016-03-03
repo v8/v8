@@ -423,6 +423,9 @@ class CallSite {
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
   T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
   T(SingleFunctionLiteral, "Single function literal required")                 \
+  T(SloppyFunction,                                                            \
+    "In non-strict mode code, functions can only be declared at top level, "   \
+    "inside a block, or as the body of an if statement.")                      \
   T(SloppyLexical,                                                             \
     "Block-scoped declarations (let, const, function, class) not yet "         \
     "supported outside strict mode")                                           \
