@@ -254,6 +254,20 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(I32ReinterpretF32, 0xb4, i_f) \
   V(I64ReinterpretF64, 0xb5, l_d)
 
+// For compatibility with Asm.js.
+#define FOREACH_ASMJS_COMPAT_OPCODE(V) \
+  V(F64Acos, 0xc0, d_d)                \
+  V(F64Asin, 0xc1, d_d)                \
+  V(F64Atan, 0xc2, d_d)                \
+  V(F64Cos, 0xc3, d_d)                 \
+  V(F64Sin, 0xc4, d_d)                 \
+  V(F64Tan, 0xc5, d_d)                 \
+  V(F64Exp, 0xc6, d_d)                 \
+  V(F64Log, 0xc7, d_d)                 \
+  V(F64Atan2, 0xc8, d_dd)              \
+  V(F64Pow, 0xc9, d_dd)                \
+  V(F64Mod, 0xca, d_dd)
+
 // All opcodes.
 #define FOREACH_OPCODE(V)     \
   FOREACH_CONTROL_OPCODE(V)   \
@@ -261,7 +275,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   FOREACH_SIMPLE_OPCODE(V)    \
   FOREACH_STORE_MEM_OPCODE(V) \
   FOREACH_LOAD_MEM_OPCODE(V)  \
-  FOREACH_MISC_MEM_OPCODE(V)
+  FOREACH_MISC_MEM_OPCODE(V)  \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \

@@ -115,6 +115,30 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_ceil_wrapper");
   Add(ExternalReference::f64_nearest_int_wrapper_function(isolate).address(),
       "f64_nearest_int_wrapper");
+
+  Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
+      "f64_acos_wrapper");
+  Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
+      "f64_asin_wrapper");
+  Add(ExternalReference::f64_atan_wrapper_function(isolate).address(),
+      "f64_atan_wrapper");
+  Add(ExternalReference::f64_cos_wrapper_function(isolate).address(),
+      "f64_cos_wrapper");
+  Add(ExternalReference::f64_sin_wrapper_function(isolate).address(),
+      "f64_sin_wrapper");
+  Add(ExternalReference::f64_tan_wrapper_function(isolate).address(),
+      "f64_tan_wrapper");
+  Add(ExternalReference::f64_exp_wrapper_function(isolate).address(),
+      "f64_exp_wrapper");
+  Add(ExternalReference::f64_log_wrapper_function(isolate).address(),
+      "f64_log_wrapper");
+  Add(ExternalReference::f64_pow_wrapper_function(isolate).address(),
+      "f64_pow_wrapper");
+  Add(ExternalReference::f64_atan2_wrapper_function(isolate).address(),
+      "f64_atan2_wrapper");
+  Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),
+      "f64_mod_wrapper");
+
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

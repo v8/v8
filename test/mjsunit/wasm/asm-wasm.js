@@ -1301,6 +1301,13 @@ TestForeignVariables();
   function Module(stdlib) {
     "use asm";
 
+    var StdlibMathCeil = stdlib.Math.ceil;
+    var StdlibMathFloor = stdlib.Math.floor;
+    var StdlibMathSqrt = stdlib.Math.sqrt;
+    var StdlibMathAbs = stdlib.Math.abs;
+    var StdlibMathMin = stdlib.Math.min;
+    var StdlibMathMax = stdlib.Math.max;
+
     var StdlibMathAcos = stdlib.Math.acos;
     var StdlibMathAsin = stdlib.Math.asin;
     var StdlibMathAtan = stdlib.Math.atan;
@@ -1309,20 +1316,26 @@ TestForeignVariables();
     var StdlibMathTan = stdlib.Math.tan;
     var StdlibMathExp = stdlib.Math.exp;
     var StdlibMathLog = stdlib.Math.log;
-    var StdlibMathCeil = stdlib.Math.ceil;
-    var StdlibMathFloor = stdlib.Math.floor;
-    var StdlibMathSqrt = stdlib.Math.sqrt;
-    var StdlibMathAbs = stdlib.Math.abs;
-    var StdlibMathMin = stdlib.Math.min;
-    var StdlibMathMax = stdlib.Math.max;
+
     var StdlibMathAtan2 = stdlib.Math.atan2;
     var StdlibMathPow = stdlib.Math.pow;
     var StdlibMathImul = stdlib.Math.imul;
+
     var fround = stdlib.Math.fround;
 
+    function deltaEqual(x, y) {
+      x = +x;
+      y = +y;
+      var t = 0.0;
+      t = x - y;
+      if (t < 0.0) {
+        t = t * -1.0;
+      }
+      return (t < 1.0e-13) | 0;
+    }
+
     function caller() {
-      // TODO(bradnelson): Test transendentals when implemented.
-      if (StdlibMathSqrt(123.0) != 11.090536506409418) return 0;
+      if (!deltaEqual(StdlibMathSqrt(123.0), 11.090536506409418)) return 0;
       if (StdlibMathSqrt(fround(256.0)) != fround(16.0)) return 0;
       if (StdlibMathCeil(123.7) != 124.0) return 0;
       if (StdlibMathCeil(fround(123.7)) != fround(124.0)) return 0;
@@ -1336,7 +1349,20 @@ TestForeignVariables();
       if (StdlibMathMax(123.4, 1236.4) != 1236.4) return 0;
       if (StdlibMathMax(fround(123.4), fround(1236.4))
           != fround(1236.4)) return 0;
+
+      if (!deltaEqual(StdlibMathAcos(0.1), 1.4706289056333368)) return 0;
+      if (!deltaEqual(StdlibMathAsin(0.2), 0.2013579207903308)) return 0;
+      if (!deltaEqual(StdlibMathAtan(0.2), 0.19739555984988078)) return 0;
+      if (!deltaEqual(StdlibMathCos(0.2), 0.9800665778412416)) return 0;
+      if (!deltaEqual(StdlibMathSin(0.2), 0.19866933079506122)) return 0;
+      if (!deltaEqual(StdlibMathTan(0.2), 0.20271003550867250)) return 0;
+      if (!deltaEqual(StdlibMathExp(0.2), 1.2214027581601699)) return 0;
+      if (!deltaEqual(StdlibMathLog(0.2), -1.6094379124341003)) return 0;
+
       if (StdlibMathImul(6, 7) != 42) return 0;
+      if (!deltaEqual(StdlibMathAtan2(6.0, 7.0), 0.7086262721276703)) return 0;
+      if (StdlibMathPow(6.0, 7.0) != 279936.0) return 0;
+
       return 1;
     }
 

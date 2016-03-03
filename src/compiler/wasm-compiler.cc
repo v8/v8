@@ -697,6 +697,15 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       return BuildF32Max(left, right);
     case wasm::kExprF64Max:
       return BuildF64Max(left, right);
+    case wasm::kExprF64Pow: {
+      return BuildF64Pow(left, right);
+    }
+    case wasm::kExprF64Atan2: {
+      return BuildF64Atan2(left, right);
+    }
+    case wasm::kExprF64Mod: {
+      return BuildF64Mod(left, right);
+    }
     default:
       op = UnsupportedOpcode(opcode);
   }
@@ -823,6 +832,30 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
         return BuildF64NearestInt(input);
       op = m->Float64RoundTiesEven().op();
       break;
+    }
+    case wasm::kExprF64Acos: {
+      return BuildF64Acos(input);
+    }
+    case wasm::kExprF64Asin: {
+      return BuildF64Asin(input);
+    }
+    case wasm::kExprF64Atan: {
+      return BuildF64Atan(input);
+    }
+    case wasm::kExprF64Cos: {
+      return BuildF64Cos(input);
+    }
+    case wasm::kExprF64Sin: {
+      return BuildF64Sin(input);
+    }
+    case wasm::kExprF64Tan: {
+      return BuildF64Tan(input);
+    }
+    case wasm::kExprF64Exp: {
+      return BuildF64Exp(input);
+    }
+    case wasm::kExprF64Log: {
+      return BuildF64Log(input);
     }
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
@@ -1418,88 +1451,185 @@ Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
       ExternalReference::f32_trunc_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Floor(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
       ExternalReference::f32_floor_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Ceil(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
       ExternalReference::f32_ceil_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32NearestInt(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
       ExternalReference::f32_nearest_int_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Trunc(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
       ExternalReference::f64_trunc_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Floor(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
       ExternalReference::f64_floor_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Ceil(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
       ExternalReference::f64_ceil_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64NearestInt(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
       ExternalReference::f64_nearest_int_wrapper_function(jsgraph()->isolate());
-  return BuildRoundingInstruction(input, ref, type);
+  return BuildCFuncInstruction(ref, type, input);
 }
 
-Node* WasmGraphBuilder::BuildRoundingInstruction(Node* input,
-                                                 ExternalReference ref,
-                                                 MachineType type) {
-  // We do truncation by calling a C function which calculates the truncation
-  // for us. The input is passed to the C function as a double* to avoid double
-  // parameters. For this we reserve a slot on the stack, store the parameter in
-  // that slot, pass a pointer to the slot to the C function, and after calling
-  // the C function we collect the return value from the stack slot.
+Node* WasmGraphBuilder::BuildF64Acos(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_acos_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
 
-  Node* stack_slot_param =
+Node* WasmGraphBuilder::BuildF64Asin(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_asin_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Atan(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_atan_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Cos(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_cos_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Sin(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_sin_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Tan(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_tan_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Exp(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_exp_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Log(Node* input) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_log_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Atan2(Node* left, Node* right) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_atan2_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, left, right);
+}
+
+Node* WasmGraphBuilder::BuildF64Pow(Node* left, Node* right) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_pow_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, left, right);
+}
+
+Node* WasmGraphBuilder::BuildF64Mod(Node* left, Node* right) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::f64_mod_wrapper_function(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, left, right);
+}
+
+Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
+                                              MachineType type, Node* input0,
+                                              Node* input1) {
+  // We do truncation by calling a C function which calculates the result.
+  // The input is passed to the C function as a double*'s to avoid double
+  // parameters. For this we reserve slots on the stack, store the parameters
+  // in those slots, pass pointers to the slot to the C function,
+  // and after calling the C function we collect the return value from
+  // the stack slot.
+
+  Node* stack_slot_param0 =
       graph()->NewNode(jsgraph()->machine()->StackSlot(type.representation()));
 
-  const Operator* store_op = jsgraph()->machine()->Store(
+  const Operator* store_op0 = jsgraph()->machine()->Store(
       StoreRepresentation(type.representation(), kNoWriteBarrier));
-  *effect_ =
-      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
-                       input, *effect_, *control_);
+  *effect_ = graph()->NewNode(store_op0, stack_slot_param0,
+                              jsgraph()->Int32Constant(0), input0, *effect_,
+                              *control_);
 
-  Signature<MachineType>::Builder sig_builder(jsgraph()->zone(), 0, 1);
-  sig_builder.AddParam(MachineType::Pointer());
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
+  Node** args = Buffer(4);
+  args[0] = function;
+  args[1] = stack_slot_param0;
+  int input_count = 1;
 
-  Node* args[] = {function, stack_slot_param};
+  if (input1 != nullptr) {
+    Node* stack_slot_param1 = graph()->NewNode(
+        jsgraph()->machine()->StackSlot(type.representation()));
+    const Operator* store_op1 = jsgraph()->machine()->Store(
+        StoreRepresentation(type.representation(), kNoWriteBarrier));
+    *effect_ = graph()->NewNode(store_op1, stack_slot_param1,
+                                jsgraph()->Int32Constant(0), input1, *effect_,
+                                *control_);
+    args = Realloc(args, 5);
+    args[2] = stack_slot_param1;
+    ++input_count;
+  }
 
+  Signature<MachineType>::Builder sig_builder(jsgraph()->zone(), 0,
+                                              input_count);
+  sig_builder.AddParam(MachineType::Pointer());
+  if (input1 != nullptr) {
+    sig_builder.AddParam(MachineType::Pointer());
+  }
   BuildCCall(sig_builder.Build(), args);
 
   const Operator* load_op = jsgraph()->machine()->Load(type);
 
   Node* load =
-      graph()->NewNode(load_op, stack_slot_param, jsgraph()->Int32Constant(0),
+      graph()->NewNode(load_op, stack_slot_param0, jsgraph()->Int32Constant(0),
                        *effect_, *control_);
   *effect_ = load;
   return load;
@@ -1546,7 +1676,6 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args) {
   *effect_ = call;
   return call;
 }
-
 
 Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args) {
   DCHECK_NULL(args[0]);

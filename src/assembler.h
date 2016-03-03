@@ -923,6 +923,18 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference f64_ceil_wrapper_function(Isolate* isolate);
   static ExternalReference f64_nearest_int_wrapper_function(Isolate* isolate);
 
+  static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_atan_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_cos_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_sin_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_tan_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_exp_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_log_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_atan2_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_pow_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
+
   // Log support.
   static ExternalReference log_enter_external_function(Isolate* isolate);
   static ExternalReference log_leave_external_function(Isolate* isolate);
