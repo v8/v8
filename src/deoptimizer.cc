@@ -474,7 +474,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       bailout_type_(type),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
-      has_alignment_padding_(0),
       deoptimizing_throw_(false),
       catch_handler_data_(-1),
       catch_handler_pc_offset_(-1),
@@ -764,9 +763,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   output_count_ = static_cast<int>(count);
 
   Register fp_reg = JavaScriptFrame::fp_register();
-  stack_fp_ = reinterpret_cast<Address>(
-      input_->GetRegister(fp_reg.code()) +
-          has_alignment_padding_ * kPointerSize);
+  stack_fp_ = reinterpret_cast<Address>(input_->GetRegister(fp_reg.code()));
 
   // Translate each output frame.
   for (size_t i = 0; i < count; ++i) {
@@ -810,17 +807,13 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF(trace_scope_->file(), "[deoptimizing (%s): end ",
            MessageFor(bailout_type_));
     PrintFunctionName();
-    PrintF(trace_scope_->file(),
-           " @%d => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
-           " took %0.3f ms]\n",
-           bailout_id_,
-           node_id.ToInt(),
-           output_[index]->GetPc(),
-           FullCodeGenerator::State2String(
-               static_cast<FullCodeGenerator::State>(
-                   output_[index]->GetState()->value())),
-           has_alignment_padding_ ? "with padding" : "no padding",
-           ms);
+    PrintF(
+        trace_scope_->file(),
+        " @%d => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, took %0.3f ms]\n",
+        bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
+        FullCodeGenerator::State2String(static_cast<FullCodeGenerator::State>(
+            output_[index]->GetState()->value())),
+        ms);
   }
 }
 
@@ -882,17 +875,13 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   Register fp_reg = JavaScriptFrame::fp_register();
   intptr_t top_address;
   if (is_bottommost) {
-    // Determine whether the input frame contains alignment padding.
-    has_alignment_padding_ =
-        (!compiled_code_->is_turbofanned() && HasAlignmentPadding(shared)) ? 1
-                                                                           : 0;
     // 2 = context and function in the frame.
     // If the optimized frame had alignment padding, adjust the frame pointer
     // to point to the new position of the old frame pointer after padding
     // is removed. Subtract 2 * kPointerSize for the context and function slots.
     top_address = input_->GetRegister(fp_reg.code()) -
-        StandardFrameConstants::kFixedFrameSizeFromFp -
-        height_in_bytes + has_alignment_padding_ * kPointerSize;
+                  StandardFrameConstants::kFixedFrameSizeFromFp -
+                  height_in_bytes;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
@@ -940,13 +929,10 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
-      has_alignment_padding_ * kPointerSize) == fp_value);
+  DCHECK(!is_bottommost || input_->GetRegister(fp_reg.code()) == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
-  DCHECK(!is_bottommost || !has_alignment_padding_ ||
-         (fp_value & kPointerSize) != 0);
 
   if (FLAG_enable_embedded_constant_pool) {
     // For the bottommost output frame the constant pool pointer can be gotten
@@ -1185,14 +1171,10 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost ||
-         (input_->GetRegister(fp_reg.code()) +
-          has_alignment_padding_ * kPointerSize) == fp_value);
+  DCHECK(!is_bottommost || input_->GetRegister(fp_reg.code()) == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
-  DCHECK(!is_bottommost || !has_alignment_padding_ ||
-         (fp_value & kPointerSize) != 0);
 
   if (FLAG_enable_embedded_constant_pool) {
     // For the bottommost output frame the constant pool pointer can be gotten

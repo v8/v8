@@ -537,10 +537,6 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int has_alignment_padding_offset() {
-    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
-  }
-
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
@@ -651,10 +647,6 @@ class Deoptimizer : public Malloced {
   // from the input frame's double registers.
   void CopyDoubleRegisters(FrameDescription* output_frame);
 
-  // Determines whether the input frame contains alignment padding by looking
-  // at the dynamic alignment state slot inside the frame.
-  bool HasAlignmentPadding(SharedFunctionInfo* shared);
-
   Isolate* isolate_;
   JSFunction* function_;
   Code* compiled_code_;
@@ -662,7 +654,6 @@ class Deoptimizer : public Malloced {
   BailoutType bailout_type_;
   Address from_;
   int fp_to_sp_delta_;
-  int has_alignment_padding_;
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
