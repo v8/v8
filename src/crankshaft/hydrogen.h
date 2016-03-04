@@ -849,10 +849,9 @@ class TestContext final : public AstContext {
 
 class FunctionState final {
  public:
-  FunctionState(HOptimizedGraphBuilder* owner,
-                CompilationInfo* info,
-                InliningKind inlining_kind,
-                int inlining_id);
+  FunctionState(HOptimizedGraphBuilder* owner, CompilationInfo* info,
+                InliningKind inlining_kind, int inlining_id,
+                TailCallMode tail_call_mode);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
@@ -866,6 +865,11 @@ class FunctionState final {
   }
 
   FunctionState* outer() { return outer_; }
+
+  TailCallMode ComputeTailCallMode(TailCallMode tail_call_mode) const {
+    if (tail_call_mode_ == TailCallMode::kDisallow) return tail_call_mode_;
+    return tail_call_mode;
+  }
 
   HEnterInlined* entry() { return entry_; }
   void set_entry(HEnterInlined* entry) { entry_ = entry; }
@@ -895,6 +899,10 @@ class FunctionState final {
 
   // The kind of call which is currently being inlined.
   InliningKind inlining_kind_;
+
+  // Defines whether the calls with TailCallMode::kAllow in the function body
+  // can be generated as tail calls.
+  TailCallMode tail_call_mode_;
 
   // When inlining in an effect or value context, this is the return block.
   // It is NULL otherwise.  When inlining in a test context, there are a
@@ -2396,7 +2404,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(Handle<JSFunction> target, int arguments_count,
                  HValue* implicit_return_value, BailoutId ast_id,
-                 BailoutId return_id, InliningKind inlining_kind);
+                 BailoutId return_id, InliningKind inlining_kind,
+                 TailCallMode syntactic_tail_call_mode);
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
@@ -2427,16 +2436,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                           BailoutId ast_id);
   bool TryInlineApiCall(Handle<Object> function, HValue* receiver,
                         SmallMapList* receiver_maps, int argc, BailoutId ast_id,
-                        ApiCallType call_type);
+                        ApiCallType call_type,
+                        TailCallMode syntactic_tail_call_mode);
   static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
   static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
   // non-NULL reason string.
-  void TraceInline(Handle<JSFunction> target,
-                   Handle<JSFunction> caller,
-                   const char* failure_reason);
+  void TraceInline(Handle<JSFunction> target, Handle<JSFunction> caller,
+                   const char* failure_reason,
+                   TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   void HandleGlobalVariableAssignment(Variable* var, HValue* value,
                                       FeedbackVectorSlot slot,
@@ -2819,14 +2829,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                              Handle<Map> receiver_map);
 
   HInstruction* NewCallFunction(HValue* function, int argument_count,
-                                ConvertReceiverMode convert_mode);
+                                ConvertReceiverMode convert_mode,
+                                TailCallMode tail_call_mode);
 
   HInstruction* NewCallFunctionViaIC(HValue* function, int argument_count,
                                      ConvertReceiverMode convert_mode,
+                                     TailCallMode tail_call_mode,
                                      FeedbackVectorSlot slot);
 
   HInstruction* NewCallConstantFunction(Handle<JSFunction> target,
-                                        int argument_count);
+                                        int argument_count,
+                                        TailCallMode tail_call_mode);
 
   bool CanBeFunctionApplyArguments(Call* expr);
 

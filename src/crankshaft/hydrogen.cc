@@ -3492,11 +3492,11 @@ HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
   return Add<HLoadNamedField>(native_context, nullptr, function_access);
 }
 
-
 HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
     : HGraphBuilder(info, CallInterfaceDescriptor()),
       function_state_(NULL),
-      initial_function_state_(this, info, NORMAL_RETURN, 0),
+      initial_function_state_(this, info, NORMAL_RETURN, 0,
+                              TailCallMode::kAllow),
       ast_context_(NULL),
       break_scope_(NULL),
       inlined_count_(0),
@@ -4032,11 +4032,12 @@ void HGraph::CollectPhis() {
 // a (possibly inlined) function.
 FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
                              CompilationInfo* info, InliningKind inlining_kind,
-                             int inlining_id)
+                             int inlining_id, TailCallMode tail_call_mode)
     : owner_(owner),
       compilation_info_(info),
       call_context_(NULL),
       inlining_kind_(inlining_kind),
+      tail_call_mode_(tail_call_mode),
       function_return_(NULL),
       test_context_(NULL),
       entry_(NULL),
@@ -6573,7 +6574,8 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       HValue* function = Add<HConstant>(info->accessor());
       PushArgumentsFromEnvironment(argument_count);
       return NewCallFunction(function, argument_count,
-                             ConvertReceiverMode::kNotNullOrUndefined);
+                             ConvertReceiverMode::kNotNullOrUndefined,
+                             TailCallMode::kDisallow);
     } else if (FLAG_inline_accessors && can_inline_accessor) {
       bool success = info->IsLoad()
           ? TryInlineGetter(info->accessor(), info->map(), ast_id, return_id)
@@ -6588,7 +6590,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       return nullptr;
     }
     return NewCallConstantFunction(Handle<JSFunction>::cast(info->accessor()),
-                                   argument_count);
+                                   argument_count, TailCallMode::kDisallow);
   }
 
   DCHECK(info->IsDataConstant());
@@ -7987,11 +7989,13 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
 }
 
 HInstruction* HOptimizedGraphBuilder::NewCallFunction(
-    HValue* function, int argument_count, ConvertReceiverMode convert_mode) {
+    HValue* function, int argument_count, ConvertReceiverMode convert_mode,
+    TailCallMode tail_call_mode) {
   HValue* arity = Add<HConstant>(argument_count - 1);
 
   HValue* op_vals[] = {context(), function, arity};
 
+  // TODO(ishell): use tail_call_mode here.
   Callable callable = CodeFactory::Call(isolate(), convert_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
@@ -8001,7 +8005,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
 
 HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
     HValue* function, int argument_count, ConvertReceiverMode convert_mode,
-    FeedbackVectorSlot slot) {
+    TailCallMode tail_call_mode, FeedbackVectorSlot slot) {
   int arity = argument_count - 1;
   Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* index_val = Add<HConstant>(vector->GetIndex(slot));
@@ -8009,6 +8013,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 
   HValue* op_vals[] = {context(), function, index_val, vector_val};
 
+  // TODO(ishell): use tail_call_mode here.
   Callable callable = CodeFactory::CallICInOptimizedCode(
       isolate(), arity, ConvertReceiverMode::kNullOrUndefined);
   HConstant* stub = Add<HConstant>(callable.code());
@@ -8018,7 +8023,9 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 }
 
 HInstruction* HOptimizedGraphBuilder::NewCallConstantFunction(
-    Handle<JSFunction> function, int argument_count) {
+    Handle<JSFunction> function, int argument_count,
+    TailCallMode tail_call_mode) {
+  // TODO(ishell): use tail_call_mode here.
   HValue* target = Add<HConstant>(function);
   return New<HInvokeFunction>(target, function, argument_count);
 }
@@ -8057,6 +8064,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   bool handle_smi = false;
   bool handled_string = false;
   int ordered_functions = 0;
+
+  TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
+  TailCallMode tail_call_mode =
+      function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
 
   int i;
   for (i = 0; i < maps->length() && ordered_functions < kMaxCallPolymorphism;
@@ -8168,8 +8179,9 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
       HInstruction* call =
           needs_wrapping
               ? NewCallFunction(function, argument_count,
-                                ConvertReceiverMode::kNotNullOrUndefined)
-              : NewCallConstantFunction(target, argument_count);
+                                ConvertReceiverMode::kNotNullOrUndefined,
+                                tail_call_mode)
+              : NewCallConstantFunction(target, argument_count, tail_call_mode);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
       Drop(1);  // Drop the function.
@@ -8199,7 +8211,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
     HInstruction* call = NewCallFunction(
-        function, argument_count, ConvertReceiverMode::kNotNullOrUndefined);
+        function, argument_count, ConvertReceiverMode::kNotNullOrUndefined,
+        tail_call_mode);
 
     PushArgumentsFromEnvironment(argument_count);
 
@@ -8227,17 +8240,19 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   }
 }
 
-
 void HOptimizedGraphBuilder::TraceInline(Handle<JSFunction> target,
                                          Handle<JSFunction> caller,
-                                         const char* reason) {
+                                         const char* reason,
+                                         TailCallMode tail_call_mode) {
   if (FLAG_trace_inlining) {
     base::SmartArrayPointer<char> target_name =
         target->shared()->DebugName()->ToCString();
     base::SmartArrayPointer<char> caller_name =
         caller->shared()->DebugName()->ToCString();
     if (reason == NULL) {
-      PrintF("Inlined %s called from %s.\n", target_name.get(),
+      const char* call_mode =
+          tail_call_mode == TailCallMode::kAllow ? "tail called" : "called";
+      PrintF("Inlined %s %s from %s.\n", target_name.get(), call_mode,
              caller_name.get());
     } else {
       PrintF("Did not inline %s called from %s (%s).\n",
@@ -8294,12 +8309,12 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
   return nodes_added;
 }
 
-
 bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
                                        int arguments_count,
                                        HValue* implicit_return_value,
                                        BailoutId ast_id, BailoutId return_id,
-                                       InliningKind inlining_kind) {
+                                       InliningKind inlining_kind,
+                                       TailCallMode syntactic_tail_call_mode) {
   if (target->context()->native_context() !=
       top_info()->closure()->context()->native_context()) {
     return false;
@@ -8308,6 +8323,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   if (nodes_added == kNotInlinable) return false;
 
   Handle<JSFunction> caller = current_info()->closure();
+  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
+    TraceInline(target, caller, "call is at tail position");
+    return false;
+  }
 
   if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
@@ -8469,8 +8488,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
   // in two different places.
-  FunctionState* target_state =
-      new FunctionState(this, &target_info, inlining_kind, inlining_id);
+  FunctionState* target_state = new FunctionState(
+      this, &target_info, inlining_kind, inlining_id,
+      function_state()->ComputeTailCallMode(syntactic_tail_call_mode));
 
   HConstant* undefined = graph()->GetConstantUndefined();
 
@@ -8540,7 +8560,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
   graph()->update_type_change_checksum(type_info->own_type_change_checksum());
 
-  TraceInline(target, caller, NULL);
+  TraceInline(target, caller, NULL, syntactic_tail_call_mode);
 
   if (current_block() != NULL) {
     FunctionState* state = function_state();
@@ -8624,7 +8644,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
 bool HOptimizedGraphBuilder::TryInlineCall(Call* expr) {
   return TryInline(expr->target(), expr->arguments()->length(), NULL,
-                   expr->id(), expr->ReturnId(), NORMAL_RETURN);
+                   expr->id(), expr->ReturnId(), NORMAL_RETURN,
+                   expr->tail_call_mode());
 }
 
 
@@ -8632,7 +8653,7 @@ bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
                                                 HValue* implicit_return_value) {
   return TryInline(expr->target(), expr->arguments()->length(),
                    implicit_return_value, expr->id(), expr->ReturnId(),
-                   CONSTRUCT_CALL_RETURN);
+                   CONSTRUCT_CALL_RETURN, TailCallMode::kDisallow);
 }
 
 bool HOptimizedGraphBuilder::TryInlineGetter(Handle<Object> getter,
@@ -8642,7 +8663,7 @@ bool HOptimizedGraphBuilder::TryInlineGetter(Handle<Object> getter,
   if (TryInlineApiGetter(getter, receiver_map, ast_id)) return true;
   return getter->IsJSFunction() &&
          TryInline(Handle<JSFunction>::cast(getter), 0, NULL, ast_id, return_id,
-                   GETTER_CALL_RETURN);
+                   GETTER_CALL_RETURN, TailCallMode::kDisallow);
 }
 
 bool HOptimizedGraphBuilder::TryInlineSetter(Handle<Object> setter,
@@ -8653,7 +8674,8 @@ bool HOptimizedGraphBuilder::TryInlineSetter(Handle<Object> setter,
   if (TryInlineApiSetter(setter, receiver_map, id)) return true;
   return setter->IsJSFunction() &&
          TryInline(Handle<JSFunction>::cast(setter), 1, implicit_return_value,
-                   id, assignment_id, SETTER_CALL_RETURN);
+                   id, assignment_id, SETTER_CALL_RETURN,
+                   TailCallMode::kDisallow);
 }
 
 
@@ -8661,13 +8683,15 @@ bool HOptimizedGraphBuilder::TryInlineIndirectCall(Handle<JSFunction> function,
                                                    Call* expr,
                                                    int arguments_count) {
   return TryInline(function, arguments_count, NULL, expr->id(),
-                   expr->ReturnId(), NORMAL_RETURN);
+                   expr->ReturnId(), NORMAL_RETURN, expr->tail_call_mode());
 }
 
 
 bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
+  // We intentionally ignore expr->tail_call_mode() here because builtins
+  // we inline here do not observe if they were tail called or not.
   switch (id) {
     case kMathExp:
       if (!FLAG_fast_math) break;
@@ -9083,7 +9107,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           if_inline.Else();
           {
             Add<HPushArguments>(receiver);
-            result = AddInstruction(NewCallConstantFunction(function, 1));
+            result = AddInstruction(
+                NewCallConstantFunction(function, 1, TailCallMode::kDisallow));
             if (!ast_context()->IsEffect()) Push(result);
           }
           if_inline.End();
@@ -9147,12 +9172,8 @@ bool HOptimizedGraphBuilder::TryInlineApiFunctionCall(Call* expr,
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
   SmallMapList receiver_maps;
-  return TryInlineApiCall(function,
-                          receiver,
-                          &receiver_maps,
-                          argc,
-                          expr->id(),
-                          kCallApiFunction);
+  return TryInlineApiCall(function, receiver, &receiver_maps, argc, expr->id(),
+                          kCallApiFunction, expr->tail_call_mode());
 }
 
 
@@ -9162,12 +9183,8 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
     SmallMapList* receiver_maps) {
   Handle<JSFunction> function = expr->target();
   int argc = expr->arguments()->length();
-  return TryInlineApiCall(function,
-                          receiver,
-                          receiver_maps,
-                          argc,
-                          expr->id(),
-                          kCallApiMethod);
+  return TryInlineApiCall(function, receiver, receiver_maps, argc, expr->id(),
+                          kCallApiMethod, expr->tail_call_mode());
 }
 
 bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
@@ -9177,10 +9194,8 @@ bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
   receiver_maps.Add(receiver_map, zone());
   return TryInlineApiCall(function,
                           NULL,  // Receiver is on expression stack.
-                          &receiver_maps,
-                          0,
-                          ast_id,
-                          kCallApiGetter);
+                          &receiver_maps, 0, ast_id, kCallApiGetter,
+                          TailCallMode::kDisallow);
 }
 
 bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<Object> function,
@@ -9190,20 +9205,20 @@ bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<Object> function,
   receiver_maps.Add(receiver_map, zone());
   return TryInlineApiCall(function,
                           NULL,  // Receiver is on expression stack.
-                          &receiver_maps,
-                          1,
-                          ast_id,
-                          kCallApiSetter);
+                          &receiver_maps, 1, ast_id, kCallApiSetter,
+                          TailCallMode::kDisallow);
 }
 
-bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<Object> function,
-                                              HValue* receiver,
-                                              SmallMapList* receiver_maps,
-                                              int argc, BailoutId ast_id,
-                                              ApiCallType call_type) {
+bool HOptimizedGraphBuilder::TryInlineApiCall(
+    Handle<Object> function, HValue* receiver, SmallMapList* receiver_maps,
+    int argc, BailoutId ast_id, ApiCallType call_type,
+    TailCallMode syntactic_tail_call_mode) {
   if (function->IsJSFunction() &&
       Handle<JSFunction>::cast(function)->context()->native_context() !=
           top_info()->closure()->context()->native_context()) {
+    return false;
+  }
+  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
     return false;
   }
   CallOptimization optimization(function);
@@ -9359,6 +9374,12 @@ void HOptimizedGraphBuilder::HandleIndirectCall(Call* expr, HValue* function,
     }
   }
 
+  TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
+  TailCallMode tail_call_mode =
+      function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
+  USE(tail_call_mode);
+
+  // TODO(ishell): use tail_call_mode here.
   PushArgumentsFromEnvironment(arguments_count);
   HInvokeFunction* call =
       New<HInvokeFunction>(function, known_function, arguments_count);
@@ -9413,6 +9434,12 @@ void HOptimizedGraphBuilder::BuildFunctionApply(Call* expr) {
   HValue* checked_function = AddCheckMap(function, function_map);
 
   if (function_state()->outer() == NULL) {
+    TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
+    TailCallMode tail_call_mode =
+        function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
+    USE(tail_call_mode);
+
+    // TODO(ishell): use tail_call_mode here.
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
     HValue* wrapped_receiver = BuildWrapReceiver(receiver, checked_function);
@@ -9698,6 +9725,10 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   int argument_count = expr->arguments()->length() + 1;  // Plus receiver.
   HInstruction* call = NULL;
 
+  TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
+  TailCallMode tail_call_mode =
+      function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
+
   Property* prop = callee->AsProperty();
   if (prop != NULL) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
@@ -9756,11 +9787,13 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // TODO(verwaest): Support creation of value wrappers directly in
         // HWrapReceiver.
         call = NewCallFunction(function, argument_count,
-                               ConvertReceiverMode::kNotNullOrUndefined);
+                               ConvertReceiverMode::kNotNullOrUndefined,
+                               tail_call_mode);
       } else if (TryInlineCall(expr)) {
         return;
       } else {
-        call = NewCallConstantFunction(known_function, argument_count);
+        call = NewCallConstantFunction(known_function, argument_count,
+                                       tail_call_mode);
       }
 
     } else {
@@ -9780,7 +9813,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
       CHECK_ALIVE(VisitExpressions(expr->arguments(), arguments_flag));
       call = NewCallFunction(function, argument_count,
-                             ConvertReceiverMode::kNotNullOrUndefined);
+                             ConvertReceiverMode::kNotNullOrUndefined,
+                             tail_call_mode);
     }
     PushArgumentsFromEnvironment(argument_count);
 
@@ -9827,7 +9861,8 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       if (TryInlineCall(expr)) return;
 
       PushArgumentsFromEnvironment(argument_count);
-      call = NewCallConstantFunction(expr->target(), argument_count);
+      call = NewCallConstantFunction(expr->target(), argument_count,
+                                     tail_call_mode);
     } else {
       PushArgumentsFromEnvironment(argument_count);
       if (expr->is_uninitialized() &&
@@ -9836,10 +9871,11 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // through the type vector.
         call = NewCallFunctionViaIC(function, argument_count,
                                     ConvertReceiverMode::kNullOrUndefined,
-                                    expr->CallFeedbackICSlot());
+                                    tail_call_mode, expr->CallFeedbackICSlot());
       } else {
         call = NewCallFunction(function, argument_count,
-                               ConvertReceiverMode::kNullOrUndefined);
+                               ConvertReceiverMode::kNullOrUndefined,
+                               tail_call_mode);
       }
     }
   }
