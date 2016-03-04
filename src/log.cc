@@ -882,7 +882,6 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 
 void Logger::EnterExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
-  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == JS);
   isolate->set_current_vm_state(EXTERNAL);
 }
@@ -890,7 +889,6 @@ void Logger::EnterExternal(Isolate* isolate) {
 
 void Logger::LeaveExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
-  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == EXTERNAL);
   isolate->set_current_vm_state(JS);
 }
