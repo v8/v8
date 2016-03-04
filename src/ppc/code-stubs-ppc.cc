@@ -2943,42 +2943,6 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
 }
 
 
-void StringCompareStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r4    : left
-  //  -- r3    : right
-  //  -- lr    : return address
-  // -----------------------------------
-  __ AssertString(r4);
-  __ AssertString(r3);
-
-  Label not_same;
-  __ cmp(r3, r4);
-  __ bne(&not_same);
-  __ LoadSmiLiteral(r3, Smi::FromInt(EQUAL));
-  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, r4,
-                      r5);
-  __ Ret();
-
-  __ bind(&not_same);
-
-  // Check that both objects are sequential one-byte strings.
-  Label runtime;
-  __ JumpIfNotBothSequentialOneByteStrings(r4, r3, r5, r6, &runtime);
-
-  // Compare flat one-byte strings natively.
-  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, r5,
-                      r6);
-  StringHelper::GenerateCompareFlatOneByteStrings(masm, r4, r3, r5, r6, r7);
-
-  // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  __ bind(&runtime);
-  __ Push(r4, r3);
-  __ TailCallRuntime(Runtime::kStringCompare);
-}
-
-
 void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r4    : left
