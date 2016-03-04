@@ -205,6 +205,15 @@ class WasmGraphBuilder {
   Node* BuildF64Atan2(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
 
+  Node* BuildConversionInstruction(
+      Node* input, ExternalReference ref,
+      MachineRepresentation parameter_representation,
+      const MachineType result_type);
+  Node* BuildF32SConvertI64(Node* input);
+  Node* BuildF32UConvertI64(Node* input);
+  Node* BuildF64SConvertI64(Node* input);
+  Node* BuildF64UConvertI64(Node* input);
+
   Node** Realloc(Node** buffer, size_t count) {
     Node** buf = Buffer(count);
     if (buf != buffer) memcpy(buf, buffer, count * sizeof(Node*));

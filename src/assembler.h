@@ -914,14 +914,18 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);
 
-  static ExternalReference f32_trunc_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_floor_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_ceil_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_nearest_int_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_trunc_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_floor_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_ceil_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_nearest_int_wrapper_function(Isolate* isolate);
+  static ExternalReference wasm_f32_trunc(Isolate* isolate);
+  static ExternalReference wasm_f32_floor(Isolate* isolate);
+  static ExternalReference wasm_f32_ceil(Isolate* isolate);
+  static ExternalReference wasm_f32_nearest_int(Isolate* isolate);
+  static ExternalReference wasm_f64_trunc(Isolate* isolate);
+  static ExternalReference wasm_f64_floor(Isolate* isolate);
+  static ExternalReference wasm_f64_ceil(Isolate* isolate);
+  static ExternalReference wasm_f64_nearest_int(Isolate* isolate);
+  static ExternalReference wasm_int64_to_float32(Isolate* isolate);
+  static ExternalReference wasm_uint64_to_float32(Isolate* isolate);
+  static ExternalReference wasm_int64_to_float64(Isolate* isolate);
+  static ExternalReference wasm_uint64_to_float64(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);

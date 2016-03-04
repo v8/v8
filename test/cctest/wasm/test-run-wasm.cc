@@ -3176,40 +3176,6 @@ TEST(Run_Wasm_F64Max_Snan) {
 #endif
 
 #if WASM_64
-TEST(Run_Wasm_F32SConvertI64) {
-  WasmRunner<float> r(MachineType::Int64());
-  BUILD(r, WASM_F32_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), r.Call(*i)); }
-}
-
-
-#if !defined(_WIN64)
-// TODO(ahaas): Fix this failure.
-TEST(Run_Wasm_F32UConvertI64) {
-  WasmRunner<float> r(MachineType::Uint64());
-  BUILD(r, WASM_F32_UCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_UINT64_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), r.Call(*i)); }
-}
-#endif
-
-
-TEST(Run_Wasm_F64SConvertI64) {
-  WasmRunner<double> r(MachineType::Int64());
-  BUILD(r, WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<double>(*i), r.Call(*i)); }
-}
-
-
-#if !defined(_WIN64)
-// TODO(ahaas): Fix this failure.
-TEST(Run_Wasm_F64UConvertI64) {
-  WasmRunner<double> r(MachineType::Uint64());
-  BUILD(r, WASM_F64_UCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_UINT64_INPUTS(i) { CHECK_EQ(static_cast<double>(*i), r.Call(*i)); }
-}
-#endif
-
-
 TEST(Run_Wasm_I64SConvertF32) {
   WasmRunner<int64_t> r(MachineType::Float32());
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));

@@ -99,23 +99,30 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "InvokeFunctionCallback");
   Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
       "InvokeAccessorGetterCallback");
-  Add(ExternalReference::f32_trunc_wrapper_function(isolate).address(),
-      "f32_trunc_wrapper");
-  Add(ExternalReference::f32_floor_wrapper_function(isolate).address(),
-      "f32_floor_wrapper");
-  Add(ExternalReference::f32_ceil_wrapper_function(isolate).address(),
-      "f32_ceil_wrapper");
-  Add(ExternalReference::f32_nearest_int_wrapper_function(isolate).address(),
-      "f32_nearest_int_wrapper");
-  Add(ExternalReference::f64_trunc_wrapper_function(isolate).address(),
-      "f64_trunc_wrapper");
-  Add(ExternalReference::f64_floor_wrapper_function(isolate).address(),
-      "f64_floor_wrapper");
-  Add(ExternalReference::f64_ceil_wrapper_function(isolate).address(),
-      "f64_ceil_wrapper");
-  Add(ExternalReference::f64_nearest_int_wrapper_function(isolate).address(),
-      "f64_nearest_int_wrapper");
-
+  Add(ExternalReference::wasm_f32_trunc(isolate).address(),
+      "wasm::f32_trunc_wrapper");
+  Add(ExternalReference::wasm_f32_floor(isolate).address(),
+      "wasm::f32_floor_wrapper");
+  Add(ExternalReference::wasm_f32_ceil(isolate).address(),
+      "wasm::f32_ceil_wrapper");
+  Add(ExternalReference::wasm_f32_nearest_int(isolate).address(),
+      "wasm::f32_nearest_int_wrapper");
+  Add(ExternalReference::wasm_f64_trunc(isolate).address(),
+      "wasm::f64_trunc_wrapper");
+  Add(ExternalReference::wasm_f64_floor(isolate).address(),
+      "wasm::f64_floor_wrapper");
+  Add(ExternalReference::wasm_f64_ceil(isolate).address(),
+      "wasm::f64_ceil_wrapper");
+  Add(ExternalReference::wasm_f64_nearest_int(isolate).address(),
+      "wasm::f64_nearest_int_wrapper");
+  Add(ExternalReference::wasm_int64_to_float32(isolate).address(),
+      "wasm::int64_to_float32_wrapper");
+  Add(ExternalReference::wasm_uint64_to_float32(isolate).address(),
+      "wasm::uint64_to_float32_wrapper");
+  Add(ExternalReference::wasm_int64_to_float64(isolate).address(),
+      "wasm::int64_to_float64_wrapper");
+  Add(ExternalReference::wasm_uint64_to_float64(isolate).address(),
+      "wasm::uint64_to_float64_wrapper");
   Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
@@ -138,7 +145,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_atan2_wrapper");
   Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),
       "f64_mod_wrapper");
-
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

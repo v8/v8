@@ -548,25 +548,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       std::swap(left, right);
       break;
 
-// kExprI32ConvertI64:
-// kExprI64SConvertI32:
-// kExprI64UConvertI32:
-
-// kExprF64ReinterpretI64:
-// kExprI64ReinterpretF64:
-
-// kExprI64Clz:
-// kExprI64Ctz:
-// kExprI64Popcnt:
-
-// kExprF32SConvertI64:
-// kExprF32UConvertI64:
-// kExprF64SConvertI64:
-// kExprF64UConvertI64:
-// kExprI64SConvertF32:
-// kExprI64SConvertF64:
-// kExprI64UConvertF32:
-// kExprI64UConvertF64:
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
@@ -870,6 +851,47 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
       break;
+
+    // kExprI32ConvertI64:
+    // kExprI64SConvertI32:
+    // kExprI64UConvertI32:
+    // kExprF64ReinterpretI64:
+    // kExprI64ReinterpretF64:
+    // kExprI64Clz:
+    // kExprI64Ctz:
+    // kExprI64Popcnt:
+    // kExprF32SConvertI64:
+    case wasm::kExprF32SConvertI64:
+      if (kPointerSize == 4) {
+        return BuildF32SConvertI64(input);
+      }
+      op = m->RoundInt64ToFloat32();
+      break;
+    // kExprF32UConvertI64:
+    case wasm::kExprF32UConvertI64:
+      if (kPointerSize == 4) {
+        return BuildF32UConvertI64(input);
+      }
+      op = m->RoundUint64ToFloat32();
+      break;
+    // kExprF64SConvertI64:
+    case wasm::kExprF64SConvertI64:
+      if (kPointerSize == 4) {
+        return BuildF64SConvertI64(input);
+      }
+      op = m->RoundInt64ToFloat64();
+      break;
+    // kExprF64UConvertI64:
+    case wasm::kExprF64UConvertI64:
+      if (kPointerSize == 4) {
+        return BuildF64UConvertI64(input);
+      }
+      op = m->RoundUint64ToFloat64();
+      break;
+// kExprI64SConvertF32:
+// kExprI64SConvertF64:
+// kExprI64UConvertF32:
+// kExprI64UConvertF64:
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
@@ -878,18 +900,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       break;
     case wasm::kExprI64UConvertI32:
       op = m->ChangeUint32ToUint64();
-      break;
-    case wasm::kExprF32SConvertI64:
-      op = m->RoundInt64ToFloat32();
-      break;
-    case wasm::kExprF32UConvertI64:
-      op = m->RoundUint64ToFloat32();
-      break;
-    case wasm::kExprF64SConvertI64:
-      op = m->RoundInt64ToFloat64();
-      break;
-    case wasm::kExprF64UConvertI64:
-      op = m->RoundUint64ToFloat64();
       break;
     case wasm::kExprI64SConvertF32: {
       Node* trunc = graph()->NewNode(m->TryTruncateFloat32ToInt64(), input);
@@ -1460,56 +1470,57 @@ Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
 Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
-      ExternalReference::f32_trunc_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f32_trunc(jsgraph()->isolate());
+
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Floor(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
-      ExternalReference::f32_floor_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f32_floor(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32Ceil(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
-      ExternalReference::f32_ceil_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f32_ceil(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF32NearestInt(Node* input) {
   MachineType type = MachineType::Float32();
   ExternalReference ref =
-      ExternalReference::f32_nearest_int_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f32_nearest_int(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Trunc(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
-      ExternalReference::f64_trunc_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f64_trunc(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Floor(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
-      ExternalReference::f64_floor_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f64_floor(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64Ceil(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
-      ExternalReference::f64_ceil_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f64_ceil(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
 Node* WasmGraphBuilder::BuildF64NearestInt(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
-      ExternalReference::f64_nearest_int_wrapper_function(jsgraph()->isolate());
+      ExternalReference::wasm_f64_nearest_int(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 
@@ -1640,6 +1651,53 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
 
   Node* load =
       graph()->NewNode(load_op, stack_slot_param0, jsgraph()->Int32Constant(0),
+                       *effect_, *control_);
+  *effect_ = load;
+  return load;
+}
+
+Node* WasmGraphBuilder::BuildF32SConvertI64(Node* input) {
+  return BuildConversionInstruction(
+      input, ExternalReference::wasm_int64_to_float32(jsgraph()->isolate()),
+      MachineRepresentation::kWord64, MachineType::Float32());
+}
+Node* WasmGraphBuilder::BuildF32UConvertI64(Node* input) {
+  return BuildConversionInstruction(
+      input, ExternalReference::wasm_uint64_to_float32(jsgraph()->isolate()),
+      MachineRepresentation::kWord64, MachineType::Float32());
+}
+Node* WasmGraphBuilder::BuildF64SConvertI64(Node* input) {
+  return BuildConversionInstruction(
+      input, ExternalReference::wasm_int64_to_float64(jsgraph()->isolate()),
+      MachineRepresentation::kWord64, MachineType::Float64());
+}
+Node* WasmGraphBuilder::BuildF64UConvertI64(Node* input) {
+  return BuildConversionInstruction(
+      input, ExternalReference::wasm_uint64_to_float64(jsgraph()->isolate()),
+      MachineRepresentation::kWord64, MachineType::Float64());
+}
+Node* WasmGraphBuilder::BuildConversionInstruction(
+    Node* input, ExternalReference ref,
+    MachineRepresentation parameter_representation,
+    const MachineType result_type) {
+  Node* stack_slot_param = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(parameter_representation));
+  Node* stack_slot_result = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(result_type.representation()));
+  const Operator* store_op = jsgraph()->machine()->Store(
+      StoreRepresentation(parameter_representation, kNoWriteBarrier));
+  *effect_ =
+      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
+                       input, *effect_, *control_);
+  MachineSignature::Builder sig_builder(jsgraph()->zone(), 0, 2);
+  sig_builder.AddParam(MachineType::Pointer());
+  sig_builder.AddParam(MachineType::Pointer());
+  Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
+  Node* args[] = {function, stack_slot_param, stack_slot_result};
+  BuildCCall(sig_builder.Build(), args);
+  const Operator* load_op = jsgraph()->machine()->Load(result_type);
+  Node* load =
+      graph()->NewNode(load_op, stack_slot_result, jsgraph()->Int32Constant(0),
                        *effect_, *control_);
   *effect_ = load;
   return load;

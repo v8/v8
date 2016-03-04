@@ -61,6 +61,7 @@
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
+#include "src/wasm/wasm-external-refs.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32-inl.h"  // NOLINT
@@ -1147,66 +1148,61 @@ ExternalReference ExternalReference::compute_output_frames_function(
       Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
-static void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
-
-ExternalReference ExternalReference::f32_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_trunc_wrapper)));
-}
-
-static void f32_floor_wrapper(float* param) { *param = floorf(*param); }
-
-ExternalReference ExternalReference::f32_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_floor_wrapper)));
-}
-
-static void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
-
-ExternalReference ExternalReference::f32_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_ceil_wrapper)));
-}
-
-static void f32_nearest_int_wrapper(float* param) {
-  *param = nearbyintf(*param);
-}
-
-ExternalReference ExternalReference::f32_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_trunc(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f32_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
 }
-
-static void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
-
-ExternalReference ExternalReference::f64_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_trunc_wrapper)));
-}
-
-static void f64_floor_wrapper(double* param) { *param = floor(*param); }
-
-ExternalReference ExternalReference::f64_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_floor_wrapper)));
-}
-
-static void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
-
-ExternalReference ExternalReference::f64_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_ceil_wrapper)));
-}
-
-static void f64_nearest_int_wrapper(double* param) {
-  *param = nearbyint(*param);
-}
-
-ExternalReference ExternalReference::f64_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_floor(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f64_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_floor_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_trunc(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_floor(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_floor_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
 }
 
 static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
