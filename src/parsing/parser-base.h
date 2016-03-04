@@ -3456,7 +3456,8 @@ ParserBase<Traits>::ParseIntersectionOrPrimaryType(bool* ok) {
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type
 ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
-  int pos = peek_position();
+  Scanner::Location type_location = scanner()->peek_location();
+  int pos = type_location.beg_pos;
   typename TypeSystem::Type type = this->EmptyType();
   switch (peek()) {
     case Token::LPAREN: {
@@ -3491,6 +3492,9 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       } else {
         // missing!!! typeof
         // missing!!! identifier
+        ReportUnexpectedToken(Next());
+        *ok = false;
+        return type;
       }
       break;
     }
@@ -3514,6 +3518,9 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   }
 
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
+    if (peek() == Token::LBRACK) {  // braces required here
+      type = ValidateType(type, type_location, CHECK_OK_TYPE);
+    }
     while (Check(Token::LBRACK)) {  // braces required here
       Expect(Token::RBRACK, CHECK_OK_TYPE);
       type = factory()->NewArrayType(type, pos);
