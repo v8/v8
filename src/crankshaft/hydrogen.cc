@@ -3569,9 +3569,16 @@ HBasicBlock* HOptimizedGraphBuilder::BuildLoopEntry() {
 
 HBasicBlock* HOptimizedGraphBuilder::BuildLoopEntry(
     IterationStatement* statement) {
-  HBasicBlock* loop_entry = osr()->HasOsrEntryAt(statement)
-      ? osr()->BuildOsrLoopEntry(statement)
-      : BuildLoopEntry();
+  HBasicBlock* loop_entry;
+
+  if (osr()->HasOsrEntryAt(statement)) {
+    loop_entry = osr()->BuildOsrLoopEntry(statement);
+    if (function_state()->IsInsideDoExpressionScope()) {
+      Bailout(kDoExpressionUnmodelable);
+    }
+  } else {
+    loop_entry = BuildLoopEntry();
+  }
   return loop_entry;
 }
 
@@ -4045,6 +4052,7 @@ FunctionState::FunctionState(HOptimizedGraphBuilder* owner,
       arguments_elements_(NULL),
       inlining_id_(inlining_id),
       outer_source_position_(SourcePosition::Unknown()),
+      do_expression_scope_count_(0),
       outer_(owner->function_state()) {
   if (outer_ != NULL) {
     // State for an inline function.
@@ -4829,6 +4837,11 @@ void HOptimizedGraphBuilder::VisitContinueStatement(
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
+
+  if (function_state()->IsInsideDoExpressionScope()) {
+    return Bailout(kDoExpressionUnmodelable);
+  }
+
   Scope* outer_scope = NULL;
   Scope* inner_scope = scope();
   int drop_extra = 0;
@@ -4861,6 +4874,11 @@ void HOptimizedGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
+
+  if (function_state()->IsInsideDoExpressionScope()) {
+    return Bailout(kDoExpressionUnmodelable);
+  }
+
   Scope* outer_scope = NULL;
   Scope* inner_scope = scope();
   int drop_extra = 0;
@@ -5520,10 +5538,12 @@ void HOptimizedGraphBuilder::VisitNativeFunctionLiteral(
 
 
 void HOptimizedGraphBuilder::VisitDoExpression(DoExpression* expr) {
+  DoExpressionScope scope(this);
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  return Bailout(kDoExpression);
+  CHECK_ALIVE(VisitBlock(expr->block()));
+  Visit(expr->result());
 }
 
 

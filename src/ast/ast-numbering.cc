@@ -138,7 +138,6 @@ void AstNumberingVisitor::VisitNativeFunctionLiteral(
 
 void AstNumberingVisitor::VisitDoExpression(DoExpression* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kDoExpression);
   node->set_base_id(ReserveIdRange(DoExpression::num_ids()));
   Visit(node->block());
   Visit(node->result());

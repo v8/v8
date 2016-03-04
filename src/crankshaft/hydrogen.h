@@ -888,6 +888,10 @@ class FunctionState final {
 
   int inlining_id() const { return inlining_id_; }
 
+  void IncrementInDoExpressionScope() { do_expression_scope_count_++; }
+  void DecrementInDoExpressionScope() { do_expression_scope_count_--; }
+  bool IsInsideDoExpressionScope() { return do_expression_scope_count_ > 0; }
+
  private:
   HOptimizedGraphBuilder* owner_;
 
@@ -923,6 +927,8 @@ class FunctionState final {
 
   int inlining_id_;
   SourcePosition outer_source_position_;
+
+  int do_expression_scope_count_;
 
   FunctionState* outer_;
 };
@@ -3038,6 +3044,19 @@ class NoObservableSideEffectsScope final {
   HGraphBuilder* builder_;
 };
 
+class DoExpressionScope final {
+ public:
+  explicit DoExpressionScope(HOptimizedGraphBuilder* builder)
+      : builder_(builder) {
+    builder_->function_state()->IncrementInDoExpressionScope();
+  }
+  ~DoExpressionScope() {
+    builder_->function_state()->DecrementInDoExpressionScope();
+  }
+
+ private:
+  HOptimizedGraphBuilder* builder_;
+};
 
 }  // namespace internal
 }  // namespace v8
