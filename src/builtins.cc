@@ -4153,7 +4153,8 @@ class RelocatableArguments
 
 }  // namespace
 
-MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
+MaybeHandle<Object> Builtins::InvokeApiFunction(bool is_construct,
+                                                Handle<HeapObject> function,
                                                 Handle<Object> receiver,
                                                 int argc,
                                                 Handle<Object> args[]) {
@@ -4175,7 +4176,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
   {
     auto isolate = function->GetIsolate();
     RelocatableArguments arguments(isolate, argc + 2, &argv[argc + 1]);
-    result = HandleApiCallHelper<false>(isolate, arguments);
+    result = is_construct ? HandleApiCallHelper<true>(isolate, arguments)
+                          : HandleApiCallHelper<false>(isolate, arguments);
   }
   if (argv != small_argv) {
     delete[] argv;

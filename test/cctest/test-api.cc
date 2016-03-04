@@ -24982,3 +24982,20 @@ TEST(Proxy) {
   CHECK(proxy->GetTarget()->SameValue(target));
   CHECK(proxy->GetHandler()->IsNull());
 }
+
+void EmptyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+TEST(CallOnNonConstructableFunction) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> tmpl =
+      v8::FunctionTemplate::New(isolate, EmptyFunction);
+  tmpl->RemovePrototype();
+  v8::Local<v8::Function> fun =
+      tmpl->GetFunction(context.local()).ToLocalChecked();
+  CHECK(
+      !fun->CallAsFunction(context.local(), v8::Undefined(isolate), 0, nullptr)
+           .IsEmpty());
+}

@@ -398,8 +398,8 @@ class Builtins {
   bool is_initialized() const { return initialized_; }
 
   MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
-      Handle<HeapObject> function, Handle<Object> receiver, int argc,
-      Handle<Object> args[]);
+      bool is_construct, Handle<HeapObject> function, Handle<Object> receiver,
+      int argc, Handle<Object> args[]);
 
  private:
   Builtins();
