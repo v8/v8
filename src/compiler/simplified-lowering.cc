@@ -1160,13 +1160,39 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kStringLessThan: {
-        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::Bool());
-        if (lower()) lowering->DoStringLessThan(node);
+        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::BoolTagged());
+        if (lower()) {
+          // StringLessThan(x, y) => Call(StringLessThanStub, x, y, no-context)
+          Operator::Properties properties = node->op()->properties();
+          Callable callable = CodeFactory::StringLessThan(jsgraph_->isolate());
+          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
+              flags, properties);
+          node->InsertInput(jsgraph_->zone(), 0,
+                            jsgraph_->HeapConstant(callable.code()));
+          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
+        }
         break;
       }
       case IrOpcode::kStringLessThanOrEqual: {
-        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::Bool());
-        if (lower()) lowering->DoStringLessThanOrEqual(node);
+        VisitBinop(node, UseInfo::AnyTagged(), NodeOutputInfo::BoolTagged());
+        if (lower()) {
+          // StringLessThanOrEqual(x, y)
+          //   => Call(StringLessThanOrEqualStub, x, y, no-context)
+          Operator::Properties properties = node->op()->properties();
+          Callable callable =
+              CodeFactory::StringLessThanOrEqual(jsgraph_->isolate());
+          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
+              flags, properties);
+          node->InsertInput(jsgraph_->zone(), 0,
+                            jsgraph_->HeapConstant(callable.code()));
+          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
+        }
         break;
       }
       case IrOpcode::kAllocate: {
@@ -1610,22 +1636,6 @@ void SimplifiedLowering::DoStoreBuffer(Node* node) {
   NodeProperties::ChangeOp(node, machine()->CheckedStore(rep));
 }
 
-
-Node* SimplifiedLowering::StringComparison(Node* node) {
-  Operator::Properties properties = node->op()->properties();
-  Callable callable = CodeFactory::StringCompare(isolate());
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 0, flags, properties);
-  return graph()->NewNode(
-      common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-      NodeProperties::GetValueInput(node, 0),
-      NodeProperties::GetValueInput(node, 1), jsgraph()->NoContextConstant(),
-      NodeProperties::GetEffectInput(node),
-      NodeProperties::GetControlInput(node));
-}
-
-
 Node* SimplifiedLowering::Int32Div(Node* const node) {
   Int32BinopMatcher m(node);
   Node* const zero = jsgraph()->Int32Constant(0);
@@ -1886,43 +1896,6 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
                                            jsgraph()->Int32Constant(0x1f)));
   }
   NodeProperties::ChangeOp(node, op);
-}
-
-
-namespace {
-
-void ReplaceEffectUses(Node* node, Node* replacement) {
-  // Requires distinguishing between value and effect edges.
-  DCHECK(replacement->op()->EffectOutputCount() > 0);
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsEffectEdge(edge)) {
-      edge.UpdateTo(replacement);
-    } else {
-      DCHECK(NodeProperties::IsValueEdge(edge));
-    }
-  }
-}
-
-}  // namespace
-
-
-void SimplifiedLowering::DoStringLessThan(Node* node) {
-  Node* comparison = StringComparison(node);
-  ReplaceEffectUses(node, comparison);
-  node->ReplaceInput(0, comparison);
-  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
-  node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, machine()->IntLessThan());
-}
-
-
-void SimplifiedLowering::DoStringLessThanOrEqual(Node* node) {
-  Node* comparison = StringComparison(node);
-  ReplaceEffectUses(node, comparison);
-  node->ReplaceInput(0, comparison);
-  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
-  node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, machine()->IntLessThanOrEqual());
 }
 
 }  // namespace compiler

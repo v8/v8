@@ -253,6 +253,7 @@ class CodeStubAssembler {
   Node* SmiEqual(Node* a, Node* b);
   Node* SmiLessThan(Node* a, Node* b);
   Node* SmiLessThanOrEqual(Node* a, Node* b);
+  Node* SmiMin(Node* a, Node* b);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
@@ -292,6 +293,7 @@ class CodeStubAssembler {
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIfInt32LessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
                                   Label* if_false);

@@ -84,9 +84,13 @@ class CodeFactory final {
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
-  static Callable StringCompare(Isolate* isolate);
+  static Callable StringCompare(Isolate* isolate, Token::Value token);
   static Callable StringEqual(Isolate* isolate);
   static Callable StringNotEqual(Isolate* isolate);
+  static Callable StringLessThan(Isolate* isolate);
+  static Callable StringLessThanOrEqual(Isolate* isolate);
+  static Callable StringGreaterThan(Isolate* isolate);
+  static Callable StringGreaterThanOrEqual(Isolate* isolate);
   static Callable SubString(Isolate* isolate);
 
   static Callable Typeof(Isolate* isolate);

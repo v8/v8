@@ -46,7 +46,6 @@ namespace internal {
   V(RegExpExec)                             \
   V(StoreBufferOverflow)                    \
   V(StoreElement)                           \
-  V(StringCompare)                          \
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
   V(ToNumber)                               \
@@ -109,6 +108,10 @@ namespace internal {
   V(StrictNotEqual)                         \
   V(StringEqual)                            \
   V(StringNotEqual)                         \
+  V(StringLessThan)                         \
+  V(StringLessThanOrEqual)                  \
+  V(StringGreaterThan)                      \
+  V(StringGreaterThanOrEqual)               \
   V(ToBoolean)                              \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
@@ -699,6 +702,41 @@ class StringNotEqualStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
   DEFINE_TURBOFAN_CODE_STUB(StringNotEqual, TurboFanCodeStub);
+};
+
+class StringLessThanStub final : public TurboFanCodeStub {
+ public:
+  explicit StringLessThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(StringLessThan, TurboFanCodeStub);
+};
+
+class StringLessThanOrEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit StringLessThanOrEqualStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(StringLessThanOrEqual, TurboFanCodeStub);
+};
+
+class StringGreaterThanStub final : public TurboFanCodeStub {
+ public:
+  explicit StringGreaterThanStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(StringGreaterThan, TurboFanCodeStub);
+};
+
+class StringGreaterThanOrEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit StringGreaterThanOrEqualStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(StringGreaterThanOrEqual, TurboFanCodeStub);
 };
 
 class ToBooleanStub final : public TurboFanCodeStub {
@@ -2934,16 +2972,6 @@ class ToObjectStub final : public HydrogenCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToObject);
   DEFINE_HYDROGEN_CODE_STUB(ToObject, HydrogenCodeStub);
 };
-
-
-class StringCompareStub : public PlatformCodeStub {
- public:
-  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringCompare);
-  DEFINE_PLATFORM_CODE_STUB(StringCompare, PlatformCodeStub);
-};
-
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

@@ -171,6 +171,21 @@ Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
   return IntPtrLessThanOrEqual(a, b);
 }
 
+Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
+  // TODO(bmeurer): Consider using Select once available.
+  Variable min(this, MachineRepresentation::kTagged);
+  Label if_a(this), if_b(this), join(this);
+  BranchIfSmiLessThan(a, b, &if_a, &if_b);
+  Bind(&if_a);
+  min.Bind(a);
+  Goto(&join);
+  Bind(&if_b);
+  min.Bind(b);
+  Goto(&join);
+  Bind(&join);
+  return min.value();
+}
+
 #define DEFINE_CODE_STUB_ASSEMBER_BINARY_OP(name)   \
   Node* CodeStubAssembler::name(Node* a, Node* b) { \
     return raw_assembler_->name(a, b);              \
@@ -422,6 +437,16 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
   return raw_assembler_->Word32Shr(
       raw_assembler_->Word32And(word32, raw_assembler_->Int32Constant(mask)),
       raw_assembler_->Int32Constant(shift));
+}
+
+void CodeStubAssembler::BranchIfInt32LessThan(Node* a, Node* b, Label* if_true,
+                                              Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(Int32LessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
 }
 
 void CodeStubAssembler::BranchIfSmiLessThan(Node* a, Node* b, Label* if_true,

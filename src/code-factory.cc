@@ -237,11 +237,28 @@ Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
-
 // static
-Callable CodeFactory::StringCompare(Isolate* isolate) {
-  StringCompareStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+      return StringEqual(isolate);
+    case Token::NE:
+    case Token::NE_STRICT:
+      return StringNotEqual(isolate);
+    case Token::LT:
+      return StringLessThan(isolate);
+    case Token::GT:
+      return StringGreaterThan(isolate);
+    case Token::LTE:
+      return StringLessThanOrEqual(isolate);
+    case Token::GTE:
+      return StringGreaterThanOrEqual(isolate);
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return StringEqual(isolate);
 }
 
 // static
@@ -253,6 +270,30 @@ Callable CodeFactory::StringEqual(Isolate* isolate) {
 // static
 Callable CodeFactory::StringNotEqual(Isolate* isolate) {
   StringNotEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringLessThan(Isolate* isolate) {
+  StringLessThanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringLessThanOrEqual(Isolate* isolate) {
+  StringLessThanOrEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringGreaterThan(Isolate* isolate) {
+  StringGreaterThanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringGreaterThanOrEqual(Isolate* isolate) {
+  StringGreaterThanOrEqualStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

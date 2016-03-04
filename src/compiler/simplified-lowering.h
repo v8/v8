@@ -37,8 +37,6 @@ class SimplifiedLowering final {
                     RepresentationChanger* changer);
   void DoStoreBuffer(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
-  void DoStringLessThan(Node* node);
-  void DoStringLessThanOrEqual(Node* node);
 
   // TODO(bmeurer): This is a gigantic hack to support the gigantic LoadBuffer
   // typing hack to support the gigantic "asm.js should be fast without proper
@@ -57,7 +55,6 @@ class SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
 
-  Node* StringComparison(Node* node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
   Node* Uint32Div(Node* const node);

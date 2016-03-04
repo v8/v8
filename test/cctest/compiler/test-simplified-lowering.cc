@@ -1140,22 +1140,8 @@ TEST(LowerReferenceEqual_to_wordeq) {
   t.CheckLoweringBinop(opcode, t.simplified()->ReferenceEqual(Type::Any()));
 }
 
-
-TEST(LowerStringOps_to_call_and_compare) {
-    // These tests need linkage for the calls.
-    TestingGraph t(Type::String(), Type::String());
-    IrOpcode::Value compare_lt =
-        static_cast<IrOpcode::Value>(t.machine()->IntLessThan()->opcode());
-    IrOpcode::Value compare_le = static_cast<IrOpcode::Value>(
-        t.machine()->IntLessThanOrEqual()->opcode());
-    t.CheckLoweringStringBinop(compare_lt, t.simplified()->StringLessThan());
-    t.CheckLoweringStringBinop(compare_le,
-                               t.simplified()->StringLessThanOrEqual());
-  }
-
-
-  void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
-                            MachineType to, Type* type = Type::Any()) {
+void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
+                          MachineType to, Type* type = Type::Any()) {
   TestingGraph t(Type::Any());
   Node* in = t.ExampleWithOutput(from);
   NodeProperties::SetType(in, type);
@@ -1165,7 +1151,6 @@ TEST(LowerStringOps_to_call_and_compare) {
   CHECK_EQ(expected, use->InputAt(0)->opcode());
   CHECK_EQ(in, use->InputAt(0)->InputAt(0));
 }
-
 
 TEST(InsertBasicChanges) {
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, MachineType::Float64(),

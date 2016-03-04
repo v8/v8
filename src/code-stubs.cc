@@ -501,7 +501,7 @@ void StringLengthStub::GenerateAssembly(
 
 namespace {
 
-enum AbstractRelationalComparisonMode {
+enum RelationalComparisonMode {
   kLessThan,
   kLessThanOrEqual,
   kGreaterThan,
@@ -509,8 +509,7 @@ enum AbstractRelationalComparisonMode {
 };
 
 void GenerateAbstractRelationalComparison(
-    compiler::CodeStubAssembler* assembler,
-    AbstractRelationalComparisonMode mode) {
+    compiler::CodeStubAssembler* assembler, RelationalComparisonMode mode) {
   typedef compiler::CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef compiler::CodeStubAssembler::Variable Variable;
@@ -717,23 +716,26 @@ void GenerateAbstractRelationalComparison(
             assembler->Bind(&if_rhsisstring);
             {
               // Both {lhs} and {rhs} are strings.
-              // TODO(bmeurer): Hook up String<Compare>Stub once we have it.
               switch (mode) {
                 case kLessThan:
-                  assembler->TailCallRuntime(Runtime::kStringLessThan, context,
-                                             lhs, rhs);
+                  assembler->TailCallStub(
+                      CodeFactory::StringLessThan(assembler->isolate()),
+                      context, lhs, rhs);
                   break;
                 case kLessThanOrEqual:
-                  assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual,
-                                             context, lhs, rhs);
+                  assembler->TailCallStub(
+                      CodeFactory::StringLessThanOrEqual(assembler->isolate()),
+                      context, lhs, rhs);
                   break;
                 case kGreaterThan:
-                  assembler->TailCallRuntime(Runtime::kStringGreaterThan,
-                                             context, lhs, rhs);
+                  assembler->TailCallStub(
+                      CodeFactory::StringGreaterThan(assembler->isolate()),
+                      context, lhs, rhs);
                   break;
                 case kGreaterThanOrEqual:
-                  assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
-                                             context, lhs, rhs);
+                  assembler->TailCallStub(CodeFactory::StringGreaterThanOrEqual(
+                                              assembler->isolate()),
+                                          context, lhs, rhs);
                   break;
               }
             }
@@ -1134,6 +1136,189 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
 }
 
+void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
+                                        RelationalComparisonMode mode) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label if_less(assembler), if_equal(assembler), if_greater(assembler);
+
+  // Fast check to see if {lhs} and {rhs} refer to the same String object.
+  Label if_same(assembler), if_notsame(assembler);
+  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+  assembler->Bind(&if_same);
+  assembler->Goto(&if_equal);
+
+  assembler->Bind(&if_notsame);
+  {
+    // Load instance types of {lhs} and {rhs}.
+    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
+    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+    // Combine the instance types into a single 16-bit value, so we can check
+    // both of them at once.
+    Node* both_instance_types = assembler->Word32Or(
+        lhs_instance_type,
+        assembler->Word32Shl(rhs_instance_type, assembler->Int32Constant(8)));
+
+    // Check that both {lhs} and {rhs} are flat one-byte strings.
+    int const kBothSeqOneByteStringMask =
+        kStringEncodingMask | kStringRepresentationMask |
+        ((kStringEncodingMask | kStringRepresentationMask) << 8);
+    int const kBothSeqOneByteStringTag =
+        kOneByteStringTag | kSeqStringTag |
+        ((kOneByteStringTag | kSeqStringTag) << 8);
+    Label if_bothonebyteseqstrings(assembler),
+        if_notbothonebyteseqstrings(assembler);
+    assembler->Branch(assembler->Word32Equal(
+                          assembler->Word32And(both_instance_types,
+                                               assembler->Int32Constant(
+                                                   kBothSeqOneByteStringMask)),
+                          assembler->Int32Constant(kBothSeqOneByteStringTag)),
+                      &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+
+    assembler->Bind(&if_bothonebyteseqstrings);
+    {
+      // Load the length of {lhs} and {rhs}.
+      Node* lhs_length = assembler->LoadObjectField(lhs, String::kLengthOffset);
+      Node* rhs_length = assembler->LoadObjectField(rhs, String::kLengthOffset);
+
+      // Determine the minimum length.
+      Node* length = assembler->SmiMin(lhs_length, rhs_length);
+
+      // Compute the effective offset of the first character.
+      Node* begin = assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
+                                              kHeapObjectTag);
+
+      // Compute the first offset after the string from the length.
+      Node* end = assembler->IntPtrAdd(begin, assembler->SmiUntag(length));
+
+      // Loop over the {lhs} and {rhs} strings to see if they are equal.
+      Variable var_offset(assembler, MachineType::PointerRepresentation());
+      Label loop(assembler, &var_offset);
+      var_offset.Bind(begin);
+      assembler->Goto(&loop);
+      assembler->Bind(&loop);
+      {
+        // Check if {offset} equals {end}.
+        Node* offset = var_offset.value();
+        Label if_done(assembler), if_notdone(assembler);
+        assembler->Branch(assembler->WordEqual(offset, end), &if_done,
+                          &if_notdone);
+
+        assembler->Bind(&if_notdone);
+        {
+          // Load the next characters from {lhs} and {rhs}.
+          Node* lhs_value = assembler->Load(MachineType::Uint8(), lhs, offset);
+          Node* rhs_value = assembler->Load(MachineType::Uint8(), rhs, offset);
+
+          // Check if the characters match.
+          Label if_valueissame(assembler), if_valueisnotsame(assembler);
+          assembler->Branch(assembler->Word32Equal(lhs_value, rhs_value),
+                            &if_valueissame, &if_valueisnotsame);
+
+          assembler->Bind(&if_valueissame);
+          {
+            // Advance to next character.
+            var_offset.Bind(
+                assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
+          }
+          assembler->Goto(&loop);
+
+          assembler->Bind(&if_valueisnotsame);
+          assembler->BranchIfInt32LessThan(lhs_value, rhs_value, &if_less,
+                                           &if_greater);
+        }
+
+        assembler->Bind(&if_done);
+        {
+          // All characters up to the min length are equal, decide based on
+          // string length.
+          Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
+          assembler->Branch(assembler->SmiEqual(lhs_length, rhs_length),
+                            &if_lengthisequal, &if_lengthisnotequal);
+
+          assembler->Bind(&if_lengthisequal);
+          assembler->Goto(&if_equal);
+
+          assembler->Bind(&if_lengthisnotequal);
+          assembler->BranchIfSmiLessThan(lhs_length, rhs_length, &if_less,
+                                         &if_greater);
+        }
+      }
+    }
+
+    assembler->Bind(&if_notbothonebyteseqstrings);
+    {
+      // TODO(bmeurer): Add fast case support for flattened cons strings;
+      // also add support for two byte string relational comparisons.
+      switch (mode) {
+        case kLessThan:
+          assembler->TailCallRuntime(Runtime::kStringLessThan, context, lhs,
+                                     rhs);
+          break;
+        case kLessThanOrEqual:
+          assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual, context,
+                                     lhs, rhs);
+          break;
+        case kGreaterThan:
+          assembler->TailCallRuntime(Runtime::kStringGreaterThan, context, lhs,
+                                     rhs);
+          break;
+        case kGreaterThanOrEqual:
+          assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
+                                     context, lhs, rhs);
+          break;
+      }
+    }
+  }
+
+  assembler->Bind(&if_less);
+  switch (mode) {
+    case kLessThan:
+    case kLessThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+
+    case kGreaterThan:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+  }
+
+  assembler->Bind(&if_equal);
+  switch (mode) {
+    case kLessThan:
+    case kGreaterThan:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+
+    case kLessThanOrEqual:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+  }
+
+  assembler->Bind(&if_greater);
+  switch (mode) {
+    case kLessThan:
+    case kLessThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(false));
+      break;
+
+    case kGreaterThan:
+    case kGreaterThanOrEqual:
+      assembler->Return(assembler->BooleanConstant(true));
+      break;
+  }
+}
+
 void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
                          ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
@@ -1351,6 +1536,26 @@ void StringEqualStub::GenerateAssembly(
 void StringNotEqualStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   GenerateStringEqual(assembler, kNegateResult);
+}
+
+void StringLessThanStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStringRelationalComparison(assembler, kLessThan);
+}
+
+void StringLessThanOrEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
+}
+
+void StringGreaterThanStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStringRelationalComparison(assembler, kGreaterThan);
+}
+
+void StringGreaterThanOrEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
 void ToBooleanStub::GenerateAssembly(
