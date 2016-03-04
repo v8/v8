@@ -66,6 +66,19 @@ PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 #undef PARSE_INFO_GETTER
 #undef PARSE_INFO_GETTER_WITH_DEFAULT
 
+// A wrapper around a CompilationInfo that detaches the Handles from
+// the underlying DeferredHandleScope and stores them in info_ on
+// destruction.
+class CompilationHandleScope BASE_EMBEDDED {
+ public:
+  explicit CompilationHandleScope(CompilationInfo* info)
+      : deferred_(info->isolate()), info_(info) {}
+  ~CompilationHandleScope() { info_->set_deferred_handles(deferred_.Detach()); }
+
+ private:
+  DeferredHandleScope deferred_;
+  CompilationInfo* info_;
+};
 
 // Exactly like a CompilationInfo, except being allocated via {new} and it also
 // creates and enters a Zone on construction and deallocates it on destruction.
@@ -927,8 +940,9 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info) {
   return Compiler::Analyze(info);
 }
 
+namespace {
 
-static bool GetOptimizedCodeNow(CompilationInfo* info) {
+bool GetOptimizedCodeNow(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -959,8 +973,7 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
   return true;
 }
 
-
-static bool GetOptimizedCodeLater(CompilationInfo* info) {
+bool GetOptimizedCodeLater(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -1002,8 +1015,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   return true;
 }
 
-
-MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
+MaybeHandle<Code> GetUnoptimizedCode(Handle<JSFunction> function) {
   DCHECK(!function->GetIsolate()->has_pending_exception());
   DCHECK(!function->is_compiled());
   if (function->shared()->is_compiled()) {
@@ -1018,8 +1030,7 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
   return result;
 }
 
-
-MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
+MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
@@ -1067,10 +1078,11 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   return result;
 }
 
+}  // namespace
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
-  MaybeHandle<Code> maybe_code = Compiler::GetLazyCode(function);
+  MaybeHandle<Code> maybe_code = GetLazyCode(function);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     if (flag == CLEAR_EXCEPTION) {
@@ -1078,11 +1090,41 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
     }
     return false;
   }
+  DCHECK(code->IsJavaScriptCode());
   function->ReplaceCode(*code);
   DCHECK(function->is_compiled());
   return true;
 }
 
+bool Compiler::CompileOptimized(Handle<JSFunction> function,
+                                ConcurrencyMode mode) {
+  Handle<Code> code;
+  if (Compiler::GetOptimizedCode(function, mode).ToHandle(&code)) {
+    // Optimization succeeded, return optimized code.
+    function->ReplaceCode(*code);
+  } else {
+    // Optimization failed, get unoptimized code.
+    Isolate* isolate = function->GetIsolate();
+    if (isolate->has_pending_exception()) {  // Possible stack overflow.
+      return false;
+    }
+    code = Handle<Code>(function->shared()->code(), isolate);
+    if (code->kind() != Code::FUNCTION &&
+        code->kind() != Code::OPTIMIZED_FUNCTION) {
+      if (!GetUnoptimizedCode(function).ToHandle(&code)) {
+        return false;
+      }
+    }
+    function->ReplaceCode(*code);
+  }
+
+  DCHECK(function->code()->kind() == Code::FUNCTION ||
+         function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
+         (function->code()->is_interpreter_entry_trampoline() &&
+          function->shared()->HasBytecodeArray()) ||
+         function->IsInOptimizationQueue());
+  return true;
+}
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
 // be generated lazily once deopt is triggered.

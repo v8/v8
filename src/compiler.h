@@ -491,23 +491,6 @@ class CompilationInfo {
 };
 
 
-// A wrapper around a CompilationInfo that detaches the Handles from
-// the underlying DeferredHandleScope and stores them in info_ on
-// destruction.
-class CompilationHandleScope BASE_EMBEDDED {
- public:
-  explicit CompilationHandleScope(CompilationInfo* info)
-      : deferred_(info->isolate()), info_(info) {}
-  ~CompilationHandleScope() {
-    info_->set_deferred_handles(deferred_.Detach());
-  }
-
- private:
-  DeferredHandleScope deferred_;
-  CompilationInfo* info_;
-};
-
-
 class HGraph;
 class LChunk;
 
@@ -602,12 +585,10 @@ class OptimizedCompileJob: public ZoneObject {
 
 class Compiler : public AllStatic {
  public:
-  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
-      Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
-      Handle<JSFunction> function);
+  enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
+  static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<JSFunction> function);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static void CompileForLiveEdit(Handle<Script> script);
@@ -647,8 +628,6 @@ class Compiler : public AllStatic {
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
       v8::Extension* extension, Handle<String> name);
-
-  enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   // Generate and return optimized code or start a concurrent optimization job.
   // In the latter case, return the InOptimizationQueue builtin.  On failure,

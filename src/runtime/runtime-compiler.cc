@@ -21,6 +21,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
 #ifdef DEBUG
   if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
     PrintF("[unoptimized: ");
@@ -28,63 +29,28 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     PrintF("]\n");
   }
 #endif
+
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
-
-  // Compile the target function.
-  DCHECK(function->shared()->allows_lazy_compilation());
-
-  Handle<Code> code;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
-                                     Compiler::GetLazyCode(function));
-  DCHECK(code->IsJavaScriptCode());
-
-  function->ReplaceCode(*code);
-  return *code;
-}
-
-
-namespace {
-
-Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                         Compiler::ConcurrencyMode mode) {
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
-
-  Handle<Code> code;
-  if (Compiler::GetOptimizedCode(function, mode).ToHandle(&code)) {
-    // Optimization succeeded, return optimized code.
-    function->ReplaceCode(*code);
-  } else {
-    // Optimization failed, get unoptimized code.
-    if (isolate->has_pending_exception()) {  // Possible stack overflow.
-      return isolate->heap()->exception();
-    }
-    code = Handle<Code>(function->shared()->code(), isolate);
-    if (code->kind() != Code::FUNCTION &&
-        code->kind() != Code::OPTIMIZED_FUNCTION) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, code, Compiler::GetUnoptimizedCode(function));
-    }
-    function->ReplaceCode(*code);
+  if (!Compiler::Compile(function, KEEP_EXCEPTION)) {
+    return isolate->heap()->exception();
   }
-
-  DCHECK(function->code()->kind() == Code::FUNCTION ||
-         function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
-         (function->code()->is_interpreter_entry_trampoline() &&
-          function->shared()->HasBytecodeArray()) ||
-         function->IsInOptimizationQueue());
+  DCHECK(function->is_compiled());
   return function->code();
 }
-
-}  // namespace
 
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, Compiler::CONCURRENT);
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
+  if (!Compiler::CompileOptimized(function, Compiler::CONCURRENT)) {
+    return isolate->heap()->exception();
+  }
+  DCHECK(function->is_compiled());
+  return function->code();
 }
 
 
@@ -92,7 +58,13 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, Compiler::NOT_CONCURRENT);
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
+  if (!Compiler::CompileOptimized(function, Compiler::NOT_CONCURRENT)) {
+    return isolate->heap()->exception();
+  }
+  DCHECK(function->is_compiled());
+  return function->code();
 }
 
 
