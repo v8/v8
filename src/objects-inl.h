@@ -7110,11 +7110,12 @@ Handle<Smi> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
       : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
 }
 
-
-Object* JSReceiver::GetIdentityHash() {
-  return IsJSProxy()
-      ? JSProxy::cast(this)->GetIdentityHash()
-      : JSObject::cast(this)->GetIdentityHash();
+Handle<Object> JSReceiver::GetIdentityHash(Isolate* isolate,
+                                           Handle<JSReceiver> receiver) {
+  return receiver->IsJSProxy() ? JSProxy::GetIdentityHash(
+                                     isolate, Handle<JSProxy>::cast(receiver))
+                               : JSObject::GetIdentityHash(
+                                     isolate, Handle<JSObject>::cast(receiver));
 }
 
 
