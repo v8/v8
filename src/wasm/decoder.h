@@ -80,13 +80,14 @@ class Decoder {
   // Reads a variable-length unsigned integer (little endian).
   uint32_t checked_read_u32v(const byte* base, int offset, int* length,
                              const char* msg = "expected LEB32") {
-    return checked_read_leb<uint32_t>(base, offset, length, msg);
+    return checked_read_leb<uint32_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
   int32_t checked_read_i32v(const byte* base, int offset, int* length,
                             const char* msg = "expected SLEB32") {
-    uint32_t result = checked_read_u32v(base, offset, length, msg);
+    uint32_t result =
+        checked_read_leb<uint32_t, true>(base, offset, length, msg);
     if (*length == 5) return bit_cast<int32_t>(result);
     if (*length > 0) {
       int shift = 32 - 7 * *length;
@@ -99,13 +100,14 @@ class Decoder {
   // Reads a variable-length unsigned integer (little endian).
   uint64_t checked_read_u64v(const byte* base, int offset, int* length,
                              const char* msg = "expected LEB64") {
-    return checked_read_leb<uint64_t>(base, offset, length, msg);
+    return checked_read_leb<uint64_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
   int64_t checked_read_i64v(const byte* base, int offset, int* length,
                             const char* msg = "expected SLEB64") {
-    uint64_t result = checked_read_u64v(base, offset, length, msg);
+    uint64_t result =
+        checked_read_leb<uint64_t, true>(base, offset, length, msg);
     if (*length == 10) return bit_cast<int64_t>(result);
     if (*length > 0) {
       int shift = 64 - 7 * *length;
@@ -339,7 +341,7 @@ class Decoder {
   base::SmartArrayPointer<char> error_msg_;
 
  private:
-  template <typename IntType>
+  template <typename IntType, bool is_signed>
   IntType checked_read_leb(const byte* base, int offset, int* length,
                            const char* msg) {
     if (!check(base, offset, 1, msg)) {
@@ -365,9 +367,21 @@ class Decoder {
     if (ptr == end) {
       // Check there are no bits set beyond the bitwidth of {IntType}.
       const int kExtraBits = (1 + kMaxLength * 7) - (sizeof(IntType) * 8);
-      const byte kExtraBitsMask =
-          static_cast<byte>((0xFF << (8 - kExtraBits)) & 0xFF);
-      if (*length == kMaxLength && (b & kExtraBitsMask) != 0) {
+      const byte kExtraBitsMask = static_cast<byte>(0xFF << (8 - kExtraBits));
+      int extra_bits_value;
+      if (is_signed) {
+        // A signed-LEB128 must sign-extend the final byte, excluding its
+        // most-signifcant bit. e.g. for a 32-bit LEB128:
+        //   kExtraBits = 4
+        //   kExtraBitsMask = 0xf0
+        // If b is 0x0f, the value is negative, so extra_bits_value is 0x70.
+        // If b is 0x03, the value is positive, so extra_bits_value is 0x00.
+        extra_bits_value = (static_cast<int8_t>(b << kExtraBits) >> 8) &
+                           kExtraBitsMask & ~0x80;
+      } else {
+        extra_bits_value = 0;
+      }
+      if (*length == kMaxLength && (b & kExtraBitsMask) != extra_bits_value) {
         error(base, ptr, "extra bits in varint");
         return 0;
       }

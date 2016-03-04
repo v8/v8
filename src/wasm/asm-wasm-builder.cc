@@ -237,7 +237,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void SetLocalTo(uint16_t index, int value) {
     current_function_builder_->Emit(kExprSetLocal);
     AddLeb128(index, true);
-    byte code[] = {WASM_I32(value)};
+    // TODO(bradnelson): variable size
+    byte code[] = {WASM_I32V(value)};
     current_function_builder_->EmitCode(code, sizeof(code));
     block_size_++;
   }
@@ -465,7 +466,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         switch (type) {
           case kAstI32: {
             int val = static_cast<int>(expr->raw_value()->AsNumber());
-            byte code[] = {WASM_I32(val)};
+            // TODO(bradnelson): variable size
+            byte code[] = {WASM_I32V(val)};
             current_function_builder_->EmitCode(code, sizeof(code));
             break;
           }
@@ -742,7 +744,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
             Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
             if (nvalue->IsNumber()) {
               int32_t val = static_cast<int32_t>(nvalue->Number());
-              byte code[] = {WASM_I32(val)};
+              // TODO(bradnelson): variable size
+              byte code[] = {WASM_I32V(val)};
               current_function_builder_->EmitCode(code, sizeof(code));
               return;
             }
@@ -754,7 +757,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       byte code[] = {WASM_F64(std::numeric_limits<double>::quiet_NaN())};
       current_function_builder_->EmitCode(code, sizeof(code));
     } else {
-      byte code[] = {WASM_I32(0)};
+      byte code[] = {WASM_I32V_1(0)};
       current_function_builder_->EmitCode(code, sizeof(code));
     }
   }
@@ -812,7 +815,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         DCHECK(value->raw_value()->IsNumber());
         DCHECK_EQ(kAstI32, TypeOf(value));
         int val = static_cast<int>(value->raw_value()->AsNumber());
-        byte code[] = {WASM_I32(val * size)};
+        // TODO(bradnelson): variable size
+        byte code[] = {WASM_I32V(val * size)};
         current_function_builder_->EmitCode(code, sizeof(code));
         return;
       }
@@ -1057,7 +1061,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         current_function_builder_->EmitWithU8(kExprCallIndirect,
                                               indices->signature_index);
         current_function_builder_->Emit(kExprI32Add);
-        byte code[] = {WASM_I32(indices->start_index)};
+        // TODO(bradnelson): variable size
+        byte code[] = {WASM_I32V(indices->start_index)};
         current_function_builder_->EmitCode(code, sizeof(code));
         RECURSE(Visit(p->key()));
         break;

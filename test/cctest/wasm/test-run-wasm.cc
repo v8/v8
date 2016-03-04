@@ -60,7 +60,7 @@ TEST(Run_WasmInt32Const) {
   WasmRunner<int32_t> r;
   const int32_t kExpectedValue = 0x11223344;
   // return(kExpectedValue)
-  BUILD(r, WASM_I32(kExpectedValue));
+  BUILD(r, WASM_I32V_5(kExpectedValue));
   CHECK_EQ(kExpectedValue, r.Call());
 }
 
@@ -70,7 +70,7 @@ TEST(Run_WasmInt32Const_many) {
     WasmRunner<int32_t> r;
     const int32_t kExpectedValue = *i;
     // return(kExpectedValue)
-    BUILD(r, WASM_I32(kExpectedValue));
+    BUILD(r, WASM_I32V(kExpectedValue));
     CHECK_EQ(kExpectedValue, r.Call());
   }
 }
@@ -90,7 +90,7 @@ TEST(Run_WasmInt64Const) {
   WasmRunner<int64_t> r;
   const int64_t kExpectedValue = 0x1122334455667788LL;
   // return(kExpectedValue)
-  BUILD(r, WASM_I64(kExpectedValue));
+  BUILD(r, WASM_I64V_9(kExpectedValue));
   CHECK_EQ(kExpectedValue, r.Call());
 }
 
@@ -101,7 +101,7 @@ TEST(Run_WasmInt64Const_many) {
     WasmRunner<int64_t> r;
     const int64_t kExpectedValue = (static_cast<int64_t>(*i) << 32) | cntr;
     // return(kExpectedValue)
-    BUILD(r, WASM_I64(kExpectedValue));
+    BUILD(r, WASM_I64V(kExpectedValue));
     CHECK_EQ(kExpectedValue, r.Call());
     cntr++;
   }
@@ -192,7 +192,7 @@ void TestInt32Binop(WasmOpcode opcode, int32_t expected, int32_t a, int32_t b) {
   {
     WasmRunner<int32_t> r;
     // K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I32(a), WASM_I32(b)));
+    BUILD(r, WASM_BINOP(opcode, WASM_I32V(a), WASM_I32V(b)));
     CHECK_EQ(expected, r.Call());
   }
   {
@@ -240,7 +240,7 @@ void TestInt32Unop(WasmOpcode opcode, int32_t expected, int32_t a) {
   {
     WasmRunner<int32_t> r;
     // return op K
-    BUILD(r, WASM_UNOP(opcode, WASM_I32(a)));
+    BUILD(r, WASM_UNOP(opcode, WASM_I32V(a)));
     CHECK_EQ(expected, r.Call());
   }
   {
@@ -341,7 +341,7 @@ void TestInt64Binop(WasmOpcode opcode, int64_t expected, int64_t a, int64_t b) {
   {
     WasmRunner<int64_t> r;
     // return K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I64(a), WASM_I64(b)));
+    BUILD(r, WASM_BINOP(opcode, WASM_I64V(a), WASM_I64V(b)));
     CHECK_EQ(expected, r.Call());
   }
   {
@@ -358,7 +358,7 @@ void TestInt64Cmp(WasmOpcode opcode, int64_t expected, int64_t a, int64_t b) {
   {
     WasmRunner<int32_t> r;
     // return K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I64(a), WASM_I64(b)));
+    BUILD(r, WASM_BINOP(opcode, WASM_I64V(a), WASM_I64V(b)));
     CHECK_EQ(expected, r.Call());
   }
   {
@@ -574,7 +574,7 @@ TEST(Run_WASM_Int32DivS_byzero_const) {
 TEST(Run_WASM_Int32DivU_byzero_const) {
   for (uint32_t denom = 0xfffffffe; denom < 8; denom++) {
     WasmRunner<uint32_t> r(MachineType::Uint32());
-    BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32(denom)));
+    BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
 
     for (uint32_t val = 0xfffffff0; val < 8; val++) {
       if (denom == 0) {
@@ -657,7 +657,7 @@ TEST(Run_WASM_Int64RemU_trap) {
 TEST(Run_WASM_Int64DivS_byzero_const) {
   for (int8_t denom = -2; denom < 8; denom++) {
     WasmRunner<int64_t> r(MachineType::Int64());
-    BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64(denom)));
+    BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64V_1(denom)));
     for (int64_t val = -7; val < 8; val++) {
       if (denom == 0) {
         CHECK_TRAP64(r.Call(val));
@@ -672,7 +672,7 @@ TEST(Run_WASM_Int64DivS_byzero_const) {
 TEST(Run_WASM_Int64DivU_byzero_const) {
   for (uint64_t denom = 0xfffffffffffffffe; denom < 8; denom++) {
     WasmRunner<uint64_t> r(MachineType::Uint64());
-    BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64(denom)));
+    BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(denom)));
 
     for (uint64_t val = 0xfffffffffffffff0; val < 8; val++) {
       if (denom == 0) {
@@ -1268,7 +1268,7 @@ TEST(Run_Wasm_VoidReturn1) {
   // Build the calling function.
   WasmRunner<int32_t> r;
   r.env()->module = &module;
-  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32(kExpected)));
+  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32V_3(kExpected)));
 
   int32_t result = r.Call();
   CHECK_EQ(kExpected, result);
@@ -1288,7 +1288,7 @@ TEST(Run_Wasm_VoidReturn2) {
   // Build the calling function.
   WasmRunner<int32_t> r;
   r.env()->module = &module;
-  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32(kExpected)));
+  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32V_3(kExpected)));
 
   int32_t result = r.Call();
   CHECK_EQ(kExpected, result);
@@ -1649,7 +1649,7 @@ TEST(Run_Wasm_StoreMemI32_offset) {
   const int32_t kWritten = 0xaabbccdd;
 
   BUILD(r, WASM_STORE_MEM_OFFSET(MachineType::Int32(), 4, WASM_GET_LOCAL(0),
-                                 WASM_I32(kWritten)));
+                                 WASM_I32V_5(kWritten)));
 
   for (int i = 0; i < 2; i++) {
     module.RandomizeMemory(1111);
@@ -2304,7 +2304,7 @@ TEST(Run_TestI64WasmRunner) {
   {
     FOR_INT64_INPUTS(i) {
       WasmRunner<int64_t> r;
-      BUILD(r, WASM_I64(*i));
+      BUILD(r, WASM_I64V(*i));
       CHECK_EQ(*i, r.Call());
     }
   }
@@ -2359,7 +2359,7 @@ TEST(Run_WasmCallEmpty) {
   TestSignatures sigs;
   TestingModule module;
   WasmFunctionCompiler t(sigs.i_v(), &module);
-  BUILD(t, WASM_I32(kExpected));
+  BUILD(t, WASM_I32V_3(kExpected));
   uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
@@ -2431,7 +2431,7 @@ TEST(Run_WasmCallVoid) {
   module.RandomizeMemory();
   WasmFunctionCompiler t(sigs.v_v(), &module);
   BUILD(t, WASM_STORE_MEM(MachineType::Int32(), WASM_I8(kMemOffset),
-                          WASM_I32(kExpected)));
+                          WASM_I32V_3(kExpected)));
   uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
@@ -2611,7 +2611,7 @@ static void Run_WasmMixedCall_N(int start) {
       ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I8(offset)));
     }
 
-    ADD_CODE(code, WASM_I32(kExpected));
+    ADD_CODE(code, WASM_I32V_2(kExpected));
     size_t end = code.size();
     code.push_back(0);
     r.Build(&code[0], &code[end]);
