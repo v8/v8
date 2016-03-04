@@ -690,7 +690,7 @@ void InstructionSelector::VisitInt64Add(Node* node) {
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    VisitBinop(this, node, kX64Add, &cont);
+    return VisitBinop(this, node, kX64Add, &cont);
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kX64Add, &cont);
