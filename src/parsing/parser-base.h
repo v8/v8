@@ -3488,13 +3488,16 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       } else if (CheckContextualKeyword(CStrVector("symbol"))) {
         type = factory()->NewPredefinedType(
             typesystem::PredefinedType::kSymbolType, pos);
-      } else if (Check(Token::VOID)) {
-        type = factory()->NewPredefinedType(
-            typesystem::PredefinedType::kVoidType, pos);
       } else {
         // missing!!! typeof
         // missing!!! identifier
       }
+      break;
+    }
+    case Token::VOID: {
+      Consume(Token::VOID);
+      type = factory()->NewPredefinedType(
+          typesystem::PredefinedType::kVoidType, pos);
       break;
     }
     case Token::THIS: {
