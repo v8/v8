@@ -20924,16 +20924,12 @@ TEST(CallCompletedCallbackTwoExceptions) {
 
 static void MicrotaskOne(const v8::FunctionCallbackInfo<Value>& info) {
   v8::HandleScope scope(info.GetIsolate());
-  v8::MicrotasksScope microtasks(info.GetIsolate(),
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
   CompileRun("ext1Calls++;");
 }
 
 
 static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
   v8::HandleScope scope(info.GetIsolate());
-  v8::MicrotasksScope microtasks(info.GetIsolate(),
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
   CompileRun("ext2Calls++;");
 }
 
@@ -21068,7 +21064,7 @@ TEST(SetAutorunMicrotasks) {
   CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1u, microtasks_completed_callback_count);
 
-  env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  env->GetIsolate()->SetAutorunMicrotasks(false);
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskOne).ToLocalChecked());
   env->GetIsolate()->EnqueueMicrotask(
@@ -21095,7 +21091,7 @@ TEST(SetAutorunMicrotasks) {
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(3u, microtasks_completed_callback_count);
 
-  env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
+  env->GetIsolate()->SetAutorunMicrotasks(true);
   env->GetIsolate()->EnqueueMicrotask(
       Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
   CompileRun("1+1;");
@@ -21132,7 +21128,7 @@ TEST(SetAutorunMicrotasks) {
 TEST(RunMicrotasksWithoutEnteringContext) {
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope handle_scope(isolate);
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetAutorunMicrotasks(false);
   Local<Context> context = Context::New(isolate);
   {
     Context::Scope context_scope(context);
@@ -21145,147 +21141,7 @@ TEST(RunMicrotasksWithoutEnteringContext) {
     Context::Scope context_scope(context);
     CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(context).FromJust());
   }
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
-}
-
-
-TEST(ScopedMicrotasks) {
-  LocalContext env;
-  v8::HandleScope handles(env->GetIsolate());
-  env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
-  {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
-                               v8::MicrotasksScope::kDoNotRunMicrotasks);
-    env->GetIsolate()->EnqueueMicrotask(
-        Function::New(env.local(), MicrotaskOne).ToLocalChecked());
-    CompileRun(
-        "var ext1Calls = 0;"
-        "var ext2Calls = 0;");
-    CompileRun("1+1;");
-    CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
-                                 v8::MicrotasksScope::kRunMicrotasks);
-      CompileRun("1+1;");
-      CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-      CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-      {
-        v8::MicrotasksScope scope3(env->GetIsolate(),
-                                   v8::MicrotasksScope::kRunMicrotasks);
-        CompileRun("1+1;");
-        CHECK_EQ(0,
-                 CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-        CHECK_EQ(0,
-                 CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-      }
-      CHECK_EQ(0, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-      CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    }
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    env->GetIsolate()->EnqueueMicrotask(
-        Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
-  }
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
-                               v8::MicrotasksScope::kRunMicrotasks);
-    CompileRun("1+1;");
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
-    }
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(0, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    env->GetIsolate()->EnqueueMicrotask(
-        Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
-  }
-
-  {
-    v8::Isolate::SuppressMicrotaskExecutionScope scope1(env->GetIsolate());
-    {
-      v8::MicrotasksScope scope2(env->GetIsolate(),
-                                 v8::MicrotasksScope::kRunMicrotasks);
-    }
-    v8::MicrotasksScope scope3(env->GetIsolate(),
-                               v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  {
-    v8::MicrotasksScope scope1(env->GetIsolate(),
-                               v8::MicrotasksScope::kRunMicrotasks);
-    v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(1, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-    env->GetIsolate()->EnqueueMicrotask(
-        Function::New(env.local(), MicrotaskTwo).ToLocalChecked());
-  }
-
-  v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  env->GetIsolate()->EnqueueMicrotask(
-      Function::New(env.local(), MicrotaskOne).ToLocalChecked());
-  {
-    v8::Isolate::SuppressMicrotaskExecutionScope scope1(env->GetIsolate());
-    v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-    v8::MicrotasksScope scope2(env->GetIsolate(),
-                               v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  v8::MicrotasksScope::PerformCheckpoint(env->GetIsolate());
-
-  {
-    v8::MicrotasksScope scope(env->GetIsolate(),
-                              v8::MicrotasksScope::kDoNotRunMicrotasks);
-    CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
-    CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  }
-
-  env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
+  isolate->SetAutorunMicrotasks(true);
 }
 
 
@@ -21308,7 +21164,7 @@ TEST(Regress385349) {
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope handle_scope(isolate);
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetAutorunMicrotasks(false);
   Local<Context> context = Context::New(isolate);
   v8::Debug::SetDebugEventListener(isolate, DebugEventInObserver);
   {
@@ -21318,7 +21174,7 @@ TEST(Regress385349) {
                "obj.a = 0;");
   }
   isolate->RunMicrotasks();
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
+  isolate->SetAutorunMicrotasks(true);
   v8::Debug::SetDebugEventListener(isolate, nullptr);
 }
 

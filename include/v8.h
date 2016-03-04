@@ -5059,53 +5059,6 @@ typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotaskCallback)(void* data);
 
-
-/**
- * Policy for running microtasks:
- *   - explicit: microtasks are invoked with Isolate::RunMicrotasks() method;
- *   - scoped: microtasks invocation is controlled by MicrotasksScope objects;
- *   - auto: microtasks are invoked when the script call depth decrements
- *           to zero.
- */
-enum class MicrotasksPolicy { kExplicit, kScoped, kAuto };
-
-
-/**
- * This scope is used to control microtasks when kScopeMicrotasksInvocation
- * is used on Isolate. In this mode every non-primitive call to V8 should be
- * done inside some MicrotasksScope.
- * Microtasks are executed when topmost MicrotasksScope marked as kRunMicrotasks
- * exits.
- * kDoNotRunMicrotasks should be used to annotate calls not intended to trigger
- * microtasks.
- */
-class V8_EXPORT MicrotasksScope {
- public:
-  enum Type { kRunMicrotasks, kDoNotRunMicrotasks };
-
-  MicrotasksScope(Isolate* isolate, Type type);
-  ~MicrotasksScope();
-
-  /**
-   * Runs microtasks if no kRunMicrotasks scope is currently active.
-   */
-  static void PerformCheckpoint(Isolate* isolate);
-
-  /**
-   * Returns current depth of nested kRunMicrotasks scopes.
-   */
-  static int GetCurrentDepth(Isolate* isolate);
-
- private:
-  internal::Isolate* const isolate_;
-  bool run_;
-
-  // Prevent copying.
-  MicrotasksScope(const MicrotasksScope&);
-  MicrotasksScope& operator=(const MicrotasksScope&);
-};
-
-
 // --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
@@ -5932,20 +5885,17 @@ class V8_EXPORT Isolate {
    */
   void EnqueueMicrotask(MicrotaskCallback microtask, void* data = NULL);
 
-  /**
-   * Experimental: Controls how Microtasks are invoked. See MicrotasksPolicy
-   * for details.
+   /**
+   * Experimental: Controls whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
    */
-  void SetMicrotasksPolicy(MicrotasksPolicy policy);
-  V8_DEPRECATE_SOON("Use SetMicrotasksPolicy",
-                    void SetAutorunMicrotasks(bool autorun));
+  void SetAutorunMicrotasks(bool autorun);
 
   /**
-   * Experimental: Returns the policy controlling how Microtasks are invoked.
+   * Experimental: Returns whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
    */
-  MicrotasksPolicy GetMicrotasksPolicy() const;
-  V8_DEPRECATE_SOON("Use GetMicrotasksPolicy",
-                    bool WillAutorunMicrotasks() const);
+  bool WillAutorunMicrotasks() const;
 
   /**
    * Experimental: adds a callback to notify the host application after

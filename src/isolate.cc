@@ -2710,11 +2710,7 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void Isolate::FireCallCompletedCallback() {
   bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
-  bool run_microtasks =
-      pending_microtask_count() &&
-      !handle_scope_implementer()->HasMicrotasksSuppressions() &&
-      handle_scope_implementer()->microtasks_policy() ==
-          v8::MicrotasksPolicy::kAuto;
+  bool run_microtasks = autorun_microtasks() && pending_microtask_count();
   if (!has_call_completed_callbacks && !run_microtasks) return;
 
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
