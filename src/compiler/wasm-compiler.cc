@@ -2233,8 +2233,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(
         module->GetFunctionSignature(index)->parameter_count());
     CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
         &zone, false, params + 1, CallDescriptor::kNoFlags);
-    // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
-    Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(Code::JS_TO_WASM_FUNCTION);
     bool debugging =
 #if DEBUG
         true;
@@ -2313,8 +2312,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     // Schedule and compile to machine code.
     CallDescriptor* incoming =
         wasm::ModuleEnv::GetWasmCallDescriptor(&zone, sig);
-    // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
-    Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(Code::WASM_TO_JS_FUNCTION);
     bool debugging =
 #if DEBUG
         true;

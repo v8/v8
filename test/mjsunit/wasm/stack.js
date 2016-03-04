@@ -63,10 +63,8 @@ var expected = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:54:11)\n" +  // --
     "    at <WASM> (<anonymous>)\n" +  // --
-    "    at <WASM> (<anonymous>)\n" +  // --
-    "    at <WASM> (<anonymous>)\n" +  // --
     "    at testStack (stack.js:43:10)\n" +
     // TODO(jfb) Add WebAssembly stack here.
-    "    at stack.js:72:1";
+    "    at stack.js:70:1";
 
 testStack(STACK, check_STACK);

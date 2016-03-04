@@ -84,6 +84,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         SerializeGeneric(code_object, how_to_code, where_to_point);
         return;
       case Code::WASM_FUNCTION:
+      case Code::WASM_TO_JS_FUNCTION:
+      case Code::JS_TO_WASM_FUNCTION:
         UNREACHABLE();
     }
     UNREACHABLE();

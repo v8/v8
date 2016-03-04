@@ -318,10 +318,6 @@
   'wasm/embenchen/copy': [FAIL],  # wrong answer
   'wasm/embenchen/box2d': [SKIP],   # hang
   'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
-  'wasm/embenchen/primes': [SKIP],  # crashes under gc-stress
-  'wasm/embenchen/fannkuch': [SKIP],  # crash (seems to be gc issue)
-  'wasm/embenchen/fasta': [SKIP],  # flaky crash
-  'wasm/embenchen/zlib': [SKIP],  # flaky crash
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],

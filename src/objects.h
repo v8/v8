@@ -4872,7 +4872,9 @@ class Code: public HeapObject {
   V(HANDLER)                \
   V(BUILTIN)                \
   V(REGEXP)                 \
-  V(WASM_FUNCTION)
+  V(WASM_FUNCTION)          \
+  V(WASM_TO_JS_FUNCTION)    \
+  V(JS_TO_WASM_FUNCTION)
 
 #define IC_KIND_LIST(V) \
   V(LOAD_IC)            \
@@ -5323,8 +5325,9 @@ class Code: public HeapObject {
   class TypeField : public BitField<StubType, 3, 1> {};
   class CacheHolderField : public BitField<CacheHolderFlag, 4, 2> {};
   class KindField : public BitField<Kind, 6, 5> {};
-  class ExtraICStateField: public BitField<ExtraICState, 11,
-      PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
+  class ExtraICStateField
+      : public BitField<ExtraICState, 11, PlatformSmiTagging::kSmiValueSize -
+                                              11 + 1> {};  // NOLINT
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;

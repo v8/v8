@@ -1576,7 +1576,15 @@ void Logger::LogCodeObject(Object* object) {
       tag = Logger::KEYED_STORE_IC_TAG;
       break;
     case AbstractCode::WASM_FUNCTION:
-      description = "A wasm function";
+      description = "A Wasm function";
+      tag = Logger::STUB_TAG;
+      break;
+    case AbstractCode::JS_TO_WASM_FUNCTION:
+      description = "A JavaScript to Wasm adapter";
+      tag = Logger::STUB_TAG;
+      break;
+    case AbstractCode::WASM_TO_JS_FUNCTION:
+      description = "A Wasm to JavaScript adapter";
       tag = Logger::STUB_TAG;
       break;
   }

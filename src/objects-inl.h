@@ -4734,7 +4734,6 @@ Code::StubType Code::type() {
   return ExtractTypeFromFlags(flags());
 }
 
-
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
   WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
@@ -5015,19 +5014,16 @@ Address Code::constant_pool() {
   return constant_pool;
 }
 
-
 Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
                                ExtraICState extra_ic_state, StubType type,
                                CacheHolderFlag holder) {
   // Compute the bit mask.
-  unsigned int bits = KindField::encode(kind)
-      | ICStateField::encode(ic_state)
-      | TypeField::encode(type)
-      | ExtraICStateField::encode(extra_ic_state)
-      | CacheHolderField::encode(holder);
+  unsigned int bits = KindField::encode(kind) | ICStateField::encode(ic_state) |
+                      TypeField::encode(type) |
+                      ExtraICStateField::encode(extra_ic_state) |
+                      CacheHolderField::encode(holder);
   return static_cast<Flags>(bits);
 }
-
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
@@ -5061,7 +5057,6 @@ ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
   return TypeField::decode(flags);
 }
-
 
 CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
   return CacheHolderField::decode(flags);
