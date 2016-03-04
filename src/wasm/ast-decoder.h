@@ -46,8 +46,8 @@ struct ImmI32Operand {
   int32_t value;
   int length;
   inline ImmI32Operand(Decoder* decoder, const byte* pc) {
-    value = bit_cast<int32_t>(decoder->checked_read_u32(pc, 1, "immi32"));
-    length = 4;
+    value =
+        bit_cast<int32_t>(decoder->checked_read_i32v(pc, 1, &length, "immi32"));
   }
 };
 
@@ -55,8 +55,8 @@ struct ImmI64Operand {
   int64_t value;
   int length;
   inline ImmI64Operand(Decoder* decoder, const byte* pc) {
-    value = bit_cast<int64_t>(decoder->checked_read_u64(pc, 1, "immi64"));
-    length = 8;
+    value =
+        bit_cast<int64_t>(decoder->checked_read_i64v(pc, 1, &length, "immi64"));
   }
 };
 
