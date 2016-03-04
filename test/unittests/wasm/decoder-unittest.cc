@@ -428,26 +428,6 @@ TEST_F(DecoderTest, ReadU32v_extra_bits) {
   }
 }
 
-TEST_F(DecoderTest, ReadI32v_extra_bits_negative) {
-  // OK for negative signed values to have extra ones.
-  int length = 0;
-  byte data[] = {0xff, 0xff, 0xff, 0xff, 0x7f};
-  decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i32v(decoder.start(), 0, &length);
-  EXPECT_EQ(5, length);
-  EXPECT_TRUE(decoder.ok());
-}
-
-TEST_F(DecoderTest, ReadI32v_extra_bits_positive) {
-  // Not OK for positive signed values to have extra ones.
-  int length = 0;
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x77};
-  decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i32v(decoder.start(), 0, &length);
-  EXPECT_EQ(5, length);
-  EXPECT_FALSE(decoder.ok());
-}
-
 TEST_F(DecoderTest, ReadU32v_Bits) {
   // A more exhaustive test.
   const int kMaxSize = 5;
@@ -607,7 +587,8 @@ TEST_F(DecoderTest, ReadI64v_Bits) {
 
       int length = 1 + i / 7;
       for (int j = 0; j < kMaxSize; j++) {
-        data[j] = static_cast<byte>((val >> (7 * j)) & MASK_7);
+        const uint64_t uval = bit_cast<uint64_t>(val);
+        data[j] = static_cast<byte>((uval >> (7 * j)) & MASK_7);
       }
       for (int j = 0; j < length - 1; j++) {
         data[j] |= 0x80;
@@ -640,26 +621,6 @@ TEST_F(DecoderTest, ReadU64v_extra_bits) {
     EXPECT_EQ(10, length);
     EXPECT_FALSE(decoder.ok());
   }
-}
-
-TEST_F(DecoderTest, ReadI64v_extra_bits_negative) {
-  // OK for negative signed values to have extra ones.
-  int length = 0;
-  byte data[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
-  decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i64v(decoder.start(), 0, &length);
-  EXPECT_EQ(10, length);
-  EXPECT_TRUE(decoder.ok());
-}
-
-TEST_F(DecoderTest, ReadI64v_extra_bits_positive) {
-  // Not OK for positive signed values to have extra ones.
-  int length = 0;
-  byte data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x77};
-  decoder.Reset(data, data + sizeof(data));
-  decoder.checked_read_i64v(decoder.start(), 0, &length);
-  EXPECT_EQ(10, length);
-  EXPECT_FALSE(decoder.ok());
 }
 
 }  // namespace wasm
