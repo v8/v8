@@ -1560,6 +1560,10 @@
         }],
         ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
+            '../../src/compiler/s390/code-generator-s390.cc',
+            '../../src/compiler/s390/instruction-codes-s390.h',
+            '../../src/compiler/s390/instruction-scheduler-s390.cc',
+            '../../src/compiler/s390/instruction-selector-s390.cc',
             '../../src/debug/s390/debug-s390.cc',
             '../../src/ic/s390/access-compiler-s390.cc',
             '../../src/ic/s390/handler-compiler-s390.cc',
