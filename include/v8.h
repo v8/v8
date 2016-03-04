@@ -5090,11 +5090,24 @@ enum GCType {
                kGCTypeIncrementalMarking | kGCTypeProcessWeakCallbacks
 };
 
+/**
+ * GCCallbackFlags is used to notify additional information about the GC
+ * callback.
+ *   - kGCCallbackFlagConstructRetainedObjectInfos: The GC callback is for
+ *     constructing retained object infos.
+ *   - kGCCallbackFlagForced: The GC callback is for a forced GC for testing.
+ *   - kGCCallbackFlagSynchronousPhantomCallbackProcessing: The GC callback
+ *     is called synchronously without getting posted to an idle task.
+ *   - kGCCallbackFlagCollectAllAvailableGarbage: The GC callback is called
+ *     in a phase where V8 is trying to collect all available garbage
+ *     (e.g., handling a low memory notification).
+ */
 enum GCCallbackFlags {
   kNoGCCallbackFlags = 0,
   kGCCallbackFlagConstructRetainedObjectInfos = 1 << 1,
   kGCCallbackFlagForced = 1 << 2,
-  kGCCallbackFlagSynchronousPhantomCallbackProcessing = 1 << 3
+  kGCCallbackFlagSynchronousPhantomCallbackProcessing = 1 << 3,
+  kGCCallbackFlagCollectAllAvailableGarbage = 1 << 4,
 };
 
 typedef void (*GCCallback)(GCType type, GCCallbackFlags flags);
