@@ -80,7 +80,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(Select, 0x05, _)              \
   V(Br, 0x06, _)                  \
   V(BrIf, 0x07, _)                \
-  V(TableSwitch, 0x08, _)         \
+  V(BrTable, 0x08, _)             \
   V(Return, 0x14, _)              \
   V(Unreachable, 0x15, _)
 

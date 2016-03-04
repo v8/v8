@@ -195,26 +195,14 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  bool Validate(const byte* pc, TableSwitchOperand& operand,
+  bool Validate(const byte* pc, BranchTableOperand& operand,
                 size_t block_depth) {
-    if (operand.table_count == 0) {
-      error(pc, "tableswitch with 0 entries");
-      return false;
-    }
     // Verify table.
-    for (uint32_t i = 0; i < operand.table_count; i++) {
+    for (uint32_t i = 0; i < operand.table_count + 1; i++) {
       uint16_t target = operand.read_entry(this, i);
-      if (target >= 0x8000) {
-        size_t depth = target - 0x8000;
-        if (depth > block_depth) {
-          error(operand.table + i * 2, "improper branch in tableswitch");
-          return false;
-        }
-      } else {
-        if (target >= operand.case_count) {
-          error(operand.table + i * 2, "invalid case target in tableswitch");
-          return false;
-        }
+      if (target >= block_depth) {
+        error(operand.table + i * 2, "improper branch in br_table");
+        return false;
       }
     }
     return true;
@@ -280,9 +268,8 @@ class WasmDecoder : public Decoder {
       case kExprReturn: {
         return static_cast<int>(function_env_->sig->return_count());
       }
-      case kExprTableSwitch: {
-        TableSwitchOperand operand(this, pc);
-        return 1 + operand.case_count;
+      case kExprBrTable: {
+        return 1;
       }
 
 #define DECLARE_OPCODE_CASE(name, opcode, sig) \
@@ -344,8 +331,8 @@ class WasmDecoder : public Decoder {
         LocalIndexOperand operand(this, pc);
         return 1 + operand.length;
       }
-      case kExprTableSwitch: {
-        TableSwitchOperand operand(this, pc);
+      case kExprBrTable: {
+        BranchTableOperand operand(this, pc);
         return 1 + operand.length;
       }
       case kExprI8Const:
@@ -656,10 +643,10 @@ class LR_WasmDecoder : public WasmDecoder {
           len = 1 + operand.length;
           break;
         }
-        case kExprTableSwitch: {
-          TableSwitchOperand operand(this, pc_);
+        case kExprBrTable: {
+          BranchTableOperand operand(this, pc_);
           if (Validate(pc_, operand, blocks_.size())) {
-            Shift(kAstEnd, 1 + operand.case_count);
+            Shift(kAstEnd, 1);
           }
           len = 1 + operand.length;
           break;
@@ -1044,68 +1031,37 @@ class LR_WasmDecoder : public WasmDecoder {
         }
         break;
       }
-      case kExprTableSwitch: {
+      case kExprBrTable: {
         if (p->index == 1) {
           // Switch key finished.
           TypeCheckLast(p, kAstI32);
           if (failed()) break;
 
-          TableSwitchOperand operand(this, p->pc());
+          BranchTableOperand operand(this, p->pc());
           DCHECK(Validate(p->pc(), operand, blocks_.size()));
 
-          // Build the switch only if it has more than just a default target.
-          bool build_switch = operand.table_count > 1;
+          // Build a switch only if it has more than just a default target.
+          bool build_switch = operand.table_count > 0;
           TFNode* sw = nullptr;
-          if (build_switch)
-            sw = BUILD(Switch, operand.table_count, p->last()->node);
-
-          // Allocate environments for each case.
-          SsaEnv** case_envs = zone_->NewArray<SsaEnv*>(operand.case_count);
-          for (uint32_t i = 0; i < operand.case_count; i++) {
-            case_envs[i] = UnreachableEnv();
+          if (build_switch) {
+            sw = BUILD(Switch, operand.table_count + 1, p->last()->node);
           }
 
-          ifs_.push_back({nullptr, nullptr, case_envs});
-          SsaEnv* break_env = ssa_env_;
-          PushBlock(break_env);
-          SsaEnv* copy = Steal(break_env);
-          ssa_env_ = copy;
-
-          // Build the environments for each case based on the table.
-          for (uint32_t i = 0; i < operand.table_count; i++) {
+          // Process the targets of the break table.
+          SsaEnv* prev = ssa_env_;
+          SsaEnv* copy = Steal(prev);
+          for (uint32_t i = 0; i < operand.table_count + 1; i++) {
             uint16_t target = operand.read_entry(this, i);
             SsaEnv* env = copy;
             if (build_switch) {
-              env = Split(env);
-              env->control = (i == operand.table_count - 1)
-                                 ? BUILD(IfDefault, sw)
-                                 : BUILD(IfValue, i, sw);
+              ssa_env_ = env = Split(env);
+              env->control = i == operand.table_count ? BUILD(IfDefault, sw)
+                                                      : BUILD(IfValue, i, sw);
             }
-            if (target >= 0x8000) {
-              // Targets an outer block.
-              int depth = target - 0x8000;
-              SsaEnv* tenv = blocks_[blocks_.size() - depth - 1].ssa_env;
-              Goto(env, tenv);
-            } else {
-              // Targets a case.
-              Goto(env, case_envs[target]);
-            }
+            SsaEnv* tenv = blocks_[blocks_.size() - target - 1].ssa_env;
+            Goto(env, tenv);
           }
-        }
-
-        if (p->done()) {
-          // Last case. Fall through to the end.
-          Block* block = &blocks_.back();
-          if (p->index > 1) ReduceBreakToExprBlock(p, block);
-          SsaEnv* next = block->ssa_env;
-          blocks_.pop_back();
-          ifs_.pop_back();
-          SetEnv("switch:end", next);
-        } else {
-          // Interior case. Maybe fall through to the next case.
-          SsaEnv* next = ifs_.back().case_envs[p->index - 1];
-          if (p->index > 1 && ssa_env_->go()) Goto(ssa_env_, next);
-          SetEnv("switch:case", next);
+          ssa_env_ = prev;
         }
         break;
       }

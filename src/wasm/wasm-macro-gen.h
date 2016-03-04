@@ -33,14 +33,8 @@
 #define WASM_RETURN(...) kExprReturn, __VA_ARGS__
 #define WASM_UNREACHABLE kExprUnreachable
 
-#define WASM_TABLESWITCH_OP(case_count, table_count, ...)                 \
-  kExprTableSwitch, static_cast<byte>(case_count),                        \
-      static_cast<byte>(case_count >> 8), static_cast<byte>(table_count), \
-      static_cast<byte>(table_count >> 8), __VA_ARGS__
-
-#define WASM_TABLESWITCH_BODY0(key) key
-
-#define WASM_TABLESWITCH_BODY(key, ...) key, __VA_ARGS__
+#define WASM_BR_TABLE(key, count, ...) \
+  kExprBrTable, U16_LE(count), __VA_ARGS__, key
 
 #define WASM_CASE(x) static_cast<byte>(x), static_cast<byte>(x >> 8)
 #define WASM_CASE_BR(x) static_cast<byte>(x), static_cast<byte>(0x80 | (x) >> 8)
@@ -407,6 +401,7 @@ inline void CheckI64v(int64_t value, int length) {
 #define SIG_INDEX(v) U16_LE(v)
 #define FUNC_INDEX(v) U16_LE(v)
 #define NAME_OFFSET(v) U32_LE(v)
+#define BR_TARGET(v) U16_LE(v)
 
 #define MASK_7 ((1 << 7) - 1)
 #define MASK_14 ((1 << 14) - 1)

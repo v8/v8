@@ -1671,120 +1671,81 @@ TEST_F(AstDecoderTest, ExprBrIf_Unify) {
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch0) {
-  static byte code[] = {kExprTableSwitch, 0, 0, 0, 0};
+TEST_F(AstDecoderTest, BrTable0) {
+  static byte code[] = {kExprBrTable, 0, 0};
   EXPECT_FAILURE(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0b) {
-  static byte code[] = {kExprTableSwitch, 0, 0, 0, 0, kExprI8Const, 11};
+TEST_F(AstDecoderTest, BrTable0b) {
+  static byte code[] = {kExprBrTable, 0, 0, kExprI8Const, 11};
   EXPECT_FAILURE(&env_v_v, code);
   EXPECT_FAILURE(&env_i_i, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0c) {
+TEST_F(AstDecoderTest, BrTable0c) {
+  static byte code[] = {kExprBrTable, 0, 1, 0, 0, kExprI8Const, 11};
+  EXPECT_FAILURE(&env_v_v, code);
+  EXPECT_FAILURE(&env_i_i, code);
+}
+
+TEST_F(AstDecoderTest, BrTable1a) {
   static byte code[] = {
-      WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(0)), WASM_I8(67))};
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_I8(67), 0, BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0d) {
+TEST_F(AstDecoderTest, BrTable1b) {
   static byte code[] = {
-      WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(0), WASM_CASE_BR(1)),
-                 WASM_I8(67))};
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_ZERO, 0, BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
-}
-
-TEST_F(AstDecoderTest, TableSwitch1) {
-  static byte code[] = {WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                        WASM_TABLESWITCH_BODY(WASM_I8(0), WASM_I8(9))};
-  EXPECT_VERIFIES(&env_i_i, code);
-  EXPECT_VERIFIES(&env_v_v, code);
+  EXPECT_FAILURE(&env_i_i, code);
   EXPECT_FAILURE(&env_f_ff, code);
   EXPECT_FAILURE(&env_d_dd, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch_off_end) {
-  static byte code[] = {WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                        WASM_TABLESWITCH_BODY(WASM_I8(0), WASM_I8(9))};
-  for (size_t len = arraysize(code) - 1; len > 0; len--) {
-    Verify(kError, &env_v_v, code, code + len);
-  }
-}
-
-TEST_F(AstDecoderTest, TableSwitch2) {
+TEST_F(AstDecoderTest, BrTable2a) {
   static byte code[] = {
-      WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_I8(3), WASM_I8(10), WASM_I8(11))};
-  EXPECT_VERIFIES(&env_i_i, code);
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_I8(67), 1, BR_TARGET(0), BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
-  EXPECT_FAILURE(&env_f_ff, code);
-  EXPECT_FAILURE(&env_d_dd, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch1b) {
-  EXPECT_VERIFIES_INLINE(&env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_ZERO));
-
-  EXPECT_VERIFIES_INLINE(&env_f_ff, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_F32(0.0)));
-
-  EXPECT_VERIFIES_INLINE(&env_d_dd, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_F64(0.0)));
+TEST_F(AstDecoderTest, BrTable2b) {
+  static byte code[] = {WASM_BLOCK(
+      1, WASM_BLOCK(
+             1, WASM_BR_TABLE(WASM_I8(67), 1, BR_TARGET(0), BR_TARGET(1))))};
+  EXPECT_VERIFIES(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch_br1) {
-  for (int depth = 0; depth < 2; depth++) {
-    byte code[] = {WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
-                              WASM_GET_LOCAL(0))};
-    EXPECT_VERIFIES(&env_v_i, code);
-    EXPECT_FAILURE(&env_i_i, code);
+TEST_F(AstDecoderTest, BrTable_off_end) {
+  static byte code[] = {
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))};
+  for (size_t len = 1; len < sizeof(code); len++) {
+    Verify(kError, &env_i_i, code, code + len);
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch_invalid_br) {
-  for (int depth = 1; depth < 4; depth++) {
-    EXPECT_FAILURE_INLINE(&env_v_i,
-                          WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
-                          WASM_GET_LOCAL(0));
-    EXPECT_FAILURE_INLINE(
-        &env_v_i,
-        WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(depth), WASM_CASE_BR(depth)),
-        WASM_GET_LOCAL(0));
+TEST_F(AstDecoderTest, BrTable_invalid_br1) {
+  for (int depth = 0; depth < 4; depth++) {
+    byte code[] = {
+        WASM_BLOCK(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
+    if (depth == 0) {
+      EXPECT_VERIFIES(&env_v_i, code);
+    } else {
+      EXPECT_FAILURE(&env_v_i, code);
+    }
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch_invalid_case_ref) {
-  EXPECT_FAILURE_INLINE(&env_i_i, WASM_TABLESWITCH_OP(0, 1, WASM_CASE(0)),
-                        WASM_GET_LOCAL(0));
-  EXPECT_FAILURE_INLINE(&env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(1)),
-                        WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_ZERO));
-}
-
-TEST_F(AstDecoderTest, TableSwitch1_br) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_ZERO)));
-}
-
-TEST_F(AstDecoderTest, TableSwitch2_br) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_I8(0)),
-                            WASM_BRV(0, WASM_I8(1))));
-
-  EXPECT_FAILURE_INLINE(
-      &env_f_ff, WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_BRV(0, WASM_I8(3)),
-                            WASM_BRV(0, WASM_I8(4))));
-}
-
-TEST_F(AstDecoderTest, TableSwitch2x2) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(2, 4, WASM_CASE(0), WASM_CASE(1),
-                                    WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_I8(3)),
-                            WASM_BRV(0, WASM_I8(4))));
+TEST_F(AstDecoderTest, BrTable_invalid_br2) {
+  for (int depth = 0; depth < 4; depth++) {
+    byte code[] = {
+        WASM_LOOP(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
+    if (depth <= 1) {
+      EXPECT_VERIFIES(&env_v_i, code);
+    } else {
+      EXPECT_FAILURE(&env_v_i, code);
+    }
+  }
 }
 
 TEST_F(AstDecoderTest, ExprBreakNesting1) {
