@@ -620,7 +620,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   return blocks;
 }
 
-void InstructionSequence::Validate() {
+void InstructionSequence::ValidateEdgeSplitForm() {
   // Validate blocks are in edge-split form: no block with multiple successors
   // has an edge to a block (== a successor) with more than one predecessors.
   for (const InstructionBlock* block : instruction_blocks()) {
@@ -631,6 +631,21 @@ void InstructionSequence::Validate() {
         CHECK(successor->PredecessorCount() == 1 &&
               successor->predecessors()[0] == block->rpo_number());
       }
+    }
+  }
+}
+
+void InstructionSequence::ValidateSSA() {
+  // TODO(mtrofin): We could use a local zone here instead.
+  BitVector definitions(VirtualRegisterCount(), zone());
+  for (const Instruction* instruction : *this) {
+    for (size_t i = 0; i < instruction->OutputCount(); ++i) {
+      const InstructionOperand* output = instruction->OutputAt(i);
+      int vreg = (output->IsConstant())
+                     ? ConstantOperand::cast(output)->virtual_register()
+                     : UnallocatedOperand::cast(output)->virtual_register();
+      CHECK(!definitions.Contains(vreg));
+      definitions.Add(vreg);
     }
   }
 }
@@ -669,7 +684,7 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
   block_starts_.reserve(instruction_blocks_->size());
 
 #if DEBUG
-  Validate();
+  ValidateEdgeSplitForm();
 #endif
 }
 
