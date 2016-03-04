@@ -13521,7 +13521,7 @@ THREADED_TEST(ObjectGetConstructorName) {
       "function Child() {};"
       "Child.prototype = new Parent();"
       "Child.prototype.constructor = Child;"
-      "var outer = { inner: function() { } };"
+      "var outer = { inner: (0, function() { }) };"
       "var p = new Parent();"
       "var c = new Child();"
       "var x = new outer.inner();"
@@ -18377,6 +18377,7 @@ THREADED_TEST(FunctionGetInferredName) {
 
 
 THREADED_TEST(FunctionGetDebugName) {
+  i::FLAG_harmony_function_name = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   const char* code =
@@ -18420,7 +18421,8 @@ THREADED_TEST(FunctionGetDebugName) {
       "Object.defineProperty(i, 'name', { value: 'function.name' });"
       "var j = function() {};"
       "Object.defineProperty(j, 'name', { value: 'function.name' });"
-      "var foo = { bar : { baz : function() {}}}; var k = foo.bar.baz;";
+      "var foo = { bar : { baz : (0, function() {})}}; var k = foo.bar.baz;"
+      "var foo = { bar : { baz : function() {} }}; var l = foo.bar.baz;";
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
   v8::Script::Compile(env.local(), v8_str(code), &origin)
       .ToLocalChecked()
@@ -18439,7 +18441,8 @@ THREADED_TEST(FunctionGetDebugName) {
                              "h", "displayName",
                              "i", "function.name",
                              "j", "function.name",
-                             "k", "foo.bar.baz"};
+                             "k", "foo.bar.baz",
+                             "l", "baz"};
   for (size_t i = 0; i < sizeof(functions) / sizeof(functions[0]) / 2; ++i) {
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
         env->Global()
