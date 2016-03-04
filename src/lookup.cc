@@ -368,10 +368,18 @@ void LookupIterator::TransitionToAccessorProperty(
     Handle<Map> old_map(receiver->map(), isolate_);
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
         old_map, name_, component, accessor, attributes);
+    bool simple_transition = new_map->GetBackPointer() == receiver->map();
     JSObject::MigrateToMap(receiver, new_map);
 
-    ReloadPropertyInformation();
+    if (simple_transition) {
+      int number = new_map->LastAdded();
+      number_ = static_cast<uint32_t>(number);
+      property_details_ = new_map->GetLastDescriptorDetails();
+      state_ = ACCESSOR;
+      return;
+    }
 
+    ReloadPropertyInformation();
     if (!new_map->is_dictionary_map()) return;
   }
 
