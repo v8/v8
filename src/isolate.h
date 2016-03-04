@@ -378,7 +378,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(HashMap*, external_reference_map, NULL)                                    \
   V(HashMap*, root_index_map, NULL)                                            \
   V(int, pending_microtask_count, 0)                                           \
-  V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(CompilationStatistics*, turbo_statistics, NULL)                            \
   V(HTracer*, htracer, NULL)                                                   \
