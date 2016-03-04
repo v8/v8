@@ -132,7 +132,7 @@ TEST(Run_WasmI64GeU) {
 TEST(Run_WasmI32ConvertI64) {
   FOR_INT64_INPUTS(i) {
     WasmRunner<int32_t> r;
-    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64V(*i)));
+    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64(*i)));
     CHECK_EQ(static_cast<int32_t>(*i), r.Call());
   }
 }
@@ -175,20 +175,18 @@ TEST(Run_WasmCallI64Parameter) {
     // Build the calling function.
     WasmRunner<int32_t> r;
     r.env()->module = &module;
-    BUILD(
-        r,
-        WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
-            index, WASM_I64V_9(0xbcd12340000000b),
-            WASM_I64V_9(0xbcd12340000000c), WASM_I32V_1(0xd),
-            WASM_I32_CONVERT_I64(WASM_I64V_9(0xbcd12340000000e)),
-            WASM_I64V_9(0xbcd12340000000f), WASM_I64V_10(0xbcd1234000000010),
-            WASM_I64V_10(0xbcd1234000000011), WASM_I64V_10(0xbcd1234000000012),
-            WASM_I64V_10(0xbcd1234000000013), WASM_I64V_10(0xbcd1234000000014),
-            WASM_I64V_10(0xbcd1234000000015), WASM_I64V_10(0xbcd1234000000016),
-            WASM_I64V_10(0xbcd1234000000017), WASM_I64V_10(0xbcd1234000000018),
-            WASM_I64V_10(0xbcd1234000000019), WASM_I64V_10(0xbcd123400000001a),
-            WASM_I64V_10(0xbcd123400000001b), WASM_I64V_10(0xbcd123400000001c),
-            WASM_I64V_10(0xbcd123400000001d))));
+    BUILD(r,
+          WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
+              index, WASM_I64(0xbcd12340000000b), WASM_I64(0xbcd12340000000c),
+              WASM_I32(0xd), WASM_I32_CONVERT_I64(WASM_I64(0xbcd12340000000e)),
+              WASM_I64(0xbcd12340000000f), WASM_I64(0xbcd1234000000010),
+              WASM_I64(0xbcd1234000000011), WASM_I64(0xbcd1234000000012),
+              WASM_I64(0xbcd1234000000013), WASM_I64(0xbcd1234000000014),
+              WASM_I64(0xbcd1234000000015), WASM_I64(0xbcd1234000000016),
+              WASM_I64(0xbcd1234000000017), WASM_I64(0xbcd1234000000018),
+              WASM_I64(0xbcd1234000000019), WASM_I64(0xbcd123400000001a),
+              WASM_I64(0xbcd123400000001b), WASM_I64(0xbcd123400000001c),
+              WASM_I64(0xbcd123400000001d))));
 
     CHECK_EQ(i + 0xb, r.Call());
   }
