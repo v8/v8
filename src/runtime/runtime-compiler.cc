@@ -256,7 +256,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    maybe_result = Compiler::GetOptimizedCode(
+    maybe_result = Compiler::GetOptimizedCodeForOSR(
         function, mode, ast_id,
         (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
     Handle<Code> result;

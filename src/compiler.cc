@@ -1030,6 +1030,79 @@ MaybeHandle<Code> GetUnoptimizedCode(Handle<JSFunction> function) {
   return result;
 }
 
+MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
+                                   Compiler::ConcurrencyMode mode,
+                                   BailoutId osr_ast_id = BailoutId::None(),
+                                   JavaScriptFrame* osr_frame = nullptr) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (shared->HasDebugInfo()) return MaybeHandle<Code>();
+
+  Handle<Code> cached_code;
+  if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
+          .ToHandle(&cached_code)) {
+    if (FLAG_trace_opt) {
+      PrintF("[found optimized code for ");
+      function->ShortPrint();
+      if (!osr_ast_id.IsNone()) {
+        PrintF(" at OSR AST id %d", osr_ast_id.ToInt());
+      }
+      PrintF("]\n");
+    }
+    return cached_code;
+  }
+
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  Handle<Code> current_code(shared->code());
+  if (!shared->is_compiled() ||
+      shared->scope_info() == ScopeInfo::Empty(isolate)) {
+    // The function was never compiled. Compile it unoptimized first.
+    // TODO(titzer): reuse the AST and scope info from this compile.
+    CompilationInfoWithZone unoptimized(function);
+    unoptimized.EnableDeoptimizationSupport();
+    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&current_code)) {
+      return MaybeHandle<Code>();
+    }
+    shared->ReplaceCode(*current_code);
+  }
+
+  current_code->set_profiler_ticks(0);
+
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
+  // an eval scope and hence would fail at parsing the eval source again.
+  if (shared->disable_optimization_reason() == kEval) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(mstarzinger): We cannot properly deserialize a scope chain for the
+  // builtin context, hence Genesis::InstallExperimentalNatives would fail.
+  if (shared->is_toplevel() && isolate->bootstrapper()->IsActive()) {
+    return MaybeHandle<Code>();
+  }
+
+  base::SmartPointer<CompilationInfo> info(
+      new CompilationInfoWithZone(function));
+  VMState<COMPILER> state(isolate);
+  DCHECK(!isolate->has_pending_exception());
+  PostponeInterruptsScope postpone(isolate);
+
+  info->SetOptimizingForOsr(osr_ast_id, current_code);
+
+  if (mode == Compiler::CONCURRENT) {
+    if (GetOptimizedCodeLater(info.get())) {
+      info.Detach();  // The background recompile job owns this now.
+      return isolate->builtins()->InOptimizationQueue();
+    }
+  } else {
+    info->set_osr_frame(osr_frame);
+    if (GetOptimizedCodeNow(info.get())) return info->code();
+  }
+
+  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+  return MaybeHandle<Code>();
+}
+
 MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
@@ -1069,7 +1142,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
   if (FLAG_always_opt) {
     Handle<Code> opt_code;
-    if (Compiler::GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+    if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
             .ToHandle(&opt_code)) {
       result = opt_code;
     }
@@ -1099,7 +1172,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
 bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode) {
   Handle<Code> code;
-  if (Compiler::GetOptimizedCode(function, mode).ToHandle(&code)) {
+  if (GetOptimizedCode(function, mode).ToHandle(&code)) {
     // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);
   } else {
@@ -1775,77 +1848,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   return shared;
 }
 
-MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
-                                             ConcurrencyMode mode,
-                                             BailoutId osr_ast_id,
-                                             JavaScriptFrame* osr_frame) {
-  Isolate* isolate = function->GetIsolate();
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  if (shared->HasDebugInfo()) return MaybeHandle<Code>();
-
-  Handle<Code> cached_code;
-  if (GetCodeFromOptimizedCodeMap(
-          function, osr_ast_id).ToHandle(&cached_code)) {
-    if (FLAG_trace_opt) {
-      PrintF("[found optimized code for ");
-      function->ShortPrint();
-      if (!osr_ast_id.IsNone()) {
-        PrintF(" at OSR AST id %d", osr_ast_id.ToInt());
-      }
-      PrintF("]\n");
-    }
-    return cached_code;
-  }
-
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-
-  Handle<Code> current_code(shared->code());
-  if (!shared->is_compiled() ||
-      shared->scope_info() == ScopeInfo::Empty(isolate)) {
-    // The function was never compiled. Compile it unoptimized first.
-    // TODO(titzer): reuse the AST and scope info from this compile.
-    CompilationInfoWithZone unoptimized(function);
-    unoptimized.EnableDeoptimizationSupport();
-    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&current_code)) {
-      return MaybeHandle<Code>();
-    }
-    shared->ReplaceCode(*current_code);
-  }
-
-  current_code->set_profiler_ticks(0);
-
-  // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
-  // an eval scope and hence would fail at parsing the eval source again.
-  if (shared->disable_optimization_reason() == kEval) {
-    return MaybeHandle<Code>();
-  }
-
-  // TODO(mstarzinger): We cannot properly deserialize a scope chain for the
-  // builtin context, hence Genesis::InstallExperimentalNatives would fail.
-  if (shared->is_toplevel() && isolate->bootstrapper()->IsActive()) {
-    return MaybeHandle<Code>();
-  }
-
-  base::SmartPointer<CompilationInfo> info(
-      new CompilationInfoWithZone(function));
-  VMState<COMPILER> state(isolate);
-  DCHECK(!isolate->has_pending_exception());
-  PostponeInterruptsScope postpone(isolate);
-
-  info->SetOptimizingForOsr(osr_ast_id, current_code);
-
-  if (mode == CONCURRENT) {
-    if (GetOptimizedCodeLater(info.get())) {
-      info.Detach();  // The background recompile job owns this now.
-      return isolate->builtins()->InOptimizationQueue();
-    }
-  } else {
-    info->set_osr_frame(osr_frame);
-    if (GetOptimizedCodeNow(info.get())) return info->code();
-  }
-
-  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-  return MaybeHandle<Code>();
+MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(
+    Handle<JSFunction> function, Compiler::ConcurrencyMode mode,
+    BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
+  DCHECK(!osr_ast_id.IsNone());
+  // TODO(mstarzinger): Once concurrent OSR is removed, the following check
+  // should hold and can be enabled.
+  // DCHECK_NOT_NULL(osr_frame);
+  return GetOptimizedCode(function, mode, osr_ast_id, osr_frame);
 }
 
 MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
