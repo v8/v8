@@ -399,13 +399,17 @@ class Expectations {
     Handle<Object> getter(pair->getter(), isolate);
     Handle<Object> setter(pair->setter(), isolate);
 
-    map = Map::TransitionToAccessorProperty(map, name, ACCESSOR_GETTER, getter,
-                                            attributes);
+    int descriptor =
+        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
+    map = Map::TransitionToAccessorProperty(
+        map, name, descriptor, ACCESSOR_GETTER, getter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
 
-    map = Map::TransitionToAccessorProperty(map, name, ACCESSOR_SETTER, setter,
-                                            attributes);
+    descriptor =
+        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
+    map = Map::TransitionToAccessorProperty(
+        map, name, descriptor, ACCESSOR_SETTER, setter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
     return map;

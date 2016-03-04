@@ -381,10 +381,19 @@ void LookupIterator::TransitionToAccessorProperty(
   Handle<JSObject> receiver = GetStoreTarget();
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
-    holder_ = receiver;
     Handle<Map> old_map(receiver->map(), isolate_);
+
+    if (!holder_.is_identical_to(receiver)) {
+      holder_ = receiver;
+      state_ = NOT_FOUND;
+    } else if (state_ == INTERCEPTOR) {
+      LookupInRegularHolder<false>(*old_map, *holder_);
+    }
+    int descriptor =
+        IsFound() ? static_cast<int>(number_) : DescriptorArray::kNotFound;
+
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
-        old_map, name_, component, accessor, attributes);
+        old_map, name_, descriptor, component, accessor, attributes);
     bool simple_transition = new_map->GetBackPointer() == receiver->map();
     JSObject::MigrateToMap(receiver, new_map);
 
