@@ -1561,7 +1561,6 @@ bool RegisterAllocationData::RangesDefinedInDeferredStayInDeferred() {
   return true;
 }
 
-
 SpillRange* RegisterAllocationData::AssignSpillRangeToLiveRange(
     TopLevelLiveRange* range) {
   DCHECK(!range->HasSpillOperand());
@@ -2336,11 +2335,79 @@ void LiveRangeBuilder::Verify() const {
   for (auto& hint : phi_hints_) {
     CHECK(hint.second->IsResolved());
   }
-  for (TopLevelLiveRange* current : data()->live_ranges()) {
-    if (current != nullptr && !current->IsEmpty()) current->Verify();
+  for (const TopLevelLiveRange* current : data()->live_ranges()) {
+    if (current != nullptr && !current->IsEmpty()) {
+      // New LiveRanges should not be split.
+      CHECK_NULL(current->next());
+      // General integrity check.
+      current->Verify();
+      const UseInterval* first = current->first_interval();
+      if (first->next() == nullptr) continue;
+
+      // Consecutive intervals should not end and start in the same block,
+      // otherwise the intervals should have been joined, because the
+      // variable is live throughout that block.
+      CHECK(NextIntervalStartsInDifferentBlocks(first));
+
+      for (const UseInterval* i = first->next(); i != nullptr; i = i->next()) {
+        // Except for the first interval, the other intevals must start at
+        // a block boundary, otherwise data wouldn't flow to them.
+        CHECK(IntervalStartsAtBlockBoundary(i));
+        // The last instruction of the predecessors of the block the interval
+        // starts must be covered by the range.
+        CHECK(IntervalPredecessorsCoveredByRange(i, current));
+        if (i->next() != nullptr) {
+          // Check the consecutive intervals property, except for the last
+          // interval, where it doesn't apply.
+          CHECK(NextIntervalStartsInDifferentBlocks(i));
+        }
+      }
+    }
   }
 }
 
+bool LiveRangeBuilder::IntervalStartsAtBlockBoundary(
+    const UseInterval* interval) const {
+  LifetimePosition start = interval->start();
+  if (!start.IsFullStart()) return false;
+  int instruction_index = start.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(instruction_index);
+  return block->first_instruction_index() == instruction_index;
+}
+
+bool LiveRangeBuilder::IntervalPredecessorsCoveredByRange(
+    const UseInterval* interval, const TopLevelLiveRange* range) const {
+  LifetimePosition start = interval->start();
+  int instruction_index = start.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(instruction_index);
+  for (RpoNumber pred_index : block->predecessors()) {
+    const InstructionBlock* predecessor =
+        data()->code()->InstructionBlockAt(pred_index);
+    LifetimePosition last_pos = LifetimePosition::GapFromInstructionIndex(
+        predecessor->last_instruction_index());
+    last_pos = last_pos.NextStart().End();
+    if (!range->Covers(last_pos)) return false;
+  }
+  return true;
+}
+
+bool LiveRangeBuilder::NextIntervalStartsInDifferentBlocks(
+    const UseInterval* interval) const {
+  DCHECK_NOT_NULL(interval->next());
+  LifetimePosition end = interval->end();
+  LifetimePosition next_start = interval->next()->start();
+  // Since end is not covered, but the previous position is, move back a
+  // position
+  end = end.IsStart() ? end.PrevStart().End() : end.Start();
+  int last_covered_index = end.ToInstructionIndex();
+  const InstructionBlock* block =
+      data()->code()->GetInstructionBlock(last_covered_index);
+  const InstructionBlock* next_block =
+      data()->code()->GetInstructionBlock(next_start.ToInstructionIndex());
+  return block->rpo_number() < next_block->rpo_number();
+}
 
 RegisterAllocator::RegisterAllocator(RegisterAllocationData* data,
                                      RegisterKind kind)
