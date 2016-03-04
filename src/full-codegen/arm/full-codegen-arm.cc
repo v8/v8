@@ -4084,12 +4084,6 @@ void FullCodeGenerator::ClearPendingMessage() {
 }
 
 
-void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
-  DCHECK(!slot.IsInvalid());
-  __ mov(VectorStoreICTrampolineDescriptor::SlotRegister(),
-         Operand(SmiFromSlot(slot)));
-}
-
 void FullCodeGenerator::DeferredCommands::EmitCommands() {
   DCHECK(!result_register().is(r1));
   __ Pop(result_register());  // Restore the accumulator.

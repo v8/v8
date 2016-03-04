@@ -1082,6 +1082,10 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
   PushOperand(result_register());
 }
 
+void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
+  DCHECK(!slot.IsInvalid());
+  __ Move(VectorStoreICTrampolineDescriptor::SlotRegister(), SmiFromSlot(slot));
+}
 
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
