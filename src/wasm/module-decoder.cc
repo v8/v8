@@ -51,8 +51,7 @@ class ModuleDecoder : public Decoder {
     module->mem_external = false;
     module->origin = origin_;
 
-    bool sections[kMaxModuleSectionCode];
-    memset(sections, 0, sizeof(sections));
+    bool sections[kMaxModuleSectionCode] = {false};
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic");
