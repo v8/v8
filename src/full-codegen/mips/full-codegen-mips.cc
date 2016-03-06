@@ -1846,62 +1846,41 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // this.  It stays on the stack while we update the iterator.
   VisitForStackValue(expr->expression());
 
-  switch (expr->yield_kind()) {
-    case Yield::kSuspend:
-      // Pop value from top-of-stack slot; box result into result register.
-      EmitCreateIteratorResult(false);
-      PushOperand(result_register());
-      // Fall through.
-    case Yield::kInitial: {
-      Label suspend, continuation, post_runtime, resume;
+  Label suspend, continuation, post_runtime, resume;
 
-      __ jmp(&suspend);
-      __ bind(&continuation);
-      // When we arrive here, the stack top is the resume mode and
-      // result_register() holds the input value (the argument given to the
-      // respective resume operation).
-      __ RecordGeneratorContinuation();
-      __ pop(a1);
-      __ Branch(&resume, ne, a1,
-                Operand(Smi::FromInt(JSGeneratorObject::RETURN)));
-      __ push(result_register());
-      EmitCreateIteratorResult(true);
-      EmitUnwindAndReturn();
+  __ jmp(&suspend);
+  __ bind(&continuation);
+  // When we arrive here, the stack top is the resume mode and
+  // result_register() holds the input value (the argument given to the
+  // respective resume operation).
+  __ RecordGeneratorContinuation();
+  __ pop(a1);
+  __ Branch(&resume, ne, a1, Operand(Smi::FromInt(JSGeneratorObject::RETURN)));
+  __ push(result_register());
+  EmitCreateIteratorResult(true);
+  EmitUnwindAndReturn();
 
-      __ bind(&suspend);
-      OperandStackDepthIncrement(1);  // Not popped on this path.
-      VisitForAccumulatorValue(expr->generator_object());
-      DCHECK(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
-      __ li(a1, Operand(Smi::FromInt(continuation.pos())));
-      __ sw(a1, FieldMemOperand(v0, JSGeneratorObject::kContinuationOffset));
-      __ sw(cp, FieldMemOperand(v0, JSGeneratorObject::kContextOffset));
-      __ mov(a1, cp);
-      __ RecordWriteField(v0, JSGeneratorObject::kContextOffset, a1, a2,
-                          kRAHasBeenSaved, kDontSaveFPRegs);
-      __ Addu(a1, fp, Operand(StandardFrameConstants::kExpressionsOffset));
-      __ Branch(&post_runtime, eq, sp, Operand(a1));
-      __ push(v0);  // generator object
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-      __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ bind(&post_runtime);
-      PopOperand(result_register());
-      EmitReturnSequence();
+  __ bind(&suspend);
+  OperandStackDepthIncrement(1);  // Not popped on this path.
+  VisitForAccumulatorValue(expr->generator_object());
+  DCHECK(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
+  __ li(a1, Operand(Smi::FromInt(continuation.pos())));
+  __ sw(a1, FieldMemOperand(v0, JSGeneratorObject::kContinuationOffset));
+  __ sw(cp, FieldMemOperand(v0, JSGeneratorObject::kContextOffset));
+  __ mov(a1, cp);
+  __ RecordWriteField(v0, JSGeneratorObject::kContextOffset, a1, a2,
+                      kRAHasBeenSaved, kDontSaveFPRegs);
+  __ Addu(a1, fp, Operand(StandardFrameConstants::kExpressionsOffset));
+  __ Branch(&post_runtime, eq, sp, Operand(a1));
+  __ push(v0);  // generator object
+  __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+  __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ bind(&post_runtime);
+  PopOperand(result_register());
+  EmitReturnSequence();
 
-      __ bind(&resume);
-      context()->Plug(result_register());
-      break;
-    }
-
-    case Yield::kFinal: {
-      // Pop value from top-of-stack slot, box result into result register.
-      EmitCreateIteratorResult(true);
-      EmitUnwindAndReturn();
-      break;
-    }
-
-    case Yield::kDelegating:
-      UNREACHABLE();
-  }
+  __ bind(&resume);
+  context()->Plug(result_register());
 }
 
 

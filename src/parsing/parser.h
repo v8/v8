@@ -444,6 +444,8 @@ class ParserTraits {
   Expression* BuildUnaryExpression(Expression* expression, Token::Value op,
                                    int pos, AstNodeFactory* factory);
 
+  Expression* BuildIteratorResult(Expression* value, bool done);
+
   // Generate AST node that throws a ReferenceError with the given type.
   Expression* NewThrowReferenceError(MessageTemplate::Template message,
                                      int pos);

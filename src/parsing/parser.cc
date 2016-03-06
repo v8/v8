@@ -491,6 +491,20 @@ Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
   return factory->NewUnaryOperation(op, expression, pos);
 }
 
+Expression* ParserTraits::BuildIteratorResult(Expression* value, bool done) {
+  int pos = RelocInfo::kNoPosition;
+  AstNodeFactory* factory = parser_->factory();
+  Zone* zone = parser_->zone();
+
+  if (value == nullptr) value = factory->NewUndefinedLiteral(pos);
+
+  auto args = new (zone) ZoneList<Expression*>(2, zone);
+  args->Add(value, zone);
+  args->Add(factory->NewBooleanLiteral(done, pos), zone);
+
+  return factory->NewCallRuntime(Runtime::kInlineCreateIterResultObject, args,
+                                 pos);
+}
 
 Expression* ParserTraits::NewThrowReferenceError(
     MessageTemplate::Template message, int pos) {
@@ -2783,14 +2797,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   ExpectSemicolon(CHECK_OK);
 
   if (is_generator()) {
-    Expression* generator = factory()->NewVariableProxy(
-        function_state_->generator_object_variable());
-    Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::kFinal, loc.beg_pos);
-    result = factory()->NewExpressionStatement(yield, loc.beg_pos);
-  } else {
-    result = factory()->NewReturnStatement(return_value, loc.beg_pos);
+    return_value = BuildIteratorResult(return_value, true);
   }
+
+  result = factory()->NewReturnStatement(return_value, loc.beg_pos);
 
   Scope* decl_scope = scope_->DeclarationScope();
   if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
@@ -4664,15 +4674,12 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     if (IsGeneratorFunction(kind)) {
       // We produce:
       //
-      // try { InitialYield; ...body...; FinalYield }
+      // try { InitialYield; ...body...; return {value: undefined, done: true} }
       // finally { %GeneratorClose(generator) }
       //
       // - InitialYield yields the actual generator object.
-      // - FinalYield yields {value: foo, done: true} where foo is the
-      //   completion value of body.  (This is needed here in case the body
-      //   falls through without an explicit return.)
-      // - Any return statement inside the body will be converted into a similar
-      //   FinalYield.
+      // - Any return statement inside the body will have its argument wrapped
+      //   in a "done" iterator result object.
       // - If the generator terminates for whatever reason, we must close it.
       //   Hence the finally clause.
 
@@ -4690,8 +4697,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
             Token::INIT, init_proxy, allocation, RelocInfo::kNoPosition);
         VariableProxy* get_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
-        Yield* yield = factory()->NewYield(
-            get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
+        Yield* yield =
+            factory()->NewYield(get_proxy, assignment, RelocInfo::kNoPosition);
         try_block->statements()->Add(
             factory()->NewExpressionStatement(yield, RelocInfo::kNoPosition),
             zone());
@@ -4699,15 +4706,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
       ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
 
-      VariableProxy* get_proxy = factory()->NewVariableProxy(
-          function_state_->generator_object_variable());
-      Expression* undefined =
-          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
-      Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::kFinal,
-                                         RelocInfo::kNoPosition);
-      try_block->statements()->Add(
-          factory()->NewExpressionStatement(yield, RelocInfo::kNoPosition),
-          zone());
+      Statement* final_return = factory()->NewReturnStatement(
+          BuildIteratorResult(nullptr, true), RelocInfo::kNoPosition);
+      try_block->statements()->Add(final_return, zone());
 
       Block* finally_block =
           factory()->NewBlock(nullptr, 1, false, RelocInfo::kNoPosition);
@@ -6112,13 +6113,11 @@ Expression* ParserTraits::RewriteYieldStar(
     set_mode_return = factory->NewExpressionStatement(assignment, nopos);
   }
 
-
-  // RawYield(output);
+  // Yield(output);
   Statement* yield_output;
   {
     Expression* output_proxy = factory->NewVariableProxy(var_output);
-    Yield* yield = factory->NewYield(
-        generator, output_proxy, Yield::kInitial, nopos);
+    Yield* yield = factory->NewYield(generator, output_proxy, nopos);
     yield_output = factory->NewExpressionStatement(yield, nopos);
   }
 

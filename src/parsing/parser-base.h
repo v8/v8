@@ -2128,9 +2128,9 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   ExpressionT expression = Traits::EmptyExpression();
-  Yield::Kind kind = Yield::kSuspend;
+  bool delegating = false;  // yield*
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-    if (Check(Token::MUL)) kind = Yield::kDelegating;
+    if (Check(Token::MUL)) delegating = true;
     switch (peek()) {
       case Token::EOS:
       case Token::SEMICOLON:
@@ -2142,10 +2142,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         // The above set of tokens is the complete set of tokens that can appear
         // after an AssignmentExpression, and none of them can start an
         // AssignmentExpression.  This allows us to avoid looking for an RHS for
-        // a Yield::kSuspend operation, given only one look-ahead token.
-        if (kind == Yield::kSuspend)
-          break;
-        DCHECK_EQ(Yield::kDelegating, kind);
+        // a regular yield, given only one look-ahead token.
+        if (!delegating) break;
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(false, classifier, CHECK_OK);
@@ -2153,13 +2151,16 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         break;
     }
   }
-  if (kind == Yield::kDelegating) {
+
+  if (delegating) {
     return Traits::RewriteYieldStar(generator_object, expression, pos);
   }
+
+  expression = Traits::BuildIteratorResult(expression, false);
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
   typename Traits::Type::YieldExpression yield =
-      factory()->NewYield(generator_object, expression, kind, pos);
+      factory()->NewYield(generator_object, expression, pos);
   return yield;
 }
 
