@@ -1078,7 +1078,7 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
     if (rt.is_reg()) {
       rotrv(rd, rs, rt.rm());
     } else {
-      rotr(rd, rs, rt.imm32_);
+      rotr(rd, rs, rt.imm32_ & 0x1f);
     }
   } else {
     if (rt.is_reg()) {
@@ -1090,8 +1090,8 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
       if (rt.imm32_ == 0) {
         srl(rd, rs, 0);
       } else {
-        srl(at, rs, rt.imm32_);
-        sll(rd, rs, (0x20 - rt.imm32_) & 0x1f);
+        srl(at, rs, rt.imm32_ & 0x1f);
+        sll(rd, rs, (0x20 - (rt.imm32_ & 0x1f)) & 0x1f);
         or_(rd, rd, at);
       }
     }
