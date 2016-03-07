@@ -2467,10 +2467,7 @@ TEST(Run_WasmCall_Float32Sub) {
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i - *j;
-      CheckFloatEq(expected, r.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i - *j, r.Call(*i, *j)); }
   }
 }
 
@@ -2910,56 +2907,56 @@ TEST(Run_Wasm_F32Floor) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_FLOOR(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(floorf(*i), r.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(floorf(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F32Ceil) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_CEIL(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(ceilf(*i), r.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(ceilf(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F32Trunc) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_TRUNC(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(truncf(*i), r.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(truncf(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F32NearestInt) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_NEARESTINT(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(nearbyintf(*i), r.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(nearbyintf(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F64Floor) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_FLOOR(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(floor(*i), r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(floor(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F64Ceil) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_CEIL(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(ceil(*i), r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ceil(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F64Trunc) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_TRUNC(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(trunc(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F64NearestInt) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_NEARESTINT(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(nearbyint(*i), r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(nearbyint(*i), r.Call(*i)); }
 }
 
 TEST(Run_Wasm_F32Min) {
@@ -2980,7 +2977,7 @@ TEST(Run_Wasm_F32Min) {
         expected = *j;
       }
 
-      CheckFloatEq(expected, r.Call(*i, *j));
+      CHECK_FLOAT_EQ(expected, r.Call(*i, *j));
     }
   }
 }
@@ -3004,7 +3001,7 @@ TEST(Run_Wasm_F64Min) {
         expected = *j;
       }
 
-      CheckDoubleEq(expected, r.Call(*i, *j));
+      CHECK_DOUBLE_EQ(expected, r.Call(*i, *j));
     }
   }
 }
@@ -3028,7 +3025,7 @@ TEST(Run_Wasm_F32Max) {
         expected = *j;
       }
 
-      CheckFloatEq(expected, r.Call(*i, *j));
+      CHECK_FLOAT_EQ(expected, r.Call(*i, *j));
     }
   }
 }
@@ -3052,7 +3049,7 @@ TEST(Run_Wasm_F64Max) {
         expected = *j;
       }
 
-      CheckDoubleEq(expected, r.Call(*i, *j));
+      CHECK_DOUBLE_EQ(expected, r.Call(*i, *j));
     }
   }
 }
@@ -3287,7 +3284,7 @@ TEST(Run_Wasm_F64CopySign) {
   BUILD(r, WASM_F64_COPYSIGN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(copysign(*i, *j), r.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(copysign(*i, *j), r.Call(*i, *j)); }
   }
 }
 
@@ -3300,7 +3297,7 @@ TEST(Run_Wasm_F32CopySign) {
   BUILD(r, WASM_F32_COPYSIGN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(copysign(*i, *j), r.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysign(*i, *j), r.Call(*i, *j)); }
   }
 }
 

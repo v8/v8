@@ -321,6 +321,12 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
   }
 }
 
+#define CHECK_FLOAT_EQ(lhs, rhs) \
+  do {                           \
+    volatile float tmp = lhs;    \
+    CheckFloatEq(tmp, rhs);      \
+  } while (0)
+
 static inline void CheckDoubleEq(volatile double x, volatile double y) {
   if (std::isnan(x)) {
     CHECK(std::isnan(y));
@@ -328,6 +334,12 @@ static inline void CheckDoubleEq(volatile double x, volatile double y) {
     CHECK_EQ(x, y);
   }
 }
+
+#define CHECK_DOUBLE_EQ(lhs, rhs) \
+  do {                            \
+    volatile double tmp = lhs;    \
+    CheckDoubleEq(tmp, rhs);      \
+  } while (0)
 
 }  // namespace compiler
 }  // namespace internal
