@@ -1565,6 +1565,7 @@
             '../../src/compiler/s390/instruction-scheduler-s390.cc',
             '../../src/compiler/s390/instruction-selector-s390.cc',
             '../../src/debug/s390/debug-s390.cc',
+            '../../src/full-codegen/s390/full-codegen-s390.cc',
             '../../src/ic/s390/access-compiler-s390.cc',
             '../../src/ic/s390/handler-compiler-s390.cc',
             '../../src/ic/s390/ic-compiler-s390.cc',
