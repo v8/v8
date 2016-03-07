@@ -1192,15 +1192,6 @@ void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
 }
 
 
-// TestNotEqualStrict <src>
-//
-// Test if the value in the <src> register is not strictly equal to the
-// accumulator.
-void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::StrictNotEqual(isolate_), assembler);
-}
-
-
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.

@@ -1282,10 +1282,6 @@ void BytecodeGraphBuilder::VisitTestEqualStrict() {
   BuildCompareOp(javascript()->StrictEqual());
 }
 
-void BytecodeGraphBuilder::VisitTestNotEqualStrict() {
-  BuildCompareOp(javascript()->StrictNotEqual());
-}
-
 void BytecodeGraphBuilder::VisitTestLessThan() {
   BuildCompareOp(javascript()->LessThan());
 }

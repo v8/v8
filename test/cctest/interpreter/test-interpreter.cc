@@ -1179,12 +1179,10 @@ TEST(InterpreterConditionalJumps2) {
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
 }
 
-
 static const Token::Value kComparisonTypes[] = {
-    Token::Value::EQ,        Token::Value::NE, Token::Value::EQ_STRICT,
-    Token::Value::NE_STRICT, Token::Value::LT, Token::Value::LTE,
-    Token::Value::GT,        Token::Value::GTE};
-
+    Token::Value::EQ, Token::Value::NE,  Token::Value::EQ_STRICT,
+    Token::Value::LT, Token::Value::LTE, Token::Value::GT,
+    Token::Value::GTE};
 
 template <typename T>
 bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {
@@ -1379,6 +1377,76 @@ TEST(InterpreterMixedComparisons) {
   }
 }
 
+TEST(InterpreterStrictNotEqual) {
+  HandleAndZoneScope handles;
+  i::Factory* factory = handles.main_isolate()->factory();
+  const char* code_snippet =
+      "function f(lhs, rhs) {\n"
+      "  return lhs !== rhs;\n"
+      "}\n"
+      "f(0, 0);\n";
+  InterpreterTester tester(handles.main_isolate(), code_snippet);
+  auto callable = tester.GetCallable<Handle<Object>, Handle<Object>>();
+
+  // Test passing different types.
+  const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
+  i::UnicodeCache unicode_cache;
+  for (size_t i = 0; i < arraysize(inputs); i++) {
+    for (size_t j = 0; j < arraysize(inputs); j++) {
+      double lhs = StringToDouble(&unicode_cache, inputs[i],
+                                  i::ConversionFlags::NO_FLAGS);
+      double rhs = StringToDouble(&unicode_cache, inputs[j],
+                                  i::ConversionFlags::NO_FLAGS);
+      Handle<Object> lhs_obj = factory->NewNumber(lhs);
+      Handle<Object> rhs_obj = factory->NewStringFromAsciiChecked(inputs[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, lhs, rhs, true));
+    }
+  }
+
+  // Test passing string types.
+  const char* inputs_str[] = {"A", "abc", "z", "", "Foo!", "Foo"};
+  for (size_t i = 0; i < arraysize(inputs_str); i++) {
+    for (size_t j = 0; j < arraysize(inputs_str); j++) {
+      Handle<Object> lhs_obj =
+          factory->NewStringFromAsciiChecked(inputs_str[i]);
+      Handle<Object> rhs_obj =
+          factory->NewStringFromAsciiChecked(inputs_str[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, inputs_str[i], inputs_str[j]));
+    }
+  }
+
+  // Test passing doubles.
+  double inputs_number[] = {std::numeric_limits<double>::min(),
+                            std::numeric_limits<double>::max(),
+                            -0.001,
+                            0.01,
+                            0.1000001,
+                            1e99,
+                            -1e-99};
+  for (size_t i = 0; i < arraysize(inputs_number); i++) {
+    for (size_t j = 0; j < arraysize(inputs_number); j++) {
+      Handle<Object> lhs_obj = factory->NewNumber(inputs_number[i]);
+      Handle<Object> rhs_obj = factory->NewNumber(inputs_number[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, inputs_number[i],
+                        inputs_number[j]));
+    }
+  }
+}
 
 TEST(InterpreterInstanceOf) {
   HandleAndZoneScope handles;

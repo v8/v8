@@ -654,7 +654,6 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
     case Bytecode::kTestEqual:
     case Bytecode::kTestNotEqual:
     case Bytecode::kTestEqualStrict:
-    case Bytecode::kTestNotEqualStrict:
     case Bytecode::kTestLessThan:
     case Bytecode::kTestLessThanOrEqual:
     case Bytecode::kTestGreaterThan:
@@ -1420,8 +1419,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
       return Bytecode::kTestNotEqual;
     case Token::Value::EQ_STRICT:
       return Bytecode::kTestEqualStrict;
-    case Token::Value::NE_STRICT:
-      return Bytecode::kTestNotEqualStrict;
     case Token::Value::LT:
       return Bytecode::kTestLessThan;
     case Token::Value::GT:

@@ -199,7 +199,6 @@ namespace interpreter {
   V(TestEqual, OperandType::kReg8)                                             \
   V(TestNotEqual, OperandType::kReg8)                                          \
   V(TestEqualStrict, OperandType::kReg8)                                       \
-  V(TestNotEqualStrict, OperandType::kReg8)                                    \
   V(TestLessThan, OperandType::kReg8)                                          \
   V(TestGreaterThan, OperandType::kReg8)                                       \
   V(TestLessThanOrEqual, OperandType::kReg8)                                   \
