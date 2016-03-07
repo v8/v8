@@ -5,8 +5,10 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/elements.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
+#include "src/keys.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -20,15 +22,15 @@ namespace {
 // deletions during a for-in.
 MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   Isolate* const isolate = receiver->GetIsolate();
+  FastKeyAccumulator accumulator(isolate, receiver, INCLUDE_PROTOS,
+                                 ENUMERABLE_STRINGS);
   // Test if we have an enum cache for {receiver}.
-  if (!receiver->IsSimpleEnum()) {
+  if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys,
-        JSReceiver::GetKeys(receiver, INCLUDE_PROTOS, ENUMERABLE_STRINGS),
-        HeapObject);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, keys, accumulator.GetKeys(KEEP_NUMBERS),
+                               HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
-    if (!receiver->IsSimpleEnum()) return keys;
+    if (!accumulator.is_receiver_simple_enum()) return keys;
   }
   return handle(receiver->map(), isolate);
 }
@@ -36,10 +38,19 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
 
 MaybeHandle<Object> Filter(Handle<JSReceiver> receiver, Handle<Object> key) {
   Isolate* const isolate = receiver->GetIsolate();
-  // TODO(turbofan): Fast case for array indices.
   Handle<Name> name;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
                              Object);
+  // Directly check for elements if the key is a smi and avoid a conversion
+  // roundtrip (Number -> Name -> Number).
+  if (key->IsNumber() && receiver->map()->OnlyHasSimpleProperties()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    ElementsAccessor* accessor = object->GetElementsAccessor();
+    DCHECK_LT(key->Number(), kMaxUInt32);
+    if (accessor->HasElement(object, key->Number(), ONLY_ENUMERABLE)) {
+      return name;
+    }
+  }
   Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
   MAYBE_RETURN_NULL(result);
   if (result.FromJust()) return name;
