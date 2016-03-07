@@ -973,7 +973,8 @@ TEST(Run_Wasm_Select_strict1) {
 
 TEST(Run_Wasm_Select_strict2) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->AddLocals(kAstI32, 2);
+  r.AllocateLocal(kAstI32);
+  r.AllocateLocal(kAstI32);
   // select(b=5, c=6, a)
   BUILD(r, WASM_SELECT(WASM_SET_LOCAL(1, WASM_I8(5)),
                        WASM_SET_LOCAL(2, WASM_I8(6)), WASM_GET_LOCAL(0)));
@@ -985,7 +986,8 @@ TEST(Run_Wasm_Select_strict2) {
 
 TEST(Run_Wasm_Select_strict3) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->AddLocals(kAstI32, 2);
+  r.AllocateLocal(kAstI32);
+  r.AllocateLocal(kAstI32);
   // select(b=5, c=6, a=b)
   BUILD(r, WASM_SELECT(WASM_SET_LOCAL(1, WASM_I8(5)),
                        WASM_SET_LOCAL(2, WASM_I8(6)),
@@ -1232,8 +1234,7 @@ TEST(Run_Wasm_VoidReturn1) {
 
   const int32_t kExpected = -414444;
   // Build the calling function.
-  WasmRunner<int32_t> r;
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
   BUILD(r, B2(WASM_CALL_FUNCTION0(index), WASM_I32V_3(kExpected)));
 
   int32_t result = r.Call();
@@ -1252,8 +1253,7 @@ TEST(Run_Wasm_VoidReturn2) {
 
   const int32_t kExpected = -414444;
   // Build the calling function.
-  WasmRunner<int32_t> r;
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
   BUILD(r, B2(WASM_CALL_FUNCTION0(index), WASM_I32V_3(kExpected)));
 
   int32_t result = r.Call();
@@ -2006,18 +2006,19 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                                  MachineOperatorBuilder::kAllOptionalOps);
   Graph graph(&zone);
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
-  FunctionEnv env;
   FunctionSig* sig = WasmOpcodes::Signature(opcode);
-  init_env(&env, sig);
 
   if (sig->parameter_count() == 1) {
-    byte code[] = {static_cast<byte>(opcode), kExprGetLocal, 0};
-    TestBuildingGraph(&zone, &jsgraph, &env, code, code + arraysize(code));
+    byte code[] = {WASM_NO_LOCALS, static_cast<byte>(opcode), kExprGetLocal, 0};
+    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, code,
+                      code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
-    byte code[] = {static_cast<byte>(opcode), kExprGetLocal, 0, kExprGetLocal,
-                   1};
-    TestBuildingGraph(&zone, &jsgraph, &env, code, code + arraysize(code));
+    byte code[] = {WASM_NO_LOCALS, static_cast<byte>(opcode),
+                   kExprGetLocal,  0,
+                   kExprGetLocal,  1};
+    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, code,
+                      code + arraysize(code));
   }
 }
 

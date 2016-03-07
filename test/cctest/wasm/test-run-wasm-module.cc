@@ -42,14 +42,16 @@ TEST(Run_WasmModule_CallAdd_rev) {
       2, kLocalI32, kLocalI32, kLocalI32,  // int,int -> int
       // func#0 (main) ----------------------------------
       kDeclFunctions, 2, kDeclFunctionExport, 0, 0,  // sig index
-      6, 0,                                          // body size
+      7, 0,                                          // body size
+      0,                                             // locals
       kExprCallFunction, 1,                          // --
       kExprI8Const, 77,                              // --
       kExprI8Const, 22,                              // --
       // func#1 -----------------------------------------
       0,                 // no name, not exported
       1, 0,              // sig index
-      5, 0,              // body size
+      6, 0,              // body size
+      0,                 // locals
       kExprI32Add,       // --
       kExprGetLocal, 0,  // --
       kExprGetLocal, 1,  // --

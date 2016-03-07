@@ -10,6 +10,7 @@
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/encoder.h"
+#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -250,7 +251,6 @@ WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalType return_type,
 
 uint32_t WasmFunctionEncoder::HeaderSize() const {
   uint32_t size = 3;
-  if (HasLocals()) size += 8;
   if (!external_) size += 2;
   if (HasName()) size += 4;
   return size;
@@ -258,7 +258,15 @@ uint32_t WasmFunctionEncoder::HeaderSize() const {
 
 
 uint32_t WasmFunctionEncoder::BodySize(void) const {
-  return external_ ? 0 : static_cast<uint32_t>(body_.size());
+  // TODO(titzer): embed a LocalDeclEncoder in the WasmFunctionEncoder
+  LocalDeclEncoder local_decl;
+  local_decl.AddLocals(local_i32_count_, kAstI32);
+  local_decl.AddLocals(local_i64_count_, kAstI64);
+  local_decl.AddLocals(local_f32_count_, kAstF32);
+  local_decl.AddLocals(local_f64_count_, kAstF64);
+
+  return external_ ? 0
+                   : static_cast<uint32_t>(body_.size() + local_decl.Size());
 }
 
 
@@ -271,7 +279,6 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
                                     byte** body) const {
   uint8_t decl_bits = (exported_ ? kDeclFunctionExport : 0) |
                       (external_ ? kDeclFunctionImport : 0) |
-                      (HasLocals() ? kDeclFunctionLocals : 0) |
                       (HasName() ? kDeclFunctionName : 0);
 
   EmitUint8(header, decl_bits);
@@ -284,15 +291,17 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
     (*body) += name_.size();
   }
 
-  if (HasLocals()) {
-    EmitUint16(header, local_i32_count_);
-    EmitUint16(header, local_i64_count_);
-    EmitUint16(header, local_f32_count_);
-    EmitUint16(header, local_f64_count_);
-  }
 
   if (!external_) {
-    EmitUint16(header, static_cast<uint16_t>(body_.size()));
+    // TODO(titzer): embed a LocalDeclEncoder in the WasmFunctionEncoder
+    LocalDeclEncoder local_decl;
+    local_decl.AddLocals(local_i32_count_, kAstI32);
+    local_decl.AddLocals(local_i64_count_, kAstI64);
+    local_decl.AddLocals(local_f32_count_, kAstF32);
+    local_decl.AddLocals(local_f64_count_, kAstF64);
+
+    EmitUint16(header, static_cast<uint16_t>(body_.size() + local_decl.Size()));
+    (*header) += local_decl.Emit(*header);
     if (body_.size() > 0) {
       std::memcpy(*header, &body_[0], body_.size());
       (*header) += body_.size();

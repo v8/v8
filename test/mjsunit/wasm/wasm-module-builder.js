@@ -190,25 +190,46 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
             var hasName = func.name != undefined && func.name.length > 0;
             names = names || hasName;
             if (hasName) flags |= kDeclFunctionName;
-            if (func.locals != undefined) flags |= kDeclFunctionLocals;
             exports += func.exports.length;
 
             emit_u8(bytes, flags);
             emit_u16(bytes, func.sig_index);
 
-            if (hasName) {
-                emit_string(bytes, func.name);
+            if (hasName) emit_string(bytes, func.name);
+
+            // Function body length will be patched later.
+            var length_pos = bytes.length;
+            emit_u16(bytes, 0);
+
+            var local_decls = [];
+            var l = func.locals;
+            if (l != undefined) {
+              var local_decls_count = 0;
+              if (l.i32_count > 0) {
+                local_decls.push({count: l.i32_count, type: kAstI32});
+              }
+              if (l.i64_count > 0) {
+                local_decls.push({count: l.i64_count, type: kAstI64});
+              }
+              if (l.f32_count > 0) {
+                local_decls.push({count: l.f32_count, type: kAstF32});
+              }
+              if (l.f64_count > 0) {
+                local_decls.push({count: l.f64_count, type: kAstF64});
+              }
             }
-            if (func.locals != undefined) {
-                emit_u16(bytes, func.locals.i32_count);
-                emit_u16(bytes, func.locals.i64_count);
-                emit_u16(bytes, func.locals.f32_count);
-                emit_u16(bytes, func.locals.f64_count);
+            emit_u8(bytes, local_decls.length);
+            for (decl of local_decls) {
+              emit_varint(bytes, decl.count);
+              emit_u8(bytes, decl.type);
             }
-            emit_u16(bytes, func.body.length);
+
             for (var i = 0; i < func.body.length; i++) {
                 emit_u8(bytes, func.body[i]);
             }
+            var length = bytes.length - length_pos - 2;
+            bytes[length_pos] = length & 0xff;
+            bytes[length_pos + 1] = (length >> 8) & 0xff;
 
             index++;
         }

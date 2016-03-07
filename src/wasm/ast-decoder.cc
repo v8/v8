@@ -52,7 +52,6 @@ struct Production {
   Tree* last() const { return index > 0 ? tree->children[index - 1] : nullptr; }
 };
 
-
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -74,13 +73,11 @@ struct SsaEnv {
   }
 };
 
-
 // An entry in the stack of blocks during decoding.
 struct Block {
   SsaEnv* ssa_env;  // SSA renaming environment.
   int stack_depth;  // production stack depth.
 };
-
 
 // An entry in the stack of ifs during decoding.
 struct IfEnv {
@@ -89,27 +86,27 @@ struct IfEnv {
   SsaEnv** case_envs;
 };
 
-
 // Macros that build nodes only if there is a graph and the current SSA
 // environment is reachable from start. This avoids problems with malformed
 // TF graphs when decoding inputs that have unreachable code.
 #define BUILD(func, ...) (build() ? builder_->func(__VA_ARGS__) : nullptr)
 #define BUILD0(func) (build() ? builder_->func() : nullptr)
 
-
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
 class WasmDecoder : public Decoder {
  public:
-  WasmDecoder() : Decoder(nullptr, nullptr), function_env_(nullptr) {}
-  WasmDecoder(FunctionEnv* env, const byte* start, const byte* end)
-      : Decoder(start, end), function_env_(env) {}
-  FunctionEnv* function_env_;
-
-  void Reset(FunctionEnv* function_env, const byte* start, const byte* end) {
-    Decoder::Reset(start, end);
-    function_env_ = function_env;
-  }
+  WasmDecoder(ModuleEnv* module, FunctionSig* sig, const byte* start,
+              const byte* end)
+      : Decoder(start, end),
+        module_(module),
+        sig_(sig),
+        total_locals_(0),
+        local_types_(nullptr) {}
+  ModuleEnv* module_;
+  FunctionSig* sig_;
+  size_t total_locals_;
+  ZoneVector<LocalType>* local_types_;
 
   byte ByteOperand(const byte* pc, const char* msg = "missing 1-byte operand") {
     if ((pc + sizeof(byte)) >= limit_) {
@@ -136,8 +133,12 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, LocalIndexOperand& operand) {
-    if (operand.index < function_env_->total_locals) {
-      operand.type = function_env_->GetLocalType(operand.index);
+    if (operand.index < total_locals_) {
+      if (local_types_) {
+        operand.type = local_types_->at(operand.index);
+      } else {
+        operand.type = kAstStmt;
+      }
       return true;
     }
     error(pc, pc + 1, "invalid local index");
@@ -145,7 +146,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
-    ModuleEnv* m = function_env_->module;
+    ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->globals.size()) {
       operand.machine_type = m->module->globals[operand.index].type;
       operand.type = WasmOpcodes::LocalTypeFor(operand.machine_type);
@@ -156,7 +157,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, FunctionIndexOperand& operand) {
-    ModuleEnv* m = function_env_->module;
+    ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->functions.size()) {
       operand.sig = m->module->functions[operand.index].sig;
       return true;
@@ -166,7 +167,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, SignatureIndexOperand& operand) {
-    ModuleEnv* m = function_env_->module;
+    ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->signatures.size()) {
       operand.sig = m->module->signatures[operand.index];
       return true;
@@ -176,7 +177,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, ImportIndexOperand& operand) {
-    ModuleEnv* m = function_env_->module;
+    ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->import_table.size()) {
       operand.sig = m->module->import_table[operand.index].sig;
       return true;
@@ -250,23 +251,20 @@ class WasmDecoder : public Decoder {
       case kExprCallFunction: {
         FunctionIndexOperand operand(this, pc);
         return static_cast<int>(
-            function_env_->module->GetFunctionSignature(operand.index)
-                ->parameter_count());
+            module_->GetFunctionSignature(operand.index)->parameter_count());
       }
       case kExprCallIndirect: {
         SignatureIndexOperand operand(this, pc);
         return 1 + static_cast<int>(
-                       function_env_->module->GetSignature(operand.index)
-                           ->parameter_count());
+                       module_->GetSignature(operand.index)->parameter_count());
       }
       case kExprCallImport: {
         ImportIndexOperand operand(this, pc);
         return static_cast<int>(
-            function_env_->module->GetImportSignature(operand.index)
-                ->parameter_count());
+            module_->GetImportSignature(operand.index)->parameter_count());
       }
       case kExprReturn: {
-        return static_cast<int>(function_env_->sig->return_count());
+        return static_cast<int>(sig_->return_count());
       }
       case kExprBrTable: {
         return 1;
@@ -282,9 +280,11 @@ class WasmDecoder : public Decoder {
         FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
+      case kExprDeclLocals:
+      default:
+        UNREACHABLE();
+        return 0;
     }
-    UNREACHABLE();
-    return 0;
   }
 
   int OpcodeLength(const byte* pc) {
@@ -353,35 +353,33 @@ class WasmDecoder : public Decoder {
 
 // A shift-reduce-parser strategy for decoding Wasm code that uses an explicit
 // shift-reduce strategy with multiple internal stacks.
-class LR_WasmDecoder : public WasmDecoder {
+class SR_WasmDecoder : public WasmDecoder {
  public:
-  LR_WasmDecoder(Zone* zone, TFBuilder* builder)
-      : zone_(zone),
+  SR_WasmDecoder(Zone* zone, TFBuilder* builder, FunctionBody& body)
+      : WasmDecoder(body.module, body.sig, body.start, body.end),
+        zone_(zone),
         builder_(builder),
+        base_(body.base),
+        local_type_vec_(zone),
         trees_(zone),
         stack_(zone),
         blocks_(zone),
-        ifs_(zone) {}
+        ifs_(zone) {
+    local_types_ = &local_type_vec_;
+  }
 
-  TreeResult Decode(FunctionEnv* function_env, const byte* base, const byte* pc,
-                    const byte* end) {
+  TreeResult Decode() {
     base::ElapsedTimer decode_timer;
     if (FLAG_trace_wasm_decode_time) {
       decode_timer.Start();
     }
-    trees_.clear();
-    stack_.clear();
-    blocks_.clear();
-    ifs_.clear();
 
-    if (end < pc) {
-      error(pc, "function body end < start");
+    if (end_ < pc_) {
+      error(pc_, "function body end < start");
       return result_;
     }
 
-    base_ = base;
-    Reset(function_env, pc, end);
-
+    DecodeLocalDecls();
     InitSsaEnv();
     DecodeFunctionBody();
 
@@ -389,12 +387,12 @@ class LR_WasmDecoder : public WasmDecoder {
     if (ok()) {
       if (ssa_env_->go()) {
         if (stack_.size() > 0) {
-          error(stack_.back().pc(), end, "fell off end of code");
+          error(stack_.back().pc(), end_, "fell off end of code");
         }
         AddImplicitReturnAtEnd();
       }
       if (trees_.size() == 0) {
-        if (function_env_->sig->return_count() > 0) {
+        if (sig_->return_count() > 0) {
           error(start_, "no trees created");
         }
       } else {
@@ -404,7 +402,8 @@ class LR_WasmDecoder : public WasmDecoder {
 
     if (ok()) {
       if (FLAG_trace_wasm_ast) {
-        PrintAst(function_env, pc, end);
+        FunctionBody body = {module_, sig_, base_, start_, end_};
+        PrintAst(body);
       }
       if (FLAG_trace_wasm_decode_time) {
         double ms = decode_timer.Elapsed().InMillisecondsF();
@@ -420,6 +419,28 @@ class LR_WasmDecoder : public WasmDecoder {
     return toResult(tree);
   }
 
+  std::vector<LocalType>* DecodeLocalDeclsForTesting() {
+    DecodeLocalDecls();
+    if (failed()) return nullptr;
+    auto result = new std::vector<LocalType>();
+    result->reserve(local_type_vec_.size());
+    for (size_t i = 0; i < local_type_vec_.size(); i++) {
+      result->push_back(local_type_vec_[i]);
+    }
+    return result;
+  }
+
+  BitVector* AnalyzeLoopAssignmentForTesting(const byte* pc,
+                                             size_t num_locals) {
+    total_locals_ = num_locals;
+    local_type_vec_.reserve(num_locals);
+    if (num_locals > local_type_vec_.size()) {
+      local_type_vec_.insert(local_type_vec_.end(),
+                             num_locals - local_type_vec_.size(), kAstI32);
+    }
+    return AnalyzeLoopAssignment(pc);
+  }
+
  private:
   static const size_t kErrorMsgSize = 128;
 
@@ -430,6 +451,7 @@ class LR_WasmDecoder : public WasmDecoder {
 
   SsaEnv* ssa_env_;
 
+  ZoneVector<LocalType> local_type_vec_;
   ZoneVector<Tree*> trees_;
   ZoneVector<Production> stack_;
   ZoneVector<Block> blocks_;
@@ -438,8 +460,6 @@ class LR_WasmDecoder : public WasmDecoder {
   inline bool build() { return builder_ && ssa_env_->go(); }
 
   void InitSsaEnv() {
-    FunctionSig* sig = function_env_->sig;
-    int param_count = static_cast<int>(sig->parameter_count());
     TFNode* start = nullptr;
     SsaEnv* ssa_env = reinterpret_cast<SsaEnv*>(zone_->New(sizeof(SsaEnv)));
     size_t size = sizeof(TFNode*) * EnvironmentCount();
@@ -447,48 +467,44 @@ class LR_WasmDecoder : public WasmDecoder {
     ssa_env->locals =
         size > 0 ? reinterpret_cast<TFNode**>(zone_->New(size)) : nullptr;
 
-    int pos = 0;
     if (builder_) {
-      start = builder_->Start(param_count + 1);
-      // Initialize parameters.
-      for (int i = 0; i < param_count; i++) {
-        ssa_env->locals[pos++] = builder_->Param(i, sig->GetParam(i));
+      start = builder_->Start(static_cast<int>(sig_->parameter_count() + 1));
+      // Initialize local variables.
+      uint32_t index = 0;
+      while (index < sig_->parameter_count()) {
+        ssa_env->locals[index] = builder_->Param(index, local_type_vec_[index]);
+        index++;
       }
-      // Initialize int32 locals.
-      if (function_env_->local_i32_count > 0) {
-        TFNode* zero = builder_->Int32Constant(0);
-        for (uint32_t i = 0; i < function_env_->local_i32_count; i++) {
-          ssa_env->locals[pos++] = zero;
+      while (index < local_type_vec_.size()) {
+        LocalType type = local_type_vec_[index];
+        TFNode* node = DefaultValue(type);
+        while (index < local_type_vec_.size() &&
+               local_type_vec_[index] == type) {
+          // Do a whole run of like-typed locals at a time.
+          ssa_env->locals[index++] = node;
         }
       }
-      // Initialize int64 locals.
-      if (function_env_->local_i64_count > 0) {
-        TFNode* zero = builder_->Int64Constant(0);
-        for (uint32_t i = 0; i < function_env_->local_i64_count; i++) {
-          ssa_env->locals[pos++] = zero;
-        }
-      }
-      // Initialize float32 locals.
-      if (function_env_->local_f32_count > 0) {
-        TFNode* zero = builder_->Float32Constant(0);
-        for (uint32_t i = 0; i < function_env_->local_f32_count; i++) {
-          ssa_env->locals[pos++] = zero;
-        }
-      }
-      // Initialize float64 locals.
-      if (function_env_->local_f64_count > 0) {
-        TFNode* zero = builder_->Float64Constant(0);
-        for (uint32_t i = 0; i < function_env_->local_f64_count; i++) {
-          ssa_env->locals[pos++] = zero;
-        }
-      }
-      DCHECK_EQ(function_env_->total_locals, pos);
-      DCHECK_EQ(EnvironmentCount(), pos);
-      builder_->set_module(function_env_->module);
+      builder_->set_module(module_);
     }
     ssa_env->control = start;
     ssa_env->effect = start;
     SetEnv("initial", ssa_env);
+  }
+
+  TFNode* DefaultValue(LocalType type) {
+    switch (type) {
+      case kAstI32:
+        return builder_->Int32Constant(0);
+      case kAstI64:
+        return builder_->Int64Constant(0);
+      case kAstF32:
+        return builder_->Float32Constant(0);
+      case kAstF64:
+        return builder_->Float64Constant(0);
+      default:
+        UNREACHABLE();
+        return nullptr;
+    }
   }
 
   void Leaf(LocalType type, TFNode* node = nullptr) {
@@ -547,6 +563,45 @@ class LR_WasmDecoder : public WasmDecoder {
       bytes[stack_.size() * 2] = 0;
     }
     return bytes;
+  }
+
+  // Decodes the locals declarations, if any, populating {local_type_vec_}.
+  void DecodeLocalDecls() {
+    DCHECK_EQ(0, local_type_vec_.size());
+    // Initialize {local_type_vec} from signature.
+    if (sig_) {
+      local_type_vec_.reserve(sig_->parameter_count());
+      for (size_t i = 0; i < sig_->parameter_count(); i++) {
+        local_type_vec_.push_back(sig_->GetParam(i));
+      }
+    }
+    // Decode local declarations, if any.
+    int length;
+    uint32_t entries = consume_u32v(&length, "local decls count");
+    while (entries-- > 0 && pc_ < limit_) {
+      uint32_t count = consume_u32v(&length, "local count");
+      byte code = consume_u8("local type");
+      LocalType type;
+      switch (code) {
+        case kLocalI32:
+          type = kAstI32;
+          break;
+        case kLocalI64:
+          type = kAstI64;
+          break;
+        case kLocalF32:
+          type = kAstF32;
+          break;
+        case kLocalF64:
+          type = kAstF64;
+          break;
+        default:
+          error(pc_ - 1, "invalid local type");
+          return;
+      }
+      local_type_vec_.insert(local_type_vec_.end(), count, type);
+    }
+    total_locals_ = local_type_vec_.size();
   }
 
   // Decodes the body of a function, producing reduced trees into {result}.
@@ -652,7 +707,7 @@ class LR_WasmDecoder : public WasmDecoder {
           break;
         }
         case kExprReturn: {
-          int count = static_cast<int>(function_env_->sig->return_count());
+          int count = static_cast<int>(sig_->return_count());
           if (count == 0) {
             BUILD(Return, 0, builder_->Buffer(0));
             ssa_env_->Kill();
@@ -809,6 +864,7 @@ class LR_WasmDecoder : public WasmDecoder {
           len = 1 + operand.length;
           break;
         }
+        case kExprDeclLocals:
         default:
           error("Invalid opcode");
           return;
@@ -841,7 +897,7 @@ class LR_WasmDecoder : public WasmDecoder {
   }
 
   void AddImplicitReturnAtEnd() {
-    int retcount = static_cast<int>(function_env_->sig->return_count());
+    int retcount = static_cast<int>(sig_->return_count());
     if (retcount == 0) {
       BUILD0(ReturnVoid);
       return;
@@ -860,7 +916,7 @@ class LR_WasmDecoder : public WasmDecoder {
     for (int index = 0; index < retcount; index++) {
       Tree* tree = trees_[trees_.size() - 1 - index];
       if (buffer) buffer[index] = tree->node;
-      LocalType expected = function_env_->sig->GetReturn(index);
+      LocalType expected = sig_->GetReturn(index);
       if (tree->type != expected) {
         error(limit_, tree->pc,
               "ImplicitReturn[%d] expected type %s, found %s of type %s", index,
@@ -1066,7 +1122,7 @@ class LR_WasmDecoder : public WasmDecoder {
         break;
       }
       case kExprReturn: {
-        TypeCheckLast(p, function_env_->sig->GetReturn(p->index - 1));
+        TypeCheckLast(p, sig_->GetReturn(p->index - 1));
         if (p->done()) {
           if (build()) {
             int count = p->tree->count;
@@ -1346,8 +1402,7 @@ class LR_WasmDecoder : public WasmDecoder {
           TFNode* b = from->locals[i];
           if (a != b) {
             TFNode* vals[] = {a, b};
-            to->locals[i] =
-                builder_->Phi(function_env_->GetLocalType(i), 2, vals, merge);
+            to->locals[i] = builder_->Phi(local_type_vec_[i], 2, vals, merge);
           }
         }
         break;
@@ -1382,8 +1437,8 @@ class LR_WasmDecoder : public WasmDecoder {
               vals[j] = tnode;
             }
             vals[count - 1] = fnode;
-            to->locals[i] = builder_->Phi(function_env_->GetLocalType(i), count,
-                                          vals, merge);
+            to->locals[i] =
+                builder_->Phi(local_type_vec_[i], count, vals, merge);
           }
         }
         break;
@@ -1426,8 +1481,8 @@ class LR_WasmDecoder : public WasmDecoder {
         env->effect = builder_->EffectPhi(1, &env->effect, env->control);
         builder_->Terminate(env->effect, env->control);
         for (int i = EnvironmentCount() - 1; i >= 0; i--) {
-          env->locals[i] = builder_->Phi(function_env_->GetLocalType(i), 1,
-                                         &env->locals[i], env->control);
+          env->locals[i] = builder_->Phi(local_type_vec_[i], 1, &env->locals[i],
+                                         env->control);
         }
       }
     }
@@ -1481,7 +1536,7 @@ class LR_WasmDecoder : public WasmDecoder {
   }
 
   int EnvironmentCount() {
-    if (builder_) return static_cast<int>(function_env_->GetLocalCount());
+    if (builder_) return static_cast<int>(local_type_vec_.size());
     return 0;  // if we aren't building a graph, don't bother with SSA renaming.
   }
 
@@ -1517,23 +1572,68 @@ class LR_WasmDecoder : public WasmDecoder {
     PrintProduction(depth + 1);
   }
 #endif
+
+  BitVector* AnalyzeLoopAssignment(const byte* pc) {
+    if (pc >= limit_) return nullptr;
+    if (*pc != kExprLoop) return nullptr;
+
+    BitVector* assigned =
+        new (zone_) BitVector(static_cast<int>(total_locals_), zone_);
+    // Keep a stack to model the nesting of expressions.
+    std::vector<int> arity_stack;
+    arity_stack.push_back(OpcodeArity(pc));
+    pc += OpcodeLength(pc);
+
+    // Iteratively process all AST nodes nested inside the loop.
+    while (pc < limit_) {
+      WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+      int arity = 0;
+      int length = 1;
+      if (opcode == kExprSetLocal) {
+        LocalIndexOperand operand(this, pc);
+        if (assigned->length() > 0 &&
+            static_cast<int>(operand.index) < assigned->length()) {
+          // Unverified code might have an out-of-bounds index.
+          assigned->Add(operand.index);
+        }
+        arity = 1;
+        length = 1 + operand.length;
+      } else {
+        arity = OpcodeArity(pc);
+        length = OpcodeLength(pc);
+      }
+
+      pc += length;
+      arity_stack.push_back(arity);
+      while (arity_stack.back() == 0) {
+        arity_stack.pop_back();
+        if (arity_stack.empty()) return assigned;  // reached end of loop
+        arity_stack.back()--;
+      }
+    }
+    return assigned;
+  }
 };
 
-
-TreeResult VerifyWasmCode(FunctionEnv* env, const byte* base, const byte* start,
-                          const byte* end) {
+std::vector<LocalType>* DecodeLocalDeclsForTesting(const byte* start,
+                                                   const byte* end) {
   Zone zone;
-  LR_WasmDecoder decoder(&zone, nullptr);
-  TreeResult result = decoder.Decode(env, base, start, end);
+  FunctionBody body = {nullptr, nullptr, nullptr, start, end};
+  SR_WasmDecoder decoder(&zone, nullptr, body);
+  return decoder.DecodeLocalDeclsForTesting();
+}
+
+TreeResult VerifyWasmCode(FunctionBody& body) {
+  Zone zone;
+  SR_WasmDecoder decoder(&zone, nullptr, body);
+  TreeResult result = decoder.Decode();
   return result;
 }
 
-
-TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env, const byte* base,
-                        const byte* start, const byte* end) {
+TreeResult BuildTFGraph(TFBuilder* builder, FunctionBody& body) {
   Zone zone;
-  LR_WasmDecoder decoder(&zone, builder);
-  TreeResult result = decoder.Decode(env, base, start, end);
+  SR_WasmDecoder decoder(&zone, builder, body);
+  TreeResult result = decoder.Decode();
   return result;
 }
 
@@ -1565,20 +1665,21 @@ ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte* pc,
 }
 
 int OpcodeLength(const byte* pc, const byte* end) {
-  WasmDecoder decoder(nullptr, pc, end);
+  WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeLength(pc);
 }
 
-int OpcodeArity(FunctionEnv* env, const byte* pc, const byte* end) {
-  WasmDecoder decoder(env, pc, end);
+int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
+                const byte* end) {
+  WasmDecoder decoder(module, sig, pc, end);
   return decoder.OpcodeArity(pc);
 }
 
-void PrintAst(FunctionEnv* env, const byte* start, const byte* end) {
-  WasmDecoder decoder(env, start, end);
-  const byte* pc = start;
+void PrintAst(FunctionBody& body) {
+  WasmDecoder decoder(body.module, body.sig, body.start, body.end);
+  const byte* pc = body.start;
   std::vector<int> arity_stack;
-  while (pc < end) {
+  while (pc < body.end) {
     int arity = decoder.OpcodeArity(pc);
     size_t length = decoder.OpcodeLength(pc);
 
@@ -1605,65 +1706,11 @@ void PrintAst(FunctionEnv* env, const byte* start, const byte* end) {
   }
 }
 
-// Analyzes loop bodies for static assignments to locals, which helps in
-// reducing the number of phis introduced at loop headers.
-class LoopAssignmentAnalyzer : public WasmDecoder {
- public:
-  LoopAssignmentAnalyzer(Zone* zone, FunctionEnv* function_env) : zone_(zone) {
-    function_env_ = function_env;
-  }
-
-  BitVector* Analyze(const byte* pc, const byte* limit) {
-    Decoder::Reset(pc, limit);
-    if (pc_ >= limit_) return nullptr;
-    if (*pc_ != kExprLoop) return nullptr;
-
-    BitVector* assigned =
-        new (zone_) BitVector(function_env_->total_locals, zone_);
-    // Keep a stack to model the nesting of expressions.
-    std::vector<int> arity_stack;
-    arity_stack.push_back(OpcodeArity(pc_));
-    pc_ += OpcodeLength(pc_);
-
-    // Iteratively process all AST nodes nested inside the loop.
-    while (pc_ < limit_) {
-      WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
-      int arity = 0;
-      int length = 1;
-      if (opcode == kExprSetLocal) {
-        LocalIndexOperand operand(this, pc_);
-        if (assigned->length() > 0 &&
-            static_cast<int>(operand.index) < assigned->length()) {
-          // Unverified code might have an out-of-bounds index.
-          assigned->Add(operand.index);
-        }
-        arity = 1;
-        length = 1 + operand.length;
-      } else {
-        arity = OpcodeArity(pc_);
-        length = OpcodeLength(pc_);
-      }
-
-      pc_ += length;
-      arity_stack.push_back(arity);
-      while (arity_stack.back() == 0) {
-        arity_stack.pop_back();
-        if (arity_stack.empty()) return assigned;  // reached end of loop
-        arity_stack.back()--;
-      }
-    }
-    return assigned;
-  }
-
- private:
-  Zone* zone_;
-};
-
-
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, FunctionEnv* env,
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
-  LoopAssignmentAnalyzer analyzer(zone, env);
-  return analyzer.Analyze(start, end);
+  FunctionBody body = {nullptr, nullptr, nullptr, start, end};
+  SR_WasmDecoder decoder(zone, nullptr, body);
+  return decoder.AnalyzeLoopAssignmentForTesting(start, num_locals);
 }
 
 }  // namespace wasm

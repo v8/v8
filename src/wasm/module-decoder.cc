@@ -338,14 +338,10 @@ class ModuleDecoder : public Decoder {
   FunctionResult DecodeSingleFunction(ModuleEnv* module_env,
                                       WasmFunction* function) {
     pc_ = start_;
-    function->sig = consume_sig();                  // read signature
+    function->sig = consume_sig();               // read signature
     function->name_offset = 0;                   // ---- name
-    function->code_start_offset = off(pc_ + 8);  // ---- code start
+    function->code_start_offset = off(pc_);      // ---- code start
     function->code_end_offset = off(limit_);     // ---- code end
-    function->local_i32_count = consume_u16();      // read u16
-    function->local_i64_count = consume_u16();      // read u16
-    function->local_f32_count = consume_u16();      // read u16
-    function->local_f64_count = consume_u16();      // read u16
     function->exported = false;                  // ---- exported
     function->external = false;                  // ---- external
 
@@ -473,18 +469,10 @@ class ModuleDecoder : public Decoder {
          << std::endl;
       os << std::endl;
     }
-    FunctionEnv fenv;
-    fenv.module = menv;
-    fenv.sig = function->sig;
-    fenv.local_i32_count = function->local_i32_count;
-    fenv.local_i64_count = function->local_i64_count;
-    fenv.local_f32_count = function->local_f32_count;
-    fenv.local_f64_count = function->local_f64_count;
-    fenv.SumLocals();
-
-    TreeResult result =
-        VerifyWasmCode(&fenv, start_, start_ + function->code_start_offset,
-                       start_ + function->code_end_offset);
+    FunctionBody body = {menv, function->sig, start_,
+                         start_ + function->code_start_offset,
+                         start_ + function->code_end_offset};
+    TreeResult result = VerifyWasmCode(body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;

@@ -86,9 +86,6 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
   byte* header = buffer;
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
-  for (size_t i = 0; i < 7; i++) {
-    CHECK_EQ(i, static_cast<size_t>(*(buffer + 2 * i + f->HeaderSize() + 1)));
-  }
 }
 
 
@@ -109,15 +106,6 @@ TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
   body = buffer + f->HeaderSize();
-  for (size_t i = 0; i < 127; i++) {
-    CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * i)));
-    CHECK_EQ(i + 1, static_cast<size_t>(*(body + 2 * i + 1)));
-  }
-  CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * 127)));
-  CHECK_EQ(0x80, static_cast<size_t>(*(body + 2 * 127 + 1)));
-  CHECK_EQ(0x01, static_cast<size_t>(*(body + 2 * 127 + 2)));
-  CHECK_EQ(kExprGetLocal, static_cast<size_t>(*(body + 2 * 127 + 3)));
-  CHECK_EQ(0x00, static_cast<size_t>(*(body + 2 * 127 + 4)));
 }
 
 

@@ -183,61 +183,13 @@ struct MemoryAccessOperand {
 typedef compiler::WasmGraphBuilder TFBuilder;
 struct ModuleEnv;  // forward declaration of module interface.
 
-// Interface the function environment during decoding, include the signature
-// and number of locals.
-struct FunctionEnv {
-  ModuleEnv* module;             // module environment
-  FunctionSig* sig;              // signature of this function
-  uint32_t local_i32_count;      // number of int32 locals
-  uint32_t local_i64_count;      // number of int64 locals
-  uint32_t local_f32_count;      // number of float32 locals
-  uint32_t local_f64_count;      // number of float64 locals
-  uint32_t total_locals;         // sum of parameters and all locals
-
-  uint32_t GetLocalCount() { return total_locals; }
-  LocalType GetLocalType(uint32_t index) {
-    if (index < static_cast<uint32_t>(sig->parameter_count())) {
-      return sig->GetParam(index);
-    }
-    index -= static_cast<uint32_t>(sig->parameter_count());
-    if (index < local_i32_count) return kAstI32;
-    index -= local_i32_count;
-    if (index < local_i64_count) return kAstI64;
-    index -= local_i64_count;
-    if (index < local_f32_count) return kAstF32;
-    index -= local_f32_count;
-    if (index < local_f64_count) return kAstF64;
-    return kAstStmt;
-  }
-
-  void AddLocals(LocalType type, uint32_t count) {
-    switch (type) {
-      case kAstI32:
-        local_i32_count += count;
-        break;
-      case kAstI64:
-        local_i64_count += count;
-        break;
-      case kAstF32:
-        local_f32_count += count;
-        break;
-      case kAstF64:
-        local_f64_count += count;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    total_locals += count;
-    DCHECK_EQ(total_locals,
-              (sig->parameter_count() + local_i32_count + local_i64_count +
-               local_f32_count + local_f64_count));
-  }
-
-  void SumLocals() {
-    total_locals = static_cast<uint32_t>(sig->parameter_count()) +
-                   local_i32_count + local_i64_count + local_f32_count +
-                   local_f64_count;
-  }
+// All of the various data structures necessary to decode a function body.
+struct FunctionBody {
+  ModuleEnv* module;  // module environment
+  FunctionSig* sig;   // function signature
+  const byte* base;   // base of the module bytes, for error reporting
+  const byte* start;  // start of the function body
+  const byte* end;    // end of the function body
 };
 
 struct Tree;
@@ -245,21 +197,21 @@ typedef Result<Tree*> TreeResult;
 
 std::ostream& operator<<(std::ostream& os, const Tree& tree);
 
-TreeResult VerifyWasmCode(FunctionEnv* env, const byte* base, const byte* start,
-                          const byte* end);
-TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env, const byte* base,
-                        const byte* start, const byte* end);
+TreeResult VerifyWasmCode(FunctionBody& body);
+TreeResult BuildTFGraph(TFBuilder* builder, FunctionBody& body);
+void PrintAst(FunctionBody& body);
 
-void PrintAst(FunctionEnv* env, const byte* start, const byte* end);
-
-inline TreeResult VerifyWasmCode(FunctionEnv* env, const byte* start,
-                                 const byte* end) {
-  return VerifyWasmCode(env, nullptr, start, end);
+inline TreeResult VerifyWasmCode(ModuleEnv* module, FunctionSig* sig,
+                                 const byte* start, const byte* end) {
+  FunctionBody body = {module, sig, nullptr, start, end};
+  return VerifyWasmCode(body);
 }
 
-inline TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env,
-                               const byte* start, const byte* end) {
-  return BuildTFGraph(builder, env, nullptr, start, end);
+inline TreeResult BuildTFGraph(TFBuilder* builder, ModuleEnv* module,
+                               FunctionSig* sig, const byte* start,
+                               const byte* end) {
+  FunctionBody body = {module, sig, nullptr, start, end};
+  return BuildTFGraph(builder, body);
 }
 
 enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
@@ -267,14 +219,17 @@ enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
 ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte*, const byte*,
                                                       int*, uint32_t*);
 
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, FunctionEnv* env,
+std::vector<LocalType>* DecodeLocalDeclsForTesting(const byte* start,
+                                                   const byte* end);
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end);
 
 // Computes the length of the opcode at the given address.
 int OpcodeLength(const byte* pc, const byte* end);
 
 // Computes the arity (number of sub-nodes) of the opcode at the given address.
-int OpcodeArity(FunctionEnv* env, const byte* pc, const byte* end);
+int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
+                const byte* end);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -42,11 +42,6 @@ class WasmFunctionEncoder : public ZoneObject {
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
 
-  bool HasLocals() const {
-    return (local_i32_count_ + local_i64_count_ + local_f32_count_ +
-            local_f64_count_) > 0;
-  }
-
   bool HasName() const { return (exported_ || external_) && name_.size() > 0; }
 };
 

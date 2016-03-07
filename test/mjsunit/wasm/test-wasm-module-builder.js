@@ -47,6 +47,29 @@ var debug = false;
     assertEquals(27777, instance.exports.main(27777));
 })();
 
+(function LocalsTest2() {
+    // TODO(titzer): i64 only works on 64-bit platforms.
+    var types = [
+      {locals: {i32_count: 1}, type: kAstI32},
+//      {locals: {i64_count: 1}, type: kAstI64},
+      {locals: {f32_count: 1}, type: kAstF32},
+      {locals: {f64_count: 1}, type: kAstF64},
+    ];
+
+    for (p of types) {
+      var module = new WasmModuleBuilder();
+      module.addFunction(undefined, [p.type, p.type])
+        .addLocals(p.locals)
+        .addBody([kExprSetLocal, 1, kExprGetLocal, 0])
+        .exportAs("main");
+
+      var buffer = module.toBuffer(debug);
+      var instance = _WASMEXP_.instantiateModule(buffer);
+      assertEquals(19, instance.exports.main(19));
+      assertEquals(27777, instance.exports.main(27777));
+    }
+})();
+
 (function CallTest() {
     var module = new WasmModuleBuilder();
     module.addFunction("add", [kAstI32, kAstI32, kAstI32])

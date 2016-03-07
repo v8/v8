@@ -206,8 +206,7 @@ TEST(Run_WasmCallI64Parameter) {
     uint32_t index = t.CompileAndAdd();
 
     // Build the calling function.
-    WasmRunner<int32_t> r;
-    r.env()->module = &module;
+    WasmRunner<int32_t> r(&module);
     BUILD(
         r,
         WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(

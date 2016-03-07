@@ -48,6 +48,8 @@ function bytesWithHeader() {
   return buffer;
 }
 
+var kDeclNoLocals = 0;
+
 // Section declaration constants
 var kDeclMemory = 0x00;
 var kDeclSignatures = 0x01;

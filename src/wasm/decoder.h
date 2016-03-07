@@ -327,6 +327,7 @@ class Decoder {
 
   bool ok() const { return error_pc_ == nullptr; }
   bool failed() const { return error_pc_ != nullptr; }
+  bool more() const { return pc_ < limit_; }
 
   const byte* start() { return start_; }
   const byte* pc() { return pc_; }

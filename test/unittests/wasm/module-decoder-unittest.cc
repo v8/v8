@@ -903,10 +903,11 @@ class WasmFunctionVerifyTest : public TestWithZone {};
 TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
   static const byte data[] = {
       0,       kLocalVoid,  // signature
-      3,       0,           // local int32 count
-      4,       0,           // local int64 count
-      5,       0,           // local float32 count
-      6,       0,           // local float64 count
+      4,                    // locals
+      3,       kLocalI32,   // --
+      4,       kLocalI64,   // --
+      5,       kLocalF32,   // --
+      6,       kLocalF64,   // --
       kExprNop              // body
   };
 
@@ -919,12 +920,9 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     EXPECT_EQ(0, function->sig->parameter_count());
     EXPECT_EQ(0, function->sig->return_count());
     EXPECT_EQ(0, function->name_offset);
-    EXPECT_EQ(arraysize(data) - 1, function->code_start_offset);
+    EXPECT_EQ(2, function->code_start_offset);
     EXPECT_EQ(arraysize(data), function->code_end_offset);
-    EXPECT_EQ(3, function->local_i32_count);
-    EXPECT_EQ(4, function->local_i64_count);
-    EXPECT_EQ(5, function->local_f32_count);
-    EXPECT_EQ(6, function->local_f64_count);
+    // TODO(titzer): verify encoding of local declarations
     EXPECT_FALSE(function->external);
     EXPECT_FALSE(function->exported);
   }

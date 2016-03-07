@@ -2409,15 +2409,6 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
        << wasm::WasmFunctionName(&function, module_env) << std::endl;
     os << std::endl;
   }
-  // Initialize the function environment for decoding.
-  wasm::FunctionEnv env;
-  env.module = module_env;
-  env.sig = function.sig;
-  env.local_i32_count = function.local_i32_count;
-  env.local_i64_count = function.local_i64_count;
-  env.local_f32_count = function.local_f32_count;
-  env.local_f64_count = function.local_f64_count;
-  env.SumLocals();
 
   // Create a TF graph during decoding.
   Zone zone;
@@ -2428,11 +2419,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
       InstructionSelector::SupportedMachineOperatorFlags());
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
   WasmGraphBuilder builder(&zone, &jsgraph, function.sig);
-  wasm::TreeResult result = wasm::BuildTFGraph(
-      &builder, &env,                                                 // --
-      module_env->module->module_start,                               // --
-      module_env->module->module_start + function.code_start_offset,  // --
-      module_env->module->module_start + function.code_end_offset);   // --
+  wasm::FunctionBody body = {
+      module_env, function.sig, module_env->module->module_start,
+      module_env->module->module_start + function.code_start_offset,
+      module_env->module->module_start + function.code_end_offset};
+  wasm::TreeResult result = wasm::BuildTFGraph(&builder, body);
 
   if (result.failed()) {
     if (FLAG_trace_wasm_compiler) {

@@ -7,6 +7,43 @@
 
 #include "src/wasm/wasm-opcodes.h"
 
+#define U32_LE(v)                                    \
+  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
+      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
+
+#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
+
+#define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
+
+#define SIG_INDEX(v) U16_LE(v)
+#define FUNC_INDEX(v) U16_LE(v)
+#define NAME_OFFSET(v) U32_LE(v)
+#define BR_TARGET(v) U16_LE(v)
+
+#define MASK_7 ((1 << 7) - 1)
+#define MASK_14 ((1 << 14) - 1)
+#define MASK_21 ((1 << 21) - 1)
+#define MASK_28 ((1 << 28) - 1)
+
+#define U32V_1(x) static_cast<byte>((x)&MASK_7)
+#define U32V_2(x) \
+  static_cast<byte>(((x)&MASK_7) | 0x80), static_cast<byte>(((x) >> 7) & MASK_7)
+#define U32V_3(x)                                      \
+  static_cast<byte>((((x)) & MASK_7) | 0x80),          \
+      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80), \
+      static_cast<byte>(((x) >> 14) & MASK_7)
+#define U32V_4(x)                                       \
+  static_cast<byte>(((x)&MASK_7) | 0x80),               \
+      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>((((x) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((x) >> 21) & MASK_7)
+#define U32V_5(x)                                       \
+  static_cast<byte>(((x)&MASK_7) | 0x80),               \
+      static_cast<byte>((((x) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>((((x) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>((((x) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>((((x) >> 28) & MASK_7))
+
 // Convenience macros for building Wasm bytecode directly into a byte array.
 
 //------------------------------------------------------------------------------
@@ -57,6 +94,8 @@
 #define I64V_IN_RANGE(value, length) \
   ((value) >= I64V_MIN(length) && (value) <= I64V_MAX(length))
 
+#define WASM_NO_LOCALS 0
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -73,6 +112,83 @@ inline void CheckI64v(int64_t value, int length) {
   DCHECK(length == 1 || !I64V_IN_RANGE(value, length - 1));
 }
 
+// A helper for encoding local declarations prepended to the body of a
+// function.
+class LocalDeclEncoder {
+ public:
+  // Prepend local declarations by creating a new buffer and copying data
+  // over. The new buffer must be delete[]'d by the caller.
+  void Prepend(const byte** start, const byte** end) const {
+    size_t size = (*end - *start);
+    byte* buffer = new byte[Size() + size];
+    size_t pos = Emit(buffer);
+    memcpy(buffer + pos, *start, size);
+    pos += size;
+    *start = buffer;
+    *end = buffer + pos;
+  }
+
+  size_t Emit(byte* buffer) const {
+    size_t pos = 0;
+    pos = WriteUint32v(buffer, pos, static_cast<uint32_t>(local_decls.size()));
+    for (size_t i = 0; i < local_decls.size(); i++) {
+      pos = WriteUint32v(buffer, pos, local_decls[i].first);
+      buffer[pos++] = WasmOpcodes::LocalTypeCodeFor(local_decls[i].second);
+    }
+    DCHECK_EQ(Size(), pos);
+    return pos;
+  }
+
+  // Add locals declarations to this helper. Return the index of the newly added
+  // local(s), with an optional adjustment for the parameters.
+  uint32_t AddLocals(uint32_t count, LocalType type,
+                     FunctionSig* sig = nullptr) {
+    if (count == 0) {
+      return static_cast<uint32_t>((sig ? sig->parameter_count() : 0) +
+                                   local_decls.size());
+    }
+    size_t pos = local_decls.size();
+    if (local_decls.size() > 0 && local_decls.back().second == type) {
+      count += local_decls.back().first;
+      local_decls.pop_back();
+    }
+    local_decls.push_back(std::pair<uint32_t, LocalType>(count, type));
+    return static_cast<uint32_t>(pos + (sig ? sig->parameter_count() : 0));
+  }
+
+  size_t Size() const {
+    size_t size = SizeofUint32v(static_cast<uint32_t>(local_decls.size()));
+    for (auto p : local_decls) size += 1 + SizeofUint32v(p.first);
+    return size;
+  }
+
+ private:
+  std::vector<std::pair<uint32_t, LocalType>> local_decls;
+
+  size_t SizeofUint32v(uint32_t val) const {
+    size_t size = 1;
+    while (true) {
+      byte b = val & MASK_7;
+      if (b == val) return size;
+      size++;
+      val = val >> 7;
+    }
+  }
+
+  // TODO(titzer): lift encoding of u32v to a common place.
+  size_t WriteUint32v(byte* buffer, size_t pos, uint32_t val) const {
+    while (true) {
+      byte b = val & MASK_7;
+      if (b == val) {
+        buffer[pos++] = b;
+        break;
+      }
+      buffer[pos++] = 0x80 | b;
+      val = val >> 7;
+    }
+    return pos;
+  }
+};
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
@@ -389,42 +505,5 @@ inline void CheckI64v(int64_t value, int length) {
 #define WASM_F64_REINTERPRET_I64(x) kExprF64ReinterpretI64, x
 #define WASM_I32_REINTERPRET_F32(x) kExprI32ReinterpretF32, x
 #define WASM_I64_REINTERPRET_F64(x) kExprI64ReinterpretF64, x
-
-#define U32_LE(v)                                    \
-  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
-      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
-
-#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
-
-#define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
-
-#define SIG_INDEX(v) U16_LE(v)
-#define FUNC_INDEX(v) U16_LE(v)
-#define NAME_OFFSET(v) U32_LE(v)
-#define BR_TARGET(v) U16_LE(v)
-
-#define MASK_7 ((1 << 7) - 1)
-#define MASK_14 ((1 << 14) - 1)
-#define MASK_21 ((1 << 21) - 1)
-#define MASK_28 ((1 << 28) - 1)
-
-#define U32V_1(x) static_cast<byte>(x & MASK_7)
-#define U32V_2(x) \
-  static_cast<byte>((x & MASK_7) | 0x80), static_cast<byte>((x >> 7) & MASK_7)
-#define U32V_3(x)                                    \
-  static_cast<byte>((x & MASK_7) | 0x80),            \
-      static_cast<byte>(((x >> 7) & MASK_7) | 0x80), \
-      static_cast<byte>((x >> 14) & MASK_7)
-#define U32V_4(x)                                     \
-  static_cast<byte>((x & MASK_7) | 0x80),             \
-      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>((x >> 21) & MASK_7)
-#define U32V_5(x)                                     \
-  static_cast<byte>((x & MASK_7) | 0x80),             \
-      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
-      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
-      static_cast<byte>(((x >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>(((x >> 28) & MASK_7))
 
 #endif  // V8_WASM_MACRO_GEN_H_

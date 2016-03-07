@@ -63,16 +63,6 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
-inline void init_env(FunctionEnv* env, FunctionSig* sig) {
-  env->module = nullptr;
-  env->sig = sig;
-  env->local_i32_count = 0;
-  env->local_i64_count = 0;
-  env->local_f32_count = 0;
-  env->local_f64_count = 0;
-  env->SumLocals();
-}
-
 const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
@@ -227,11 +217,11 @@ class TestingModule : public ModuleEnv {
   }
 };
 
-
-inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
-                              const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(zone, jsgraph, env->sig);
-  TreeResult result = BuildTFGraph(&builder, env, start, end);
+inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
+                              FunctionSig* sig, const byte* start,
+                              const byte* end) {
+  compiler::WasmGraphBuilder builder(zone, jsgraph, sig);
+  TreeResult result = BuildTFGraph(&builder, module, sig, start, end);
   if (result.failed()) {
     ptrdiff_t pc = result.error_pc - result.start;
     ptrdiff_t pt = result.error_pt - result.start;
@@ -399,10 +389,9 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
       : GraphAndBuilders(main_zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
+        sig(sig),
         descriptor_(nullptr),
         testing_module_(module) {
-    init_env(&env, sig);
-    env.module = module;
     if (module) {
       // Get a new function from the testing module.
       function_ = nullptr;
@@ -420,12 +409,13 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   }
 
   JSGraph jsgraph;
-  FunctionEnv env;
+  FunctionSig* sig;
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModule* testing_module_;
   WasmFunction* function_;
   int function_index_;
+  LocalDeclEncoder local_decls;
 
   Isolate* isolate() { return main_isolate(); }
   Graph* graph() const { return main_graph_; }
@@ -434,28 +424,23 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   MachineOperatorBuilder* machine() { return &main_machine_; }
   void InitializeDescriptor() {
     if (descriptor_ == nullptr) {
-      descriptor_ = env.module->GetWasmCallDescriptor(main_zone(), env.sig);
+      descriptor_ = testing_module_->GetWasmCallDescriptor(main_zone(), sig);
     }
   }
   CallDescriptor* descriptor() { return descriptor_; }
 
   void Build(const byte* start, const byte* end) {
-    // Transfer local counts before compiling.
-    function()->local_i32_count = env.local_i32_count;
-    function()->local_i64_count = env.local_i64_count;
-    function()->local_f32_count = env.local_f32_count;
-    function()->local_f64_count = env.local_f64_count;
-
     // Build the TurboFan graph.
-    TestBuildingGraph(main_zone(), &jsgraph, &env, start, end);
+    local_decls.Prepend(&start, &end);
+    TestBuildingGraph(main_zone(), &jsgraph, testing_module_, sig, start, end);
+    delete[] start;
   }
 
   byte AllocateLocal(LocalType type) {
-    int result = static_cast<int>(env.total_locals);
-    env.AddLocals(type, 1);
-    byte b = static_cast<byte>(result);
-    CHECK_EQ(result, b);
-    return b;
+    uint32_t index = local_decls.AddLocals(1, type, sig);
+    byte result = static_cast<byte>(index);
+    DCHECK_EQ(index, result);
+    return result;
   }
 
   // TODO(titzer): remove me.
@@ -542,8 +527,6 @@ class WasmRunner {
     wrapper_.Init(compiler_.descriptor(), p0, p1, p2, p3);
   }
 
-  FunctionEnv* env() { return &compiler_.env; }
-
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
   // more than once.
@@ -593,13 +576,7 @@ class WasmRunner {
     return return_value;
   }
 
-  byte AllocateLocal(LocalType type) {
-    int result = static_cast<int>(env()->total_locals);
-    env()->AddLocals(type, 1);
-    byte b = static_cast<byte>(result);
-    CHECK_EQ(result, b);
-    return b;
-  }
+  byte AllocateLocal(LocalType type) { return compiler_.AllocateLocal(type); }
 
  protected:
   Zone zone;
