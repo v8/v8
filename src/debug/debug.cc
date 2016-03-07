@@ -1524,7 +1524,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
 
   if (function.is_null()) {
     DCHECK(shared->HasDebugCode());
-  } else if (!Compiler::Compile(function, CLEAR_EXCEPTION)) {
+  } else if (!Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
     return false;
   }
 

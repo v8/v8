@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<SharedFunctionInfo> target_shared(target->shared());
   Handle<SharedFunctionInfo> source_shared(source->shared());
 
-  if (!Compiler::Compile(source, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(source, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
 

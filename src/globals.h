@@ -930,12 +930,6 @@ enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
 
 
-enum ClearExceptionFlag {
-  KEEP_EXCEPTION,
-  CLEAR_EXCEPTION
-};
-
-
 enum MinusZeroMode {
   TREAT_MINUS_ZERO_AS_ZERO,
   FAIL_ON_MINUS_ZERO

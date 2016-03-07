@@ -583,6 +583,7 @@ class OptimizedCompileJob: public ZoneObject {
 // of the source code or deferred for lazy compilation at a later point.
 class Compiler : public AllStatic {
  public:
+  enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   // ===========================================================================

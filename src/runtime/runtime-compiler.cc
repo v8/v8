@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
-  if (!Compiler::Compile(function, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
   DCHECK(function->is_compiled());

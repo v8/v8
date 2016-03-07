@@ -12987,7 +12987,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   // The constructor should be compiled for the optimization hints to be
   // available.
-  Compiler::Compile(function, CLEAR_EXCEPTION);
+  Compiler::Compile(function, Compiler::CLEAR_EXCEPTION);
 
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
