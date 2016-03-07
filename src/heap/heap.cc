@@ -1852,6 +1852,10 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
   set_allocation_sites_list(allocation_site_obj);
 }
 
+void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
+  set_native_contexts_list(retainer->RetainAs(native_contexts_list()));
+  set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
+}
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
   DisallowHeapAllocation no_allocation_scope;

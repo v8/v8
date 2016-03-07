@@ -1675,6 +1675,7 @@ class Heap {
   void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
+  void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
   // ===========================================================================
   // GC statistics. ============================================================

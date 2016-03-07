@@ -3695,7 +3695,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         &UpdateReferenceInExternalStringTableEntry);
 
     EvacuationWeakObjectRetainer evacuation_object_retainer;
-    heap()->ProcessAllWeakReferences(&evacuation_object_retainer);
+    heap()->ProcessWeakListRoots(&evacuation_object_retainer);
   }
 }
 
