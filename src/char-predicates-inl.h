@@ -43,6 +43,10 @@ inline bool IsAlphaNumeric(uc32 c) {
   return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c);
 }
 
+inline bool IsAlpha(uc32 c) {
+  return IsInRange(AsciiAlphaToLower(c), 'a', 'z');
+}
+
 inline bool IsDecimalDigit(uc32 c) {
   // ECMA-262, 3rd, 7.8.3 (p 16)
   return IsInRange(c, '0', '9');
