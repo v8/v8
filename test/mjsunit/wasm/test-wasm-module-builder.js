@@ -111,3 +111,30 @@ var debug = false;
     var instance = _WASMEXP_.instantiateModule(buffer);
     assertEquals(151587081, instance.exports.load(0));
 })();
+
+
+(function BasicTestWithUint8Array() {
+    var module = new WasmModuleBuilder();
+    module.addMemory(1, 2, false);
+    module.addFunction("foo", [kAstI32])
+        .addBody([kExprI8Const, 17])
+        .exportAs("blarg");
+
+    var buffer = module.toBuffer(debug);
+    var array = new Uint8Array(buffer);
+    var instance = _WASMEXP_.instantiateModule(array);
+    assertEquals(17, instance.exports.blarg());
+
+    var kPad = 5;
+    var buffer2 = new ArrayBuffer(kPad + buffer.byteLength + kPad);
+    var whole = new Uint8Array(buffer2);
+    for (var i = 0; i < whole.byteLength; i++) {
+      whole[i] = 0xff;
+    }
+    var array2 = new Uint8Array(buffer2, kPad, buffer.byteLength);
+    for (var i = 0; i < array2.byteLength; i++) {
+      array2[i] = array[i];
+    }
+    var instance = _WASMEXP_.instantiateModule(array2);
+    assertEquals(17, instance.exports.blarg());
+})();

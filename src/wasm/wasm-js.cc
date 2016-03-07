@@ -37,20 +37,43 @@ struct RawBuffer {
 
 RawBuffer GetRawBufferArgument(
     ErrorThrower& thrower, const v8::FunctionCallbackInfo<v8::Value>& args) {
-  // TODO(titzer): allow typed array views.
-  if (args.Length() < 1 || !args[0]->IsArrayBuffer()) {
+  if (args.Length() < 1) {
     thrower.Error("Argument 0 must be an array buffer");
     return {nullptr, nullptr};
   }
-  Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(args[0]);
-  ArrayBuffer::Contents contents = buffer->GetContents();
 
-  const byte* start = reinterpret_cast<const byte*>(contents.Data());
-  const byte* end = start + contents.ByteLength();
+  const byte* start = nullptr;
+  const byte* end = nullptr;
 
-  if (start == nullptr) {
-    thrower.Error("ArrayBuffer argument is empty");
+  if (args[0]->IsArrayBuffer()) {
+    // A raw array buffer was passed.
+    Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(args[0]);
+    ArrayBuffer::Contents contents = buffer->GetContents();
+
+    start = reinterpret_cast<const byte*>(contents.Data());
+    end = start + contents.ByteLength();
+
+    if (start == nullptr || end == start) {
+      thrower.Error("ArrayBuffer argument is empty");
+    }
+  } else if (args[0]->IsTypedArray()) {
+    // A TypedArray was passed.
+    Local<TypedArray> array = Local<TypedArray>::Cast(args[0]);
+    Local<ArrayBuffer> buffer = array->Buffer();
+
+    ArrayBuffer::Contents contents = buffer->GetContents();
+
+    start =
+        reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
+    end = start + array->ByteLength();
+
+    if (start == nullptr || end == start) {
+      thrower.Error("ArrayBuffer argument is empty");
+    }
+  } else {
+    thrower.Error("Argument 0 must be an ArrayBuffer or Uint8Array");
   }
+
   return {start, end};
 }
 
