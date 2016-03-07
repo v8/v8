@@ -805,12 +805,14 @@
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-crbug-467180': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
+  'regress/regress-crbug-568477-2': [FAIL],
 
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
   'debug-liveedit-literals': [FAIL],
   'debug-liveedit-3': [FAIL],
   'debug-liveedit-1': [FAIL],
+  'debug-liveedit-2': [FAIL],
   'debug-liveedit-patch-positions-replace': [FAIL],
   'debug-liveedit-patch-positions': [FAIL],
   'debug-liveedit-stepin': [FAIL],
@@ -820,6 +822,12 @@
   'es6/debug-liveedit-new-target-1': [FAIL],
   'es6/debug-liveedit-new-target-2': [FAIL],
   'es6/debug-liveedit-new-target-3': [FAIL],
+
+  # TODO(yangguo/rmcilroy,4690): Related to Debugger. Goes into a loop
+  # in function: Debug::FindSharedFunctionInfoInScript and times out.
+  'regress/regress-crbug-517592': [SKIP],
+  'regress/regress-1853': [SKIP],
+  'regress/regress-crbug-424142': [SKIP],
 
   # TODO(rmcilroy,4681): Requires support for generators.
   'messages': [FAIL],
@@ -866,45 +874,37 @@
 
   # TODO(mythria, 4764): lack of osr support.
   'regress/regress-2618': [FAIL],
-
-  # TODO(rmcilroy,4680): Test assert failures.
-  'debug-liveedit-2': [FAIL],
-  'es6/mirror-collections': [FAIL],
-  'es6/regress/regress-468661': [FAIL],
-  'regress/regress-crbug-109362': [FAIL],
-  'regress/regress-crbug-568477-2': [FAIL],
-
-  # TODO(rmcilroy,4680): Test timeouts.
+  # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
+  # till it is optimized. So test timeouts.
   'array-literal-transitions': [SKIP],
-  'regress/regress-crbug-517592': [SKIP],
-  'regress/regress-crbug-568477-4': [SKIP],
-  'regress/regress-crbug-409614': [SKIP],
-  'regress/regress-crbug-42414': [SKIP],
-  'regress/regress-1853': [SKIP],
-  'regress/regress-crbug-424142': [SKIP],
+
+  # TODO(mythria, 4680): Relate to GC and ignition holding references to
+  # objects.
+  'es6/mirror-collections': [FAIL],
+
+  # TODO(mythria, 4680): line numbers in eval test. Coloumn number is
+  # incorrect.
+  'regress/regress-crbug-109362': [FAIL],
+
+  # TODO(mythria, 4680): possibly problem with line numbers.
+  'es6/regress/regress-468661': [FAIL],
 
   # with statements no longer always have a block as their body
   'regress/regress-95485': [SKIP],
 }],  # ignition == True
 
 ['ignition == True and arch == arm64', {
-  # TODO(rmcilroy,4680): Fails on Arm64 due to expecting to take less than 3
-  # seconds.
-  'regress/regress-165637': [FAIL],
-}],  # ignition == True and arch == arm64
-
-['ignition == True and (arch == arm or arch == arm64)', {
-  # TODO(rmcilroy,4680): Arm / Arm64 specific timeouts.
+  # TODO(rmcilroy,4680): Arm64 specific timeouts.
   'asm/construct-double': [SKIP],
-  'compiler/osr-nested': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
+}],  # ignition == True and arch == arm64
+
+['ignition == True and arch == arm', {
+  # TODO(rmcilroy,4680): Arm specific timeouts.
+  'compiler/osr-one': [PASS, ['mode == debug', SKIP]],
+  'compiler/osr-two': [PASS, ['mode == debug', SKIP]],
   'regress/regress-1257': [SKIP],
-  'regress/regress-165637': [SKIP],
-  'regress/regress-2185': [SKIP],
-  'regress/regress-91008': [SKIP],
-  'unicodelctest': [SKIP],
-  'unicodelctest-no-optimization': [SKIP],
 }],  # ignition == True and (arch == arm or arch == arm64)
 
 ##############################################################################
