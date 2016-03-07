@@ -455,12 +455,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - elements kind: " << ElementsKindToString(elements_kind());
   os << "\n - unused property fields: " << unused_property_fields();
-  os << "\n - enum length: ";
-  if (EnumLength() == kInvalidEnumCacheSentinel) {
-    os << "invalid";
-  } else {
-    os << EnumLength();
-  }
   if (is_deprecated()) os << "\n - deprecated_map";
   if (is_stable()) os << "\n - stable_map";
   if (is_dictionary_map()) os << "\n - dictionary_map";

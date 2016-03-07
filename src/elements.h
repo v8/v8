@@ -8,7 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
-#include "src/keys.h"
+#include "src/key-accumulator.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -92,19 +92,6 @@ class ElementsAccessor {
                                     uint32_t offset = 0) {
     CollectElementIndices(object, handle(object->elements()), keys, range,
                           filter, offset);
-  }
-
-  //
-  virtual Handle<FixedArray> PrependElementIndices(
-      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
-      Handle<FixedArray> keys, GetKeysConversion convert,
-      PropertyFilter filter = ALL_PROPERTIES) = 0;
-
-  inline Handle<FixedArray> PrependElementIndices(
-      Handle<JSObject> object, Handle<FixedArray> keys,
-      GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
-    return PrependElementIndices(object, handle(object->elements()), keys,
-                                 convert, filter);
   }
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,

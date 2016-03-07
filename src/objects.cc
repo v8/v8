@@ -34,7 +34,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
-#include "src/keys.h"
+#include "src/key-accumulator.h"
 #include "src/list.h"
 #include "src/log.h"
 #include "src/lookup.h"
@@ -8226,9 +8226,7 @@ MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
 
 
 // TODO(cbruni/jkummerow): Consider moving this into elements.cc.
-bool JSObject::HasEnumerableElements() {
-  // TODO(cbruni): cleanup
-  JSObject* object = this;
+bool HasEnumerableElements(JSObject* object) {
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
@@ -8293,6 +8291,7 @@ bool JSObject::HasEnumerableElements() {
   return true;
 }
 
+
 // Tests for the fast common case for property enumeration:
 // - This object and all prototypes has an enum cache (which means that
 //   it is no proxy, has no interceptors and needs no access checks).
@@ -8309,7 +8308,7 @@ bool JSReceiver::IsSimpleEnum() {
     if (current->IsAccessCheckNeeded()) return false;
     DCHECK(!current->HasNamedInterceptor());
     DCHECK(!current->HasIndexedInterceptor());
-    if (current->HasEnumerableElements()) return false;
+    if (HasEnumerableElements(current)) return false;
     if (current != this && enum_length != 0) return false;
   }
   return true;
@@ -8373,9 +8372,10 @@ bool Map::OnlyHasSimpleProperties() {
          !has_hidden_prototype() && !is_dictionary_map();
 }
 
-// static
-Handle<FixedArray> JSObject::GetFastEnumPropertyKeys(Isolate* isolate,
-                                                     Handle<JSObject> object) {
+namespace {
+
+Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
+                                           Handle<JSObject> object) {
   Handle<Map> map(object->map());
   bool cache_enum_length = map->OnlyHasSimpleProperties();
 
@@ -8426,9 +8426,8 @@ Handle<FixedArray> JSObject::GetFastEnumPropertyKeys(Isolate* isolate,
 
   for (int i = 0; i < size; i++) {
     PropertyDetails details = descs->GetDetails(i);
-    if (details.IsDontEnum()) continue;
     Object* key = descs->GetKey(i);
-    if (key->IsSymbol()) continue;
+    if (details.IsDontEnum() || key->IsSymbol()) continue;
     storage->set(index, key);
     if (!indices.is_null()) {
       if (details.type() != DATA) {
@@ -8450,6 +8449,7 @@ Handle<FixedArray> JSObject::GetFastEnumPropertyKeys(Isolate* isolate,
   return storage;
 }
 
+}  // namespace
 
 Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
@@ -10664,6 +10664,7 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj,
   array->SetLength(length + 1);
   return array;
 }
+
 
 Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
                                  Handle<Object> obj2, AddMode mode) {
@@ -16426,6 +16427,7 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
   }
 }
 
+
 void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
                                        PropertyFilter filter) {
   if (HasFastProperties()) {
@@ -16465,6 +16467,7 @@ int JSObject::NumberOfOwnElements(PropertyFilter filter) {
   // Compute the number of enumerable elements.
   return GetOwnElementKeys(NULL, filter);
 }
+
 
 void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
                                      KeyAccumulator* keys,
@@ -18472,6 +18475,7 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
   DCHECK(storage->length() >= index);
   return index - start_index;
 }
+
 
 template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CollectKeysTo(

@@ -2043,8 +2043,6 @@ class JSObject: public JSReceiver {
   inline bool HasSlowArgumentsElements();
   inline bool HasFastStringWrapperElements();
   inline bool HasSlowStringWrapperElements();
-  bool HasEnumerableElements();
-
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
@@ -2293,9 +2291,6 @@ class JSObject: public JSReceiver {
                                     PropertyFilter filter);
 
   static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object);
-
-  static Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
-                                                    Handle<JSObject> object);
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
