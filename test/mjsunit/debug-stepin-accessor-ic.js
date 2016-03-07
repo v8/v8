@@ -45,5 +45,5 @@ debugger;                         // Break
 f();                              // Break
 
 Debug.setListener(null);          // Break
-assertEquals(86, break_count);
+assertEquals(87, break_count);
 assertNull(exception);
