@@ -6097,17 +6097,17 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
   uc32 from = 0;
   int i = 0;
   if (range_count > 0 && ranges->at(0).from() == 0) {
-    from = ranges->at(0).to();
+    from = ranges->at(0).to() + 1;
     i = 1;
   }
   while (i < range_count) {
     CharacterRange range = ranges->at(i);
-    negated_ranges->Add(CharacterRange(from + 1, range.from() - 1), zone);
-    from = range.to();
+    negated_ranges->Add(CharacterRange(from, range.from() - 1), zone);
+    from = range.to() + 1;
     i++;
   }
   if (from < String::kMaxCodePoint) {
-    negated_ranges->Add(CharacterRange(from + 1, String::kMaxCodePoint), zone);
+    negated_ranges->Add(CharacterRange(from, String::kMaxCodePoint), zone);
   }
 }
 
