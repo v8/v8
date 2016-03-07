@@ -2008,6 +2008,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   }
 
   // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ LoadP(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(scratch3,
@@ -2015,11 +2016,11 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&no_arguments_adaptor);
 
-  // Drop arguments adaptor frame and load arguments count.
+  // Drop current frame and load arguments count from arguments adaptor frame.
   __ mr(fp, scratch2);
-  __ LoadP(scratch1,
+  __ LoadP(caller_args_count_reg,
            MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
   __ b(&formal_parameter_count_loaded);
 
   __ bind(&no_arguments_adaptor);
@@ -2028,55 +2029,18 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ LoadP(scratch1,
            FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
   __ LoadWordArith(
-      scratch1, FieldMemOperand(
-                    scratch1, SharedFunctionInfo::kFormalParameterCountOffset));
+      caller_args_count_reg,
+      FieldMemOperand(scratch1,
+                      SharedFunctionInfo::kFormalParameterCountOffset));
 #if !V8_TARGET_ARCH_PPC64
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
 #endif
 
   __ bind(&formal_parameter_count_loaded);
 
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch2;
-  __ ShiftLeftImm(dst_reg, scratch1, Operand(kPointerSizeLog2));
-  __ add(dst_reg, fp, dst_reg);
-  __ addi(dst_reg, dst_reg,
-          Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = scratch1;
-  __ ShiftLeftImm(src_reg, args_reg, Operand(kPointerSizeLog2));
-  __ add(src_reg, sp, src_reg);
-  // Count receiver argument as well (not included in args_reg).
-  __ addi(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    __ cmpl(src_reg, dst_reg);
-    __ Check(lt, kStackAccessBelowStackPointer);
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  __ RestoreFrameStateForTailCall();
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch3;
-  Label loop;
-  __ addi(tmp_reg, args_reg, Operand(1));  // +1 for receiver
-  __ mtctr(tmp_reg);
-  __ bind(&loop);
-  __ LoadPU(tmp_reg, MemOperand(src_reg, -kPointerSize));
-  __ StorePU(tmp_reg, MemOperand(dst_reg, -kPointerSize));
-  __ bdnz(&loop);
-
-  // Leave current frame.
-  __ mr(sp, dst_reg);
-
+  ParameterCount callee_args_count(args_reg);
+  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
+                        scratch3);
   __ bind(&done);
 }
 }  // namespace
