@@ -60,7 +60,8 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/serializer-common.h"
+#include "src/wasm/wasm-external-refs.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32-inl.h"  // NOLINT
@@ -1147,66 +1148,159 @@ ExternalReference ExternalReference::compute_output_frames_function(
       Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
-static void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
-
-ExternalReference ExternalReference::f32_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_trunc_wrapper)));
-}
-
-static void f32_floor_wrapper(float* param) { *param = floorf(*param); }
-
-ExternalReference ExternalReference::f32_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_floor_wrapper)));
-}
-
-static void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
-
-ExternalReference ExternalReference::f32_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_ceil_wrapper)));
-}
-
-static void f32_nearest_int_wrapper(float* param) {
-  *param = nearbyintf(*param);
-}
-
-ExternalReference ExternalReference::f32_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_trunc(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f32_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
 }
-
-static void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
-
-ExternalReference ExternalReference::f64_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_trunc_wrapper)));
-}
-
-static void f64_floor_wrapper(double* param) { *param = floor(*param); }
-
-ExternalReference ExternalReference::f64_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_floor_wrapper)));
-}
-
-static void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
-
-ExternalReference ExternalReference::f64_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_ceil_wrapper)));
-}
-
-static void f64_nearest_int_wrapper(double* param) {
-  *param = nearbyint(*param);
-}
-
-ExternalReference ExternalReference::f64_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_floor(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f64_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_floor_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_trunc(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_floor(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_floor_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
+}
+
+static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
+
+ExternalReference ExternalReference::f64_acos_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_acos_wrapper)));
+}
+
+static void f64_asin_wrapper(double* param) { *param = std::asin(*param); }
+
+ExternalReference ExternalReference::f64_asin_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
+}
+
+static void f64_atan_wrapper(double* param) { *param = std::atan(*param); }
+
+ExternalReference ExternalReference::f64_atan_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan_wrapper)));
+}
+
+static void f64_cos_wrapper(double* param) { *param = std::cos(*param); }
+
+ExternalReference ExternalReference::f64_cos_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_cos_wrapper)));
+}
+
+static void f64_sin_wrapper(double* param) { *param = std::sin(*param); }
+
+ExternalReference ExternalReference::f64_sin_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_sin_wrapper)));
+}
+
+static void f64_tan_wrapper(double* param) { *param = std::tan(*param); }
+
+ExternalReference ExternalReference::f64_tan_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_tan_wrapper)));
+}
+
+static void f64_exp_wrapper(double* param) { *param = std::exp(*param); }
+
+ExternalReference ExternalReference::f64_exp_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
+}
+
+static void f64_log_wrapper(double* param) { *param = std::log(*param); }
+
+ExternalReference ExternalReference::f64_log_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_log_wrapper)));
+}
+
+static void f64_pow_wrapper(double* param0, double* param1) {
+  *param0 = power_double_double(*param0, *param1);
+}
+
+ExternalReference ExternalReference::f64_pow_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_pow_wrapper)));
+}
+
+static void f64_atan2_wrapper(double* param0, double* param1) {
+  double x = *param0;
+  double y = *param1;
+  // TODO(bradnelson): Find a good place to put this to share
+  // with the same code in src/runtime/runtime-math.cc
+  static const double kPiDividedBy4 = 0.78539816339744830962;
+  if (std::isinf(x) && std::isinf(y)) {
+    // Make sure that the result in case of two infinite arguments
+    // is a multiple of Pi / 4. The sign of the result is determined
+    // by the first argument (x) and the sign of the second argument
+    // determines the multiplier: one or three.
+    int multiplier = (x < 0) ? -1 : 1;
+    if (y < 0) multiplier *= 3;
+    *param0 = multiplier * kPiDividedBy4;
+  } else {
+    *param0 = std::atan2(x, y);
+  }
+}
+
+ExternalReference ExternalReference::f64_atan2_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan2_wrapper)));
+}
+
+static void f64_mod_wrapper(double* param0, double* param1) {
+  *param0 = modulo(*param0, *param1);
+}
+
+ExternalReference ExternalReference::f64_mod_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_mod_wrapper)));
 }
 
 ExternalReference ExternalReference::log_enter_external_function(
@@ -1648,8 +1742,7 @@ std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   return os;
 }
 
-
-void PositionsRecorder::RecordPosition(int pos) {
+void AssemblerPositionsRecorder::RecordPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   state_.current_position = pos;
@@ -1659,8 +1752,7 @@ void PositionsRecorder::RecordPosition(int pos) {
                                                  pos));
 }
 
-
-void PositionsRecorder::RecordStatementPosition(int pos) {
+void AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   state_.current_statement_position = pos;
@@ -1671,8 +1763,7 @@ void PositionsRecorder::RecordStatementPosition(int pos) {
                      pos));
 }
 
-
-bool PositionsRecorder::WriteRecordedPositions() {
+bool AssemblerPositionsRecorder::WriteRecordedPositions() {
   bool written = false;
 
   // Write the statement position if it is different from what was written last

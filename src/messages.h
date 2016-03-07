@@ -304,16 +304,8 @@ class CallSite {
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
-  T(StrongDeleteProperty,                                                      \
-    "Deleting property '%' of strong object '%' is deprecated")                \
-  T(StrongExtendNull, "In strong mode, classes extending null are deprecated") \
   T(StrongImplicitConversion,                                                  \
     "In strong mode, implicit conversions are deprecated")                     \
-  T(StrongRedefineDisallowed,                                                  \
-    "On strong object %, redefining writable, non-configurable property '%' "  \
-    "to be non-writable is deprecated")                                        \
-  T(StrongSetProto,                                                            \
-    "On strong object %, redefining the internal prototype is deprecated")     \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
   T(SymbolKeyFor, "% is not a symbol")                                         \
@@ -387,7 +379,6 @@ class CallSite {
     "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
-  T(IllegalAccess, "Illegal access")                                           \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
   T(IllegalLanguageModeDirective,                                              \
@@ -406,6 +397,7 @@ class CallSite {
   T(InvalidLhsInPrefixOp,                                                      \
     "Invalid left-hand side expression in prefix operation")                   \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
+  T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
@@ -431,7 +423,11 @@ class CallSite {
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
   T(ParenthesisInArgString, "Function arg string contains parenthesis")        \
+  T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
   T(SingleFunctionLiteral, "Single function literal required")                 \
+  T(SloppyFunction,                                                            \
+    "In non-strict mode code, functions can only be declared at top level, "   \
+    "inside a block, or as the body of an if statement.")                      \
   T(SloppyLexical,                                                             \
     "Block-scoped declarations (let, const, function, class) not yet "         \
     "supported outside strict mode")                                           \

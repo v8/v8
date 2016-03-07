@@ -1258,6 +1258,14 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
         }
         IntersectResult(expr, cache_.kAsmDouble);
         return;
+      } else if (expr->op() == Token::MUL && left_type->Is(cache_.kAsmDouble) &&
+                 expr->right()->IsLiteral() &&
+                 !expr->right()->AsLiteral()->raw_value()->ContainsDot() &&
+                 expr->right()->AsLiteral()->raw_value()->AsNumber() == -1.0) {
+        // For unary -, expressed as x * -1
+        expr->right()->set_bounds(Bounds(cache_.kAsmDouble));
+        IntersectResult(expr, cache_.kAsmDouble);
+        return;
       } else if (type->Is(cache_.kAsmFloat) && expr->op() != Token::MOD) {
         if (left_intish != 0 || right_intish != 0) {
           FAIL(expr, "float operation before required fround");

@@ -1512,7 +1512,8 @@ enum ParserFlag {
   kAllowStrongMode,
   kNoLegacyConst,
   kAllowHarmonyFunctionSent,
-  kAllowTypes
+  kAllowHarmonyRestrictiveDeclarations,
+  kAllowTypes,
 };
 
 enum ParserSyncTestResult {
@@ -1538,6 +1539,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
+  parser->set_allow_harmony_restrictive_declarations(
+      flags.Contains(kAllowHarmonyRestrictiveDeclarations));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
 
@@ -8014,6 +8017,75 @@ TEST(NewTargetErrors) {
   };
   // clang-format on
   RunParserSyncTest(context_data, error_data, kError);
+}
+
+TEST(FunctionDeclarationError) {
+  // clang-format off
+  const char* strict_context[][2] = {
+    { "'use strict';", "" },
+    { "'use strict'; { ", "}" },
+    {"(function() { 'use strict';", "})()"},
+    {"(function() { 'use strict'; {", "} })()"},
+    { NULL, NULL }
+  };
+  const char* sloppy_context[][2] = {
+    { "", "" },
+    { "{", "}" },
+    {"(function() {", "})()"},
+    {"(function() { {", "} })()"},
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "try function foo() {} catch (e) {}",
+    NULL
+  };
+  const char* unrestricted_data[] = {
+    "do function foo() {} while (0);",
+    "for (;false;) function foo() {}",
+    "for (var i = 0; i < 1; i++) function f() { };",
+    "for (var x in {a: 1}) function f() { };",
+    "for (var x in {}) function f() { };",
+    "for (var x in {}) function foo() {}",
+    "for (x in {a: 1}) function f() { };",
+    "for (x in {}) function f() { };",
+    "var x; for (x in {}) function foo() {}",
+    "with ({}) function f() { };",
+    NULL
+  };
+  const char* sloppy_data[] = {
+    "if (true) function foo() {}",
+    "if (false) {} else function f() { };",
+    "label: function f() { }",
+    "label: if (true) function f() { }",
+    "label: if (true) {} else function f() { }",
+    "if (true) label: function f() {}",
+    "if (true) {} else label: function f() {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag restrictive_flags[] = {
+      kAllowHarmonyRestrictiveDeclarations};
+
+  RunParserSyncTest(strict_context, error_data, kError);
+  RunParserSyncTest(strict_context, error_data, kError, NULL, 0,
+                    restrictive_flags, arraysize(restrictive_flags));
+  RunParserSyncTest(strict_context, unrestricted_data, kError);
+  RunParserSyncTest(strict_context, unrestricted_data, kError, NULL, 0,
+                    restrictive_flags, arraysize(restrictive_flags));
+  RunParserSyncTest(strict_context, sloppy_data, kError);
+  RunParserSyncTest(strict_context, sloppy_data, kError, NULL, 0,
+                    restrictive_flags, arraysize(restrictive_flags));
+
+  RunParserSyncTest(sloppy_context, error_data, kError);
+  RunParserSyncTest(sloppy_context, error_data, kError, NULL, 0,
+                    restrictive_flags, arraysize(restrictive_flags));
+  RunParserSyncTest(sloppy_context, unrestricted_data, kSuccess);
+  RunParserSyncTest(sloppy_context, unrestricted_data, kError, NULL, 0,
+                    restrictive_flags, arraysize(restrictive_flags));
+  RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
+  RunParserSyncTest(sloppy_context, sloppy_data, kSuccess, restrictive_flags,
+                    arraysize(restrictive_flags));
 }
 
 TEST(TypedVariableDeclarations) {

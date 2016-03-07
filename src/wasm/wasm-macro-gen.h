@@ -33,14 +33,8 @@
 #define WASM_RETURN(...) kExprReturn, __VA_ARGS__
 #define WASM_UNREACHABLE kExprUnreachable
 
-#define WASM_TABLESWITCH_OP(case_count, table_count, ...)                 \
-  kExprTableSwitch, static_cast<byte>(case_count),                        \
-      static_cast<byte>(case_count >> 8), static_cast<byte>(table_count), \
-      static_cast<byte>(table_count >> 8), __VA_ARGS__
-
-#define WASM_TABLESWITCH_BODY0(key) key
-
-#define WASM_TABLESWITCH_BODY(key, ...) key, __VA_ARGS__
+#define WASM_BR_TABLE(key, count, ...) \
+  kExprBrTable, U16_LE(count), __VA_ARGS__, key
 
 #define WASM_CASE(x) static_cast<byte>(x), static_cast<byte>(x >> 8)
 #define WASM_CASE_BR(x) static_cast<byte>(x), static_cast<byte>(0x80 | (x) >> 8)
@@ -52,18 +46,145 @@
 #define WASM_ZERO kExprI8Const, 0
 #define WASM_ONE kExprI8Const, 1
 #define WASM_I8(val) kExprI8Const, static_cast<byte>(val)
-#define WASM_I32(val)                                                 \
-  kExprI32Const, static_cast<byte>(val), static_cast<byte>(val >> 8), \
-      static_cast<byte>(val >> 16), static_cast<byte>(val >> 24)
-#define WASM_I64(val)                                           \
-  kExprI64Const, static_cast<byte>(static_cast<uint64_t>(val)), \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 8),       \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 16),      \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 24),      \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 32),      \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 40),      \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 48),      \
-      static_cast<byte>(static_cast<uint64_t>(val) >> 56)
+
+#define I32V_MIN(length) -(1 << (6 + (7 * ((length) - 1))))
+#define I32V_MAX(length) ((1 << (6 + (7 * ((length) - 1)))) - 1)
+#define I64V_MIN(length) -(1LL << (6 + (7 * ((length) - 1))))
+#define I64V_MAX(length) ((1LL << (6 + 7 * ((length) - 1))) - 1)
+
+#define I32V_IN_RANGE(value, length) \
+  ((value) >= I32V_MIN(length) && (value) <= I32V_MAX(length))
+#define I64V_IN_RANGE(value, length) \
+  ((value) >= I64V_MIN(length) && (value) <= I64V_MAX(length))
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+
+inline void CheckI32v(int32_t value, int length) {
+  DCHECK(length >= 1 && length <= 5);
+  DCHECK(length == 5 || I32V_IN_RANGE(value, length));
+  DCHECK(length == 1 || !I32V_IN_RANGE(value, length - 1));
+}
+
+inline void CheckI64v(int64_t value, int length) {
+  DCHECK(length >= 1 && length <= 10);
+  DCHECK(length == 10 || I64V_IN_RANGE(value, length));
+  DCHECK(length == 1 || !I64V_IN_RANGE(value, length - 1));
+}
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+//------------------------------------------------------------------------------
+// Int32 Const operations
+//------------------------------------------------------------------------------
+#define WASM_I32V(val) kExprI32Const, U32V_5(val)
+
+#define WASM_I32V_1(val) \
+  static_cast<byte>(CheckI32v((val), 1), kExprI32Const), U32V_1(val)
+#define WASM_I32V_2(val) \
+  static_cast<byte>(CheckI32v((val), 2), kExprI32Const), U32V_2(val)
+#define WASM_I32V_3(val) \
+  static_cast<byte>(CheckI32v((val), 3), kExprI32Const), U32V_3(val)
+#define WASM_I32V_4(val) \
+  static_cast<byte>(CheckI32v((val), 4), kExprI32Const), U32V_4(val)
+#define WASM_I32V_5(val) \
+  static_cast<byte>(CheckI32v((val), 5), kExprI32Const), U32V_5(val)
+
+//------------------------------------------------------------------------------
+// Int64 Const operations
+//------------------------------------------------------------------------------
+#define WASM_I64V(val)                                                        \
+  kExprI64Const,                                                              \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 56) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 63) & MASK_7)
+
+#define WASM_I64V_1(val)                                                     \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 1), kExprI64Const), \
+      static_cast<byte>(static_cast<int64_t>(val) & MASK_7)
+#define WASM_I64V_2(val)                                                     \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 2), kExprI64Const), \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),        \
+      static_cast<byte>((static_cast<int64_t>(val) >> 7) & MASK_7)
+#define WASM_I64V_3(val)                                                     \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 3), kExprI64Const), \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),        \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 14) & MASK_7)
+#define WASM_I64V_4(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 4), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 21) & MASK_7)
+#define WASM_I64V_5(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 5), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 28) & MASK_7)
+#define WASM_I64V_6(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 6), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 35) & MASK_7)
+#define WASM_I64V_7(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 7), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 42) & MASK_7)
+#define WASM_I64V_8(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 8), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 49) & MASK_7)
+#define WASM_I64V_9(val)                                                      \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 9), kExprI64Const),  \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 56) & MASK_7)
+#define WASM_I64V_10(val)                                                     \
+  static_cast<byte>(CheckI64v(static_cast<int64_t>(val), 10), kExprI64Const), \
+      static_cast<byte>((static_cast<int64_t>(val) & MASK_7) | 0x80),         \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 28) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 35) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 42) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 49) & MASK_7) | 0x80), \
+      static_cast<byte>(((static_cast<int64_t>(val) >> 56) & MASK_7) | 0x80), \
+      static_cast<byte>((static_cast<int64_t>(val) >> 63) & MASK_7)
+
 #define WASM_F32(val)                                                       \
   kExprF32Const,                                                            \
       static_cast<byte>(bit_cast<int32_t>(static_cast<float>(val))),        \
@@ -144,6 +265,8 @@
 #define WASM_I32_SHL(x, y) kExprI32Shl, x, y
 #define WASM_I32_SHR(x, y) kExprI32ShrU, x, y
 #define WASM_I32_SAR(x, y) kExprI32ShrS, x, y
+#define WASM_I32_ROR(x, y) kExprI32Ror, x, y
+#define WASM_I32_ROL(x, y) kExprI32Rol, x, y
 #define WASM_I32_EQ(x, y) kExprI32Eq, x, y
 #define WASM_I32_NE(x, y) kExprI32Ne, x, y
 #define WASM_I32_LTS(x, y) kExprI32LtS, x, y
@@ -174,6 +297,8 @@
 #define WASM_I64_SHL(x, y) kExprI64Shl, x, y
 #define WASM_I64_SHR(x, y) kExprI64ShrU, x, y
 #define WASM_I64_SAR(x, y) kExprI64ShrS, x, y
+#define WASM_I64_ROR(x, y) kExprI64Ror, x, y
+#define WASM_I64_ROL(x, y) kExprI64Rol, x, y
 #define WASM_I64_EQ(x, y) kExprI64Eq, x, y
 #define WASM_I64_NE(x, y) kExprI64Ne, x, y
 #define WASM_I64_LTS(x, y) kExprI64LtS, x, y
@@ -276,6 +401,7 @@
 #define SIG_INDEX(v) U16_LE(v)
 #define FUNC_INDEX(v) U16_LE(v)
 #define NAME_OFFSET(v) U32_LE(v)
+#define BR_TARGET(v) U16_LE(v)
 
 #define MASK_7 ((1 << 7) - 1)
 #define MASK_14 ((1 << 14) - 1)
@@ -299,6 +425,6 @@
       static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
       static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
       static_cast<byte>(((x >> 21) & MASK_7) | 0x80), \
-      static_cast<byte>((x >> 28) & 0xF)
+      static_cast<byte>(((x >> 28) & MASK_7))
 
 #endif  // V8_WASM_MACRO_GEN_H_

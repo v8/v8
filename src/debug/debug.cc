@@ -98,7 +98,9 @@ BreakLocation::CodeIterator::CodeIterator(Handle<DebugInfo> debug_info,
     : Iterator(debug_info),
       reloc_iterator_(debug_info->abstract_code()->GetCode(),
                       GetModeMask(type)) {
-  if (!Done()) Next();
+  // There is at least one break location.
+  DCHECK(!Done());
+  Next();
 }
 
 int BreakLocation::CodeIterator::GetModeMask(BreakLocatorType type) {
@@ -179,7 +181,9 @@ BreakLocation::BytecodeArrayIterator::BytecodeArrayIterator(
                                     ->source_position_table()),
       break_locator_type_(type),
       start_position_(debug_info->shared()->start_position()) {
-  if (!Done()) Next();
+  // There is at least one break location.
+  DCHECK(!Done());
+  Next();
 }
 
 void BreakLocation::BytecodeArrayIterator::Next() {

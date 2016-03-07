@@ -34,7 +34,7 @@ struct TickSample {
   TickSample()
       : state(OTHER),
         pc(NULL),
-        external_callback(NULL),
+        external_callback_entry(NULL),
         frames_count(0),
         has_external_callback(false),
         update_stats(true),
@@ -49,7 +49,7 @@ struct TickSample {
   Address pc;      // Instruction pointer.
   union {
     Address tos;   // Top stack value (*sp).
-    Address external_callback;
+    Address external_callback_entry;
   };
   static const unsigned kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
@@ -58,7 +58,7 @@ struct TickSample {
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats : 1;  // Whether the sample should update aggregated stats.
-  StackFrame::Type top_frame_type : 4;
+  StackFrame::Type top_frame_type : 5;
 };
 
 class Sampler {

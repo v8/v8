@@ -38,6 +38,7 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -913,14 +914,30 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);
 
-  static ExternalReference f32_trunc_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_floor_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_ceil_wrapper_function(Isolate* isolate);
-  static ExternalReference f32_nearest_int_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_trunc_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_floor_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_ceil_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_nearest_int_wrapper_function(Isolate* isolate);
+  static ExternalReference wasm_f32_trunc(Isolate* isolate);
+  static ExternalReference wasm_f32_floor(Isolate* isolate);
+  static ExternalReference wasm_f32_ceil(Isolate* isolate);
+  static ExternalReference wasm_f32_nearest_int(Isolate* isolate);
+  static ExternalReference wasm_f64_trunc(Isolate* isolate);
+  static ExternalReference wasm_f64_floor(Isolate* isolate);
+  static ExternalReference wasm_f64_ceil(Isolate* isolate);
+  static ExternalReference wasm_f64_nearest_int(Isolate* isolate);
+  static ExternalReference wasm_int64_to_float32(Isolate* isolate);
+  static ExternalReference wasm_uint64_to_float32(Isolate* isolate);
+  static ExternalReference wasm_int64_to_float64(Isolate* isolate);
+  static ExternalReference wasm_uint64_to_float64(Isolate* isolate);
+
+  static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_atan_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_cos_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_sin_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_tan_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_exp_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_log_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_atan2_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_pow_wrapper_function(Isolate* isolate);
+  static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
 
   // Log support.
   static ExternalReference log_enter_external_function(Isolate* isolate);
@@ -1085,23 +1102,11 @@ struct PositionState {
   int written_statement_position;
 };
 
-
-class PositionsRecorder BASE_EMBEDDED {
+class AssemblerPositionsRecorder : public PositionsRecorder {
  public:
-  explicit PositionsRecorder(Assembler* assembler)
-      : assembler_(assembler) {
-    jit_handler_data_ = NULL;
-  }
+  explicit AssemblerPositionsRecorder(Assembler* assembler)
+      : assembler_(assembler) {}
 
-  void AttachJITHandlerData(void* user_data) {
-    jit_handler_data_ = user_data;
-  }
-
-  void* DetachJITHandlerData() {
-    void* old_data = jit_handler_data_;
-    jit_handler_data_ = NULL;
-    return old_data;
-  }
   // Set current position to pos.
   void RecordPosition(int pos);
 
@@ -1121,11 +1126,7 @@ class PositionsRecorder BASE_EMBEDDED {
   Assembler* assembler_;
   PositionState state_;
 
-  // Currently jit_handler_data_ is used to store JITHandler-specific data
-  // over the lifetime of a PositionsRecorder
-  void* jit_handler_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
+  DISALLOW_COPY_AND_ASSIGN(AssemblerPositionsRecorder);
 };
 
 

@@ -1610,8 +1610,16 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   X87OperandConverter i(this, instr);
   Label::Distance flabel_distance =
       branch->fallthru ? Label::kNear : Label::kFar;
-  Label* tlabel = branch->true_label;
-  Label* flabel = branch->false_label;
+
+  Label done;
+  Label tlabel_tmp;
+  Label flabel_tmp;
+  Label* tlabel = &tlabel_tmp;
+  Label* flabel = &flabel_tmp;
+
+  Label* tlabel_dst = branch->true_label;
+  Label* flabel_dst = branch->false_label;
+
   switch (branch->condition) {
     case kUnorderedEqual:
       __ j(parity_even, flabel, flabel_distance);
@@ -1661,6 +1669,34 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   }
   // Add a jump if not falling through to the next block.
   if (!branch->fallthru) __ jmp(flabel);
+
+  __ jmp(&done);
+  __ bind(&tlabel_tmp);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode == kFlags_deoptimize) {
+    int double_register_param_count = 0;
+    int x87_layout = 0;
+    for (size_t i = 0; i < instr->InputCount(); i++) {
+      if (instr->InputAt(i)->IsDoubleRegister()) {
+        double_register_param_count++;
+      }
+    }
+    // Currently we use only one X87 register. If double_register_param_count
+    // is bigger than 1, it means duplicated double register is added to input
+    // of this instruction.
+    if (double_register_param_count > 0) {
+      x87_layout = (0 << 3) | 1;
+    }
+    // The layout of x87 register stack is loaded on the top of FPU register
+    // stack for deoptimization.
+    __ push(Immediate(x87_layout));
+    __ fild_s(MemOperand(esp, 0));
+    __ lea(esp, Operand(esp, kPointerSize));
+  }
+  __ jmp(tlabel_dst);
+  __ bind(&flabel_tmp);
+  __ jmp(flabel_dst);
+  __ bind(&done);
 }
 
 

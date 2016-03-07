@@ -21,8 +21,8 @@ namespace wasm {
 
 std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
   os << "WASM module with ";
-  os << (1 << module.min_mem_size_log2) << " min mem";
-  os << (1 << module.max_mem_size_log2) << " max mem";
+  os << (module.min_mem_pages * module.kPageSize) << " min mem";
+  os << (module.max_mem_pages * module.kPageSize) << " max mem";
   os << module.functions.size() << " functions";
   os << module.functions.size() << " globals";
   os << module.functions.size() << " data segments";
@@ -167,6 +167,7 @@ size_t AllocateGlobalsOffsets(std::vector<WasmGlobal>& globals) {
 void LoadDataSegments(WasmModule* module, byte* mem_addr, size_t mem_size) {
   for (const WasmDataSegment& segment : module->data_segments) {
     if (!segment.init) continue;
+    if (!segment.source_size) continue;
     CHECK_LT(segment.dest_addr, mem_size);
     CHECK_LE(segment.source_size, mem_size);
     CHECK_LE(segment.dest_addr + segment.source_size, mem_size);
@@ -192,7 +193,7 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, WasmModule* module) {
 
 Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                      byte** backing_store) {
-  if (size > (1 << WasmModule::kMaxMemSize)) {
+  if (size > (WasmModule::kMaxMemPages * WasmModule::kPageSize)) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
     *backing_store = nullptr;
     return Handle<JSArrayBuffer>::null();
@@ -234,12 +235,11 @@ bool AllocateMemory(ErrorThrower* thrower, Isolate* isolate,
   DCHECK(instance->module);
   DCHECK(instance->mem_buffer.is_null());
 
-  if (instance->module->min_mem_size_log2 > WasmModule::kMaxMemSize) {
+  if (instance->module->min_mem_pages > WasmModule::kMaxMemPages) {
     thrower->Error("Out of memory: wasm memory too large");
     return false;
   }
-  instance->mem_size = static_cast<size_t>(1)
-                       << instance->module->min_mem_size_log2;
+  instance->mem_size = WasmModule::kPageSize * instance->module->min_mem_pages;
   instance->mem_buffer =
       NewArrayBuffer(isolate, instance->mem_size, &instance->mem_start);
   if (!instance->mem_start) {
@@ -271,8 +271,8 @@ WasmModule::WasmModule()
     : shared_isolate(nullptr),
       module_start(nullptr),
       module_end(nullptr),
-      min_mem_size_log2(0),
-      max_mem_size_log2(0),
+      min_mem_pages(0),
+      max_mem_pages(0),
       mem_export(false),
       mem_external(false),
       start_function_index(-1),
@@ -515,6 +515,9 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,
                                          module_end, false, kWasmOrigin);
   if (result.failed()) {
+    if (result.val) {
+      delete result.val;
+    }
     // Module verification failed. throw.
     std::ostringstream str;
     str << "WASM.compileRun() failed: " << result;

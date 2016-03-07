@@ -704,6 +704,7 @@ source_set("v8_base") {
     "src/code-stubs-hydrogen.cc",
     "src/codegen.cc",
     "src/codegen.h",
+    "src/collector.h",
     "src/compilation-cache.cc",
     "src/compilation-cache.h",
     "src/compilation-dependencies.cc",
@@ -912,6 +913,8 @@ source_set("v8_base") {
     "src/conversions.h",
     "src/counters.cc",
     "src/counters.h",
+    "src/crankshaft/compilation-phase.cc",
+    "src/crankshaft/compilation-phase.h",
     "src/crankshaft/hydrogen-alias-analysis.h",
     "src/crankshaft/hydrogen-bce.cc",
     "src/crankshaft/hydrogen-bce.h",
@@ -1282,13 +1285,23 @@ source_set("v8_base") {
     "src/signature.h",
     "src/simulator.h",
     "src/small-pointer-list.h",
+    "src/snapshot/code-serializer.cc",
+    "src/snapshot/code-serializer.h",
+    "src/snapshot/deserializer.cc",
+    "src/snapshot/deserializer.h",
     "src/snapshot/natives.h",
     "src/snapshot/natives-common.cc",
-    "src/snapshot/serialize.cc",
-    "src/snapshot/serialize.h",
+    "src/snapshot/partial-serializer.cc",
+    "src/snapshot/partial-serializer.h",
+    "src/snapshot/serializer.cc",
+    "src/snapshot/serializer.h",
+    "src/snapshot/serializer-common.cc",
+    "src/snapshot/serializer-common.h",
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
+    "src/snapshot/startup-serializer.cc",
+    "src/snapshot/startup-serializer.h",
     "src/source-position.h",
     "src/splay-tree.h",
     "src/splay-tree-inl.h",
@@ -1348,6 +1361,7 @@ source_set("v8_base") {
     "src/wasm/encoder.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
+    "src/wasm/wasm-external-refs.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
     "src/wasm/wasm-macro-gen.h",
@@ -1626,6 +1640,16 @@ source_set("v8_base") {
     ]
   } else if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
     sources += [
+      "src/compiler/s390/code-generator-s390.cc",
+      "src/compiler/s390/instruction-codes-s390.h",
+      "src/compiler/s390/instruction-scheduler-s390.cc",
+      "src/compiler/s390/instruction-selector-s390.cc",
+      "src/debug/s390/debug-s390.cc",
+      "src/ic/s390/access-compiler-s390.cc",
+      "src/ic/s390/handler-compiler-s390.cc",
+      "src/ic/s390/ic-compiler-s390.cc",
+      "src/ic/s390/ic-s390.cc",
+      "src/ic/s390/stub-cache-s390.cc",
       "src/s390/assembler-s390-inl.h",
       "src/s390/assembler-s390.cc",
       "src/s390/assembler-s390.h",
@@ -2012,6 +2036,44 @@ source_set("parser_fuzzer") {
 source_set("regexp_fuzzer") {
   sources = [
     "test/fuzzer/regexp.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":libplatform_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
+source_set("wasm_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":libplatform_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
+source_set("wasm_asmjs_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-asmjs.cc",
   ]
 
   deps = [

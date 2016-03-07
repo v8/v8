@@ -339,6 +339,11 @@ test(function() {
   eval("/a/x.test(\"a\");");
 }, "Invalid regular expression flags", SyntaxError);
 
+// kInvalidOrUnexpectedToken
+test(function() {
+  eval("'\n'");
+}, "Invalid or unexpected token", SyntaxError);
+
 //kJsonParseUnexpectedEOS
 test(function() {
   JSON.parse("{")

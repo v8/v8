@@ -117,12 +117,20 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 
 void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
                                                       int source_position) {
-  AddEntry({static_cast<int>(bytecode_offset), source_position, true});
+  int offset = static_cast<int>(bytecode_offset);
+  AddEntry({offset, source_position, true});
+  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
+                               jit_handler_data_, offset, source_position));
+  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
+                               jit_handler_data_, offset, source_position));
 }
 
 void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
                                                        int source_position) {
-  AddEntry({static_cast<int>(bytecode_offset), source_position, false});
+  int offset = static_cast<int>(bytecode_offset);
+  AddEntry({offset, source_position, false});
+  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
+                               jit_handler_data_, offset, source_position));
 }
 
 void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
@@ -143,9 +151,10 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 }
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
+  if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
+
   Handle<ByteArray> table = isolate_->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), TENURED);
-  if (bytes_.empty()) return table;
 
   MemCopy(table->GetDataStartAddress(), &*bytes_.begin(), bytes_.size());
 

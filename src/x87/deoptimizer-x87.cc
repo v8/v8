@@ -186,12 +186,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  // There is no dynamic alignment padding on x87 in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {

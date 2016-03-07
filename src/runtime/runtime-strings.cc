@@ -1145,24 +1145,93 @@ RUNTIME_FUNCTION(Runtime_NewString) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringEquals) {
+RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-
-  bool not_equal = !String::Equals(x, y);
-  // This is slightly convoluted because the value that signifies
-  // equality is 0 and inequality is 1 so we have to negate the result
-  // from String::Equals.
-  DCHECK(not_equal == 0 || not_equal == 1);
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(NOT_EQUAL == 1);
-  return Smi::FromInt(not_equal);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
 }
 
+RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kEqual:
+    case ComparisonResult::kGreaterThan:
+      return isolate->heap()->true_value();
+    case ComparisonResult::kLessThan:
+      return isolate->heap()->false_value();
+    case ComparisonResult::kUndefined:
+      break;
+  }
+  UNREACHABLE();
+  return Smi::FromInt(0);
+}
+
+RUNTIME_FUNCTION(Runtime_StringEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  return isolate->heap()->ToBoolean(String::Equals(x, y));
+}
+
+RUNTIME_FUNCTION(Runtime_StringNotEqual) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+  return isolate->heap()->ToBoolean(!String::Equals(x, y));
+}
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);

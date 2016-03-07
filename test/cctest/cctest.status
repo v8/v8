@@ -39,7 +39,6 @@
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
-  'test-serialize/DependentTestThatAlwaysFails': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
@@ -130,7 +129,6 @@
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/TickLines': [PASS, NO_VARIANTS],
 
   ############################################################################
   # Slow tests.
@@ -170,6 +168,18 @@
 
   # BUG(v8:3434).
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+
+  # BUG(v8:4795).
+  'test-run-wasm-js/Run_JSSelectAlign_0': [SKIP],
+  'test-run-wasm-js/Run_JSSelectAlign_2': [SKIP],
+  'test-run-wasm-js/Run_JSSelectAlign_4': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_0': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_1': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_2': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_3': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_4': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_5': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_6': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
@@ -274,6 +284,7 @@
   'test-run-wasm-js/Run_JSSelect_4': [SKIP],
   'test-run-wasm-js/Run_JSSelect_5': [SKIP],
   'test-run-wasm-js/Run_JSSelect_6': [SKIP],
+  'test-run-wasm-64/Run_WasmI64*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -504,7 +515,6 @@
   # TODO(yangguo,4690): Test failures in debugger tests.
   'test-debug/DebugStepKeyedLoadLoop': [FAIL],
   'test-debug/DebugStepKeyedStoreLoop': [FAIL],
-  'test-debug/DebugStepIf': [FAIL],
   'test-debug/DebugStepNamedLoadLoop': [FAIL],
   'test-debug/BreakPointConstructCallWithGC': [PASS, FAIL],
   'test-debug/DebugStepNamedStoreLoop': [FAIL],
@@ -517,9 +527,6 @@
   'test-debug/DebugConditional': [FAIL],
   'test-debug/DebugStepForBreak': [FAIL],
   'test-debug/DebugStepWith': [FAIL],
-  'test-debug/DebugStepFunctionApply': [FAIL],
-  'test-debug/StepInOutBranch': [FAIL],
-  'test-debug/DebugStepFunctionCall': [FAIL],
 
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [TIMEOUT],
@@ -540,13 +547,13 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(rmcilroy,4680): Check failed: fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft().
-  'test-compiler/OptimizedCodeSharing2': [FAIL],
-  'test-compiler/OptimizedCodeSharing3': [FAIL],
-
   # TODO(rmcilroy,4689): Stack trace line number failures.
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [FAIL],
+
+  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
+  # on nodes (behind --turbo_source_positions flag).
+  'test-cpu-profiler/TickLinesOptimized': [FAIL],
 
   # TODO(rmcilroy,4680): Test assert errors.
   'test-feedback-vector/VectorCallICStates': [FAIL],
@@ -561,6 +568,7 @@
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
   'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
+
 }],  # ignition == True
 
 ]

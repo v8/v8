@@ -221,10 +221,6 @@
   'language/statements/class/subclass/builtin-objects/NativeError/URIError-message': [FAIL],
   'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4663
-  'built-ins/Object/entries/*': [SKIP],
-  'built-ins/Object/values/*': [SKIP],
-
   # https://code.google.com/p/chromium/issues/detail?id=581577
   'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
@@ -260,23 +256,6 @@
   'language/statements/try/tco-catch-finally': [FAIL],
   'language/statements/try/tco-finally': [FAIL],
   'language/statements/while/tco-body': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4725
-  'built-ins/Object/getOwnPropertyDescriptors/*': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4726
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-not-object-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-not-ctor-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-prototype-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-access-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-not-ctor': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-prototype-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-throws': [FAIL],
-  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-value-not-obj-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4727
   'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
@@ -361,6 +340,9 @@
 
   # Test bug https://github.com/tc39/test262/issues/518
   'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/symbols-included': [FAIL],
+
 
   # Test bug https://github.com/tc39/test262/issues/521
   'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
@@ -501,6 +483,8 @@
   'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-outer-try-before-nested': [FAIL],
   'built-ins/GeneratorPrototype/throw/try-finally-within-finally': [FAIL],
   'built-ins/GeneratorPrototype/throw/try-finally-within-try': [FAIL],
+  'built-ins/TypedArrays/object-arg-as-generator-iterable-returns': [FAIL],
+  'built-ins/TypedArrays/object-arg-iterating-throws': [FAIL],
   'language/default-parameters/generators': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-yield-expr': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-nested-array-yield-expr': [FAIL],
@@ -533,6 +517,7 @@
   'language/expressions/generators/yield-as-yield-operand': [FAIL],
   'language/expressions/generators/yield-newline': [FAIL],
   'language/expressions/generators/yield-star-before-newline': [FAIL],
+  'language/expressions/object/concise-generator': [FAIL],
   'language/expressions/object/method-definition/generator-invoke-fn-no-strict': [FAIL],
   'language/expressions/object/method-definition/generator-invoke-fn-strict': [FAIL],
   'language/expressions/object/method-definition/generator-length': [FAIL],
@@ -583,6 +568,11 @@
   'language/statements/class/definition/methods-gen-yield-as-yield-operand': [FAIL],
   'language/statements/class/definition/methods-gen-yield-newline': [FAIL],
   'language/statements/class/definition/methods-gen-yield-star-before-newline': [FAIL],
+  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-length': [FAIL],
+  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-name': [FAIL],
+  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-prototype': [FAIL],
+  'language/statements/class/subclass/builtin-objects/GeneratorFunction/super-must-be-called': [FAIL],
+  'language/statements/class/subclass/builtin-objects/GeneratorFunction/regular-subclassing': [FAIL],
   'language/statements/for-of/break': [FAIL],
   'language/statements/for-of/break-from-catch': [FAIL],
   'language/statements/for-of/break-from-finally': [FAIL],
@@ -637,18 +627,6 @@
   'language/statements/generators/yield-as-yield-operand': [FAIL],
   'language/statements/generators/yield-newline': [FAIL],
   'language/statements/generators/yield-star-before-newline': [FAIL],
-
-  # TODO(4680,oth): Failing on DCHECK_EQ(array_index, fixed_array->length()) in constant-array-builder.cc.
-  'language/expressions/left-shift/S11.7.1_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/left-shift/S11.7.1_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T3': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T4': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T3': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T4': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
   # TODO(4680,rmcilroy): Test262Error: Expected a RangeError to be thrown but no exception was thrown at all
   'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [FAIL],

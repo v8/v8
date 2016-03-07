@@ -46,8 +46,8 @@ struct ImmI32Operand {
   int32_t value;
   int length;
   inline ImmI32Operand(Decoder* decoder, const byte* pc) {
-    value = bit_cast<int32_t>(decoder->checked_read_u32(pc, 1, "immi32"));
-    length = 4;
+    value =
+        bit_cast<int32_t>(decoder->checked_read_i32v(pc, 1, &length, "immi32"));
   }
 };
 
@@ -55,8 +55,8 @@ struct ImmI64Operand {
   int64_t value;
   int length;
   inline ImmI64Operand(Decoder* decoder, const byte* pc) {
-    value = bit_cast<int64_t>(decoder->checked_read_u64(pc, 1, "immi64"));
-    length = 8;
+    value =
+        bit_cast<int64_t>(decoder->checked_read_i64v(pc, 1, &length, "immi64"));
   }
 };
 
@@ -142,24 +142,23 @@ struct ImportIndexOperand {
   }
 };
 
-struct TableSwitchOperand {
-  uint32_t case_count;
+struct BranchTableOperand {
   uint32_t table_count;
   const byte* table;
   int length;
-  inline TableSwitchOperand(Decoder* decoder, const byte* pc) {
-    case_count = decoder->checked_read_u16(pc, 1, "expected #cases");
-    table_count = decoder->checked_read_u16(pc, 3, "expected #entries");
-    length = 4 + table_count * 2;
+  inline BranchTableOperand(Decoder* decoder, const byte* pc) {
+    table_count = decoder->checked_read_u16(pc, 1, "expected #entries");
+    length = 2 + table_count * 2 + 2;
 
-    if (decoder->check(pc, 5, table_count * 2, "expected <table entries>")) {
-      table = pc + 5;
+    if (decoder->check(pc, 3, table_count * 2 + 2,
+                       "expected <table entries>")) {
+      table = pc + 3;
     } else {
       table = nullptr;
     }
   }
   inline uint16_t read_entry(Decoder* decoder, int i) {
-    DCHECK(i >= 0 && static_cast<uint32_t>(i) < table_count);
+    DCHECK(i >= 0 && static_cast<uint32_t>(i) <= table_count);
     return table ? decoder->read_u16(table + i * sizeof(uint16_t)) : 0;
   }
 };

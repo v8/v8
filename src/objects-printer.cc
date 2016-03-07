@@ -95,6 +95,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       os << "filler";
       break;
     case JS_OBJECT_TYPE:  // fall through
+    case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ARRAY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
@@ -466,7 +467,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (is_observed()) os << "\n - observed";
-  if (is_strong()) os << "\n - strong_map";
   if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());

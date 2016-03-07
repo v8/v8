@@ -40,11 +40,8 @@ inline const char* StateToString(StateTag state) {
 template <StateTag Tag>
 VMState<Tag>::VMState(Isolate* isolate)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
-  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    if (FLAG_log_timer_events) {
-      LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
-    }
-    TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(Tag);
 }
@@ -52,11 +49,8 @@ VMState<Tag>::VMState(Isolate* isolate)
 
 template <StateTag Tag>
 VMState<Tag>::~VMState() {
-  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    if (FLAG_log_timer_events) {
-      LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
-    }
-    TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
+  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(previous_tag_);
 }

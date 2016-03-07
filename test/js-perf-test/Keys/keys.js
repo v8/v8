@@ -1,4 +1,4 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,10 +58,10 @@ function IntArray(size) {
 var object_empty = {};
 var array_empty = [];
 
-var array_int_100 = IntArray(100);
-var array_int_100_proto_elements = IntArray(100);
-array_int_100_proto_elements.__proto__ = [101, 102, 103, 104];
-var array_int_holey_100 = HoleyIntArray(100);
+var array_int_50 = IntArray(50);
+var array_int_50_proto_elements = IntArray(50);
+array_int_50_proto_elements.__proto__ = [51, 52, 53, 54];
+var array_int_holey_50 = HoleyIntArray(50);
 
 var empty_proto_5_10 = ObjectWithKeys(5);
 empty_proto_5_10.__proto__ = ObjectWithProtoKeys(10, 0);
@@ -80,21 +80,20 @@ for (var i = 0; i < 5; i++) {
 var TestObjects = {
   object_empty: object_empty,
   array_empty: array_empty,
-  array_int_100: array_int_100,
-  array_int_holey_100: array_int_holey_100,
-  array_int_100_proto_elements: array_int_100_proto_elements,
+  array_int_50: array_int_50,
+  array_int_holey_50: array_int_holey_50,
+  array_int_50_proto_elements: array_int_50_proto_elements,
   empty_proto_5_10: empty_proto_5_10,
   empty_proto_5_5_slow: empty_proto_5_5_slow,
   object_elements_proto_5_10: object_elements_proto_5_10
 }
 
-var TestArrays =
-    {
-      array_empty: array_empty,
-      array_int_100: array_int_100,
-      array_int_holey_100: array_int_holey_100,
-      array_int_100_proto_elements: array_int_100_proto_elements
-    }
+var TestArrays = {
+  array_empty: array_empty,
+  array_int_50: array_int_50,
+  array_int_holey_50: array_int_holey_50,
+  array_int_50_proto_elements: array_int_50_proto_elements,
+}
 
 // ============================================================================
 
@@ -108,7 +107,7 @@ function CreateTestFunctionGen(fn) {
 
 var TestFunctions = {
   "Object.keys()": CreateTestFunctionGen(() => {return Object.keys(object)}),
-  "for (in)": CreateTestFunctionGen(() => {
+  "for-in": CreateTestFunctionGen(() => {
     var count = 0;
     var result;
     for (var key in object) {
@@ -117,7 +116,7 @@ var TestFunctions = {
     };
     return [result, count];
   }),
-  "for (in) hasOwnProperty()": CreateTestFunctionGen(() => {
+  "for-in hasOwnProperty()": CreateTestFunctionGen(() => {
     var count = 0;
     var result;
     for (var key in object) {
@@ -130,7 +129,8 @@ var TestFunctions = {
   "for (i < Object.keys().length)": CreateTestFunctionGen(() => {
     var count = 0;
     var result;
-    var keys = Object.keys(object) for (var i = 0; i < keys.length; i++) {
+    var keys = Object.keys(object);
+    for (var i = 0; i < keys.length; i++) {
       count++;
       result = object[keys[i]];
     };
@@ -170,7 +170,8 @@ var TestFunctionsArrays = {
 }
 
 // ============================================================================
-
+// Create the benchmark suites. We create a suite for each of the test
+// functions above and each suite contains benchmarks for each object type.
 var Benchmarks = [];
 
 function NewBenchmark(
@@ -190,7 +191,7 @@ for (var test_function_name in TestFunctions) {
         test_function_gen, test_function_name, test_object, test_object_name);
     benchmarks.push(benchmark);
   }
-  Benchmarks.push(new BenchmarkSuite(test_function_name, [1000], benchmarks));
+  Benchmarks.push(new BenchmarkSuite(test_function_name, [100], benchmarks));
 }
 
 for (var test_function_name in TestFunctionsArrays) {
@@ -202,7 +203,7 @@ for (var test_function_name in TestFunctionsArrays) {
         test_function_gen, test_function_name, test_array, test_array_name);
     benchmarks.push(benchmark);
   }
-  Benchmarks.push(new BenchmarkSuite(test_function_name, [1000], benchmarks));
+  Benchmarks.push(new BenchmarkSuite(test_function_name, [100], benchmarks));
 }
 
 // ============================================================================

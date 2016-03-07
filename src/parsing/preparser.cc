@@ -338,6 +338,14 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
   return ParseSubStatement(ok);
 }
 
+PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
+      (legacy && allow_harmony_restrictive_declarations())) {
+    return ParseSubStatement(ok);
+  } else {
+    return ParseFunctionDeclaration(CHECK_OK);
+  }
+}
 
 PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
   // Statement ::
@@ -412,20 +420,18 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
     case Token::TRY:
       return ParseTryStatement(ok);
 
-    case Token::FUNCTION: {
-      Scanner::Location start_location = scanner()->peek_location();
-      Statement statement = ParseFunctionDeclaration(CHECK_OK);
-      Scanner::Location end_location = scanner()->location();
-      if (is_strict(language_mode())) {
-        PreParserTraits::ReportMessageAt(start_location.beg_pos,
-                                         end_location.end_pos,
-                                         MessageTemplate::kStrictFunction);
-        *ok = false;
-        return Statement::Default();
-      } else {
-        return statement;
-      }
-    }
+    case Token::FUNCTION:
+      // FunctionDeclaration only allowed as a StatementListItem, not in
+      // an arbitrary Statement position. Exceptions such as
+      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // are handled by calling ParseScopedStatement rather than
+      // ParseSubStatement directly.
+      ReportMessageAt(scanner()->peek_location(),
+                      is_strict(language_mode())
+                          ? MessageTemplate::kStrictFunction
+                          : MessageTemplate::kSloppyFunction);
+      *ok = false;
+      return Statement::Default();
 
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
@@ -718,6 +724,10 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     DCHECK(is_sloppy(language_mode()) ||
            !IsFutureStrictReserved(expr.AsIdentifier()));
     Consume(Token::COLON);
+    // ES#sec-labelled-function-declarations Labelled Function Declarations
+    if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
+      return ParseFunctionDeclaration(ok);
+    }
     Statement statement = ParseStatement(ok);
     return statement.IsJumpStatement() ? Statement::Default() : statement;
     // Preparsing is disabled for extensions (because the extension details
@@ -746,10 +756,10 @@ PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement stat = ParseSubStatement(CHECK_OK);
+  Statement stat = ParseScopedStatement(false, CHECK_OK);
   if (peek() == Token::ELSE) {
     Next();
-    Statement else_stat = ParseSubStatement(CHECK_OK);
+    Statement else_stat = ParseScopedStatement(false, CHECK_OK);
     stat = (stat.IsJumpStatement() && else_stat.IsJumpStatement()) ?
         Statement::Jump() : Statement::Default();
   } else {
@@ -845,7 +855,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
 
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
   BlockState block_state(&scope_, with_scope);
-  ParseSubStatement(CHECK_OK);
+  ParseScopedStatement(true, CHECK_OK);
   return Statement::Default();
 }
 
@@ -895,7 +905,7 @@ PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   //   'do' Statement 'while' '(' Expression ')' ';'
 
   Expect(Token::DO, CHECK_OK);
-  ParseSubStatement(CHECK_OK);
+  ParseScopedStatement(true, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
@@ -913,7 +923,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  ParseSubStatement(ok);
+  ParseScopedStatement(true, ok);
   return Statement::Default();
 }
 
@@ -965,7 +975,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
 
         Expect(Token::RPAREN, CHECK_OK);
-        ParseSubStatement(CHECK_OK);
+        ParseScopedStatement(true, CHECK_OK);
         return Statement::Default();
       }
     } else {
@@ -1003,7 +1013,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
 
         Expect(Token::RPAREN, CHECK_OK);
-        ParseSubStatement(CHECK_OK);
+        ParseScopedStatement(true, CHECK_OK);
         return Statement::Default();
       }
     }
@@ -1029,7 +1039,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   }
   Expect(Token::RPAREN, CHECK_OK);
 
-  ParseSubStatement(ok);
+  ParseScopedStatement(true, ok);
   return Statement::Default();
 }
 

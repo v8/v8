@@ -641,6 +641,8 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
+  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
+
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
@@ -683,6 +685,8 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitContinue(Statement* target);
   void EmitBreak(Statement* target);
+
+  void EmitIllegalRedeclaration();
 
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }
@@ -742,8 +746,6 @@ class FullCodeGenerator: public AstVisitor {
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
-
-  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
 
   int NewHandlerTableEntry();
 

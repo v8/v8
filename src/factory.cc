@@ -1373,9 +1373,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     result->set_literals(*literals);
 
     // Cache context-specific literals.
+    MaybeHandle<Code> code;
+    if (cached.code != nullptr) code = handle(cached.code);
     Handle<Context> native_context(context->native_context());
-    SharedFunctionInfo::AddLiteralsToOptimizedCodeMap(info, native_context,
-                                                      literals);
+    SharedFunctionInfo::AddToOptimizedCodeMap(info, native_context, code,
+                                              literals, BailoutId::None());
   }
 
   return result;
@@ -1596,11 +1598,9 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
-                                    Strength strength,
                                     PretenureFlag pretenure) {
-  Map* map = isolate()->get_initial_js_array_map(elements_kind, strength);
+  Map* map = isolate()->get_initial_js_array_map(elements_kind);
   if (map == nullptr) {
-    DCHECK(strength == Strength::WEAK);
     Context* native_context = isolate()->context()->native_context();
     JSFunction* array_function = native_context->array_function();
     map = array_function->initial_map();
@@ -1608,23 +1608,21 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
   return Handle<JSArray>::cast(NewJSObjectFromMap(handle(map), pretenure));
 }
 
-
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
-                                    int capacity, Strength strength,
+                                    int capacity,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  Handle<JSArray> array = NewJSArray(elements_kind, strength, pretenure);
+  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
   NewJSArrayStorage(array, length, capacity, mode);
   return array;
 }
 
-
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 ElementsKind elements_kind,
-                                                int length, Strength strength,
+                                                int length,
                                                 PretenureFlag pretenure) {
   DCHECK(length <= elements->length());
-  Handle<JSArray> array = NewJSArray(elements_kind, strength, pretenure);
+  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
 
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));
@@ -2300,7 +2298,6 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
 
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                int number_of_properties,
-                                               bool is_strong,
                                                bool* is_result_from_cache) {
   const int kMapCacheSize = 128;
 
@@ -2309,29 +2306,21 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       isolate()->bootstrapper()->IsActive()) {
     *is_result_from_cache = false;
     Handle<Map> map = Map::Create(isolate(), number_of_properties);
-    if (is_strong) map->set_is_strong();
     return map;
   }
   *is_result_from_cache = true;
   if (number_of_properties == 0) {
     // Reuse the initial map of the Object function if the literal has no
-    // predeclared properties, or the strong map if strong.
-    return handle(is_strong
-                      ? context->js_object_strong_map()
-                      : context->object_function()->initial_map(), isolate());
+    // predeclared properties.
+    return handle(context->object_function()->initial_map(), isolate());
   }
 
   int cache_index = number_of_properties - 1;
-  Handle<Object> maybe_cache(is_strong ? context->strong_map_cache()
-                                       : context->map_cache(), isolate());
+  Handle<Object> maybe_cache(context->map_cache(), isolate());
   if (maybe_cache->IsUndefined()) {
     // Allocate the new map cache for the native context.
     maybe_cache = NewFixedArray(kMapCacheSize, TENURED);
-    if (is_strong) {
-      context->set_strong_map_cache(*maybe_cache);
-    } else {
-      context->set_map_cache(*maybe_cache);
-    }
+    context->set_map_cache(*maybe_cache);
   } else {
     // Check to see whether there is a matching element in the cache.
     Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
@@ -2346,7 +2335,6 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   // Create a new map and add it to the cache.
   Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
   Handle<Map> map = Map::Create(isolate(), number_of_properties);
-  if (is_strong) map->set_is_strong();
   Handle<WeakCell> cell = NewWeakCell(map);
   cache->set(cache_index, *cell);
   return map;

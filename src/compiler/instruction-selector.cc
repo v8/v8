@@ -82,6 +82,9 @@ void InstructionSelector::SelectInstructions() {
     }
     EndBlock(RpoNumber::FromInt(block->rpo_number()));
   }
+#if DEBUG
+  sequence()->ValidateSSA();
+#endif
 }
 
 

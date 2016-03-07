@@ -1185,36 +1185,6 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<AllocateHeapNumberStub>::BuildCodeStub() {
-  HValue* result =
-      Add<HAllocate>(Add<HConstant>(HeapNumber::kSize), HType::HeapNumber(),
-                     NOT_TENURED, HEAP_NUMBER_TYPE);
-  AddStoreMapConstant(result, isolate()->factory()->heap_number_map());
-  return result;
-}
-
-
-Handle<Code> AllocateHeapNumberStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<AllocateMutableHeapNumberStub>::BuildCodeStub() {
-  HValue* result =
-      Add<HAllocate>(Add<HConstant>(HeapNumber::kSize), HType::HeapObject(),
-                     NOT_TENURED, MUTABLE_HEAP_NUMBER_TYPE);
-  AddStoreMapConstant(result, isolate()->factory()->mutable_heap_number_map());
-  return result;
-}
-
-
-Handle<Code> AllocateMutableHeapNumberStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<AllocateInNewSpaceStub>::BuildCodeStub() {
   HValue* result = Add<HAllocate>(GetParameter(0), HType::Tagged(), NOT_TENURED,
                                   JS_OBJECT_TYPE);

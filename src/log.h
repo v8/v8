@@ -260,7 +260,7 @@ class Logger {
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
-  void SnapshotPositionEvent(Address addr, int pos);
+  void SnapshotPositionEvent(HeapObject* obj, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
@@ -441,6 +441,26 @@ class TimerEventScope {
   Isolate* isolate_;
 };
 
+class PositionsRecorder BASE_EMBEDDED {
+ public:
+  PositionsRecorder() { jit_handler_data_ = NULL; }
+
+  void AttachJITHandlerData(void* user_data) { jit_handler_data_ = user_data; }
+
+  void* DetachJITHandlerData() {
+    void* old_data = jit_handler_data_;
+    jit_handler_data_ = NULL;
+    return old_data;
+  }
+
+ protected:
+  // Currently jit_handler_data_ is used to store JITHandler-specific data
+  // over the lifetime of a PositionsRecorder
+  void* jit_handler_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
+};
 
 class CodeEventListener {
  public:

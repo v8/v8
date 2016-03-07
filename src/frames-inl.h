@@ -242,6 +242,12 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
+inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
+    : WasmFrame(iterator) {}
+
+inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
+    : WasmFrame(iterator) {}
+
 inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
 }

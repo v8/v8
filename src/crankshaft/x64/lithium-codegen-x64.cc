@@ -2318,11 +2318,10 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->left()).is(rdx));
   DCHECK(ToRegister(instr->right()).is(rax));
 
-  Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
+  Handle<Code> code = CodeFactory::StringCompare(isolate(), instr->op()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
-  __ testp(rax, rax);
-
-  EmitBranch(instr, TokenToCondition(instr->op(), false));
+  __ CompareRoot(rax, Heap::kTrueValueRootIndex);
+  EmitBranch(instr, equal);
 }
 
 

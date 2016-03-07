@@ -300,9 +300,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     if (entry != UnseededNumberDictionary::kNotFound) {
       Object* boilerplate = cache->ValueAt(entry);
       result = handle(JSObject::cast(boilerplate), isolate);
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
-      return result;
+      return isolate->factory()->CopyJSObject(result);
     }
   }
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
@@ -326,8 +324,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   if (serial_number) {
     CacheTemplateInstantiation(isolate, serial_number, result);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
+    result = isolate->factory()->CopyJSObject(result);
   }
   return scope.CloseAndEscape(result);
 }
@@ -545,7 +542,13 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     InstanceType type;
     switch (instance_type) {
       case JavaScriptObjectType:
-        type = JS_OBJECT_TYPE;
+        if (!obj->needs_access_check() &&
+            obj->named_property_handler()->IsUndefined() &&
+            obj->indexed_property_handler()->IsUndefined()) {
+          type = JS_OBJECT_TYPE;
+        } else {
+          type = JS_SPECIAL_API_OBJECT_TYPE;
+        }
         instance_size += JSObject::kHeaderSize;
         break;
       case GlobalObjectType:

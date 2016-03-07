@@ -219,26 +219,23 @@ TEST_F(AstDecoderTest, Int8Const_fallthru) {
 }
 
 TEST_F(AstDecoderTest, Int32Const) {
-  byte code[] = {kExprI32Const, 0, 0, 0, 0};
-  int32_t* ptr = reinterpret_cast<int32_t*>(code + 1);
   const int kInc = 4498211;
   for (int32_t i = kMinInt; i < kMaxInt - kInc; i = i + kInc) {
-    *ptr = i;
+    // TODO(binji): expand test for other sized int32s; 1 through 5 bytes.
+    byte code[] = {WASM_I32V(i)};
     EXPECT_VERIFIES(&env_i_i, code);
   }
 }
 
 TEST_F(AstDecoderTest, Int8Const_fallthru2) {
-  byte code[] = {kExprI8Const, 0, kExprI32Const, 1, 2, 3, 4};
+  byte code[] = {WASM_I8(0), WASM_I32V_4(0x1122334)};
   EXPECT_VERIFIES(&env_i_i, code);
 }
 
 TEST_F(AstDecoderTest, Int64Const) {
-  byte code[] = {kExprI64Const, 0, 0, 0, 0, 0, 0, 0, 0};
-  int64_t* ptr = reinterpret_cast<int64_t*>(code + 1);
   const int kInc = 4498211;
   for (int32_t i = kMinInt; i < kMaxInt - kInc; i = i + kInc) {
-    *ptr = (static_cast<int64_t>(i) << 32) | i;
+    byte code[] = {WASM_I64V((static_cast<int64_t>(i) << 32) | i)};
     EXPECT_VERIFIES(&env_l_l, code);
   }
 }
@@ -783,7 +780,7 @@ TEST_F(AstDecoderTest, TypeConversions) {
 }
 
 TEST_F(AstDecoderTest, MacrosStmt) {
-  VERIFY(WASM_SET_LOCAL(0, WASM_I32(87348)));
+  VERIFY(WASM_SET_LOCAL(0, WASM_I32V_3(87348)));
   VERIFY(WASM_STORE_MEM(MachineType::Int32(), WASM_I8(24), WASM_I8(40)));
   VERIFY(WASM_IF(WASM_GET_LOCAL(0), WASM_NOP));
   VERIFY(WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP));
@@ -798,7 +795,8 @@ TEST_F(AstDecoderTest, MacrosBreak) {
   EXPECT_VERIFIES_INLINE(&env_v_v, WASM_LOOP(1, WASM_BREAK(0)));
 
   EXPECT_VERIFIES_INLINE(&env_i_i, WASM_LOOP(1, WASM_BREAKV(0, WASM_ZERO)));
-  EXPECT_VERIFIES_INLINE(&env_l_l, WASM_LOOP(1, WASM_BREAKV(0, WASM_I64(0))));
+  EXPECT_VERIFIES_INLINE(&env_l_l,
+                         WASM_LOOP(1, WASM_BREAKV(0, WASM_I64V_1(0))));
   EXPECT_VERIFIES_INLINE(&env_f_ff,
                          WASM_LOOP(1, WASM_BREAKV(0, WASM_F32(0.0))));
   EXPECT_VERIFIES_INLINE(&env_d_dd,
@@ -870,6 +868,8 @@ TEST_F(AstDecoderTest, MacrosInt32) {
   VERIFY(WASM_I32_SHL(WASM_GET_LOCAL(0), WASM_I8(22)));
   VERIFY(WASM_I32_SHR(WASM_GET_LOCAL(0), WASM_I8(23)));
   VERIFY(WASM_I32_SAR(WASM_GET_LOCAL(0), WASM_I8(24)));
+  VERIFY(WASM_I32_ROR(WASM_GET_LOCAL(0), WASM_I8(24)));
+  VERIFY(WASM_I32_ROL(WASM_GET_LOCAL(0), WASM_I8(24)));
   VERIFY(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(25)));
   VERIFY(WASM_I32_NE(WASM_GET_LOCAL(0), WASM_I8(25)));
 
@@ -893,33 +893,35 @@ TEST_F(AstDecoderTest, MacrosInt64) {
 #define VERIFY_L_LL(...) EXPECT_VERIFIES_INLINE(&env_l_ll, __VA_ARGS__)
 #define VERIFY_I_LL(...) EXPECT_VERIFIES_INLINE(&env_i_ll, __VA_ARGS__)
 
-  VERIFY_L_LL(WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_I64(12)));
-  VERIFY_L_LL(WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_I64(13)));
-  VERIFY_L_LL(WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_I64(14)));
-  VERIFY_L_LL(WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64(15)));
-  VERIFY_L_LL(WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64(16)));
-  VERIFY_L_LL(WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_I64(17)));
-  VERIFY_L_LL(WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_I64(18)));
-  VERIFY_L_LL(WASM_I64_AND(WASM_GET_LOCAL(0), WASM_I64(19)));
-  VERIFY_L_LL(WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_I64(20)));
-  VERIFY_L_LL(WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_I64(21)));
+  VERIFY_L_LL(WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_I64V_1(12)));
+  VERIFY_L_LL(WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_I64V_1(13)));
+  VERIFY_L_LL(WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_I64V_1(14)));
+  VERIFY_L_LL(WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64V_1(15)));
+  VERIFY_L_LL(WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(16)));
+  VERIFY_L_LL(WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_I64V_1(17)));
+  VERIFY_L_LL(WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_I64V_1(18)));
+  VERIFY_L_LL(WASM_I64_AND(WASM_GET_LOCAL(0), WASM_I64V_1(19)));
+  VERIFY_L_LL(WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_I64V_1(20)));
+  VERIFY_L_LL(WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_I64V_1(21)));
 
-  VERIFY_L_LL(WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64(22)));
-  VERIFY_L_LL(WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64(23)));
-  VERIFY_L_LL(WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64(24)));
+  VERIFY_L_LL(WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(22)));
+  VERIFY_L_LL(WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(23)));
+  VERIFY_L_LL(WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
+  VERIFY_L_LL(WASM_I64_ROR(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
+  VERIFY_L_LL(WASM_I64_ROL(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
 
-  VERIFY_I_LL(WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_I64(26)));
-  VERIFY_I_LL(WASM_I64_LES(WASM_GET_LOCAL(0), WASM_I64(27)));
-  VERIFY_I_LL(WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_I64(28)));
-  VERIFY_I_LL(WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_I64(29)));
+  VERIFY_I_LL(WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_I64V_1(26)));
+  VERIFY_I_LL(WASM_I64_LES(WASM_GET_LOCAL(0), WASM_I64V_1(27)));
+  VERIFY_I_LL(WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_I64V_1(28)));
+  VERIFY_I_LL(WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_I64V_1(29)));
 
-  VERIFY_I_LL(WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_I64(26)));
-  VERIFY_I_LL(WASM_I64_GES(WASM_GET_LOCAL(0), WASM_I64(27)));
-  VERIFY_I_LL(WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_I64(28)));
-  VERIFY_I_LL(WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_I64(29)));
+  VERIFY_I_LL(WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_I64V_1(26)));
+  VERIFY_I_LL(WASM_I64_GES(WASM_GET_LOCAL(0), WASM_I64V_1(27)));
+  VERIFY_I_LL(WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_I64V_1(28)));
+  VERIFY_I_LL(WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_I64V_1(29)));
 
-  VERIFY_I_LL(WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_I64(25)));
-  VERIFY_I_LL(WASM_I64_NE(WASM_GET_LOCAL(0), WASM_I64(25)));
+  VERIFY_I_LL(WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_I64V_1(25)));
+  VERIFY_I_LL(WASM_I64_NE(WASM_GET_LOCAL(0), WASM_I64V_1(25)));
 }
 
 TEST_F(AstDecoderTest, AllSimpleExpressions) {
@@ -1192,7 +1194,7 @@ TEST_F(AstDecoderTest, CallsWithMismatchedSigs2) {
 
   module_env.AddFunction(sigs.i_i());
 
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_I64(17)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_I64V_1(17)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_F32(17.1)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_F64(17.1)));
 }
@@ -1205,13 +1207,13 @@ TEST_F(AstDecoderTest, CallsWithMismatchedSigs3) {
   module_env.AddFunction(sigs.i_f());
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_I8(17)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_I64(27)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_I64V_1(27)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(0, WASM_F64(37.2)));
 
   module_env.AddFunction(sigs.i_d());
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(1, WASM_I8(16)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(1, WASM_I64(16)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(1, WASM_I64V_1(16)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_FUNCTION(1, WASM_F32(17.6)));
 }
 
@@ -1254,17 +1256,19 @@ TEST_F(AstDecoderTest, IndirectCallsWithMismatchedSigs3) {
   byte f0 = module_env.AddFunction(sigs.i_f());
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f0, WASM_ZERO, WASM_I8(17)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f0, WASM_ZERO, WASM_I64(27)));
+  EXPECT_FAILURE_INLINE(env,
+                        WASM_CALL_INDIRECT(f0, WASM_ZERO, WASM_I64V_1(27)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f0, WASM_ZERO, WASM_F64(37.2)));
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT0(f0, WASM_I8(17)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT0(f0, WASM_I64(27)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT0(f0, WASM_I64V_1(27)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT0(f0, WASM_F64(37.2)));
 
   byte f1 = module_env.AddFunction(sigs.i_d());
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f1, WASM_ZERO, WASM_I8(16)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f1, WASM_ZERO, WASM_I64(16)));
+  EXPECT_FAILURE_INLINE(env,
+                        WASM_CALL_INDIRECT(f1, WASM_ZERO, WASM_I64V_1(16)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f1, WASM_ZERO, WASM_F32(17.6)));
 }
 
@@ -1291,14 +1295,14 @@ TEST_F(AstDecoderTest, ImportCallsWithMismatchedSigs3) {
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT0(f0));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_I8(17)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_I64(27)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_I64V_1(27)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_F64(37.2)));
 
   byte f1 = module_env.AddImport(sigs.i_d());
 
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT0(f1));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I8(16)));
-  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I64(16)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I64V_1(16)));
   EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_F32(17.6)));
 }
 
@@ -1667,120 +1671,81 @@ TEST_F(AstDecoderTest, ExprBrIf_Unify) {
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch0) {
-  static byte code[] = {kExprTableSwitch, 0, 0, 0, 0};
+TEST_F(AstDecoderTest, BrTable0) {
+  static byte code[] = {kExprBrTable, 0, 0};
   EXPECT_FAILURE(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0b) {
-  static byte code[] = {kExprTableSwitch, 0, 0, 0, 0, kExprI8Const, 11};
+TEST_F(AstDecoderTest, BrTable0b) {
+  static byte code[] = {kExprBrTable, 0, 0, kExprI8Const, 11};
   EXPECT_FAILURE(&env_v_v, code);
   EXPECT_FAILURE(&env_i_i, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0c) {
+TEST_F(AstDecoderTest, BrTable0c) {
+  static byte code[] = {kExprBrTable, 0, 1, 0, 0, kExprI8Const, 11};
+  EXPECT_FAILURE(&env_v_v, code);
+  EXPECT_FAILURE(&env_i_i, code);
+}
+
+TEST_F(AstDecoderTest, BrTable1a) {
   static byte code[] = {
-      WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(0)), WASM_I8(67))};
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_I8(67), 0, BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch0d) {
+TEST_F(AstDecoderTest, BrTable1b) {
   static byte code[] = {
-      WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(0), WASM_CASE_BR(1)),
-                 WASM_I8(67))};
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_ZERO, 0, BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
-}
-
-TEST_F(AstDecoderTest, TableSwitch1) {
-  static byte code[] = {WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                        WASM_TABLESWITCH_BODY(WASM_I8(0), WASM_I8(9))};
-  EXPECT_VERIFIES(&env_i_i, code);
-  EXPECT_VERIFIES(&env_v_v, code);
+  EXPECT_FAILURE(&env_i_i, code);
   EXPECT_FAILURE(&env_f_ff, code);
   EXPECT_FAILURE(&env_d_dd, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch_off_end) {
-  static byte code[] = {WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                        WASM_TABLESWITCH_BODY(WASM_I8(0), WASM_I8(9))};
-  for (size_t len = arraysize(code) - 1; len > 0; len--) {
-    Verify(kError, &env_v_v, code, code + len);
-  }
-}
-
-TEST_F(AstDecoderTest, TableSwitch2) {
+TEST_F(AstDecoderTest, BrTable2a) {
   static byte code[] = {
-      WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_I8(3), WASM_I8(10), WASM_I8(11))};
-  EXPECT_VERIFIES(&env_i_i, code);
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_I8(67), 1, BR_TARGET(0), BR_TARGET(0)))};
   EXPECT_VERIFIES(&env_v_v, code);
-  EXPECT_FAILURE(&env_f_ff, code);
-  EXPECT_FAILURE(&env_d_dd, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch1b) {
-  EXPECT_VERIFIES_INLINE(&env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_ZERO));
-
-  EXPECT_VERIFIES_INLINE(&env_f_ff, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_F32(0.0)));
-
-  EXPECT_VERIFIES_INLINE(&env_d_dd, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-                         WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_F64(0.0)));
+TEST_F(AstDecoderTest, BrTable2b) {
+  static byte code[] = {WASM_BLOCK(
+      1, WASM_BLOCK(
+             1, WASM_BR_TABLE(WASM_I8(67), 1, BR_TARGET(0), BR_TARGET(1))))};
+  EXPECT_VERIFIES(&env_v_v, code);
 }
 
-TEST_F(AstDecoderTest, TableSwitch_br1) {
-  for (int depth = 0; depth < 2; depth++) {
-    byte code[] = {WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
-                              WASM_GET_LOCAL(0))};
-    EXPECT_VERIFIES(&env_v_i, code);
-    EXPECT_FAILURE(&env_i_i, code);
+TEST_F(AstDecoderTest, BrTable_off_end) {
+  static byte code[] = {
+      WASM_BLOCK(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))};
+  for (size_t len = 1; len < sizeof(code); len++) {
+    Verify(kError, &env_i_i, code, code + len);
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch_invalid_br) {
-  for (int depth = 1; depth < 4; depth++) {
-    EXPECT_FAILURE_INLINE(&env_v_i,
-                          WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
-                          WASM_GET_LOCAL(0));
-    EXPECT_FAILURE_INLINE(
-        &env_v_i,
-        WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(depth), WASM_CASE_BR(depth)),
-        WASM_GET_LOCAL(0));
+TEST_F(AstDecoderTest, BrTable_invalid_br1) {
+  for (int depth = 0; depth < 4; depth++) {
+    byte code[] = {
+        WASM_BLOCK(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
+    if (depth == 0) {
+      EXPECT_VERIFIES(&env_v_i, code);
+    } else {
+      EXPECT_FAILURE(&env_v_i, code);
+    }
   }
 }
 
-TEST_F(AstDecoderTest, TableSwitch_invalid_case_ref) {
-  EXPECT_FAILURE_INLINE(&env_i_i, WASM_TABLESWITCH_OP(0, 1, WASM_CASE(0)),
-                        WASM_GET_LOCAL(0));
-  EXPECT_FAILURE_INLINE(&env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(1)),
-                        WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_ZERO));
-}
-
-TEST_F(AstDecoderTest, TableSwitch1_br) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_ZERO)));
-}
-
-TEST_F(AstDecoderTest, TableSwitch2_br) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_I8(0)),
-                            WASM_BRV(0, WASM_I8(1))));
-
-  EXPECT_FAILURE_INLINE(
-      &env_f_ff, WASM_TABLESWITCH_OP(2, 2, WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_ZERO, WASM_BRV(0, WASM_I8(3)),
-                            WASM_BRV(0, WASM_I8(4))));
-}
-
-TEST_F(AstDecoderTest, TableSwitch2x2) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i, WASM_TABLESWITCH_OP(2, 4, WASM_CASE(0), WASM_CASE(1),
-                                    WASM_CASE(0), WASM_CASE(1)),
-      WASM_TABLESWITCH_BODY(WASM_GET_LOCAL(0), WASM_BRV(0, WASM_I8(3)),
-                            WASM_BRV(0, WASM_I8(4))));
+TEST_F(AstDecoderTest, BrTable_invalid_br2) {
+  for (int depth = 0; depth < 4; depth++) {
+    byte code[] = {
+        WASM_LOOP(1, WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
+    if (depth <= 1) {
+      EXPECT_VERIFIES(&env_v_i, code);
+    } else {
+      EXPECT_FAILURE(&env_v_i, code);
+    }
+  }
 }
 
 TEST_F(AstDecoderTest, ExprBreakNesting1) {
@@ -1807,8 +1772,8 @@ TEST_F(AstDecoderTest, Select) {
                          WASM_SELECT(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO));
   EXPECT_VERIFIES_INLINE(&env_d_dd,
                          WASM_SELECT(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO));
-  EXPECT_VERIFIES_INLINE(&env_l_l,
-                         WASM_SELECT(WASM_I64(0), WASM_I64(0), WASM_ZERO));
+  EXPECT_VERIFIES_INLINE(
+      &env_l_l, WASM_SELECT(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO));
 }
 
 TEST_F(AstDecoderTest, Select_fail1) {
@@ -1857,7 +1822,7 @@ TEST_F(AstDecoderTest, Select_TypeCheck) {
                                               WASM_GET_LOCAL(0)));
 
   EXPECT_FAILURE_INLINE(
-      &env_i_i, WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_I64(0)));
+      &env_i_i, WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_I64V_1(0)));
 }
 
 

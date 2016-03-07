@@ -328,7 +328,7 @@ class GoogleTestSuite(TestSuite):
       if test_desc.endswith('.'):
         test_case = test_desc
       elif test_case and test_desc:
-        test = testcase.TestCase(self, test_case + test_desc, dependency=None)
+        test = testcase.TestCase(self, test_case + test_desc)
         tests.append(test)
     tests.sort()
     return tests

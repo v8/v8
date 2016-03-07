@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_INT64_REDUCER_H_
-#define V8_COMPILER_INT64_REDUCER_H_
+#ifndef V8_COMPILER_INT64_LOWERING_H_
+#define V8_COMPILER_INT64_LOWERING_H_
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -62,4 +62,4 @@ class Int64Lowering {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_INT64_REDUCER_H_
+#endif  // V8_COMPILER_INT64_LOWERING_H_

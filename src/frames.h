@@ -104,6 +104,8 @@ class StackHandler BASE_EMBEDDED {
   V(JAVA_SCRIPT, JavaScriptFrame)                        \
   V(OPTIMIZED, OptimizedFrame)                           \
   V(WASM, WasmFrame)                                     \
+  V(WASM_TO_JS, WasmToJsFrame)                           \
+  V(JS_TO_WASM, JsToWasmFrame)                           \
   V(INTERPRETED, InterpretedFrame)                       \
   V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
@@ -311,6 +313,8 @@ class StackFrame BASE_EMBEDDED {
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_wasm() const { return type() == WASM; }
+  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
+  bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_stub_failure_trampoline() const {
@@ -859,6 +863,28 @@ class WasmFrame : public StandardFrame {
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
   Address GetCallerStackPointer() const override;
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmToJsFrame : public WasmFrame {
+ public:
+  Type type() const override { return WASM_TO_JS; }
+
+ protected:
+  inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class JsToWasmFrame : public WasmFrame {
+ public:
+  Type type() const override { return JS_TO_WASM; }
+
+ protected:
+  inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

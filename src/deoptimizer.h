@@ -399,15 +399,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 
 class Deoptimizer : public Malloced {
  public:
-  enum BailoutType {
-    EAGER,
-    LAZY,
-    SOFT,
-    // This last bailout type is not really a bailout, but used by the
-    // debugger to deoptimize stack frames to allow inspection.
-    DEBUGGER,
-    kBailoutTypesWithCodeEntry = SOFT + 1
-  };
+  enum BailoutType { EAGER, LAZY, SOFT, kLastBailoutType = SOFT };
 
 #define DEOPT_MESSAGES_CONSTANTS(C, T) C,
   enum DeoptReason {
@@ -537,10 +529,6 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int has_alignment_padding_offset() {
-    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
-  }
-
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
@@ -651,10 +639,6 @@ class Deoptimizer : public Malloced {
   // from the input frame's double registers.
   void CopyDoubleRegisters(FrameDescription* output_frame);
 
-  // Determines whether the input frame contains alignment padding by looking
-  // at the dynamic alignment state slot inside the frame.
-  bool HasAlignmentPadding(SharedFunctionInfo* shared);
-
   Isolate* isolate_;
   JSFunction* function_;
   Code* compiled_code_;
@@ -662,7 +646,6 @@ class Deoptimizer : public Malloced {
   BailoutType bailout_type_;
   Address from_;
   int fp_to_sp_delta_;
-  int has_alignment_padding_;
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
@@ -891,8 +874,8 @@ class DeoptimizerData {
 
  private:
   MemoryAllocator* allocator_;
-  int deopt_entry_code_entries_[Deoptimizer::kBailoutTypesWithCodeEntry];
-  MemoryChunk* deopt_entry_code_[Deoptimizer::kBailoutTypesWithCodeEntry];
+  int deopt_entry_code_entries_[Deoptimizer::kLastBailoutType + 1];
+  MemoryChunk* deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
 
   Deoptimizer* current_;
 

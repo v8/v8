@@ -672,9 +672,6 @@
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4647
-  'ecma_3/FunExpr/fe-001': [FAIL_OK],
-
   ##################### MOZILLA EXTENSION TESTS #####################
 
   'ecma/extensions/15.1.2.1-1': [FAIL_OK],

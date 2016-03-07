@@ -1113,8 +1113,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
   }
 
@@ -1453,8 +1452,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
     CHECK_NE(ec_page, Page::FromAddress(obj->address()));
   }

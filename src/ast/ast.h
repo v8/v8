@@ -2516,37 +2516,29 @@ class RewritableExpression : public Expression {
   Expression* expr_;
 };
 
-
+// Our Yield is different from the JS yield in that it "returns" its argument as
+// is, without wrapping it in an iterator result object.  Such wrapping, if
+// desired, must be done beforehand (see the parser).
 class Yield final : public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
-  enum Kind {
-    kInitial,  // The initial yield that returns the unboxed generator object.
-    kSuspend,  // A normal yield: { value: EXPRESSION, done: false }
-    kDelegating,  // A yield*.
-    kFinal        // A return: { value: EXPRESSION, done: true }
-  };
-
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
-  Kind yield_kind() const { return yield_kind_; }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
 
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
-        Kind yield_kind, int pos)
+        int pos)
       : Expression(zone, pos),
         generator_object_(generator_object),
-        expression_(expression),
-        yield_kind_(yield_kind) {}
+        expression_(expression) {}
 
  private:
   Expression* generator_object_;
   Expression* expression_;
-  Kind yield_kind_;
 };
 
 
@@ -3415,11 +3407,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Yield* NewYield(Expression *generator_object,
                   Expression* expression,
-                  Yield::Kind yield_kind,
                   int pos) {
     if (!expression) expression = NewUndefinedLiteral(pos);
     return new (local_zone_)
-        Yield(local_zone_, generator_object, expression, yield_kind, pos);
+        Yield(local_zone_, generator_object, expression, pos);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {

@@ -237,7 +237,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void SetLocalTo(uint16_t index, int value) {
     current_function_builder_->Emit(kExprSetLocal);
     AddLeb128(index, true);
-    byte code[] = {WASM_I32(value)};
+    // TODO(bradnelson): variable size
+    byte code[] = {WASM_I32V(value)};
     current_function_builder_->EmitCode(code, sizeof(code));
     block_size_++;
   }
@@ -465,7 +466,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         switch (type) {
           case kAstI32: {
             int val = static_cast<int>(expr->raw_value()->AsNumber());
-            byte code[] = {WASM_I32(val)};
+            // TODO(bradnelson): variable size
+            byte code[] = {WASM_I32V(val)};
             current_function_builder_->EmitCode(code, sizeof(code));
             break;
           }
@@ -694,6 +696,12 @@ class AsmWasmBuilderImpl : public AstVisitor {
     is_set_op_ = true;
     RECURSE(Visit(expr->target()));
     DCHECK(!is_set_op_);
+    // Assignment to heapf32 from float64 converts.
+    if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
+        expr->target()->AsProperty()->obj()->bounds().lower->Is(
+            cache_.kFloat32Array)) {
+      current_function_builder_->Emit(kExprF32ConvertF64);
+    }
     RECURSE(Visit(expr->value()));
     if (in_init) {
       UnLoadInitFunction();
@@ -736,7 +744,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
             Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
             if (nvalue->IsNumber()) {
               int32_t val = static_cast<int32_t>(nvalue->Number());
-              byte code[] = {WASM_I32(val)};
+              // TODO(bradnelson): variable size
+              byte code[] = {WASM_I32V(val)};
               current_function_builder_->EmitCode(code, sizeof(code));
               return;
             }
@@ -748,7 +757,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       byte code[] = {WASM_F64(std::numeric_limits<double>::quiet_NaN())};
       current_function_builder_->EmitCode(code, sizeof(code));
     } else {
-      byte code[] = {WASM_I32(0)};
+      byte code[] = {WASM_I32V_1(0)};
       current_function_builder_->EmitCode(code, sizeof(code));
     }
   }
@@ -806,7 +815,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         DCHECK(value->raw_value()->IsNumber());
         DCHECK_EQ(kAstI32, TypeOf(value));
         int val = static_cast<int>(value->raw_value()->AsNumber());
-        byte code[] = {WASM_I32(val * size)};
+        // TODO(bradnelson): variable size
+        byte code[] = {WASM_I32V(val * size)};
         current_function_builder_->EmitCode(code, sizeof(code));
         return;
       }
@@ -840,36 +850,44 @@ class AsmWasmBuilderImpl : public AstVisitor {
         return false;
       }
       case AsmTyper::kMathAcos: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Acos);
+        break;
       }
       case AsmTyper::kMathAsin: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Asin);
+        break;
       }
       case AsmTyper::kMathAtan: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Atan);
+        break;
       }
       case AsmTyper::kMathCos: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Cos);
+        break;
       }
       case AsmTyper::kMathSin: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Sin);
+        break;
       }
       case AsmTyper::kMathTan: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Tan);
+        break;
       }
       case AsmTyper::kMathExp: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Exp);
+        break;
       }
       case AsmTyper::kMathLog: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Log);
+        break;
       }
       case AsmTyper::kMathCeil: {
         if (call_type == kAstF32) {
@@ -902,8 +920,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathAbs: {
-        // TODO(bradnelson): Handle signed.
-        if (call_type == kAstF32) {
+        // TODO(bradnelson): Should this be cast to float?
+        if (call_type == kAstI32) {
+          current_function_builder_->Emit(kExprIfElse);
+          current_function_builder_->Emit(kExprI32LtS);
+          Visit(args->at(0));
+          byte code[] = {WASM_I8(0)};
+          current_function_builder_->EmitCode(code, sizeof(code));
+          current_function_builder_->Emit(kExprI32Sub);
+          current_function_builder_->EmitCode(code, sizeof(code));
+          Visit(args->at(0));
+        } else if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Abs);
         } else if (call_type == kAstF64) {
           current_function_builder_->Emit(kExprF64Abs);
@@ -913,9 +940,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathMin: {
-        // TODO(bradnelson): Handle signed.
         // TODO(bradnelson): Change wasm to match Math.min in asm.js mode.
-        if (call_type == kAstF32) {
+        if (call_type == kAstI32) {
+          current_function_builder_->Emit(kExprIfElse);
+          current_function_builder_->Emit(kExprI32LeS);
+          Visit(args->at(0));
+          Visit(args->at(1));
+        } else if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Min);
         } else if (call_type == kAstF64) {
           current_function_builder_->Emit(kExprF64Min);
@@ -925,9 +956,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathMax: {
-        // TODO(bradnelson): Handle signed.
         // TODO(bradnelson): Change wasm to match Math.max in asm.js mode.
-        if (call_type == kAstF32) {
+        if (call_type == kAstI32) {
+          current_function_builder_->Emit(kExprIfElse);
+          current_function_builder_->Emit(kExprI32GtS);
+          Visit(args->at(0));
+          Visit(args->at(1));
+        } else if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Max);
         } else if (call_type == kAstF64) {
           current_function_builder_->Emit(kExprF64Max);
@@ -937,12 +972,14 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathAtan2: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Atan2);
+        break;
       }
       case AsmTyper::kMathPow: {
-        UNREACHABLE();
-        break;  // TODO(bradnelson): Implement as external.
+        DCHECK_EQ(kAstF64, call_type);
+        current_function_builder_->Emit(kExprF64Pow);
+        break;
       }
       case AsmTyper::kMathImul: {
         current_function_builder_->Emit(kExprI32Mul);
@@ -1024,7 +1061,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         current_function_builder_->EmitWithU8(kExprCallIndirect,
                                               indices->signature_index);
         current_function_builder_->Emit(kExprI32Add);
-        byte code[] = {WASM_I32(indices->start_index)};
+        // TODO(bradnelson): variable size
+        byte code[] = {WASM_I32V(indices->start_index)};
         current_function_builder_->EmitCode(code, sizeof(code));
         RECURSE(Visit(p->key()));
         break;
@@ -1237,7 +1275,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
           } else if (type == kUint32) {
             current_function_builder_->Emit(kExprI32RemU);
           } else if (type == kFloat64) {
-            ModF64(expr);
+            current_function_builder_->Emit(kExprF64Mod);
             return;
           } else {
             UNREACHABLE();
@@ -1254,32 +1292,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
     }
-  }
-
-  void ModF64(BinaryOperation* expr) {
-    current_function_builder_->EmitWithU8(kExprBlock, 3);
-    uint16_t index_0 = current_function_builder_->AddLocal(kAstF64);
-    uint16_t index_1 = current_function_builder_->AddLocal(kAstF64);
-    current_function_builder_->Emit(kExprSetLocal);
-    AddLeb128(index_0, true);
-    RECURSE(Visit(expr->left()));
-    current_function_builder_->Emit(kExprSetLocal);
-    AddLeb128(index_1, true);
-    RECURSE(Visit(expr->right()));
-    current_function_builder_->Emit(kExprF64Sub);
-    current_function_builder_->Emit(kExprGetLocal);
-    AddLeb128(index_0, true);
-    current_function_builder_->Emit(kExprF64Mul);
-    current_function_builder_->Emit(kExprGetLocal);
-    AddLeb128(index_1, true);
-    // Use trunc instead of two casts
-    current_function_builder_->Emit(kExprF64SConvertI32);
-    current_function_builder_->Emit(kExprI32SConvertF64);
-    current_function_builder_->Emit(kExprF64Div);
-    current_function_builder_->Emit(kExprGetLocal);
-    AddLeb128(index_0, true);
-    current_function_builder_->Emit(kExprGetLocal);
-    AddLeb128(index_1, true);
   }
 
   void AddLeb128(uint32_t index, bool is_local) {

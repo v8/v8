@@ -429,7 +429,6 @@ namespace internal {
   F(HasFastPackedElements, 1, 1)                     \
   F(ValueOf, 1, 1)                                   \
   F(IsJSReceiver, 1, 1)                              \
-  F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
@@ -843,7 +842,6 @@ namespace internal {
   F(Bool8x16Equal, 2, 1)               \
   F(Bool8x16NotEqual, 2, 1)
 
-
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
@@ -864,7 +862,12 @@ namespace internal {
   F(StringTrim, 3, 1)                     \
   F(TruncateString, 2, 1)                 \
   F(NewString, 2, 1)                      \
-  F(StringEquals, 2, 1)                   \
+  F(StringLessThan, 2, 1)                 \
+  F(StringLessThanOrEqual, 2, 1)          \
+  F(StringGreaterThan, 2, 1)              \
+  F(StringGreaterThanOrEqual, 2, 1)       \
+  F(StringEqual, 2, 1)                    \
+  F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
   F(StringCharAt, 2, 1)                   \
@@ -873,7 +876,6 @@ namespace internal {
   F(TwoByteSeqStringGetChar, 2, 1)        \
   F(TwoByteSeqStringSetChar, 3, 1)        \
   F(StringCharCodeAt, 2, 1)
-
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
   F(CreateSymbol, 1, 1)              \

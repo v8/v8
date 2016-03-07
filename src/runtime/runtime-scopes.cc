@@ -640,9 +640,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   base::SmartArrayPointer<Handle<Object>> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
-  Handle<JSObject> result = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, num_elements, num_elements, Strength::WEAK,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
+  Handle<JSObject> result =
+      isolate->factory()->NewJSArray(FAST_ELEMENTS, num_elements, num_elements,
+                                     DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowHeapAllocation no_gc;
     FixedArray* elements = FixedArray::cast(result->elements());

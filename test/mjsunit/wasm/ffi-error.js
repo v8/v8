@@ -13,7 +13,7 @@ function testCallFFI(ffi) {
 
   var data = bytesWithHeader(
     kDeclMemory,
-    12, 12, 1,                  // memory
+    1, 1, 1,                    // memory
     // -- signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstF64, kAstF64, // (f64,f64)->int

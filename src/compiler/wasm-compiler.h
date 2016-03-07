@@ -180,8 +180,8 @@ class WasmGraphBuilder {
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
   Node* BuildI64Popcnt(Node* input);
-  Node* BuildRoundingInstruction(Node* input, ExternalReference ref,
-                                 MachineType type);
+  Node* BuildCFuncInstruction(ExternalReference ref, MachineType type,
+                              Node* input0, Node* input1 = nullptr);
   Node* BuildF32Trunc(Node* input);
   Node* BuildF32Floor(Node* input);
   Node* BuildF32Ceil(Node* input);
@@ -190,6 +190,29 @@ class WasmGraphBuilder {
   Node* BuildF64Floor(Node* input);
   Node* BuildF64Ceil(Node* input);
   Node* BuildF64NearestInt(Node* input);
+  Node* BuildI32Rol(Node* left, Node* right);
+  Node* BuildI64Rol(Node* left, Node* right);
+
+  Node* BuildF64Acos(Node* input);
+  Node* BuildF64Asin(Node* input);
+  Node* BuildF64Atan(Node* input);
+  Node* BuildF64Cos(Node* input);
+  Node* BuildF64Sin(Node* input);
+  Node* BuildF64Tan(Node* input);
+  Node* BuildF64Exp(Node* input);
+  Node* BuildF64Log(Node* input);
+  Node* BuildF64Pow(Node* left, Node* right);
+  Node* BuildF64Atan2(Node* left, Node* right);
+  Node* BuildF64Mod(Node* left, Node* right);
+
+  Node* BuildConversionInstruction(
+      Node* input, ExternalReference ref,
+      MachineRepresentation parameter_representation,
+      const MachineType result_type);
+  Node* BuildF32SConvertI64(Node* input);
+  Node* BuildF32UConvertI64(Node* input);
+  Node* BuildF64SConvertI64(Node* input);
+  Node* BuildF64UConvertI64(Node* input);
 
   Node** Realloc(Node** buffer, size_t count) {
     Node** buf = Buffer(count);

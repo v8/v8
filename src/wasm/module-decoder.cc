@@ -45,14 +45,13 @@ class ModuleDecoder : public Decoder {
     pc_ = start_;
     module->module_start = start_;
     module->module_end = limit_;
-    module->min_mem_size_log2 = 0;
-    module->max_mem_size_log2 = 0;
+    module->min_mem_pages = 0;
+    module->max_mem_pages = 0;
     module->mem_export = false;
     module->mem_external = false;
     module->origin = origin_;
 
-    bool sections[kMaxModuleSectionCode];
-    memset(sections, 0, sizeof(sections));
+    bool sections[kMaxModuleSectionCode] = {false};
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic");
@@ -78,13 +77,20 @@ class ModuleDecoder : public Decoder {
     // Decode the module sections.
     while (pc_ < limit_) {
       TRACE("DecodeSection\n");
-      WasmSectionDeclCode section =
-          static_cast<WasmSectionDeclCode>(consume_u8("section"));
-      // Each section should appear at most once.
-      if (section < kMaxModuleSectionCode) {
-        CheckForPreviousSection(sections, section, false);
-        sections[section] = true;
+      uint8_t section_u8 = consume_u8("section");
+
+      if (section_u8 >= kMaxModuleSectionCode) {
+        // Skip unknown section.
+        int length;
+        uint32_t section_bytes = consume_u32v(&length, "section size");
+        consume_bytes(section_bytes);
+        continue;
       }
+
+      // Each section should appear at most once.
+      auto section = static_cast<WasmSectionDeclCode>(section_u8);
+      CheckForPreviousSection(sections, section, false);
+      sections[section] = true;
 
       switch (section) {
         case kDeclEnd:
@@ -92,8 +98,9 @@ class ModuleDecoder : public Decoder {
           limit_ = pc_;
           break;
         case kDeclMemory:
-          module->min_mem_size_log2 = consume_u8("min memory");
-          module->max_mem_size_log2 = consume_u8("max memory");
+          int length;
+          module->min_mem_pages = consume_u32v(&length, "min memory");
+          module->max_mem_pages = consume_u32v(&length, "max memory");
           module->mem_export = consume_u8("export memory") != 0;
           break;
         case kDeclSignatures: {
@@ -278,23 +285,8 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
-        case kDeclWLL: {
-          // Reserved for experimentation by the Web Low-level Language project
-          // which is augmenting the binary encoding with source code meta
-          // information. This section does not affect the semantics of the code
-          // and can be ignored by the runtime. https://github.com/JSStats/wll
-          int length = 0;
-          uint32_t section_size = consume_u32v(&length, "section size");
-          if (pc_ + section_size > limit_ || pc_ + section_size < pc_) {
-            error(pc_ - length, "invalid section size");
-            break;
-          }
-          pc_ += section_size;
-          break;
-        }
-        default:
-          error(pc_ - 1, nullptr, "unrecognized section 0x%02x", section);
-          break;
+        case kMaxModuleSectionCode:
+          UNREACHABLE();  // Already skipped unknown sections.
       }
     }
 
@@ -464,7 +456,8 @@ class ModuleDecoder : public Decoder {
 
     // Validate that the segment will fit into the (minimum) memory.
     uint32_t memory_limit =
-        1 << (module ? module->min_mem_size_log2 : WasmModule::kMaxMemSize);
+        WasmModule::kPageSize * (module ? module->min_mem_pages
+                                        : WasmModule::kMaxMemPages);
     if (!IsWithinLimit(memory_limit, segment->dest_addr,
                        segment->source_size)) {
       error(pc_ - sizeof(uint32_t), "segment out of bounds of memory");

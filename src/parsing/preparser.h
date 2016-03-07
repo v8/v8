@@ -523,7 +523,6 @@ class PreParserFactory {
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression,
-                               Yield::Kind yield_kind,
                                int pos) {
     return PreParserExpression::Default();
   }
@@ -742,6 +741,10 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
+  PreParserExpression BuildIteratorResult(PreParserExpression value,
+                                          bool done) {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewThrowReferenceError(MessageTemplate::Template message,
                                              int pos) {
     return PreParserExpression::Default();
@@ -1066,6 +1069,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                           Scanner::BookmarkScope* bookmark = nullptr);
   Statement ParseStatement(bool* ok);
   Statement ParseSubStatement(bool* ok);
+  Statement ParseScopedStatement(bool legacy, bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);
@@ -1175,8 +1179,7 @@ ZoneList<PreParserExpression>* PreParserTraits::GetNonPatternList() const {
 
 PreParserExpression PreParserTraits::RewriteYieldStar(
     PreParserExpression generator, PreParserExpression expression, int pos) {
-  return pre_parser_->factory()->NewYield(
-      generator, expression, Yield::kDelegating, pos);
+  return PreParserExpression::Default();
 }
 
 PreParserExpression PreParserTraits::RewriteInstanceof(PreParserExpression lhs,

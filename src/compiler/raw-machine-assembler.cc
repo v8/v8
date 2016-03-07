@@ -247,6 +247,27 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
   return tail_call;
 }
 
+Node* RawMachineAssembler::TailCallRuntime0(Runtime::FunctionId function,
+                                            Node* context) {
+  const int kArity = 0;
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, kArity, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(kArity);
+
+  Node* nodes[] = {centry, ref, arity, context};
+  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
+
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  current_block_ = nullptr;
+  return tail_call;
+}
 
 Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
                                             Node* arg1, Node* context) {
@@ -407,6 +428,7 @@ void RawMachineAssembler::Bind(RawMachineLabel* label) {
   DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);
+  current_block_->set_deferred(label->deferred_);
 }
 
 
@@ -458,11 +480,6 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   // so we disable checking input counts here.
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
-
-
-RawMachineLabel::RawMachineLabel()
-    : block_(nullptr), used_(false), bound_(false) {}
-
 
 RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
 

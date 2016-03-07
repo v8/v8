@@ -5039,7 +5039,8 @@ TEST(li_macro) {
       0x0000000000000000, 0x000000000000ffff, 0x00000000ffffffff,
       0x0000ffffffffffff, 0xffffffffffffffff, 0xffff000000000000,
       0xffffffff00000000, 0xffffffffffff0000, 0xffff0000ffff0000,
-      0x0000ffffffff0000, 0x0000ffff0000ffff,
+      0x0000ffffffff0000, 0x0000ffff0000ffff, 0x00007fffffffffff,
+      0x7fffffffffffffff, 0x000000007fffffff, 0x00007fff7fffffff,
   };
 
   size_t nr_test_cases = sizeof(inputs) / sizeof(inputs[0]);

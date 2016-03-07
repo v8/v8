@@ -39,9 +39,12 @@
 #include "src/objects.h"
 #include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/code-serializer.h"
+#include "src/snapshot/deserializer.h"
 #include "src/snapshot/natives.h"
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/utils-inl.h"
 
@@ -194,14 +197,15 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
   isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Empty"));
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(Deserialize, Serialize) {
+UNINITIALIZED_TEST(Deserialize) {
   // The serialize-deserialize tests only work if the VM is built without
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
-  v8::Isolate* isolate = Deserialize();
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
+  isolate = Deserialize();
   {
     v8::HandleScope handle_scope(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -214,12 +218,13 @@ UNINITIALIZED_DEPENDENT_TEST(Deserialize, Serialize) {
   isolate->Dispose();
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerialization,
-                             SerializeTwice) {
+UNINITIALIZED_TEST(DeserializeFromSecondSerialization) {
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
-  v8::Isolate* isolate = Deserialize();
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
+  Serialize(isolate);
+  isolate = Deserialize();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -232,11 +237,12 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerialization,
   isolate->Dispose();
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
+UNINITIALIZED_TEST(DeserializeAndRunScript2) {
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
-  v8::Isolate* isolate = Deserialize();
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
+  isolate = Deserialize();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -255,12 +261,13 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
   isolate->Dispose();
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
-                             SerializeTwice) {
+UNINITIALIZED_TEST(DeserializeFromSecondSerializationAndRunScript2) {
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
-  v8::Isolate* isolate = Deserialize();
+  v8::Isolate* isolate = TestIsolate::NewInitialized(true);
+  Serialize(isolate);
+  Serialize(isolate);
+  isolate = Deserialize();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -278,10 +285,7 @@ UNINITIALIZED_DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
   isolate->Dispose();
 }
 
-
-UNINITIALIZED_TEST(PartialSerialization) {
-  DisableTurbofan();
-  if (DefaultSnapshotAvailable()) return;
+static void PartiallySerialize() {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   v8_isolate->Enter();
@@ -349,10 +353,16 @@ UNINITIALIZED_TEST(PartialSerialization) {
   v8_isolate->Dispose();
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
+UNINITIALIZED_TEST(PartialSerialization) {
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
+  PartiallySerialize();
+}
+
+UNINITIALIZED_TEST(PartialDeserialization) {
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  PartiallySerialize();
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
   SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
@@ -397,10 +407,7 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
   v8_isolate->Dispose();
 }
 
-
-UNINITIALIZED_TEST(ContextSerialization) {
-  DisableTurbofan();
-  if (DefaultSnapshotAvailable()) return;
+static void SerializeContext() {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   Heap* heap = isolate->heap();
@@ -462,10 +469,16 @@ UNINITIALIZED_TEST(ContextSerialization) {
   v8_isolate->Dispose();
 }
 
-
-UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
+UNINITIALIZED_TEST(ContextSerialization) {
   DisableTurbofan();
   if (DefaultSnapshotAvailable()) return;
+  SerializeContext();
+}
+
+UNINITIALIZED_TEST(ContextDeserialization) {
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  SerializeContext();
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
   SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
@@ -509,10 +522,7 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
   v8_isolate->Dispose();
 }
 
-
-UNINITIALIZED_TEST(CustomContextSerialization) {
-  DisableTurbofan();
-  if (DefaultSnapshotAvailable()) return;
+static void SerializeCustomContext() {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   {
@@ -593,12 +603,17 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
   v8_isolate->Dispose();
 }
 
+UNINITIALIZED_TEST(CustomContextSerialization) {
+  DisableTurbofan();
+  if (DefaultSnapshotAvailable()) return;
+  SerializeCustomContext();
+}
 
-UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
-                             CustomContextSerialization) {
+UNINITIALIZED_TEST(CustomContextDeserialization) {
   DisableTurbofan();
   FLAG_crankshaft = false;
   if (DefaultSnapshotAvailable()) return;
+  SerializeCustomContext();
   int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
   SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
@@ -863,12 +878,6 @@ TEST(TestThatAlwaysSucceeds) {
 TEST(TestThatAlwaysFails) {
   bool ArtificialFailure = false;
   CHECK(ArtificialFailure);
-}
-
-
-DEPENDENT_TEST(DependentTestThatAlwaysFails, TestThatAlwaysSucceeds) {
-  bool ArtificialFailure2 = false;
-  CHECK(ArtificialFailure2);
 }
 
 

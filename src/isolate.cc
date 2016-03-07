@@ -34,7 +34,8 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/deserializer.h"
+#include "src/snapshot/serializer-common.h"
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -2299,9 +2300,8 @@ bool Isolate::Init(Deserializer* des) {
     // the snapshot.
     HandleScope scope(this);
     Deoptimizer::EnsureCodeForDeoptimizationEntry(
-        this,
-        Deoptimizer::LAZY,
-        kDeoptTableSerializeEntryCount - 1);
+        this, Deoptimizer::LAZY,
+        ExternalReferenceTable::kDeoptTableSerializeEntryCount - 1);
   }
 
   if (!serializer_enabled()) {
@@ -2462,12 +2462,11 @@ CodeTracer* Isolate::GetCodeTracer() {
   return code_tracer();
 }
 
-
-Map* Isolate::get_initial_js_array_map(ElementsKind kind, Strength strength) {
+Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   if (IsFastElementsKind(kind)) {
     DisallowHeapAllocation no_gc;
-    Object* const initial_js_array_map = context()->native_context()->get(
-        Context::ArrayMapIndex(kind, strength));
+    Object* const initial_js_array_map =
+        context()->native_context()->get(Context::ArrayMapIndex(kind));
     if (!initial_js_array_map->IsUndefined()) {
       return Map::cast(initial_js_array_map);
     }
@@ -2711,7 +2710,11 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void Isolate::FireCallCompletedCallback() {
   bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
-  bool run_microtasks = autorun_microtasks() && pending_microtask_count();
+  bool run_microtasks =
+      pending_microtask_count() &&
+      !handle_scope_implementer()->HasMicrotasksSuppressions() &&
+      handle_scope_implementer()->microtasks_policy() ==
+          v8::MicrotasksPolicy::kAuto;
   if (!has_call_completed_callbacks && !run_microtasks) return;
 
   if (!handle_scope_implementer()->CallDepthIsZero()) return;

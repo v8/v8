@@ -32,6 +32,7 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
+#include "src/collector.h"
 #include "src/debug/debug.h"
 #include "src/hashmap.h"
 #include "src/profiler/allocation-tracker.h"

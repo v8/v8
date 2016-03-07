@@ -2275,11 +2275,10 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->left()).is(a1));
   DCHECK(ToRegister(instr->right()).is(a0));
 
-  Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
+  Handle<Code> code = CodeFactory::StringCompare(isolate(), instr->op()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
-
-  EmitBranch(instr, ComputeCompareCondition(instr->op()), v0,
-             Operand(zero_reg));
+  __ LoadRoot(at, Heap::kTrueValueRootIndex);
+  EmitBranch(instr, eq, v0, Operand(at));
 }
 
 

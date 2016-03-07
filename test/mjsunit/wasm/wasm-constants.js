@@ -244,6 +244,10 @@ var kExprF64ConvertF32 = 0xb2;
 var kExprF64ReinterpretI64 = 0xb3;
 var kExprI32ReinterpretF32 = 0xb4;
 var kExprI64ReinterpretF64 = 0xb5;
+var kExprI32Ror = 0xb6;
+var kExprI32Rol = 0xb7;
+var kExprI64Ror = 0xb8;
+var kExprI64Rol = 0xb9;
 
 var kTrapUnreachable          = 0;
 var kTrapMemOutOfBounds       = 1;

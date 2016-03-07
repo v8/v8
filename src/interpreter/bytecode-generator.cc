@@ -620,7 +620,9 @@ void BytecodeGenerator::MakeBytecodeBody() {
 
   // Visit illegal re-declaration and bail out if it exists.
   if (scope()->HasIllegalRedeclaration()) {
-    VisitForEffect(scope()->GetIllegalRedeclaration());
+    Expression* illegal = scope()->GetIllegalRedeclaration();
+    builder()->SetExpressionAsStatementPosition(illegal);
+    VisitForEffect(illegal);
     return;
   }
 
@@ -833,6 +835,7 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   BytecodeLabel else_label, end_label;
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.

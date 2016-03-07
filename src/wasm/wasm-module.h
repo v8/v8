@@ -25,21 +25,28 @@ const size_t kMaxStringSize = 256;
 const uint32_t kWasmMagic = 0x6d736100;
 const uint32_t kWasmVersion = 0x0a;
 
-enum WasmSectionDeclCode {
-  kDeclMemory = 0x00,
-  kDeclSignatures = 0x01,
-  kDeclFunctions = 0x02,
-  kDeclGlobals = 0x03,
-  kDeclDataSegments = 0x04,
-  kDeclFunctionTable = 0x05,
-  kDeclEnd = 0x06,
-  kDeclStartFunction = 0x07,
-  kDeclImportTable = 0x08,
-  kDeclExportTable = 0x09,
-  kDeclWLL = 0x11,
-};
+// WebAssembly sections are named as strings in the binary format, but
+// internally V8 uses an enum to handle them.
+//
+// Entries have the form F(enumerator, string).
+#define FOR_EACH_WASM_SECTION_TYPE(F)     \
+  F(kDeclMemory, "memory")                \
+  F(kDeclSignatures, "signatures")        \
+  F(kDeclFunctions, "functions")          \
+  F(kDeclGlobals, "globals")              \
+  F(kDeclDataSegments, "data_segments")   \
+  F(kDeclFunctionTable, "function_table") \
+  F(kDeclEnd, "end")                      \
+  F(kDeclStartFunction, "start_function") \
+  F(kDeclImportTable, "import_table")     \
+  F(kDeclExportTable, "export_table")
 
-static const int kMaxModuleSectionCode = 0x11;
+enum WasmSectionDeclCode : uint32_t {
+#define F(enumerator, string) enumerator,
+  FOR_EACH_WASM_SECTION_TYPE(F)
+#undef F
+      kMaxModuleSectionCode
+};
 
 enum WasmFunctionDeclBit {
   kDeclFunctionName = 0x01,
@@ -103,14 +110,15 @@ enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
 
 // Static representation of a module.
 struct WasmModule {
-  static const uint8_t kMinMemSize = 12;  // Minimum memory size = 4kb
-  static const uint8_t kMaxMemSize = 30;  // Maximum memory size = 1gb
+  static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
+  static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
+  static const uint32_t kMaxMemPages = 16384;   // Maximum memory size =  1gb
 
   Isolate* shared_isolate;    // isolate for storing shared code.
   const byte* module_start;   // starting address for the module bytes.
   const byte* module_end;     // end address for the module bytes.
-  uint8_t min_mem_size_log2;  // minimum size of the memory (log base 2).
-  uint8_t max_mem_size_log2;  // maximum size of the memory (log base 2).
+  uint32_t min_mem_pages;     // minimum size of the memory in 64k pages.
+  uint32_t max_mem_pages;     // maximum size of the memory in 64k pages.
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
   int start_function_index;   // start function, if any.

@@ -39,6 +39,18 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
+CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
+                                     int parameter_count, Code::Flags flags,
+                                     const char* name)
+    : raw_assembler_(new RawMachineAssembler(
+          isolate, new (zone) Graph(zone),
+          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
+                                       CallDescriptor::kNoFlags))),
+      flags_(flags),
+      name_(name),
+      code_generated_(false),
+      variables_(zone) {}
+
 CodeStubAssembler::~CodeStubAssembler() {}
 
 void CodeStubAssembler::CallPrologue() {}
@@ -93,6 +105,10 @@ Node* CodeStubAssembler::Float64Constant(double value) {
   return raw_assembler_->Float64Constant(value);
 }
 
+Node* CodeStubAssembler::HeapNumberMapConstant() {
+  return HeapConstant(isolate()->factory()->heap_number_map());
+}
+
 Node* CodeStubAssembler::Parameter(int value) {
   return raw_assembler_->Parameter(value);
 }
@@ -127,14 +143,48 @@ Node* CodeStubAssembler::SmiTag(Node* value) {
   return raw_assembler_->WordShl(value, SmiShiftBitsConstant());
 }
 
-
 Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
+}
+
+Node* CodeStubAssembler::SmiToInt32(Node* value) {
+  Node* result = raw_assembler_->WordSar(value, SmiShiftBitsConstant());
+  if (raw_assembler_->machine()->Is64()) {
+    result = raw_assembler_->TruncateInt64ToInt32(result);
+  }
+  return result;
+}
+
+Node* CodeStubAssembler::SmiToFloat64(Node* value) {
+  return ChangeInt32ToFloat64(SmiUntag(value));
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
 
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
+
+Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {
+  return IntPtrLessThan(a, b);
+}
+
+Node* CodeStubAssembler::SmiLessThanOrEqual(Node* a, Node* b) {
+  return IntPtrLessThanOrEqual(a, b);
+}
+
+Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
+  // TODO(bmeurer): Consider using Select once available.
+  Variable min(this, MachineRepresentation::kTagged);
+  Label if_a(this), if_b(this), join(this);
+  BranchIfSmiLessThan(a, b, &if_a, &if_b);
+  Bind(&if_a);
+  min.Bind(a);
+  Goto(&join);
+  Bind(&if_b);
+  min.Bind(b);
+  Goto(&join);
+  Bind(&join);
+  return min.value();
+}
 
 #define DEFINE_CODE_STUB_ASSEMBER_BINARY_OP(name)   \
   Node* CodeStubAssembler::name(Node* a, Node* b) { \
@@ -143,17 +193,14 @@ Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 CODE_STUB_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_STUB_ASSEMBER_BINARY_OP)
 #undef DEFINE_CODE_STUB_ASSEMBER_BINARY_OP
 
-Node* CodeStubAssembler::ChangeInt32ToInt64(Node* value) {
-  return raw_assembler_->ChangeInt32ToInt64(value);
-}
-
-Node* CodeStubAssembler::ChangeUint32ToUint64(Node* value) {
-  return raw_assembler_->ChangeUint32ToUint64(value);
-}
-
 Node* CodeStubAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, IntPtrConstant(shift));
 }
+
+#define DEFINE_CODE_STUB_ASSEMBER_UNARY_OP(name) \
+  Node* CodeStubAssembler::name(Node* a) { return raw_assembler_->name(a); }
+CODE_STUB_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_STUB_ASSEMBER_UNARY_OP)
+#undef DEFINE_CODE_STUB_ASSEMBER_UNARY_OP
 
 Node* CodeStubAssembler::WordIsSmi(Node* a) {
   return WordEqual(raw_assembler_->WordAnd(a, IntPtrConstant(kSmiTagMask)),
@@ -168,6 +215,16 @@ Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset) {
 Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
   return raw_assembler_->Load(MachineType::AnyTagged(), object,
                               IntPtrConstant(offset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
+  return Load(MachineType::Float64(), object,
+              IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
+  return Load(MachineType::Uint8(), map,
+              IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
@@ -222,6 +279,122 @@ Node* CodeStubAssembler::LoadRoot(Heap::RootListIndex root_index) {
   return nullptr;
 }
 
+Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
+                                              AllocationFlags flags,
+                                              Node* top_address,
+                                              Node* limit_address) {
+  Node* top = Load(MachineType::Pointer(), top_address);
+  Node* limit = Load(MachineType::Pointer(), limit_address);
+
+  // If there's not enough space, call the runtime.
+  RawMachineLabel runtime_call, no_runtime_call, merge_runtime;
+  raw_assembler_->Branch(
+      raw_assembler_->IntPtrLessThan(IntPtrSub(limit, top), size_in_bytes),
+      &runtime_call, &no_runtime_call);
+
+  raw_assembler_->Bind(&runtime_call);
+  // AllocateInTargetSpace does not use the context.
+  Node* context = IntPtrConstant(0);
+  Node* runtime_flags = SmiTag(Int32Constant(
+      AllocateDoubleAlignFlag::encode(false) |
+      AllocateTargetSpace::encode(flags & kPretenured
+                                      ? AllocationSpace::OLD_SPACE
+                                      : AllocationSpace::NEW_SPACE)));
+  Node* runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
+                                     SmiTag(size_in_bytes), runtime_flags);
+  raw_assembler_->Goto(&merge_runtime);
+
+  // When there is enough space, return `top' and bump it up.
+  raw_assembler_->Bind(&no_runtime_call);
+  Node* no_runtime_result = top;
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
+                      IntPtrAdd(top, size_in_bytes));
+  no_runtime_result =
+      IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag));
+  raw_assembler_->Goto(&merge_runtime);
+
+  raw_assembler_->Bind(&merge_runtime);
+  return raw_assembler_->Phi(MachineType::PointerRepresentation(),
+                             runtime_result, no_runtime_result);
+}
+
+Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
+                                            AllocationFlags flags,
+                                            Node* top_address,
+                                            Node* limit_address) {
+  Node* top = Load(MachineType::Pointer(), top_address);
+  Node* limit = Load(MachineType::Pointer(), limit_address);
+  Node* adjusted_size = size_in_bytes;
+  if (flags & kDoubleAlignment) {
+    // TODO(epertoso): Simd128 alignment.
+    RawMachineLabel aligned, not_aligned, merge;
+    raw_assembler_->Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)),
+                           &not_aligned, &aligned);
+
+    raw_assembler_->Bind(&not_aligned);
+    Node* not_aligned_size =
+        IntPtrAdd(size_in_bytes, IntPtrConstant(kPointerSize));
+    raw_assembler_->Goto(&merge);
+
+    raw_assembler_->Bind(&aligned);
+    raw_assembler_->Goto(&merge);
+
+    raw_assembler_->Bind(&merge);
+    adjusted_size = raw_assembler_->Phi(MachineType::PointerRepresentation(),
+                                        not_aligned_size, adjusted_size);
+  }
+
+  Node* address = AllocateRawUnaligned(adjusted_size, kNone, top, limit);
+
+  RawMachineLabel needs_filler, doesnt_need_filler, merge_address;
+  raw_assembler_->Branch(
+      raw_assembler_->IntPtrEqual(adjusted_size, size_in_bytes),
+      &doesnt_need_filler, &needs_filler);
+
+  raw_assembler_->Bind(&needs_filler);
+  // Store a filler and increase the address by kPointerSize.
+  // TODO(epertoso): this code assumes that we only align to kDoubleSize. Change
+  // it when Simd128 alignment is supported.
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top,
+                      LoadRoot(Heap::kOnePointerFillerMapRootIndex));
+  Node* address_with_filler = IntPtrAdd(address, IntPtrConstant(kPointerSize));
+  raw_assembler_->Goto(&merge_address);
+
+  raw_assembler_->Bind(&doesnt_need_filler);
+  Node* address_without_filler = address;
+  raw_assembler_->Goto(&merge_address);
+
+  raw_assembler_->Bind(&merge_address);
+  address = raw_assembler_->Phi(MachineType::PointerRepresentation(),
+                                address_with_filler, address_without_filler);
+  // Update the top.
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
+                      IntPtrAdd(top, adjusted_size));
+  return address;
+}
+
+Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+  bool const new_space = !(flags & kPretenured);
+  Node* top_address = ExternalConstant(
+      new_space
+          ? ExternalReference::new_space_allocation_top_address(isolate())
+          : ExternalReference::old_space_allocation_top_address(isolate()));
+  Node* limit_address = ExternalConstant(
+      new_space
+          ? ExternalReference::new_space_allocation_limit_address(isolate())
+          : ExternalReference::old_space_allocation_limit_address(isolate()));
+
+#ifdef V8_HOST_ARCH_32_BIT
+  if (flags & kDoubleAlignment) {
+    return AllocateRawAligned(IntPtrConstant(size_in_bytes), flags, top_address,
+                              limit_address);
+  }
+#endif
+
+  return AllocateRawUnaligned(IntPtrConstant(size_in_bytes), flags, top_address,
+                              limit_address);
+}
+
 Node* CodeStubAssembler::Load(MachineType rep, Node* base) {
   return raw_assembler_->Load(rep, base);
 }
@@ -253,6 +426,104 @@ Node* CodeStubAssembler::StoreNoWriteBarrier(MachineRepresentation rep,
 
 Node* CodeStubAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
+}
+
+Node* CodeStubAssembler::LoadInstanceType(Node* object) {
+  return LoadMapInstanceType(LoadObjectField(object, HeapObject::kMapOffset));
+}
+
+Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
+                                        uint32_t mask) {
+  return raw_assembler_->Word32Shr(
+      raw_assembler_->Word32And(word32, raw_assembler_->Int32Constant(mask)),
+      raw_assembler_->Int32Constant(shift));
+}
+
+void CodeStubAssembler::BranchIfInt32LessThan(Node* a, Node* b, Label* if_true,
+                                              Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(Int32LessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfSmiLessThan(Node* a, Node* b, Label* if_true,
+                                            Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(SmiLessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfSmiLessThanOrEqual(Node* a, Node* b,
+                                                   Label* if_true,
+                                                   Label* if_false) {
+  Label if_lessthanorequal(this), if_notlessthanorequal(this);
+  Branch(SmiLessThanOrEqual(a, b), &if_lessthanorequal, &if_notlessthanorequal);
+  Bind(&if_lessthanorequal);
+  Goto(if_true);
+  Bind(&if_notlessthanorequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64Equal(Node* a, Node* b, Label* if_true,
+                                             Label* if_false) {
+  Label if_equal(this), if_notequal(this);
+  Branch(Float64Equal(a, b), &if_equal, &if_notequal);
+  Bind(&if_equal);
+  Goto(if_true);
+  Bind(&if_notequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64LessThan(Node* a, Node* b,
+                                                Label* if_true,
+                                                Label* if_false) {
+  Label if_lessthan(this), if_notlessthan(this);
+  Branch(Float64LessThan(a, b), &if_lessthan, &if_notlessthan);
+  Bind(&if_lessthan);
+  Goto(if_true);
+  Bind(&if_notlessthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64LessThanOrEqual(Node* a, Node* b,
+                                                       Label* if_true,
+                                                       Label* if_false) {
+  Label if_lessthanorequal(this), if_notlessthanorequal(this);
+  Branch(Float64LessThanOrEqual(a, b), &if_lessthanorequal,
+         &if_notlessthanorequal);
+  Bind(&if_lessthanorequal);
+  Goto(if_true);
+  Bind(&if_notlessthanorequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64GreaterThan(Node* a, Node* b,
+                                                   Label* if_true,
+                                                   Label* if_false) {
+  Label if_greaterthan(this), if_notgreaterthan(this);
+  Branch(Float64GreaterThan(a, b), &if_greaterthan, &if_notgreaterthan);
+  Bind(&if_greaterthan);
+  Goto(if_true);
+  Bind(&if_notgreaterthan);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b,
+                                                          Label* if_true,
+                                                          Label* if_false) {
+  Label if_greaterthanorequal(this), if_notgreaterthanorequal(this);
+  Branch(Float64GreaterThanOrEqual(a, b), &if_greaterthanorequal,
+         &if_notgreaterthanorequal);
+  Bind(&if_greaterthanorequal);
+  Goto(if_true);
+  Bind(&if_notgreaterthanorequal);
+  Goto(if_false);
 }
 
 Node* CodeStubAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
@@ -315,6 +586,11 @@ Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
 }
 
 Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
+                                         Node* context) {
+  return raw_assembler_->TailCallRuntime0(function_id, context);
+}
+
+Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                          Node* context, Node* arg1) {
   return raw_assembler_->TailCallRuntime1(function_id, arg1, context);
 }
@@ -337,6 +613,12 @@ Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                          Node* arg3, Node* arg4) {
   return raw_assembler_->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
                                           context);
+}
+
+Node* CodeStubAssembler::CallStub(Callable const& callable, Node* context,
+                                  Node* arg1, size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), target, context, arg1, result_size);
 }
 
 Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
@@ -426,12 +708,28 @@ Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
   return CallN(call_descriptor, target, args);
 }
 
-Node* CodeStubAssembler::TailCallStub(CodeStub& stub, Node** args) {
-  Node* code_target = HeapConstant(stub.GetCode());
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), stub.GetCallInterfaceDescriptor(),
-      stub.GetStackParameterCount(), CallDescriptor::kSupportsTailCalls);
-  return raw_assembler_->TailCallN(descriptor, code_target, args);
+Node* CodeStubAssembler::TailCallStub(Callable const& callable, Node* context,
+                                      Node* arg1, Node* arg2,
+                                      size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return TailCallStub(callable.descriptor(), target, context, arg1, arg2,
+                      result_size);
+}
+
+Node* CodeStubAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                      Node* target, Node* context, Node* arg1,
+                                      Node* arg2, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(3);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = context;
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
 Node* CodeStubAssembler::TailCall(
@@ -475,11 +773,15 @@ void CodeStubAssembler::Switch(Node* index, Label* default_label,
 }
 
 // RawMachineAssembler delegate helpers:
-Isolate* CodeStubAssembler::isolate() { return raw_assembler_->isolate(); }
+Isolate* CodeStubAssembler::isolate() const {
+  return raw_assembler_->isolate();
+}
 
-Graph* CodeStubAssembler::graph() { return raw_assembler_->graph(); }
+Factory* CodeStubAssembler::factory() const { return isolate()->factory(); }
 
-Zone* CodeStubAssembler::zone() { return raw_assembler_->zone(); }
+Graph* CodeStubAssembler::graph() const { return raw_assembler_->graph(); }
+
+Zone* CodeStubAssembler::zone() const { return raw_assembler_->zone(); }
 
 // The core implementation of Variable is stored through an indirection so
 // that it can outlive the often block-scoped Variable declarations. This is
@@ -513,26 +815,19 @@ bool CodeStubAssembler::Variable::IsBound() const {
   return impl_->value_ != nullptr;
 }
 
-CodeStubAssembler::Label::Label(CodeStubAssembler* assembler)
-    : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
-  void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
-  label_ = new (buffer) RawMachineLabel();
-}
-
 CodeStubAssembler::Label::Label(CodeStubAssembler* assembler,
                                 int merged_value_count,
-                                CodeStubAssembler::Variable** merged_variables)
+                                CodeStubAssembler::Variable** merged_variables,
+                                CodeStubAssembler::Label::Type type)
     : bound_(false), merge_count_(0), assembler_(assembler), label_(nullptr) {
   void* buffer = assembler->zone()->New(sizeof(RawMachineLabel));
-  label_ = new (buffer) RawMachineLabel();
+  label_ = new (buffer)
+      RawMachineLabel(type == kDeferred ? RawMachineLabel::kDeferred
+                                        : RawMachineLabel::kNonDeferred);
   for (int i = 0; i < merged_value_count; ++i) {
     variable_phis_[merged_variables[i]->impl_] = nullptr;
   }
 }
-
-CodeStubAssembler::Label::Label(CodeStubAssembler* assembler,
-                                CodeStubAssembler::Variable* merged_variable)
-    : CodeStubAssembler::Label(assembler, 1, &merged_variable) {}
 
 void CodeStubAssembler::Label::MergeVariables() {
   ++merge_count_;
@@ -564,16 +859,17 @@ void CodeStubAssembler::Label::MergeVariables() {
         assembler_->raw_assembler_->AppendPhiInput(phi->second, node);
       } else {
         auto i = variable_merges_.find(var);
-        USE(i);
-        // If the following assert fires, then you've declared a variable that
-        // has the same bound value along all paths up until the point you bound
-        // this label, but then later merged a path with a new value for the
-        // variable after the label bind (it's not possible to add phis to the
-        // bound label after the fact, just make sure to list the variable in
-        // the label's constructor's list of merged variables).
-        DCHECK(find_if(i->second.begin(), i->second.end(),
-                       [node](Node* e) -> bool { return node != e; }) ==
-               i->second.end());
+        if (i != variable_merges_.end()) {
+          // If the following assert fires, then you've declared a variable that
+          // has the same bound value along all paths up until the point you
+          // bound this label, but then later merged a path with a new value for
+          // the variable after the label bind (it's not possible to add phis to
+          // the bound label after the fact, just make sure to list the variable
+          // in the label's constructor's list of merged variables).
+          DCHECK(find_if(i->second.begin(), i->second.end(),
+                         [node](Node* e) -> bool { return node != e; }) ==
+                 i->second.end());
+        }
       }
     }
   }

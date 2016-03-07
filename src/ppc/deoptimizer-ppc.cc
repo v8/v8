@@ -106,12 +106,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  // There is no dynamic alignment padding on PPC in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be

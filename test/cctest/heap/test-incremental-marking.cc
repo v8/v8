@@ -93,15 +93,6 @@ class MockPlatform : public v8::Platform {
     return 0;
   }
 
-  // TODO(fmeawad): Remove once all embedders implement the scope version.
-  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, uint64_t id, uint64_t bind_id,
-                         int numArgs, const char** argNames,
-                         const uint8_t* argTypes, const uint64_t* argValues,
-                         unsigned int flags) override {
-    return 0;
-  }
-
   void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
                                 const char* name, uint64_t handle) override {}
 

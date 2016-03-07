@@ -36,7 +36,7 @@
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
 #include "src/type-feedback-vector.h"
@@ -895,7 +895,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL,
-                        v8::kGCCallbackFlagForced) &&
+                        v8::kGCCallbackFlagCollectAllAvailableGarbage) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
@@ -1143,7 +1143,8 @@ bool Heap::ReserveSpace(Reservation* reservations) {
   static const int kThreshold = 20;
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
-    for (int space = NEW_SPACE; space < Serializer::kNumberOfSpaces; space++) {
+    for (int space = NEW_SPACE; space < SerializerDeserializer::kNumberOfSpaces;
+         space++) {
       Reservation* reservation = &reservations[space];
       DCHECK_LE(1, reservation->length());
       if (reservation->at(0).size == 0) continue;
@@ -1169,7 +1170,7 @@ bool Heap::ReserveSpace(Reservation* reservations) {
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
                                  ClearRecordedSlots::kNo);
-            DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
+            DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
           } else {
@@ -3574,11 +3575,12 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Make the clone.
   Map* map = source->map();
 
-  // We can only clone regexps, normal objects or arrays. Copying anything else
-  // will break invariants.
+  // We can only clone regexps, normal objects, api objects or arrays. Copying
+  // anything else will break invariants.
   CHECK(map->instance_type() == JS_REGEXP_TYPE ||
         map->instance_type() == JS_OBJECT_TYPE ||
-        map->instance_type() == JS_ARRAY_TYPE);
+        map->instance_type() == JS_ARRAY_TYPE ||
+        map->instance_type() == JS_SPECIAL_API_OBJECT_TYPE);
 
   int object_size = map->instance_size();
   HeapObject* clone = nullptr;

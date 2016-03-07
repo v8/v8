@@ -13,7 +13,7 @@ var module = (function () {
   return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- memory
     kDeclMemory,
-    12, 12, 1,
+    1, 1, 1,
     // -- signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstI32, kAstI32, // int, int -> int
@@ -50,7 +50,7 @@ for (var i = 0; i < 4; i++) {
   assertEquals(mem, module.memory);
 }
 
-assertEquals(4096, module.memory.byteLength);
+assertEquals(65536, module.memory.byteLength);
 
 // Check the properties of the sub function.
 assertEquals("function", typeof module.sub);
@@ -67,7 +67,7 @@ var module = (function() {
   return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- memory
     kDeclMemory,
-    12, 12, 1,
+    1, 1, 1,
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt,                // signature: void -> void
@@ -101,7 +101,7 @@ for (var i = 0; i < 4; i++) {
   assertEquals(mem, module.memory);
 }
 
-assertEquals(4096, module.memory.byteLength);
+assertEquals(65536, module.memory.byteLength);
 
 // Check the properties of the sub function.
 assertFalse(module.nop === undefined);
@@ -118,7 +118,7 @@ assertEquals(undefined, module.nop());
   var data = bytesWithHeader(
     // -- memory
     kDeclMemory,
-    12, 12, 1,
+    1, 1, 1,
     // -- signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstF64, kAstF64, // (f64,f64)->int

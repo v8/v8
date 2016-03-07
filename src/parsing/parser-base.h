@@ -115,6 +115,7 @@ class ParserBase : public Traits {
         allow_harmony_default_parameters_(false),
         allow_harmony_destructuring_bind_(false),
         allow_harmony_destructuring_assignment_(false),
+        allow_harmony_restrictive_declarations_(false),
         allow_strong_mode_(false),
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false),
@@ -134,6 +135,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_default_parameters);
   ALLOW_ACCESSORS(harmony_destructuring_bind);
   ALLOW_ACCESSORS(harmony_destructuring_assignment);
+  ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(strong_mode);
   ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
@@ -957,6 +959,7 @@ class ParserBase : public Traits {
   bool allow_harmony_default_parameters_;
   bool allow_harmony_destructuring_bind_;
   bool allow_harmony_destructuring_assignment_;
+  bool allow_harmony_restrictive_declarations_;
   bool allow_strong_mode_;
   bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
@@ -999,27 +1002,23 @@ template <class Traits>
 void ParserBase<Traits>::GetUnexpectedTokenMessage(
     Token::Value token, MessageTemplate::Template* message, const char** arg,
     MessageTemplate::Template default_) {
+  *arg = nullptr;
   switch (token) {
     case Token::EOS:
       *message = MessageTemplate::kUnexpectedEOS;
-      *arg = nullptr;
       break;
     case Token::SMI:
     case Token::NUMBER:
       *message = MessageTemplate::kUnexpectedTokenNumber;
-      *arg = nullptr;
       break;
     case Token::STRING:
       *message = MessageTemplate::kUnexpectedTokenString;
-      *arg = nullptr;
       break;
     case Token::IDENTIFIER:
       *message = MessageTemplate::kUnexpectedTokenIdentifier;
-      *arg = nullptr;
       break;
     case Token::FUTURE_RESERVED_WORD:
       *message = MessageTemplate::kUnexpectedReserved;
-      *arg = nullptr;
       break;
     case Token::LET:
     case Token::STATIC:
@@ -1028,17 +1027,17 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
       *message = is_strict(language_mode())
                      ? MessageTemplate::kUnexpectedStrictReserved
                      : MessageTemplate::kUnexpectedTokenIdentifier;
-      *arg = nullptr;
       break;
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
       *message = MessageTemplate::kUnexpectedTemplateString;
-      *arg = nullptr;
       break;
     case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::ESCAPED_KEYWORD:
       *message = MessageTemplate::kInvalidEscapedReservedWord;
-      *arg = nullptr;
+      break;
+    case Token::ILLEGAL:
+      *message = MessageTemplate::kInvalidOrUnexpectedToken;
       break;
     default:
       const char* name = Token::String(token);
@@ -2142,9 +2141,9 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   ExpressionT expression = Traits::EmptyExpression();
-  Yield::Kind kind = Yield::kSuspend;
+  bool delegating = false;  // yield*
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-    if (Check(Token::MUL)) kind = Yield::kDelegating;
+    if (Check(Token::MUL)) delegating = true;
     switch (peek()) {
       case Token::EOS:
       case Token::SEMICOLON:
@@ -2156,10 +2155,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         // The above set of tokens is the complete set of tokens that can appear
         // after an AssignmentExpression, and none of them can start an
         // AssignmentExpression.  This allows us to avoid looking for an RHS for
-        // a Yield::kSuspend operation, given only one look-ahead token.
-        if (kind == Yield::kSuspend)
-          break;
-        DCHECK_EQ(Yield::kDelegating, kind);
+        // a regular yield, given only one look-ahead token.
+        if (!delegating) break;
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(false, classifier, CHECK_OK);
@@ -2167,13 +2164,16 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         break;
     }
   }
-  if (kind == Yield::kDelegating) {
+
+  if (delegating) {
     return Traits::RewriteYieldStar(generator_object, expression, pos);
   }
+
+  expression = Traits::BuildIteratorResult(expression, false);
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
   typename Traits::Type::YieldExpression yield =
-      factory()->NewYield(generator_object, expression, kind, pos);
+      factory()->NewYield(generator_object, expression, pos);
   return yield;
 }
 

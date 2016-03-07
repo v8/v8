@@ -491,6 +491,20 @@ Expression* ParserTraits::BuildUnaryExpression(Expression* expression,
   return factory->NewUnaryOperation(op, expression, pos);
 }
 
+Expression* ParserTraits::BuildIteratorResult(Expression* value, bool done) {
+  int pos = RelocInfo::kNoPosition;
+  AstNodeFactory* factory = parser_->factory();
+  Zone* zone = parser_->zone();
+
+  if (value == nullptr) value = factory->NewUndefinedLiteral(pos);
+
+  auto args = new (zone) ZoneList<Expression*>(2, zone);
+  args->Add(value, zone);
+  args->Add(factory->NewBooleanLiteral(done, pos), zone);
+
+  return factory->NewCallRuntime(Runtime::kInlineCreateIterResultObject, args,
+                                 pos);
+}
 
 Expression* ParserTraits::NewThrowReferenceError(
     MessageTemplate::Template message, int pos) {
@@ -774,6 +788,8 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
+  set_allow_harmony_restrictive_declarations(
+      FLAG_harmony_restrictive_declarations);
   set_allow_harmony_types(FLAG_harmony_types);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -1860,26 +1876,18 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
     case Token::SWITCH:
       return ParseSwitchStatement(labels, ok);
 
-    case Token::FUNCTION: {
-      // FunctionDeclaration is only allowed in the context of SourceElements
-      // (Ecma 262 5th Edition, clause 14):
-      // SourceElement:
-      //    Statement
-      //    FunctionDeclaration
-      // Common language extension is to allow function declaration in place
-      // of any statement. This language extension is disabled in strict mode.
-      //
-      // In Harmony mode, this case also handles the extension:
-      // Statement:
-      //    GeneratorDeclaration
-      if (is_strict(language_mode())) {
-        ReportMessageAt(scanner()->peek_location(),
-                        MessageTemplate::kStrictFunction);
-        *ok = false;
-        return NULL;
-      }
-      return ParseFunctionDeclaration(NULL, ok);
-    }
+    case Token::FUNCTION:
+      // FunctionDeclaration only allowed as a StatementListItem, not in
+      // an arbitrary Statement position. Exceptions such as
+      // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
+      // are handled by calling ParseScopedStatement rather than
+      // ParseSubStatement directly.
+      ReportMessageAt(scanner()->peek_location(),
+                      is_strict(language_mode())
+                          ? MessageTemplate::kStrictFunction
+                          : MessageTemplate::kSloppyFunction);
+      *ok = false;
+      return nullptr;
 
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
@@ -2608,6 +2616,10 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     // during the scope processing.
     scope_->RemoveUnresolved(var);
     Expect(Token::COLON, CHECK_OK);
+    // ES#sec-labelled-function-declarations Labelled Function Declarations
+    if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
+      return ParseFunctionDeclaration(labels, ok);
+    }
     return ParseStatement(labels, ok);
   }
 
@@ -2648,11 +2660,11 @@ IfStatement* Parser::ParseIfStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::LPAREN, CHECK_OK);
   Expression* condition = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement* then_statement = ParseSubStatement(labels, CHECK_OK);
+  Statement* then_statement = ParseScopedStatement(labels, false, CHECK_OK);
   Statement* else_statement = NULL;
   if (peek() == Token::ELSE) {
     Next();
-    else_statement = ParseSubStatement(labels, CHECK_OK);
+    else_statement = ParseScopedStatement(labels, false, CHECK_OK);
   } else {
     else_statement = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   }
@@ -2812,14 +2824,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   ExpectSemicolon(CHECK_OK);
 
   if (is_generator()) {
-    Expression* generator = factory()->NewVariableProxy(
-        function_state_->generator_object_variable());
-    Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::kFinal, loc.beg_pos);
-    result = factory()->NewExpressionStatement(yield, loc.beg_pos);
-  } else {
-    result = factory()->NewReturnStatement(return_value, loc.beg_pos);
+    return_value = BuildIteratorResult(return_value, true);
   }
+
+  result = factory()->NewReturnStatement(return_value, loc.beg_pos);
 
   Scope* decl_scope = scope_->DeclarationScope();
   if (decl_scope->is_script_scope() || decl_scope->is_eval_scope()) {
@@ -2851,25 +2859,10 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
 
   scope_->DeclarationScope()->RecordWithStatement();
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
-  Block* body;
+  Statement* body;
   { BlockState block_state(&scope_, with_scope);
     with_scope->set_start_position(scanner()->peek_location().beg_pos);
-
-    // The body of the with statement must be enclosed in an additional
-    // lexical scope in case the body is a FunctionDeclaration.
-    body = factory()->NewBlock(labels, 1, false, RelocInfo::kNoPosition);
-    Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
-    block_scope->set_start_position(scanner()->location().beg_pos);
-    {
-      BlockState block_state(&scope_, block_scope);
-      Target target(&this->target_stack_, body);
-      Statement* stmt = ParseSubStatement(labels, CHECK_OK);
-      body->statements()->Add(stmt, zone());
-      block_scope->set_end_position(scanner()->location().end_pos);
-      block_scope = block_scope->FinalizeBlockScope();
-      body->set_scope(block_scope);
-    }
-
+    body = ParseScopedStatement(labels, true, CHECK_OK);
     with_scope->set_end_position(scanner()->location().end_pos);
   }
   return factory()->NewWithStatement(with_scope, expr, body, pos);
@@ -3210,7 +3203,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(
   Target target(&this->target_stack_, loop);
 
   Expect(Token::DO, CHECK_OK);
-  Statement* body = ParseSubStatement(NULL, CHECK_OK);
+  Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
@@ -3240,7 +3233,7 @@ WhileStatement* Parser::ParseWhileStatement(
   Expect(Token::LPAREN, CHECK_OK);
   Expression* cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  Statement* body = ParseSubStatement(NULL, CHECK_OK);
+  Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
 
   if (loop != NULL) loop->Initialize(cond, body);
   return loop;
@@ -3622,6 +3615,28 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   return outer_block;
 }
 
+Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
+                                        bool legacy, bool* ok) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
+      (legacy && allow_harmony_restrictive_declarations())) {
+    return ParseSubStatement(labels, ok);
+  } else {
+    if (legacy) {
+      ++use_counts_[v8::Isolate::kLegacyFunctionDeclaration];
+    }
+    // Make a block around the statement for a lexical binding
+    // is introduced by a FunctionDeclaration.
+    Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
+    BlockState block_state(&scope_, body_scope);
+    Block* block = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
+    Statement* body = ParseFunctionDeclaration(NULL, CHECK_OK);
+    block->statements()->Add(body, zone());
+    body_scope->set_end_position(scanner()->location().end_pos);
+    body_scope = body_scope->FinalizeBlockScope();
+    block->set_scope(body_scope);
+    return block;
+  }
+}
 
 Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                                      bool* ok) {
@@ -3735,7 +3750,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         {
           BlockState block_state(&scope_, body_scope);
 
-          Statement* body = ParseSubStatement(NULL, CHECK_OK);
+          Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
 
           auto each_initialization_block =
               factory()->NewBlock(nullptr, 1, true, RelocInfo::kNoPosition);
@@ -3852,25 +3867,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         Expect(Token::RPAREN, CHECK_OK);
 
-        // Make a block around the statement in case a lexical binding
-        // is introduced, e.g. by a FunctionDeclaration.
-        // This block must not use for_scope as its scope because if a
-        // lexical binding is introduced which overlaps with the for-in/of,
-        // expressions in head of the loop should actually have variables
-        // resolved in the outer scope.
-        Scope* body_scope = NewScope(for_scope, BLOCK_SCOPE);
-        {
-          BlockState block_state(&scope_, body_scope);
-          Block* block =
-              factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
-          Statement* body = ParseSubStatement(NULL, CHECK_OK);
-          block->statements()->Add(body, zone());
-          InitializeForEachStatement(loop, expression, enumerable, block,
-                                     is_destructuring);
-          body_scope->set_end_position(scanner()->location().end_pos);
-          body_scope = body_scope->FinalizeBlockScope();
-          block->set_scope(body_scope);
-        }
+        // For legacy compat reasons, give for loops similar treatment to
+        // if statements in allowing a function declaration for a body
+        Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
+        InitializeForEachStatement(loop, expression, enumerable, body,
+                                   is_destructuring);
 
         Statement* final_loop = loop->IsForOfStatement()
             ? FinalizeForOfStatement(
@@ -3927,7 +3928,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     }
     Expect(Token::RPAREN, CHECK_OK);
 
-    body = ParseSubStatement(NULL, CHECK_OK);
+    body = ParseScopedStatement(NULL, true, CHECK_OK);
   }
 
   Statement* result = NULL;
@@ -4700,15 +4701,12 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     if (IsGeneratorFunction(kind)) {
       // We produce:
       //
-      // try { InitialYield; ...body...; FinalYield }
+      // try { InitialYield; ...body...; return {value: undefined, done: true} }
       // finally { %GeneratorClose(generator) }
       //
       // - InitialYield yields the actual generator object.
-      // - FinalYield yields {value: foo, done: true} where foo is the
-      //   completion value of body.  (This is needed here in case the body
-      //   falls through without an explicit return.)
-      // - Any return statement inside the body will be converted into a similar
-      //   FinalYield.
+      // - Any return statement inside the body will have its argument wrapped
+      //   in a "done" iterator result object.
       // - If the generator terminates for whatever reason, we must close it.
       //   Hence the finally clause.
 
@@ -4726,8 +4724,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
             Token::INIT, init_proxy, allocation, RelocInfo::kNoPosition);
         VariableProxy* get_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
-        Yield* yield = factory()->NewYield(
-            get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
+        Yield* yield =
+            factory()->NewYield(get_proxy, assignment, RelocInfo::kNoPosition);
         try_block->statements()->Add(
             factory()->NewExpressionStatement(yield, RelocInfo::kNoPosition),
             zone());
@@ -4735,15 +4733,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
       ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
 
-      VariableProxy* get_proxy = factory()->NewVariableProxy(
-          function_state_->generator_object_variable());
-      Expression* undefined =
-          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
-      Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::kFinal,
-                                         RelocInfo::kNoPosition);
-      try_block->statements()->Add(
-          factory()->NewExpressionStatement(yield, RelocInfo::kNoPosition),
-          zone());
+      Statement* final_return = factory()->NewReturnStatement(
+          BuildIteratorResult(nullptr, true), RelocInfo::kNoPosition);
+      try_block->statements()->Add(final_return, zone());
 
       Block* finally_block =
           factory()->NewBlock(nullptr, 1, false, RelocInfo::kNoPosition);
@@ -5022,7 +5014,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args->length()) {
-      ReportMessage(MessageTemplate::kIllegalAccess);
+      ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
       *ok = false;
       return NULL;
     }
@@ -6150,13 +6142,11 @@ Expression* ParserTraits::RewriteYieldStar(
     set_mode_return = factory->NewExpressionStatement(assignment, nopos);
   }
 
-
-  // RawYield(output);
+  // Yield(output);
   Statement* yield_output;
   {
     Expression* output_proxy = factory->NewVariableProxy(var_output);
-    Yield* yield = factory->NewYield(
-        generator, output_proxy, Yield::kInitial, nopos);
+    Yield* yield = factory->NewYield(generator, output_proxy, nopos);
     yield_output = factory->NewExpressionStatement(yield, nopos);
   }
 

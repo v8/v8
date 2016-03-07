@@ -299,9 +299,7 @@ void FullCodeGenerator::Generate() {
   // Visit the declarations and body unless there is an illegal
   // redeclaration.
   if (scope()->HasIllegalRedeclaration()) {
-    Comment cmnt(masm_, "[ Declarations");
-    VisitForEffect(scope()->GetIllegalRedeclaration());
-
+    EmitIllegalRedeclaration();
   } else {
     PrepareForBailoutForId(BailoutId::FunctionEntry(), NO_REGISTERS);
     { Comment cmnt(masm_, "[ Declarations");
@@ -530,7 +528,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
                                           true,
                                           true_label_,
                                           false_label_);
-  DCHECK(lit->IsNull() || lit->IsUndefined() || !lit->IsUndetectableObject());
+  DCHECK(lit->IsNull() || lit->IsUndefined() || !lit->IsUndetectable());
   if (lit->IsUndefined() || lit->IsNull() || lit->IsFalse()) {
     if (false_label_ != fall_through_) __ B(false_label_);
   } else if (lit->IsTrue() || lit->IsJSObject()) {
@@ -3822,66 +3820,46 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // and suchlike. The implementation changes a little by bleeding_edge so I
   // don't want to spend too much time on it now.
 
-  switch (expr->yield_kind()) {
-    case Yield::kSuspend:
-      // Pop value from top-of-stack slot; box result into result register.
-      EmitCreateIteratorResult(false);
-      PushOperand(result_register());
-      // Fall through.
-    case Yield::kInitial: {
-      Label suspend, continuation, post_runtime, resume;
+  Label suspend, continuation, post_runtime, resume;
 
-      __ B(&suspend);
-      // TODO(jbramley): This label is bound here because the following code
-      // looks at its pos(). Is it possible to do something more efficient here,
-      // perhaps using Adr?
-      __ Bind(&continuation);
-      // When we arrive here, the stack top is the resume mode and
-      // result_register() holds the input value (the argument given to the
-      // respective resume operation).
-      __ RecordGeneratorContinuation();
-      __ Pop(x1);
-      __ Cmp(x1, Smi::FromInt(JSGeneratorObject::RETURN));
-      __ B(ne, &resume);
-      __ Push(result_register());
-      EmitCreateIteratorResult(true);
-      EmitUnwindAndReturn();
+  __ B(&suspend);
+  // TODO(jbramley): This label is bound here because the following code
+  // looks at its pos(). Is it possible to do something more efficient here,
+  // perhaps using Adr?
+  __ Bind(&continuation);
+  // When we arrive here, the stack top is the resume mode and
+  // result_register() holds the input value (the argument given to the
+  // respective resume operation).
+  __ RecordGeneratorContinuation();
+  __ Pop(x1);
+  __ Cmp(x1, Smi::FromInt(JSGeneratorObject::RETURN));
+  __ B(ne, &resume);
+  __ Push(result_register());
+  EmitCreateIteratorResult(true);
+  EmitUnwindAndReturn();
 
-      __ Bind(&suspend);
-      OperandStackDepthIncrement(1);  // Not popped on this path.
-      VisitForAccumulatorValue(expr->generator_object());
-      DCHECK((continuation.pos() > 0) && Smi::IsValid(continuation.pos()));
-      __ Mov(x1, Smi::FromInt(continuation.pos()));
-      __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
-      __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
-      __ Mov(x1, cp);
-      __ RecordWriteField(x0, JSGeneratorObject::kContextOffset, x1, x2,
-                          kLRHasBeenSaved, kDontSaveFPRegs);
-      __ Add(x1, fp, StandardFrameConstants::kExpressionsOffset);
-      __ Cmp(__ StackPointer(), x1);
-      __ B(eq, &post_runtime);
-      __ Push(x0);  // generator object
-      __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-      __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-      __ Bind(&post_runtime);
-      PopOperand(result_register());
-      EmitReturnSequence();
+  __ Bind(&suspend);
+  OperandStackDepthIncrement(1);  // Not popped on this path.
+  VisitForAccumulatorValue(expr->generator_object());
+  DCHECK((continuation.pos() > 0) && Smi::IsValid(continuation.pos()));
+  __ Mov(x1, Smi::FromInt(continuation.pos()));
+  __ Str(x1, FieldMemOperand(x0, JSGeneratorObject::kContinuationOffset));
+  __ Str(cp, FieldMemOperand(x0, JSGeneratorObject::kContextOffset));
+  __ Mov(x1, cp);
+  __ RecordWriteField(x0, JSGeneratorObject::kContextOffset, x1, x2,
+                      kLRHasBeenSaved, kDontSaveFPRegs);
+  __ Add(x1, fp, StandardFrameConstants::kExpressionsOffset);
+  __ Cmp(__ StackPointer(), x1);
+  __ B(eq, &post_runtime);
+  __ Push(x0);  // generator object
+  __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
+  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ Bind(&post_runtime);
+  PopOperand(result_register());
+  EmitReturnSequence();
 
-      __ Bind(&resume);
-      context()->Plug(result_register());
-      break;
-    }
-
-    case Yield::kFinal: {
-      // Pop value from top-of-stack slot, box result into result register.
-      EmitCreateIteratorResult(true);
-      EmitUnwindAndReturn();
-      break;
-    }
-
-    case Yield::kDelegating:
-      UNREACHABLE();
-  }
+  __ Bind(&resume);
+  context()->Plug(result_register());
 }
 
 
@@ -4137,11 +4115,6 @@ void FullCodeGenerator::ClearPendingMessage() {
   __ Str(x10, MemOperand(x13));
 }
 
-
-void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
-  DCHECK(!slot.IsInvalid());
-  __ Mov(VectorStoreICTrampolineDescriptor::SlotRegister(), SmiFromSlot(slot));
-}
 
 void FullCodeGenerator::DeferredCommands::EmitCommands() {
   __ Pop(result_register(), x1);  // Restore the accumulator and get the token.

@@ -298,7 +298,7 @@ class LowLevelLogger : public CodeEventLogger {
   void CodeMoveEvent(AbstractCode* from, Address to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
-  void SnapshotPositionEvent(Address addr, int pos);
+  void SnapshotPositionEvent(HeapObject* obj, int pos);
   void CodeMovingGCEvent() override;
 
  private:
@@ -421,12 +421,12 @@ void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   LogWriteStruct(event);
 }
 
-void LowLevelLogger::SnapshotPositionEvent(Address addr, int pos) {
-  HeapObject* obj = HeapObject::FromAddress(addr);
+void LowLevelLogger::SnapshotPositionEvent(HeapObject* obj, int pos) {
   if (obj->IsAbstractCode()) {
     SnapshotPositionStruct event;
     event.address =
-        addr + (obj->IsCode() ? Code::kHeaderSize : BytecodeArray::kHeaderSize);
+        obj->address() +
+        (obj->IsCode() ? Code::kHeaderSize : BytecodeArray::kHeaderSize);
     event.position = pos;
     LogWriteStruct(event);
   }
@@ -882,7 +882,6 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 
 void Logger::EnterExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
-  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == JS);
   isolate->set_current_vm_state(EXTERNAL);
 }
@@ -890,7 +889,6 @@ void Logger::EnterExternal(Isolate* isolate) {
 
 void Logger::LeaveExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
-  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == EXTERNAL);
   isolate->set_current_vm_state(JS);
 }
@@ -1294,14 +1292,13 @@ void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   msg.WriteToLogFile();
 }
 
-
-void Logger::SnapshotPositionEvent(Address addr, int pos) {
+void Logger::SnapshotPositionEvent(HeapObject* obj, int pos) {
   if (!log_->IsEnabled()) return;
-  LL_LOG(SnapshotPositionEvent(addr, pos));
+  LL_LOG(SnapshotPositionEvent(obj, pos));
   if (!FLAG_log_snapshot_positions) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[SNAPSHOT_POSITION_EVENT]);
-  msg.AppendAddress(addr);
+  msg.AppendAddress(obj->address());
   msg.Append(",%d", pos);
   msg.WriteToLogFile();
 }
@@ -1418,11 +1415,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(",%ld", static_cast<int>(timer_.Elapsed().InMicroseconds()));
   if (sample->has_external_callback) {
     msg.Append(",1,");
-#if USES_FUNCTION_DESCRIPTORS
-    msg.AppendAddress(*FUNCTION_ENTRYPOINT_ADDRESS(sample->external_callback));
-#else
-    msg.AppendAddress(sample->external_callback);
-#endif
+    msg.AppendAddress(sample->external_callback_entry);
   } else {
     msg.Append(",0,");
     msg.AppendAddress(sample->tos);
@@ -1577,7 +1570,15 @@ void Logger::LogCodeObject(Object* object) {
       tag = Logger::KEYED_STORE_IC_TAG;
       break;
     case AbstractCode::WASM_FUNCTION:
-      description = "A wasm function";
+      description = "A Wasm function";
+      tag = Logger::STUB_TAG;
+      break;
+    case AbstractCode::JS_TO_WASM_FUNCTION:
+      description = "A JavaScript to Wasm adapter";
+      tag = Logger::STUB_TAG;
+      break;
+    case AbstractCode::WASM_TO_JS_FUNCTION:
+      description = "A Wasm to JavaScript adapter";
       tag = Logger::STUB_TAG;
       break;
   }
@@ -1635,6 +1636,9 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
+#if USES_FUNCTION_DESCRIPTORS
+      entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
+#endif
       PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
     }
   } else {
@@ -1678,10 +1682,16 @@ void Logger::LogAccessorCallbacks() {
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name* name = Name::cast(ai->name());
     if (getter_entry != 0) {
+#if USES_FUNCTION_DESCRIPTORS
+      getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(getter_entry);
+#endif
       PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
+#if USES_FUNCTION_DESCRIPTORS
+      setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(setter_entry);
+#endif
       PROFILE(isolate_, SetterCallbackEvent(name, setter_entry));
     }
   }

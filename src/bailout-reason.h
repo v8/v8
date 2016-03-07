@@ -56,7 +56,8 @@ namespace internal {
   V(kDestinationOfCopyNotAligned, "Destination of copy not aligned")           \
   V(kDontDeleteCellsCannotContainTheHole,                                      \
     "DontDelete cells can't contain the hole")                                 \
-  V(kDoExpression, "Do expression encountered")                                \
+  V(kDoExpressionUnmodelable,                                                  \
+    "Encountered a do-expression with unmodelable control statements")         \
   V(kDoPushArgumentNotImplementedForDoubleType,                                \
     "DoPushArgument not implemented for double type")                          \
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
@@ -248,7 +249,7 @@ namespace internal {
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
-    "Unsupported phi use of const variable")                                   \
+    "Unsupported phi use of const or let variable")                            \
   V(kUnexpectedReturnFromBytecodeHandler,                                      \
     "Unexpectedly returned from a bytecode handler")                           \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \

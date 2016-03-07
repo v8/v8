@@ -2168,11 +2168,10 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->left()).is(edx));
   DCHECK(ToRegister(instr->right()).is(eax));
 
-  Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
+  Handle<Code> code = CodeFactory::StringCompare(isolate(), instr->op()).code();
   CallCode(code, RelocInfo::CODE_TARGET, instr);
-  __ test(eax, eax);
-
-  EmitBranch(instr, ComputeCompareCondition(instr->op()));
+  __ CompareRoot(eax, Heap::kTrueValueRootIndex);
+  EmitBranch(instr, equal);
 }
 
 

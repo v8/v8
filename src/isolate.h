@@ -378,7 +378,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(HashMap*, external_reference_map, NULL)                                    \
   V(HashMap*, root_index_map, NULL)                                            \
   V(int, pending_microtask_count, 0)                                           \
-  V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(CompilationStatistics*, turbo_statistics, NULL)                            \
   V(HTracer*, htracer, NULL)                                                   \
@@ -953,8 +952,7 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
-  Map* get_initial_js_array_map(ElementsKind kind,
-                                Strength strength = Strength::WEAK);
+  Map* get_initial_js_array_map(ElementsKind kind);
 
   static const int kArrayProtectorValid = 1;
   static const int kArrayProtectorInvalid = 0;

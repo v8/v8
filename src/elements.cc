@@ -2663,7 +2663,7 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
           ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
           : DONT_INITIALIZE_ARRAY_ELEMENTS;
   Handle<JSArray> result_array = isolate->factory()->NewJSArray(
-      elements_kind, result_len, result_len, Strength::WEAK, mode);
+      elements_kind, result_len, result_len, mode);
   if (result_len == 0) return result_array;
   int j = 0;
   Handle<FixedArrayBase> storage(result_array->elements(), isolate);

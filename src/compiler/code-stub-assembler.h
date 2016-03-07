@@ -19,8 +19,10 @@
 namespace v8 {
 namespace internal {
 
+class Callable;
 class CallInterfaceDescriptor;
 class Isolate;
+class Factory;
 class Zone;
 
 namespace compiler {
@@ -37,12 +39,17 @@ class Schedule;
   V(Float64Equal)                             \
   V(Float64LessThan)                          \
   V(Float64LessThanOrEqual)                   \
+  V(Float64GreaterThan)                       \
+  V(Float64GreaterThanOrEqual)                \
   V(IntPtrAdd)                                \
   V(IntPtrSub)                                \
   V(Int32Add)                                 \
   V(Int32Sub)                                 \
   V(Int32Mul)                                 \
+  V(Int32GreaterThan)                         \
   V(Int32GreaterThanOrEqual)                  \
+  V(Int32LessThan)                            \
+  V(Int32LessThanOrEqual)                     \
   V(WordEqual)                                \
   V(WordNotEqual)                             \
   V(WordOr)                                   \
@@ -69,16 +76,31 @@ class Schedule;
   V(Word64Shr)                                \
   V(Word64Sar)                                \
   V(Word64Ror)                                \
+  V(IntPtrLessThan)                           \
+  V(IntPtrLessThanOrEqual)                    \
   V(UintPtrGreaterThanOrEqual)
+
+#define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(ChangeFloat64ToUint32)                   \
+  V(ChangeInt32ToFloat64)                    \
+  V(ChangeInt32ToInt64)                      \
+  V(ChangeUint32ToFloat64)                   \
+  V(ChangeUint32ToUint64)
 
 class CodeStubAssembler {
  public:
+  // Create with CallStub linkage.
   // |result_size| specifies the number of results returned by the stub.
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeStubAssembler(Isolate* isolate, Zone* zone,
                     const CallInterfaceDescriptor& descriptor,
                     Code::Flags flags, const char* name,
                     size_t result_size = 1);
+
+  // Create with JSCall linkage.
+  CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
+                    Code::Flags flags, const char* name);
+
   virtual ~CodeStubAssembler();
 
   Handle<Code> GenerateCode();
@@ -98,6 +120,14 @@ class CodeStubAssembler {
     Impl* impl_;
   };
 
+  enum AllocationFlag : uint8_t {
+    kNone = 0,
+    kDoubleAlignment = 1,
+    kPretenured = 1 << 1
+  };
+
+  typedef base::Flags<AllocationFlag> AllocationFlags;
+
   // ===========================================================================
   // Base Assembler
   // ===========================================================================
@@ -111,6 +141,7 @@ class CodeStubAssembler {
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
+  Node* HeapNumberMapConstant();
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -147,9 +178,10 @@ class CodeStubAssembler {
 
   Node* WordShl(Node* value, int shift);
 
-  // Conversions
-  Node* ChangeInt32ToInt64(Node* value);
-  Node* ChangeUint32ToUint64(Node* value);
+// Unary
+#define DECLARE_CODE_STUB_ASSEMBER_UNARY_OP(name) Node* name(Node* a);
+  CODE_STUB_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_STUB_ASSEMBER_UNARY_OP)
+#undef DECLARE_CODE_STUB_ASSEMBER_UNARY_OP
 
   // Projections
   Node* Projection(int index, Node* value);
@@ -166,6 +198,7 @@ class CodeStubAssembler {
   Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
                     Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
+  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context);
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1);
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
@@ -174,6 +207,9 @@ class CodeStubAssembler {
                         Node* arg1, Node* arg2, Node* arg3);
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4);
+
+  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
+                 size_t result_size = 1);
 
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, size_t result_size = 1);
@@ -189,7 +225,13 @@ class CodeStubAssembler {
                  Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                  Node* arg5, size_t result_size = 1);
 
-  Node* TailCallStub(CodeStub& stub, Node** args);
+  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
+                     Node* arg2, size_t result_size = 1);
+
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, Node* arg1, Node* arg2,
+                     size_t result_size = 1);
+
   Node* TailCall(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node** args, size_t result_size = 1);
 
@@ -197,13 +239,21 @@ class CodeStubAssembler {
   // Macros
   // ===========================================================================
 
-  // Tag and untag Smi values.
+  // Tag a Word as a Smi value.
   Node* SmiTag(Node* value);
+  // Untag a Smi value as a Word.
   Node* SmiUntag(Node* value);
+
+  // Smi conversions.
+  Node* SmiToFloat64(Node* value);
+  Node* SmiToInt32(Node* value);
 
   // Smi operations.
   Node* SmiAdd(Node* a, Node* b);
   Node* SmiEqual(Node* a, Node* b);
+  Node* SmiLessThan(Node* a, Node* b);
+  Node* SmiLessThanOrEqual(Node* a, Node* b);
+  Node* SmiMin(Node* a, Node* b);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
@@ -215,21 +265,59 @@ class CodeStubAssembler {
   Node* LoadBufferObject(Node* buffer, int offset);
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset);
+  // Load the floating point value of a HeapNumber.
+  Node* LoadHeapNumberValue(Node* object);
+  // Load the instance type of a Map.
+  Node* LoadMapInstanceType(Node* map);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElementSmiIndex(Node* object, Node* smi_index,
                                       int additional_offset = 0);
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
 
+  // Allocate an object of the given size.
+  Node* Allocate(int size, AllocationFlags flags);
+
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
                                              Node* value);
+  Node* LoadInstanceType(Node* object);
+
+  // Returns a node that is true if the given bit is set in |word32|.
+  template <typename T>
+  Node* BitFieldDecode(Node* word32) {
+    return BitFieldDecode(word32, T::kShift, T::kMask);
+  }
+
+  Node* BitFieldDecode(Node* word32, uint32_t shift, uint32_t mask);
+
+  // Branching helpers.
+  // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIfInt32LessThan(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
+                                  Label* if_false);
+  void BranchIfFloat64Equal(Node* a, Node* b, Label* if_true, Label* if_false);
+  void BranchIfFloat64LessThan(Node* a, Node* b, Label* if_true,
+                               Label* if_false);
+  void BranchIfFloat64LessThanOrEqual(Node* a, Node* b, Label* if_true,
+                                      Label* if_false);
+  void BranchIfFloat64GreaterThan(Node* a, Node* b, Label* if_true,
+                                  Label* if_false);
+  void BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b, Label* if_true,
+                                         Label* if_false);
+  void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
+    BranchIfFloat64Equal(value, value, if_false, if_true);
+  }
+
+  // Helpers which delegate to RawMachineAssembler.
+  Factory* factory() const;
+  Isolate* isolate() const;
+  Zone* zone() const;
 
  protected:
   // Protected helpers which delegate to RawMachineAssembler.
-  Graph* graph();
-  Isolate* isolate();
-  Zone* zone();
+  Graph* graph() const;
 
   // Enables subclasses to perform operations before and after a call.
   virtual void CallPrologue();
@@ -243,6 +331,11 @@ class CodeStubAssembler {
 
   Node* SmiShiftBitsConstant();
 
+  Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
+                           Node* top_address, Node* limit_address);
+  Node* AllocateRawUnaligned(Node* size_in_bytes, AllocationFlags flags,
+                             Node* top_adddress, Node* limit_address);
+
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;
   const char* name_;
@@ -252,13 +345,25 @@ class CodeStubAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeStubAssembler);
 };
 
+DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
+
 class CodeStubAssembler::Label {
  public:
-  explicit Label(CodeStubAssembler* assembler);
-  Label(CodeStubAssembler* assembler, int merged_variable_count,
-        CodeStubAssembler::Variable** merged_variables);
+  enum Type { kDeferred, kNonDeferred };
+
+  explicit Label(CodeStubAssembler* assembler,
+                 CodeStubAssembler::Label::Type type =
+                     CodeStubAssembler::Label::kNonDeferred)
+      : CodeStubAssembler::Label(assembler, 0, nullptr, type) {}
   Label(CodeStubAssembler* assembler,
-        CodeStubAssembler::Variable* merged_variable);
+        CodeStubAssembler::Variable* merged_variable,
+        CodeStubAssembler::Label::Type type =
+            CodeStubAssembler::Label::kNonDeferred)
+      : CodeStubAssembler::Label(assembler, 1, &merged_variable, type) {}
+  Label(CodeStubAssembler* assembler, int merged_variable_count,
+        CodeStubAssembler::Variable** merged_variables,
+        CodeStubAssembler::Label::Type type =
+            CodeStubAssembler::Label::kNonDeferred);
   ~Label() {}
 
  private:
