@@ -7,8 +7,6 @@
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-var debug = (((typeof arguments) != undefined) && arguments[0] == "debug");
-
 (function BasicTest() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
