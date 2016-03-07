@@ -108,12 +108,21 @@
     },
     {
       "name": "Object",
-      "path": ["Object"],
+      "path": ["."],
       "main": "run.js",
-      "resources": ["assign.js"],
+      "flags": ["--harmony"],
+      "resources": [
+        "assign.js",
+        "values.js",
+        "entries.js"
+      ],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Assign"}
+        {"name": "Assign"},
+        {"name": "Entries"},
+        {"name": "EntriesMegamorphic"},
+        {"name": "Values"},
+        {"name": "ValuesMegamorphic"}
       ]
     },
     {
