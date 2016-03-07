@@ -838,59 +838,52 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
 
 ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
 #ifdef V8_I18N_SUPPORT
-  ZoneList<char> property_name(0, zone());
+  char property_name[3];
+  memset(property_name, 0, sizeof(property_name));
   if (current() == '{') {
-    for (Advance(); IsAlpha(current()); Advance()) {
-      property_name.Add(static_cast<char>(current()), zone());
+    Advance();
+    if (current() < 'A' || current() > 'Z') return nullptr;
+    property_name[0] = static_cast<char>(current());
+    Advance();
+    if (current() >= 'a' && current() <= 'z') {
+      property_name[1] = static_cast<char>(current());
+      Advance();
     }
     if (current() != '}') return nullptr;
-  } else if (IsAlpha(current())) {
-    property_name.Add(static_cast<char>(current()), zone());
+  } else if (current() >= 'A' && current() <= 'Z') {
+    property_name[0] = static_cast<char>(current());
   } else {
     return nullptr;
   }
   Advance();
-  property_name.Add(0, zone());  // null-terminate string.
 
-  // Property names are defined in unicode database files. For aliases of
-  // these property names, see PropertyValueAliases.txt.
-  UProperty kPropertyClasses[] = {
-      // General_Category (gc) found in PropertyValueAliases.txt
-      UCHAR_GENERAL_CATEGORY_MASK,
-      // Script (sc) found in Scripts.txt
-      UCHAR_SCRIPT,
-  };
+  int32_t category =
+      u_getPropertyValueEnum(UCHAR_GENERAL_CATEGORY_MASK, property_name);
+  if (category == UCHAR_INVALID_CODE) return nullptr;
 
-  for (int i = 0; i < arraysize(kPropertyClasses); i++) {
-    UProperty property_class = kPropertyClasses[i];
-    int32_t category = u_getPropertyValueEnum(
-        property_class, property_name.ToConstVector().start());
-    if (category == UCHAR_INVALID_CODE) continue;
-
-    USet* set = uset_openEmpty();
-    UErrorCode ec = U_ZERO_ERROR;
-    uset_applyIntPropertyValue(set, property_class, category, &ec);
-    ZoneList<CharacterRange>* ranges = nullptr;
-    if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
-      uset_removeAllStrings(set);
-      int item_count = uset_getItemCount(set);
-      ranges = new (zone()) ZoneList<CharacterRange>(item_count, zone());
-      int item_result = 0;
-      for (int i = 0; i < item_count; i++) {
-        uc32 start = 0;
-        uc32 end = 0;
-        item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-        ranges->Add(CharacterRange::Range(start, end), zone());
-      }
-      DCHECK_EQ(U_ZERO_ERROR, ec);
-      DCHECK_EQ(0, item_result);
+  USet* set = uset_openEmpty();
+  UErrorCode ec = U_ZERO_ERROR;
+  uset_applyIntPropertyValue(set, UCHAR_GENERAL_CATEGORY_MASK, category, &ec);
+  ZoneList<CharacterRange>* ranges = nullptr;
+  if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
+    uset_removeAllStrings(set);
+    int item_count = uset_getItemCount(set);
+    ranges = new (zone()) ZoneList<CharacterRange>(item_count, zone());
+    int item_result = 0;
+    for (int i = 0; i < item_count; i++) {
+      uc32 start = 0;
+      uc32 end = 0;
+      item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
+      ranges->Add(CharacterRange::Range(start, end), zone());
     }
-    uset_close(set);
-    return ranges;
+    DCHECK_EQ(U_ZERO_ERROR, ec);
+    DCHECK_EQ(0, item_result);
   }
-#endif  // V8_I18N_SUPPORT
-
+  uset_close(set);
+  return ranges;
+#else   // V8_I18N_SUPPORT
   return nullptr;
+#endif  // V8_I18N_SUPPORT
 }
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
