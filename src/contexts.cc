@@ -291,7 +291,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         if (name->Equals(*isolate->factory()->this_string())) {
           maybe = Just(ABSENT);
         } else {
-          LookupIterator it(object, name);
+          LookupIterator it(object, name, object);
           Maybe<bool> found = UnscopableLookup(&it);
           if (found.IsNothing()) {
             maybe = Nothing<PropertyAttributes>();

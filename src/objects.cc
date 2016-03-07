@@ -5227,7 +5227,7 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
 #ifdef DEBUG
   uint32_t index;
@@ -5338,7 +5338,6 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
                                             should_throw);
 
       case LookupIterator::DATA: {
-        Handle<Object> old_value = it->factory()->the_hole_value();
         // Regular property update if the attributes match.
         if (it->property_attributes() == attributes) {
           return SetDataProperty(it, value);
@@ -5352,6 +5351,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         }
 
         // Reconfigure the data property if the attributes mismatch.
+        Handle<Object> old_value = it->factory()->the_hole_value();
         if (is_observed) old_value = it->GetDataValue();
 
         it->ReconfigureDataProperty(value, attributes);
@@ -5378,7 +5378,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
     PropertyAttributes attributes) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name, LookupIterator::OWN);
+  LookupIterator it(object, name, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
@@ -5386,7 +5386,7 @@ MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
     PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index, LookupIterator::OWN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
@@ -5394,8 +5394,8 @@ MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
     PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
-                                                        LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, object, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
@@ -5877,7 +5877,7 @@ Handle<Smi> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
 
   Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  LookupIterator it(object, hash_code_symbol, LookupIterator::OWN);
+  LookupIterator it(object, hash_code_symbol, object, LookupIterator::OWN);
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
     Handle<Object> maybe_hash = it.GetDataValue();
@@ -5986,7 +5986,7 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
   Handle<Symbol> hidden = isolate->factory()->hidden_properties_symbol();
-  LookupIterator it(object, hidden);
+  LookupIterator it(object, hidden, object);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   // Cannot get an exception since the hidden_properties_symbol isn't exposed to
   // JS.
@@ -6021,8 +6021,10 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
       return GetHeap()->undefined_value();
     }
   } else {
-    Handle<Symbol> hidden = GetIsolate()->factory()->hidden_properties_symbol();
-    LookupIterator it(handle(this), hidden);
+    Isolate* isolate = GetIsolate();
+    Handle<Symbol> hidden = isolate->factory()->hidden_properties_symbol();
+    Handle<JSObject> receiver(this, isolate);
+    LookupIterator it(receiver, hidden, receiver);
     // Access check is always skipped for the hidden string anyways.
     return *GetDataProperty(&it);
   }
@@ -6221,7 +6223,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
 
 Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
                                       LanguageMode language_mode) {
-  LookupIterator it(object->GetIsolate(), object, index,
+  LookupIterator it(object->GetIsolate(), object, index, object,
                     LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
@@ -6230,7 +6232,7 @@ Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
 Maybe<bool> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        LanguageMode language_mode) {
-  LookupIterator it(object, name, LookupIterator::HIDDEN);
+  LookupIterator it(object, name, object, LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
 
@@ -6239,7 +6241,7 @@ Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
                                                 Handle<Name> name,
                                                 LanguageMode language_mode) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, LookupIterator::HIDDEN);
+      name->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
 
@@ -7106,7 +7108,7 @@ Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
           ? desc->value()
           : Handle<Object>::cast(isolate->factory()->undefined_value());
 
-  LookupIterator it(proxy, private_name);
+  LookupIterator it(proxy, private_name, proxy);
 
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
@@ -15053,7 +15055,7 @@ static bool GetOldValue(Isolate* isolate,
                         uint32_t index,
                         List<Handle<Object> >* old_values,
                         List<uint32_t>* indices) {
-  LookupIterator it(isolate, object, index, LookupIterator::HIDDEN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::HIDDEN);
   CHECK(JSReceiver::GetPropertyAttributes(&it).IsJust());
   DCHECK(it.IsFound());
   if (!it.IsConfigurable()) return false;
@@ -16120,7 +16122,7 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
     return descriptors->GetDetails(0).IsReadOnly();
   }
 
-  LookupIterator it(array, isolate->factory()->length_string(),
+  LookupIterator it(array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   return it.IsReadOnly();
@@ -16298,7 +16300,7 @@ Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
 Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
                                              uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index,
+  LookupIterator it(isolate, object, index, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   return HasProperty(&it);
 }

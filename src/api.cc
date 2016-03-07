@@ -3500,7 +3500,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
-      isolate, self, key_obj, i::LookupIterator::OWN);
+      isolate, self, key_obj, self, i::LookupIterator::OWN);
   Maybe<bool> result =
       i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
   has_pending_exception = result.IsNothing();
@@ -3517,7 +3517,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
-  i::LookupIterator it(isolate, self, index, i::LookupIterator::OWN);
+  i::LookupIterator it(isolate, self, index, self, i::LookupIterator::OWN);
   Maybe<bool> result =
       i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
   has_pending_exception = result.IsNothing();
@@ -3623,7 +3623,7 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
         i::Handle<i::Symbol>::cast(key_obj), &desc, i::Object::DONT_THROW);
   }
   auto js_object = i::Handle<i::JSObject>::cast(self);
-  i::LookupIterator it(js_object, key_obj);
+  i::LookupIterator it(js_object, key_obj, js_object);
   has_pending_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
                               &it, value_obj, i::DONT_ENUM)
                               .is_null();
@@ -4172,7 +4172,7 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
-      isolate, self, key_obj,
+      isolate, self, key_obj, self,
       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(i::Object::GetProperty(&it), &result);
@@ -4196,7 +4196,7 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
-      isolate, self, key_obj,
+      isolate, self, key_obj, self,
       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);

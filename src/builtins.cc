@@ -353,9 +353,9 @@ BUILTIN(ObjectHasOwnProperty) {
     // handle all cases directly (without this custom fast path).
     {
       LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-      LookupIterator it = key_is_array_index
-                              ? LookupIterator(isolate, js_obj, index, c)
-                              : LookupIterator(js_obj, key, c);
+      LookupIterator it =
+          key_is_array_index ? LookupIterator(isolate, js_obj, index, js_obj, c)
+                             : LookupIterator(js_obj, key, js_obj, c);
       Maybe<bool> maybe = JSReceiver::HasProperty(&it);
       if (maybe.IsNothing()) return isolate->heap()->exception();
       DCHECK(!isolate->has_pending_exception());
@@ -372,8 +372,8 @@ BUILTIN(ObjectHasOwnProperty) {
     // Slow case.
     LookupIterator::Configuration c = LookupIterator::HIDDEN;
     LookupIterator it = key_is_array_index
-                            ? LookupIterator(isolate, js_obj, index, c)
-                            : LookupIterator(js_obj, key, c);
+                            ? LookupIterator(isolate, js_obj, index, js_obj, c)
+                            : LookupIterator(js_obj, key, js_obj, c);
 
     Maybe<bool> maybe = JSReceiver::HasProperty(&it);
     if (maybe.IsNothing()) return isolate->heap()->exception();
@@ -1542,7 +1542,8 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
       // the object has a simple shape, and that the key is a name.
-      LookupIterator it(from, next_key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      LookupIterator it(from, next_key, from,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       if (!it.IsFound()) continue;
       DCHECK(it.state() == LookupIterator::DATA ||
              it.state() == LookupIterator::ACCESSOR);
@@ -1550,7 +1551,7 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
     }
-    LookupIterator it(to, next_key);
+    LookupIterator it(to, next_key, to);
     bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
     Maybe<bool> result = Object::SetProperty(
         &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
@@ -1846,7 +1847,7 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
       isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ALL_PROPERTIES,
                                          CONVERT_TO_STRING));
 
-  Handle<Object> descriptors =
+  Handle<JSObject> descriptors =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   for (int i = 0; i < keys->length(); ++i) {
@@ -1861,7 +1862,7 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
                                          : undefined;
 
     LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, descriptors, key, LookupIterator::OWN);
+        isolate, descriptors, key, descriptors, LookupIterator::OWN);
     Maybe<bool> success = JSReceiver::CreateDataProperty(&it, from_descriptor,
                                                          Object::DONT_THROW);
     CHECK(success.FromJust());
