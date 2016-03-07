@@ -230,20 +230,22 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
     if (IsImmutableVariableMode(descriptor_->mode)) {
       arguments->Add(value, zone());
+      value = NULL;  // zap the value to avoid the unnecessary assignment
+
       // Construct the call to Runtime_InitializeConstGlobal
       // and add it to the initialization statement block.
       // Note that the function does different things depending on
       // the number of arguments (1 or 2).
-      initialize = factory()->NewCallRuntime(Runtime::kInitializeConstGlobal,
-                                             arguments, value->position());
-      value = NULL;  // zap the value to avoid the unnecessary assignment
+      initialize =
+          factory()->NewCallRuntime(Runtime::kInitializeConstGlobal, arguments,
+                                    descriptor_->initialization_pos);
     } else {
       // Add language mode.
       // We may want to pass singleton to avoid Literal allocations.
       LanguageMode language_mode = initialization_scope->language_mode();
-      arguments->Add(
-          factory()->NewNumberLiteral(language_mode, RelocInfo::kNoPosition),
-          zone());
+      arguments->Add(factory()->NewNumberLiteral(language_mode,
+                                                 descriptor_->declaration_pos),
+                     zone());
 
       // Be careful not to assign a value to the global variable if
       // we're in a with. The initialization value should not
@@ -251,11 +253,12 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       // which is why we need to generate a separate assignment node.
       if (value != NULL && !descriptor_->scope->inside_with()) {
         arguments->Add(value, zone());
+        value = NULL;  // zap the value to avoid the unnecessary assignment
         // Construct the call to Runtime_InitializeVarGlobal
         // and add it to the initialization statement block.
-        initialize = factory()->NewCallRuntime(Runtime::kInitializeVarGlobal,
-                                               arguments, value->position());
-        value = NULL;  // zap the value to avoid the unnecessary assignment
+        initialize =
+            factory()->NewCallRuntime(Runtime::kInitializeVarGlobal, arguments,
+                                      descriptor_->declaration_pos);
       } else {
         initialize = NULL;
       }
@@ -279,7 +282,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
     // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
+    int pos =
+        IsSubPattern() ? pattern->position() : descriptor_->initialization_pos;
     Assignment* assignment =
         factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
@@ -296,7 +300,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
     // Add break location for destructured sub-pattern.
-    int pos = IsSubPattern() ? pattern->position() : value->position();
+    int pos =
+        IsSubPattern() ? pattern->position() : descriptor_->initialization_pos;
     Assignment* assignment =
         factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(

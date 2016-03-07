@@ -54,8 +54,8 @@ assertEquals(42, get);
 
 assertEquals([
   "a0",
-  "b17", "h4b20", "i2b20",  // [[Has]]
-  "c15", "j4c15", "k2c15",  // [[Get]]
-  "d0", "l4d11", "m2d11",   // [[Set]]
+  "b0", "h4b20", "i2b20",                           // [[Has]]
+  "c0", "j4c15", "k2c15",                           // [[Get]]
+  "d0", "l4d11", "m2d11",                           // [[Set]]
   "g0"
 ], log);
