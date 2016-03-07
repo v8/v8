@@ -769,7 +769,26 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, TryMatchASR);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  ArmOperandGenerator g(this);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmPairLsl, 2, outputs, 3, inputs);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, TryMatchROR);

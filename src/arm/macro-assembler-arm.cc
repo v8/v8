@@ -1056,7 +1056,49 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
     vmov(dst, VmovIndexLo, src);
   }
 }
+void MacroAssembler::PairLsl(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high, shift));
+  DCHECK(!AreAliased(dst_high, src_low, shift));
+  Label less_than_32;
+  Label done;
+  cmp_raw_immediate(shift, 32);
+  b(lt, &less_than_32);
+  // If shift >= 32
+  and_(scratch, shift, Operand(0x1f));
+  lsl(dst_high, src_low, Operand(scratch));
+  mov(dst_low, Operand(0));
+  jmp(&done);
+  bind(&less_than_32);
+  // If shift < 32
+  rsb(scratch, shift, Operand(32));
+  lsl(dst_high, src_high, Operand(shift));
+  orr(dst_high, dst_high, Operand(src_low, LSR, scratch));
+  lsl(dst_low, src_low, Operand(shift));
+  bind(&done);
+}
 
+void MacroAssembler::PairLsl(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  Label less_than_32;
+  Label done;
+  if (shift >= 32) {
+    shift &= 0x1f;
+    lsl(dst_high, src_low, Operand(shift));
+    mov(dst_low, Operand(0));
+  } else if (shift == 0) {
+    Move(dst_low, src_low);
+    Move(dst_high, src_high);
+  } else {
+    lsl(dst_high, src_high, Operand(shift));
+    orr(dst_high, dst_high, Operand(src_low, LSR, 32 - shift));
+    lsl(dst_low, src_low, Operand(shift));
+  }
+}
 
 void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {

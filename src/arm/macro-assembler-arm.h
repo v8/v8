@@ -545,6 +545,11 @@ class MacroAssembler: public Assembler {
   void VmovLow(Register dst, DwVfpRegister src);
   void VmovLow(DwVfpRegister dst, Register src);
 
+  void PairLsl(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, Register scratch, Register shift);
+  void PairLsl(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, uint32_t shift);
+
   // Loads the number from object into dst register.
   // If |object| is neither smi nor heap number, |not_number| is jumped to
   // with |object| still intact.

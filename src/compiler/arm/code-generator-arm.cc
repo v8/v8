@@ -743,6 +743,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ teq(i.InputRegister(0), i.InputOperand2(1));
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
+    case kArmPairLsl:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputInt32(2));
+      } else {
+        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+      }
+      break;
     case kArmVcmpF32:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat32Register(0),

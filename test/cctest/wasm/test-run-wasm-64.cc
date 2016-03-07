@@ -51,7 +51,7 @@ TEST(Run_WasmI64Xor) {
   }
 }
 // kExprI64Shl:
-#if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_X87 && !V8_TARGET_ARCH_ARM
+#if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_X87
 TEST(Run_WasmI64Shl) {
   {
     WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
