@@ -51,7 +51,6 @@ void LookupIterator::Start() {
 
   has_property_ = false;
   state_ = NOT_FOUND;
-  number_ = DescriptorArray::kNotFound;
   holder_ = initial_holder_;
 
   JSReceiver* holder = *holder_;
@@ -110,6 +109,7 @@ template <bool is_element>
 void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
   interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
+  number_ = DescriptorArray::kNotFound;
   Start<is_element>();
 }
 
@@ -617,9 +617,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   }
 }
 
-
+template <bool is_element>
 bool LookupIterator::SkipInterceptor(JSObject* holder) {
-  auto info = GetInterceptor(holder);
+  auto info = GetInterceptor<is_element>(holder);
   // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
   if (info->non_masking()) {
     switch (interceptor_state_) {
@@ -689,7 +689,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
     // Fall through.
     case ACCESS_CHECK:
       if (check_interceptor() && HasInterceptor<is_element>(map) &&
-          !SkipInterceptor(JSObject::cast(holder))) {
+          !SkipInterceptor<is_element>(JSObject::cast(holder))) {
         if (is_element || !name_->IsPrivate()) return INTERCEPTOR;
       }
     // Fall through.

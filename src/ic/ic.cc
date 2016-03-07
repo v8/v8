@@ -2871,8 +2871,8 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::GetElement(isolate, receiver, index));
+  LookupIterator it(isolate, receiver, index, receiver);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return *result;
 }
 
