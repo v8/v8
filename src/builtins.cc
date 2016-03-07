@@ -248,51 +248,25 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   // If there may be elements accessors in the prototype chain, the fast path
   // cannot be used if there arguments to add to the array.
-  Heap* heap = isolate->heap();
-  if (args != NULL && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
+  if (args != nullptr && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
     return false;
   }
+  ElementsKind origin_kind = array->map()->elements_kind();
+  if (IsDictionaryElementsKind(origin_kind)) return false;
   if (array->map()->is_observed()) return false;
   if (!array->map()->is_extensible()) return false;
-  Map* map = array->elements()->map();
-  if (map == heap->fixed_array_map()) {
-    if (args == NULL || array->HasFastObjectElements()) {
-      return true;
-    }
-  } else if (map == heap->fixed_cow_array_map()) {
-    // Use a short-lived HandleScope to avoid creating several copies of the
-    // elements handle which would cause issues when left-trimming later-on.
-    HandleScope scope(isolate);
-    // TODO(jkummerow/verwaest): Move this call (or this entire function?)
-    // into the ElementsAccessor so it's only done when needed (e.g. ArrayPush
-    // can skip it because it must grow the backing store anyway).
-    JSObject::EnsureWritableFastElements(array);
-    if (args == NULL || array->HasFastObjectElements()) {
-      return true;
-    }
-  } else if (map == heap->fixed_double_array_map()) {
-    if (args == NULL) {
-      return true;
-    }
-  } else {
-    return false;
-  }
+  if (args == nullptr) return true;
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
-  if (isolate->IsAnyInitialArrayPrototype(array)) {
-    return false;
-  }
+  if (isolate->IsAnyInitialArrayPrototype(array)) return false;
 
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();
-  if (first_added_arg >= args_length) {
-    return true;
-  }
+  if (first_added_arg >= args_length) return true;
 
-  ElementsKind origin_kind = array->map()->elements_kind();
-  DCHECK(!IsFastObjectElementsKind(origin_kind));
+  if (IsFastObjectElementsKind(origin_kind)) return true;
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;
@@ -437,20 +411,20 @@ BUILTIN(ArrayPush) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
   }
   // Fast Elements Path
-  int push_size = args.length() - 1;
+  int to_add = args.length() - 1;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   int len = Smi::cast(array->length())->value();
-  if (push_size == 0) {
-    return Smi::FromInt(len);
-  }
-  DCHECK(push_size > 0);
+  if (to_add == 0) return Smi::FromInt(len);
+
+  // Currently fixed arrays cannot grow too big, so we should never hit this.
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
   }
-  DCHECK(!array->map()->is_observed());
+
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Push(array, handle(array->elements(), isolate),
-                                  &args, push_size);
+  int new_length = accessor->Push(array, &args, to_add);
   return Smi::FromInt(new_length);
 }
 
@@ -458,7 +432,7 @@ BUILTIN(ArrayPush) {
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0)) {
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0)) {
     return CallJsIntrinsic(isolate, isolate->array_pop(), args);
   }
 
@@ -475,8 +449,7 @@ BUILTIN(ArrayPop) {
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     // Fast Elements Path
-    result = array->GetElementsAccessor()->Pop(
-        array, handle(array->elements(), isolate));
+    result = array->GetElementsAccessor()->Pop(array);
   } else {
     // Use Slow Lookup otherwise
     uint32_t new_length = len - 1;
@@ -492,7 +465,7 @@ BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0) ||
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0) ||
       !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
@@ -506,8 +479,7 @@ BUILTIN(ArrayShift) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
 
-  Handle<Object> first = array->GetElementsAccessor()->Shift(
-      array, handle(array->elements(), isolate));
+  Handle<Object> first = array->GetElementsAccessor()->Shift(array);
   return *first;
 }
 
@@ -521,20 +493,17 @@ BUILTIN(ArrayUnshift) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   DCHECK(!array->map()->is_observed());
   int to_add = args.length() - 1;
-  if (to_add == 0) {
-    return array->length();
-  }
-  // Currently fixed arrays cannot grow too big, so
-  // we should never hit this case.
-  DCHECK(to_add <= (Smi::kMaxValue - Smi::cast(array->length())->value()));
+  if (to_add == 0) return array->length();
 
-  if (to_add > 0 && JSArray::HasReadOnlyLength(array)) {
+  // Currently fixed arrays cannot grow too big, so we should never hit this.
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+
+  if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
   }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Unshift(array, handle(array->elements(), isolate),
-                                     &args, to_add);
+  int new_length = accessor->Unshift(array, &args, to_add);
   return Smi::FromInt(new_length);
 }
 
@@ -542,12 +511,9 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  Handle<JSObject> object;
-  Handle<FixedArrayBase> elms_obj;
   int len = -1;
   int relative_start = 0;
   int relative_end = 0;
-  bool is_sloppy_arguments = false;
 
   if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
@@ -561,22 +527,18 @@ BUILTIN(ArraySlice) {
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
     len = Smi::cast(array->length())->value();
-    object = Handle<JSObject>::cast(receiver);
-    elms_obj = handle(array->elements(), isolate);
   } else if (receiver->IsJSObject() &&
              GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
                                       &len)) {
+    DCHECK_EQ(FAST_ELEMENTS, JSObject::cast(*receiver)->GetElementsKind());
     // Array.prototype.slice(arguments, ...) is quite a common idiom
     // (notably more than 50% of invocations in Web apps).
     // Treat it in C++ as well.
-    is_sloppy_arguments = true;
-    object = Handle<JSObject>::cast(receiver);
-    elms_obj = handle(object->elements(), isolate);
   } else {
     AllowHeapAllocation allow_allocation;
     return CallJsIntrinsic(isolate, isolate->array_slice(), args);
   }
-  DCHECK(len >= 0);
+  DCHECK_LE(0, len);
   int argument_count = args.length() - 1;
   // Note carefully chosen defaults---if argument is missing,
   // it's undefined which gets converted to 0 for relative_start
@@ -609,22 +571,9 @@ BUILTIN(ArraySlice) {
   uint32_t actual_end =
       (relative_end < 0) ? Max(len + relative_end, 0) : Min(relative_end, len);
 
-  if (actual_end <= actual_start) {
-    Handle<JSArray> result_array = isolate->factory()->NewJSArray(
-        GetPackedElementsKind(object->GetElementsKind()), 0, 0);
-    return *result_array;
-  }
-
+  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  if (is_sloppy_arguments &&
-      !accessor->IsPacked(object, elms_obj, actual_start, actual_end)) {
-    // Don't deal with arguments with holes in C++
-    AllowHeapAllocation allow_allocation;
-    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-  }
-  Handle<JSArray> result_array =
-      accessor->Slice(object, elms_obj, actual_start, actual_end);
-  return *result_array;
+  return *accessor->Slice(object, actual_start, actual_end);
 }
 
 
@@ -683,9 +632,8 @@ BUILTIN(ArraySplice) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<JSArray> result_array =
-      accessor->Splice(array, handle(array->elements(), isolate), actual_start,
-                       actual_delete_count, &args, add_count);
+  Handle<JSArray> result_array = accessor->Splice(
+      array, actual_start, actual_delete_count, &args, add_count);
   return *result_array;
 }
 
