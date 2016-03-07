@@ -30,6 +30,9 @@
 #elif V8_TARGET_ARCH_PPC
 #include "src/crankshaft/ppc/lithium-ppc.h"          // NOLINT
 #include "src/crankshaft/ppc/lithium-codegen-ppc.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

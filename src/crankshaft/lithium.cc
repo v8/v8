@@ -30,6 +30,9 @@
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-x87.h"  // NOLINT
 #include "src/crankshaft/x87/lithium-codegen-x87.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif

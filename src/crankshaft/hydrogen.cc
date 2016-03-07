@@ -58,6 +58,8 @@
 #include "src/crankshaft/mips/lithium-codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/crankshaft/mips64/lithium-codegen-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-codegen-x87.h"  // NOLINT
 #else
