@@ -1516,8 +1516,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       compilation_cache->PutEval(source, outer_info, context, shared_info,
                                  line_offset);
     }
-  } else if (shared_info->ic_age() != isolate->heap()->global_ic_age()) {
-    shared_info->ResetForNewContext(isolate->heap()->global_ic_age());
   }
 
   Handle<JSFunction> result =
@@ -1908,6 +1906,41 @@ MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
   return MaybeHandle<Code>();
 }
 
+void Compiler::PostInstantiation(Handle<JSFunction> function,
+                                 PretenureFlag pretenure) {
+  Handle<SharedFunctionInfo> shared(function->shared());
+
+  if (FLAG_always_opt && shared->allows_lazy_compilation()) {
+    function->MarkForOptimization();
+  }
+
+  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+      function->context()->native_context(), BailoutId::None());
+  if (cached.code != nullptr) {
+    // Caching of optimized code enabled and optimized code found.
+    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(function->shared()->is_compiled());
+    function->ReplaceCode(cached.code);
+  }
+
+  if (cached.literals != nullptr) {
+    function->set_literals(cached.literals);
+  } else {
+    Isolate* isolate = function->GetIsolate();
+    int number_of_literals = shared->num_literals();
+    Handle<LiteralsArray> literals =
+        LiteralsArray::New(isolate, handle(shared->feedback_vector()),
+                           number_of_literals, pretenure);
+    function->set_literals(*literals);
+
+    // Cache context-specific literals.
+    MaybeHandle<Code> code;
+    if (cached.code != nullptr) code = handle(cached.code);
+    Handle<Context> native_context(function->context()->native_context());
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
+                                              literals, BailoutId::None());
+  }
+}
 
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {

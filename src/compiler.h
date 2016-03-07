@@ -598,6 +598,11 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static void CompileForLiveEdit(Handle<Script> script);
 
+  // Give the compiler a chance to perform low-latency initialization tasks of
+  // the given {function} on its instantiation. Note that only the runtime will
+  // offer this chance, optimized closure instantiation will not call this.
+  static void PostInstantiation(Handle<JSFunction> function, PretenureFlag);
+
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);
   // Rewrite, analyze scopes, and renumber.
