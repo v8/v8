@@ -86,9 +86,40 @@ class KeyAccumulator final BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
 
+// The FastKeyAccumulator handles the cases where there are no elements on the
+// prototype chain and forwords the complex/slow cases to the normal
+// KeyAccumulator.
+class FastKeyAccumulator {
+ public:
+  FastKeyAccumulator(Isolate* isolate, Handle<JSReceiver> receiver,
+                     KeyCollectionType type, PropertyFilter filter)
+      : isolate_(isolate), receiver_(receiver), type_(type), filter_(filter) {
+    Prepare();
+    // TODO(cbruni): pass filter_ directly to the KeyAccumulator.
+    USE(filter_);
+  }
+
+  bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
+  bool has_empty_prototype() { return has_empty_prototype_; }
+
+  MaybeHandle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
+
+ private:
+  void Prepare();
+  MaybeHandle<FixedArray> GetKeysFast(GetKeysConversion convert);
+  MaybeHandle<FixedArray> GetKeysSlow(GetKeysConversion convert);
+
+  Isolate* isolate_;
+  Handle<JSReceiver> receiver_;
+  KeyCollectionType type_;
+  PropertyFilter filter_;
+  bool is_receiver_simple_enum_ = false;
+  bool has_empty_prototype_ = false;
+
+  DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
+};
 
 }  // namespace internal
 }  // namespace v8
-
 
 #endif  // V8_KEY_ACCUMULATOR_H_
