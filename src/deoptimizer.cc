@@ -479,6 +479,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       output_count_(0),
       jsframe_count_(0),
       output_(nullptr),
+      caller_frame_top_(0),
+      caller_fp_(0),
+      caller_pc_(0),
+      caller_constant_pool_(0),
+      input_frame_context_(0),
+      stack_fp_(0),
       trace_scope_(nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
     isolate->set_deoptimizer_lazy_throw(false);
@@ -757,8 +763,27 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
   output_count_ = static_cast<int>(count);
 
-  Register fp_reg = JavaScriptFrame::fp_register();
-  stack_fp_ = reinterpret_cast<Address>(input_->GetRegister(fp_reg.code()));
+  {
+    // Read caller's PC, caller's FP and caller's constant pool values
+    // from input frame. Compute caller's frame top address.
+
+    Register fp_reg = JavaScriptFrame::fp_register();
+    stack_fp_ = input_->GetRegister(fp_reg.code());
+
+    caller_frame_top_ = stack_fp_ + ComputeInputFrameAboveFpFixedSize();
+
+    Address fp_address = input_->GetFramePointerAddress();
+    caller_fp_ = Memory::intptr_at(fp_address);
+    caller_pc_ =
+        Memory::intptr_at(fp_address + StandardFrameConstants::kCallerPCOffset);
+    input_frame_context_ =
+        Memory::intptr_at(fp_address + StandardFrameConstants::kContextOffset);
+
+    if (FLAG_enable_embedded_constant_pool) {
+      caller_constant_pool_ = Memory::intptr_at(
+          fp_address + StandardFrameConstants::kConstantPoolOffset);
+    }
+  }
 
   // Translate each output frame.
   for (size_t i = 0; i < count; ++i) {
@@ -850,7 +875,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by JavaScriptFrameConstants.
   unsigned fixed_frame_size = ComputeJavascriptFixedSize(shared);
-  unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -870,13 +894,7 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   Register fp_reg = JavaScriptFrame::fp_register();
   intptr_t top_address;
   if (is_bottommost) {
-    // 2 = context and function in the frame.
-    // If the optimized frame had alignment padding, adjust the frame pointer
-    // to point to the new position of the old frame pointer after padding
-    // is removed. Subtract 2 * kPointerSize for the context and function slots.
-    top_address = input_->GetRegister(fp_reg.code()) -
-                  StandardFrameConstants::kFixedFrameSizeFromFp -
-                  height_in_bytes;
+    top_address = caller_frame_top_ - output_frame_size;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
@@ -884,13 +902,11 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
 
   // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
-  unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
-  input_offset -= (parameter_count * kPointerSize);
 
   // There are no translation commands for the caller's pc and fp, the
   // context, and the function.  Synthesize their values and set them up
@@ -901,10 +917,9 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   // previous one.  This frame's pc can be computed from the non-optimized
   // function code and AST id of the bailout.
   output_offset -= kPCOnStackSize;
-  input_offset -= kPCOnStackSize;
   intptr_t value;
   if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
+    value = caller_pc_;
   } else {
     value = output_[frame_index - 1]->GetPc();
   }
@@ -916,15 +931,14 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   // read from the previous one.  Also compute and set this frame's frame
   // pointer.
   output_offset -= kFPOnStackSize;
-  input_offset -= kFPOnStackSize;
   if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
+    value = caller_fp_;
   } else {
     value = output_[frame_index - 1]->GetFp();
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost || input_->GetRegister(fp_reg.code()) == fp_value);
+  DCHECK(!is_bottommost || stack_fp_ == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
@@ -934,9 +948,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
     // from the input frame. For subsequent output frames, it can be read from
     // the previous frame.
     output_offset -= kPointerSize;
-    input_offset -= kPointerSize;
     if (is_bottommost) {
-      value = input_->GetFrameSlot(input_offset);
+      value = caller_constant_pool_;
     } else {
       value = output_[frame_index - 1]->GetConstantPool();
     }
@@ -950,7 +963,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   // so long as we don't inline functions that need local contexts.
   Register context_reg = JavaScriptFrame::context_register();
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
 
   TranslatedFrame::iterator context_pos = value_iterator;
   int context_input_index = input_index;
@@ -969,10 +981,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
     // If the context was optimized away, just use the context from
     // the activation. This should only apply to Crankshaft code.
     CHECK(!compiled_code_->is_turbofanned());
-    context =
-        is_bottommost
-            ? reinterpret_cast<Object*>(input_->GetFrameSlot(input_offset))
-            : function->context();
+    context = is_bottommost ? reinterpret_cast<Object*>(input_frame_context_)
+                            : function->context();
   }
   value = reinterpret_cast<intptr_t>(context);
   output_frame->SetContext(value);
@@ -990,11 +1000,10 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   // The function for the bottommost output frame should also agree with the
   // input frame.
-  DCHECK(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  DCHECK(!is_bottommost || reinterpret_cast<intptr_t>(function_) == value);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
   // Translate the rest of the frame.
@@ -1091,7 +1100,6 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by InterpreterFrameConstants.
   unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
-  unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -1113,11 +1121,7 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   Register fp_reg = InterpretedFrame::fp_register();
   intptr_t top_address;
   if (is_bottommost) {
-    // Subtract interpreter fixed frame size for the context function slots,
-    // new,target and bytecode offset.
-    top_address = input_->GetRegister(fp_reg.code()) -
-                  InterpreterFrameConstants::kFixedFrameSizeFromFp -
-                  height_in_bytes;
+    top_address = caller_frame_top_ - output_frame_size;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
@@ -1125,13 +1129,11 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
 
   // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
-  unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
-  input_offset -= (parameter_count * kPointerSize);
 
   // There are no translation commands for the caller's pc and fp, the
   // context, the function, new.target and the bytecode offset.  Synthesize
@@ -1143,10 +1145,9 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   // previous one.  This frame's pc can be computed from the non-optimized
   // function code and AST id of the bailout.
   output_offset -= kPCOnStackSize;
-  input_offset -= kPCOnStackSize;
   intptr_t value;
   if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
+    value = caller_pc_;
   } else {
     value = output_[frame_index - 1]->GetPc();
   }
@@ -1158,15 +1159,14 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   // read from the previous one.  Also compute and set this frame's frame
   // pointer.
   output_offset -= kFPOnStackSize;
-  input_offset -= kFPOnStackSize;
   if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
+    value = caller_fp_;
   } else {
     value = output_[frame_index - 1]->GetFp();
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost || input_->GetRegister(fp_reg.code()) == fp_value);
+  DCHECK(!is_bottommost || stack_fp_ == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
@@ -1176,9 +1176,8 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
     // from the input frame. For subsequent output frames, it can be read from
     // the previous frame.
     output_offset -= kPointerSize;
-    input_offset -= kPointerSize;
     if (is_bottommost) {
-      value = input_->GetFrameSlot(input_offset);
+      value = caller_constant_pool_;
     } else {
       value = output_[frame_index - 1]->GetConstantPool();
     }
@@ -1192,7 +1191,6 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   // so long as we don't inline functions that need local contexts.
   Register context_reg = InterpretedFrame::context_register();
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
 
   // When deoptimizing into a catch block, we need to take the context
   // from a register that was specified in the handler table.
@@ -1220,31 +1218,27 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   // The function for the bottommost output frame should also agree with the
   // input frame.
-  DCHECK(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  DCHECK(!is_bottommost || reinterpret_cast<intptr_t>(function_) == value);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
   // The new.target slot is only used during function activiation which is
   // before the first deopt point, so should never be needed. Just set it to
   // undefined.
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
   Object* new_target = isolate_->heap()->undefined_value();
   WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
   Object* bytecode_array = shared->bytecode_array();
   WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
                      "bytecode array ");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
-  input_offset -= kPointerSize;
   int raw_bytecode_offset =
       BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
   Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
@@ -1731,7 +1725,6 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   int height_in_bytes = kPointerSize * (param_count + stack_param_count) +
                         sizeof(Arguments) + kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
-  int input_frame_size = input_->GetFrameSize();
   int output_frame_size = height_in_bytes + fixed_frame_size;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
@@ -1751,24 +1744,23 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   // frame pointer and the output frame's height. Subtract space for the
   // context and function slots.
   Register fp_reg = StubFailureTrampolineFrame::fp_register();
-  intptr_t top_address = input_->GetRegister(fp_reg.code()) -
-      StandardFrameConstants::kFixedFrameSizeFromFp - height_in_bytes;
+  intptr_t top_address = stack_fp_ -  // input_->GetRegister(fp_reg.code()) -
+                         StandardFrameConstants::kFixedFrameSizeFromFp -
+                         height_in_bytes;
   output_frame->SetTop(top_address);
 
-  // Read caller's PC (JSFunction continuation) from the input frame.
-  unsigned input_frame_offset = input_frame_size - kPCOnStackSize;
+  // Set caller's PC (JSFunction continuation).
   unsigned output_frame_offset = output_frame_size - kFPOnStackSize;
-  intptr_t value = input_->GetFrameSlot(input_frame_offset);
+  intptr_t value = caller_pc_;
   output_frame->SetCallerPc(output_frame_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "caller's pc\n");
 
-  // Read caller's FP from the input frame, and set this frame's FP.
-  input_frame_offset -= kFPOnStackSize;
-  value = input_->GetFrameSlot(input_frame_offset);
+  // Set caller's FP from the input frame, and set this frame's FP.
+  value = caller_fp_;
   output_frame_offset -= kFPOnStackSize;
   output_frame->SetCallerFp(output_frame_offset, value);
-  intptr_t frame_ptr = input_->GetRegister(fp_reg.code());
+  intptr_t frame_ptr = stack_fp_;
   output_frame->SetRegister(fp_reg.code(), frame_ptr);
   output_frame->SetFp(frame_ptr);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
@@ -1776,8 +1768,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
 
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the input frame.
-    input_frame_offset -= kPointerSize;
-    value = input_->GetFrameSlot(input_frame_offset);
+    value = caller_constant_pool_;
     output_frame_offset -= kPointerSize;
     output_frame->SetCallerConstantPool(output_frame_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_frame_offset,
@@ -1924,7 +1915,8 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
     if (frame_index != 0) it->Advance();
   }
-  translated_state_.Prepare(it->frame()->has_adapted_arguments(), stack_fp_);
+  translated_state_.Prepare(it->frame()->has_adapted_arguments(),
+                            reinterpret_cast<Address>(stack_fp_));
 
   for (auto& materialization : values_to_materialize_) {
     Handle<Object> value = materialization.value_->GetValue();
@@ -1941,7 +1933,8 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
         reinterpret_cast<intptr_t>(*value);
   }
 
-  isolate_->materialized_object_store()->Remove(stack_fp_);
+  isolate_->materialized_object_store()->Remove(
+      reinterpret_cast<Address>(stack_fp_));
 }
 
 
@@ -1999,25 +1992,28 @@ void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
   }
 }
 
-
-unsigned Deoptimizer::ComputeInputFrameSize() const {
-  unsigned fixed_size = StandardFrameConstants::kFixedFrameSize;
+unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
+  unsigned fixed_size = StandardFrameConstants::kFixedFrameSizeAboveFp;
   if (!function_->IsSmi()) {
     fixed_size += ComputeIncomingArgumentSize(function_->shared());
   } else {
     CHECK_EQ(Smi::cast(function_), Smi::FromInt(StackFrame::STUB));
   }
+  return fixed_size;
+}
+
+unsigned Deoptimizer::ComputeInputFrameSize() const {
   // The fp-to-sp delta already takes the context, constant pool pointer and the
   // function into account so we have to avoid double counting them.
-  unsigned result = fixed_size + fp_to_sp_delta_ -
-                    StandardFrameConstants::kFixedFrameSizeFromFp;
+  unsigned fixed_size_from_fp = ComputeInputFrameAboveFpFixedSize();
+  unsigned result = fixed_size_from_fp + fp_to_sp_delta_;
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size =
         ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
     CHECK(result ==
-          fixed_size + (stack_slots * kPointerSize) -
-              StandardFrameConstants::kFixedFrameSize + outgoing_size);
+          fixed_size_from_fp + (stack_slots * kPointerSize) -
+              StandardFrameConstants::kFixedFrameSizeAboveFp + outgoing_size);
   }
   return result;
 }
