@@ -38,7 +38,7 @@ static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
     : allocator_(allocator),
       current_(NULL) {
-  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+  for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
     deopt_entry_code_entries_[i] = -1;
     deopt_entry_code_[i] = AllocateCodeChunk(allocator);
   }
@@ -46,7 +46,7 @@ DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
 
 
 DeoptimizerData::~DeoptimizerData() {
-  for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
+  for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
     allocator_->Free(deopt_entry_code_[i]);
     deopt_entry_code_[i] = NULL;
   }
@@ -444,7 +444,6 @@ bool Deoptimizer::TraceEnabledFor(BailoutType deopt_type,
     case EAGER:
     case SOFT:
     case LAZY:
-    case DEBUGGER:
       return (frame_type == StackFrame::STUB)
           ? FLAG_trace_stub_failures
           : FLAG_trace_deopt;
@@ -459,7 +458,6 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
     case EAGER: return "eager";
     case SOFT: return "soft";
     case LAZY: return "lazy";
-    case DEBUGGER: return "debugger";
   }
   FATAL("Unsupported deopt type");
   return NULL;
@@ -545,9 +543,6 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
           ? static_cast<Code*>(isolate_->FindCodeObject(from_))
           : compiled_code;
     }
-    case Deoptimizer::DEBUGGER:
-      DCHECK(optimized_code->contains(from_));
-      return optimized_code;
   }
   FATAL("Could not find code for optimized function");
   return NULL;
@@ -600,7 +595,7 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
     CHECK_EQ(mode, CALCULATE_ENTRY_ADDRESS);
   }
   DeoptimizerData* data = isolate->deoptimizer_data();
-  CHECK_LT(type, kBailoutTypesWithCodeEntry);
+  CHECK_LE(type, kLastBailoutType);
   MemoryChunk* base = data->deopt_entry_code_[type];
   return base->area_start() + (id * table_entry_size_);
 }
@@ -1051,7 +1046,7 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   output_frame->SetState(Smi::FromInt(state));
 
   // Set the continuation for the topmost frame.
-  if (is_topmost && bailout_type_ != DEBUGGER) {
+  if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     if (bailout_type_ == LAZY) {
@@ -1299,7 +1294,7 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   }
 
   // Set the continuation for the topmost frame.
-  if (is_topmost && bailout_type_ != DEBUGGER) {
+  if (is_topmost) {
     Code* continuation =
         builtins->builtin(Builtins::kInterpreterNotifyDeoptimized);
     if (bailout_type_ == LAZY) {
@@ -1924,8 +1919,6 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
 
 
 void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
-  DCHECK_NE(DEBUGGER, bailout_type_);
-
   // Walk to the last JavaScript output frame to find out if it has
   // adapted arguments.
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
