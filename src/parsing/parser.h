@@ -938,8 +938,10 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
-                                  Expression* subject, Statement* body,
-                                  bool is_destructuring);
+                                  Expression* subject, Statement* body);
+  void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
+                                Expression* iterable, Statement* body,
+                                int iterable_pos);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
