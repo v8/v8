@@ -2452,17 +2452,10 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   DCHECK(ToRegister(instr->left()).is(edx));
   DCHECK(ToRegister(instr->right()).is(eax));
 
-  if (Token::IsOrderedRelationalCompareOp(instr->op())) {
-    Handle<Code> code = CodeFactory::StringCompare(isolate()).code();
-    CallCode(code, RelocInfo::CODE_TARGET, instr);
-    __ test(eax, eax);
-  } else {
-    Handle<Code> code = CodeFactory::StringEqual(isolate()).code();
-    CallCode(code, RelocInfo::CODE_TARGET, instr);
-    __ CompareRoot(eax, Heap::kTrueValueRootIndex);
-  }
-
-  EmitBranch(instr, ComputeCompareCondition(instr->op()));
+  Handle<Code> code = CodeFactory::StringCompare(isolate(), instr->op()).code();
+  CallCode(code, RelocInfo::CODE_TARGET, instr);
+  __ CompareRoot(eax, Heap::kTrueValueRootIndex);
+  EmitBranch(instr, equal);
 }
 
 
