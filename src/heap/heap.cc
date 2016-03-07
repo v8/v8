@@ -895,7 +895,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   const int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     if (!CollectGarbage(MARK_COMPACTOR, gc_reason, NULL,
-                        v8::kGCCallbackFlagForced) &&
+                        v8::kGCCallbackFlagCollectAllAvailableGarbage) &&
         attempt + 1 >= kMinNumberOfAttempts) {
       break;
     }
@@ -1044,7 +1044,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   }
 
   if (collector == MARK_COMPACTOR &&
-      (gc_callback_flags & kGCCallbackFlagForced) != 0) {
+      (gc_callback_flags & (kGCCallbackFlagForced |
+                            kGCCallbackFlagCollectAllAvailableGarbage)) != 0) {
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
