@@ -23,6 +23,11 @@ WasmFunctionBuilder.prototype.exportAs = function(name) {
     return this;
 }
 
+WasmFunctionBuilder.prototype.exportFunc = function() {
+  this.exports.push(this.name);
+  return this;
+}
+
 WasmFunctionBuilder.prototype.addBody = function(body) {
     this.body = body;
     return this;
@@ -40,12 +45,22 @@ function WasmModuleBuilder() {
     this.exports = [];
     this.function_table = [];
     this.data_segments = [];
+    this.explicit = [];
     return this;
+}
+
+WasmModuleBuilder.prototype.addStart = function(start_index) {
+    this.start_index = start_index;
 }
 
 WasmModuleBuilder.prototype.addMemory = function(min, max, exp) {
     this.memory = {min: min, max: max, exp: exp};
     return this;
+}
+
+WasmModuleBuilder.prototype.addExplicitSection = function(bytes) {
+  this.explicit.push(bytes);
+  return this;
 }
 
 // Add a signature; format is [rettype, param0, param1, ...]
@@ -199,6 +214,13 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         }
     }
 
+    // Add start function section.
+    if (this.start_index != undefined) {
+        if (debug) print("emitting start function @ " + bytes.length);
+      emit_u8(bytes, kDeclStartFunction);
+      emit_varint(bytes, this.start_index);
+    }
+
     if (this.function_table.length > 0) {
         if (debug) print("emitting function table @ " + bytes.length);
         emit_u8(bytes, kDeclFunctionTable);
@@ -229,6 +251,14 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
             emit_data_ref(bytes, seg.data);
             emit_u32(bytes, seg.data.length);
             emit_u8(bytes, seg.init ? 1 : 0);
+        }
+    }
+
+    // Emit any explicitly added sections
+    for (exp of this.explicit) {
+        if (debug) print("emitting explicit @ " + bytes.length);
+        for (var i = 0; i < exp.length; i++) {
+            emit_u8(bytes, exp[i]);
         }
     }
 
@@ -305,7 +335,11 @@ WasmModuleBuilder.prototype.toBuffer = function(debug) {
     return buffer;
 }
 
-WasmModuleBuilder.prototype.instantiate = function(ffi) {
+WasmModuleBuilder.prototype.instantiate = function(ffi, memory) {
     var buffer = this.toBuffer();
-    return _WASMEXP_.instantiateModule(buffer, ffi);
+    if (memory != undefined) {
+      return _WASMEXP_.instantiateModule(buffer, ffi, memory);
+    } else {
+      return _WASMEXP_.instantiateModule(buffer, ffi);
+    }
 }

@@ -27,6 +27,7 @@ var kWasmV2 = 0;
 var kWasmV3 = 0;
 
 var kHeaderSize = 8;
+var kPageSize = 65536;
 
 function bytesWithHeader() {
   var buffer = new ArrayBuffer(kHeaderSize + arguments.length);

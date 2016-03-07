@@ -5,33 +5,20 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var kReturnValue = 117;
 
-var kBodySize = 2;
-var kNameOffset = kHeaderSize + 19 + kBodySize + 1;
+var module = (function Build() {
+  var builder = new WasmModuleBuilder();
 
-var data = bytesWithHeader(
-  // -- memory
-  kDeclMemory,
-  1, 1, 1,
-  // -- signatures
-  kDeclSignatures, 1,
-  0, kAstI32,                 // signature: void -> int
-  // -- main function
-  kDeclFunctions, 1,
-  kDeclFunctionName | kDeclFunctionExport,
-  0, 0,                       // signature index
-  kNameOffset, 0, 0, 0,       // name offset
-  kBodySize, 0,               // body size
-  // -- body
-  kExprI8Const,               // --
-  kReturnValue,               // --
-  kDeclEnd,
-  'm', 'a', 'i', 'n', 0       // name
-);
+  builder.addMemory(1, 1, true);
+  builder.addFunction("main", [kAstI32])
+    .addBody([kExprI8Const, kReturnValue])
+    .exportFunc();
 
-var module = _WASMEXP_.instantiateModule(data);
+  return builder.instantiate();
+})();
 
 // Check the module exists.
 assertFalse(module === undefined);
@@ -54,9 +41,10 @@ for (var i = 0; i < 4; i++) {
 assertEquals(65536, module.memory.byteLength);
 
 // Check the properties of the main function.
-assertFalse(module.main === undefined);
-assertFalse(module.main === null);
-assertFalse(module.main === 0);
-assertEquals("function", typeof module.main);
+var main = module.exports.main;
+assertFalse(main === undefined);
+assertFalse(main === null);
+assertFalse(main === 0);
+assertEquals("function", typeof main);
 
-assertEquals(kReturnValue, module.main());
+assertEquals(kReturnValue, main());
