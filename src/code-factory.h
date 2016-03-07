@@ -113,7 +113,8 @@ class CodeFactory final {
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
-                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);

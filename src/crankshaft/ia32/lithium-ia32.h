@@ -537,6 +537,7 @@ class LApplyArguments final : public LTemplateInstruction<1, 4, 0> {
   LOperand* elements() { return inputs_[3]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
+  DECLARE_HYDROGEN_ACCESSOR(ApplyArguments)
 };
 
 

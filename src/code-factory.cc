@@ -406,8 +406,9 @@ Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
-  return Callable(isolate->builtins()->Call(mode),
+Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode,
+                           TailCallMode tail_call_mode) {
+  return Callable(isolate->builtins()->Call(mode, tail_call_mode),
                   CallTrampolineDescriptor(isolate));
 }
 

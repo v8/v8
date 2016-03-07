@@ -1980,17 +1980,18 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   }
 
   // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ lw(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ lw(scratch3, MemOperand(scratch2, StandardFrameConstants::kContextOffset));
   __ Branch(&no_arguments_adaptor, ne, scratch3,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
-  // Drop arguments adaptor frame and load arguments count.
+  // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);
-  __ lw(scratch1,
+  __ lw(caller_args_count_reg,
         MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
   __ Branch(&formal_parameter_count_loaded);
 
   __ bind(&no_arguments_adaptor);
@@ -1998,54 +1999,16 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ lw(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ lw(scratch1,
         FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(scratch1,
+  __ lw(caller_args_count_reg,
         FieldMemOperand(scratch1,
                         SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
 
   __ bind(&formal_parameter_count_loaded);
 
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch2;
-  __ Lsa(dst_reg, fp, scratch1, kPointerSizeLog2);
-  __ Addu(dst_reg, dst_reg,
-          Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = scratch1;
-  __ Lsa(src_reg, sp, args_reg, kPointerSizeLog2);
-  // Count receiver argument as well (not included in args_reg).
-  __ Addu(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    __ Check(lo, kStackAccessBelowStackPointer, src_reg, Operand(dst_reg));
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  __ lw(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  __ lw(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch3;
-  Label loop, entry;
-  __ Branch(&entry);
-  __ bind(&loop);
-  __ Subu(src_reg, src_reg, Operand(kPointerSize));
-  __ Subu(dst_reg, dst_reg, Operand(kPointerSize));
-  __ lw(tmp_reg, MemOperand(src_reg));
-  __ sw(tmp_reg, MemOperand(dst_reg));
-  __ bind(&entry);
-  __ Branch(&loop, ne, sp, Operand(src_reg));
-
-  // Leave current frame.
-  __ mov(sp, dst_reg);
-
+  ParameterCount callee_args_count(args_reg);
+  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
+                        scratch3);
   __ bind(&done);
 }
 }  // namespace

@@ -4094,6 +4094,77 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
+                                        Register caller_args_count_reg,
+                                        Register scratch0, Register scratch1,
+                                        ReturnAddressState ra_state) {
+#if DEBUG
+  if (callee_args_count.is_reg()) {
+    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
+                       scratch1));
+  } else {
+    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
+  }
+#endif
+
+  // Calculate the destination address where we will put the return address
+  // after we drop current frame.
+  Register new_sp_reg = scratch0;
+  if (callee_args_count.is_reg()) {
+    subp(caller_args_count_reg, callee_args_count.reg());
+    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
+                             StandardFrameConstants::kCallerPCOffset));
+  } else {
+    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
+                             StandardFrameConstants::kCallerPCOffset -
+                                 callee_args_count.immediate() * kPointerSize));
+  }
+
+  if (FLAG_debug_code) {
+    cmpp(rsp, new_sp_reg);
+    Check(below, kStackAccessBelowStackPointer);
+  }
+
+  // Copy return address from caller's frame to current frame's return address
+  // to avoid its trashing and let the following loop copy it to the right
+  // place.
+  Register tmp_reg = scratch1;
+  if (ra_state == ReturnAddressState::kOnStack) {
+    movp(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+    movp(Operand(rsp, 0), tmp_reg);
+  } else {
+    DCHECK(ReturnAddressState::kNotOnStack == ra_state);
+    Push(Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+  }
+
+  // Restore caller's frame pointer now as it could be overwritten by
+  // the copying loop.
+  movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // +2 here is to copy both receiver and return address.
+  Register count_reg = caller_args_count_reg;
+  if (callee_args_count.is_reg()) {
+    leap(count_reg, Operand(callee_args_count.reg(), 2));
+  } else {
+    movp(count_reg, Immediate(callee_args_count.immediate() + 2));
+    // TODO(ishell): Unroll copying loop for small immediate values.
+  }
+
+  // Now copy callee arguments to the caller frame going backwards to avoid
+  // callee arguments corruption (source and destination areas could overlap).
+  Label loop, entry;
+  jmp(&entry, Label::kNear);
+  bind(&loop);
+  decp(count_reg);
+  movp(tmp_reg, Operand(rsp, count_reg, times_pointer_size, 0));
+  movp(Operand(new_sp_reg, count_reg, times_pointer_size, 0), tmp_reg);
+  bind(&entry);
+  cmpp(count_reg, Immediate(0));
+  j(not_equal, &loop, Label::kNear);
+
+  // Leave current frame.
+  movp(rsp, new_sp_reg);
+}
 
 void MacroAssembler::InvokeFunction(Register function,
                                     Register new_target,

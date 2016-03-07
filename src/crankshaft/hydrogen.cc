@@ -8015,8 +8015,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
 
   HValue* op_vals[] = {context(), function, arity};
 
-  // TODO(ishell): use tail_call_mode here.
-  Callable callable = CodeFactory::Call(isolate(), convert_mode);
+  Callable callable =
+      CodeFactory::Call(isolate(), convert_mode, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
@@ -8033,9 +8033,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 
   HValue* op_vals[] = {context(), function, index_val, vector_val};
 
-  // TODO(ishell): use tail_call_mode here.
   Callable callable = CodeFactory::CallICInOptimizedCode(
-      isolate(), arity, ConvertReceiverMode::kNullOrUndefined);
+      isolate(), arity, ConvertReceiverMode::kNullOrUndefined, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
@@ -8045,9 +8044,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 HInstruction* HOptimizedGraphBuilder::NewCallConstantFunction(
     Handle<JSFunction> function, int argument_count,
     TailCallMode tail_call_mode) {
-  // TODO(ishell): use tail_call_mode here.
   HValue* target = Add<HConstant>(function);
-  return New<HInvokeFunction>(target, function, argument_count);
+  return New<HInvokeFunction>(target, function, argument_count, tail_call_mode);
 }
 
 
@@ -9397,12 +9395,10 @@ void HOptimizedGraphBuilder::HandleIndirectCall(Call* expr, HValue* function,
   TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
   TailCallMode tail_call_mode =
       function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
-  USE(tail_call_mode);
 
-  // TODO(ishell): use tail_call_mode here.
   PushArgumentsFromEnvironment(arguments_count);
-  HInvokeFunction* call =
-      New<HInvokeFunction>(function, known_function, arguments_count);
+  HInvokeFunction* call = New<HInvokeFunction>(function, known_function,
+                                               arguments_count, tail_call_mode);
   Drop(1);  // Function
   ast_context()->ReturnInstruction(call, expr->id());
 }
@@ -9457,16 +9453,12 @@ void HOptimizedGraphBuilder::BuildFunctionApply(Call* expr) {
     TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
     TailCallMode tail_call_mode =
         function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
-    USE(tail_call_mode);
 
-    // TODO(ishell): use tail_call_mode here.
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
     HValue* wrapped_receiver = BuildWrapReceiver(receiver, checked_function);
-    HInstruction* result = New<HApplyArguments>(function,
-                                                wrapped_receiver,
-                                                length,
-                                                elements);
+    HInstruction* result = New<HApplyArguments>(
+        function, wrapped_receiver, length, elements, tail_call_mode);
     ast_context()->ReturnInstruction(result, expr->id());
   } else {
     // We are inside inlined function and we know exactly what is inside
@@ -9734,9 +9726,6 @@ bool HOptimizedGraphBuilder::CanBeFunctionApplyArguments(Call* expr) {
 
 
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
-  if (expr->tail_call_mode() == TailCallMode::kAllow) {
-    return Bailout(kTailCall);
-  }
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
