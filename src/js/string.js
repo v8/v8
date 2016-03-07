@@ -15,6 +15,7 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
+var IsRegExp;
 var MakeRangeError;
 var MakeTypeError;
 var MaxSimple;
@@ -28,6 +29,7 @@ var splitSymbol = utils.ImportNow("split_symbol");
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
+  IsRegExp = from.IsRegExp;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
@@ -701,7 +703,7 @@ function StringStartsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
@@ -727,7 +729,7 @@ function StringEndsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
@@ -754,7 +756,7 @@ function StringIncludes(searchString, position) {  // length == 1
 
   var string = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 
