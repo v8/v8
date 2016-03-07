@@ -428,6 +428,7 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
   }
 }
 
+
 static void TraceTopFrame(Isolate* isolate) {
   StackFrameIterator it(isolate);
   if (it.done()) {
@@ -729,16 +730,6 @@ class ElementsAccessorBase : public ElementsAccessor {
     JSObject::ValidateElements(array);
   }
 
-  static uint32_t GetIterationLength(JSObject* receiver,
-                                     FixedArrayBase* elements) {
-    if (receiver->IsJSArray()) {
-      return static_cast<uint32_t>(
-          Smi::cast(JSArray::cast(receiver)->length())->value());
-    } else {
-      return ElementsAccessorSubclass::GetCapacityImpl(receiver, elements);
-    }
-  }
-
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
       Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
       ElementsKind from_kind, uint32_t capacity) {
@@ -855,14 +846,6 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, *to, from_kind, to_start, packed_size, copy_size);
   }
 
-  void CollectElementIndices(Handle<JSObject> object,
-                             Handle<FixedArrayBase> backing_store,
-                             KeyAccumulator* keys, uint32_t range,
-                             PropertyFilter filter, uint32_t offset) final {
-    ElementsAccessorSubclass::CollectElementIndicesImpl(
-        object, backing_store, keys, range, filter, offset);
-  }
-
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys, uint32_t range,
@@ -873,101 +856,30 @@ class ElementsAccessorBase : public ElementsAccessor {
       // Non-dictionary elements can't have all-can-read accessors.
       return;
     }
-    uint32_t length = GetIterationLength(*object, *backing_store);
+    uint32_t length = 0;
+    if (object->IsJSArray()) {
+      length = Smi::cast(JSArray::cast(*object)->length())->value();
+    } else {
+      length =
+          ElementsAccessorSubclass::GetCapacityImpl(*object, *backing_store);
+    }
     if (range < length) length = range;
     for (uint32_t i = offset; i < length; i++) {
-      if (ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
-                                                   filter)) {
-        keys->AddKey(i);
+      if (!ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
+                                                    filter)) {
+        continue;
       }
+      keys->AddKey(i);
     }
   }
 
-  static Handle<FixedArray> DirectCollectElementIndicesImpl(
-      Isolate* isolate, Handle<JSObject> object,
-      Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices) {
-    uint32_t length =
-        ElementsAccessorSubclass::GetIterationLength(*object, *backing_store);
-    uint32_t insertion_index = 0;
-    for (uint32_t i = 0; i < length; i++) {
-      if (ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
-                                                   filter)) {
-        if (convert == CONVERT_TO_STRING) {
-          list->set(insertion_index++, *isolate->factory()->Uint32ToString(i));
-        } else {
-          list->set(insertion_index++, Smi::FromInt(i), SKIP_WRITE_BARRIER);
-        }
-      }
-    }
-    *nof_indices = insertion_index;
-    return list;
-  }
-
-  Handle<FixedArray> PrependElementIndices(Handle<JSObject> object,
-                                           Handle<FixedArrayBase> backing_store,
-                                           Handle<FixedArray> keys,
-                                           GetKeysConversion convert,
-                                           PropertyFilter filter) final {
-    return ElementsAccessorSubclass::PrependElementIndicesImpl(
-        object, backing_store, keys, convert, filter);
-  }
-
-  static Handle<FixedArray> PrependElementIndicesImpl(
-      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
-      Handle<FixedArray> keys, GetKeysConversion convert,
-      PropertyFilter filter) {
-    Isolate* isolate = object->GetIsolate();
-    uint32_t nof_property_keys = keys->length();
-    uint32_t initial_list_length =
-        ElementsAccessorSubclass::GetCapacityImpl(*object, *backing_store);
-    initial_list_length += nof_property_keys;
-
-    // Collect the element indices into a new list.
-    uint32_t nof_indices = 0;
-    Handle<FixedArray> combined_keys =
-        isolate->factory()->NewFixedArray(initial_list_length);
-    combined_keys = ElementsAccessorSubclass::DirectCollectElementIndicesImpl(
-        isolate, object, backing_store, convert, filter, combined_keys,
-        &nof_indices);
-
-    // Sort the indices list if necessary.
-    if (IsDictionaryElementsKind(kind())) {
-      struct {
-        bool operator()(Object* a, Object* b) {
-          if (!a->IsUndefined()) {
-            if (b->IsUndefined()) return true;
-            return a->Number() < b->Number();
-          }
-          return !b->IsUndefined();
-        }
-      } cmp;
-      Object** start =
-          reinterpret_cast<Object**>(combined_keys->GetFirstElementAddress());
-      std::sort(start, start + nof_indices, cmp);
-      // Indices from dictionary elements should only be converted after
-      // sorting.
-      if (convert == CONVERT_TO_STRING) {
-        for (uint32_t i = 0; i < nof_indices; i++) {
-          combined_keys->set(i, *isolate->factory()->Uint32ToString(
-                                    combined_keys->get(i)->Number()));
-        }
-      }
-    }
-
-    // Copy over the passed-in property keys.
-    CopyObjectToObjectElements(*keys, FAST_ELEMENTS, 0, *combined_keys,
-                               FAST_ELEMENTS, nof_indices, nof_property_keys);
-
-    if (IsHoleyElementsKind(kind())) {
-      // Shrink combined_keys to the final size.
-      int final_size = nof_indices + nof_property_keys;
-      DCHECK_LE(final_size, combined_keys->length());
-      combined_keys->Shrink(final_size);
-    }
-
-    return combined_keys;
-  }
+  void CollectElementIndices(Handle<JSObject> object,
+                             Handle<FixedArrayBase> backing_store,
+                             KeyAccumulator* keys, uint32_t range,
+                             PropertyFilter filter, uint32_t offset) final {
+    ElementsAccessorSubclass::CollectElementIndicesImpl(
+        object, backing_store, keys, range, filter, offset);
+  };
 
   void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                    KeyAccumulator* accumulator,
@@ -1000,7 +912,12 @@ class ElementsAccessorBase : public ElementsAccessor {
                  ? index
                  : kMaxUInt32;
     } else {
-      uint32_t length = GetIterationLength(holder, backing_store);
+      uint32_t length =
+          holder->IsJSArray()
+              ? static_cast<uint32_t>(
+                    Smi::cast(JSArray::cast(holder)->length())->value())
+              : ElementsAccessorSubclass::GetCapacityImpl(holder,
+                                                          backing_store);
       return index < length ? index : kMaxUInt32;
     }
   }
@@ -1202,28 +1119,6 @@ class DictionaryElementsAccessor
     return SeededNumberDictionary::cast(backing_store)->DetailsAt(entry);
   }
 
-  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
-                                     int entry, PropertyFilter filter) {
-    DisallowHeapAllocation no_gc;
-    Object* raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(raw_key)) return kMaxUInt32;
-    if (raw_key->FilterKey(filter)) return kMaxUInt32;
-    if (dictionary->IsDeleted(entry)) return kMaxUInt32;
-    DCHECK(raw_key->IsNumber());
-    DCHECK_LE(raw_key->Number(), kMaxUInt32);
-    uint32_t key = static_cast<uint32_t>(raw_key->Number());
-    PropertyDetails details = dictionary->DetailsAt(entry);
-    if (filter & ONLY_ALL_CAN_READ) {
-      if (details.kind() != kAccessor) return kMaxUInt32;
-      Object* accessors = dictionary->ValueAt(entry);
-      if (!accessors->IsAccessorInfo()) return kMaxUInt32;
-      if (!AccessorInfo::cast(accessors)->all_can_read()) return kMaxUInt32;
-    }
-    PropertyAttributes attr = details.attributes();
-    if ((attr & filter) != 0) return kMaxUInt32;
-    return key;
-  }
-
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys, uint32_t range,
@@ -1233,29 +1128,27 @@ class DictionaryElementsAccessor
         Handle<SeededNumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(dictionary, i, filter);
-      if (key == kMaxUInt32) continue;
-      keys->AddKey(key);
+      Object* k = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(k)) continue;
+      if (k->FilterKey(filter)) continue;
+      if (dictionary->IsDeleted(i)) continue;
+      DCHECK(k->IsNumber());
+      DCHECK_LE(k->Number(), kMaxUInt32);
+      uint32_t index = static_cast<uint32_t>(k->Number());
+      if (index < offset) continue;
+      PropertyDetails details = dictionary->DetailsAt(i);
+      if (filter & ONLY_ALL_CAN_READ) {
+        if (details.kind() != kAccessor) continue;
+        Object* accessors = dictionary->ValueAt(i);
+        if (!accessors->IsAccessorInfo()) continue;
+        if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
+      }
+      PropertyAttributes attr = details.attributes();
+      if ((attr & filter) != 0) continue;
+      keys->AddKey(index);
     }
 
     keys->SortCurrentElementsList();
-  }
-
-  static Handle<FixedArray> DirectCollectElementIndicesImpl(
-      Isolate* isolate, Handle<JSObject> object,
-      Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices) {
-    Handle<SeededNumberDictionary> dictionary =
-        Handle<SeededNumberDictionary>::cast(backing_store);
-    uint32_t capacity = dictionary->Capacity();
-    uint32_t insertion_index = 0;
-    for (uint32_t i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(dictionary, i, filter);
-      if (key == kMaxUInt32) continue;
-      list->set(insertion_index++, *isolate->factory()->NewNumberFromUint(key));
-    }
-    *nof_indices = insertion_index;
-    return list;
   }
 
   static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
@@ -1422,10 +1315,15 @@ class FastElementsAccessor
   static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
                                               KeyAccumulator* accumulator,
                                               AddKeyConversion convert) {
+    uint32_t length = 0;
     Handle<FixedArrayBase> elements(receiver->elements(),
                                     receiver->GetIsolate());
-    uint32_t length =
-        FastElementsAccessorSubclass::GetIterationLength(*receiver, *elements);
+    if (receiver->IsJSArray()) {
+      length = Smi::cast(JSArray::cast(*receiver)->length())->value();
+    } else {
+      length =
+          FastElementsAccessorSubclass::GetCapacityImpl(*receiver, *elements);
+    }
     for (uint32_t i = 0; i < length; i++) {
       if (IsFastPackedElementsKind(KindTraits::Kind) ||
           HasEntryImpl(*elements, i)) {
