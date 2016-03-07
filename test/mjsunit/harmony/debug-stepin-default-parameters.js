@@ -42,5 +42,5 @@ Debug.setListener(null);            // c
 assertNull(exception);
 assertEquals("default", result);
 
-assertEquals(["a0","b0","f18b13","d2f18b13","e0f18b13","g2b13","h0b13","c0"],
+assertEquals(["a0","b13","f18b13","d2f18b13","e0f18b13","g2b13","h0b13","c0"],
              log);
