@@ -738,8 +738,8 @@ class Assembler : public AssemblerBase {
 
   void sbb(Register dst, const Operand& src);
 
-  void shld(Register dst, Register src) { shld(dst, Operand(src)); }
-  void shld(Register dst, const Operand& src);
+  void shld(Register dst, Register src, uint8_t shift);
+  void shld_cl(Register dst, Register src);
 
   void shl(Register dst, uint8_t imm8) { shl(Operand(dst), imm8); }
   void shl(const Operand& dst, uint8_t imm8);

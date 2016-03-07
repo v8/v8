@@ -1406,6 +1406,42 @@ class IsLoadContextMatcher final : public NodeMatcher {
   const Matcher<Node*> context_matcher_;
 };
 
+class IsTernopMatcher final : public NodeMatcher {
+ public:
+  IsTernopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& lhs_matcher,
+                  const Matcher<Node*>& mid_matcher,
+                  const Matcher<Node*>& rhs_matcher)
+      : NodeMatcher(opcode),
+        lhs_matcher_(lhs_matcher),
+        mid_matcher_(mid_matcher),
+        rhs_matcher_(rhs_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose lhs (";
+    lhs_matcher_.DescribeTo(os);
+    *os << ") and mid (";
+    mid_matcher_.DescribeTo(os);
+    *os << ") and rhs (";
+    rhs_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
+                                 lhs_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "mid",
+                                 mid_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2), "rhs",
+                                 rhs_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> lhs_matcher_;
+  const Matcher<Node*> mid_matcher_;
+  const Matcher<Node*> rhs_matcher_;
+};
 
 class IsBinopMatcher final : public NodeMatcher {
  public:
@@ -1483,7 +1519,6 @@ class IsParameterMatcher final : public NodeMatcher {
 };
 
 }  // namespace
-
 
 Matcher<Node*> IsDead() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kDead));
@@ -2069,6 +2104,15 @@ Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
 
+#define IS_TERNOP_MATCHER(Name)                                            \
+  Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,               \
+                          const Matcher<Node*>& mid_matcher,               \
+                          const Matcher<Node*>& rhs_matcher) {             \
+    return MakeMatcher(new IsTernopMatcher(IrOpcode::k##Name, lhs_matcher, \
+                                           mid_matcher, rhs_matcher));     \
+  }
+
+IS_TERNOP_MATCHER(Word32PairShl)
 
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \

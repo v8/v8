@@ -333,7 +333,8 @@
   V(LoadFramePointer)           \
   V(LoadParentFramePointer)     \
   V(CheckedLoad)                \
-  V(CheckedStore)
+  V(CheckedStore)               \
+  V(Word32PairShl)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \

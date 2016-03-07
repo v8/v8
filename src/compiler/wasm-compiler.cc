@@ -509,9 +509,12 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Word64Xor();
       break;
 // kExprI64Shl:
-// kExprI64ShrU:
-// kExprI64ShrS:
-// kExprI64Eq:
+    case wasm::kExprI64Shl:
+      op = m->Word64Shl();
+      break;
+    // kExprI64ShrU:
+    // kExprI64ShrS:
+    // kExprI64Eq:
     case wasm::kExprI64Eq:
       op = m->Word64Equal();
       break;
@@ -598,9 +601,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Uint64Mod();
       return graph()->NewNode(op, left, right,
                               trap_->ZeroCheck64(kTrapRemByZero, right));
-    case wasm::kExprI64Shl:
-      op = m->Word64Shl();
-      break;
     case wasm::kExprI64ShrU:
       op = m->Word64Shr();
       break;

@@ -356,6 +356,23 @@ TEST_F(Int64LoweringTest, Int64Xor) {
                         start(), start()));
 }
 // kExprI64Shl:
+TEST_F(Int64LoweringTest, Int64Shl) {
+  if (4 != kPointerSize) return;
+
+  LowerGraph(graph()->NewNode(machine()->Word64Shl(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> shl;
+  Matcher<Node*> shl_matcher = IsWord32PairShl(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&shl), shl_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&shl), shl_matcher)),
+                        start(), start()));
+}
 // kExprI64ShrU:
 // kExprI64ShrS:
 // kExprI64Eq:

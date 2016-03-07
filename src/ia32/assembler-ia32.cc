@@ -1075,12 +1075,20 @@ void Assembler::sbb(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::shld(Register dst, Register src, uint8_t shift) {
+  DCHECK(is_uint5(shift));
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xA4);
+  emit_operand(src, Operand(dst));
+  EMIT(shift);
+}
 
-void Assembler::shld(Register dst, const Operand& src) {
+void Assembler::shld_cl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xA5);
-  emit_operand(dst, src);
+  emit_operand(src, Operand(dst));
 }
 
 

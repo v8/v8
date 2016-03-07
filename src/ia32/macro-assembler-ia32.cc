@@ -682,7 +682,6 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
-
 void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
   xorps(dst, dst);
   cvtsi2sd(dst, src);
@@ -707,6 +706,27 @@ void MacroAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
   bind(&jmp_return);
 }
 
+void MacroAssembler::PairShl(Register dst, Register src, uint8_t shift) {
+  if (shift >= 32) {
+    mov(dst, src);
+    shl(dst, shift - 32);
+    xor_(src, src);
+  } else {
+    shld(dst, src, shift);
+    shl(src, shift);
+  }
+}
+
+void MacroAssembler::PairShl_cl(Register dst, Register src) {
+  shld_cl(dst, src);
+  shl_cl(src);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(dst, src);
+  xor_(src, src);
+  bind(&done);
+}
 
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;

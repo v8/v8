@@ -370,6 +370,9 @@ class MacroAssembler: public Assembler {
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
 
+  void PairShl(Register dst, Register src, uint8_t imm8);
+  void PairShl_cl(Register dst, Register src);
+
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
   void SafeMove(Register dst, const Immediate& x);
