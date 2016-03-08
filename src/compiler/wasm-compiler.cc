@@ -862,28 +862,28 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     // kExprI64Popcnt:
     // kExprF32SConvertI64:
     case wasm::kExprF32SConvertI64:
-      if (kPointerSize == 4) {
+      if (m->Is32()) {
         return BuildF32SConvertI64(input);
       }
       op = m->RoundInt64ToFloat32();
       break;
     // kExprF32UConvertI64:
     case wasm::kExprF32UConvertI64:
-      if (kPointerSize == 4) {
+      if (m->Is32()) {
         return BuildF32UConvertI64(input);
       }
       op = m->RoundUint64ToFloat32();
       break;
     // kExprF64SConvertI64:
     case wasm::kExprF64SConvertI64:
-      if (kPointerSize == 4) {
+      if (m->Is32()) {
         return BuildF64SConvertI64(input);
       }
       op = m->RoundInt64ToFloat64();
       break;
     // kExprF64UConvertI64:
     case wasm::kExprF64UConvertI64:
-      if (kPointerSize == 4) {
+      if (m->Is32()) {
         return BuildF64UConvertI64(input);
       }
       op = m->RoundUint64ToFloat64();
@@ -2196,7 +2196,7 @@ Node* WasmGraphBuilder::String(const char* string) {
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 
 void WasmGraphBuilder::Int64LoweringForTesting() {
-  if (kPointerSize == 4) {
+  if (jsgraph()->machine()->Is32()) {
     Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(),
                     jsgraph()->common(), jsgraph()->zone(),
                     function_signature_);
@@ -2442,7 +2442,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor =
       wasm::ModuleEnv::GetWasmCallDescriptor(&zone, function.sig);
-  if (kPointerSize == 4) {
+  if (machine.Is32()) {
     descriptor = module_env->GetI32WasmCallDescriptor(&zone, descriptor);
   }
   Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);

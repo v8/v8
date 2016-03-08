@@ -32,7 +32,7 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
 }
 
 void Int64Lowering::LowerGraph() {
-  if (4 != kPointerSize) {
+  if (!machine()->Is32()) {
     return;
   }
   stack_.push(graph()->end());
