@@ -171,9 +171,9 @@ class ParseInfo {
     kParseRestriction = 1 << 7,
     kModule = 1 << 8,
     kAllowLazyParsing = 1 << 9,
-    kTyped = 1 << 11,  // TODO(nikolaos): OK to use 11 here?
+    kTyped = 1 << 10,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 10
+    kAstValueFactoryOwned = 1 << 11
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

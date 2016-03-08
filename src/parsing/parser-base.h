@@ -3408,7 +3408,7 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::TypeParameters
 ParserBase<Traits>::ParseTypeParameters(bool* ok) {
-  // wrong!!!
+  // TODO(nikolaos): Implement this.
   return this->NullTypeParameters();
 }
 
@@ -3490,8 +3490,8 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
         type = factory()->NewPredefinedType(
             typesystem::PredefinedType::kSymbolType, pos);
       } else {
-        // missing!!! typeof
-        // missing!!! identifier
+        // TODO(nikolaos): Missing typeof.
+        // TODO(nikolaos): Missing identifier.
         ReportUnexpectedToken(Next());
         *ok = false;
         return type;
@@ -3509,8 +3509,8 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       type = factory()->NewThisType(pos);
       break;
     }
-    // missing!!! object types
-    // missing!!! tuple types
+    // TODO(nikolaos): Missing object types.
+    // TODO(nikolaos): Missing tuple types.
     default:
       ReportUnexpectedToken(Next());
       *ok = false;
