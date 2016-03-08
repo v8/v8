@@ -2814,8 +2814,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   Handle<Object> result;
   LookupIterator it(receiver, name, holder);
   // TODO(conradw): Investigate strong mode semantics for this.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::GetProperty(&it));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
 
   if (it.IsFound()) return *result;
 

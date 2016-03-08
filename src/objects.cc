@@ -616,10 +616,11 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
                     FixedArray);
   }
   // 4. Let len be ? ToLength(? Get(obj, "length")).
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
   Handle<Object> raw_length_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, raw_length_obj,
-      JSReceiver::GetProperty(object, isolate->factory()->length_string()),
+      JSReceiver::GetProperty(receiver, isolate->factory()->length_string()),
       FixedArray);
   Handle<Object> raw_length_number;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
@@ -640,8 +641,9 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
     // 7a. Let indexName be ToString(index).
     // 7b. Let next be ? Get(obj, indexName).
     Handle<Object> next;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, next, Object::GetElement(isolate, object, index), FixedArray);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, next,
+                               JSReceiver::GetElement(isolate, receiver, index),
+                               FixedArray);
     switch (element_types) {
       case ElementTypes::kAll:
         // Nothing to do.
@@ -1555,8 +1557,8 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
     if (constructor->IsJSReceiver()) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, constructor,
-          Object::GetProperty(constructor,
-                              isolate->factory()->species_symbol()),
+          JSReceiver::GetProperty(Handle<JSReceiver>::cast(constructor),
+                                  isolate->factory()->species_symbol()),
           Object);
       if (constructor->IsNull()) {
         constructor = isolate->factory()->undefined_value();
@@ -7170,7 +7172,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
   if (!is_accessor_pair) {
     // 5a. Set D.[[Value]] to the value of X's [[Value]] attribute.
     Handle<Object> value;
-    if (!JSObject::GetProperty(it).ToHandle(&value)) {
+    if (!Object::GetProperty(it).ToHandle(&value)) {
       DCHECK(isolate->has_pending_exception());
       return Nothing<bool>();
     }
@@ -8037,7 +8039,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         DCHECK(names->get(i)->IsName());
         Handle<Name> name(Name::cast(names->get(i)));
         Handle<Object> value =
-            Object::GetProperty(copy, name).ToHandleChecked();
+            JSObject::GetProperty(copy, name).ToHandleChecked();
         if (value->IsJSObject()) {
           Handle<JSObject> result;
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -8818,9 +8820,9 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
               JSObject::FastPropertyAt(object, representation, field_index);
         }
       } else {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
-                                         Object::GetProperty(object, next_key),
-                                         Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, prop_value, JSReceiver::GetProperty(object, next_key),
+            Nothing<bool>());
         stable = object->map() == *map;
       }
     } else {
@@ -8992,7 +8994,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
     preexists = it->IsFound();
     if (preexists && (it->state() == LookupIterator::DATA ||
                       it->GetAccessors()->IsAccessorInfo())) {
-      old_value = GetProperty(it).ToHandleChecked();
+      old_value = Object::GetProperty(it).ToHandleChecked();
     }
   }
 
@@ -13464,8 +13466,9 @@ Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
       isolate->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("nameOrSourceURL"));
   Handle<JSObject> script_wrapper = Script::GetWrapper(script);
-  Handle<Object> property = Object::GetProperty(
-      script_wrapper, name_or_source_url_key).ToHandleChecked();
+  Handle<Object> property =
+      JSReceiver::GetProperty(script_wrapper, name_or_source_url_key)
+          .ToHandleChecked();
   DCHECK(property->IsJSFunction());
   Handle<Object> result;
   // Do not check against pending exception, since this function may be called
@@ -16697,7 +16700,8 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
     Handle<Object> to_string_tag;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, to_string_tag,
-        GetProperty(receiver, isolate->factory()->to_string_tag_symbol()),
+        JSReceiver::GetProperty(receiver,
+                                isolate->factory()->to_string_tag_symbol()),
         String);
     if (to_string_tag->IsString()) {
       tag = Handle<String>::cast(to_string_tag);

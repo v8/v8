@@ -302,8 +302,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   if (name->AsArrayIndex(&index)) {
     Handle<FixedArray> details = isolate->factory()->NewFixedArray(2);
     Handle<Object> element_or_char;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_or_char,
-                                       Object::GetElement(isolate, obj, index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, element_or_char, JSReceiver::GetElement(isolate, obj, index));
     details->set(0, *element_or_char);
     details->set(1, PropertyDetails::Empty().AsSmi());
     return *isolate->factory()->NewJSArrayWithElements(details);
@@ -418,8 +418,8 @@ RUNTIME_FUNCTION(Runtime_DebugIndexedInterceptorElementValue) {
   RUNTIME_ASSERT(obj->HasIndexedInterceptor());
   CONVERT_NUMBER_CHECKED(uint32_t, index, Uint32, args[1]);
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::GetElement(isolate, obj, index));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSReceiver::GetElement(isolate, obj, index));
   return *result;
 }
 

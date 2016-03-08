@@ -1058,7 +1058,8 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
   Handle<Object> prototype;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, prototype,
-      Object::GetProperty(callable, isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->prototype_string()));
   if (!prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,

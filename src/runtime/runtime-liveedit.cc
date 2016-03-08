@@ -214,12 +214,14 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
     Handle<Object> old_element;
     Handle<Object> new_element;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, old_element, Object::GetElement(isolate, old_shared_array, i));
+        isolate, old_element,
+        JSReceiver::GetElement(isolate, old_shared_array, i));
     RUNTIME_ASSERT(
         old_element->IsJSValue() &&
         Handle<JSValue>::cast(old_element)->value()->IsSharedFunctionInfo());
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, new_element, Object::GetElement(isolate, new_shared_array, i));
+        isolate, new_element,
+        JSReceiver::GetElement(isolate, new_shared_array, i));
     RUNTIME_ASSERT(
         new_element->IsUndefined() ||
         (new_element->IsJSValue() &&

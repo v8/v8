@@ -1264,8 +1264,6 @@ class Object {
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Isolate* isolate, Handle<Object> object, const char* key);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
       Handle<Object> object, Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
@@ -1817,6 +1815,13 @@ class JSReceiver: public HeapObject {
 
   MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(
       Handle<JSReceiver> object, Handle<Name> name);
+
+  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
+      Isolate* isolate, Handle<JSReceiver> receiver, const char* key);
+  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
+      Handle<JSReceiver> receiver, Handle<Name> name);
+  MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+      Isolate* isolate, Handle<JSReceiver> receiver, uint32_t index);
 
   // Implementation of ES6 [[Delete]]
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(

@@ -454,7 +454,7 @@ BUILTIN(ArrayPop) {
     // Use Slow Lookup otherwise
     uint32_t new_length = len - 1;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, Object::GetElement(isolate, array, new_length));
+        isolate, result, JSReceiver::GetElement(isolate, array, new_length));
     JSArray::SetLength(array, new_length);
   }
   return *result;
@@ -1016,9 +1016,9 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
     if (!maybe.IsJust()) return false;
     if (maybe.FromJust()) {
       Handle<Object> element_value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_value,
-                                       Object::GetElement(isolate, receiver, i),
-                                       false);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, element_value, JSReceiver::GetElement(isolate, receiver, i),
+          false);
       if (!visitor->visit(i, element_value)) return false;
     }
   }
@@ -1087,8 +1087,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             // Call GetElement on array, not its prototype, or getters won't
             // have the correct receiver.
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                isolate, element_value, Object::GetElement(isolate, array, j),
-                false);
+                isolate, element_value,
+                JSReceiver::GetElement(isolate, array, j), false);
             if (!visitor->visit(j, element_value)) return false;
           }
         }
@@ -1124,8 +1124,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             // have the correct receiver.
             Handle<Object> element_value;
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                isolate, element_value, Object::GetElement(isolate, array, j),
-                false);
+                isolate, element_value,
+                JSReceiver::GetElement(isolate, array, j), false);
             if (!visitor->visit(j, element_value)) return false;
           }
         }
@@ -1155,7 +1155,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         uint32_t index = indices[j];
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, element, Object::GetElement(isolate, array, index), false);
+            isolate, element, JSReceiver::GetElement(isolate, array, index),
+            false);
         if (!visitor->visit(index, element)) return false;
         // Skip to next different index (i.e., omit duplicates).
         do {
@@ -1170,7 +1171,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         HandleScope loop_scope(isolate);
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, element, Object::GetElement(isolate, array, index), false);
+            isolate, element, JSReceiver::GetElement(isolate, array, index),
+            false);
         if (!visitor->visit(index, element)) return false;
       }
       break;
@@ -1534,9 +1536,9 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
           prop_value = JSObject::FastPropertyAt(from, representation, index);
         }
       } else {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
-                                         Object::GetProperty(from, next_key),
-                                         Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, prop_value, JSReceiver::GetProperty(from, next_key),
+            Nothing<bool>());
         stable = from->map() == *map;
       }
     } else {
@@ -3738,7 +3740,8 @@ BUILTIN(FunctionHasInstance) {
   Handle<Object> prototype;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, prototype,
-      Object::GetProperty(callable, isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->prototype_string()));
   if (!prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
@@ -3781,7 +3784,7 @@ BUILTIN(ObjectProtoToString) {
   Handle<Object> object = args.at<Object>(0);
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::ObjectProtoToString(isolate, object));
+      isolate, result, Object::ObjectProtoToString(isolate, object));
   return *result;
 }
 

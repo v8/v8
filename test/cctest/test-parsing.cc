@@ -1599,9 +1599,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     CHECK(isolate->has_pending_exception());
     i::Handle<i::JSObject> exception_handle(
         i::JSObject::cast(isolate->pending_exception()));
-    i::Handle<i::String> message_string =
-        i::Handle<i::String>::cast(i::Object::GetProperty(
-            isolate, exception_handle, "message").ToHandleChecked());
+    i::Handle<i::String> message_string = i::Handle<i::String>::cast(
+        i::JSReceiver::GetProperty(isolate, exception_handle, "message")
+            .ToHandleChecked());
 
     if (result == kSuccess) {
       v8::base::OS::Print(
@@ -5742,9 +5742,9 @@ TEST(BasicImportExportParsing) {
       if (!parser.Parse(&info)) {
         i::Handle<i::JSObject> exception_handle(
             i::JSObject::cast(isolate->pending_exception()));
-        i::Handle<i::String> message_string =
-            i::Handle<i::String>::cast(i::Object::GetProperty(
-                  isolate, exception_handle, "message").ToHandleChecked());
+        i::Handle<i::String> message_string = i::Handle<i::String>::cast(
+            i::JSReceiver::GetProperty(isolate, exception_handle, "message")
+                .ToHandleChecked());
 
         v8::base::OS::Print(
             "Parser failed on:\n"

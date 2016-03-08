@@ -710,20 +710,18 @@ class FunctionInfoListener {
 
   void FunctionDone() {
     HandleScope scope(isolate());
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     current_parent_index_ = info.GetParentIndex();
   }
 
   // Saves only function code, because for a script function we
   // may never create a SharedFunctionInfo object.
   void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     info.SetFunctionCode(function_code,
                          Handle<HeapObject>(isolate()->heap()->null_value()));
   }
@@ -735,10 +733,9 @@ class FunctionInfoListener {
     if (!shared->IsSharedFunctionInfo()) {
       return;
     }
-    FunctionInfoWrapper info =
-        FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
+             .ToHandleChecked());
     info.SetFunctionCode(Handle<Code>(shared->code()),
                          Handle<HeapObject>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
@@ -1185,21 +1182,22 @@ static int TranslatePosition(int original_position,
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
     HandleScope scope(isolate);
-    Handle<Object> element = Object::GetElement(
-        isolate, position_change_array, i).ToHandleChecked();
+    Handle<Object> element =
+        JSReceiver::GetElement(isolate, position_change_array, i)
+            .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_start = Handle<Smi>::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
-    element = Object::GetElement(
-        isolate, position_change_array, i + 1).ToHandleChecked();
+    element = JSReceiver::GetElement(isolate, position_change_array, i + 1)
+                  .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_end = Handle<Smi>::cast(element)->value();
     // Position mustn't be inside a chunk.
     DCHECK(original_position >= chunk_end);
-    element = Object::GetElement(
-        isolate, position_change_array, i + 2).ToHandleChecked();
+    element = JSReceiver::GetElement(isolate, position_change_array, i + 2)
+                  .ToHandleChecked();
     CHECK(element->IsSmi());
     int chunk_changed_end = Handle<Smi>::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
@@ -1448,7 +1446,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   for (int i = 0; i < len; i++) {
     HandleScope scope(isolate);
     Handle<Object> element =
-        Object::GetElement(isolate, shared_info_array, i).ToHandleChecked();
+        JSReceiver::GetElement(isolate, shared_info_array, i).ToHandleChecked();
     Handle<JSValue> jsvalue = Handle<JSValue>::cast(element);
     Handle<SharedFunctionInfo> shared =
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
@@ -1661,14 +1659,16 @@ class MultipleFunctionTarget {
     for (int i = 0; i < len; i++) {
       HandleScope scope(isolate);
       Handle<Object> old_element =
-          Object::GetElement(isolate, old_shared_array_, i).ToHandleChecked();
+          JSReceiver::GetElement(isolate, old_shared_array_, i)
+              .ToHandleChecked();
       if (!old_shared.is_identical_to(UnwrapSharedFunctionInfoFromJSValue(
               Handle<JSValue>::cast(old_element)))) {
         continue;
       }
 
       Handle<Object> new_element =
-          Object::GetElement(isolate, new_shared_array_, i).ToHandleChecked();
+          JSReceiver::GetElement(isolate, new_shared_array_, i)
+              .ToHandleChecked();
       if (new_element->IsUndefined()) return false;
       Handle<SharedFunctionInfo> new_shared =
           UnwrapSharedFunctionInfoFromJSValue(
@@ -1821,7 +1821,7 @@ static const char* DropActivationsInActiveThread(
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
     Handle<Object> obj =
-        Object::GetElement(isolate, result, i).ToHandleChecked();
+        JSReceiver::GetElement(isolate, result, i).ToHandleChecked();
     if (*obj == Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);

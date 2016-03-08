@@ -732,9 +732,10 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
                                         Handle<Object> args[]) {
   PostponeInterruptsScope no_interrupts(isolate_);
   AssertDebugContext();
-  Handle<Object> holder = isolate_->natives_utils_object();
+  Handle<JSReceiver> holder =
+      Handle<JSReceiver>::cast(isolate_->natives_utils_object());
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      Object::GetProperty(isolate_, holder, name).ToHandleChecked());
+      JSReceiver::GetProperty(isolate_, holder, name).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
   return Execution::TryCall(isolate_, fun, undefined, argc, args);
 }
@@ -2098,16 +2099,19 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
   // DebugCommandProcessor goes here.
   bool running = auto_continue;
 
-  Handle<Object> cmd_processor_ctor = Object::GetProperty(
-      isolate_, exec_state, "debugCommandProcessor").ToHandleChecked();
+  Handle<Object> cmd_processor_ctor =
+      JSReceiver::GetProperty(isolate_, exec_state, "debugCommandProcessor")
+          .ToHandleChecked();
   Handle<Object> ctor_args[] = { isolate_->factory()->ToBoolean(running) };
-  Handle<Object> cmd_processor = Execution::Call(
-      isolate_, cmd_processor_ctor, exec_state, 1, ctor_args).ToHandleChecked();
+  Handle<JSReceiver> cmd_processor = Handle<JSReceiver>::cast(
+      Execution::Call(isolate_, cmd_processor_ctor, exec_state, 1, ctor_args)
+          .ToHandleChecked());
   Handle<JSFunction> process_debug_request = Handle<JSFunction>::cast(
-      Object::GetProperty(
-          isolate_, cmd_processor, "processDebugRequest").ToHandleChecked());
-  Handle<Object> is_running = Object::GetProperty(
-      isolate_, cmd_processor, "isRunning").ToHandleChecked();
+      JSReceiver::GetProperty(isolate_, cmd_processor, "processDebugRequest")
+          .ToHandleChecked());
+  Handle<Object> is_running =
+      JSReceiver::GetProperty(isolate_, cmd_processor, "isRunning")
+          .ToHandleChecked();
 
   // Process requests from the debugger.
   do {
@@ -2500,8 +2504,9 @@ v8::Local<v8::String> MessageImpl::GetJSON() const {
 
   if (IsEvent()) {
     // Call toJSONProtocol on the debug event object.
-    Handle<Object> fun = Object::GetProperty(
-        isolate, event_data_, "toJSONProtocol").ToHandleChecked();
+    Handle<Object> fun =
+        JSReceiver::GetProperty(isolate, event_data_, "toJSONProtocol")
+            .ToHandleChecked();
     if (!fun->IsJSFunction()) {
       return v8::Local<v8::String>();
     }

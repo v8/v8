@@ -2226,7 +2226,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
   if (!maybe.FromJust()) return v8::Local<Value>();
   Local<Value> result;
   has_pending_exception =
-      !ToLocal<Value>(i::Object::GetProperty(obj, name), &result);
+      !ToLocal<Value>(i::JSReceiver::GetProperty(obj, name), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -2457,7 +2457,7 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto self = Utils::OpenHandle(this);
-  auto obj = i::Object::GetElement(isolate, self, index).ToHandleChecked();
+  auto obj = i::JSReceiver::GetElement(isolate, self, index).ToHandleChecked();
   auto jsobj = i::Handle<i::JSObject>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(jsobj));
 }
@@ -2497,7 +2497,7 @@ static int getIntProperty(const StackFrame* f, const char* propertyName,
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
-      i::Object::GetProperty(isolate, self, propertyName).ToHandleChecked();
+      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
   return obj->IsSmi() ? i::Smi::cast(*obj)->value() : defaultValue;
 }
 
@@ -2524,7 +2524,7 @@ static Local<String> getStringProperty(const StackFrame* f,
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
-      i::Object::GetProperty(isolate, self, propertyName).ToHandleChecked();
+      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
   return obj->IsString()
              ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
              : Local<String>();
@@ -2552,7 +2552,7 @@ static bool getBoolProperty(const StackFrame* f, const char* propertyName) {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(f);
   i::Handle<i::Object> obj =
-      i::Object::GetProperty(isolate, self, propertyName).ToHandleChecked();
+      i::JSReceiver::GetProperty(isolate, self, propertyName).ToHandleChecked();
   return obj->IsTrue();
 }
 
@@ -3656,7 +3656,7 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !i::Object::GetElement(isolate, self, index).ToHandle(&result);
+      !i::JSReceiver::GetElement(isolate, self, index).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
@@ -7977,7 +7977,7 @@ MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
   RETURN_ON_FAILED_EXECUTION(Value);
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
   auto name = isolate->factory()->NewStringFromStaticChars("MakeMirror");
-  auto fun_obj = i::Object::GetProperty(debug, name).ToHandleChecked();
+  auto fun_obj = i::JSReceiver::GetProperty(debug, name).ToHandleChecked();
   auto v8_fun = Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(fun_obj));
   const int kArgc = 1;
   v8::Local<v8::Value> argv[kArgc] = {obj};

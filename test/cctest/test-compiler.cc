@@ -39,8 +39,8 @@ using namespace v8::internal;
 
 static Handle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
-  return Object::GetProperty(
-      isolate, isolate->global_object(), name).ToHandleChecked();
+  return JSReceiver::GetProperty(isolate, isolate->global_object(), name)
+      .ToHandleChecked();
 }
 
 
@@ -227,10 +227,9 @@ TEST(C2JSFrames) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun0, global, 0, NULL).Check();
 
-  Handle<String> foo_string =
-      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("foo"));
-  Handle<Object> fun1 = Object::GetProperty(
-      isolate->global_object(), foo_string).ToHandleChecked();
+  Handle<Object> fun1 =
+      JSReceiver::GetProperty(isolate, isolate->global_object(), "foo")
+          .ToHandleChecked();
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = {isolate->factory()->InternalizeOneByteString(

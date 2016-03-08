@@ -6004,7 +6004,7 @@ TEST(PreprocessStackTrace) {
   Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
   Handle<Name> key = isolate->factory()->stack_trace_symbol();
   Handle<Object> stack_trace =
-      JSObject::GetProperty(exception, key).ToHandleChecked();
+      Object::GetProperty(exception, key).ToHandleChecked();
   Handle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(code->IsCode());
