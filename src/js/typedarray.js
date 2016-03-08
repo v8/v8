@@ -200,8 +200,7 @@ function NAMEConstructByLength(obj, length) {
   }
 }
 
-function NAMEConstructByArrayLike(obj, arrayLike) {
-  var length = arrayLike.length;
+function NAMEConstructByArrayLike(obj, arrayLike, length) {
   var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
@@ -241,7 +240,7 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   for (var value of newIterable) {
     list.push(value);
   }
-  NAMEConstructByArrayLike(obj, list);
+  NAMEConstructByArrayLike(obj, list, list.length);
 }
 
 // ES#sec-typedarray-typedarray TypedArray ( typedArray )
@@ -251,20 +250,12 @@ function NAMEConstructByTypedArray(obj, typedArray) {
   var length = %_TypedArrayGetLength(typedArray);
   var byteLength = %_ArrayBufferViewGetByteLength(typedArray);
   var newByteLength = length * ELEMENT_SIZE;
+  NAMEConstructByArrayLike(obj, typedArray, length);
   var bufferConstructor = SpeciesConstructor(srcData, GlobalArrayBuffer);
-  var data = new GlobalArrayBuffer(newByteLength);
   var prototype = bufferConstructor.prototype;
   // TODO(littledan): Use the right prototype based on bufferConstructor's realm
   if (IS_RECEIVER(prototype) && prototype !== GlobalArrayBufferPrototype) {
-    %InternalSetPrototype(data, prototype);
-  }
-  %_TypedArrayInitialize(obj, ARRAY_ID, data, 0, newByteLength, true);
-  // Note: The separate CloneArrayBuffer path in the spec ensures
-  // that NaNs are not canonicalized, but because V8 does not
-  // canonicalize NaNs, we do not have to do anything different.
-  // TODO(littledan): Make a fastpath based on memcpy
-  for (var i = 0; i < length; i++) {
-    obj[i] = typedArray[i];
+    %InternalSetPrototype(%TypedArrayGetBuffer(obj), prototype);
   }
 }
 
@@ -279,8 +270,8 @@ function NAMEConstructor(arg1, arg2, arg3) {
       NAMEConstructByTypedArray(this, arg1);
     } else {
       var iteratorFn = arg1[iteratorSymbol];
-      if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
-        NAMEConstructByArrayLike(this, arg1);
+      if (IS_UNDEFINED(iteratorFn)) {
+        NAMEConstructByArrayLike(this, arg1, arg1.length);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
       }
