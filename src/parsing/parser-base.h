@@ -1820,7 +1820,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   typename Traits::Type::PropertyList properties =
       this->NewPropertyList(4, zone_);
   int number_of_boilerplate_properties = 0;
-  bool has_function = false;
   bool has_computed_names = false;
   ObjectLiteralChecker checker(this);
 
@@ -1841,12 +1840,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     if (is_computed_name) {
       has_computed_names = true;
     }
-
-    // Mark top-level object literals that contain function literals and
-    // pretenure the literal so it can be added as a constant function
-    // property. (Parser only.)
-    this->CheckFunctionLiteralInsideTopLevelObjectLiteral(scope_, property,
-                                                          &has_function);
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if (!has_computed_names && this->IsBoilerplateProperty(property)) {
@@ -1873,7 +1866,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   return factory()->NewObjectLiteral(properties,
                                      literal_index,
                                      number_of_boilerplate_properties,
-                                     has_function,
                                      pos);
 }
 

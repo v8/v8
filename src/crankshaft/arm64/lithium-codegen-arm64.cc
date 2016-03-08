@@ -5406,14 +5406,6 @@ void LCodeGen::DoThisFunction(LThisFunction* instr) {
 }
 
 
-void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
-  DCHECK(ToRegister(instr->value()).Is(x0));
-  DCHECK(ToRegister(instr->result()).Is(x0));
-  __ Push(x0);
-  CallRuntime(Runtime::kToFastProperties, 1, instr);
-}
-
-
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object = ToRegister(instr->object());
 

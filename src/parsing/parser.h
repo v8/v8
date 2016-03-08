@@ -404,16 +404,6 @@ class ParserTraits {
     fni->AddFunction(func_to_infer);
   }
 
-  static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      Scope* scope, ObjectLiteralProperty* property, bool* has_function) {
-    Expression* value = property->value();
-    if (scope->DeclarationScope()->is_script_scope() &&
-        value->AsFunctionLiteral() != NULL) {
-      *has_function = true;
-      value->AsFunctionLiteral()->set_pretenure();
-    }
-  }
-
   // If we assign a function literal to a property we pretenure the
   // literal so it can be added as a constant function property.
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,

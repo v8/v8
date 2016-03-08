@@ -454,7 +454,6 @@ class PreParserFactory {
   PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
                                        int literal_index,
                                        int boilerplate_properties,
-                                       bool has_function,
                                        int pos) {
     return PreParserExpression::ObjectLiteral();
   }
@@ -680,9 +679,6 @@ class PreParserTraits {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
-
-  static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      Scope* scope, PreParserExpression property, bool* has_function) {}
 
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}

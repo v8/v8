@@ -1900,13 +1900,6 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  // Transform literals that contain functions to fast properties.
-  literal = environment()->Top();  // Reload from operand stack.
-  if (expr->has_function()) {
-    const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties);
-    NewNode(op, literal);
-  }
-
   ast_context()->ProduceValue(environment()->Pop());
 }
 

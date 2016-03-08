@@ -24,7 +24,7 @@ bytecodes: [
   B(Ldar), R(new_target),
   B(StaContextSlot), R(context), U8(6),
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(9),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
   B(Star), R(2),
   B(ToObject),
   B(Star), R(3),

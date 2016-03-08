@@ -2204,12 +2204,6 @@ LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   return DefineAsRegister(new (zone()) LAccessArgumentsAt(args, length, index));
 }
 
-LInstruction* LChunkBuilder::DoToFastProperties(HToFastProperties* instr) {
-  LOperand* object = UseFixed(instr->value(), r2);
-  LToFastProperties* result = new (zone()) LToFastProperties(object);
-  return MarkAsCall(DefineFixed(result, r2), instr);
-}
-
 LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* value = UseFixed(instr->value(), r5);

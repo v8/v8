@@ -5179,13 +5179,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 }
 
 
-void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
-  DCHECK(ToRegister(instr->value()).is(r0));
-  __ push(r0);
-  CallRuntime(Runtime::kToFastProperties, 1, instr);
-}
-
-
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->value()).is(r3));
   DCHECK(ToRegister(instr->result()).is(r0));

@@ -895,8 +895,8 @@
 
 ['ignition == True and arch == arm', {
   # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [PASS, ['mode == debug', SKIP]],
-  'compiler/osr-two': [PASS, ['mode == debug', SKIP]],
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
 }],  # ignition == True and (arch == arm or arch == arm64)
 

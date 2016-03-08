@@ -5990,17 +5990,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  if (expr->has_function()) {
-    // Return the result of the transformation to fast properties
-    // instead of the original since this operation changes the map
-    // of the object. This makes sure that the original object won't
-    // be used by other optimized code before it is transformed
-    // (e.g. because of code motion).
-    HToFastProperties* result = Add<HToFastProperties>(Pop());
-    return ast_context()->ReturnValue(result);
-  } else {
-    return ast_context()->ReturnValue(Pop());
-  }
+  return ast_context()->ReturnValue(Pop());
 }
 
 

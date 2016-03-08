@@ -155,7 +155,6 @@ class LCodeGen;
   V(SubS)                                    \
   V(TaggedToI)                               \
   V(ThisFunction)                            \
-  V(ToFastProperties)                        \
   V(TransitionElementsKind)                  \
   V(TrapAllocationMemento)                   \
   V(TruncateDoubleToIntOrSmi)                \
@@ -2690,19 +2689,6 @@ class LThisFunction final : public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
   DECLARE_HYDROGEN_ACCESSOR(ThisFunction)
-};
-
-
-class LToFastProperties final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LToFastProperties(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to-fast-properties")
-  DECLARE_HYDROGEN_ACCESSOR(ToFastProperties)
 };
 
 

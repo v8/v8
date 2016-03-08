@@ -144,7 +144,6 @@ class LChunkBuilder;
   V(StringCompareAndBranch)                   \
   V(Sub)                                      \
   V(ThisFunction)                             \
-  V(ToFastProperties)                         \
   V(TransitionElementsKind)                   \
   V(TrapAllocationMemento)                    \
   V(Typeof)                                   \
@@ -7315,35 +7314,6 @@ class HMaybeGrowElements final : public HTemplateInstruction<5> {
 
   bool is_js_array_;
   ElementsKind kind_;
-};
-
-
-class HToFastProperties final : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HToFastProperties, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties)
-
- private:
-  explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kNewSpacePromotion);
-
-    // This instruction is not marked as kChangesMaps, but does
-    // change the map of the input operand. Use it only when creating
-    // object literals via a runtime call.
-    DCHECK(value->IsCallRuntime());
-#ifdef DEBUG
-    const Runtime::Function* function = HCallRuntime::cast(value)->function();
-    DCHECK(function->function_id == Runtime::kCreateObjectLiteral);
-#endif
-  }
-
-  bool IsDeletable() const override { return true; }
 };
 
 

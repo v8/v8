@@ -1594,13 +1594,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  if (expr->has_function()) {
-    DCHECK(result_saved);
-    __ ld(a0, MemOperand(sp));
-    __ push(a0);
-    __ CallRuntime(Runtime::kToFastProperties);
-  }
-
   if (result_saved) {
     context()->PlugTOS();
   } else {

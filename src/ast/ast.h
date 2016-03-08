@@ -1450,7 +1450,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   ZoneList<Property*>* properties() const { return properties_; }
   bool fast_elements() const { return fast_elements_; }
   bool may_store_doubles() const { return may_store_doubles_; }
-  bool has_function() const { return has_function_; }
   bool has_elements() const { return has_elements_; }
   bool has_shallow_properties() const {
     return depth() == 1 && !has_elements() && !may_store_doubles();
@@ -1470,7 +1469,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
-    flags |= has_function() ? kHasFunction : kNoFlags;
     if (has_shallow_properties()) {
       flags |= kShallowProperties;
     }
@@ -1483,9 +1481,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   enum Flags {
     kNoFlags = 0,
     kFastElements = 1,
-    kHasFunction = 1 << 1,
-    kShallowProperties = 1 << 2,
-    kDisableMementos = 1 << 3
+    kShallowProperties = 1 << 1,
+    kDisableMementos = 1 << 2
   };
 
   struct Accessors: public ZoneObject {
@@ -1517,14 +1514,13 @@ class ObjectLiteral final : public MaterializedLiteral {
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
-                int boilerplate_properties, bool has_function, int pos)
+                int boilerplate_properties, int pos)
       : MaterializedLiteral(zone, literal_index, pos),
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
         has_elements_(false),
-        may_store_doubles_(false),
-        has_function_(has_function) {}
+        may_store_doubles_(false) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
@@ -1535,7 +1531,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   bool fast_elements_;
   bool has_elements_;
   bool may_store_doubles_;
-  bool has_function_;
   FeedbackVectorSlot slot_;
 };
 
@@ -3212,11 +3207,9 @@ class AstNodeFactory final BASE_EMBEDDED {
       ZoneList<ObjectLiteral::Property*>* properties,
       int literal_index,
       int boilerplate_properties,
-      bool has_function,
       int pos) {
-    return new (local_zone_)
-        ObjectLiteral(local_zone_, properties, literal_index,
-                      boilerplate_properties, has_function, pos);
+    return new (local_zone_) ObjectLiteral(
+        local_zone_, properties, literal_index, boilerplate_properties, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(

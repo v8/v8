@@ -873,7 +873,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
     case HValue::kSub:
-    case HValue::kToFastProperties:
     case HValue::kTransitionElementsKind:
     case HValue::kTrapAllocationMemento:
     case HValue::kTypeof:

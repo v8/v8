@@ -1704,11 +1704,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  // Transform literals that contain functions to fast properties.
-  if (expr->has_function()) {
-    builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
-  }
-
   execution_result()->SetResultInRegister(literal);
 }
 

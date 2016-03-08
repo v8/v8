@@ -5476,13 +5476,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
 }
 
 
-void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
-  DCHECK(ToRegister(instr->value()).is(eax));
-  __ push(eax);
-  CallRuntime(Runtime::kToFastProperties, 1, instr);
-}
-
-
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
   DCHECK(ToRegister(instr->value()).is(ebx));

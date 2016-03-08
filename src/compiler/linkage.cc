@@ -166,7 +166,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kStringLessThanOrEqual:
     case Runtime::kStringGreaterThan:
     case Runtime::kStringGreaterThanOrEqual:
-    case Runtime::kToFastProperties:  // TODO(jarin): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return 0;
