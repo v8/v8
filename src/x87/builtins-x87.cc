@@ -1907,16 +1907,18 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   }
 
   // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ mov(scratch2, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ cmp(Operand(scratch2, StandardFrameConstants::kContextOffset),
          Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 
-  // Drop arguments adaptor frame and load arguments count.
+  // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(ebp, scratch2);
-  __ mov(scratch1, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(scratch1);
+  __ mov(caller_args_count_reg,
+         Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiUntag(caller_args_count_reg);
   __ jmp(&formal_parameter_count_loaded, Label::kNear);
 
   __ bind(&no_arguments_adaptor);
@@ -1925,57 +1927,15 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ mov(scratch1,
          FieldOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
   __ mov(
-      scratch1,
+      caller_args_count_reg,
       FieldOperand(scratch1, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
 
   __ bind(&formal_parameter_count_loaded);
 
-  // Calculate the destination address where we will put the return address
-  // after we drop current frame.
-  Register new_sp_reg = scratch2;
-  __ sub(scratch1, args_reg);
-  __ lea(new_sp_reg, Operand(ebp, scratch1, times_pointer_size,
-                             StandardFrameConstants::kCallerPCOffset));
-
-  if (FLAG_debug_code) {
-    __ cmp(esp, new_sp_reg);
-    __ Check(below, kStackAccessBelowStackPointer);
-  }
-
-  // Copy receiver and return address as well.
-  Register count_reg = scratch1;
-  __ lea(count_reg, Operand(args_reg, 2));
-
-  // Copy return address from caller's frame to current frame's return address
-  // to avoid its trashing and let the following loop copy it to the right
-  // place.
-  Register tmp_reg = scratch3;
-  __ mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-  __ mov(Operand(esp, 0), tmp_reg);
-
-  // Restore caller's frame pointer now as it could be overwritten by
-  // the copying loop.
-  __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-
-  Operand src(esp, count_reg, times_pointer_size, 0);
-  Operand dst(new_sp_reg, count_reg, times_pointer_size, 0);
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-  Label loop, entry;
-  __ jmp(&entry, Label::kNear);
-  __ bind(&loop);
-  __ dec(count_reg);
-  __ mov(tmp_reg, src);
-  __ mov(dst, tmp_reg);
-  __ bind(&entry);
-  __ cmp(count_reg, Immediate(0));
-  __ j(not_equal, &loop, Label::kNear);
-
-  // Leave current frame.
-  __ mov(esp, new_sp_reg);
-
+  ParameterCount callee_args_count(args_reg);
+  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
+                        scratch3, ReturnAddressState::kOnStack);
   __ bind(&done);
 }
 }  // namespace

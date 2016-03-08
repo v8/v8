@@ -44,6 +44,8 @@ enum PointersToHereCheck {
 
 enum RegisterValueType { REGISTER_VALUE_IS_SMI, REGISTER_VALUE_IS_INT32 };
 
+enum class ReturnAddressState { kOnStack, kNotOnStack };
+
 #ifdef DEBUG
 bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
                 Register reg4 = no_reg, Register reg5 = no_reg,
@@ -317,6 +319,16 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // |ra_state| defines whether return address is already pushed to stack or
+  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1, ReturnAddressState ra_state);
 
   // Invoke the JavaScript function code by either calling or jumping.
 
@@ -756,12 +768,6 @@ class MacroAssembler: public Assembler {
 
   void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
   void Popcnt(Register dst, const Operand& src);
-
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    call(self, RelocInfo::CODE_TARGET);
-  }
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
