@@ -8778,10 +8778,93 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   return keys;
 }
 
+MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
+    Isolate* isolate, Handle<JSReceiver> receiver, bool get_entries,
+    Handle<FixedArray>* result) {
+  Handle<Map> map(JSReceiver::cast(*receiver)->map(), isolate);
+
+  if (!map->IsJSObjectMap()) return Just(false);
+  if (!map->OnlyHasSimpleProperties()) return Just(false);
+
+  Handle<JSObject> object(JSObject::cast(*receiver));
+  if (object->elements() != isolate->heap()->empty_fixed_array()) {
+    return Just(false);
+  }
+
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  Handle<FixedArray> values_or_entries =
+      isolate->factory()->NewFixedArray(number_of_own_descriptors);
+  int count = 0;
+
+  bool stable = true;
+
+  for (int index = 0; index < number_of_own_descriptors; index++) {
+    Handle<Name> next_key(descriptors->GetKey(index), isolate);
+    if (!next_key->IsString()) continue;
+    Handle<Object> prop_value;
+
+    // Directly decode from the descriptor array if |from| did not change shape.
+    if (stable) {
+      PropertyDetails details = descriptors->GetDetails(index);
+      if (!details.IsEnumerable()) continue;
+      if (details.kind() == kData) {
+        if (details.location() == kDescriptor) {
+          prop_value = handle(descriptors->GetValue(index), isolate);
+        } else {
+          Representation representation = details.representation();
+          FieldIndex field_index = FieldIndex::ForDescriptor(*map, index);
+          prop_value =
+              JSObject::FastPropertyAt(object, representation, field_index);
+        }
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
+                                         Object::GetProperty(object, next_key),
+                                         Nothing<bool>());
+        stable = object->map() == *map;
+      }
+    } else {
+      // If the map did change, do a slower lookup. We are still guaranteed that
+      // the object has a simple shape, and that the key is a name.
+      LookupIterator it(object, next_key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      if (!it.IsFound()) continue;
+      DCHECK(it.state() == LookupIterator::DATA ||
+             it.state() == LookupIterator::ACCESSOR);
+      if (!it.IsEnumerable()) continue;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+    }
+
+    if (get_entries) {
+      Handle<FixedArray> entry_storage =
+          isolate->factory()->NewUninitializedFixedArray(2);
+      entry_storage->set(0, *next_key);
+      entry_storage->set(1, *prop_value);
+      prop_value = isolate->factory()->NewJSArrayWithElements(entry_storage,
+                                                              FAST_ELEMENTS, 2);
+    }
+
+    values_or_entries->set(count, *prop_value);
+    count++;
+  }
+
+  if (count < values_or_entries->length()) values_or_entries->Shrink(count);
+  *result = values_or_entries;
+  return Just(true);
+}
+
 MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
                                               Handle<JSReceiver> object,
                                               PropertyFilter filter,
                                               bool get_entries) {
+  Handle<FixedArray> values_or_entries;
+  if (filter == ENUMERABLE_STRINGS) {
+    Maybe<bool> fast_values_or_entries = FastGetOwnValuesOrEntries(
+        isolate, object, get_entries, &values_or_entries);
+    if (fast_values_or_entries.IsNothing()) return MaybeHandle<FixedArray>();
+    if (fast_values_or_entries.FromJust()) return values_or_entries;
+  }
+
   PropertyFilter key_filter =
       static_cast<PropertyFilter>(filter & ~ONLY_ENUMERABLE);
   KeyAccumulator accumulator(isolate, OWN_ONLY, key_filter);
@@ -8791,8 +8874,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   Handle<FixedArray> keys = accumulator.GetKeys(CONVERT_TO_STRING);
   DCHECK(ContainsOnlyValidKeys(keys));
 
-  Handle<FixedArray> values_or_entries =
-      isolate->factory()->NewFixedArray(keys->length());
+  values_or_entries = isolate->factory()->NewFixedArray(keys->length());
   int length = 0;
 
   for (int i = 0; i < keys->length(); ++i) {
