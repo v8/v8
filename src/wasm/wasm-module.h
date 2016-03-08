@@ -64,7 +64,7 @@ static const size_t kDeclDataSegmentSize = 13;
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
   uint32_t func_index;   // index into the function table.
-  uint16_t sig_index;    // index into the signature table.
+  uint32_t sig_index;    // index into the signature table.
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
   uint32_t code_end_offset;      // offset in the module bytes of code end.
@@ -79,14 +79,14 @@ struct WasmFunction {
 // Static representation of an imported WASM function.
 struct WasmImport {
   FunctionSig* sig;               // signature of the function.
-  uint16_t sig_index;             // index into the signature table.
+  uint32_t sig_index;             // index into the signature table.
   uint32_t module_name_offset;    // offset in module bytes of the module name.
   uint32_t function_name_offset;  // offset in module bytes of the import name.
 };
 
 // Static representation of an exported WASM function.
 struct WasmExport {
-  uint16_t func_index;   // index into the function table.
+  uint32_t func_index;   // index into the function table.
   uint32_t name_offset;  // offset in module bytes of the name to export.
 };
 

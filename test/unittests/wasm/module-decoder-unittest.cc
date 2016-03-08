@@ -681,10 +681,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
 
 
 // To make below tests for indirect calls much shorter.
-#define FUNCTION(sig_index, external)                \
-  kDeclFunctionImport, static_cast<byte>(sig_index), \
-      static_cast<byte>(sig_index >> 8)
-
+#define FUNCTION(sig_index, external) kDeclFunctionImport, SIG_INDEX(sig_index)
 
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const byte data[] = {
@@ -693,7 +690,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // func#0 ------------------------------------------------------
       kDeclFunctions, 1, FUNCTION(0, 0),
       // indirect table ----------------------------------------------
-      kDeclFunctionTable, 1, 0, 0};
+      kDeclFunctionTable, 1, U32V_1(0)};
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
@@ -719,14 +716,14 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       FUNCTION(1, 1),                     // --
       // indirect table ----------------------------------------------
       kDeclFunctionTable, 8,
-      U16_LE(0),  // --
-      U16_LE(1),  // --
-      U16_LE(2),  // --
-      U16_LE(3),  // --
-      U16_LE(0),  // --
-      U16_LE(1),  // --
-      U16_LE(2),  // --
-      U16_LE(3),  // --
+      U32V_1(0),  // --
+      U32V_1(1),  // --
+      U32V_1(2),  // --
+      U32V_1(3),  // --
+      U32V_1(0),  // --
+      U32V_1(1),  // --
+      U32V_1(2),  // --
+      U32V_1(3),  // --
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -1087,7 +1084,7 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
       VOID_VOID_SIG,
       kDeclImportTable,
       1,               // --
-      SIG_INDEX(0),    // sig index
+      U32V_1(0),       // sig index
       NAME_OFFSET(1),  // module name
       NAME_OFFSET(1)   // function name
   };

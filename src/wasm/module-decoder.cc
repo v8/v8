@@ -195,7 +195,7 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            uint16_t index = consume_u16();
+            uint16_t index = consume_u32v(&length);
             if (index >= module->functions.size()) {
               error(pc_ - 2, "invalid function index");
               break;
@@ -244,7 +244,7 @@ class ModuleDecoder : public Decoder {
             WasmImport* import = &module->import_table.back();
 
             const byte* sigpos = pc_;
-            import->sig_index = consume_u16("signature index");
+            import->sig_index = consume_u32v(&length, "signature index");
 
             if (import->sig_index >= module->signatures.size()) {
               error(sigpos, "invalid signature index");
@@ -278,7 +278,7 @@ class ModuleDecoder : public Decoder {
             WasmExport* exp = &module->export_table.back();
 
             const byte* sigpos = pc_;
-            exp->func_index = consume_u16("function index");
+            exp->func_index = consume_u32v(&length, "function index");
             if (exp->func_index >= module->functions.size()) {
               error(sigpos, sigpos,
                     "function index %u out of bounds (%d functions)",
@@ -566,7 +566,8 @@ class ModuleDecoder : public Decoder {
 
   // Parses an inline function signature.
   FunctionSig* consume_sig() {
-    byte count = consume_u8("param count");
+    int length;
+    byte count = consume_u32v(&length, "param count");
     LocalType ret = consume_local_type();
     FunctionSig::Builder builder(module_zone, ret == kAstStmt ? 0 : 1, count);
     if (ret != kAstStmt) builder.AddReturn(ret);

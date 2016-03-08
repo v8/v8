@@ -93,7 +93,7 @@ TEST_F(WasmMacroGenTest, MacroStatements) {
 }
 
 TEST_F(WasmMacroGenTest, BrTable) {
-  EXPECT_SIZE(7, WASM_BR_TABLE(WASM_ZERO, 1, BR_TARGET(1)));
+  EXPECT_SIZE(8, WASM_BR_TABLE(WASM_ZERO, 1, BR_TARGET(1)));
 }
 
 

@@ -164,7 +164,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_varint(bytes, this.signatures.length);
         for (sig of this.signatures) {
             var params = sig.length - 1;
-            emit_u8(bytes, params);
+            emit_varint(bytes, params);
             for (var j = 0; j < sig.length; j++) {
                 emit_u8(bytes, sig[j]);
             }
@@ -177,7 +177,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_u8(bytes, kDeclImportTable);
         emit_varint(bytes, this.imports.length);
         for (imp of this.imports) {
-            emit_u16(bytes, imp.sig_index);
+            emit_varint(bytes, imp.sig_index);
             emit_string(bytes, imp.module);
             if (imp.name == undefined) {
               emit_u32(bytes, 0);
@@ -228,7 +228,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
                 local_decls.push({count: l.f64_count, type: kAstF64});
               }
             }
-            emit_u8(bytes, local_decls.length);
+            emit_varint(bytes, local_decls.length);
             for (decl of local_decls) {
               emit_varint(bytes, decl.count);
               emit_u8(bytes, decl.type);
@@ -257,7 +257,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_u8(bytes, kDeclFunctionTable);
         emit_varint(bytes, this.function_table.length);
         for (index of this.function_table) {
-            emit_u16(bytes, index);
+            emit_varint(bytes, index);
         }
     }
 
@@ -267,7 +267,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_varint(bytes, exports);
         for (func of this.functions) {
             for (exp of func.exports) {
-                emit_u16(bytes, func.index);
+                emit_varint(bytes, func.index);
                 emit_string(bytes, exp);
             }
         }

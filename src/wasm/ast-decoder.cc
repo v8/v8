@@ -200,7 +200,7 @@ class WasmDecoder : public Decoder {
                 size_t block_depth) {
     // Verify table.
     for (uint32_t i = 0; i < operand.table_count + 1; i++) {
-      uint16_t target = operand.read_entry(this, i);
+      uint32_t target = operand.read_entry(this, i);
       if (target >= block_depth) {
         error(operand.table + i * 2, "improper branch in br_table");
         return false;
@@ -1107,7 +1107,7 @@ class SR_WasmDecoder : public WasmDecoder {
           SsaEnv* prev = ssa_env_;
           SsaEnv* copy = Steal(prev);
           for (uint32_t i = 0; i < operand.table_count + 1; i++) {
-            uint16_t target = operand.read_entry(this, i);
+            uint32_t target = operand.read_entry(this, i);
             SsaEnv* env = copy;
             if (build_switch) {
               ssa_env_ = env = Split(env);

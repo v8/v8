@@ -1089,7 +1089,7 @@ TEST(Run_Wasm_BrTable_br2) {
 TEST(Run_Wasm_BrTable4) {
   for (int i = 0; i < 4; i++) {
     for (int t = 0; t < 4; t++) {
-      uint16_t cases[] = {0, 1, 2, 3};
+      uint32_t cases[] = {0, 1, 2, 3};
       cases[i] = t;
       byte code[] = {B2(B2(B2(B2(B1(WASM_BR_TABLE(
                                      WASM_GET_LOCAL(0), 3, BR_TARGET(cases[0]),
@@ -1119,7 +1119,7 @@ TEST(Run_Wasm_BrTable4x4) {
       for (byte c = 0; c < 4; c++) {
         for (byte d = 0; d < 4; d++) {
           for (int i = 0; i < 4; i++) {
-            uint16_t cases[] = {a, b, c, d};
+            uint32_t cases[] = {a, b, c, d};
             byte code[] = {
                 B2(B2(B2(B2(B1(WASM_BR_TABLE(
                                 WASM_GET_LOCAL(0), 3, BR_TARGET(cases[0]),

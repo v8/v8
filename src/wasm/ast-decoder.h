@@ -97,8 +97,7 @@ struct BreakDepthOperand {
   Block* target;
   int length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u8(pc, 1, "break depth");
-    length = 1;
+    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
     target = nullptr;
   }
 };
@@ -107,8 +106,7 @@ struct BlockCountOperand {
   uint32_t count;
   int length;
   inline BlockCountOperand(Decoder* decoder, const byte* pc) {
-    count = decoder->checked_read_u8(pc, 1, "block count");
-    length = 1;
+    count = decoder->checked_read_u32v(pc, 1, &length, "block count");
   }
 };
 
@@ -147,19 +145,22 @@ struct BranchTableOperand {
   const byte* table;
   int length;
   inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    table_count = decoder->checked_read_u16(pc, 1, "expected #entries");
-    length = 2 + table_count * 2 + 2;
+    int varint_length;
+    table_count =
+        decoder->checked_read_u32v(pc, 1, &varint_length, "expected #entries");
+    length = varint_length + (table_count + 1) * sizeof(uint32_t);
 
-    if (decoder->check(pc, 3, table_count * 2 + 2,
+    uint32_t table_start = 1 + varint_length;
+    if (decoder->check(pc, table_start, (table_count + 1) * sizeof(uint32_t),
                        "expected <table entries>")) {
-      table = pc + 3;
+      table = pc + table_start;
     } else {
       table = nullptr;
     }
   }
-  inline uint16_t read_entry(Decoder* decoder, int i) {
+  inline uint32_t read_entry(Decoder* decoder, int i) {
     DCHECK(i >= 0 && static_cast<uint32_t>(i) <= table_count);
-    return table ? decoder->read_u16(table + i * sizeof(uint16_t)) : 0;
+    return table ? decoder->read_u32(table + i * sizeof(uint32_t)) : 0;
   }
 };
 

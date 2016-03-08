@@ -55,8 +55,9 @@ class WasmFunctionBuilder : public ZoneObject {
                 const uint32_t* local_indices, uint32_t indices_size);
   void Emit(WasmOpcode opcode);
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
-  uint32_t EmitEditableImmediate(const byte immediate);
-  void EditImmediate(uint32_t offset, const byte immediate);
+  void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
+  uint32_t EmitEditableVarIntImmediate();
+  void EditVarIntImmediate(uint32_t offset, const uint32_t immediate);
   void Exported(uint8_t flag);
   void External(uint8_t flag);
   void SetName(const unsigned char* name, int name_length);

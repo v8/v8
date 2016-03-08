@@ -55,6 +55,16 @@ void EmitVarInt(byte** b, size_t val) {
     }
   }
 }
+
+size_t SizeOfVarInt(size_t value) {
+  size_t size = 0;
+  do {
+    size++;
+    value = value >> 7;
+  } while (value > 0);
+  return size;
+}
+
 }  // namespace
 
 
@@ -121,16 +131,41 @@ void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
   body_.push_back(immediate);
 }
 
+void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
+                                         uint32_t immediate) {
+  body_.push_back(static_cast<byte>(opcode));
+  size_t immediate_size = SizeOfVarInt(immediate);
+  body_.insert(body_.end(), immediate_size, 0);
+  byte* p = &body_[body_.size() - immediate_size];
+  EmitVarInt(&p, immediate);
+}
 
-uint32_t WasmFunctionBuilder::EmitEditableImmediate(const byte immediate) {
-  body_.push_back(immediate);
+uint32_t WasmFunctionBuilder::EmitEditableVarIntImmediate() {
+  // Guess that the immediate will be 1 byte. If it is more, we'll have to
+  // shift everything down.
+  body_.push_back(0);
   return static_cast<uint32_t>(body_.size()) - 1;
 }
 
+void WasmFunctionBuilder::EditVarIntImmediate(uint32_t offset,
+                                              const uint32_t immediate) {
+  uint32_t immediate_size = static_cast<uint32_t>(SizeOfVarInt(immediate));
+  // In EmitEditableVarIntImmediate, we guessed that we'd only need one byte.
+  // If we need more, shift everything down to make room for the larger
+  // immediate.
+  if (immediate_size > 1) {
+    uint32_t diff = immediate_size - 1;
+    body_.insert(body_.begin() + offset, diff, 0);
 
-void WasmFunctionBuilder::EditImmediate(uint32_t offset, const byte immediate) {
-  DCHECK(offset < body_.size());
-  body_[offset] = immediate;
+    for (size_t i = 0; i < local_indices_.size(); ++i) {
+      if (local_indices_[i] >= offset) {
+        local_indices_[i] += diff;
+      }
+    }
+  }
+  DCHECK(offset + immediate_size <= body_.size());
+  byte* p = &body_[offset];
+  EmitVarInt(&p, immediate);
 }
 
 
@@ -446,15 +481,6 @@ WasmModuleWriter::WasmModuleWriter(Zone* zone)
       indirect_functions_(zone),
       globals_(zone) {}
 
-size_t SizeOfVarInt(size_t value) {
-  size_t size = 0;
-  do {
-    size++;
-    value = value >> 7;
-  } while (value > 0);
-  return size;
-}
-
 struct Sizes {
   size_t header_size;
   size_t body_size;
@@ -485,7 +511,8 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
 
   sizes.AddSection(signatures_.size());
   for (auto sig : signatures_) {
-    sizes.Add(2 + sig->parameter_count(), 0);
+    sizes.Add(1 + SizeOfVarInt(sig->parameter_count()) + sig->parameter_count(),
+              0);
   }
 
   sizes.AddSection(globals_.size());
@@ -510,7 +537,9 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   }
 
   sizes.AddSection(indirect_functions_.size());
-  sizes.Add(2 * static_cast<uint32_t>(indirect_functions_.size()), 0);
+  for (auto function_index : indirect_functions_) {
+    sizes.Add(SizeOfVarInt(function_index), 0);
+  }
 
   if (sizes.body_size > 0) sizes.Add(1, 0);
 
@@ -525,9 +554,9 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
 
   // -- emit memory declaration ------------------------------------------------
   EmitUint8(&header, kDeclMemory);
-  EmitUint8(&header, 16);  // min memory size
-  EmitUint8(&header, 16);  // max memory size
-  EmitUint8(&header, 0);   // memory export
+  EmitVarInt(&header, 16);  // min memory size
+  EmitVarInt(&header, 16);  // max memory size
+  EmitUint8(&header, 0);    // memory export
 
   // -- emit globals -----------------------------------------------------------
   if (globals_.size() > 0) {
@@ -547,7 +576,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     EmitVarInt(&header, signatures_.size());
 
     for (FunctionSig* sig : signatures_) {
-      EmitUint8(&header, static_cast<byte>(sig->parameter_count()));
+      EmitVarInt(&header, sig->parameter_count());
       if (sig->return_count() > 0) {
         EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetReturn()));
       } else {
@@ -591,7 +620,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     EmitVarInt(&header, indirect_functions_.size());
 
     for (auto index : indirect_functions_) {
-      EmitUint16(&header, index);
+      EmitVarInt(&header, index);
     }
   }
 

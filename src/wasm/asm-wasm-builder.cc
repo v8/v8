@@ -138,13 +138,14 @@ class AsmWasmBuilderImpl : public AstVisitor {
         : builder_(builder) {
       builder_->breakable_blocks_.push_back(std::make_pair(stmt, is_loop));
       builder_->current_function_builder_->Emit(opcode);
-      index_ = builder_->current_function_builder_->EmitEditableImmediate(0);
+      index_ =
+          builder_->current_function_builder_->EmitEditableVarIntImmediate();
       prev_block_size_ = builder_->block_size_;
       builder_->block_size_ = initial_block_size;
     }
     ~BlockVisitor() {
-      builder_->current_function_builder_->EditImmediate(index_,
-                                                         builder_->block_size_);
+      builder_->current_function_builder_->EditVarIntImmediate(
+          index_, builder_->block_size_);
       builder_->block_size_ = prev_block_size_;
       builder_->breakable_blocks_.pop_back();
     }
@@ -193,7 +194,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->EmitWithU8(kExprBr, block_distance);
+    current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
     current_function_builder_->Emit(kExprNop);
   }
 
@@ -216,7 +217,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->EmitWithU8(kExprBr, block_distance);
+    current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
     current_function_builder_->Emit(kExprNop);
   }
 
@@ -292,7 +293,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     RECURSE(Visit(stmt->body()));
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
-    current_function_builder_->EmitWithU8(kExprBr, 0);
+    current_function_builder_->EmitWithVarInt(kExprBr, 0);
     current_function_builder_->Emit(kExprNop);
   }
 
@@ -302,7 +303,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
                          1);
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
-    current_function_builder_->EmitWithU8(kExprBr, 0);
+    current_function_builder_->EmitWithVarInt(kExprBr, 0);
     RECURSE(Visit(stmt->body()));
   }
 
@@ -319,7 +320,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       current_function_builder_->Emit(kExprIf);
       current_function_builder_->Emit(kExprI32Eqz);
       RECURSE(Visit(stmt->cond()));
-      current_function_builder_->EmitWithU8(kExprBr, 1);
+      current_function_builder_->EmitWithVarInt(kExprBr, 1);
       current_function_builder_->Emit(kExprNop);
     }
     if (stmt->body() != nullptr) {
@@ -331,7 +332,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       RECURSE(Visit(stmt->next()));
     }
     block_size_++;
-    current_function_builder_->EmitWithU8(kExprBr, 0);
+    current_function_builder_->EmitWithVarInt(kExprBr, 0);
     current_function_builder_->Emit(kExprNop);
   }
 
@@ -1058,8 +1059,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         VariableProxy* var = p->obj()->AsVariableProxy();
         DCHECK_NOT_NULL(var);
         FunctionTableIndices* indices = LookupFunctionTable(var->var());
-        current_function_builder_->EmitWithU8(kExprCallIndirect,
-                                              indices->signature_index);
+        current_function_builder_->EmitWithVarInt(kExprCallIndirect,
+                                                  indices->signature_index);
         current_function_builder_->Emit(kExprI32Add);
         // TODO(bradnelson): variable size
         byte code[] = {WASM_I32V(indices->start_index)};
@@ -1283,7 +1284,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
           break;
         }
         case Token::COMMA: {
-          current_function_builder_->EmitWithU8(kExprBlock, 2);
+          current_function_builder_->EmitWithVarInt(kExprBlock, 2);
           break;
         }
         default:
