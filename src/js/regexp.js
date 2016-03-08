@@ -644,6 +644,7 @@ function RegExpGetGlobal() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.global");
@@ -659,6 +660,7 @@ function RegExpGetIgnoreCase() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
@@ -674,6 +676,7 @@ function RegExpGetMultiline() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeOldFlagGetter);
       return UNDEFINED;
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.multiline");
@@ -689,6 +692,7 @@ function RegExpGetSource() {
   if (!IS_REGEXP(this)) {
     // TODO(littledan): Remove this RegExp compat workaround
     if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeSourceGetter);
       return UNDEFINED;
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.source");
