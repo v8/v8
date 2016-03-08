@@ -144,6 +144,26 @@ class TestJob(Job):
   def __init__(self, test):
     self.test = test
 
+  def _rename_coverage_data(self, output, context):
+    """Rename coverage data.
+
+    Rename files with PIDs to files with unique test IDs, because the number
+    of tests might be higher than pid_max. E.g.:
+    d8.1234.sancov -> d8.test.1.sancov, where 1234 was the process' PID
+    and 1 is the test ID.
+    """
+    if context.sancov_dir:
+      sancov_file = os.path.join(
+          context.sancov_dir, "%s.%d.sancov" % (self.test.shell(), output.pid))
+
+      # Some tests are expected to fail and don't produce coverage data.
+      if os.path.exists(sancov_file):
+        parts = sancov_file.split(".")
+        new_sancov_file = ".".join(
+            parts[:-2] + ["test", str(self.test.id)] + parts[-1:])
+        assert not os.path.exists(new_sancov_file)
+        os.rename(sancov_file, new_sancov_file)
+
   def Run(self, process_context):
     try:
       # Retrieve a new suite object on the worker-process side. The original
@@ -155,6 +175,7 @@ class TestJob(Job):
 
     start_time = time.time()
     output = commands.Execute(instr.command, instr.verbose, instr.timeout)
+    self._rename_coverage_data(output, process_context.context)
     return (instr.id, output, time.time() - start_time)
 
 

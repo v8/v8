@@ -208,6 +208,8 @@ def BuildOptions():
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
+  result.add_option("--sancov-dir",
+                    help="Directory where to collect coverage data")
   result.add_option("--cfi-vptr",
                     help="Run tests with UBSAN cfi_vptr option.",
                     default=False, action="store_true")
@@ -384,6 +386,14 @@ def SetupEnvironment(options):
 
   if options.asan:
     os.environ['ASAN_OPTIONS'] = symbolizer
+
+  if options.sancov_dir:
+    assert os.path.exists(options.sancov_dir)
+    os.environ['ASAN_OPTIONS'] = ":".join([
+      'coverage=1',
+      'coverage_dir=%s' % options.sancov_dir,
+      symbolizer,
+    ])
 
   if options.cfi_vptr:
     os.environ['UBSAN_OPTIONS'] = ":".join([
@@ -688,7 +698,8 @@ def Execute(arch, mode, args, options, suites):
                         options.rerun_failures_max,
                         options.predictable,
                         options.no_harness,
-                        use_perf_data=not options.swarming)
+                        use_perf_data=not options.swarming,
+                        sancov_dir=options.sancov_dir)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
