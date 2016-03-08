@@ -356,6 +356,8 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
+  void PairShl(Register high, Register low, uint8_t imm8);
+  void PairShl_cl(Register high, Register low);
 
   // Expression support
   // Support for constant splitting.

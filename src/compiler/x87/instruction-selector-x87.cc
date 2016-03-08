@@ -546,7 +546,26 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, kX87Sar);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  X87OperandGenerator g(this);
+
+  Node* shift = node->InputAt(2);
+  InstructionOperand shift_operand;
+  if (g.CanBeImmediate(shift)) {
+    shift_operand = g.UseImmediate(shift);
+  } else {
+    shift_operand = g.UseFixed(shift, ecx);
+  }
+  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
+                                 g.UseFixed(node->InputAt(1), edx),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(node, eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
+
+  Emit(kX87PairShl, 2, outputs, 3, inputs);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kX87Ror);

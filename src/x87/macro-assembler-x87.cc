@@ -597,6 +597,27 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::PairShl(Register high, Register low, uint8_t shift) {
+  if (shift >= 32) {
+    mov(high, low);
+    shl(high, shift - 32);
+    xor_(low, low);
+  } else {
+    shld(high, low, shift);
+    shl(low, shift);
+  }
+}
+
+void MacroAssembler::PairShl_cl(Register high, Register low) {
+  shld_cl(high, low);
+  shl_cl(low);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(high, low);
+  xor_(low, low);
+  bind(&done);
+}
 
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;
