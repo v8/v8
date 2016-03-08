@@ -555,14 +555,13 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  int const length = Handle<FixedArray>::cast(p.constant())->length();
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
   // initial length limit for arrays with "fast" elements kind.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      length < JSArray::kInitialMaxFastElementArray) {
+      p.length() < JSArray::kInitialMaxFastElementArray) {
     Callable callable = CodeFactory::FastCloneShallowArray(isolate());
     ReplaceWithStubCall(node, callable, flags);
   } else {
@@ -575,8 +574,6 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  // Constants are pairs, see ObjectLiteral::properties_count().
-  int const length = Handle<FixedArray>::cast(p.constant())->length() / 2;
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
@@ -584,8 +581,9 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   // Use the FastCloneShallowObjectStub only for shallow boilerplates without
   // elements up to the number of properties that the stubs can handle.
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
-      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
-    Callable callable = CodeFactory::FastCloneShallowObject(isolate(), length);
+      p.length() <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    Callable callable =
+        CodeFactory::FastCloneShallowObject(isolate(), p.length());
     ReplaceWithStubCall(node, callable, flags);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);

@@ -350,15 +350,18 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 // JSCreateLiteralRegExp operators.
 class CreateLiteralParameters final {
  public:
-  CreateLiteralParameters(Handle<HeapObject> constant, int flags, int index)
-      : constant_(constant), flags_(flags), index_(index) {}
+  CreateLiteralParameters(Handle<HeapObject> constant, int length, int flags,
+                          int index)
+      : constant_(constant), length_(length), flags_(flags), index_(index) {}
 
   Handle<HeapObject> constant() const { return constant_; }
+  int length() const { return length_; }
   int flags() const { return flags_; }
   int index() const { return index_; }
 
  private:
   Handle<HeapObject> const constant_;
+  int const length_;
   int const flags_;
   int const index_;
 };
@@ -414,9 +417,11 @@ class JSOperatorBuilder final : public ZoneObject {
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
   const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
-                                     int literal_flags, int literal_index);
+                                     int literal_flags, int literal_index,
+                                     int number_of_elements);
   const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
-                                      int literal_flags, int literal_index);
+                                      int literal_flags, int literal_index,
+                                      int number_of_properties);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
