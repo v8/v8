@@ -8970,6 +8970,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
                                              PropertyAttributes attributes) {
   Isolate* isolate = it->isolate();
 
+  it->UpdateProtector();
+
   if (it->state() == LookupIterator::ACCESS_CHECK) {
     if (!it->HasAccess()) {
       isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>());
