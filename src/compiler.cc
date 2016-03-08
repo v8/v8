@@ -1547,8 +1547,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   return result;
 }
 
-
-Handle<SharedFunctionInfo> Compiler::CompileScript(
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<String> source, Handle<Object> script_name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Object> source_map_url, Handle<Context> context,
@@ -1683,8 +1682,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   return result;
 }
 
-
-Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
     Handle<Script> script, ParseInfo* parse_info, int source_length) {
   Isolate* isolate = script->GetIsolate();
   // TODO(titzer): increment the counters in caller.
