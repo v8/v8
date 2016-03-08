@@ -2045,10 +2045,10 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
-                                        Register caller_args_count_reg,
-                                        Register scratch0, Register scratch1,
-                                        ReturnAddressState ra_state) {
+void MacroAssembler::PrepareForTailCall(
+    const ParameterCount& callee_args_count, Register caller_args_count_reg,
+    Register scratch0, Register scratch1, ReturnAddressState ra_state,
+    int number_of_temp_values_after_return_address) {
 #if DEBUG
   if (callee_args_count.is_reg()) {
     DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
@@ -2056,6 +2056,8 @@ void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   } else {
     DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
   }
+  DCHECK(ra_state != ReturnAddressState::kNotOnStack ||
+         number_of_temp_values_after_return_address == 0);
 #endif
 
   // Calculate the destination address where we will put the return address
@@ -2063,12 +2065,16 @@ void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Register new_sp_reg = scratch0;
   if (callee_args_count.is_reg()) {
     sub(caller_args_count_reg, callee_args_count.reg());
-    lea(new_sp_reg, Operand(ebp, caller_args_count_reg, times_pointer_size,
-                            StandardFrameConstants::kCallerPCOffset));
+    lea(new_sp_reg,
+        Operand(ebp, caller_args_count_reg, times_pointer_size,
+                StandardFrameConstants::kCallerPCOffset -
+                    number_of_temp_values_after_return_address * kPointerSize));
   } else {
     lea(new_sp_reg, Operand(ebp, caller_args_count_reg, times_pointer_size,
                             StandardFrameConstants::kCallerPCOffset -
-                                callee_args_count.immediate() * kPointerSize));
+                                (callee_args_count.immediate() +
+                                 number_of_temp_values_after_return_address) *
+                                    kPointerSize));
   }
 
   if (FLAG_debug_code) {
@@ -2082,9 +2088,11 @@ void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Register tmp_reg = scratch1;
   if (ra_state == ReturnAddressState::kOnStack) {
     mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-    mov(Operand(esp, 0), tmp_reg);
+    mov(Operand(esp, number_of_temp_values_after_return_address * kPointerSize),
+        tmp_reg);
   } else {
     DCHECK(ReturnAddressState::kNotOnStack == ra_state);
+    DCHECK_EQ(0, number_of_temp_values_after_return_address);
     Push(Operand(ebp, StandardFrameConstants::kCallerPCOffset));
   }
 
@@ -2095,9 +2103,11 @@ void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // +2 here is to copy both receiver and return address.
   Register count_reg = caller_args_count_reg;
   if (callee_args_count.is_reg()) {
-    lea(count_reg, Operand(callee_args_count.reg(), 2));
+    lea(count_reg, Operand(callee_args_count.reg(),
+                           2 + number_of_temp_values_after_return_address));
   } else {
-    mov(count_reg, Immediate(callee_args_count.immediate() + 2));
+    mov(count_reg, Immediate(callee_args_count.immediate() + 2 +
+                             number_of_temp_values_after_return_address));
     // TODO(ishell): Unroll copying loop for small immediate values.
   }
 

@@ -325,10 +325,14 @@ class MacroAssembler: public Assembler {
   // |ra_state| defines whether return address is already pushed to stack or
   // not. Both |callee_args_count| and |caller_args_count_reg| do not include
   // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed.
+  // is trashed. |number_of_temp_values_after_return_address| specifies
+  // the number of words pushed to the stack after the return address. This is
+  // to allow "allocation" of scratch registers that this function requires
+  // by saving their values on the stack.
   void PrepareForTailCall(const ParameterCount& callee_args_count,
                           Register caller_args_count_reg, Register scratch0,
-                          Register scratch1, ReturnAddressState ra_state);
+                          Register scratch1, ReturnAddressState ra_state,
+                          int number_of_temp_values_after_return_address);
 
   // Invoke the JavaScript function code by either calling or jumping.
 

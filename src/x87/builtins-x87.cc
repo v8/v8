@@ -1935,7 +1935,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
 
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
-                        scratch3, ReturnAddressState::kOnStack);
+                        scratch3, ReturnAddressState::kOnStack, 0);
   __ bind(&done);
 }
 }  // namespace
