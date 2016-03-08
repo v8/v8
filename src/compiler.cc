@@ -1863,14 +1863,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   return shared;
 }
 
-MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(
-    Handle<JSFunction> function, Compiler::ConcurrencyMode mode,
-    BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
+MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
+                                                   BailoutId osr_ast_id,
+                                                   JavaScriptFrame* osr_frame) {
   DCHECK(!osr_ast_id.IsNone());
-  // TODO(mstarzinger): Once concurrent OSR is removed, the following check
-  // should hold and can be enabled.
-  // DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(function, mode, osr_ast_id, osr_frame);
+  DCHECK_NOT_NULL(osr_frame);
+  return GetOptimizedCode(function, NOT_CONCURRENT, osr_ast_id, osr_frame);
 }
 
 MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(

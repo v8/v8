@@ -1014,11 +1014,7 @@ class BackEdgeTable {
     return instruction_start_ + pc_offset(index);
   }
 
-  enum BackEdgeState {
-    INTERRUPT,
-    ON_STACK_REPLACEMENT,
-    OSR_AFTER_STACK_CHECK
-  };
+  enum BackEdgeState { INTERRUPT, ON_STACK_REPLACEMENT };
 
   // Increase allowed loop nesting level by one and patch those matching loops.
   static void Patch(Isolate* isolate, Code* unoptimized_code);
@@ -1032,13 +1028,6 @@ class BackEdgeTable {
   // Change all patched back edges back to normal interrupts.
   static void Revert(Isolate* isolate,
                      Code* unoptimized_code);
-
-  // Change a back edge patched for on-stack replacement to perform a
-  // stack check first.
-  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
-
-  // Revert the patch by AddStackCheck.
-  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
 
   // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,

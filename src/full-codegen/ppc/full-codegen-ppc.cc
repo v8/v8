@@ -4106,7 +4106,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
       break;
     }
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
       //         crset
       //         bge     <ok>            ;; not changed
@@ -4135,8 +4134,10 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Isolate* isolate, Code* unoptimized_code, Address pc) {
   Address mov_address = Assembler::target_address_from_return_address(pc);
   Address cmp_address = mov_address - 2 * Assembler::kInstrSize;
+#ifdef DEBUG
   Address interrupt_address =
       Assembler::target_address_at(mov_address, unoptimized_code);
+#endif
 
   if (Assembler::IsCmpImmediate(Assembler::instr_at(cmp_address))) {
     DCHECK(interrupt_address == isolate->builtins()->InterruptCheck()->entry());
@@ -4145,13 +4146,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   DCHECK(Assembler::IsCrSet(Assembler::instr_at(cmp_address)));
 
-  if (interrupt_address == isolate->builtins()->OnStackReplacement()->entry()) {
-    return ON_STACK_REPLACEMENT;
-  }
-
   DCHECK(interrupt_address ==
-         isolate->builtins()->OsrAfterStackCheck()->entry());
-  return OSR_AFTER_STACK_CHECK;
+         isolate->builtins()->OnStackReplacement()->entry());
+  return ON_STACK_REPLACEMENT;
 }
 }  // namespace internal
 }  // namespace v8

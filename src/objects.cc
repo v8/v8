@@ -12330,14 +12330,6 @@ void JSFunction::AttemptConcurrentOptimization() {
     MarkForOptimization();
     return;
   }
-  if (isolate->concurrent_osr_enabled() &&
-      isolate->optimizing_compile_dispatcher()->IsQueuedForOSR(this)) {
-    // Do not attempt regular recompilation if we already queued this for OSR.
-    // TODO(yangguo): This is necessary so that we don't install optimized
-    // code on a function that is already optimized, since OSR and regular
-    // recompilation race.  This goes away as soon as OSR becomes one-shot.
-    return;
-  }
   DCHECK(!IsInOptimizationQueue());
   DCHECK(!IsOptimized());
   DCHECK(shared()->allows_lazy_compilation() ||

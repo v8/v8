@@ -996,13 +996,6 @@ class Isolate {
     return optimizing_compile_dispatcher_ != NULL;
   }
 
-  bool concurrent_osr_enabled() const {
-    // Thread is only available with flag enabled.
-    DCHECK(optimizing_compile_dispatcher_ == NULL ||
-           FLAG_concurrent_recompilation);
-    return optimizing_compile_dispatcher_ != NULL && FLAG_concurrent_osr;
-  }
-
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
     return optimizing_compile_dispatcher_;
   }

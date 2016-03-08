@@ -1783,27 +1783,6 @@ void BackEdgeTable::Revert(Isolate* isolate, Code* unoptimized) {
 }
 
 
-void BackEdgeTable::AddStackCheck(Handle<Code> code, uint32_t pc_offset) {
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = code->GetIsolate();
-  Address pc = code->instruction_start() + pc_offset;
-  Code* patch = isolate->builtins()->builtin(Builtins::kOsrAfterStackCheck);
-  PatchAt(*code, pc, OSR_AFTER_STACK_CHECK, patch);
-}
-
-
-void BackEdgeTable::RemoveStackCheck(Handle<Code> code, uint32_t pc_offset) {
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = code->GetIsolate();
-  Address pc = code->instruction_start() + pc_offset;
-
-  if (OSR_AFTER_STACK_CHECK == GetBackEdgeState(isolate, *code, pc)) {
-    Code* patch = isolate->builtins()->builtin(Builtins::kOnStackReplacement);
-    PatchAt(*code, pc, ON_STACK_REPLACEMENT, patch);
-  }
-}
-
-
 #ifdef DEBUG
 bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
   DisallowHeapAllocation no_gc;

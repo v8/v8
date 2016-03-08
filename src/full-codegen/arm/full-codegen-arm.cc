@@ -4172,7 +4172,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       break;
     }
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
       //   mov r0, r0 (NOP)
       //   ; load on-stack replacement address into ip - either of (for ARMv7):
@@ -4221,14 +4220,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   DCHECK(Assembler::IsNop(Assembler::instr_at(branch_address)));
 
-  if (interrupt_address ==
-      isolate->builtins()->OnStackReplacement()->entry()) {
-    return ON_STACK_REPLACEMENT;
-  }
-
   DCHECK(interrupt_address ==
-         isolate->builtins()->OsrAfterStackCheck()->entry());
-  return OSR_AFTER_STACK_CHECK;
+         isolate->builtins()->OnStackReplacement()->entry());
+  return ON_STACK_REPLACEMENT;
 }
 
 

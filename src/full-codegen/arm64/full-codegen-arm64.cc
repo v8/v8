@@ -4171,7 +4171,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       patcher.b(6, pl);
       break;
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
       //  .. .. .. ..       mov x0, x0 (NOP)
       //  .. .. .. ..       ldr x16, pc+<on-stack replacement address>
@@ -4190,9 +4189,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
          (Memory::uint64_at(interrupt_address_pointer) ==
           reinterpret_cast<uint64_t>(
               isolate->builtins()->InterruptCheck()->entry())) ||
-         (Memory::uint64_at(interrupt_address_pointer) ==
-          reinterpret_cast<uint64_t>(
-              isolate->builtins()->OsrAfterStackCheck()->entry())) ||
          (Memory::uint64_at(interrupt_address_pointer) ==
           reinterpret_cast<uint64_t>(
               isolate->builtins()->OnStackReplacement()->entry())));
@@ -4220,9 +4216,6 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     if (entry == reinterpret_cast<uint64_t>(
         isolate->builtins()->OnStackReplacement()->entry())) {
       return ON_STACK_REPLACEMENT;
-    } else if (entry == reinterpret_cast<uint64_t>(
-        isolate->builtins()->OsrAfterStackCheck()->entry())) {
-      return OSR_AFTER_STACK_CHECK;
     } else {
       UNREACHABLE();
     }

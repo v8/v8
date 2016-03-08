@@ -292,7 +292,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                                \
   V(OnStackReplacement, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(InterruptCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
-  V(OsrAfterStackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                                \
   V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
@@ -583,7 +582,6 @@ class Builtins {
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
-  static void Generate_OsrAfterStackCheck(MacroAssembler* masm);
   static void Generate_InterruptCheck(MacroAssembler* masm);
   static void Generate_StackCheck(MacroAssembler* masm);
 

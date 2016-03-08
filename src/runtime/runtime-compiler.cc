@@ -212,59 +212,17 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK(caller_code->contains(frame->pc()));
 #endif  // DEBUG
 
-
   BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
   DCHECK(!ast_id.IsNone());
 
-  // Disable concurrent OSR for asm.js, to enable frame specialization.
-  Compiler::ConcurrencyMode mode = (isolate->concurrent_osr_enabled() &&
-                                    !function->shared()->asm_function() &&
-                                    function->shared()->ast_node_count() > 512)
-                                       ? Compiler::CONCURRENT
-                                       : Compiler::NOT_CONCURRENT;
-
-  OptimizedCompileJob* job = NULL;
-  if (mode == Compiler::CONCURRENT) {
-    // Gate the OSR entry with a stack check.
-    BackEdgeTable::AddStackCheck(caller_code, pc_offset);
-    // Poll already queued compilation jobs.
-    OptimizingCompileDispatcher* dispatcher =
-        isolate->optimizing_compile_dispatcher();
-    if (dispatcher->IsQueuedForOSR(function, ast_id)) {
-      if (FLAG_trace_osr) {
-        PrintF("[OSR - Still waiting for queued: ");
-        function->PrintName();
-        PrintF(" at AST id %d]\n", ast_id.ToInt());
-      }
-      return NULL;
-    }
-
-    job = dispatcher->FindReadyOSRCandidate(function, ast_id);
-  }
-
   MaybeHandle<Code> maybe_result;
-  if (job != NULL) {
-    if (FLAG_trace_osr) {
-      PrintF("[OSR - Found ready: ");
-      function->PrintName();
-      PrintF(" at AST id %d]\n", ast_id.ToInt());
-    }
-    maybe_result = Compiler::GetConcurrentlyOptimizedCode(job);
-  } else if (IsSuitableForOnStackReplacement(isolate, function)) {
+  if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    maybe_result = Compiler::GetOptimizedCodeForOSR(
-        function, mode, ast_id,
-        (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
-    Handle<Code> result;
-    if (maybe_result.ToHandle(&result) &&
-        result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
-      // Optimization is queued.  Return to check later.
-      return NULL;
-    }
+    maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
   }
 
   // Revert the patched back edge table, regardless of whether OSR succeeds.

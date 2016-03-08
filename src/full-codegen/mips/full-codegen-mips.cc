@@ -4123,7 +4123,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       patcher.masm()->slt(at, a3, zero_reg);
       break;
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       // addiu at, zero_reg, 1
       // beq at, zero_reg, ok  ;; Not changed
       // lui t9, <on-stack replacement address> upper
@@ -4151,7 +4150,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Address pc) {
   static const int kInstrSize = Assembler::kInstrSize;
   Address branch_address = pc - 6 * kInstrSize;
+#ifdef DEBUG
   Address pc_immediate_load_address = pc - 4 * kInstrSize;
+#endif
 
   DCHECK(Assembler::IsBeq(Assembler::instr_at(pc - 5 * kInstrSize)));
   if (!Assembler::IsAddImmediate(Assembler::instr_at(branch_address))) {
@@ -4164,18 +4165,11 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   DCHECK(Assembler::IsAddImmediate(Assembler::instr_at(branch_address)));
 
-  if (reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_immediate_load_address)) ==
-          reinterpret_cast<uint32_t>(
-              isolate->builtins()->OnStackReplacement()->entry())) {
-    return ON_STACK_REPLACEMENT;
-  }
-
   DCHECK(reinterpret_cast<uint32_t>(
-      Assembler::target_address_at(pc_immediate_load_address)) ==
+             Assembler::target_address_at(pc_immediate_load_address)) ==
          reinterpret_cast<uint32_t>(
-             isolate->builtins()->OsrAfterStackCheck()->entry()));
-  return OSR_AFTER_STACK_CHECK;
+             isolate->builtins()->OnStackReplacement()->entry()));
+  return ON_STACK_REPLACEMENT;
 }
 
 

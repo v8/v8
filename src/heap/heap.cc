@@ -453,10 +453,6 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  if (isolate()->concurrent_osr_enabled()) {
-    isolate()->optimizing_compile_dispatcher()->AgeBufferedOsrJobs();
-  }
-
   if (new_space_.IsAtMaximumCapacity()) {
     maximum_size_scavenges_++;
   } else {

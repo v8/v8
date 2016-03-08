@@ -505,11 +505,7 @@ class LChunk;
 class OptimizedCompileJob: public ZoneObject {
  public:
   explicit OptimizedCompileJob(CompilationInfo* info)
-      : info_(info),
-        graph_(NULL),
-        chunk_(NULL),
-        last_status_(FAILED),
-        awaiting_install_(false) { }
+      : info_(info), graph_(NULL), chunk_(NULL), last_status_(FAILED) {}
 
   enum Status {
     FAILED, BAILED_OUT, SUCCEEDED
@@ -533,13 +529,6 @@ class OptimizedCompileJob: public ZoneObject {
     return SetLastStatus(BAILED_OUT);
   }
 
-  void WaitForInstall() {
-    DCHECK(info_->is_osr());
-    awaiting_install_ = true;
-  }
-
-  bool IsWaitingForInstall() { return awaiting_install_; }
-
  private:
   CompilationInfo* info_;
   HGraph* graph_;
@@ -548,7 +537,6 @@ class OptimizedCompileJob: public ZoneObject {
   base::TimeDelta time_taken_to_optimize_;
   base::TimeDelta time_taken_to_codegen_;
   Status last_status_;
-  bool awaiting_install_;
 
   MUST_USE_RESULT Status SetLastStatus(Status status) {
     last_status_ = status;
@@ -661,7 +649,7 @@ class Compiler : public AllStatic {
 
   // Generate and return optimized code for OSR, or empty handle on failure.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Handle<JSFunction> function, ConcurrencyMode mode, BailoutId osr_ast_id,
+      Handle<JSFunction> function, BailoutId osr_ast_id,
       JavaScriptFrame* osr_frame);
 
   // Generate and return code from previously queued optimization job.
