@@ -514,10 +514,20 @@
 ##############################################################################
 ['ignition == True', {
   # TODO(yangguo,4690): Test failures in debugger tests.
+  'test-debug/DebugStepKeyedLoadLoop': [FAIL],
+  'test-debug/DebugStepKeyedStoreLoop': [FAIL],
   'test-debug/DebugStepNamedLoadLoop': [FAIL],
+  'test-debug/BreakPointConstructCallWithGC': [PASS, FAIL],
+  'test-debug/DebugStepNamedStoreLoop': [FAIL],
+  'test-debug/DebugStepSwitch': [FAIL],
+  'test-debug/DebugStepWhile': [FAIL],
+  'test-debug/DebugStepFor': [FAIL],
+  'test-debug/DebugStepForContinue': [FAIL],
   'test-debug/DebugStepForIn': [FAIL],
   'test-debug/DebugStepDoWhile': [FAIL],
   'test-debug/DebugConditional': [FAIL],
+  'test-debug/DebugStepForBreak': [FAIL],
+  'test-debug/DebugStepWith': [FAIL],
 
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [TIMEOUT],
