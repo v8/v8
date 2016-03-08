@@ -17,6 +17,8 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
     ZoneList<const AstRawString*>* names, bool* ok) {
   PatternRewriter rewriter;
 
+  DCHECK(block->ignore_completion_value());
+
   rewriter.scope_ = declaration_descriptor->scope;
   rewriter.parser_ = declaration_descriptor->parser;
   rewriter.context_ = BINDING;
@@ -358,7 +360,7 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   PatternContext old_context = SetAssignmentContextIfNeeded(initializer);
   int pos = assign->position();
   Block* old_block = block_;
-  block_ = factory()->NewBlock(nullptr, 8, false, pos);
+  block_ = factory()->NewBlock(nullptr, 8, true, pos);
   Variable* temp = nullptr;
   Expression* pattern = assign->target();
   Expression* old_value = current_value_;

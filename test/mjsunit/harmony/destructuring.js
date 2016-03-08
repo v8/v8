@@ -1131,4 +1131,7 @@
   assertEquals("hello", foo);
   assertEquals("world", bar);
   assertEquals(42, baz);
+
+  assertEquals(undefined, eval('try {throw {foo: 1, bar: 2}} catch({foo}) {}'));
+  assertEquals(undefined, eval('try {throw [1, 2, 3]} catch([x]) {}'));
 })();

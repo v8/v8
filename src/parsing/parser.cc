@@ -3101,8 +3101,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
               pattern, pattern->position(),
               factory()->NewVariableProxy(catch_variable));
 
+          Block* init_block =
+              factory()->NewBlock(nullptr, 8, true, RelocInfo::kNoPosition);
           PatternRewriter::DeclareAndInitializeVariables(
-              catch_block, &descriptor, &decl, nullptr, CHECK_OK);
+              init_block, &descriptor, &decl, nullptr, CHECK_OK);
+          catch_block->statements()->Add(init_block, zone());
         }
 
         Expect(Token::LBRACE, CHECK_OK);
