@@ -461,7 +461,7 @@ class PreParserType {
   }
 
  private:
-  explicit PreParserType() : arity_(-1) {}
+  PreParserType() : arity_(-1) {}
   explicit PreParserType(int arity) : arity_(arity) {}
 
   int arity_;
