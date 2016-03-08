@@ -718,13 +718,21 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // Never falls through to here.
 
   __ bind(&slow);
-  // Prepare for call to builtin. Push object pointers, a0 (lhs) first,
-  // a1 (rhs) second.
-  __ Push(lhs, rhs);
-  // Figure out which native to call and setup the arguments.
   if (cc == eq) {
-    __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(lhs, rhs);
+      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+    }
+    // Turn true into 0 and false into some non-zero value.
+    STATIC_ASSERT(EQUAL == 0);
+    __ LoadRoot(a0, Heap::kTrueValueRootIndex);
+    __ Ret(USE_DELAY_SLOT);
+    __ subu(v0, v0, a0);  // In delay slot.
   } else {
+    // Prepare for call to builtin. Push object pointers, a0 (lhs) first,
+    // a1 (rhs) second.
+    __ Push(lhs, rhs);
     int ncr;  // NaN compare result.
     if (cc == lt || cc == le) {
       ncr = GREATER;
