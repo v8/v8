@@ -879,7 +879,6 @@ void FullCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 void FullCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
   Comment cmnt(masm_, "[ EmptyStatement");
-  SetStatementPosition(stmt);
 }
 
 
