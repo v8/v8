@@ -251,7 +251,11 @@ class ModuleDecoder : public Decoder {
             } else {
               import->sig = module->signatures[import->sig_index];
             }
+            const byte* pos = pc_;
             import->module_name_offset = consume_string("import module name");
+            if (import->module_name_offset == 0) {
+              error(pos, "import module name cannot be NULL");
+            }
             import->function_name_offset =
                 consume_string("import function name");
           }

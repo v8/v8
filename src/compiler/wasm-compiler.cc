@@ -2323,7 +2323,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
                                     Handle<JSFunction> function,
-                                    wasm::FunctionSig* sig, const char* name) {
+                                    wasm::FunctionSig* sig,
+                                    const char* module_cstr,
+                                    const char* function_cstr) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -2391,7 +2393,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     }
 
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", 0,
-                              name);
+                              module_cstr);
   }
   return code;
 }

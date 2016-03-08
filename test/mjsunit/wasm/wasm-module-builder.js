@@ -78,10 +78,16 @@ WasmModuleBuilder.prototype.addFunction = function(name, sig) {
     return func;
 }
 
+WasmModuleBuilder.prototype.addImportWithModule = function(module, name, sig) {
+  var sig_index = (typeof sig) == "number" ? sig : this.addSignature(sig);
+  this.imports.push({module: module, name: name, sig_index: sig_index});
+  return this.imports.length - 1;
+}
+
 WasmModuleBuilder.prototype.addImport = function(name, sig) {
-    var sig_index = (typeof sig) == "number" ? sig : this.addSignature(sig);
-    this.imports.push({name: name, sig_index: sig_index});
-    return this.imports.length - 1;
+  var sig_index = (typeof sig) == "number" ? sig : this.addSignature(sig);
+  this.imports.push({module: name, name: undefined, sig_index: sig_index});
+  return this.imports.length - 1;
 }
 
 WasmModuleBuilder.prototype.addDataSegment = function(addr, data, init) {
@@ -172,8 +178,12 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_varint(bytes, this.imports.length);
         for (imp of this.imports) {
             emit_u16(bytes, imp.sig_index);
-            emit_string(bytes, "");
-            emit_string(bytes, imp.name);
+            emit_string(bytes, imp.module);
+            if (imp.name == undefined) {
+              emit_u32(bytes, 0);
+            } else {
+              emit_string(bytes, imp.name);
+            }
         }
     }
 

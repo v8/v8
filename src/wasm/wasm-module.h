@@ -141,6 +141,13 @@ struct WasmModule {
     return reinterpret_cast<const char*>(module_start + offset);
   }
 
+  // Get a pointer to a string stored in the module bytes representing a name.
+  const char* GetNameOrNull(uint32_t offset) const {
+    if (offset == 0) return nullptr;  // no name.
+    CHECK(BoundsCheck(offset, offset + 1));
+    return reinterpret_cast<const char*>(module_start + offset);
+  }
+
   // Checks the given offset range is contained within the module bytes.
   bool BoundsCheck(uint32_t start, uint32_t end) const {
     size_t size = module_end - module_start;

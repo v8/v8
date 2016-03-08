@@ -388,7 +388,6 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   static const byte kCodeStartOffset = 19;
   static const byte kCodeEndOffset = kCodeStartOffset + 1;
@@ -1093,6 +1092,20 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
       NAME_OFFSET(1)   // function name
   };
   EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_invalid_module) {
+  static const byte data[] = {
+      kDeclSignatures,
+      1,
+      VOID_VOID_SIG,
+      kDeclImportTable,
+      1,               // --
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(0),  // module name
+      NAME_OFFSET(1)   // function name
+  };
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
