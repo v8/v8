@@ -3476,7 +3476,7 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
 
   __ bind(&formal_parameter_count_loaded);
   __ PrepareForTailCall(actual, caller_args_count_reg, scratch2, scratch3,
-                        ReturnAddressState::kNotOnStack);
+                        ReturnAddressState::kNotOnStack, 0);
   Comment(";;; }");
 }
 

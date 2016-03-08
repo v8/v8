@@ -224,6 +224,7 @@ class InstructionSelector final {
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             CallBufferFlags flags, int stack_param_delta = 0);
   bool IsTailCallAddressImmediate();
+  int GetTempsCountForTailCallFromJSFunction();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
 

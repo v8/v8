@@ -116,6 +116,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall(int stack_param_delta);
 
+  // Generates code to pop current frame if it is an arguments adaptor frame.
+  void AssemblePopArgumentsAdaptorFrame(Register args_reg, Register scratch1,
+                                        Register scratch2, Register scratch3);
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================

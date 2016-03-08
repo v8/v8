@@ -1570,16 +1570,35 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;
-    switch (descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObject;
-        break;
-      case CallDescriptor::kCallJSFunction:
-        opcode = kArchTailCallJSFunction;
-        break;
-      default:
-        UNREACHABLE();
-        return;
+    InstructionOperandVector temps(zone());
+    if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+      switch (descriptor->kind()) {
+        case CallDescriptor::kCallCodeObject:
+          opcode = kArchTailCallCodeObjectFromJSFunction;
+          break;
+        case CallDescriptor::kCallJSFunction:
+          opcode = kArchTailCallJSFunctionFromJSFunction;
+          break;
+        default:
+          UNREACHABLE();
+          return;
+      }
+      int temps_count = GetTempsCountForTailCallFromJSFunction();
+      for (int i = 0; i < temps_count; i++) {
+        temps.push_back(g.TempRegister());
+      }
+    } else {
+      switch (descriptor->kind()) {
+        case CallDescriptor::kCallCodeObject:
+          opcode = kArchTailCallCodeObject;
+          break;
+        case CallDescriptor::kCallJSFunction:
+          opcode = kArchTailCallJSFunction;
+          break;
+        default:
+          UNREACHABLE();
+          return;
+      }
     }
     opcode |= MiscField::encode(descriptor->flags());
 
@@ -1590,7 +1609,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
     // Emit the tailcall instruction.
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
-         &buffer.instruction_args.front());
+         &buffer.instruction_args.front(), temps.size(),
+         temps.empty() ? nullptr : &temps.front());
   } else {
     FrameStateDescriptor* frame_state_descriptor =
         descriptor->NeedsFrameState()

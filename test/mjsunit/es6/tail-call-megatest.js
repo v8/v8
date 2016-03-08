@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --harmony-tailcalls --no-turbo-inlining
 // TODO(v8:4698), TODO(ishell): support these cases.
-// Flags: --no-turbo --nostress-opt
+// Flags: --nostress-opt
 
 
 Error.prepareStackTrace = (error,stack) => {
