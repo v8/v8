@@ -86,38 +86,17 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     }
     MaybeHandle<Object> maybe_result;
     uint32_t element_index = 0;
-    if (key->IsInternalizedString()) {
-      if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
-        // Array index as string (uint32).
-        if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
-        maybe_result = JSObject::SetOwnElementIgnoreAttributes(
-            boilerplate, element_index, value, NONE);
-      } else {
-        Handle<String> name(String::cast(*key));
-        DCHECK(!name->AsArrayIndex(&element_index));
-        maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE);
-      }
-    } else if (key->ToArrayIndex(&element_index)) {
+    if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
       maybe_result = JSObject::SetOwnElementIgnoreAttributes(
           boilerplate, element_index, value, NONE);
     } else {
-      // Non-uint32 number.
-      DCHECK(key->IsNumber());
-      double num = key->Number();
-      char arr[100];
-      Vector<char> buffer(arr, arraysize(arr));
-      const char* str = DoubleToCString(num, buffer);
-      Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
+      Handle<String> name = Handle<String>::cast(key);
+      DCHECK(!name->AsArrayIndex(&element_index));
       maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name,
                                                               value, NONE);
     }
-    // If setting the property on the boilerplate throws an
-    // exception, the exception is converted to an empty handle in
-    // the handle based operations.  In that case, we need to
-    // convert back to an exception.
     RETURN_ON_EXCEPTION(isolate, maybe_result, Object);
   }
 
