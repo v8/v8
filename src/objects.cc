@@ -17957,8 +17957,20 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
 
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
+  if (string->IsConsString() && string->IsFlat()) {
+    string = String::Flatten(string);
+    if (string->IsInternalizedString()) return string;
+  }
+
   InternalizedStringKey key(string);
-  return LookupKey(isolate, &key);
+  Handle<String> result = LookupKey(isolate, &key);
+
+  if (string->IsConsString()) {
+    Handle<ConsString> cons = Handle<ConsString>::cast(string);
+    cons->set_first(*result);
+    cons->set_second(isolate->heap()->empty_string());
+  }
+  return result;
 }
 
 
