@@ -787,6 +787,28 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitRRO(this, kPPC_ShiftRightAlg32, node, kShift32Imm);
 }
 
+#if !V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  PPCOperandGenerator g(this);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kPPC_PairShiftLeft, 2, outputs, 3, inputs);
+}
+#endif
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Sar(Node* node) {

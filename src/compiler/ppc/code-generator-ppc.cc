@@ -929,6 +929,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_BINOP_INT_RC(srad, sradi);
       break;
 #endif
+#if !V8_TARGET_ARCH_PPC64
+    case kPPC_PairShiftLeft:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ PairShiftLeft(i.OutputRegister(0), i.OutputRegister(1),
+                         i.InputRegister(0), i.InputRegister(1),
+                         i.InputInt32(2));
+      } else {
+        __ PairShiftLeft(i.OutputRegister(0), i.OutputRegister(1),
+                         i.InputRegister(0), i.InputRegister(1), kScratchReg,
+                         i.InputRegister(2));
+      }
+      break;
+#endif
     case kPPC_RotRight32:
       if (HasRegisterInput(instr, 1)) {
         __ subfic(kScratchReg, i.InputRegister(1), Operand(32));

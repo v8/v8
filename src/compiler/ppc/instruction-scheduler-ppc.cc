@@ -25,6 +25,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_ShiftRight64:
     case kPPC_ShiftRightAlg32:
     case kPPC_ShiftRightAlg64:
+    case kPPC_PairShiftLeft:
     case kPPC_RotRight32:
     case kPPC_RotRight64:
     case kPPC_Not:

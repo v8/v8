@@ -23,6 +23,7 @@ namespace compiler {
   V(PPC_ShiftRight64)              \
   V(PPC_ShiftRightAlg32)           \
   V(PPC_ShiftRightAlg64)           \
+  V(PPC_PairShiftLeft)             \
   V(PPC_RotRight32)                \
   V(PPC_RotRight64)                \
   V(PPC_Not)                       \

@@ -410,6 +410,13 @@ class MacroAssembler : public Assembler {
       FPRoundingMode rounding_mode = kRoundToZero);
 #endif
 
+#if !V8_TARGET_ARCH_PPC64
+  void PairShiftLeft(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, Register scratch, Register shift);
+  void PairShiftLeft(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, uint32_t shift);
+#endif
+
   // Generates function and stub prologue code.
   void StubPrologue(Register base = no_reg, int prologue_offset = 0);
   void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
