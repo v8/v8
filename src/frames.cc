@@ -417,6 +417,11 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
   DCHECK(state->fp != NULL);
 
+#if defined(USE_SIMULATOR)
+  MSAN_MEMORY_IS_INITIALIZED(
+      state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
+      kPointerSize);
+#endif
   Object* marker = Memory::Object_at(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (!iterator->can_access_heap_objects_) {
@@ -427,9 +432,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // reliable.
 #if defined(USE_SIMULATOR)
     MSAN_MEMORY_IS_INITIALIZED(
-        state->fp + StandardFrameConstants::kContextOffset, kPointerSize);
-    MSAN_MEMORY_IS_INITIALIZED(
-        state->fp + StandardFrameConstants::kMarkerOffset, kPointerSize);
+        state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
 #endif
     Object* maybe_function =
         Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
