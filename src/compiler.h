@@ -588,6 +588,9 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static void CompileForLiveEdit(Handle<Script> script);
 
+  // Generate and install code from previously queued optimization job.
+  static void FinalizeOptimizedCompileJob(OptimizedCompileJob* job);
+
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
@@ -651,11 +654,6 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
       Handle<JSFunction> function, BailoutId osr_ast_id,
       JavaScriptFrame* osr_frame);
-
-  // Generate and return code from previously queued optimization job.
-  // On failure, return the empty handle.
-  MUST_USE_RESULT static MaybeHandle<Code> GetConcurrentlyOptimizedCode(
-      OptimizedCompileJob* job);
 };
 
 }  // namespace internal

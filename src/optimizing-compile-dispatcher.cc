@@ -198,9 +198,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       }
       DisposeOptimizedCompileJob(job, false);
     } else {
-      MaybeHandle<Code> code = Compiler::GetConcurrentlyOptimizedCode(job);
-      function->ReplaceCode(code.is_null() ? function->shared()->code()
-                                           : *code.ToHandleChecked());
+      Compiler::FinalizeOptimizedCompileJob(job);
     }
   }
 }

@@ -1871,8 +1871,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   return GetOptimizedCode(function, NOT_CONCURRENT, osr_ast_id, osr_frame);
 }
 
-MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
-    OptimizedCompileJob* job) {
+void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
   // Take ownership of compilation info.  Deleting compilation info
   // also tears down the zone and the recompile job.
   base::SmartPointer<CompilationInfo> info(job->info());
@@ -1908,7 +1907,8 @@ MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
         info->closure()->ShortPrint();
         PrintF("]\n");
       }
-      return Handle<Code>(*info->code());
+      info->closure()->ReplaceCode(*info->code());
+      return;
     }
   }
 
@@ -1918,7 +1918,7 @@ MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
     info->closure()->ShortPrint();
     PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
-  return MaybeHandle<Code>();
+  info->closure()->ReplaceCode(shared->code());
 }
 
 void Compiler::PostInstantiation(Handle<JSFunction> function,
