@@ -499,8 +499,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     // kExprI64DivU:
     // kExprI64RemS:
     // kExprI64RemU:
-    // kExprI64And:
-    // kExprI64Ior:
     case wasm::kExprI64Ior:
       op = m->Word64Or();
       break;

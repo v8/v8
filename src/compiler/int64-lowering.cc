@@ -333,7 +333,6 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, replacement, nullptr);
       break;
     }
-    // kExprI64Ne:
     // kExprI64LtS:
     case IrOpcode::kInt64LessThan: {
       LowerComparison(node, machine()->Int32LessThan(),
@@ -366,14 +365,6 @@ void Int64Lowering::LowerNode(Node* node) {
     // kExprI64Ctz:
     // kExprI64Popcnt:
 
-    // kExprF32SConvertI64:
-    // kExprF32UConvertI64:
-    // kExprF64SConvertI64:
-    // kExprF64UConvertI64:
-    // kExprI64SConvertF32:
-    // kExprI64SConvertF64:
-    // kExprI64UConvertF32:
-    // kExprI64UConvertF64:
     default: { DefaultLowering(node); }
   }
 }

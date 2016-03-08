@@ -308,7 +308,6 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 // kExprI64DivU:
 // kExprI64RemS:
 // kExprI64RemU:
-// kExprI64And:
 // kExprI64Ior:
 TEST_F(Int64LoweringTest, Int64Ior) {
   LowerGraph(graph()->NewNode(machine()->Word64Or(), Int64Constant(value(0)),
@@ -368,7 +367,6 @@ TEST_F(Int64LoweringTest, Int64Eq) {
                start(), start()));
 }
 
-// kExprI64Ne:
 // kExprI64LtS:
 TEST_F(Int64LoweringTest, Int64LtS) {
   TestComparison(machine()->Int64LessThan(), IsInt32LessThan, IsUint32LessThan);
@@ -390,6 +388,13 @@ TEST_F(Int64LoweringTest, Int64LeU) {
 }
 
 // kExprI32ConvertI64:
+TEST_F(Int64LoweringTest, I32ConvertI64) {
+  LowerGraph(graph()->NewNode(machine()->TruncateInt64ToInt32(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord32);
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn(IsInt32Constant(low_word_value(0)), start(), start()));
+}
 // kExprI64SConvertI32:
 // kExprI64UConvertI32:
 
@@ -399,16 +404,6 @@ TEST_F(Int64LoweringTest, Int64LeU) {
 // kExprI64Clz:
 // kExprI64Ctz:
 // kExprI64Popcnt:
-
-// kExprF32SConvertI64:
-// kExprF32UConvertI64:
-// kExprF64SConvertI64:
-// kExprF64UConvertI64:
-// kExprI64SConvertF32:
-// kExprI64SConvertF64:
-// kExprI64UConvertF32:
-// kExprI64UConvertF64:
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
