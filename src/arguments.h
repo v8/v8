@@ -271,16 +271,21 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define CLOBBER_DOUBLE_REGISTERS()
 #endif
 
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                         \
-  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate)); \
-  Type Name(int args_length, Object** args_object, Isolate* isolate) {    \
-    CLOBBER_DOUBLE_REGISTERS();                                           \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();  \
-    RuntimeCallTimerScope timer(isolate, &stats->Name);                   \
-    Arguments args(args_length, args_object);                             \
-    Type value = __RT_impl_##Name(args, isolate);                         \
-    return value;                                                         \
-  }                                                                       \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                          \
+  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));  \
+  Type Name(int args_length, Object** args_object, Isolate* isolate) {     \
+    CLOBBER_DOUBLE_REGISTERS();                                            \
+    Arguments args(args_length, args_object);                              \
+    Type value;                                                            \
+    if (FLAG_runtime_call_stats) {                                         \
+      RuntimeCallStats* stats = isolate->counters()->runtime_call_stats(); \
+      RuntimeCallTimerScope timer(isolate, &stats->Name);                  \
+      value = __RT_impl_##Name(args, isolate);                             \
+    } else {                                                               \
+      value = __RT_impl_##Name(args, isolate);                             \
+    }                                                                      \
+    return value;                                                          \
+  }                                                                        \
   static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)

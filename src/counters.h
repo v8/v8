@@ -492,8 +492,11 @@ struct RuntimeCallCounter {
 // timers used for properly measuring the own time of a RuntimeCallCounter.
 class RuntimeCallTimer {
  public:
-  RuntimeCallTimer(RuntimeCallCounter* counter, RuntimeCallTimer* parent)
-      : counter_(counter), parent_(parent) {}
+  inline void Initialize(RuntimeCallCounter* counter,
+                         RuntimeCallTimer* parent) {
+    counter_ = counter;
+    parent_ = parent;
+  }
 
   inline void Start() {
     timer_.Start();
@@ -509,7 +512,9 @@ class RuntimeCallTimer {
     return parent_;
   }
 
-  void AdjustForSubTimer(base::TimeDelta delta) { counter_->time -= delta; }
+  inline void AdjustForSubTimer(base::TimeDelta delta) {
+    counter_->time -= delta;
+  }
 
  private:
   RuntimeCallCounter* counter_;
@@ -557,8 +562,16 @@ struct RuntimeCallStats {
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
-  explicit RuntimeCallTimerScope(Isolate* isolate, RuntimeCallCounter* counter);
-  ~RuntimeCallTimerScope();
+  inline explicit RuntimeCallTimerScope(Isolate* isolate,
+                                        RuntimeCallCounter* counter) {
+    if (FLAG_runtime_call_stats) Enter(isolate, counter);
+  }
+  inline ~RuntimeCallTimerScope() {
+    if (FLAG_runtime_call_stats) Leave();
+  }
+
+  void Enter(Isolate* isolate, RuntimeCallCounter* counter);
+  void Leave();
 
  private:
   Isolate* isolate_;

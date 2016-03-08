@@ -58,15 +58,15 @@ VMState<Tag>::~VMState() {
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate),
       callback_(callback),
-      previous_scope_(isolate->external_callback_scope()),
-      timer_(&isolate->counters()->runtime_call_stats()->ExternalCallback,
-             isolate->counters()->runtime_call_stats()->current_timer()) {
+      previous_scope_(isolate->external_callback_scope()) {
 #ifdef USE_SIMULATOR
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif
   isolate_->set_external_callback_scope(this);
   if (FLAG_runtime_call_stats) {
-    isolate_->counters()->runtime_call_stats()->Enter(&timer_);
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+    timer_.Initialize(&stats->ExternalCallback, stats->current_timer());
+    stats->Enter(&timer_);
   }
 }
 
