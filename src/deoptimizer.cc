@@ -2466,7 +2466,9 @@ int ComputeSourcePosition(Handle<SharedFunctionInfo> shared,
                           BailoutId node_id) {
   if (shared->HasBytecodeArray()) {
     BytecodeArray* bytecodes = shared->bytecode_array();
-    return bytecodes->SourcePosition(node_id.ToInt());
+    // BailoutId points to the next bytecode in the bytecode aray. Subtract
+    // 1 to get the end of current bytecode.
+    return bytecodes->SourcePosition(node_id.ToInt() - 1);
   } else {
     Code* non_optimized_code = shared->code();
     FixedArray* raw_data = non_optimized_code->deoptimization_data();

@@ -787,12 +787,6 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ['ignition == True', {
-  # TODO(rmcilroy, 4689): FrameInspector does not translate interpreted frame.
-  'ignition/optimized-debug-frame': [FAIL],
-
-  # TODO(rmcilroy, 4689): Translated code offset for FrameSummary is wrong.
-  'ignition/optimized-stack-trace': [FAIL],
-
   # TODO(yangguo,4690): assertion failures in debugger tests.
   'debug-allscopes-on-debugger': [FAIL],
   'debug-return-value': [FAIL],

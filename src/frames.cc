@@ -1055,7 +1055,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
         abstract_code = AbstractCode::cast(code);
       } else {
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        code_offset = bailout_id.ToInt();
+        // BailoutId points to the next bytecode in the bytecode aray. Subtract
+        // 1 to get the end of current bytecode.
+        code_offset = bailout_id.ToInt() - 1;
         abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
       FrameSummary summary(receiver, function, abstract_code, code_offset,
