@@ -359,8 +359,8 @@ WasmModuleBuilder.prototype.toBuffer = function(debug) {
 WasmModuleBuilder.prototype.instantiate = function(ffi, memory) {
     var buffer = this.toBuffer();
     if (memory != undefined) {
-      return _WASMEXP_.instantiateModule(buffer, ffi, memory);
+      return Wasm.instantiateModule(buffer, ffi, memory);
     } else {
-      return _WASMEXP_.instantiateModule(buffer, ffi);
+      return Wasm.instantiateModule(buffer, ffi);
     }
 }

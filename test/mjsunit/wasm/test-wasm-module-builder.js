@@ -17,7 +17,7 @@ var debug = false;
         .exportAs("blarg");
 
     var buffer = module.toBuffer(debug);
-    var instance = _WASMEXP_.instantiateModule(buffer);
+    var instance = Wasm.instantiateModule(buffer);
     assertEquals(11, instance.exports.blarg());
 })();
 
@@ -29,7 +29,7 @@ var debug = false;
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
-    var instance = _WASMEXP_.instantiateModule(buffer, {print: print});
+    var instance = Wasm.instantiateModule(buffer, {print: print});
     print("should print 13! ");
     instance.exports.main();
 })();
@@ -42,7 +42,7 @@ var debug = false;
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
-    var instance = _WASMEXP_.instantiateModule(buffer);
+    var instance = Wasm.instantiateModule(buffer);
     assertEquals(19, instance.exports.main(19));
     assertEquals(27777, instance.exports.main(27777));
 })();
@@ -64,7 +64,7 @@ var debug = false;
         .exportAs("main");
 
       var buffer = module.toBuffer(debug);
-      var instance = _WASMEXP_.instantiateModule(buffer);
+      var instance = Wasm.instantiateModule(buffer);
       assertEquals(19, instance.exports.main(19));
       assertEquals(27777, instance.exports.main(27777));
     }
@@ -108,7 +108,7 @@ var debug = false;
     module.addDataSegment(0, [9, 9, 9, 9], true);
 
     var buffer = module.toBuffer(debug);
-    var instance = _WASMEXP_.instantiateModule(buffer);
+    var instance = Wasm.instantiateModule(buffer);
     assertEquals(151587081, instance.exports.load(0));
 })();
 
@@ -122,7 +122,7 @@ var debug = false;
 
     var buffer = module.toBuffer(debug);
     var array = new Uint8Array(buffer);
-    var instance = _WASMEXP_.instantiateModule(array);
+    var instance = Wasm.instantiateModule(array);
     assertEquals(17, instance.exports.blarg());
 
     var kPad = 5;
@@ -135,6 +135,6 @@ var debug = false;
     for (var i = 0; i < array2.byteLength; i++) {
       array2[i] = array[i];
     }
-    var instance = _WASMEXP_.instantiateModule(array2);
+    var instance = Wasm.instantiateModule(array2);
     assertEquals(17, instance.exports.blarg());
 })();

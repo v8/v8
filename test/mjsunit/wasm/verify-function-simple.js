@@ -13,7 +13,7 @@ try {
       kExprNop            // body
   );
 
-  _WASMEXP_.verifyFunction(data);
+  Wasm.verifyFunction(data);
   print("ok");
 } catch (e) {
   assertTrue(false);
@@ -28,7 +28,7 @@ try {
       kExprBlock, 2, kExprNop, kExprNop  // body
   );
 
-  _WASMEXP_.verifyFunction(data);
+  Wasm.verifyFunction(data);
   print("not ok");
 } catch (e) {
   print("ok: " + e);
