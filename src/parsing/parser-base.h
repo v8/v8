@@ -876,8 +876,8 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
 
-  typename TypeSystem::Type ValidateType(
-      typename TypeSystem::Type type, Scanner::Location location, bool* ok) {
+  typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
+                                         Scanner::Location location, bool* ok) {
     typename TypeSystem::Type result = type->Uncover(ok);
     if (*ok) return result;
     ReportMessageAt(location, MessageTemplate::kInvalidType);
@@ -3368,8 +3368,7 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
   bool has_new = Check(Token::NEW);
   typename TypeSystem::TypeParameters type_parameters =
       this->NullTypeParameters();
-  if (peek() == Token::LT)
-    type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
+  if (peek() == Token::LT) type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
   // If any of those were present, then only allow a parenthesized primary
   // type or a parameter list), else also allow unions and intersections.
   typename TypeSystem::Type type =
@@ -3500,8 +3499,8 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
     }
     case Token::VOID: {
       Consume(Token::VOID);
-      type = factory()->NewPredefinedType(
-          typesystem::PredefinedType::kVoidType, pos);
+      type = factory()->NewPredefinedType(typesystem::PredefinedType::kVoidType,
+                                          pos);
       break;
     }
     case Token::THIS: {

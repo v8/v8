@@ -3059,22 +3059,18 @@ class FunctionType : public Type {
  public:
   DECLARE_NODE_TYPE_INHERITABLE(FunctionType)
 
-  ZoneList<TypeParameter*>* type_parameters() const {
-    return type_parameters_;
-  }
-  ZoneList<FormalParameter*>* parameters() const {
-    return parameters_;
-  }
-  Type* result_type() const {
-    return result_type_;
-  }
+  ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
+  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
+  Type* result_type() const { return result_type_; }
 
  protected:
   FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
                ZoneList<FormalParameter*>* parameters, Type* result_type,
                int pos)
-      : Type(zone, pos), type_parameters_(type_parameters),
-        parameters_(parameters), result_type_(result_type) {}
+      : Type(zone, pos),
+        type_parameters_(type_parameters),
+        parameters_(parameters),
+        result_type_(result_type) {}
 
  private:
   ZoneList<TypeParameter*>* type_parameters_;
@@ -3118,10 +3114,12 @@ V8_INLINE Type* Type::Uncover(bool* ok) {
   return nullptr;
 }
 
-
-V8_INLINE ZoneList<FormalParameter*>*
-Type::AsValidParameterList(Zone* zone, bool* ok) const {
-  if (!IsParenthesizedTypes()) { *ok = false; return nullptr; }
+V8_INLINE ZoneList<FormalParameter*>* Type::AsValidParameterList(
+    Zone* zone, bool* ok) const {
+  if (!IsParenthesizedTypes()) {
+    *ok = false;
+    return nullptr;
+  }
   ZoneList<Type*>* types = AsParenthesizedTypes()->types();
   ZoneList<FormalParameter*>* parameters =
       new (zone) ZoneList<FormalParameter*>(types->length(), zone);
@@ -3692,16 +3690,17 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (local_zone_) typesystem::ThisType(local_zone_, pos);
   }
 
-  typesystem::UnionType* NewUnionType(
-      typesystem::Type* left, typesystem::Type* right, int pos) {
-    return new (local_zone_) typesystem::UnionType(
-        local_zone_, left, right, pos);
+  typesystem::UnionType* NewUnionType(typesystem::Type* left,
+                                      typesystem::Type* right, int pos) {
+    return new (local_zone_)
+        typesystem::UnionType(local_zone_, left, right, pos);
   }
 
-  typesystem::IntersectionType* NewIntersectionType(
-      typesystem::Type* left, typesystem::Type* right, int pos) {
-    return new (local_zone_) typesystem::IntersectionType(
-        local_zone_, left, right, pos);
+  typesystem::IntersectionType* NewIntersectionType(typesystem::Type* left,
+                                                    typesystem::Type* right,
+                                                    int pos) {
+    return new (local_zone_)
+        typesystem::IntersectionType(local_zone_, left, right, pos);
   }
 
   typesystem::ArrayType* NewArrayType(typesystem::Type* base, int pos) {
@@ -3726,8 +3725,8 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   typesystem::ParenthesizedTypes* NewParenthesizedTypes(
       ZoneList<typesystem::Type*>* types, int pos) {
-    return new (local_zone_) typesystem::ParenthesizedTypes(
-        local_zone_, types, pos);
+    return new (local_zone_)
+        typesystem::ParenthesizedTypes(local_zone_, types, pos);
   }
 
   Zone* zone() const { return local_zone_; }

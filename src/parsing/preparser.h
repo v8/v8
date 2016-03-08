@@ -443,15 +443,16 @@ typedef PreParserList<PreParserFormalParameter> PreParserFormalParameters;
 class PreParserType {
  public:
   static PreParserType Default() { return PreParserType(); }
-  static PreParserType Parenthesized(int arity) {
-    return PreParserType(arity);
-  }
+  static PreParserType Parenthesized(int arity) { return PreParserType(arity); }
 
   // Dummy implementation for making type->somefunc() work in both Parser
   // and PreParser.
   PreParserType* operator->() { return this; }
 
-  PreParserType Uncover(bool* ok) { *ok = abs(arity_) == 1; return *this; }
+  PreParserType Uncover(bool* ok) {
+    *ok = abs(arity_) == 1;
+    return *this;
+  }
 
   PreParserFormalParameters AsValidParameterList(Zone* zone, bool* ok) const {
     if (arity_ >= 0) PreParserFormalParameters(arity_);
@@ -620,9 +621,9 @@ class PreParserFactory {
     return typesystem::PreParserType::Default();
   }
 
-  typesystem::PreParserType NewUnionType(
-      const typesystem::PreParserType& left,
-      const typesystem::PreParserType& right, int pos) {
+  typesystem::PreParserType NewUnionType(const typesystem::PreParserType& left,
+                                         const typesystem::PreParserType& right,
+                                         int pos) {
     return typesystem::PreParserType::Default();
   }
 
@@ -632,8 +633,8 @@ class PreParserFactory {
     return typesystem::PreParserType::Default();
   }
 
-  typesystem::PreParserType NewArrayType(
-      const typesystem::PreParserType& base, int pos) {
+  typesystem::PreParserType NewArrayType(const typesystem::PreParserType& base,
+                                         int pos) {
     return typesystem::PreParserType::Default();
   }
 
