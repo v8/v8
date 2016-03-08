@@ -16,209 +16,225 @@ function CheckInvalid(type) {
   assertThrows("'use types'; var x: " + type + ";", SyntaxError);
 }
 
-function Test(f, gen, size, ...rest) {
-  for (let t of gen(size, ...rest)) f(t);
+function Test(size, listgen) {
+  for (let attempt of Serve(size, listgen)) continue;
 }
 
-function div(x, y) {
-  return Math.floor(x / y);
-}
-
-function factor(size, divisor, proper) {
-  if (!proper) divisor++;
-  let result = div(divisor-1, divisor);
-  return (result == 0) ? div(size+1, 2) : result;
+function* Serve(size, listgen) {
+  let fixed = 0, flexible = 0;
+  for (let gen of listgen) {
+    if (typeof gen === "string") fixed++;
+    else flexible += gen[0] * gen[2].length;
+  }
+  if (fixed + flexible == 0) throw "Empty generator";
+  let remaining = 0;
+  for (let gen of listgen) {
+    if (typeof gen !== "string") {
+      let [freq, G, F, ...params] = gen;
+      let weight = 1 + freq * F.length;
+      gen.factory = G(Math.ceil(size * weight / flexible), ...params);
+      remaining++;
+    }
+  }
+  for (let once = true; true; once = false) {
+    if (remaining == 0) return;
+    for (let gen of listgen) {
+      if (typeof gen === "string") {
+        if (once) {
+          if (size-- <= 0) return; else yield gen;
+        }
+        continue;
+      }
+      let G = gen.factory;
+      if (!G) continue;
+      for (let i = 0; i < gen[0]; i++) {
+        let element = G.next();
+        if (!element.done) {
+          for (let f of gen[2]) {
+            if (size-- <= 0) return; else yield f(element.value);
+          }
+        }
+        else {
+          gen.factory = null;
+          remaining--;
+        }
+      }
+    }
+  }
 }
 
 function* ValidPrimaryTypes(size, proper=false) {
-  if (size-- <= 0) return; else yield "any";
-  if (size-- <= 0) return; else yield "void";
-  if (size-- <= 0) return; else yield "this"
-  let g1 = ValidTypes(factor(size, 5, true));
-  let g2 = ValidPrimaryTypes(factor(size, 5, true));
-  for (let done_simple = false; true; done_simple = true) {
-    let t1 = g1.next().value;
-    let t2 = g2.next().value;
-    if (size-- <= 0) return; else yield "(" + t1 + ")";
-    if (size-- <= 0) return; else yield t2 + "[]";
-    if (size-- <= 0) return; else yield t2 + "[][]";
-    if (size-- <= 0) return; else yield "(" + t2 + "[])";
-    if (size-- <= 0) return; else yield "(" + t2 + "[])[]";
-    if (done_simple) continue;
-    if (size-- <= 0) return; else yield "number";
-    if (size-- <= 0) return; else yield "boolean";
-    if (size-- <= 0) return; else yield "string";
-    if (size-- <= 0) return; else yield "symbol";
-  }
+  let L = ["any", "void", "this" ];
+  L.push([1, ValidTypes, [
+    (t) => "(" + t + ")"
+  ]]);
+  L.push([1, ValidPrimaryTypes, [
+    (t) => t + "[]",
+    (t) => t + "[][]",
+    (t) => "(" + t + "[])",
+    (t) => "(" + t + "[])[]",
+  ]]);
+  if (proper) L.push("number", "boolean", "string", "symbol");
+  yield* Serve(size, L);
 }
 
 function* InvalidPrimaryTypes(size, proper=false) {
-  // Undefined variable.
-  if (size-- <= 0) return; else yield "whatever";
-  // Legal parenthesized parameter lists that are not types.
-  if (size-- <= 0) return; else yield "()";
-  if (size-- <= 0) return; else yield "(number, string)";
-  if (size-- <= 0) return; else yield "(number, string, void)";
+  let L = [
+    // Undefined variable.
+    "whatever",
+    // Legal parenthesized parameter lists that are not types.
+    "()", "(number, string)", "(number, string, void)"
+  ];
   // Illegal types in legal places.
-  let g1 = InvalidTypes(factor(size, 5, true));
-  let g2 = InvalidPrimaryTypes(factor(size, 5, true));
-  while (true) {
-    let t1 = g1.next().value;
-    let t2 = g2.next().value;
-    if (size-- <= 0) return; else yield "(" + t1 + ")";
-    if (size-- <= 0) return; else yield t2 + "[]";
-    if (size-- <= 0) return; else yield t2 + "[][]";
-    if (size-- <= 0) return; else yield "(" + t2 + "[])";
-    if (size-- <= 0) return; else yield "(" + t2 + "[])[]";
-  }
-  if (proper) {
-    // Legal intersection types
-    // Legal union types
-    // Legal function types
-    // Legal constructor types
-  }
+  L.push([1, InvalidTypes, [
+    (t) => "(" + t + ")"
+  ]]);
+  L.push([1, InvalidPrimaryTypes, [
+    (t) => t + "[]",
+    (t) => t + "[][]",
+    (t) => "(" + t + "[])",
+    (t) => "(" + t + "[])[]",
+  ]]);
+  // Line terminator in arrays.
+  L.push([1, ValidTypes, [
+    (t) => "(" + t + "\n[])"
+  ]]);
+  yield* Serve(size, L);
 }
 
 (function TestPrimaryTypes(size) {
-  Test(CheckValid, ValidPrimaryTypes, size - div(size, 5), true);
-  Test(CheckInvalid, InvalidPrimaryTypes, div(size, 5), true);
+  Test(size, [
+    [4, ValidPrimaryTypes, [CheckValid], true],
+    [1, InvalidPrimaryTypes, [CheckInvalid], true]
+  ]);
 })(test_size);
 
 function* ValidIntersectionTypes(size, proper=false) {
-  let g = ValidPrimaryTypes(factor(size, 4, proper));
-  while (true) {
-    let t = g.next().value;
-    if (!proper) {
-      if (size-- <= 0) return; else yield t;
-    }
-    if (size-- <= 0) return; else yield t + " & " + t;
-    if (size-- <= 0) return; else yield "(" + t + " & " + t + ") & " + t;
-    if (size-- <= 0) return; else yield t + " & (" + t + " & " + t + ")";
-    if (size-- <= 0) return; else yield t + " & " + t + " & " + t;
-  }
+  let F = [];
+  if (!proper) F.push(...[
+    (t) => t
+  ]);
+  F.push(...[
+    (t) => t + " & " + t,
+    (t) => "(" + t + " & " + t + ") & " + t,
+    (t) => t + " & (" + t + " & " + t + ")",
+    (t) => t + " & " + t + " & " + t
+  ]);
+  let L = [[1, ValidPrimaryTypes, F]];
+  yield* Serve(size, L);
 }
 
 function* InvalidIntersectionTypes(size, proper=false) {
   // Illegal types in legal places.
-  let g = InvalidPrimaryTypes(factor(size, 4, proper));
-  while (true) {
-    let t = g.next().value;
-    if (!proper) {
-      if (size-- <= 0) return; else yield t;
-    }
-    if (size-- <= 0) return; else yield t + " & " + t;
-    if (size-- <= 0) return; else yield "(" + t + " & " + t + ") & " + t;
-    if (size-- <= 0) return; else yield t + " & (" + t + " & " + t + ")";
-    if (size-- <= 0) return; else yield t + " & " + t + " & " + t;
-  }
-  if (proper) {
-    // Legal union types
-    // Legal function types
-    // Legal constructor types
-  }
+  let F = [];
+  if (!proper) F.push(...[
+    (t) => t
+  ]);
+  F.push(...[
+    (t) => t + " & " + t,
+    (t) => "(" + t + " & " + t + ") & " + t,
+    (t) => t + " & (" + t + " & " + t + ")",
+    (t) => t + " & " + t + " & " + t
+  ]);
+  let L = [[4, InvalidPrimaryTypes, F]];
+  // Right hand side is a function or constructor type.
+  L.push([1, ValidFunctionTypes, [(t) => "any & " + t], false]);
+  L.push([1, ValidFunctionTypes, [(t) => "any & " + t], true]);
+  yield* Serve(size, L);
 }
 
 (function TestIntersectionTypes(size) {
-  Test(CheckValid, ValidIntersectionTypes, size - div(size, 5), true);
-  Test(CheckInvalid, InvalidIntersectionTypes, div(size, 5), true);
+  Test(size, [
+    [4, ValidIntersectionTypes, [CheckValid], true],
+    [1, InvalidIntersectionTypes, [CheckInvalid], true]
+  ]);
 })(test_size);
 
 function* ValidUnionTypes(size, proper=false) {
-  let g = ValidIntersectionTypes(factor(size, 4, proper));
-  while (true) {
-    let t = g.next().value;
-    if (!proper) {
-      if (size-- <= 0) return; else yield t;
-    }
-    if (size-- <= 0) return; else yield t + " | " + t;
-    if (size-- <= 0) return; else yield "(" + t + " | " + t + ") | " + t;
-    if (size-- <= 0) return; else yield t + " | (" + t + " | " + t + ")";
-    if (size-- <= 0) return; else yield t + " | " + t + " | " + t;
-  }
+  let F = [];
+  if (!proper) F.push(...[
+    (t) => t
+  ]);
+  F.push(...[
+    (t) => t + " | " + t,
+    (t) => "(" + t + " | " + t + ") | " + t,
+    (t) => t + " | (" + t + " | " + t + ")",
+    (t) => t + " | " + t + " | " + t
+  ]);
+  let L = [[1, ValidIntersectionTypes, F]];
+  yield* Serve(size, L);
 }
 
 function* InvalidUnionTypes(size, proper=false) {
   // Illegal types in legal places.
-  let g = InvalidIntersectionTypes(factor(size, 4, proper));
-  while (true) {
-    let t = g.next().value;
-    if (!proper) {
-      if (size-- <= 0) return; else yield t;
-    }
-    if (size-- <= 0) return; else yield t + " | " + t;
-    if (size-- <= 0) return; else yield "(" + t + " | " + t + ") | " + t;
-    if (size-- <= 0) return; else yield t + " | (" + t + " | " + t + ")";
-    if (size-- <= 0) return; else yield t + " | " + t + " | " + t;
-  }
-  if (proper) {
-    // Legal function types
-    // Legal constructor types
-  }
+  let F = [];
+  if (!proper) F.push(...[
+    (t) => t
+  ]);
+  F.push(...[
+    (t) => t + " | " + t,
+    (t) => "(" + t + " | " + t + ") | " + t,
+    (t) => t + " | (" + t + " | " + t + ")",
+    (t) => t + " | " + t + " | " + t
+  ]);
+  let L = [[1, InvalidIntersectionTypes, F]];
+  // Right hand side is a function or constructor type.
+  L.push([1, ValidFunctionTypes, [(t) => "any | " + t], false]);
+  L.push([1, ValidFunctionTypes, [(t) => "any | " + t], true]);
+  yield* Serve(size, L);
 }
 
 (function TestUnionTypes(size) {
-  Test(CheckValid, ValidUnionTypes, size - div(size, 5), true);
-  Test(CheckInvalid, InvalidUnionTypes, div(size, 5), true);
+  Test(size, [
+    [4, ValidUnionTypes, [CheckValid], true],
+    [1, InvalidUnionTypes, [CheckInvalid], true]
+  ]);
 })(test_size);
 
 function* ValidFunctionTypes(size, constr) {
-  let g = ValidTypes(factor(size, 4, true));
   let c = constr ? "new " : "";
-  while (true) {
-    let t = g.next().value;
-    if (size-- <= 0) return; else yield c + "() => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ") => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ", " + t + ") => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ", " + t + ", " + t + ") => " + t;
-  }
+  let L = [[1, ValidTypes, [
+    (t) => c + "() => " + t,
+    (t) => c + "(" + t + ") => " + t,
+    (t) => c + "(" + t + ", " + t + ") => " + t,
+    (t) => c + "(" + t + ", " + t + ", " + t + ") => " + t
+  ]]];
+  yield* Serve(size, L);
 }
 
 function* InvalidFunctionTypes(size, constr) {
   // Illegal types in legal places.
-  let g = InvalidTypes(factor(size, 4, true));
   let c = constr ? "new " : "";
-  while (true) {
-    let t = g.next().value;
-    if (size-- <= 0) return; else yield c + "() => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ") => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ", " + t + ") => " + t;
-    if (size-- <= 0) return; else yield c + "(" + t + ", " + t + ", " + t + ") => " + t;
-  }
+  let L = [[1, InvalidTypes, [
+    (t) => c + "() => " + t,
+    (t) => c + "(" + t + ") => " + t,
+    (t) => c + "(" + t + ", " + t + ") => " + t,
+    (t) => c + "(" + t + ", " + t + ", " + t + ") => " + t
+  ]]];
+  yield* Serve(size, L);
 }
 
 (function TestFunctionAndConstructorTypes(size) {
-  Test(CheckValid, ValidFunctionTypes, size - div(size, 2) - div(size, 10), false);
-  Test(CheckInvalid, InvalidFunctionTypes, div(size, 10), false);
-  Test(CheckValid, ValidFunctionTypes, div(size, 2) - div(size, 10), true);
-  Test(CheckInvalid, InvalidFunctionTypes, div(size, 10), true);
+  Test(size, [
+    [4, ValidFunctionTypes, [CheckValid], false],
+    [1, InvalidFunctionTypes, [CheckInvalid], false],
+    [4, ValidFunctionTypes, [CheckValid], true],
+    [1, InvalidFunctionTypes, [CheckInvalid], true]
+  ]);
 })(test_size);
 
 function* ValidTypes(size) {
-  let g1 = ValidUnionTypes(size - div(size, 4));
-  let g2 = ValidFunctionTypes(div(size, 4));
-  while (true) {
-    for (let i=0; i<3; i++) {
-      let t1 = g1.next().value;
-      if (size-- <= 0) return; else yield t1;
-    }
-    for (let i=0; i<1; i++) {
-      let t2 = g2.next().value;
-      if (size-- <= 0) return; else yield t2;
-    }
-  }
+  let L = [
+    [3, ValidUnionTypes, [(t) => t]],
+    [1, ValidFunctionTypes, [(t) => t], false],
+  ];
+  yield* Serve(size, L);
 }
 
 function* InvalidTypes(size) {
-  let g1 = InvalidUnionTypes(size - div(size, 4));
-  let g2 = InvalidFunctionTypes(div(size, 4));
-  while (true) {
-    for (let i=0; i<3; i++) {
-      let t1 = g1.next().value;
-      if (size-- <= 0) return; else yield t1;
-    }
-    for (let i=0; i<1; i++) {
-      let t2 = g2.next().value;
-      if (size-- <= 0) return; else yield t2;
-    }
-  }
+  let L = [
+    [3, InvalidUnionTypes, [(t) => t]],
+    [1, InvalidFunctionTypes, [(t) => t], false],
+  ];
+  yield* Serve(size, L);
 }
