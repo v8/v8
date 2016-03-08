@@ -229,7 +229,7 @@ RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   // Random numbers in the snapshot are not really that random.
-  DCHECK(!isolate->bootstrapper()->IsActive());
+  CHECK(!isolate->serializer_enabled());
   static const int kState0Offset = 0;
   static const int kState1Offset = 1;
   static const int kRandomBatchSize = 64;
