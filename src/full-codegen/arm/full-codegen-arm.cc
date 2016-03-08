@@ -4209,8 +4209,10 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
   Address branch_address = pc_immediate_load_address - Assembler::kInstrSize;
+#ifdef DEBUG
   Address interrupt_address = Assembler::target_address_at(
       pc_immediate_load_address, unoptimized_code);
+#endif
 
   if (Assembler::IsBranch(Assembler::instr_at(branch_address))) {
     DCHECK(interrupt_address ==
