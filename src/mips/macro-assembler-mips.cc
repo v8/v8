@@ -100,6 +100,34 @@ void MacroAssembler::StoreRoot(Register source,
   sw(source, MemOperand(s6, index << kPointerSizeLog2));
 }
 
+void MacroAssembler::PushCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    Push(ra, fp, marker_reg);
+    Addu(fp, sp, Operand(kPointerSize));
+  } else {
+    Push(ra, fp);
+    mov(fp, sp);
+  }
+}
+
+void MacroAssembler::PopCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    Pop(ra, fp, marker_reg);
+  } else {
+    Pop(ra, fp);
+  }
+}
+
+void MacroAssembler::PushStandardFrame(Register function_reg) {
+  int offset = -StandardFrameConstants::kContextOffset;
+  if (function_reg.is_valid()) {
+    Push(ra, fp, cp, function_reg);
+    offset += kPointerSize;
+  } else {
+    Push(ra, fp, cp);
+  }
+  Addu(fp, sp, Operand(offset));
+}
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
@@ -486,8 +514,18 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!holder_reg.is(at));
   DCHECK(!scratch.is(at));
 
-  // Load current lexical context from the stack frame.
-  lw(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  mov(at, fp);
+  bind(&load_context);
+  lw(scratch, MemOperand(at, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch, &has_context);
+  lw(at, MemOperand(at, CommonFrameConstants::kCallerFPOffset));
+  b(&load_context);
+  bind(&has_context);
+
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   Check(ne, kWeShouldNotHaveAnEmptyLexicalContext,
@@ -4938,12 +4976,9 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   }
 }
 
-
-void MacroAssembler::StubPrologue() {
-    Push(ra, fp, cp);
-    Push(Smi::FromInt(StackFrame::STUB));
-    // Adjust FP to point to saved FP.
-    Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+void MacroAssembler::StubPrologue(StackFrame::Type type) {
+  li(at, Operand(Smi::FromInt(type)));
+  PushCommonFrame(at);
 }
 
 
@@ -4966,10 +5001,8 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
     nop();  // Branch delay slot nop.
     nop();  // Pad the empty space.
   } else {
-    Push(ra, fp, cp, a1);
+    PushStandardFrame(a1);
     nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-    // Adjust fp to point to caller's fp.
-    Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   }
 }
 
@@ -4990,30 +5023,41 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  addiu(sp, sp, -5 * kPointerSize);
-  li(t8, Operand(Smi::FromInt(type)));
-  li(t9, Operand(CodeObject()), CONSTANT_SIZE);
-  sw(ra, MemOperand(sp, 4 * kPointerSize));
-  sw(fp, MemOperand(sp, 3 * kPointerSize));
-  sw(cp, MemOperand(sp, 2 * kPointerSize));
-  sw(t8, MemOperand(sp, 1 * kPointerSize));
-  sw(t9, MemOperand(sp, 0 * kPointerSize));
+  int stack_offset, fp_offset;
+  if (type == StackFrame::INTERNAL) {
+    stack_offset = -4 * kPointerSize;
+    fp_offset = 2 * kPointerSize;
+  } else {
+    stack_offset = -3 * kPointerSize;
+    fp_offset = 1 * kPointerSize;
+  }
+  addiu(sp, sp, stack_offset);
+  stack_offset = -stack_offset - kPointerSize;
+  sw(ra, MemOperand(sp, stack_offset));
+  stack_offset -= kPointerSize;
+  sw(fp, MemOperand(sp, stack_offset));
+  stack_offset -= kPointerSize;
+  li(t9, Operand(Smi::FromInt(type)));
+  sw(t9, MemOperand(sp, stack_offset));
+  if (type == StackFrame::INTERNAL) {
+    DCHECK_EQ(stack_offset, kPointerSize);
+    li(t9, Operand(CodeObject()));
+    sw(t9, MemOperand(sp, 0));
+  } else {
+    DCHECK_EQ(stack_offset, 0);
+  }
   // Adjust FP to point to saved FP.
-  Addu(fp, sp,
-       Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
+  Addu(fp, sp, Operand(fp_offset));
 }
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  mov(sp, fp);
-  lw(fp, MemOperand(sp, 0 * kPointerSize));
-  lw(ra, MemOperand(sp, 1 * kPointerSize));
-  addiu(sp, sp, 2 * kPointerSize);
+  addiu(sp, fp, 2 * kPointerSize);
+  lw(ra, MemOperand(fp, 1 * kPointerSize));
+  lw(fp, MemOperand(fp, 0 * kPointerSize));
 }
 
-
-void MacroAssembler::EnterExitFrame(bool save_doubles,
-                                    int stack_space) {
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Set up the frame structure on the stack.
   STATIC_ASSERT(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
   STATIC_ASSERT(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
@@ -5023,16 +5067,20 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
   // [fp + 1 (==kCallerPCOffset)] - saved old ra
   // [fp + 0 (==kCallerFPOffset)] - saved old fp
-  // [fp - 1 (==kSPOffset)] - sp of the called function
-  // [fp - 2 (==kCodeOffset)] - CodeObject
+  // [fp - 1 StackFrame::EXIT Smi
+  // [fp - 2 (==kSPOffset)] - sp of the called function
+  // [fp - 3 (==kCodeOffset)] - CodeObject
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
 
-  // Save registers.
-  addiu(sp, sp, -4 * kPointerSize);
-  sw(ra, MemOperand(sp, 3 * kPointerSize));
-  sw(fp, MemOperand(sp, 2 * kPointerSize));
-  addiu(fp, sp, 2 * kPointerSize);  // Set up new frame pointer.
+  // Save registers and reserve room for saved entry sp and code object.
+  addiu(sp, sp, -2 * kPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
+  sw(ra, MemOperand(sp, 4 * kPointerSize));
+  sw(fp, MemOperand(sp, 3 * kPointerSize));
+  li(at, Operand(Smi::FromInt(StackFrame::EXIT)));
+  sw(at, MemOperand(sp, 2 * kPointerSize));
+  // Set up new frame pointer.
+  addiu(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
 
   if (emit_debug_code()) {
     sw(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));

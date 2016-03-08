@@ -1467,20 +1467,28 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->IsCFunctionCall()) {
-    __ SetStackPointer(csp);
-    __ Push(lr, fp);
-    __ Mov(fp, csp);
-  } else if (descriptor->IsJSFunctionCall()) {
-    __ SetStackPointer(jssp);
-    __ Prologue(this->info()->GeneratePreagedPrologue());
-  } else if (frame()->needs_frame()) {
-    if (descriptor->UseNativeStack()) {
-      __ SetStackPointer(csp);
-    } else {
+  frame()->AlignFrame(16);
+  int stack_shrink_slots = frame()->GetSpillSlotCount();
+  if (frame()->needs_frame()) {
+    if (descriptor->IsJSFunctionCall()) {
+      DCHECK(!descriptor->UseNativeStack());
       __ SetStackPointer(jssp);
+      __ Prologue(this->info()->GeneratePreagedPrologue());
+    } else {
+      if (descriptor->UseNativeStack() || descriptor->IsCFunctionCall()) {
+        __ SetStackPointer(csp);
+      } else {
+        __ SetStackPointer(jssp);
+      }
+      if (descriptor->IsCFunctionCall()) {
+        __ Push(lr, fp);
+        __ Mov(fp, masm_.StackPointer());
+        __ Claim(stack_shrink_slots);
+      } else {
+        __ StubPrologue(info()->GetOutputStackFrameType(),
+                        frame()->GetTotalFrameSlotCount());
+      }
     }
-    __ StubPrologue();
   } else {
     if (descriptor->UseNativeStack()) {
       __ SetStackPointer(csp);
@@ -1490,8 +1498,6 @@ void CodeGenerator::AssemblePrologue() {
     frame()->SetElidedFrameSizeInSlots(0);
   }
   frame_access_state()->SetFrameAccessToDefault();
-
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1505,15 +1511,9 @@ void CodeGenerator::AssemblePrologue() {
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
-  // If frame()->needs_frame() is false, then
-  // frame()->AlignSavedCalleeRegisterSlots() is guaranteed to return 0.
-  if (csp.Is(masm()->StackPointer()) && frame()->needs_frame()) {
-    // The system stack pointer requires 16-byte alignment at function call
-    // boundaries.
-
-    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
+  if (descriptor->IsJSFunctionCall()) {
+    __ Claim(stack_shrink_slots);
   }
-  __ Claim(stack_shrink_slots);
 
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kFPRegister, kDRegSizeInBits,

@@ -124,6 +124,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
+  //  -- rsi: context
   //  -- rdi: constructor function
   //  -- rbx: allocation site or undefined
   //  -- rdx: new target
@@ -135,6 +136,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(rbx);
+    __ Push(rsi);
     __ Push(rbx);
     __ Integer32ToSmi(rcx, rax);
     __ Push(rcx);
@@ -200,7 +202,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore context from the frame.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ movp(rsi, Operand(rbp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -350,9 +352,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r8         : receiver
     // r9         : argc
     // [rsp+0x20] : argv
-
-    // Clear the context before we push it when entering the internal frame.
-    __ Set(rsi, 0);
 
     // Enter an internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1870,7 +1869,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ j(less, &fill);
 
     // Restore function pointer.
-    __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    __ movp(rdi, Operand(rbp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
   }
 
   // Call the entry point.
@@ -2076,7 +2075,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ Cmp(Operand(rbp, StandardFrameConstants::kMarkerOffset),
+    __ Cmp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
            Smi::FromInt(StackFrame::STUB));
     __ j(not_equal, &no_interpreter_frame, Label::kNear);
     __ movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
@@ -2087,7 +2086,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ movp(scratch2, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(scratch2, StandardFrameConstants::kContextOffset),
+  __ Cmp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
          Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 

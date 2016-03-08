@@ -518,6 +518,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- x2     : allocation site or undefined
   //  -- x3     : new target
   //  -- lr     : return address
+  //  -- cp     : context pointer
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
@@ -537,6 +538,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(allocation_site, x10);
+    __ Push(cp);
     __ SmiTag(argc);
     __ Push(allocation_site, argc);
 
@@ -623,7 +625,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x0: result
     // jssp[0]: receiver
     // jssp[1]: number of arguments (smi-tagged)
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -762,9 +764,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   Register scratch = x10;
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // Clear the context before we push it when entering the internal frame.
-  __ Mov(cp, 0);
 
   {
     // Enter an internal frame.
@@ -1984,7 +1983,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ Ldr(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ Ldr(scratch3,
+           MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
     __ B(ne, &no_interpreter_frame);
     __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1996,7 +1996,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ Ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(scratch3,
-         MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+         MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ B(ne, &no_arguments_adaptor);
 

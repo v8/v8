@@ -1322,7 +1322,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(int frame_index) {
            "  translating arguments adaptor => height=%d\n", height_in_bytes);
   }
 
-  unsigned fixed_frame_size = ArgumentsAdaptorFrameConstants::kFrameSize;
+  unsigned fixed_frame_size = ArgumentsAdaptorFrameConstants::kFixedFrameSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -1430,7 +1430,7 @@ void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
            "  translating construct stub => height=%d\n", height_in_bytes);
   }
 
-  unsigned fixed_frame_size = ConstructFrameConstants::kFrameSize;
+  unsigned fixed_frame_size = ConstructFrameConstants::kFixedFrameSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -1485,24 +1485,18 @@ void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
                          "caller's constant_pool\n");
   }
 
+  // A marker value is used to mark the frame.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::CONSTRUCT));
+  output_frame->SetFrameSlot(output_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_offset,
+                       "typed frame marker\n");
+
   // The context can be gotten from the previous frame.
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
-
-  // A marker value is used in place of the function.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::CONSTRUCT));
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset,
-                       "function (construct sentinel)\n");
-
-  // The output frame reflects a JSConstructStubGeneric frame.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(construct_stub);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "code object\n");
 
   // The allocation site.
   output_offset -= kPointerSize;
@@ -1563,7 +1557,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(int frame_index,
   }
 
   // We need 1 stack entry for the return address and enough entries for the
-  // StackFrame::INTERNAL (FP, context, frame type, code object and constant
+  // StackFrame::INTERNAL (FP, frame type, context, code object and constant
   // pool (if enabled)- see MacroAssembler::EnterFrame).
   // For a setter stub frame we need one additional entry for the implicit
   // return value, see StoreStubCompiler::CompileStoreViaSetter.
@@ -1613,17 +1607,11 @@ void Deoptimizer::DoComputeAccessorStubFrame(int frame_index,
                          "caller's constant_pool\n");
   }
 
-  // The context can be gotten from the previous frame.
-  output_offset -= kPointerSize;
-  value = output_[frame_index - 1]->GetContext();
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
-
-  // A marker value is used in place of the function.
+  // Set the frame type.
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::INTERNAL));
   output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "function ");
+  DebugPrintOutputSlot(value, frame_index, output_offset, "frame type ");
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "(%s sentinel)\n", kind);
   }
@@ -1637,6 +1625,12 @@ void Deoptimizer::DoComputeAccessorStubFrame(int frame_index,
   value = reinterpret_cast<intptr_t>(accessor_stub);
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "code object\n");
+
+  // The context can be gotten from the previous frame.
+  output_offset -= kPointerSize;
+  value = output_[frame_index - 1]->GetContext();
+  output_frame->SetFrameSlot(output_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
 
   // Skip receiver.
   value_iterator++;
@@ -1722,9 +1716,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   CHECK_EQ(translated_frame->height(), param_count + 1);
   CHECK_GE(param_count, 0);
 
-  int height_in_bytes = kPointerSize * (param_count + stack_param_count) +
-                        sizeof(Arguments) + kPointerSize;
-  int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
+  int height_in_bytes = kPointerSize * (param_count + stack_param_count);
+  int fixed_frame_size = StubFailureTrampolineFrameConstants::kFixedFrameSize;
   int output_frame_size = height_in_bytes + fixed_frame_size;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
@@ -1744,9 +1737,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   // frame pointer and the output frame's height. Subtract space for the
   // context and function slots.
   Register fp_reg = StubFailureTrampolineFrame::fp_register();
-  intptr_t top_address = stack_fp_ -  // input_->GetRegister(fp_reg.code()) -
-                         StandardFrameConstants::kFixedFrameSizeFromFp -
-                         height_in_bytes;
+  intptr_t top_address =
+      stack_fp_ -  // input_->GetRegister(fp_reg.code()) -
+      StubFailureTrampolineFrameConstants::kFixedFrameSizeFromFp -
+      height_in_bytes;
   output_frame->SetTop(top_address);
 
   // Set caller's PC (JSFunction continuation).
@@ -1756,7 +1750,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "caller's pc\n");
 
-  // Set caller's FP from the input frame, and set this frame's FP.
+  // Read caller's FP from the input frame, and set this frame's FP.
   value = caller_fp_;
   output_frame_offset -= kFPOnStackSize;
   output_frame->SetCallerFp(output_frame_offset, value);
@@ -1775,12 +1769,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
                          "caller's constant_pool\n");
   }
 
-  // Remember where the context will need to be written back from the deopt
-  // translation.
-  output_frame_offset -= kPointerSize;
-  unsigned context_frame_offset = output_frame_offset;
-
-  // A marker value is used in place of the function.
+  // The marker for the typed stack frame
   output_frame_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(
       Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
@@ -1841,8 +1830,6 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   Register context_reg = StubFailureTrampolineFrame::context_register();
   value = reinterpret_cast<intptr_t>(maybe_context);
   output_frame->SetRegister(context_reg.code(), value);
-  output_frame->SetFrameSlot(context_frame_offset, value);
-  DebugPrintOutputSlot(value, frame_index, context_frame_offset, "context\n");
   ++value_iterator;
 
   // Copy constant stack parameters to the failure frame. If the number of stack
@@ -1993,11 +1980,9 @@ void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
 }
 
 unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
-  unsigned fixed_size = StandardFrameConstants::kFixedFrameSizeAboveFp;
+  unsigned fixed_size = CommonFrameConstants::kFixedFrameSizeAboveFp;
   if (!function_->IsSmi()) {
     fixed_size += ComputeIncomingArgumentSize(function_->shared());
-  } else {
-    CHECK_EQ(Smi::cast(function_), Smi::FromInt(StackFrame::STUB));
   }
   return fixed_size;
 }
@@ -2013,7 +1998,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
         ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
     CHECK(result ==
           fixed_size_from_fp + (stack_slots * kPointerSize) -
-              StandardFrameConstants::kFixedFrameSizeAboveFp + outgoing_size);
+              CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size);
   }
   return result;
 }
@@ -2333,7 +2318,7 @@ void Translation::StoreArgumentsObject(bool args_known,
 
 void Translation::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
-                  StandardFrameConstants::kMarkerOffset) /
+                  StandardFrameConstants::kFunctionOffset) /
                  kPointerSize);
 }
 

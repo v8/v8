@@ -131,7 +131,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
+  __ Mov(x0, 0);
+  Label context_check;
+  __ Ldr(x1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(x1, &context_check);
   __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ Mov(x1, type());
   // Following arguments are already loaded:
   //  - x2: bailout id

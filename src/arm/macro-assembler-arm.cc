@@ -755,20 +755,65 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   }
 }
 
-
-void MacroAssembler::PushFixedFrame(Register marker_reg) {
-  DCHECK(!marker_reg.is_valid() || marker_reg.code() < cp.code());
-  stm(db_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) | cp.bit() |
-                    (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
-                    fp.bit() | lr.bit());
+void MacroAssembler::PushCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    if (FLAG_enable_embedded_constant_pool) {
+      if (marker_reg.code() > pp.code()) {
+        stm(db_w, sp, pp.bit() | fp.bit() | lr.bit());
+        add(fp, sp, Operand(kPointerSize));
+        Push(marker_reg);
+      } else {
+        stm(db_w, sp, marker_reg.bit() | pp.bit() | fp.bit() | lr.bit());
+        add(fp, sp, Operand(2 * kPointerSize));
+      }
+    } else {
+      if (marker_reg.code() > fp.code()) {
+        stm(db_w, sp, fp.bit() | lr.bit());
+        mov(fp, Operand(sp));
+        Push(marker_reg);
+      } else {
+        stm(db_w, sp, marker_reg.bit() | fp.bit() | lr.bit());
+        add(fp, sp, Operand(kPointerSize));
+      }
+    }
+  } else {
+    stm(db_w, sp, (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
+                      fp.bit() | lr.bit());
+    add(fp, sp, Operand(FLAG_enable_embedded_constant_pool ? kPointerSize : 0));
+  }
 }
 
+void MacroAssembler::PopCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    if (FLAG_enable_embedded_constant_pool) {
+      if (marker_reg.code() > pp.code()) {
+        pop(marker_reg);
+        ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
+      } else {
+        ldm(ia_w, sp, marker_reg.bit() | pp.bit() | fp.bit() | lr.bit());
+      }
+    } else {
+      if (marker_reg.code() > fp.code()) {
+        pop(marker_reg);
+        ldm(ia_w, sp, fp.bit() | lr.bit());
+      } else {
+        ldm(ia_w, sp, marker_reg.bit() | fp.bit() | lr.bit());
+      }
+    }
+  } else {
+    ldm(ia_w, sp, (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
+                      fp.bit() | lr.bit());
+  }
+}
 
-void MacroAssembler::PopFixedFrame(Register marker_reg) {
-  DCHECK(!marker_reg.is_valid() || marker_reg.code() < cp.code());
-  ldm(ia_w, sp, (marker_reg.is_valid() ? marker_reg.bit() : 0) | cp.bit() |
+void MacroAssembler::PushStandardFrame(Register function_reg) {
+  DCHECK(!function_reg.is_valid() || function_reg.code() < cp.code());
+  stm(db_w, sp, (function_reg.is_valid() ? function_reg.bit() : 0) | cp.bit() |
                     (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
                     fp.bit() | lr.bit());
+  int offset = -StandardFrameConstants::kContextOffset;
+  offset += function_reg.is_valid() ? kPointerSize : 0;
+  add(fp, sp, Operand(offset));
 }
 
 
@@ -1116,18 +1161,14 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
   LoadConstantPoolPointerRegisterFromCodeTargetAddress(ip);
 }
 
-
-void MacroAssembler::StubPrologue() {
-  PushFixedFrame();
-  Push(Smi::FromInt(StackFrame::STUB));
-  // Adjust FP to point to saved FP.
-  add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+void MacroAssembler::StubPrologue(StackFrame::Type type) {
+  mov(ip, Operand(Smi::FromInt(type)));
+  PushCommonFrame(ip);
   if (FLAG_enable_embedded_constant_pool) {
     LoadConstantPoolPointerRegister();
     set_constant_pool_available(true);
   }
 }
-
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
   { PredictableCodeSizeScope predictible_code_size_scope(
@@ -1141,10 +1182,8 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
       ldr(pc, MemOperand(pc, -4));
       emit_code_stub_address(stub);
     } else {
-      PushFixedFrame(r1);
+      PushStandardFrame(r1);
       nop(ip.code());
-      // Adjust FP to point to saved FP.
-      add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
     }
   }
   if (FLAG_enable_embedded_constant_pool) {
@@ -1165,17 +1204,15 @@ void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved
-  PushFixedFrame();
+  mov(ip, Operand(Smi::FromInt(type)));
+  PushCommonFrame(ip);
   if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {
     LoadConstantPoolPointerRegister();
   }
-  mov(ip, Operand(Smi::FromInt(type)));
-  push(ip);
-  mov(ip, Operand(CodeObject()));
-  push(ip);
-  // Adjust FP to point to saved FP.
-  add(fp, sp,
-      Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
+  if (type == StackFrame::INTERNAL) {
+    mov(ip, Operand(CodeObject()));
+    push(ip);
+  }
 }
 
 
@@ -1206,10 +1243,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
-  Push(lr, fp);
-  mov(fp, Operand(sp));  // Set up new frame pointer.
+  mov(ip, Operand(Smi::FromInt(StackFrame::EXIT)));
+  PushCommonFrame(ip);
   // Reserve room for saved entry sp and code object.
-  sub(sp, sp, Operand(ExitFrameConstants::kFrameSize));
+  sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
   if (emit_debug_code()) {
     mov(ip, Operand::Zero());
     str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
@@ -1291,7 +1328,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
-    const int offset = ExitFrameConstants::kFrameSize;
+    const int offset = ExitFrameConstants::kFixedFrameSizeFromFp;
     sub(r3, fp,
         Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
     RestoreFPRegs(r3, ip);
@@ -1678,8 +1715,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!holder_reg.is(ip));
   DCHECK(!scratch.is(ip));
 
-  // Load current lexical context from the stack frame.
-  ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  DCHECK(!ip.is(scratch));
+  mov(ip, fp);
+  bind(&load_context);
+  ldr(scratch, MemOperand(ip, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch, &has_context);
+  ldr(ip, MemOperand(ip, CommonFrameConstants::kCallerFPOffset));
+  b(&load_context);
+  bind(&has_context);
+
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   cmp(scratch, Operand::Zero());

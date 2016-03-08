@@ -245,6 +245,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ Push(cp);
     // Save value register, so we can restore it later.
     __ Push(value());
 
@@ -275,7 +277,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ Pop(x0);
 
     // Restore context register.
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Pop(cp);
   }
   __ Ret();
 }
@@ -286,6 +288,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     int accessor_index, int expected_arguments, Register scratch) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save context register
+    __ Push(cp);
 
     if (accessor_index >= 0) {
       DCHECK(!AreAliased(holder, scratch));
@@ -310,7 +315,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Pop(cp);
   }
   __ Ret();
 }

@@ -1933,9 +1933,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // fp = caller's frame pointer.
   // cp = callee's context,
   // t0 = callee's JS function.
-  __ Push(ra, fp, cp, t0);
-  // Adjust FP to point to saved FP.
-  __ Addu(fp, sp, 2 * kPointerSize);
+  __ PushStandardFrame(t0);
 
   // Load the operand stack size.
   __ lw(a3, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));

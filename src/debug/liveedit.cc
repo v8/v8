@@ -1485,26 +1485,22 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 
 // Initializes an artificial stack frame. The data it contains is used for:
 //  a. successful work of frame dropper code which eventually gets control,
-//  b. being compatible with regular stack structure for various stack
+//  b. being compatible with a typed frame structure for various stack
 //     iterators.
-// Frame structure (conforms InternalFrame structure):
+// Frame structure (conforms to InternalFrame structure):
+//   -- function
 //   -- code
-//   -- SMI maker
-//   -- function (slot is called "context")
+//   -- SMI marker
 //   -- frame base
 static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                    Handle<Code> code) {
   DCHECK(bottom_js_frame->is_java_script());
-
   Address fp = bottom_js_frame->fp();
-
-  // Move function pointer into "context" slot.
-  Memory::Object_at(fp + StandardFrameConstants::kContextOffset) =
-      Memory::Object_at(fp + JavaScriptFrameConstants::kFunctionOffset);
-
-  Memory::Object_at(fp + InternalFrameConstants::kCodeOffset) = *code;
-  Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset) =
+  Memory::Object_at(fp + FrameDropperFrameConstants::kFunctionOffset) =
+      Memory::Object_at(fp + StandardFrameConstants::kFunctionOffset);
+  Memory::Object_at(fp + FrameDropperFrameConstants::kFrameTypeOffset) =
       Smi::FromInt(StackFrame::INTERNAL);
+  Memory::Object_at(fp + FrameDropperFrameConstants::kCodeOffset) = *code;
 }
 
 
@@ -1566,9 +1562,9 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   }
 
   Address unused_stack_top = top_frame->sp();
-  int new_frame_size = LiveEdit::kFrameDropperFrameSize * kPointerSize;
-  Address unused_stack_bottom = bottom_js_frame->fp()
-      - new_frame_size + kPointerSize;  // Bigger address end is exclusive.
+  Address unused_stack_bottom =
+      bottom_js_frame->fp() - FrameDropperFrameConstants::kFixedFrameSize +
+      2 * kPointerSize;  // Bigger address end is exclusive.
 
   Address* top_frame_pc_address = top_frame->pc_address();
 
@@ -1580,8 +1576,9 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
       int shortage_bytes =
           static_cast<int>(unused_stack_top - unused_stack_bottom);
 
-      Address padding_start = pre_top_frame->fp() -
-          LiveEdit::kFrameDropperFrameSize * kPointerSize;
+      Address padding_start =
+          pre_top_frame->fp() -
+          (FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
 
       Address padding_pointer = padding_start;
       Smi* padding_object = Smi::FromInt(LiveEdit::kFramePaddingValue);
@@ -1601,7 +1598,7 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
 
       MemMove(padding_start + kPointerSize - shortage_bytes,
               padding_start + kPointerSize,
-              LiveEdit::kFrameDropperFrameSize * kPointerSize);
+              FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
 
       pre_top_frame->UpdateFp(pre_top_frame->fp() - shortage_bytes);
       pre_pre_frame->SetCallerFp(pre_top_frame->fp());

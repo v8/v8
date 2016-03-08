@@ -226,7 +226,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, eax);
+  __ mov(eax, Immediate(0));
+  Label context_check;
+  __ mov(edi, Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(edi, &context_check);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(type()));  // Bailout type.
   __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.

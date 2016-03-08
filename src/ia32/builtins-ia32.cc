@@ -123,6 +123,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
+  //  -- esi: context
   //  -- edi: constructor function
   //  -- ebx: allocation site or undefined
   //  -- edx: new target
@@ -134,6 +135,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(ebx);
+    __ push(esi);
     __ push(ebx);
     __ SmiTag(eax);
     __ push(eax);
@@ -201,7 +203,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Restore context from the frame.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -323,9 +325,6 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // Clear the context before we push it when entering the internal frame.
-  __ Move(esi, Immediate(0));
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1873,7 +1872,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
+    __ cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
            Immediate(Smi::FromInt(StackFrame::STUB)));
     __ j(not_equal, &no_interpreter_frame, Label::kNear);
     __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -1884,7 +1883,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ mov(scratch2, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ cmp(Operand(scratch2, StandardFrameConstants::kContextOffset),
+  __ cmp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 
@@ -2431,7 +2430,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Call the entry point.
   __ bind(&invoke);
   // Restore function pointer.
-  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(edi, Operand(ebp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
   // eax : expected number of arguments
   // edx : new target (passed through to callee)
   // edi : function (passed through to callee)

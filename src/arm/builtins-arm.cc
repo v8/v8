@@ -531,6 +531,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- r1     : constructor function
   //  -- r2     : allocation site or undefined
   //  -- r3     : new target
+  //  -- cp     : context
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -543,6 +544,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(r2, r4);
+    __ Push(cp);
     __ SmiTag(r0);
     __ Push(r2, r0);
 
@@ -622,7 +624,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r0: result
     // sp[0]: receiver
     // sp[1]: number of arguments (smi-tagged)
-    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -751,9 +753,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5-r6, r8 (if !FLAG_enable_embedded_constant_pool) and cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // Clear the context before we push it when entering the internal frame.
-  __ mov(cp, Operand::Zero());
-
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -855,8 +854,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushFixedFrame(r1);
-  __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r1);
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
@@ -1192,8 +1190,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ ldm(ia_w, sp, r0.bit() | r1.bit() | r3.bit() | fp.bit() | lr.bit());
 
   // Perform prologue operations usually performed by the young code stub.
-  __ PushFixedFrame(r1);
-  __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r1);
 
   // Jump to point after the code-age stub.
   __ add(r0, r0, Operand(kNoCodeAgeSequenceLength));
@@ -1945,7 +1942,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ ldr(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ ldr(scratch3,
+           MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
     __ b(ne, &no_interpreter_frame);
     __ ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1957,7 +1955,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(scratch3,
-         MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+         MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &no_arguments_adaptor);
 
@@ -1970,7 +1968,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
 
   __ bind(&no_arguments_adaptor);
   // Load caller's formal parameter count
-  __ ldr(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(scratch1,
+         MemOperand(fp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
   __ ldr(scratch1,
          FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(caller_args_count_reg,

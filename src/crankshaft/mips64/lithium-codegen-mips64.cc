@@ -111,7 +111,7 @@ bool LCodeGen::GeneratePrologue() {
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
     if (info()->IsStub()) {
-      __ StubPrologue();
+      __ StubPrologue(StackFrame::STUB);
     } else {
       __ Prologue(info()->GeneratePreagedPrologue());
     }
@@ -253,19 +253,15 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ MultiPush(cp.bit() | fp.bit() | ra.bit());
         __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-        __ push(scratch0());
-        __ Daddu(fp, sp,
-            Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+        __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
       code->Generate();
       if (NeedsDeferredFrame()) {
         Comment(";;; Destroy frame");
         DCHECK(frame_is_built_);
-        __ pop(at);
-        __ MultiPop(cp.bit() | fp.bit() | ra.bit());
+        __ PopCommonFrame(scratch0());
         frame_is_built_ = false;
       }
       __ jmp(code->exit());
@@ -300,7 +296,7 @@ bool LCodeGen::GenerateJumpTable() {
         if (table_entry->needs_frame) {
           DCHECK(!info()->saves_caller_doubles());
           Comment(";;; call deopt with frame");
-          __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+          __ PushCommonFrame();
           __ BranchAndLink(&needs_frame, USE_DELAY_SLOT);
           __ li(t9, Operand(entry - base));
         } else {
@@ -313,7 +309,7 @@ bool LCodeGen::GenerateJumpTable() {
         if (table_entry->needs_frame) {
           DCHECK(!info()->saves_caller_doubles());
           Comment(";;; call deopt with frame");
-          __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+          __ PushCommonFrame();
           __ BranchAndLink(&needs_frame);
         } else {
           __ BranchAndLink(&call_deopt_entry);
@@ -327,10 +323,9 @@ bool LCodeGen::GenerateJumpTable() {
       // This variant of deopt can only be used with stubs. Since we don't
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
-      DCHECK(info()->IsStub());
       __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
       __ push(at);
-      __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+      DCHECK(info()->IsStub());
     }
 
     Comment(";;; call deopt");
@@ -3172,7 +3167,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // Check if the calling frame is an arguments adaptor frame.
     Label done, adapted;
     __ ld(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ ld(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
+    __ ld(result,
+          MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real

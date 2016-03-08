@@ -125,7 +125,7 @@ bool LCodeGen::GeneratePrologue() {
     DCHECK(!frame_is_built_);
     frame_is_built_ = true;
     if (info()->IsStub()) {
-      __ StubPrologue();
+      __ StubPrologue(StackFrame::STUB);
     } else {
       __ Prologue(info()->GeneratePreagedPrologue());
     }
@@ -306,34 +306,27 @@ bool LCodeGen::GenerateJumpTable() {
   if (needs_frame.is_linked()) {
     __ bind(&needs_frame);
     /* stack layout
-       4: return address  <-- rsp
-       3: garbage
+       3: return address  <-- rsp
        2: garbage
        1: garbage
        0: garbage
     */
-    // Reserve space for context and stub marker.
-    __ subp(rsp, Immediate(2 * kPointerSize));
-    __ Push(MemOperand(rsp, 2 * kPointerSize));  // Copy return address.
-    __ Push(kScratchRegister);  // Save entry address for ret(0)
+    // Reserve space for stub marker.
+    __ subp(rsp, Immediate(TypedFrameConstants::kFrameTypeSize));
+    __ Push(MemOperand(
+        rsp, TypedFrameConstants::kFrameTypeSize));  // Copy return address.
+    __ Push(kScratchRegister);
 
     /* stack layout
-       4: return address
-       3: garbage
+       3: return address
        2: garbage
        1: return address
        0: entry address  <-- rsp
     */
 
-    // Remember context pointer.
-    __ movp(kScratchRegister,
-            MemOperand(rbp, StandardFrameConstants::kContextOffset));
-    // Save context pointer into the stack frame.
-    __ movp(MemOperand(rsp, 3 * kPointerSize), kScratchRegister);
-
     // Create a stack frame.
-    __ movp(MemOperand(rsp, 4 * kPointerSize), rbp);
-    __ leap(rbp, MemOperand(rsp, 4 * kPointerSize));
+    __ movp(MemOperand(rsp, 3 * kPointerSize), rbp);
+    __ leap(rbp, MemOperand(rsp, 3 * kPointerSize));
 
     // This variant of deopt can only be used with stubs. Since we don't
     // have a function pointer to install in the stack frame that we're
@@ -342,8 +335,7 @@ bool LCodeGen::GenerateJumpTable() {
     __ Move(MemOperand(rsp, 2 * kPointerSize), Smi::FromInt(StackFrame::STUB));
 
     /* stack layout
-       4: old rbp
-       3: context pointer
+       3: old rbp
        2: stub marker
        1: return address
        0: entry address  <-- rsp
@@ -379,9 +371,8 @@ bool LCodeGen::GenerateDeferredCode() {
         frame_is_built_ = true;
         // Build the frame in such a way that esi isn't trashed.
         __ pushq(rbp);  // Caller's frame pointer.
-        __ Push(Operand(rbp, StandardFrameConstants::kContextOffset));
         __ Push(Smi::FromInt(StackFrame::STUB));
-        __ leap(rbp, Operand(rsp, 2 * kPointerSize));
+        __ leap(rbp, Operand(rsp, TypedFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -3014,7 +3005,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // Check for arguments adapter frame.
     Label done, adapted;
     __ movp(result, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-    __ Cmp(Operand(result, StandardFrameConstants::kContextOffset),
+    __ Cmp(Operand(result, CommonFrameConstants::kContextOrFrameTypeOffset),
            Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
     __ j(equal, &adapted, Label::kNear);
 

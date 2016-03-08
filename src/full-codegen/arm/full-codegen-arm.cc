@@ -1939,9 +1939,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // pp = caller's constant pool (if FLAG_enable_embedded_constant_pool),
   // cp = callee's context,
   // r4 = callee's JS function.
-  __ PushFixedFrame(r4);
-  // Adjust FP to point to saved FP.
-  __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r4);
 
   // Load the operand stack size.
   __ ldr(r3, FieldMemOperand(r1, JSGeneratorObject::kOperandStackOffset));

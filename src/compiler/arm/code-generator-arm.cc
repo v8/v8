@@ -1212,19 +1212,21 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->IsCFunctionCall()) {
-    if (FLAG_enable_embedded_constant_pool) {
-      __ Push(lr, fp, pp);
-      // Adjust FP to point to saved FP.
-      __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+  if (frame()->needs_frame()) {
+    if (descriptor->IsCFunctionCall()) {
+      if (FLAG_enable_embedded_constant_pool) {
+        __ Push(lr, fp, pp);
+        // Adjust FP to point to saved FP.
+        __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      } else {
+        __ Push(lr, fp);
+        __ mov(fp, sp);
+      }
+    } else if (descriptor->IsJSFunctionCall()) {
+      __ Prologue(this->info()->GeneratePreagedPrologue());
     } else {
-      __ Push(lr, fp);
-      __ mov(fp, sp);
+      __ StubPrologue(info()->GetOutputStackFrameType());
     }
-  } else if (descriptor->IsJSFunctionCall()) {
-    __ Prologue(this->info()->GeneratePreagedPrologue());
-  } else if (frame()->needs_frame()) {
-    __ StubPrologue();
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }

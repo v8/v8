@@ -382,6 +382,8 @@ class CompilationInfo {
     return Code::ExtractKindFromFlags(code_flags_);
   }
 
+  StackFrame::Type GetOutputStackFrameType() const;
+
  protected:
   ParseInfo* parse_info_;
 

@@ -156,7 +156,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
+  __ movp(rax, Immediate(0));
+  Label context_check;
+  __ movp(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ movp(arg_reg_1, rax);
   __ Set(arg_reg_2, type());
   // Args 3 and 4 are already in the right registers.

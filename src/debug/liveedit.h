@@ -170,10 +170,6 @@ class LiveEdit : AllStatic {
    *   ...
    *   --- Bottom
    */
-  // A size of frame base including fp. Padding words starts right above
-  // the base.
-  static const int kFrameDropperFrameSize =
-      4 + StandardFrameConstants::kCPSlotCount;
   // A number of words that should be reserved on stack for the LiveEdit use.
   // Stored on stack in form of Smi.
   static const int kFramePaddingInitialSize = 1;

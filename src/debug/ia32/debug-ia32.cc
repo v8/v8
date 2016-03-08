@@ -110,9 +110,12 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, -1 * kPointerSize));
-
+  __ lea(esp, Operand(ebp, FrameDropperFrameConstants::kFunctionOffset));
   __ pop(edi);  // Function.
+  __ add(esp, Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                     // frame
+                                                                     // marker
+                                                                     // and code
   __ pop(ebp);
 
   ParameterCount dummy(0);

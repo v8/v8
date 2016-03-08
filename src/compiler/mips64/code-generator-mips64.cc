@@ -1867,13 +1867,15 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->IsCFunctionCall()) {
-    __ Push(ra, fp);
-    __ mov(fp, sp);
-  } else if (descriptor->IsJSFunctionCall()) {
-    __ Prologue(this->info()->GeneratePreagedPrologue());
-  } else if (frame()->needs_frame()) {
-    __ StubPrologue();
+  if (frame()->needs_frame()) {
+    if (descriptor->IsCFunctionCall()) {
+      __ Push(ra, fp);
+      __ mov(fp, sp);
+    } else if (descriptor->IsJSFunctionCall()) {
+      __ Prologue(this->info()->GeneratePreagedPrologue());
+    } else {
+      __ StubPrologue(info()->GetOutputStackFrameType());
+    }
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }

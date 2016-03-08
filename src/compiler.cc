@@ -306,6 +306,23 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
   return name;
 }
 
+StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
+  switch (output_code_kind()) {
+    case Code::STUB:
+    case Code::HANDLER:
+    case Code::BUILTIN:
+      return StackFrame::STUB;
+    case Code::WASM_FUNCTION:
+      return StackFrame::WASM;
+    case Code::JS_TO_WASM_FUNCTION:
+      return StackFrame::JS_TO_WASM;
+    case Code::WASM_TO_JS_FUNCTION:
+      return StackFrame::WASM_TO_JS;
+    default:
+      UNIMPLEMENTED();
+      return StackFrame::NONE;
+  }
+}
 
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(language_mode()) && !is_native();

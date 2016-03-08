@@ -1914,13 +1914,15 @@ static const int kQuadWordSize = 16;
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->IsCFunctionCall()) {
-    __ pushq(rbp);
-    __ movq(rbp, rsp);
-  } else if (descriptor->IsJSFunctionCall()) {
-    __ Prologue(this->info()->GeneratePreagedPrologue());
-  } else if (frame()->needs_frame()) {
-    __ StubPrologue();
+  if (frame()->needs_frame()) {
+    if (descriptor->IsCFunctionCall()) {
+      __ pushq(rbp);
+      __ movq(rbp, rsp);
+    } else if (descriptor->IsJSFunctionCall()) {
+      __ Prologue(this->info()->GeneratePreagedPrologue());
+    } else {
+      __ StubPrologue(info()->GetOutputStackFrameType());
+    }
   } else {
     frame()->SetElidedFrameSizeInSlots(kPCOnStackSize / kPointerSize);
   }

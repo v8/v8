@@ -102,6 +102,34 @@ void MacroAssembler::StoreRoot(Register source,
   sd(source, MemOperand(s6, index << kPointerSizeLog2));
 }
 
+void MacroAssembler::PushCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    Push(ra, fp, marker_reg);
+    Daddu(fp, sp, Operand(kPointerSize));
+  } else {
+    Push(ra, fp);
+    mov(fp, sp);
+  }
+}
+
+void MacroAssembler::PopCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    Pop(ra, fp, marker_reg);
+  } else {
+    Pop(ra, fp);
+  }
+}
+
+void MacroAssembler::PushStandardFrame(Register function_reg) {
+  int offset = -StandardFrameConstants::kContextOffset;
+  if (function_reg.is_valid()) {
+    Push(ra, fp, cp, function_reg);
+    offset += kPointerSize;
+  } else {
+    Push(ra, fp, cp);
+  }
+  Daddu(fp, sp, Operand(offset));
+}
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
@@ -489,8 +517,18 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!holder_reg.is(at));
   DCHECK(!scratch.is(at));
 
-  // Load current lexical context from the stack frame.
-  ld(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  mov(at, fp);
+  bind(&load_context);
+  ld(scratch, MemOperand(at, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch, &has_context);
+  ld(at, MemOperand(at, CommonFrameConstants::kCallerFPOffset));
+  b(&load_context);
+  bind(&has_context);
+
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   Check(ne, kWeShouldNotHaveAnEmptyLexicalContext,
@@ -5625,12 +5663,9 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   }
 }
 
-
-void MacroAssembler::StubPrologue() {
-    Push(ra, fp, cp);
-    Push(Smi::FromInt(StackFrame::STUB));
-    // Adjust FP to point to saved FP.
-    Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+void MacroAssembler::StubPrologue(StackFrame::Type type) {
+  li(at, Operand(Smi::FromInt(type)));
+  PushCommonFrame(at);
 }
 
 
@@ -5653,15 +5688,12 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
     nop();  // Branch delay slot nop.
     nop();  // Pad the empty space.
   } else {
-    Push(ra, fp, cp, a1);
+    PushStandardFrame(a1);
     nop(Assembler::CODE_AGE_SEQUENCE_NOP);
     nop(Assembler::CODE_AGE_SEQUENCE_NOP);
     nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-    // Adjust fp to point to caller's fp.
-    Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   }
 }
-
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   ld(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -5679,30 +5711,41 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  daddiu(sp, sp, -5 * kPointerSize);
-  li(t8, Operand(Smi::FromInt(type)));
-  li(t9, Operand(CodeObject()), CONSTANT_SIZE);
-  sd(ra, MemOperand(sp, 4 * kPointerSize));
-  sd(fp, MemOperand(sp, 3 * kPointerSize));
-  sd(cp, MemOperand(sp, 2 * kPointerSize));
-  sd(t8, MemOperand(sp, 1 * kPointerSize));
-  sd(t9, MemOperand(sp, 0 * kPointerSize));
+  int stack_offset, fp_offset;
+  if (type == StackFrame::INTERNAL) {
+    stack_offset = -4 * kPointerSize;
+    fp_offset = 2 * kPointerSize;
+  } else {
+    stack_offset = -3 * kPointerSize;
+    fp_offset = 1 * kPointerSize;
+  }
+  daddiu(sp, sp, stack_offset);
+  stack_offset = -stack_offset - kPointerSize;
+  sd(ra, MemOperand(sp, stack_offset));
+  stack_offset -= kPointerSize;
+  sd(fp, MemOperand(sp, stack_offset));
+  stack_offset -= kPointerSize;
+  li(t9, Operand(Smi::FromInt(type)));
+  sd(t9, MemOperand(sp, stack_offset));
+  if (type == StackFrame::INTERNAL) {
+    DCHECK_EQ(stack_offset, kPointerSize);
+    li(t9, Operand(CodeObject()));
+    sd(t9, MemOperand(sp, 0));
+  } else {
+    DCHECK_EQ(stack_offset, 0);
+  }
   // Adjust FP to point to saved FP.
-  Daddu(fp, sp,
-       Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
+  Daddu(fp, sp, Operand(fp_offset));
 }
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  mov(sp, fp);
-  ld(fp, MemOperand(sp, 0 * kPointerSize));
-  ld(ra, MemOperand(sp, 1 * kPointerSize));
-  daddiu(sp, sp, 2 * kPointerSize);
+  daddiu(sp, fp, 2 * kPointerSize);
+  ld(ra, MemOperand(fp, 1 * kPointerSize));
+  ld(fp, MemOperand(fp, 0 * kPointerSize));
 }
 
-
-void MacroAssembler::EnterExitFrame(bool save_doubles,
-                                    int stack_space) {
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Set up the frame structure on the stack.
   STATIC_ASSERT(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
   STATIC_ASSERT(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
@@ -5712,16 +5755,20 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
   // [fp + 1 (==kCallerPCOffset)] - saved old ra
   // [fp + 0 (==kCallerFPOffset)] - saved old fp
-  // [fp - 1 (==kSPOffset)] - sp of the called function
-  // [fp - 2 (==kCodeOffset)] - CodeObject
+  // [fp - 1 StackFrame::EXIT Smi
+  // [fp - 2 (==kSPOffset)] - sp of the called function
+  // [fp - 3 (==kCodeOffset)] - CodeObject
   // fp - (2 + stack_space + alignment) == sp == [fp - kSPOffset] - top of the
   //   new stack (will contain saved ra)
 
-  // Save registers.
-  daddiu(sp, sp, -4 * kPointerSize);
-  sd(ra, MemOperand(sp, 3 * kPointerSize));
-  sd(fp, MemOperand(sp, 2 * kPointerSize));
-  daddiu(fp, sp, 2 * kPointerSize);  // Set up new frame pointer.
+  // Save registers and reserve room for saved entry sp and code object.
+  daddiu(sp, sp, -2 * kPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
+  sd(ra, MemOperand(sp, 4 * kPointerSize));
+  sd(fp, MemOperand(sp, 3 * kPointerSize));
+  li(at, Operand(Smi::FromInt(StackFrame::EXIT)));
+  sd(at, MemOperand(sp, 2 * kPointerSize));
+  // Set up new frame pointer.
+  daddiu(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
 
   if (emit_debug_code()) {
     sd(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
@@ -5774,8 +5821,8 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
     int kNumOfSavedRegisters = FPURegister::kMaxNumRegisters / 2;
-    Dsubu(t8, fp, Operand(ExitFrameConstants::kFrameSize +
-        kNumOfSavedRegisters * kDoubleSize));
+    Dsubu(t8, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp +
+                          kNumOfSavedRegisters * kDoubleSize));
     for (int i = 0; i < kNumOfSavedRegisters; i++) {
       FPURegister reg = FPURegister::from_code(2 * i);
       ldc1(reg, MemOperand(t8, i  * kDoubleSize));

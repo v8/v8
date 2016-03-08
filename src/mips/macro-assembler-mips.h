@@ -762,6 +762,14 @@ class MacroAssembler: public Assembler {
     Addu(sp, sp, Operand(count * kPointerSize));
   }
 
+  // Push a fixed frame, consisting of ra, fp.
+  void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Push a standard frame, consisting of ra, fp, context and JS function.
+  void PushStandardFrame(Register function_reg);
+
+  void PopCommonFrame(Register marker_reg = no_reg);
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
@@ -1613,7 +1621,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   }
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type);
   void Prologue(bool code_pre_aging);
 
   // Load the type feedback vector from a JavaScript frame.

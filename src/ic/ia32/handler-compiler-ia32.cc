@@ -23,6 +23,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ push(esi);
+
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
       DCHECK(!receiver.is(scratch));
@@ -46,7 +49,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ pop(esi);
   }
   __ ret(0);
 }
@@ -252,6 +255,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ push(esi);
     // Save value register, so we can restore it later.
     __ push(value());
 
@@ -280,9 +285,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
 
     // We have to return the passed value, not the return value of the setter.
     __ pop(eax);
-
     // Restore context register.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ pop(esi);
   }
   __ ret(0);
 }

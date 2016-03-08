@@ -21,6 +21,18 @@ Frame::Frame(int fixed_frame_size_in_slots, const CallDescriptor* descriptor)
       allocated_registers_(nullptr),
       allocated_double_registers_(nullptr) {}
 
+int Frame::AlignFrame(int alignment) {
+  DCHECK_EQ(0, callee_saved_slot_count_);
+  int alignment_slots = alignment / kPointerSize;
+  int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
+  if (delta != alignment_slots) {
+    frame_slot_count_ += delta;
+    if (spill_slot_count_ != 0) {
+      spill_slot_count_ += delta;
+    }
+  }
+  return delta;
+}
 
 void FrameAccessState::SetFrameAccessToDefault() {
   if (frame()->needs_frame() && !FLAG_turbo_sp_frame_access) {

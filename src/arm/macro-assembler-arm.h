@@ -457,10 +457,14 @@ class MacroAssembler: public Assembler {
   }
 
   // Push a fixed frame, consisting of lr, fp, constant pool (if
-  // FLAG_enable_embedded_constant_pool), context and JS function / marker id if
-  // marker_reg is a valid register.
-  void PushFixedFrame(Register marker_reg = no_reg);
-  void PopFixedFrame(Register marker_reg = no_reg);
+  // FLAG_enable_embedded_constant_pool)
+  void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Push a standard frame, consisting of lr, fp, constant pool (if
+  // FLAG_enable_embedded_constant_pool), context and JS function
+  void PushStandardFrame(Register function_reg);
+
+  void PopCommonFrame(Register marker_reg = no_reg);
 
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
@@ -585,7 +589,7 @@ class MacroAssembler: public Assembler {
                          Label* not_int32);
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type);
   void Prologue(bool code_pre_aging);
 
   // Enter exit frame.

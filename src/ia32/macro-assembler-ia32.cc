@@ -1008,14 +1008,11 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
-
-void MacroAssembler::StubPrologue() {
+void MacroAssembler::StubPrologue(StackFrame::Type type) {
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  push(esi);  // Callee's context.
-  push(Immediate(Smi::FromInt(StackFrame::STUB)));
+  push(Immediate(Smi::FromInt(type)));
 }
-
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
   PredictableCodeSizeScope predictible_code_size_scope(this,
@@ -1051,9 +1048,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(esi);
   push(Immediate(Smi::FromInt(type)));
-  push(Immediate(CodeObject()));
+  if (type == StackFrame::INTERNAL) {
+    push(Immediate(CodeObject()));
+  }
   if (emit_debug_code()) {
     cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
     Check(not_equal, kCodeObjectNotProperlyPatched);
@@ -1063,7 +1061,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
-    cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
+    cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
         Immediate(Smi::FromInt(type)));
     Check(equal, kStackFrameTypesMustMatch);
   }
@@ -1073,15 +1071,17 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 void MacroAssembler::EnterExitFramePrologue() {
   // Set up the frame structure on the stack.
-  DCHECK(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
-  DCHECK(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
-  DCHECK(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  DCHECK_EQ(+2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
+  DCHECK_EQ(+1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
+  DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
   push(ebp);
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
-  DCHECK(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
+  push(Immediate(Smi::FromInt(StackFrame::EXIT)));
+  DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
+  DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
@@ -1100,7 +1100,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
     int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
                 argc * kPointerSize;
     sub(esp, Immediate(space));
-    const int offset = -2 * kPointerSize;
+    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
@@ -1143,7 +1143,7 @@ void MacroAssembler::EnterApiExitFrame(int argc) {
 void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
-    const int offset = -2 * kPointerSize;
+    const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
@@ -1226,8 +1226,18 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!holder_reg.is(scratch2));
   DCHECK(!scratch1.is(scratch2));
 
-  // Load current lexical context from the stack frame.
-  mov(scratch1, Operand(ebp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  mov(scratch2, ebp);
+  bind(&load_context);
+  mov(scratch1,
+      MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch1, &has_context);
+  mov(scratch2, MemOperand(scratch2, CommonFrameConstants::kCallerFPOffset));
+  jmp(&load_context);
+  bind(&has_context);
 
   // When generating debug code, make sure the lexical context is set.
   if (emit_debug_code()) {

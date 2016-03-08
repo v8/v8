@@ -111,9 +111,12 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set rsp based on rbp.
-  __ leap(rsp, Operand(rbp, -1 * kPointerSize));
-
+  __ leap(rsp, Operand(rbp, FrameDropperFrameConstants::kFunctionOffset));
   __ Pop(rdi);  // Function.
+  __ addp(rsp,
+          Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                 // frame marker
+                                                                 // and code
   __ popq(rbp);
 
   ParameterCount dummy(0);

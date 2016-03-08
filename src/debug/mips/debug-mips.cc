@@ -114,9 +114,10 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set sp based on fp.
-  __ Subu(sp, fp, Operand(kPointerSize));
+  __ lw(a1, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
-  __ Pop(ra, fp, a1);  // Return address, Frame, Function.
+  // Pop return address and frame.
+  __ LeaveFrame(StackFrame::INTERNAL);
 
   ParameterCount dummy(0);
   __ FloodFunctionIfStepping(a1, no_reg, dummy, dummy);

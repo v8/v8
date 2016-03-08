@@ -1631,7 +1631,7 @@ class MacroAssembler : public Assembler {
   void ExitFrameRestoreFPRegs();
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type, int frame_slots);
   void Prologue(bool code_pre_aging);
 
   // Enter exit frame. Exit frames are used when calling C code from generated

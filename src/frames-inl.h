@@ -114,7 +114,9 @@ inline void StandardFrame::SetExpression(int index, Object* value) {
 
 inline Object* StandardFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
-  return Memory::Object_at(fp() + offset);
+  Object* maybe_result = Memory::Object_at(fp() + offset);
+  DCHECK(!maybe_result->IsSmi());
+  return maybe_result;
 }
 
 
@@ -139,16 +141,16 @@ inline Address StandardFrame::ComputeConstantPoolAddress(Address fp) {
 
 
 inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
-  Object* marker =
-      Memory::Object_at(fp + StandardFrameConstants::kContextOffset);
-  return marker == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
 
 inline bool StandardFrame::IsConstructFrame(Address fp) {
-  Object* marker =
-      Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset);
-  return marker == Smi::FromInt(StackFrame::CONSTRUCT);
+  Object* frame_type =
+      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == Smi::FromInt(StackFrame::CONSTRUCT);
 }
 
 inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)

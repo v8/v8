@@ -574,17 +574,18 @@ bool LCodeGen::GeneratePrologue() {
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
     if (info()->IsStub()) {
-      __ StubPrologue();
+      __ StubPrologue(
+          StackFrame::STUB,
+          GetStackSlotCount() + TypedFrameConstants::kFixedSlotCount);
     } else {
       __ Prologue(info()->GeneratePreagedPrologue());
+      // Reserve space for the stack slots needed by the code.
+      int slots = GetStackSlotCount();
+      if (slots > 0) {
+        __ Claim(slots, kPointerSize);
+      }
     }
     frame_is_built_ = true;
-  }
-
-  // Reserve space for the stack slots needed by the code.
-  int slots = GetStackSlotCount();
-  if (slots > 0) {
-    __ Claim(slots, kPointerSize);
   }
 
   if (info()->saves_caller_doubles()) {
@@ -708,11 +709,11 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ Push(lr, fp, cp);
+        __ Push(lr, fp);
         __ Mov(fp, Smi::FromInt(StackFrame::STUB));
         __ Push(fp);
         __ Add(fp, __ StackPointer(),
-               StandardFrameConstants::kFixedFrameSizeFromFp);
+               TypedFrameConstants::kFixedFrameSizeFromFp);
         Comment(";;; Deferred code");
       }
 
@@ -721,7 +722,7 @@ bool LCodeGen::GenerateDeferredCode() {
       if (NeedsDeferredFrame()) {
         Comment(";;; Destroy frame");
         DCHECK(frame_is_built_);
-        __ Pop(xzr, cp, fp, lr);
+        __ Pop(xzr, fp, lr);
         frame_is_built_ = false;
       }
 
@@ -1570,8 +1571,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
     __ Ldr(previous_fp,
            MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ Ldr(result,
-           MemOperand(previous_fp, StandardFrameConstants::kContextOffset));
+    __ Ldr(result, MemOperand(previous_fp,
+                              CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Cmp(result, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
     __ Csel(result, fp, previous_fp, ne);
   }

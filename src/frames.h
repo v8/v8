@@ -139,9 +139,62 @@ class StackHandler BASE_EMBEDDED {
 //       |- - - - - - - - -| Header <-- frame ptr       |
 //   2   | [Constant Pool] |   |                        |
 //       |- - - - - - - - -|   |                        |
+// 2+cp  |Context/Frm. Type|   v   if a constant pool   |
+//       |-----------------+----    is used, cp = 1,    |
+// 3+cp  |                 |   ^   otherwise, cp = 0    |
+//       |- - - - - - - - -|   |                        |
+// 4+cp  |                 |   |                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  |                 | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class CommonFrameConstants : public AllStatic {
+ public:
+  static const int kCallerFPOffset = 0 * kPointerSize;
+  static const int kCallerPCOffset = kCallerFPOffset + 1 * kFPOnStackSize;
+  static const int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
+
+  // Fixed part of the frame consists of return address, caller fp,
+  // constant pool (if FLAG_enable_embedded_constant_pool), context, and
+  // function. StandardFrame::IterateExpressions assumes that kLastObjectOffset
+  // is the last object pointer.
+  static const int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
+  static const int kFixedSlotCountAboveFp =
+      kFixedFrameSizeAboveFp / kPointerSize;
+  static const int kCPSlotSize =
+      FLAG_enable_embedded_constant_pool ? kPointerSize : 0;
+  static const int kCPSlotCount = kCPSlotSize / kPointerSize;
+  static const int kConstantPoolOffset = kCPSlotSize ? -1 * kPointerSize : 0;
+  static const int kContextOrFrameTypeSize = kPointerSize;
+  static const int kContextOrFrameTypeOffset =
+      -(kCPSlotSize + kContextOrFrameTypeSize);
+};
+
+// StandardFrames are used for interpreted, full-codegen and optimized
+// JavaScript frames. They always have a context below the saved fp/constant
+// pool and below that the JSFunction of the executing function.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+//  -n-1 |   parameter 0   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n   |                 |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2   |  parameter n-1  |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1   |   parameter n   |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | Fixed                      |
+//       |- - - - - - - - -| Header <-- frame ptr       |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
 // 2+cp  |     Context     |   |   if a constant pool   |
 //       |- - - - - - - - -|   |    is used, cp = 1,    |
-// 3+cp  |JSFunction/Marker|   v   otherwise, cp = 0    |
+// 3+cp  |    JSFunction   |   v   otherwise, cp = 0    |
 //       +-----------------+----                        |
 // 4+cp  |                 |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
@@ -150,66 +203,115 @@ class StackHandler BASE_EMBEDDED {
 //       |                 |   v                        |
 //  -----+-----------------+----- <-- stack ptr -------------
 //
-
-class StandardFrameConstants : public AllStatic {
+class StandardFrameConstants : public CommonFrameConstants {
  public:
-  // Fixed part of the frame consists of return address, caller fp,
-  // constant pool (if FLAG_enable_embedded_constant_pool), context, and
-  // function. StandardFrame::IterateExpressions assumes that kLastObjectOffset
-  // is the last object pointer.
-  static const int kCPSlotSize =
-      FLAG_enable_embedded_constant_pool ? kPointerSize : 0;
-  static const int kFixedFrameSizeFromFp =  2 * kPointerSize + kCPSlotSize;
-  static const int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
+  static const int kFixedFrameSizeFromFp = 2 * kPointerSize + kCPSlotSize;
   static const int kFixedFrameSize =
       kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
-  static const int kFixedSlotCountAboveFp =
-      kFixedFrameSizeAboveFp / kPointerSize;
+  static const int kFixedSlotCountFromFp = kFixedFrameSizeFromFp / kPointerSize;
   static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;
-  static const int kCPSlotCount = kCPSlotSize / kPointerSize;
+  static const int kContextOffset = kContextOrFrameTypeOffset;
+  static const int kFunctionOffset = -2 * kPointerSize - kCPSlotSize;
   static const int kExpressionsOffset = -3 * kPointerSize - kCPSlotSize;
-  static const int kMarkerOffset = -2 * kPointerSize - kCPSlotSize;
-  static const int kContextOffset = -1 * kPointerSize - kCPSlotSize;
-  static const int kConstantPoolOffset = kCPSlotSize ? -1 * kPointerSize : 0;
-  static const int kCallerFPOffset = 0 * kPointerSize;
-  static const int kCallerPCOffset = +1 * kFPOnStackSize;
-  static const int kCallerSPOffset = kCallerPCOffset + 1 * kPCOnStackSize;
-
   static const int kLastObjectOffset = kContextOffset;
 };
 
-
-class ArgumentsAdaptorFrameConstants : public AllStatic {
+// TypedFrames have a SMI type maker value below the saved FP/constant pool to
+// distinguish them from StandardFrames, which have a context in that position
+// instead.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+//  -n-1 |   parameter 0   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n   |                 |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2   |  parameter n-1  |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1   |   parameter n   |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | Fixed                      |
+//       |- - - - - - - - -| Header <-- frame ptr       |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |Frame Type Marker|   v   if a constant pool   |
+//       |-----------------+----    is used, cp = 1,    |
+// 3+cp  |                 |   ^   otherwise, cp = 0    |
+//       |- - - - - - - - -|   |                        |
+// 4+cp  |                 |   |                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  |                 | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
+class TypedFrameConstants : public CommonFrameConstants {
  public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+  static const int kFrameTypeSize = kContextOrFrameTypeSize;
+  static const int kFrameTypeOffset = kContextOrFrameTypeOffset;
+  static const int kFixedFrameSizeFromFp = kCPSlotSize + kFrameTypeSize;
+  static const int kFixedSlotCountFromFp = kFixedFrameSizeFromFp / kPointerSize;
+  static const int kFixedFrameSize =
+      StandardFrameConstants::kFixedFrameSizeAboveFp + kFixedFrameSizeFromFp;
+  static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;
+  static const int kFirstPushedFrameValueOffset =
+      -StandardFrameConstants::kCPSlotSize - kFrameTypeSize - kPointerSize;
 };
 
+#define TYPED_FRAME_PUSHED_VALUE_OFFSET(x) \
+  (TypedFrameConstants::kFirstPushedFrameValueOffset - (x)*kPointerSize)
+#define TYPED_FRAME_SIZE(count) \
+  (TypedFrameConstants::kFixedFrameSize + (count)*kPointerSize)
+#define TYPED_FRAME_SIZE_FROM_SP(count) \
+  (TypedFrameConstants::kFixedFrameSizeFromFp + (count)*kPointerSize)
+#define DEFINE_TYPED_FRAME_SIZES(count)                                     \
+  static const int kFixedFrameSize = TYPED_FRAME_SIZE(count);               \
+  static const int kFixedSlotCount = kFixedFrameSize / kPointerSize;        \
+  static const int kFixedFrameSizeFromFp = TYPED_FRAME_SIZE_FROM_SP(count); \
+  static const int kFixedSlotCountFromFp = kFixedFrameSizeFromFp / kPointerSize
 
-class InternalFrameConstants : public AllStatic {
+class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
 };
 
-
-class ConstructFrameConstants : public AllStatic {
+class InternalFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
-  static const int kImplicitReceiverOffset =
-      StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize;
-  static const int kLengthOffset =
-      StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
-  static const int kAllocationSiteOffset =
-      StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
-  static const int kCodeOffset =
-      StandardFrameConstants::kExpressionsOffset - 0 * kPointerSize;
+  static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  DEFINE_TYPED_FRAME_SIZES(1);
+};
 
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
+class FrameDropperFrameConstants : public InternalFrameConstants {
+ public:
+  // FP-relative.
+  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+
+class ConstructFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static const int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kAllocationSiteOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kImplicitReceiverOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  DEFINE_TYPED_FRAME_SIZES(4);
+};
+
+class StubFailureTrampolineFrameConstants : public InternalFrameConstants {
+ public:
+  static const int kArgumentsArgumentsOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kArgumentsLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  static const int kArgumentsPointerOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  static const int kFixedHeaderBottomOffset = kArgumentsPointerOffset;
+  DEFINE_TYPED_FRAME_SIZES(3);
 };
 
 
@@ -917,14 +1019,6 @@ class InternalFrame: public StandardFrame {
 
 class StubFailureTrampolineFrame: public StandardFrame {
  public:
-  // sizeof(Arguments) - sizeof(Arguments*) is 3 * kPointerSize), but the
-  // presubmit script complains about using sizeof() on a type.
-  static const int kFirstRegisterParameterFrameOffset =
-      StandardFrameConstants::kMarkerOffset - 3 * kPointerSize;
-
-  static const int kCallerStackParameterCountFrameOffset =
-      StandardFrameConstants::kMarkerOffset - 2 * kPointerSize;
-
   Type type() const override { return STUB_FAILURE_TRAMPOLINE; }
 
   // Get the code associated with this frame.

@@ -1891,14 +1891,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ pushq(rbp);
     __ movp(rbp, rsp);
 
-    // Push the stack frame type marker twice.
+    // Push the stack frame type.
     int marker = type();
-    // Scratch register is neither callee-save, nor an argument register on any
-    // platform. It's free to use at this point.
-    // Cannot use smi-register for loading yet.
-    __ Move(kScratchRegister, Smi::FromInt(marker), Assembler::RelocInfoNone());
-    __ Push(kScratchRegister);  // context slot
-    __ Push(kScratchRegister);  // function slot
+    __ Push(Smi::FromInt(marker));  // context slot
+    ExternalReference context_address(Isolate::kContextAddress, isolate());
+    __ Load(kScratchRegister, context_address);
+    __ Push(kScratchRegister);  // context
     // Save callee-saved registers (X64/X32/Win64 calling conventions).
     __ pushq(r12);
     __ pushq(r13);
@@ -3624,7 +3622,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+      StubFailureTrampolineFrameConstants::kArgumentsLengthOffset;
   __ movp(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ PopReturnAddressTo(rcx);
@@ -4593,7 +4591,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ movp(rdx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ cmpp(rdi, Operand(rdx, StandardFrameConstants::kMarkerOffset));
+    __ cmpp(rdi, Operand(rdx, StandardFrameConstants::kFunctionOffset));
     __ j(not_equal, &loop);
   }
 
@@ -4601,7 +4599,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // arguments adaptor frame below the function frame).
   Label no_rest_parameters;
   __ movp(rbx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
+  __ Cmp(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
          Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &no_rest_parameters, Label::kNear);
 
@@ -4757,7 +4755,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
   __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(r8, Operand(rax, StandardFrameConstants::kContextOffset));
+  __ movp(r8, Operand(rax, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Cmp(r8, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adaptor_frame);
 
@@ -4963,14 +4961,14 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ movp(rdx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ cmpp(rdi, Operand(rdx, StandardFrameConstants::kMarkerOffset));
+    __ cmpp(rdi, Operand(rdx, StandardFrameConstants::kFunctionOffset));
     __ j(not_equal, &loop);
   }
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ movp(rbx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
+  __ Cmp(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
          Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
