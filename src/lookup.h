@@ -368,7 +368,7 @@ class LookupIterator final BASE_EMBEDDED {
   const Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
   const Handle<JSReceiver> initial_holder_;
-  uint32_t index_;
+  const uint32_t index_;
   uint32_t number_;
 };
 
