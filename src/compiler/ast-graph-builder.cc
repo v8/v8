@@ -2810,8 +2810,57 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   }
 }
 
+void AstGraphBuilder::VisitLiteralCompareNil(CompareOperation* expr,
+                                             Expression* sub_expr,
+                                             Node* nil_value) {
+  const Operator* op = nullptr;
+  switch (expr->op()) {
+    case Token::EQ:
+      op = javascript()->Equal();
+      break;
+    case Token::EQ_STRICT:
+      op = javascript()->StrictEqual();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  VisitForValue(sub_expr);
+  FrameStateBeforeAndAfter states(this, sub_expr->id());
+  Node* value_to_compare = environment()->Pop();
+  Node* value = NewNode(op, value_to_compare, nil_value);
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
+  return ast_context()->ProduceValue(value);
+}
+
+void AstGraphBuilder::VisitLiteralCompareTypeof(CompareOperation* expr,
+                                                Expression* sub_expr,
+                                                Handle<String> check) {
+  VisitTypeofExpression(sub_expr);
+  FrameStateBeforeAndAfter states(this, sub_expr->id());
+  Node* typeof_arg = NewNode(javascript()->TypeOf(), environment()->Pop());
+  Node* value = NewNode(javascript()->StrictEqual(), typeof_arg,
+                        jsgraph()->Constant(check));
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
+  return ast_context()->ProduceValue(value);
+}
 
 void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
+  // Check for a few fast cases. The AST visiting behavior must be in sync
+  // with the full codegen: We don't push both left and right values onto
+  // the expression stack when one side is a special-case literal.
+  Expression* sub_expr = nullptr;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    return VisitLiteralCompareTypeof(expr, sub_expr, check);
+  }
+  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+    return VisitLiteralCompareNil(expr, sub_expr,
+                                  jsgraph()->UndefinedConstant());
+  }
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    return VisitLiteralCompareNil(expr, sub_expr, jsgraph()->NullConstant());
+  }
+
   const Operator* op;
   switch (expr->op()) {
     case Token::EQ:
@@ -2973,23 +3022,25 @@ void AstGraphBuilder::VisitVoid(UnaryOperation* expr) {
   ast_context()->ProduceValue(value);
 }
 
-
-void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
-  Node* operand;
-  if (expr->expression()->IsVariableProxy()) {
+void AstGraphBuilder::VisitTypeofExpression(Expression* expr) {
+  if (expr->IsVariableProxy()) {
     // Typeof does not throw a reference error on global variables, hence we
     // perform a non-contextual load in case the operand is a variable proxy.
-    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    VariableProxy* proxy = expr->AsVariableProxy();
     VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
     FrameStateBeforeAndAfter states(this, BeforeId(proxy));
-    operand =
-        BuildVariableLoad(proxy->var(), expr->expression()->id(), states, pair,
+    Node* load =
+        BuildVariableLoad(proxy->var(), expr->id(), states, pair,
                           OutputFrameStateCombine::Push(), INSIDE_TYPEOF);
+    environment()->Push(load);
   } else {
-    VisitForValue(expr->expression());
-    operand = environment()->Pop();
+    VisitForValue(expr);
   }
-  Node* value = NewNode(javascript()->TypeOf(), operand);
+}
+
+void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
+  VisitTypeofExpression(expr->expression());
+  Node* value = NewNode(javascript()->TypeOf(), environment()->Pop());
   ast_context()->ProduceValue(value);
 }
 
