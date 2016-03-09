@@ -27,18 +27,18 @@ assertFalse(module === 0);
 assertEquals("object", typeof module);
 
 // Check the memory is an ArrayBuffer.
-var mem = module.memory;
+var mem = module.exports.memory;
 assertFalse(mem === undefined);
 assertFalse(mem === null);
 assertFalse(mem === 0);
 assertEquals("object", typeof mem);
 assertTrue(mem instanceof ArrayBuffer);
 for (var i = 0; i < 4; i++) {
-  module.memory = 0;  // should be ignored
-  assertEquals(mem, module.memory);
+  module.exports.memory = 0;  // should be ignored
+  assertEquals(mem, module.exports.memory);
 }
 
-assertEquals(65536, module.memory.byteLength);
+assertEquals(65536, module.exports.memory.byteLength);
 
 // Check the properties of the main function.
 var main = module.exports.main;

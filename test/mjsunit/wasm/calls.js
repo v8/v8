@@ -15,18 +15,18 @@ function assertModule(module, memsize) {
   assertEquals("object", typeof module);
 
   // Check the memory is an ArrayBuffer.
-  var mem = module.memory;
+  var mem = module.exports.memory;
   assertFalse(mem === undefined);
   assertFalse(mem === null);
   assertFalse(mem === 0);
   assertEquals("object", typeof mem);
   assertTrue(mem instanceof ArrayBuffer);
   for (var i = 0; i < 4; i++) {
-    module.memory = 0;  // should be ignored
-    assertEquals(mem, module.memory);
+    module.exports.memory = 0;  // should be ignored
+    assertEquals(mem, module.exports.memory);
   }
 
-  assertEquals(memsize, module.memory.byteLength);
+  assertEquals(memsize, module.exports.memory.byteLength);
 }
 
 function assertFunction(module, func) {

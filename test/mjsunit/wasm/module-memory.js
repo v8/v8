@@ -33,7 +33,7 @@ function genModule(memory) {
 
 function testPokeMemory() {
   var module = genModule(null);
-  var buffer = module.memory;
+  var buffer = module.exports.memory;
   var main = module.exports.main;
   assertEquals(kMemSize, buffer.byteLength);
 

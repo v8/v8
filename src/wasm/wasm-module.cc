@@ -378,13 +378,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                        *instance.mem_buffer);
   LoadDataSegments(this, instance.mem_start, instance.mem_size);
 
-  if (mem_export) {
-    // Export the memory as a named property.
-    Handle<String> name = factory->InternalizeUtf8String("memory");
-    JSObject::AddProperty(instance.js_object, name, instance.mem_buffer,
-                          READ_ONLY);
-  }
-
   //-------------------------------------------------------------------------
   // Allocate the globals area if necessary.
   //-------------------------------------------------------------------------
@@ -478,7 +471,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
   // Create and populate the exports object.
   //-------------------------------------------------------------------------
-  if (export_table.size() > 0) {
+  if (export_table.size() > 0 || mem_export) {
     index = 0;
     // Create the "exports" object.
     Handle<JSFunction> object_function = Handle<JSFunction>(
@@ -498,6 +491,13 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
           isolate, &module_env, name, code, instance.js_object, exp.func_index);
       JSObject::AddProperty(exports_object, name, function, READ_ONLY);
+    }
+
+    if (mem_export) {
+      // Export the memory as a named property.
+      Handle<String> name = factory->InternalizeUtf8String("memory");
+      JSObject::AddProperty(exports_object, name, instance.mem_buffer,
+                            READ_ONLY);
     }
   }
 
