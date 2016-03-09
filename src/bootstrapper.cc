@@ -2527,6 +2527,26 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   InstallFunction(global, name, proxy_function, factory->Object_string());
 }
 
+void Genesis::InitializeGlobal_harmony_array_prototype_values() {
+  if (!FLAG_harmony_array_prototype_values) return;
+  Handle<JSFunction> array_constructor(native_context()->array_function());
+  Handle<JSObject> array_prototype(
+      JSObject::cast(array_constructor->instance_prototype()));
+  Handle<Object> values_iterator =
+      JSObject::GetProperty(array_prototype, factory()->iterator_symbol())
+          .ToHandleChecked();
+  DCHECK(values_iterator->IsJSFunction());
+  JSObject::AddProperty(array_prototype, factory()->values_string(),
+                        values_iterator, DONT_ENUM);
+
+  Handle<Object> unscopables =
+      JSObject::GetProperty(array_prototype, factory()->unscopables_symbol())
+          .ToHandleChecked();
+  DCHECK(unscopables->IsJSObject());
+  JSObject::AddProperty(Handle<JSObject>::cast(unscopables),
+                        factory()->values_string(), factory()->true_value(),
+                        NONE);
+}
 
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                                                const char* name) {
@@ -2967,6 +2987,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_object_values_entries_natives[] = {nullptr};
   static const char* harmony_object_own_property_descriptors_natives[] = {
       nullptr};
+  static const char* harmony_array_prototype_values_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

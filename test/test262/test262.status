@@ -59,18 +59,6 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
-  # We do not expose Array.prototype.values
-  # https://code.google.com/p/v8/issues/detail?id=4247
-  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
-  'built-ins/Array/prototype/values/prop-desc': [FAIL],
-  'built-ins/Array/prototype/values/name': [FAIL],
-  'built-ins/Array/prototype/values/length': [FAIL],
-  'built-ins/Array/prototype/values/iteration': [FAIL],
-  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
