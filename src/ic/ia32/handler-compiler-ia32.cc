@@ -161,7 +161,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   // Stack now matches JSFunction abi.
   DCHECK(optimization.is_simple_api_call());
 
-  // Abi for CallApiFunctionStub.
+  // Abi for CallApiCallbackStub.
   Register callee = edi;
   Register data = ebx;
   Register holder = ecx;
@@ -223,7 +223,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
