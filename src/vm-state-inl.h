@@ -68,6 +68,8 @@ ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     timer_.Initialize(&stats->ExternalCallback, stats->current_timer());
     stats->Enter(&timer_);
   }
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                     "V8.ExternalCallback");
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
@@ -75,6 +77,8 @@ ExternalCallbackScope::~ExternalCallbackScope() {
     isolate_->counters()->runtime_call_stats()->Leave(&timer_);
   }
   isolate_->set_external_callback_scope(previous_scope_);
+  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                   "V8.ExternalCallback");
 }
 
 Address ExternalCallbackScope::scope_address() {

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/isolate.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -277,6 +278,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
     CLOBBER_DOUBLE_REGISTERS();                                            \
     Arguments args(args_length, args_object);                              \
     Type value;                                                            \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"), "V8." #Name);    \
     if (FLAG_runtime_call_stats) {                                         \
       RuntimeCallStats* stats = isolate->counters()->runtime_call_stats(); \
       RuntimeCallTimerScope timer(isolate, &stats->Name);                  \
