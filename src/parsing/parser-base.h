@@ -875,6 +875,7 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParseIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
+  typename TypeSystem::TypeArguments ParseTypeArguments(bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
@@ -3415,6 +3416,14 @@ ParserBase<Traits>::ParseTypeParameters(bool* ok) {
 
 
 template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::TypeArguments
+ParserBase<Traits>::ParseTypeArguments(bool* ok) {
+  // TODO(nikolaos): Implement this.
+  return this->NullTypeArguments();
+}
+
+
+template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type
 ParserBase<Traits>::ParseUnionOrIntersectionOrPrimaryType(bool* ok) {
   Scanner::Location type_location = scanner()->peek_location();
@@ -3463,15 +3472,51 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   switch (peek()) {
     case Token::LPAREN: {
       Consume(Token::LPAREN);
-      typename TypeSystem::TypeList type_list = this->EmptyTypeList();
+      typename TypeSystem::FormalParameters things =
+          this->EmptyFormalParameters();
       if (peek() != Token::RPAREN) {
         do {
-          type = ParseValidType(CHECK_OK_TYPE);
-          type_list->Add(type, zone_);
+          Scanner::Location thing_location = scanner()->peek_location();
+          if (Check(Token::ELLIPSIS)) {
+            IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
+            if (Check(Token::COLON)) {  // Braces required here.
+              type = ParseValidType(CHECK_OK_TYPE);
+            } else {
+              type = this->EmptyType();
+            }
+            things->Add(factory()->NewFormalParameter(name, false, true, type,
+                                                      thing_location.beg_pos),
+                        zone());
+            break;
+          }
+          type = ParseType(CHECK_OK_TYPE);
+          if (peek() == Token::CONDITIONAL || peek() == Token::COLON) {
+            if (!type->IsSimpleIdentifier()) {
+              ReportUnexpectedToken(Next());
+              *ok = false;
+              return this->EmptyType();
+            }
+            bool optional = Check(Token::CONDITIONAL);
+            IdentifierT name = type->AsSimpleIdentifier();
+            if (Check(Token::COLON)) {  // Braces required here.
+              type = ParseValidType(CHECK_OK_TYPE);
+            } else {
+              type = this->EmptyType();
+            }
+            things->Add(
+                factory()->NewFormalParameter(name, optional, false, type,
+                                              thing_location.beg_pos),
+                zone());
+          } else {
+            type = ValidateType(type, thing_location, CHECK_OK_TYPE);
+            things->Add(
+                factory()->NewFormalParameter(type, thing_location.beg_pos),
+                zone());
+          }
         } while (Check(Token::COMMA));
       }
       Expect(Token::RPAREN, CHECK_OK_TYPE);
-      type = factory()->NewParenthesizedTypes(type_list, pos);
+      type = factory()->NewParenthesizedTypeThings(things, pos);
       break;
     }
     case Token::IDENTIFIER: {
@@ -3492,10 +3537,13 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             typesystem::PredefinedType::kSymbolType, pos);
       } else {
         // TODO(nikolaos): Missing typeof.
-        // TODO(nikolaos): Missing identifier.
-        ReportUnexpectedToken(Next());
-        *ok = false;
-        return type;
+        IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
+        typename TypeSystem::TypeArguments type_arguments =
+            this->NullTypeArguments();
+        if (peek() == Token::LT) {  // Braces required here.
+          type_arguments = ParseTypeArguments(CHECK_OK_TYPE);
+        }
+        type = factory()->NewTypeReference(name, type_arguments, pos);
       }
       break;
     }

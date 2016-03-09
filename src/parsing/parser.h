@@ -356,7 +356,7 @@ class ParserTraits {
 
     struct TypeSystem {
       typedef v8::internal::typesystem::Type* Type;
-      typedef ZoneList<v8::internal::typesystem::Type*>* TypeList;
+      typedef ZoneList<v8::internal::typesystem::Type*>* TypeArguments;
       typedef v8::internal::typesystem::TypeParameter* TypeParameter;
       typedef ZoneList<v8::internal::typesystem::TypeParameter*>*
           TypeParameters;
@@ -509,6 +509,7 @@ class ParserTraits {
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
 
   static typesystem::Type* EmptyType() { return NULL; }
+  static ZoneList<typesystem::Type*>* NullTypeArguments() { return nullptr; }
   static ZoneList<typesystem::TypeParameter*>* NullTypeParameters() {
     return nullptr;
   }
@@ -516,7 +517,8 @@ class ParserTraits {
       ZoneList<typesystem::TypeParameter*>* typ_pars) {
     return typ_pars == nullptr;
   }
-  V8_INLINE ZoneList<typesystem::Type*>* EmptyTypeList() const;
+  V8_INLINE ZoneList<typesystem::FormalParameter*>* EmptyFormalParameters()
+      const;
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1106,8 +1108,10 @@ Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
 }
 
 
-ZoneList<typesystem::Type*>* ParserTraits::EmptyTypeList() const {
-  return new (parser_->zone()) ZoneList<typesystem::Type*>(1, parser_->zone());
+ZoneList<typesystem::FormalParameter*>* ParserTraits::EmptyFormalParameters()
+    const {
+  return new (parser_->zone())
+      ZoneList<typesystem::FormalParameter*>(1, parser_->zone());
 }
 
 

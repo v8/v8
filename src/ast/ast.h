@@ -110,7 +110,8 @@ namespace internal {
   V(ConstructorType)            \
   V(TypeParameter)              \
   V(FormalParameter)            \
-  V(ParenthesizedTypes)
+  V(TypeReference)              \
+  V(ParenthesizedTypeThings)
 
 // Forward declarations
 class AstNodeFactory;
@@ -2949,6 +2950,9 @@ class Type : public AstNode {
   V8_INLINE ZoneList<FormalParameter*>* AsValidParameterList(Zone* zone,
                                                              bool* ok) const;
 
+  V8_INLINE bool IsSimpleIdentifier() const;
+  V8_INLINE const AstRawString* AsSimpleIdentifier() const;
+
  protected:
   explicit Type(Zone* zone, int position) : AstNode(position) {}
 };
@@ -3048,10 +3052,45 @@ class FormalParameter : public AstNode {
  public:
   DECLARE_NODE_TYPE(FormalParameter)
 
+  bool IsValidType() const { return name_ == nullptr; }
+
+  void MakeValidParameter(bool* ok) {
+    if (name_ != nullptr) return;
+    if (optional_ || spread_ || !type_->IsSimpleIdentifier()) {
+      *ok = false;
+      return;
+    }
+    name_ = type_->AsSimpleIdentifier();
+    type_ = nullptr;
+  }
+
+  const AstRawString* name() const { return name_; }
+  bool optional() const { return optional_; }
+  bool spread() const { return spread_; }
+  Type* type() const { return type_; }
+
  protected:
-  FormalParameter(Zone* zone, int pos) : AstNode(pos) {}
+  FormalParameter(Zone* zone, const AstRawString* name, bool optional,
+                  bool spread, Type* type, int pos)
+      : AstNode(pos),
+        name_(name),
+        optional_(optional),
+        spread_(spread),
+        type_(type) {}
+  FormalParameter(Zone* zone, Type* type, int pos)
+      : AstNode(pos),
+        name_(nullptr),
+        optional_(false),
+        spread_(false),
+        type_(type) {}
 
   friend class Type;
+
+ private:
+  const AstRawString* name_;
+  bool optional_;
+  bool spread_;
+  Type* type_;
 };
 
 
@@ -3091,43 +3130,74 @@ class ConstructorType : public FunctionType {
 };
 
 
-class ParenthesizedTypes : public Type {
+class TypeReference : public Type {
  public:
-  DECLARE_NODE_TYPE(ParenthesizedTypes)
+  DECLARE_NODE_TYPE(TypeReference)
 
-  ZoneList<Type*>* types() const { return types_; }
+  const AstRawString* name() const { return name_; }
+  ZoneList<Type*>* type_arguments() const { return type_arguments_; }
 
  protected:
-  ParenthesizedTypes(Zone* zone, ZoneList<Type*>* types, int pos)
-      : Type(zone, pos), types_(types) {}
+  TypeReference(Zone* zone, const AstRawString* name,
+                ZoneList<Type*>* type_arguments, int pos)
+      : Type(zone, pos), name_(name), type_arguments_(type_arguments) {}
 
  private:
-  ZoneList<Type*>* types_;
+  const AstRawString* name_;
+  ZoneList<Type*>* type_arguments_;
 };
 
 
+class ParenthesizedTypeThings : public Type {
+ public:
+  DECLARE_NODE_TYPE(ParenthesizedTypeThings)
+
+  ZoneList<FormalParameter*>* type_things() const { return type_things_; }
+
+ protected:
+  ParenthesizedTypeThings(Zone* zone, ZoneList<FormalParameter*>* type_things,
+                          int pos)
+      : Type(zone, pos), type_things_(type_things) {}
+
+ private:
+  ZoneList<FormalParameter*>* type_things_;
+};
+
+
+V8_INLINE bool Type::IsSimpleIdentifier() const {
+  const TypeReference* ref = AsTypeReference();
+  if (ref == nullptr) return false;
+  return ref->type_arguments() == nullptr;
+}
+
+V8_INLINE const AstRawString* Type::AsSimpleIdentifier() const {
+  const TypeReference* ref = AsTypeReference();
+  DCHECK_NOT_NULL(ref);
+  DCHECK_NULL(ref->type_arguments());
+  return ref->name();
+}
+
 V8_INLINE Type* Type::Uncover(bool* ok) {
-  if (!IsParenthesizedTypes()) return this;
-  ZoneList<Type*>* types = AsParenthesizedTypes()->types();
-  if (types->length() == 1) return types->at(0);
+  if (!IsParenthesizedTypeThings()) return this;
+  ZoneList<FormalParameter*>* type_things =
+      AsParenthesizedTypeThings()->type_things();
+  if (type_things->length() == 1 && type_things->at(0)->IsValidType())
+    return type_things->at(0)->type();
   *ok = false;
   return nullptr;
 }
 
 V8_INLINE ZoneList<FormalParameter*>* Type::AsValidParameterList(
     Zone* zone, bool* ok) const {
-  if (!IsParenthesizedTypes()) {
+  if (!IsParenthesizedTypeThings()) {
     *ok = false;
     return nullptr;
   }
-  ZoneList<Type*>* types = AsParenthesizedTypes()->types();
   ZoneList<FormalParameter*>* parameters =
-      new (zone) ZoneList<FormalParameter*>(types->length(), zone);
-  for (int i = 0; i < types->length(); i++) {
-    Type* t = types->at(i);
-    FormalParameter* parameter =
-        new (zone) FormalParameter(zone, t->position());
-    parameters->Add(parameter, zone);
+      AsParenthesizedTypeThings()->type_things();
+  for (int i = 0; i < parameters->length(); i++) {
+    parameters->at(i)->MakeValidParameter(ok);
+    if (!*ok) return nullptr;
   }
   return parameters;
 }
@@ -3723,10 +3793,31 @@ class AstNodeFactory final BASE_EMBEDDED {
         local_zone_, type_parameters, parameters, result_type, pos);
   }
 
-  typesystem::ParenthesizedTypes* NewParenthesizedTypes(
-      ZoneList<typesystem::Type*>* types, int pos) {
+  typesystem::TypeReference* NewTypeReference(
+      const AstRawString* name, ZoneList<typesystem::Type*>* type_arguments,
+      int pos) {
     return new (local_zone_)
-        typesystem::ParenthesizedTypes(local_zone_, types, pos);
+        typesystem::TypeReference(local_zone_, name, type_arguments, pos);
+  }
+
+  typesystem::FormalParameter* NewFormalParameter(const AstRawString* name,
+                                                  bool optional, bool spread,
+                                                  typesystem::Type* type,
+                                                  int pos) {
+    return new (local_zone_) typesystem::FormalParameter(
+        local_zone_, name, optional, spread, type, pos);
+  }
+
+  typesystem::FormalParameter* NewFormalParameter(typesystem::Type* type,
+                                                  int pos) {
+    return new (local_zone_)
+        typesystem::FormalParameter(local_zone_, type, pos);
+  }
+
+  typesystem::ParenthesizedTypeThings* NewParenthesizedTypeThings(
+      ZoneList<typesystem::FormalParameter*>* things, int pos) {
+    return new (local_zone_)
+        typesystem::ParenthesizedTypeThings(local_zone_, things, pos);
   }
 
   Zone* zone() const { return local_zone_; }

@@ -80,10 +80,10 @@ function* ValidPrimaryTypes(size, proper=false) {
 
 function* InvalidPrimaryTypes(size, proper=false) {
   let L = [
-    // Undefined variable.
-    "whatever",
+    // Undefined variable.  Removed, this is a semantic error now.
+    // "whatever",
     // Legal parenthesized parameter lists that are not types.
-    "()", "(number, string)", "(number, string, void)"
+    "()", "(a: number, b: string)", "(x, y, z)"
   ];
   // Illegal types in legal places.
   L.push([1, InvalidTypes, [
@@ -195,9 +195,15 @@ function* ValidFunctionTypes(size, constr) {
   let c = constr ? "new " : "";
   let L = [[1, ValidTypes, [
     (t) => c + "() => " + t,
-    (t) => c + "(" + t + ") => " + t,
-    (t) => c + "(" + t + ", " + t + ") => " + t,
-    (t) => c + "(" + t + ", " + t + ", " + t + ") => " + t
+    (t) => c + "(a: " + t + ") => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ") => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ", c) => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ", c?) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d: string[]) => " + t,
+    //(t) => c + "(a: 'string-lit', b: " + t + ") => " + t,
+    //(t) => c + "(a?: 'string-lit', b?: " + t + ") => " + t
   ]]];
   yield* Serve(size, L);
 }
@@ -207,9 +213,13 @@ function* InvalidFunctionTypes(size, constr) {
   let c = constr ? "new " : "";
   let L = [[1, InvalidTypes, [
     (t) => c + "() => " + t,
-    (t) => c + "(" + t + ") => " + t,
-    (t) => c + "(" + t + ", " + t + ") => " + t,
-    (t) => c + "(" + t + ", " + t + ", " + t + ") => " + t
+    (t) => c + "(a: " + t + ") => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ") => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ", c) => " + t,
+    (t) => c + "(a:" + t + ", b?:" + t + ", c?) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
+    (t) => c + "(a:" + t + ", b:" + t + ", c, ...d: string[]) => " + t,
   ]]];
   yield* Serve(size, L);
 }
