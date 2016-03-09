@@ -11682,6 +11682,20 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         New<HCompareNumericAndBranch>(left, right, op);
     return result;
   } else {
+    if (op == Token::EQ) {
+      if (left->IsConstant() &&
+          HConstant::cast(left)->GetInstanceType() == ODDBALL_TYPE &&
+          HConstant::cast(left)->IsUndetectable()) {
+        return New<HIsUndetectableAndBranch>(right);
+      }
+
+      if (right->IsConstant() &&
+          HConstant::cast(right)->GetInstanceType() == ODDBALL_TYPE &&
+          HConstant::cast(right)->IsUndetectable()) {
+        return New<HIsUndetectableAndBranch>(left);
+      }
+    }
+
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result = Add<HCompareGeneric>(left, right, op);
       result->set_observed_input_representation(1, left_rep);
