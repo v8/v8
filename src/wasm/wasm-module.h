@@ -57,7 +57,6 @@ enum WasmFunctionDeclBit {
 
 // Constants for fixed-size elements within a module.
 static const size_t kDeclMemorySize = 3;
-static const size_t kDeclGlobalSize = 6;
 static const size_t kDeclDataSegmentSize = 13;
 
 // Static representation of a WASM function.
@@ -66,6 +65,7 @@ struct WasmFunction {
   uint32_t func_index;   // index into the function table.
   uint32_t sig_index;    // index into the signature table.
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
+  uint32_t name_length;  // length in bytes of the name.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
   uint32_t code_end_offset;      // offset in the module bytes of code end.
   uint16_t local_i32_count;      // number of i32 local variables.
@@ -81,18 +81,22 @@ struct WasmImport {
   FunctionSig* sig;               // signature of the function.
   uint32_t sig_index;             // index into the signature table.
   uint32_t module_name_offset;    // offset in module bytes of the module name.
+  uint32_t module_name_length;    // length in bytes of the module name.
   uint32_t function_name_offset;  // offset in module bytes of the import name.
+  uint32_t function_name_length;  // length in bytes of the import name.
 };
 
 // Static representation of an exported WASM function.
 struct WasmExport {
   uint32_t func_index;   // index into the function table.
   uint32_t name_offset;  // offset in module bytes of the name to export.
+  uint32_t name_length;  // length in bytes of the exported name.
 };
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
+  uint32_t name_length;  // length in bytes of the global name.
   MachineType type;      // type of the global.
   uint32_t offset;       // offset from beginning of globals area.
   bool exported;         // true if this global is exported.
@@ -134,18 +138,18 @@ struct WasmModule {
 
   WasmModule();
 
-  // Get a pointer to a string stored in the module bytes representing a name.
-  const char* GetName(uint32_t offset) const {
-    if (offset == 0) return "<?>";  // no name.
-    CHECK(BoundsCheck(offset, offset + 1));
-    return reinterpret_cast<const char*>(module_start + offset);
+  // Get a string stored in the module bytes representing a name.
+  WasmName GetName(uint32_t offset, uint32_t length) const {
+    if (length == 0) return {"<?>", 3};  // no name.
+    CHECK(BoundsCheck(offset, offset + length));
+    return {reinterpret_cast<const char*>(module_start + offset), length};
   }
 
-  // Get a pointer to a string stored in the module bytes representing a name.
-  const char* GetNameOrNull(uint32_t offset) const {
-    if (offset == 0) return nullptr;  // no name.
-    CHECK(BoundsCheck(offset, offset + 1));
-    return reinterpret_cast<const char*>(module_start + offset);
+  // Get a string stored in the module bytes representing a name.
+  WasmName GetNameOrNull(uint32_t offset, uint32_t length) const {
+    if (length == 0) return {NULL, 0};  // no name.
+    CHECK(BoundsCheck(offset, offset + length));
+    return {reinterpret_cast<const char*>(module_start + offset), length};
   }
 
   // Checks the given offset range is contained within the module bytes.

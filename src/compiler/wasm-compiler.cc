@@ -2204,12 +2204,13 @@ void WasmGraphBuilder::Int64LoweringForTesting() {
 static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       const char* message, uint32_t index,
-                                      const char* func_name) {
+                                      wasm::WasmName func_name) {
   Isolate* isolate = info->isolate();
   if (isolate->logger()->is_logging_code_events() ||
       isolate->cpu_profiler()->is_profiling()) {
     ScopedVector<char> buffer(128);
-    SNPrintF(buffer, "%s#%d:%s", message, index, func_name);
+    SNPrintF(buffer, "%s#%d:%.*s", message, index, func_name.length,
+             func_name.name);
     Handle<String> name_str =
         isolate->factory()->NewStringFromAsciiChecked(buffer.start());
     Handle<String> script_str =
@@ -2312,8 +2313,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
       buffer.Dispose();
     }
 
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "js-to-wasm", index,
-                              module->module->GetName(func->name_offset));
+    RecordFunctionCompilation(
+        Logger::FUNCTION_TAG, &info, "js-to-wasm", index,
+        module->module->GetName(func->name_offset, func->name_length));
     // Set the JSFunction's machine code.
     function->set_code(*code);
   }
@@ -2323,8 +2325,8 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
                                     Handle<JSFunction> function,
                                     wasm::FunctionSig* sig,
-                                    const char* module_cstr,
-                                    const char* function_cstr) {
+                                    wasm::WasmName module_name,
+                                    wasm::WasmName function_name) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -2392,7 +2394,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     }
 
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", 0,
-                              module_cstr);
+                              module_name);
   }
   return code;
 }
@@ -2431,9 +2433,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     }
     // Add the function as another context for the exception
     ScopedVector<char> buffer(128);
-    SNPrintF(buffer, "Compiling WASM function #%d:%s failed:",
-             function.func_index,
-             module_env->module->GetName(function.name_offset));
+    wasm::WasmName name =
+        module_env->module->GetName(function.name_offset, function.name_length);
+    SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
+             function.func_index, name.length, name.name);
     thrower.Failed(buffer.start(), result);
     return Handle<Code>::null();
   }
@@ -2456,8 +2459,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   Vector<char> buffer;
   if (debugging) {
     buffer = Vector<char>::New(128);
-    SNPrintF(buffer, "WASM_function_#%d:%s", function.func_index,
-             module_env->module->GetName(function.name_offset));
+    wasm::WasmName name =
+        module_env->module->GetName(function.name_offset, function.name_length);
+    SNPrintF(buffer, "WASM_function_#%d:%.*s", function.func_index, name.length,
+             name.name);
     func_name = buffer.start();
   }
   CompilationInfo info(func_name, isolate, &zone, flags);
@@ -2468,9 +2473,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     buffer.Dispose();
   }
   if (!code.is_null()) {
-    RecordFunctionCompilation(
-        Logger::FUNCTION_TAG, &info, "WASM_function", function.func_index,
-        module_env->module->GetName(function.name_offset));
+    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "WASM_function",
+                              function.func_index,
+                              module_env->module->GetName(
+                                  function.name_offset, function.name_length));
   }
 
   return code;

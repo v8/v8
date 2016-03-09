@@ -49,6 +49,11 @@ const LocalType kAstEnd = MachineRepresentation::kTagged;
 typedef Signature<LocalType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
+struct WasmName {
+  const char* name;
+  uint32_t length;
+};
+
 // TODO(titzer): Renumber all the opcodes to fill in holes.
 
 // Control expressions and blocks.

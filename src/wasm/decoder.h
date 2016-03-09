@@ -225,6 +225,8 @@ class Decoder {
       *length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
         error(pc_ - 1, "varint too large");
+      } else if (*length == 0) {
+        error(pc_, "varint of length 0");
       } else {
         TRACE("= %u\n", result);
       }

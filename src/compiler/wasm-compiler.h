@@ -41,8 +41,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
                                     Handle<JSFunction> function,
                                     wasm::FunctionSig* sig,
-                                    const char* module_name,
-                                    const char* function_name);
+                                    wasm::WasmName module_name,
+                                    wasm::WasmName function_name);
 
 // Wraps a given wasm code object, producing a JSFunction that can be called
 // from JavaScript.

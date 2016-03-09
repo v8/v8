@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function StringRef(string) {
-    this.pos = -1;
-    this.string = string;
-}
-
 function DataRef(data) {
     this.pos = -1;
     this.data = data;
@@ -117,10 +112,10 @@ function emit_u32(bytes, val) {
 }
 
 function emit_string(bytes, string) {
-    bytes.push(new StringRef(string));
-    bytes.push(0);
-    bytes.push(0);
-    bytes.push(0);
+    emit_varint(bytes, string.length);
+    for (var i = 0; i < string.length; i++) {
+      emit_u8(bytes, string.charCodeAt(i));
+    }
 }
 
 function emit_data_ref(bytes, string) {
@@ -179,11 +174,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         for (imp of this.imports) {
             emit_varint(bytes, imp.sig_index);
             emit_string(bytes, imp.module);
-            if (imp.name == undefined) {
-              emit_u32(bytes, 0);
-            } else {
-              emit_string(bytes, imp.name);
-            }
+            emit_string(bytes, imp.name || '');
         }
     }
 
@@ -297,21 +288,12 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
     if (debug) print("emitting end @ " + bytes.length);
     emit_u8(bytes, kDeclEnd);
 
-    // Collect references and canonicalize strings.
+    // Collect references.
     var strings = new Object();
     var data_segments = [];
     var count = 0;
     for (var i = 0; i < bytes.length; i++) {
         var b = bytes[i];
-        if (b instanceof StringRef) {
-            count++;
-            var prev = strings[b.string];
-            if (prev) {
-                bytes[i] = prev;
-            } else {
-                strings[b.string] = b;
-            }
-        }
         if (b instanceof DataRef) {
             data_segments.push(b);
             count++;
@@ -319,18 +301,6 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
     }
 
     if (count > 0) {
-        // Emit strings.
-        if (debug) print("emitting strings @ " + bytes.length);
-        for (str in strings) {
-            var ref = strings[str];
-            if (!(ref instanceof StringRef)) continue;
-            if (debug) print("  \"" + str + "\" @ " + bytes.length);
-            ref.pos = bytes.length;
-            for (var i = 0; i < str.length; i++) {
-                emit_u8(bytes, str.charCodeAt(i));
-            }
-            emit_u8(bytes, 0);  // null terminator.
-        }
         // Emit data.
         if (debug) print("emitting data @ " + bytes.length);
         for (ref of data_segments) {
@@ -342,7 +312,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         // Update references to strings and data.
         for (var i = 0; i < bytes.length; i++) {
             var b = bytes[i];
-            if (b instanceof StringRef || b instanceof DataRef) {
+            if (b instanceof DataRef) {
                 bytes[i] = b.pos & 0xFF;
                 bytes[i + 1] = (b.pos >> 8) & 0xFF;
                 bytes[i + 2] = (b.pos >> 16) & 0xFF;

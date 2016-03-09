@@ -167,7 +167,7 @@ class TestingModule : public ModuleEnv {
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
     module->functions.push_back(
-        {sig, index, 0, 0, 0, 0, 0, 0, 0, false, false});
+        {sig, index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false});
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -209,7 +209,7 @@ class TestingModule : public ModuleEnv {
   WasmGlobal* AddGlobal(MachineType mem_type) {
     byte size = WasmOpcodes::MemSize(mem_type);
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module->globals.push_back({0, mem_type, global_offset, false});
+    module->globals.push_back({0, 0, mem_type, global_offset, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);

@@ -161,7 +161,7 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->globals.push_back({0, MachineType::Int32(), 0, false});
+            module->globals.push_back({0, 0, MachineType::Int32(), 0, false});
             WasmGlobal* global = &module->globals.back();
             DecodeGlobalInModule(global);
           }
@@ -252,12 +252,13 @@ class ModuleDecoder : public Decoder {
               import->sig = module->signatures[import->sig_index];
             }
             const byte* pos = pc_;
-            import->module_name_offset = consume_string("import module name");
-            if (import->module_name_offset == 0) {
+            import->module_name_offset = consume_string(
+                &import->module_name_length, "import module name");
+            if (import->module_name_length == 0) {
               error(pos, "import module name cannot be NULL");
             }
-            import->function_name_offset =
-                consume_string("import function name");
+            import->function_name_offset = consume_string(
+                &import->function_name_length, "import function name");
           }
           break;
         }
@@ -285,7 +286,7 @@ class ModuleDecoder : public Decoder {
                     exp->func_index,
                     static_cast<int>(module->functions.size()));
             }
-            exp->name_offset = consume_string("export name");
+            exp->name_offset = consume_string(&exp->name_length, "export name");
           }
           break;
         }
@@ -344,6 +345,7 @@ class ModuleDecoder : public Decoder {
     pc_ = start_;
     function->sig = consume_sig();               // read signature
     function->name_offset = 0;                   // ---- name
+    function->name_length = 0;                   // ---- name length
     function->code_start_offset = off(pc_);      // ---- code start
     function->code_end_offset = off(limit_);     // ---- code end
     function->exported = false;                  // ---- exported
@@ -373,7 +375,7 @@ class ModuleDecoder : public Decoder {
 
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmGlobal* global) {
-    global->name_offset = consume_string("global name");
+    global->name_offset = consume_string(&global->name_length, "global name");
     global->type = mem_type();
     global->offset = 0;
     global->exported = consume_u8("exported") != 0;
@@ -402,7 +404,8 @@ class ModuleDecoder : public Decoder {
           (decl_bits & kDeclFunctionImport) == 0 ? " body" : "");
 
     if (decl_bits & kDeclFunctionName) {
-      function->name_offset = consume_string("function name");
+      function->name_offset =
+          consume_string(&function->name_length, "function name");
     }
 
     function->exported = decl_bits & kDeclFunctionExport;
@@ -505,11 +508,14 @@ class ModuleDecoder : public Decoder {
     return offset;
   }
 
-  // Reads a single 32-bit unsigned integer interpreted as an offset into the
-  // data and validating the string there and advances.
-  uint32_t consume_string(const char* name = nullptr) {
-    // TODO(titzer): validate string
-    return consume_offset(name ? name : "string");
+  // Reads a length-prefixed string, checking that it is within bounds. Returns
+  // the offset of the string, and the length as an out parameter.
+  uint32_t consume_string(uint32_t* length, const char* name = nullptr) {
+    int varint_length;
+    *length = consume_u32v(&varint_length, "string length");
+    uint32_t offset = static_cast<uint32_t>(pc_ - start_);
+    consume_bytes(*length);
+    return offset;
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.

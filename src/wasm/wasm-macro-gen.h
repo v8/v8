@@ -16,8 +16,11 @@
 #define WASM_MODULE_HEADER U32_LE(kWasmMagic), U32_LE(kWasmVersion)
 
 #define SIG_INDEX(v) U16_LE(v)
+// TODO(binji): make SIG_INDEX match this.
+#define IMPORT_SIG_INDEX(v) U32V_1(v)
 #define FUNC_INDEX(v) U32V_1(v)
-#define NAME_OFFSET(v) U32_LE(v)
+#define NO_NAME U32V_1(0)
+#define NAME_LENGTH(v) U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
 #define ZERO_OFFSET 0

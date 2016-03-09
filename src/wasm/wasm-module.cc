@@ -48,7 +48,9 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
   os << "#" << pair.function_->func_index << ":";
   if (pair.function_->name_offset > 0) {
     if (pair.module_) {
-      os << pair.module_->GetName(pair.function_->name_offset);
+      WasmName name = pair.module_->GetName(pair.function_->name_offset,
+                                            pair.function_->name_length);
+      os.write(name.name, name.length);
     } else {
       os << "+" << pair.function_->func_index;
     }
@@ -280,14 +282,15 @@ WasmModule::WasmModule()
 
 static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
-                                              const char* module_cstr,
-                                              const char* function_cstr) {
-  if (function_cstr) {
-    thrower.Error("Import #%d module=\"%s\" function=\"%s\" error: %s", index,
-                  module_cstr, function_cstr, error);
+                                              wasm::WasmName module_name,
+                                              wasm::WasmName function_name) {
+  if (function_name.name) {
+    thrower.Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
+                  index, module_name.length, module_name.name,
+                  function_name.length, function_name.name, error);
   } else {
-    thrower.Error("Import #%d module=\"%s\" error: %s", index, module_cstr,
-                  error);
+    thrower.Error("Import #%d module=\"%.*s\" error: %s", index,
+                  module_name.length, module_name.name, error);
   }
   thrower.Error("Import ");
   return MaybeHandle<JSFunction>();
@@ -295,35 +298,37 @@ static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
 
 static MaybeHandle<JSFunction> LookupFunction(
     ErrorThrower& thrower, Factory* factory, Handle<JSObject> ffi,
-    uint32_t index, const char* module_cstr, const char* function_cstr) {
+    uint32_t index, wasm::WasmName module_name, wasm::WasmName function_name) {
   if (ffi.is_null()) {
-    return ReportFFIError(thrower, "FFI is not an object", index, module_cstr,
-                          function_cstr);
+    return ReportFFIError(thrower, "FFI is not an object", index, module_name,
+                          function_name);
   }
 
   // Look up the module first.
-  Handle<String> name = factory->InternalizeUtf8String(module_cstr);
+  Handle<String> name = factory->InternalizeUtf8String(
+      Vector<const char>(module_name.name, module_name.length));
   MaybeHandle<Object> result = Object::GetProperty(ffi, name);
   if (result.is_null()) {
-    return ReportFFIError(thrower, "module not found", index, module_cstr,
-                          function_cstr);
+    return ReportFFIError(thrower, "module not found", index, module_name,
+                          function_name);
   }
 
   Handle<Object> module = result.ToHandleChecked();
 
   if (!module->IsJSReceiver()) {
     return ReportFFIError(thrower, "module is not an object or function", index,
-                          module_cstr, function_cstr);
+                          module_name, function_name);
   }
 
   Handle<Object> function;
-  if (function_cstr) {
+  if (function_name.name) {
     // Look up the function in the module.
-    Handle<String> name = factory->InternalizeUtf8String(function_cstr);
+    Handle<String> name = factory->InternalizeUtf8String(
+        Vector<const char>(function_name.name, function_name.length));
     MaybeHandle<Object> result = Object::GetProperty(module, name);
     if (result.is_null()) {
-      return ReportFFIError(thrower, "function not found", index, module_cstr,
-                            function_cstr);
+      return ReportFFIError(thrower, "function not found", index, module_name,
+                            function_name);
     }
     function = result.ToHandleChecked();
   } else {
@@ -332,8 +337,8 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   if (!function->IsJSFunction()) {
-    return ReportFFIError(thrower, "not a function", index, module_cstr,
-                          function_cstr);
+    return ReportFFIError(thrower, "not a function", index, module_name,
+                          function_name);
   }
 
   return Handle<JSFunction>::cast(function);
@@ -404,14 +409,16 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   if (import_table.size() > 0) {
     instance.import_code.reserve(import_table.size());
     for (const WasmImport& import : import_table) {
-      const char* module_cstr = GetNameOrNull(import.module_name_offset);
-      const char* function_cstr = GetNameOrNull(import.function_name_offset);
+      WasmName module_name =
+          GetNameOrNull(import.module_name_offset, import.module_name_length);
+      WasmName function_name = GetNameOrNull(import.function_name_offset,
+                                             import.function_name_length);
       MaybeHandle<JSFunction> function = LookupFunction(
-          thrower, factory, ffi, index, module_cstr, function_cstr);
+          thrower, factory, ffi, index, module_name, function_name);
       if (function.is_null()) return MaybeHandle<JSObject>();
       Handle<Code> code = compiler::CompileWasmToJSWrapper(
           isolate, &module_env, function.ToHandleChecked(), import.sig,
-          module_cstr, function_cstr);
+          module_name, function_name);
       instance.import_code.push_back(code);
       index++;
     }
@@ -427,23 +434,26 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     if (thrower.error()) break;
     DCHECK_EQ(index, func.func_index);
 
-    const char* cstr = GetName(func.name_offset);
-    Handle<String> name = factory->InternalizeUtf8String(cstr);
+    WasmName str = GetName(func.name_offset, func.name_length);
+    WasmName str_null = {nullptr, 0};
+    Handle<String> name = factory->InternalizeUtf8String(
+        Vector<const char>(str.name, str.length));
     Handle<Code> code = Handle<Code>::null();
     Handle<JSFunction> function = Handle<JSFunction>::null();
     if (func.external) {
       // Lookup external function in FFI object.
       MaybeHandle<JSFunction> function =
-          LookupFunction(thrower, factory, ffi, index, cstr, nullptr);
+          LookupFunction(thrower, factory, ffi, index, str, str_null);
       if (function.is_null()) return MaybeHandle<JSObject>();
       code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
                                               function.ToHandleChecked(),
-                                              func.sig, cstr, nullptr);
+                                              func.sig, str, str_null);
     } else {
       // Compile the function.
       code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
       if (code.is_null()) {
-        thrower.Error("Compilation of #%d:%s failed.", index, cstr);
+        thrower.Error("Compilation of #%d:%.*s failed.", index, str.length,
+                      str.name);
         return MaybeHandle<JSObject>();
       }
       if (func.exported) {
@@ -485,8 +495,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     // Compile wrappers and add them to the exports object.
     for (const WasmExport& exp : export_table) {
       if (thrower.error()) break;
-      const char* cstr = GetName(exp.name_offset);
-      Handle<String> name = factory->InternalizeUtf8String(cstr);
+      WasmName str = GetName(exp.name_offset, exp.name_length);
+      Handle<String> name = factory->InternalizeUtf8String(
+          Vector<const char>(str.name, str.length));
       Handle<Code> code = linker.GetFunctionCode(exp.func_index);
       Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
           isolate, &module_env, name, code, instance.js_object, exp.func_index);

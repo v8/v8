@@ -187,7 +187,6 @@ void WasmFunctionBuilder::SetName(const unsigned char* name, int name_length) {
     for (int i = 0; i < name_length; i++) {
       name_.push_back(*(name + i));
     }
-    name_.push_back('\0');
   }
 }
 
@@ -294,7 +293,10 @@ WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalType return_type,
 uint32_t WasmFunctionEncoder::HeaderSize() const {
   uint32_t size = 3;
   if (!external_) size += 2;
-  if (HasName()) size += 4;
+  if (HasName()) {
+    uint32_t name_size = NameSize();
+    size += static_cast<uint32_t>(SizeOfVarInt(name_size)) + name_size;
+  }
   return size;
 }
 
@@ -327,10 +329,10 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
   EmitUint16(header, signature_index_);
 
   if (HasName()) {
-    uint32_t name_offset = static_cast<uint32_t>(*body - buffer);
-    EmitUint32(header, name_offset);
-    std::memcpy(*body, &name_[0], name_.size());
-    (*body) += name_.size();
+    EmitVarInt(header, NameSize());
+    for (size_t i = 0; i < name_.size(); ++i) {
+      EmitUint8(header, name_[i]);
+    }
   }
 
 
@@ -524,7 +526,8 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
 
   sizes.AddSection(globals_.size());
   if (globals_.size() > 0) {
-    sizes.Add(kDeclGlobalSize * globals_.size(), 0);
+    /* These globals never have names, so are always 3 bytes. */
+    sizes.Add(3 * globals_.size(), 0);
   }
 
   sizes.AddSection(functions_.size());
@@ -571,7 +574,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     EmitVarInt(&header, globals_.size());
 
     for (auto global : globals_) {
-      EmitUint32(&header, 0);
+      EmitVarInt(&header, 0);  // Length of the global name.
       EmitUint8(&header, WasmOpcodes::MemTypeCodeFor(global.first));
       EmitUint8(&header, global.second);
     }

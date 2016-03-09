@@ -1013,7 +1013,7 @@ class TestModuleEnv : public ModuleEnv {
     linker = nullptr;
   }
   byte AddGlobal(MachineType mem_type) {
-    mod.globals.push_back({0, mem_type, 0, false});
+    mod.globals.push_back({0, 0, mem_type, 0, false});
     CHECK(mod.globals.size() <= 127);
     return static_cast<byte>(mod.globals.size() - 1);
   }
