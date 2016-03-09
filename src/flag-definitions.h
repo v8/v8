@@ -727,6 +727,9 @@ DEFINE_INT(heap_growing_percent, 0,
 DEFINE_INT(histogram_interval, 600000,
            "time interval in ms for aggregating memory histograms")
 
+// global-handles.cc
+DEFINE_BOOL(trace_object_groups, false,
+            "print object groups detected during each garbage collection")
 
 // heap-snapshot-generator.cc
 DEFINE_BOOL(heap_profiler_trace_objects, false,
