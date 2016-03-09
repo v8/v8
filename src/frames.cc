@@ -668,7 +668,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
 
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
-  Object* marker = Memory::Object_at(fp() - kPointerSize);
+  Object* marker =
+      Memory::Object_at(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (marker->IsSmi()) {
     StackFrame::Type candidate =
         static_cast<StackFrame::Type>(Smi::cast(marker)->value());
