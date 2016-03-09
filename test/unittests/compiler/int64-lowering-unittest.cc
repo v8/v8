@@ -396,8 +396,53 @@ TEST_F(Int64LoweringTest, I32ConvertI64) {
               IsReturn(IsInt32Constant(low_word_value(0)), start(), start()));
 }
 // kExprI64SConvertI32:
-// kExprI64UConvertI32:
+TEST_F(Int64LoweringTest, I64SConvertI32) {
+  LowerGraph(graph()->NewNode(machine()->ChangeInt32ToInt64(),
+                              Int32Constant(low_word_value(0))),
+             MachineRepresentation::kWord64);
 
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(low_word_value(0)),
+                        IsWord32Sar(IsInt32Constant(low_word_value(0)),
+                                    IsInt32Constant(31)),
+                        start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64SConvertI32_2) {
+  LowerGraph(
+      graph()->NewNode(machine()->ChangeInt32ToInt64(),
+                       graph()->NewNode(machine()->TruncateInt64ToInt32(),
+                                        Int64Constant(value(0)))),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(low_word_value(0)),
+                        IsWord32Sar(IsInt32Constant(low_word_value(0)),
+                                    IsInt32Constant(31)),
+                        start(), start()));
+}
+// kExprI64UConvertI32:
+TEST_F(Int64LoweringTest, I64UConvertI32) {
+  LowerGraph(graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                              Int32Constant(low_word_value(0))),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(low_word_value(0)), IsInt32Constant(0),
+                        start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64UConvertI32_2) {
+  LowerGraph(
+      graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                       graph()->NewNode(machine()->TruncateInt64ToInt32(),
+                                        Int64Constant(value(0)))),
+      MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsInt32Constant(low_word_value(0)), IsInt32Constant(0),
+                        start(), start()));
+}
 // kExprF64ReinterpretI64:
 // kExprI64ReinterpretF64:
 

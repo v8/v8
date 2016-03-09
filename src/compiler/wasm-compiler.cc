@@ -846,13 +846,18 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     case wasm::kExprF64Log: {
       return BuildF64Log(input);
     }
+    // kExprI32ConvertI64:
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
       break;
-
-    // kExprI32ConvertI64:
     // kExprI64SConvertI32:
+    case wasm::kExprI64SConvertI32:
+      op = m->ChangeInt32ToInt64();
+      break;
     // kExprI64UConvertI32:
+    case wasm::kExprI64UConvertI32:
+      op = m->ChangeUint32ToUint64();
+      break;
     // kExprF64ReinterpretI64:
     // kExprI64ReinterpretF64:
     // kExprI64Clz:
@@ -893,12 +898,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
-    case wasm::kExprI64SConvertI32:
-      op = m->ChangeInt32ToInt64();
-      break;
-    case wasm::kExprI64UConvertI32:
-      op = m->ChangeUint32ToUint64();
-      break;
     case wasm::kExprI64SConvertF32: {
       Node* trunc = graph()->NewNode(m->TryTruncateFloat32ToInt64(), input);
       Node* result =

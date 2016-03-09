@@ -356,8 +356,31 @@ void Int64Lowering::LowerNode(Node* node) {
     }
 
     // kExprI64SConvertI32:
-    // kExprI64UConvertI32:
-
+    case IrOpcode::kChangeInt32ToInt64: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      // We use SAR to preserve the sign in the high word.
+      ReplaceNode(
+          node, input,
+          graph()->NewNode(machine()->Word32Sar(), input,
+                           graph()->NewNode(common()->Int32Constant(31))));
+      node->NullAllInputs();
+      break;
+    }
+    // kExprI64UConvertI32: {
+    case IrOpcode::kChangeUint32ToUint64: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
+      ReplaceNode(node, input, graph()->NewNode(common()->Int32Constant(0)));
+      node->NullAllInputs();
+      break;
+    }
     // kExprF64ReinterpretI64:
     // kExprI64ReinterpretF64:
 

@@ -170,7 +170,18 @@ TEST(Run_WasmI32ConvertI64) {
   }
 }
 // kExprI64SConvertI32:
+TEST(Run_WasmI64SConvertI32) {
+  WasmRunner<int64_t> r(MachineType::Int32());
+  BUILD(r, WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i)); }
+}
+
 // kExprI64UConvertI32:
+TEST(Run_WasmI64UConvertI32) {
+  WasmRunner<int64_t> r(MachineType::Uint32());
+  BUILD(r, WASM_I64_UCONVERT_I32(WASM_GET_LOCAL(0)));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i)); }
+}
 
 // kExprF64ReinterpretI64:
 // kExprI64ReinterpretF64:
