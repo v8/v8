@@ -39,8 +39,9 @@ function ident_source(source, ident) {
   return ident + source.replace(/\n/gi, "\n" + ident);
 }
 
+var SHARDS_COUNT = 10;
 
-function run_tests() {
+function run_tests(shard) {
   function inlinable_comment(inlinable) {
     return inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
   }
@@ -325,6 +326,10 @@ function run_tests() {
   ];
   var test_warmup_counts = [0, 1, 2];
 
+  var iter = 0;
+  if (shard !== undefined) {
+    print("Running shard #" + shard);
+  }
   f_variants.forEach((f_cfg) => {
     g_variants.forEach((g_cfg) => {
       f_args_variants.forEach((f_args) => {
@@ -332,6 +337,10 @@ function run_tests() {
           f_inlinable_variants.forEach((f_inlinable) => {
             g_inlinable_variants.forEach((g_inlinable) => {
               test_warmup_counts.forEach((test_warmup_count) => {
+                if (shard !== undefined && (iter++) % SHARDS_COUNT != shard) {
+                  print("skipping...");
+                  return;
+                }
                 var cfg = {
                   f_source_template: f_cfg.source_template,
                   f_inlinable,
@@ -356,4 +365,5 @@ function run_tests() {
   });
 }
 
-run_tests();
+// Uncomment to run all the tests at once or use shard runners.
+//run_tests();
