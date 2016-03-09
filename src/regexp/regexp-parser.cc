@@ -840,11 +840,11 @@ ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
 #ifdef V8_I18N_SUPPORT
   ZoneList<char> property_name(0, zone());
   if (current() == '{') {
-    for (Advance(); IsAlpha(current()); Advance()) {
+    for (Advance(); current() != '}'; Advance()) {
+      if (!has_next()) return nullptr;
       property_name.Add(static_cast<char>(current()), zone());
     }
-    if (current() != '}') return nullptr;
-  } else if (IsAlpha(current())) {
+  } else if (current() != kEndMarker) {
     property_name.Add(static_cast<char>(current()), zone());
   } else {
     return nullptr;
