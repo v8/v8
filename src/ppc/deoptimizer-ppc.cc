@@ -237,6 +237,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(r3);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ LoadP(sp, MemOperand(r3, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop, outer_loop_header, inner_loop_header;
   // Outer loop state: r7 = current "FrameDescription** output_",
