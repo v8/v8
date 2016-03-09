@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function DataRef(data) {
-    this.pos = -1;
-    this.data = data;
-}
-
 function WasmFunctionBuilder(name, sig_index) {
     this.name = name;
     this.sig_index = sig_index;
@@ -116,13 +111,6 @@ function emit_string(bytes, string) {
     for (var i = 0; i < string.length; i++) {
       emit_u8(bytes, string.charCodeAt(i));
     }
-}
-
-function emit_data_ref(bytes, string) {
-    bytes.push(new DataRef(string));
-    bytes.push(0);
-    bytes.push(0);
-    bytes.push(0);
 }
 
 function emit_varint(bytes, val) {
@@ -269,10 +257,11 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_u8(bytes, kDeclDataSegments);
         emit_varint(bytes, this.data_segments.length);
         for (seg of this.data_segments) {
-            emit_u32(bytes, seg.addr);
-            emit_data_ref(bytes, seg.data);
-            emit_u32(bytes, seg.data.length);
-            emit_u8(bytes, seg.init ? 1 : 0);
+            emit_varint(bytes, seg.addr);
+            emit_varint(bytes, seg.data.length);
+            for (var i = 0; i < seg.data.length; i++) {
+                emit_u8(bytes, seg.data[i]);
+            }
         }
     }
 
@@ -287,39 +276,6 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
     // End the module.
     if (debug) print("emitting end @ " + bytes.length);
     emit_u8(bytes, kDeclEnd);
-
-    // Collect references.
-    var strings = new Object();
-    var data_segments = [];
-    var count = 0;
-    for (var i = 0; i < bytes.length; i++) {
-        var b = bytes[i];
-        if (b instanceof DataRef) {
-            data_segments.push(b);
-            count++;
-        }
-    }
-
-    if (count > 0) {
-        // Emit data.
-        if (debug) print("emitting data @ " + bytes.length);
-        for (ref of data_segments) {
-            ref.pos = bytes.length;
-            for (var i = 0; i < ref.data.length; i++) {
-                emit_u8(bytes, ref.data[i]);
-            }
-        }
-        // Update references to strings and data.
-        for (var i = 0; i < bytes.length; i++) {
-            var b = bytes[i];
-            if (b instanceof DataRef) {
-                bytes[i] = b.pos & 0xFF;
-                bytes[i + 1] = (b.pos >> 8) & 0xFF;
-                bytes[i + 2] = (b.pos >> 16) & 0xFF;
-                bytes[i + 3] = (b.pos >> 24) & 0xFF;
-            }
-        }
-    }
 
     return bytes;
 }

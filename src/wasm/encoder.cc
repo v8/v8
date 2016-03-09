@@ -376,14 +376,11 @@ uint32_t WasmDataSegmentEncoder::BodySize() const {
 
 void WasmDataSegmentEncoder::Serialize(byte* buffer, byte** header,
                                        byte** body) const {
-  uint32_t body_offset = static_cast<uint32_t>(*body - buffer);
-  EmitUint32(header, dest_);
-  EmitUint32(header, body_offset);
-  EmitUint32(header, static_cast<uint32_t>(data_.size()));
-  EmitUint8(header, 1);  // init
+  EmitVarInt(header, dest_);
+  EmitVarInt(header, static_cast<uint32_t>(data_.size()));
 
-  std::memcpy(*body, &data_[0], data_.size());
-  (*body) += data_.size();
+  std::memcpy(*header, &data_[0], data_.size());
+  (*header) += data_.size();
 }
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)

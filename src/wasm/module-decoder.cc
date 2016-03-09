@@ -445,16 +445,18 @@ class ModuleDecoder : public Decoder {
 
   // Decodes a single data segment entry inside a module starting at {pc_}.
   void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
-    segment->dest_addr = consume_u32("destination");
-    segment->source_offset = consume_offset("source offset");
-    segment->source_size = consume_u32("source size");
-    segment->init = consume_u8("init");
+    const byte* start = pc_;
+    int length;
+    segment->dest_addr = consume_u32v(&length, "destination");
+    segment->source_size = consume_u32v(&length, "source size");
+    segment->source_offset = static_cast<uint32_t>(pc_ - start_);
+    segment->init = true;
 
     // Validate the data is in the module.
     uint32_t module_limit = static_cast<uint32_t>(limit_ - start_);
     if (!IsWithinLimit(module_limit, segment->source_offset,
                        segment->source_size)) {
-      error(pc_ - sizeof(uint32_t), "segment out of bounds of module");
+      error(start, "segment out of bounds of module");
     }
 
     // Validate that the segment will fit into the (minimum) memory.
@@ -463,8 +465,10 @@ class ModuleDecoder : public Decoder {
                                         : WasmModule::kMaxMemPages);
     if (!IsWithinLimit(memory_limit, segment->dest_addr,
                        segment->source_size)) {
-      error(pc_ - sizeof(uint32_t), "segment out of bounds of memory");
+      error(start, "segment out of bounds of memory");
     }
+
+    consume_bytes(segment->source_size);
   }
 
   // Verifies the body (code) of a given function.

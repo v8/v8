@@ -456,6 +456,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   static const byte kCodeStartOffset = 8 + 4 + 5 + 4 + 18;
   static const byte kCodeEndOffset = kCodeStartOffset + 3;
+  static const byte kDataSegmentSourceOffset = kCodeEndOffset + 6;
 
   static const byte data[] = {
       kDeclMemory, 28, 28, 1,
@@ -478,10 +479,9 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
       kExprNop,     // func#0 body
       kExprNop,     // func#0 body
       // segment#0 -------------------------------------------------
-      kDeclDataSegments, 1, 0xae, 0xb3, 0x08, 0,  // dest addr
-      15, 0, 0, 0,                                // source offset
-      5, 0, 0, 0,                                 // source size
-      1,                                          // init
+      kDeclDataSegments, 1, U32V_3(0x8b3ae),  // dest addr
+      U32V_1(5),                              // source size
+      0, 1, 2, 3, 4,                          // data bytes
       // rest ------------------------------------------------------
       kDeclEnd,
   };
@@ -513,7 +513,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x8b3ae, segment->dest_addr);
-    EXPECT_EQ(15, segment->source_offset);
+    EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
     EXPECT_EQ(5, segment->source_size);
     EXPECT_TRUE(segment->init);
 
@@ -523,14 +523,13 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
 
 
 TEST_F(WasmModuleVerifyTest, OneDataSegment) {
+  const byte kDataSegmentSourceOffset = 8 + 10;
   const byte data[] = {
-      kDeclMemory, 28, 28, 1, kDeclDataSegments, 1, 0xaa, 0xbb, 0x09,
-      0,  // dest addr
-      11,          0,  0,
-      0,  // source offset
-      3,           0,  0,
-      0,  // source size
-      1,  // init
+      kDeclMemory, 28, 28, 1,
+      kDeclDataSegments, 1,
+      U32V_3(0x9bbaa),  // dest addr
+      U32V_1(3),        // source size
+      'a', 'b', 'c'     // data bytes
   };
 
   {
@@ -544,7 +543,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x9bbaa, segment->dest_addr);
-    EXPECT_EQ(11, segment->source_offset);
+    EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
     EXPECT_EQ(3, segment->source_size);
     EXPECT_TRUE(segment->init);
 
@@ -556,21 +555,18 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
 
 TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
+  const byte kDataSegment0SourceOffset = 8 + 10;
+  const byte kDataSegment1SourceOffset = 8 + 10 + 8;
+
   const byte data[] = {
-      kDeclMemory, 28,   28,   1, kDeclDataSegments, 2, 0xee, 0xff, 0x07,
-      0,  // dest addr
-      9,           0,    0,
-      0,  // #0: source offset
-      4,           0,    0,
-      0,  // source size
-      0,  // init
-      0xcc,        0xdd, 0x06,
-      0,  // #1: dest addr
-      6,           0,    0,
-      0,  // source offset
-      10,          0,    0,
-      0,  // source size
-      1,  // init
+      kDeclMemory, 28,   28,   1,
+      kDeclDataSegments, 2,
+      U32V_3(0x7ffee),               // #0: dest addr
+      U32V_1(4),                     // source size
+      1, 2, 3, 4,                    // data bytes
+      U32V_3(0x6ddcc),               // #1: dest addr
+      U32V_1(10),                    // source size
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10  // data bytes
   };
 
   {
@@ -584,12 +580,12 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     WasmDataSegment* s1 = &result.val->data_segments[1];
 
     EXPECT_EQ(0x7ffee, s0->dest_addr);
-    EXPECT_EQ(9, s0->source_offset);
+    EXPECT_EQ(kDataSegment0SourceOffset, s0->source_offset);
     EXPECT_EQ(4, s0->source_size);
-    EXPECT_FALSE(s0->init);
+    EXPECT_TRUE(s0->init);
 
     EXPECT_EQ(0x6ddcc, s1->dest_addr);
-    EXPECT_EQ(6, s1->source_offset);
+    EXPECT_EQ(kDataSegment1SourceOffset, s1->source_offset);
     EXPECT_EQ(10, s1->source_size);
     EXPECT_TRUE(s1->init);
 
@@ -600,44 +596,8 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
 }
 
 
-TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
-  const int dest_addr = 0x100;
-  const byte mem_pages = 1;
-  const int kHeaderSize = 8;
-  const int kDataSize = 19;
-  const int kTotalSize = kHeaderSize + kDataSize;
-
-  for (int source_offset = 0; source_offset < 5 + kDataSize; source_offset++) {
-    for (int source_size = -1; source_size < 5 + kDataSize; source_size += 3) {
-      byte data[] = {
-          kDeclMemory,
-          mem_pages,
-          mem_pages,
-          1,
-          kDeclDataSegments,
-          1,
-          U32_LE(dest_addr),
-          U32_LE(source_offset),
-          U32_LE(source_size),
-          1,  // init
-      };
-
-      STATIC_ASSERT(kDataSize == arraysize(data));
-
-      if (source_offset < kTotalSize && source_size >= 0 &&
-          (source_offset + source_size) <= kTotalSize) {
-        EXPECT_VERIFIES(data);
-      } else {
-        EXPECT_FAILURE(data);
-      }
-    }
-  }
-}
-
-
 TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
   const int source_size = 3;
-  const int source_offset = 11;
 
   for (byte mem_pages = 1; mem_pages < 16; mem_pages++) {
     int mem_size = mem_pages * 0x10000;  // 64k pages.
@@ -651,10 +611,9 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
           1,
           kDeclDataSegments,
           1,
-          U32_LE(dest_addr),
-          U32_LE(source_offset),
-          U32_LE(source_size),
-          1,  // init
+          U32V_3(dest_addr),
+          U32V_1(source_size),
+          'a', 'b', 'c'
       };
 
       if (dest_addr <= (mem_size - source_size)) {
