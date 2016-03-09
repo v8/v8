@@ -267,7 +267,7 @@ void FullCodeGenerator::Generate() {
   if (rest_param) {
     Comment cmnt(masm_, "[ Allocate rest parameter array");
     if (!function_in_register_a1) {
-      __ lw(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+      __ ld(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     }
     FastNewRestParameterStub stub(isolate());
     __ CallStub(&stub);

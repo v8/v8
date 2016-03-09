@@ -4767,7 +4767,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ lw(a2, FieldMemOperand(a3, JSFunction::kPrototypeOrInitialMapOffset));
   __ JumpIfSmi(a2, &new_object);
   __ GetObjectType(a2, a0, a0);
-  __ Branch(&new_object, ne, a2, Operand(MAP_TYPE));
+  __ Branch(&new_object, ne, a0, Operand(MAP_TYPE));
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.

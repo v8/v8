@@ -852,9 +852,11 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
     for (PushParameter input : (*arguments)) {
-      Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
-           g.TempImmediate(slot << kPointerSizeLog2));
-      ++slot;
+      if (input.node()) {
+        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+             g.TempImmediate(slot << kPointerSizeLog2));
+        ++slot;
+      }
     }
   } else {
     // Possibly align stack here for functions.

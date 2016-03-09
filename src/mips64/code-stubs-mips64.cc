@@ -4773,7 +4773,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ ld(a2, FieldMemOperand(a3, JSFunction::kPrototypeOrInitialMapOffset));
   __ JumpIfSmi(a2, &new_object);
   __ GetObjectType(a2, a0, a0);
-  __ Branch(&new_object, ne, a2, Operand(MAP_TYPE));
+  __ Branch(&new_object, ne, a0, Operand(MAP_TYPE));
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
@@ -4792,7 +4792,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ sd(a3, MemOperand(v0, JSObject::kPropertiesOffset));
   __ sd(a3, MemOperand(v0, JSObject::kElementsOffset));
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ Addu(a1, v0, Operand(JSObject::kHeaderSize));
+  __ Daddu(a1, v0, Operand(JSObject::kHeaderSize));
 
   // ----------- S t a t e -------------
   //  -- v0 : result (untagged)
@@ -4806,7 +4806,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   // Perform in-object slack tracking if requested.
   Label slack_tracking;
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  __ lw(a3, FieldMemOperand(a2, Map::kBitField3Offset));
+  __ lwu(a3, FieldMemOperand(a2, Map::kBitField3Offset));
   __ And(at, a3, Operand(Map::ConstructionCounter::kMask));
   __ Branch(USE_DELAY_SLOT, &slack_tracking, ne, at, Operand(zero_reg));
   __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);  // In delay slot.
@@ -4817,7 +4817,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     // Add the object tag to make the JSObject real.
     STATIC_ASSERT(kHeapObjectTag == 1);
     __ Ret(USE_DELAY_SLOT);
-    __ Addu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
+    __ Daddu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
   }
   __ bind(&slack_tracking);
   {
@@ -4842,7 +4842,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ And(a3, a3, Operand(Map::ConstructionCounter::kMask));
     __ Branch(USE_DELAY_SLOT, &finalize, eq, a3, Operand(zero_reg));
     STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Addu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
+    __ Daddu(v0, v0, Operand(kHeapObjectTag));  // In delay slot.
     __ Ret();
 
     // Finalize the instance size.
@@ -4863,6 +4863,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize == 1);
     __ dsll(a4, a4, kPointerSizeLog2 + kSmiShiftSize + kSmiTagSize);
+    __ SmiTag(a4);
     __ Push(a2, a4);
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(a2);
@@ -4870,7 +4871,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kHeapObjectTag == 1);
   __ Dsubu(v0, v0, Operand(kHeapObjectTag));
   __ lbu(a5, FieldMemOperand(a2, Map::kInstanceSizeOffset));
-  __ Lsa(a5, v0, a5, kPointerSizeLog2);
+  __ Dlsa(a5, v0, a5, kPointerSizeLog2);
   __ jmp(&done_allocate);
 
   // Fall back to %NewObject.

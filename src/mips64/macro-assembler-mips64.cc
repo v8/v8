@@ -1358,6 +1358,35 @@ void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   }
 }
 
+static inline int64_t ShiftAndFixSignExtension(int64_t imm, int bitnum) {
+  if ((imm >> (bitnum - 1)) & 0x1) {
+    imm = (imm >> bitnum) + 1;
+  } else {
+    imm = imm >> bitnum;
+  }
+  return imm;
+}
+
+bool MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
+  bool higher_bits_sign_extended = false;
+  if (is_int16(j.imm64_)) {
+    daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
+  } else if (!(j.imm64_ & kHiMask)) {
+    ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
+  } else if (!(j.imm64_ & kImm16Mask)) {
+    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
+    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
+      higher_bits_sign_extended = true;
+    }
+  } else {
+    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
+    ori(rd, rd, (j.imm64_ & kImm16Mask));
+    if ((j.imm64_ >> (kLuiShift + 15)) & 0x1) {
+      higher_bits_sign_extended = true;
+    }
+  }
+  return higher_bits_sign_extended;
+}
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
@@ -1365,46 +1394,21 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
     // Normal load of an immediate value which does not need Relocation Info.
     if (is_int32(j.imm64_)) {
-      if (is_int16(j.imm64_)) {
-        daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
-      } else if (!(j.imm64_ & kHiMask)) {
-        ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
-      } else if (!(j.imm64_ & kImm16Mask)) {
-        lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-      } else {
-        lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-        ori(rd, rd, (j.imm64_ & kImm16Mask));
-      }
+      LiLower32BitHelper(rd, j);
     } else {
       if (kArchVariant == kMips64r6) {
         int64_t imm = j.imm64_;
-        bool lui_emited = false;
-        if (((imm >> kLuiShift) & kImm16Mask) != 0) {
-          lui(rd, (imm >> kLuiShift) & kImm16Mask);
-          lui_emited = true;
-        }
-        if ((imm & kImm16Mask) != 0) {
-          ori(rd, rd, (imm & kImm16Mask));
-        } else if (!lui_emited) {
-          or_(rd, zero_reg, zero_reg);
-        }
-        if ((imm >> 31) & 0x1) {
-          imm = (imm >> 32) + 1;
-        } else {
-          imm = imm >> 32;
-        }
-        if (imm & kImm16Mask) {
+        bool higher_bits_sign_extended = LiLower32BitHelper(rd, j);
+        imm = ShiftAndFixSignExtension(imm, 32);
+        // If LUI writes 1s to higher bits, we need both DAHI/DATI.
+        if ((imm & kImm16Mask) ||
+            (higher_bits_sign_extended && (j.imm64_ > 0))) {
           dahi(rd, imm & kImm16Mask);
         }
-        if (!is_int48(j.imm64_)) {
-          if ((imm >> 15) & 0x1) {
-            imm = (imm >> 16) + 1;
-          } else {
-            imm = imm >> 16;
-          }
-          if (imm & kImm16Mask) {
-            dati(rd, imm & kImm16Mask);
-          }
+        imm = ShiftAndFixSignExtension(imm, 16);
+        if ((!is_int48(j.imm64_) && (imm & kImm16Mask)) ||
+            (higher_bits_sign_extended && (j.imm64_ > 0))) {
+          dati(rd, imm & kImm16Mask);
         }
       } else {
         if (is_int48(j.imm64_)) {
