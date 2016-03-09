@@ -826,6 +826,18 @@ def Execute(arch, mode, args, options, suites):
           "with failure information.")
     exit_code = 0
 
+  if options.sancov_dir:
+    # If tests ran with sanitizer coverage, merge coverage files in the end.
+    try:
+      print "Merging sancov files."
+      subprocess.check_call([
+        sys.executable,
+        join(BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
+        "--coverage-dir=%s" % options.sancov_dir])
+    except:
+      print >> sys.stderr, "Error: Merging sancov files failed."
+      exit_code = 1
+
   return exit_code
 
 
