@@ -106,10 +106,6 @@ class Space;
 #define DCHECK_PAGE_OFFSET(offset) \
   DCHECK((Page::kObjectStartOffset <= offset) && (offset <= Page::kPageSize))
 
-#define DCHECK_MAP_PAGE_INDEX(index) \
-  DCHECK((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
-
-
 class MarkBit {
  public:
   typedef uint32_t CellType;
@@ -2879,12 +2875,7 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object.
   MapSpace(Heap* heap, AllocationSpace id)
-      : PagedSpace(heap, id, NOT_EXECUTABLE),
-        max_map_space_pages_(kMaxMapPageIndex - 1) {}
-
-  // Given an index, returns the page address.
-  // TODO(1600): this limit is artifical just to keep code compilable
-  static const int kMaxMapPageIndex = 1 << 16;
+      : PagedSpace(heap, id, NOT_EXECUTABLE) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
     if (base::bits::IsPowerOfTwo32(Map::kSize)) {
@@ -2897,16 +2888,6 @@ class MapSpace : public PagedSpace {
 #ifdef VERIFY_HEAP
   void VerifyObject(HeapObject* obj) override;
 #endif
-
- private:
-  static const int kMapsPerPage = Page::kAllocatableMemory / Map::kSize;
-
-  // Do map space compaction if there is a page gap.
-  int CompactionThreshold() {
-    return kMapsPerPage * (max_map_space_pages_ - 1);
-  }
-
-  const int max_map_space_pages_;
 };
 
 
