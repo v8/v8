@@ -4579,10 +4579,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   movp(scratch, rbp);
   bind(&load_context);
   DCHECK(SmiValuesAre32Bits());
-  int smi_tag_offset = kSmiShift / kBitsPerByte;
-  cmpl(MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset +
-                               smi_tag_offset),
-       Immediate(StackFrame::STUB));
+  // This is "JumpIfNotSmi" but without loading the value into a register.
+  cmpl(MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset),
+       Immediate(0));
   j(not_equal, &has_context);
   movp(scratch, MemOperand(scratch, CommonFrameConstants::kCallerFPOffset));
   jmp(&load_context);
