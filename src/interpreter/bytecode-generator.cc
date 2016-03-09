@@ -362,16 +362,22 @@ class BytecodeGenerator::ControlScopeForTryFinally final
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
-  ContextScope* context = this->context();
+  ContextScope* context = generator()->execution_context();
   do {
-    if (current->Execute(command, statement)) { return; }
-    current = current->outer();
     if (current->context() != context) {
-      // Pop context to the expected depth.
+      // Pop context to the expected depth for break and continue. For return
+      // and throw it is not required to pop. Debugger expects that the
+      // context is not popped on return. So do not pop on return.
       // TODO(rmcilroy): Only emit a single context pop.
-      generator()->builder()->PopContext(current->context()->reg());
+      if (command == CMD_BREAK || command == CMD_CONTINUE) {
+        generator()->builder()->PopContext(current->context()->reg());
+      }
       context = current->context();
     }
+    if (current->Execute(command, statement)) {
+      return;
+    }
+    current = current->outer();
   } while (current != nullptr);
   UNREACHABLE();
 }

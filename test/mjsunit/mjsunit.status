@@ -882,8 +882,6 @@
   # TODO(mythria, 4680): possibly problem with line numbers.
   'es6/regress/regress-468661': [FAIL],
 
-  # with statements no longer always have a block as their body
-  'regress/regress-95485': [SKIP],
 }],  # ignition == True
 
 ['ignition == True and arch == arm64', {
