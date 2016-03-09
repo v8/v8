@@ -14682,6 +14682,15 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::TAIL_CALLER_FRAME: {
+          int shared_info_id = iterator.Next();
+          Object* shared_info = LiteralArray()->get(shared_info_id);
+          os << "{function="
+             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << "}";
+          break;
+        }
+
         case Translation::GETTER_STUB_FRAME:
         case Translation::SETTER_STUB_FRAME: {
           int shared_info_id = iterator.Next();

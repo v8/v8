@@ -302,7 +302,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(eax);
 
-  // Replace the current frame with the output frames.
+  __ mov(esp, Operand(eax, Deoptimizer::caller_frame_top_offset()));
+
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: eax = current FrameDescription**, edx = one past the

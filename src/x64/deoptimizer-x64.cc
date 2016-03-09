@@ -231,7 +231,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ popq(rax);
 
-  // Replace the current frame with the output frames.
+  __ movp(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
+
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: rax = current FrameDescription**, rdx = one past the

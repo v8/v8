@@ -711,16 +711,38 @@ void Deoptimizer::DoComputeOutputFrames() {
   DeoptimizationInputData* input_data =
       DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
 
+  {
+    // Read caller's PC, caller's FP and caller's constant pool values
+    // from input frame. Compute caller's frame top address.
+
+    Register fp_reg = JavaScriptFrame::fp_register();
+    stack_fp_ = input_->GetRegister(fp_reg.code());
+
+    caller_frame_top_ = stack_fp_ + ComputeInputFrameAboveFpFixedSize();
+
+    Address fp_address = input_->GetFramePointerAddress();
+    caller_fp_ = Memory::intptr_at(fp_address);
+    caller_pc_ =
+        Memory::intptr_at(fp_address + CommonFrameConstants::kCallerPCOffset);
+    input_frame_context_ = Memory::intptr_at(
+        fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
+
+    if (FLAG_enable_embedded_constant_pool) {
+      caller_constant_pool_ = Memory::intptr_at(
+          fp_address + CommonFrameConstants::kConstantPoolOffset);
+    }
+  }
+
   if (trace_scope_ != NULL) {
     timer.Start();
     PrintF(trace_scope_->file(), "[deoptimizing (DEOPT %s): begin ",
            MessageFor(bailout_type_));
     PrintFunctionName();
     PrintF(trace_scope_->file(),
-           " (opt #%d) @%d, FP to SP delta: %d]\n",
-           input_data->OptimizationId()->value(),
-           bailout_id_,
-           fp_to_sp_delta_);
+           " (opt #%d) @%d, FP to SP delta: %d, caller sp: 0x%08" V8PRIxPTR
+           "]\n",
+           input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
+           caller_frame_top_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT ||
         (compiled_code_->is_hydrogen_stub())) {
       compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
@@ -763,56 +785,42 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
   output_count_ = static_cast<int>(count);
 
-  {
-    // Read caller's PC, caller's FP and caller's constant pool values
-    // from input frame. Compute caller's frame top address.
-
-    Register fp_reg = JavaScriptFrame::fp_register();
-    stack_fp_ = input_->GetRegister(fp_reg.code());
-
-    caller_frame_top_ = stack_fp_ + ComputeInputFrameAboveFpFixedSize();
-
-    Address fp_address = input_->GetFramePointerAddress();
-    caller_fp_ = Memory::intptr_at(fp_address);
-    caller_pc_ =
-        Memory::intptr_at(fp_address + StandardFrameConstants::kCallerPCOffset);
-    input_frame_context_ =
-        Memory::intptr_at(fp_address + StandardFrameConstants::kContextOffset);
-
-    if (FLAG_enable_embedded_constant_pool) {
-      caller_constant_pool_ = Memory::intptr_at(
-          fp_address + StandardFrameConstants::kConstantPoolOffset);
-    }
-  }
-
   // Translate each output frame.
-  for (size_t i = 0; i < count; ++i) {
+  int frame_index = 0;  // output_frame_index
+  for (size_t i = 0; i < count; ++i, ++frame_index) {
     // Read the ast node id, function, and frame height for this output frame.
-    int frame_index = static_cast<int>(i);
-    switch (translated_state_.frames()[i].kind()) {
+    TranslatedFrame* translated_frame = &(translated_state_.frames()[i]);
+    switch (translated_frame->kind()) {
       case TranslatedFrame::kFunction:
-        DoComputeJSFrame(frame_index, deoptimizing_throw_ && i == count - 1);
+        DoComputeJSFrame(translated_frame, frame_index,
+                         deoptimizing_throw_ && i == count - 1);
         jsframe_count_++;
         break;
       case TranslatedFrame::kInterpretedFunction:
-        DoComputeInterpretedFrame(frame_index,
+        DoComputeInterpretedFrame(translated_frame, frame_index,
                                   deoptimizing_throw_ && i == count - 1);
         jsframe_count_++;
         break;
       case TranslatedFrame::kArgumentsAdaptor:
-        DoComputeArgumentsAdaptorFrame(frame_index);
+        DoComputeArgumentsAdaptorFrame(translated_frame, frame_index);
+        break;
+      case TranslatedFrame::kTailCallerFunction:
+        DoComputeTailCallerFrame(translated_frame, frame_index);
+        // Tail caller frame translations do not produce output frames.
+        frame_index--;
+        output_count_--;
         break;
       case TranslatedFrame::kConstructStub:
-        DoComputeConstructStubFrame(frame_index);
+        DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kGetter:
-        DoComputeAccessorStubFrame(frame_index, false);
+        DoComputeAccessorStubFrame(translated_frame, frame_index, false);
         break;
       case TranslatedFrame::kSetter:
-        DoComputeAccessorStubFrame(frame_index, true);
+        DoComputeAccessorStubFrame(translated_frame, frame_index, true);
         break;
       case TranslatedFrame::kCompiledStub:
-        DoComputeCompiledStubFrame(frame_index);
+        DoComputeCompiledStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kInvalid:
         FATAL("invalid frame");
@@ -827,19 +835,19 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF(trace_scope_->file(), "[deoptimizing (%s): end ",
            MessageFor(bailout_type_));
     PrintFunctionName();
-    PrintF(
-        trace_scope_->file(),
-        " @%d => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, took %0.3f ms]\n",
-        bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
-        FullCodeGenerator::State2String(static_cast<FullCodeGenerator::State>(
-            output_[index]->GetState()->value())),
-        ms);
+    PrintF(trace_scope_->file(),
+           " @%d => node=%d, pc=0x%08" V8PRIxPTR ", caller sp=0x%08" V8PRIxPTR
+           ", state=%s, took %0.3f ms]\n",
+           bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
+           caller_frame_top_, FullCodeGenerator::State2String(
+                                  static_cast<FullCodeGenerator::State>(
+                                      output_[index]->GetState()->value())),
+           ms);
   }
 }
 
-void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
+void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
+                                   int frame_index, bool goto_catch_handler) {
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
@@ -866,8 +874,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
     PrintF(trace_scope_->file(), "  translating frame ");
     base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
-    PrintF(trace_scope_->file(),
-           " => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
     PrintF(trace_scope_->file(), " => node=%d, height=%d%s\n", node_id.ToInt(),
            height_in_bytes, goto_catch_handler ? " (throw)" : "");
   }
@@ -1001,9 +1007,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   // The function was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
-  // The function for the bottommost output frame should also agree with the
-  // input frame.
-  DCHECK(!is_bottommost || reinterpret_cast<intptr_t>(function_) == value);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
   // Translate the rest of the frame.
@@ -1070,10 +1073,9 @@ void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   }
 }
 
-void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
+void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
+                                            int frame_index,
                                             bool goto_catch_handler) {
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
@@ -1219,9 +1221,6 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   // The function was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
-  // The function for the bottommost output frame should also agree with the
-  // input frame.
-  DCHECK(!is_bottommost || reinterpret_cast<intptr_t>(function_) == value);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
   // The new.target slot is only used during function activiation which is
@@ -1305,11 +1304,10 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   }
 }
 
-
-void Deoptimizer::DoComputeArgumentsAdaptorFrame(int frame_index) {
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
+void Deoptimizer::DoComputeArgumentsAdaptorFrame(
+    TranslatedFrame* translated_frame, int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_bottommost = (0 == frame_index);
   int input_index = 0;
 
   unsigned height = translated_frame->height();
@@ -1331,15 +1329,19 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(int frame_index) {
       FrameDescription(output_frame_size, parameter_count);
   output_frame->SetFrameType(StackFrame::ARGUMENTS_ADAPTOR);
 
-  // Arguments adaptor can not be topmost or bottommost.
-  CHECK(frame_index > 0 && frame_index < output_count_ - 1);
+  // Arguments adaptor can not be topmost.
+  CHECK(frame_index < output_count_ - 1);
   CHECK(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous
   // frame's top and this frame's size.
   intptr_t top_address;
-  top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  if (is_bottommost) {
+    top_address = caller_frame_top_ - output_frame_size;
+  } else {
+    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  }
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
@@ -1352,13 +1354,22 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(int frame_index) {
 
   // Read caller's PC from the previous frame.
   output_offset -= kPCOnStackSize;
-  intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetCallerPc(output_offset, callers_pc);
-  DebugPrintOutputSlot(callers_pc, frame_index, output_offset, "caller's pc\n");
+  intptr_t value;
+  if (is_bottommost) {
+    value = caller_pc_;
+  } else {
+    value = output_[frame_index - 1]->GetPc();
+  }
+  output_frame->SetCallerPc(output_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's pc\n");
 
   // Read caller's FP from the previous frame, and set this frame's FP.
   output_offset -= kFPOnStackSize;
-  intptr_t value = output_[frame_index - 1]->GetFp();
+  if (is_bottommost) {
+    value = caller_fp_;
+  } else {
+    value = output_[frame_index - 1]->GetFp();
+  }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
@@ -1411,10 +1422,73 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(int frame_index) {
   }
 }
 
+void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
+                                           int frame_index) {
+  SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
-void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
+  bool is_bottommost = (0 == frame_index);
+  // Tail caller frame can't be topmost.
+  DCHECK_NE(output_count_ - 1, frame_index);
+
+  if (trace_scope_ != NULL) {
+    PrintF(trace_scope_->file(), "  translating tail caller frame ");
+    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    PrintF(trace_scope_->file(), "%s\n", name.get());
+  }
+
+  if (!is_bottommost) return;
+
+  // Drop arguments adaptor frame below current frame if it exsits.
+  Address fp_address = input_->GetFramePointerAddress();
+  Address adaptor_fp_address =
+      Memory::Address_at(fp_address + CommonFrameConstants::kCallerFPOffset);
+
+  if (Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR) !=
+      Memory::Object_at(adaptor_fp_address +
+                        CommonFrameConstants::kContextOrFrameTypeOffset)) {
+    return;
+  }
+
+  int caller_params_count =
+      Smi::cast(
+          Memory::Object_at(adaptor_fp_address +
+                            ArgumentsAdaptorFrameConstants::kLengthOffset))
+          ->value();
+
+  int callee_params_count =
+      function_->shared()->internal_formal_parameter_count();
+
+  // Both caller and callee parameters count do not include receiver.
+  int offset = (caller_params_count - callee_params_count) * kPointerSize;
+  intptr_t new_stack_fp =
+      reinterpret_cast<intptr_t>(adaptor_fp_address) + offset;
+
+  intptr_t new_caller_frame_top = new_stack_fp +
+                                  (callee_params_count + 1) * kPointerSize +
+                                  CommonFrameConstants::kFixedFrameSizeAboveFp;
+
+  intptr_t adaptor_caller_pc = Memory::intptr_at(
+      adaptor_fp_address + CommonFrameConstants::kCallerPCOffset);
+  intptr_t adaptor_caller_fp = Memory::intptr_at(
+      adaptor_fp_address + CommonFrameConstants::kCallerFPOffset);
+
+  if (trace_scope_ != NULL) {
+    PrintF(trace_scope_->file(),
+           "    dropping caller arguments adaptor frame: offset=%d, "
+           "fp: 0x%08" V8PRIxPTR " -> 0x%08" V8PRIxPTR
+           ", "
+           "caller sp: 0x%08" V8PRIxPTR " -> 0x%08" V8PRIxPTR "\n",
+           offset, stack_fp_, new_stack_fp, caller_frame_top_,
+           new_caller_frame_top);
+  }
+  stack_fp_ = new_stack_fp;
+  caller_frame_top_ = new_caller_frame_top;
+  caller_fp_ = adaptor_caller_fp;
+  caller_pc_ = adaptor_caller_pc;
+}
+
+void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
+                                              int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -1534,11 +1608,9 @@ void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
   }
 }
 
-
-void Deoptimizer::DoComputeAccessorStubFrame(int frame_index,
+void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
+                                             int frame_index,
                                              bool is_setter_stub_frame) {
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -1659,8 +1731,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(int frame_index,
   }
 }
 
-
-void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
+void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
+                                             int frame_index) {
   //
   //               FROM                                  TO
   //    |          ....           |          |          ....           |
@@ -1696,8 +1768,6 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   // and then, if the descriptor specifies a constant number of stack
   // parameters, the stack parameters as well.
 
-  TranslatedFrame* translated_frame =
-      &(translated_state_.frames()[frame_index]);
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -1738,8 +1808,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   // context and function slots.
   Register fp_reg = StubFailureTrampolineFrame::fp_register();
   intptr_t top_address =
-      stack_fp_ -  // input_->GetRegister(fp_reg.code()) -
-      StubFailureTrampolineFrameConstants::kFixedFrameSizeFromFp -
+      stack_fp_ - StubFailureTrampolineFrameConstants::kFixedFrameSizeFromFp -
       height_in_bytes;
   output_frame->SetTop(top_address);
 
@@ -1990,15 +2059,15 @@ unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
 unsigned Deoptimizer::ComputeInputFrameSize() const {
   // The fp-to-sp delta already takes the context, constant pool pointer and the
   // function into account so we have to avoid double counting them.
-  unsigned fixed_size_from_fp = ComputeInputFrameAboveFpFixedSize();
-  unsigned result = fixed_size_from_fp + fp_to_sp_delta_;
+  unsigned fixed_size_above_fp = ComputeInputFrameAboveFpFixedSize();
+  unsigned result = fixed_size_above_fp + fp_to_sp_delta_;
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size =
         ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
-    CHECK(result ==
-          fixed_size_from_fp + (stack_slots * kPointerSize) -
-              CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size);
+    CHECK_EQ(fixed_size_above_fp + (stack_slots * kPointerSize) -
+                 CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
+             result);
   }
   return result;
 }
@@ -2196,6 +2265,10 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(height, zone());
 }
 
+void Translation::BeginTailCallerFrame(int literal_id) {
+  buffer_->Add(TAIL_CALLER_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+}
 
 void Translation::BeginJSFrame(BailoutId node_id,
                                int literal_id,
@@ -2341,6 +2414,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case DOUBLE_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
+    case TAIL_CALLER_FRAME:
       return 1;
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
@@ -2900,6 +2974,11 @@ TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
                          shared_info, height);
 }
 
+TranslatedFrame TranslatedFrame::TailCallerFrame(
+    SharedFunctionInfo* shared_info) {
+  return TranslatedFrame(kTailCallerFunction, shared_info->GetIsolate(),
+                         shared_info, 0);
+}
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
     SharedFunctionInfo* shared_info, int height) {
@@ -2933,6 +3012,9 @@ int TranslatedFrame::GetValueCount() {
     case kArgumentsAdaptor:
     case kConstructStub:
       return 1 + height_;
+
+    case kTailCallerFunction:
+      return 1;  // Function.
 
     case kCompiledStub:
       return height_;
@@ -3008,6 +3090,18 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
       return TranslatedFrame::ArgumentsAdaptorFrame(shared_info, height);
+    }
+
+    case Translation::TAIL_CALLER_FRAME: {
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
+      if (trace_file != nullptr) {
+        base::SmartArrayPointer<char> name =
+            shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading tail caller frame marker %s\n",
+               name.get());
+      }
+      return TranslatedFrame::TailCallerFrame(shared_info);
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
@@ -3110,6 +3204,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::JS_FRAME:
     case Translation::INTERPRETED_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
+    case Translation::TAIL_CALLER_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:

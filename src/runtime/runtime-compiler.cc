@@ -122,10 +122,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   deoptimizer->MaterializeHeapObjects(&it);
   delete deoptimizer;
 
-  JavaScriptFrame* frame = it.frame();
-  RUNTIME_ASSERT(frame->function()->IsJSFunction());
-  DCHECK(frame->function() == *function);
-
   // Ensure the context register is updated for materialized objects.
   JavaScriptFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
@@ -135,7 +131,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Search for other activations of the same function and code.
+  // Search for other activations of the same optimized code.
+  // At this point {it} is at the topmost frame of all the frames materialized
+  // by the deoptimizer. Note that this frame does not necessarily represent
+  // an activation of {function} because of potential inlined tail-calls.
   ActivationsFinder activations_finder(*optimized_code);
   activations_finder.VisitFrames(&it);
   isolate->thread_manager()->IterateArchivedThreads(&activations_finder);

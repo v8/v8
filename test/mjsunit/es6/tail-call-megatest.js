@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls --no-turbo-inlining
+// Flags: --allow-natives-syntax --harmony-tailcalls
 // TODO(v8:4698), TODO(ishell): support these cases.
-// Flags: --nostress-opt
+// Flags: --turbo --nostress-opt
 
 
 Error.prepareStackTrace = (error,stack) => {
@@ -306,11 +306,10 @@ function run_tests() {
     return source;
   }
 
-  // TODO(v8:4698), TODO(ishell): support all commented cases.
   var f_args_variants = ["", "1", "1, 2"];
   var g_args_variants = ["", "10", "10, 20"];
-  var f_inlinable_variants = [/*true,*/ false];
-  var g_inlinable_variants = [/*true,*/ false];
+  var f_inlinable_variants = [true, false];
+  var g_inlinable_variants = [true, false];
   var f_variants = [
       f_cfg_sloppy,
       f_cfg_strict,

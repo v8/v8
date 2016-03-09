@@ -862,6 +862,8 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   if (has_initial_map()) os << Brief(initial_map());
   os << "\n - shared_info = " << Brief(shared());
   os << "\n - name = " << Brief(shared()->name());
+  os << "\n - formal_parameter_count = "
+     << shared()->internal_formal_parameter_count();
   if (shared()->is_generator()) {
     os << "\n   - generator";
   }
@@ -874,9 +876,10 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
-  os << "\n - name: " << Brief(name());
-  os << "\n - expected_nof_properties: " << expected_nof_properties();
-  os << "\n - ast_node_count: " << ast_node_count();
+  os << "\n - name = " << Brief(name());
+  os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
+  os << "\n - expected_nof_properties = " << expected_nof_properties();
+  os << "\n - ast_node_count = " << ast_node_count();
   os << "\n - instance class name = ";
   instance_class_name()->Print(os);
   os << "\n - code = " << Brief(code());

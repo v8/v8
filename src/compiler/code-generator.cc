@@ -629,6 +629,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
       break;
+    case FrameStateType::kTailCallerFunction:
+      translation->BeginTailCallerFrame(shared_info_id);
+      break;
     case FrameStateType::kConstructStub:
       translation->BeginConstructStubFrame(
           shared_info_id,

@@ -126,7 +126,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
   // Compute the fp-to-sp delta, and correct one word for bailout id.
-  __ Add(fp_to_sp, masm()->StackPointer(),
+  __ Add(fp_to_sp, __ StackPointer(),
          kSavedRegistersAreaSize + (1 * kPointerSize));
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
@@ -208,6 +208,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ Pop(x4);  // Restore deoptimizer object (class Deoptimizer).
+
+  __ Ldr(__ StackPointer(),
+         MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
