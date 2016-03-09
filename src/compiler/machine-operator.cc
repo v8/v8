@@ -196,7 +196,9 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
-  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)
+  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \

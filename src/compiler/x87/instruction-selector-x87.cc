@@ -565,6 +565,10 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
   Emit(kX87PairShl, 2, outputs, 3, inputs);
 }
 
+void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kX87Ror);
 }

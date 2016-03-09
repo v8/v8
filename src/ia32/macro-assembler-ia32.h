@@ -374,8 +374,12 @@ class MacroAssembler: public Assembler {
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
 
-  void PairShl(Register dst, Register src, uint8_t imm8);
-  void PairShl_cl(Register dst, Register src);
+  void ShlPair(Register high, Register low, uint8_t imm8);
+  void ShlPair_cl(Register high, Register low);
+  void ShrPair(Register high, Register low, uint8_t imm8);
+  void ShrPair_cl(Register high, Register src);
+  void SarPair(Register high, Register low, uint8_t imm8);
+  void SarPair_cl(Register high, Register low);
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);

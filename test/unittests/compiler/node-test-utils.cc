@@ -2113,6 +2113,8 @@ Matcher<Node*> IsLoadFramePointer() {
   }
 
 IS_TERNOP_MATCHER(Word32PairShl)
+IS_TERNOP_MATCHER(Word32PairShr)
+IS_TERNOP_MATCHER(Word32PairSar)
 
 #define IS_BINOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,              \

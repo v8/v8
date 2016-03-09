@@ -952,6 +952,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
     case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairShr:
+    case IrOpcode::kWord32PairSar:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:

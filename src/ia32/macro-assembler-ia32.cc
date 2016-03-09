@@ -706,25 +706,69 @@ void MacroAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
   bind(&jmp_return);
 }
 
-void MacroAssembler::PairShl(Register dst, Register src, uint8_t shift) {
+void MacroAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   if (shift >= 32) {
-    mov(dst, src);
-    shl(dst, shift - 32);
-    xor_(src, src);
+    mov(high, low);
+    shl(high, shift - 32);
+    xor_(low, low);
   } else {
-    shld(dst, src, shift);
-    shl(src, shift);
+    shld(high, low, shift);
+    shl(low, shift);
   }
 }
 
-void MacroAssembler::PairShl_cl(Register dst, Register src) {
-  shld_cl(dst, src);
-  shl_cl(src);
+void MacroAssembler::ShlPair_cl(Register high, Register low) {
+  shld_cl(high, low);
+  shl_cl(low);
   Label done;
   test(ecx, Immediate(0x20));
   j(equal, &done, Label::kNear);
-  mov(dst, src);
-  xor_(src, src);
+  mov(high, low);
+  xor_(low, low);
+  bind(&done);
+}
+
+void MacroAssembler::ShrPair(Register high, Register low, uint8_t shift) {
+  if (shift >= 32) {
+    mov(low, high);
+    shr(low, shift - 32);
+    xor_(high, high);
+  } else {
+    shrd(high, low, shift);
+    shr(high, shift);
+  }
+}
+
+void MacroAssembler::ShrPair_cl(Register high, Register low) {
+  shrd_cl(low, high);
+  shr_cl(high);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(low, high);
+  xor_(high, high);
+  bind(&done);
+}
+
+void MacroAssembler::SarPair(Register high, Register low, uint8_t shift) {
+  if (shift >= 32) {
+    mov(low, high);
+    sar(low, shift - 32);
+    sar(high, 31);
+  } else {
+    shrd(high, low, shift);
+    sar(high, shift);
+  }
+}
+
+void MacroAssembler::SarPair_cl(Register high, Register low) {
+  shrd_cl(low, high);
+  sar_cl(high);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(low, high);
+  sar(high, 31);
   bind(&done);
 }
 

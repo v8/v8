@@ -350,7 +350,37 @@ TEST_F(Int64LoweringTest, Int64Shl) {
                         start(), start()));
 }
 // kExprI64ShrU:
+TEST_F(Int64LoweringTest, Int64ShrU) {
+  LowerGraph(graph()->NewNode(machine()->Word64Shr(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> shr;
+  Matcher<Node*> shr_matcher = IsWord32PairShr(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&shr), shr_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&shr), shr_matcher)),
+                        start(), start()));
+}
 // kExprI64ShrS:
+TEST_F(Int64LoweringTest, Int64ShrS) {
+  LowerGraph(graph()->NewNode(machine()->Word64Sar(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> sar;
+  Matcher<Node*> sar_matcher = IsWord32PairSar(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&sar), sar_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&sar), sar_matcher)),
+                        start(), start()));
+}
 // kExprI64Eq:
 TEST_F(Int64LoweringTest, Int64Eq) {
   LowerGraph(graph()->NewNode(machine()->Word64Equal(), Int64Constant(value(0)),

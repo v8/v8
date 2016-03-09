@@ -1484,7 +1484,8 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += SetCC(data);
           } else if ((f0byte & 0xF0) == 0x40) {
             data += CMov(data);
-          } else if (f0byte == 0xA4) {
+          } else if (f0byte == 0xA4 || f0byte == 0xAC) {
+            // shld, shrd
             data += 2;
             AppendToBuffer("%s ", f0mnem);
             int mod, regop, rm;
@@ -1494,7 +1495,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             AppendToBuffer("%s,%s,%d", NameOfCPURegister(rm),
                            NameOfCPURegister(regop), static_cast<int>(imm8));
           } else if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-            // shrd, shld_cl, bts
+            // shrd_cl, shld_cl, bts
             data += 2;
             AppendToBuffer("%s ", f0mnem);
             int mod, regop, rm;

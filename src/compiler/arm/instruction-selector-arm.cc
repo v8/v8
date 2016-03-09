@@ -788,6 +788,10 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
   Emit(kArmPairLsl, 2, outputs, 3, inputs);
 }
 
+void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, TryMatchROR);
 }

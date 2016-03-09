@@ -723,6 +723,11 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   VisitRRO(this, kPPC_ShiftRight32, node, kShift32Imm);
 }
 
+#if !V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+#endif
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Shr(Node* node) {

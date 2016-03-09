@@ -361,6 +361,13 @@ Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsWord32PairShl(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& mid_matcher,
                                const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord32PairShr(const Matcher<Node*>& lhs_matcher,
+                               const Matcher<Node*>& mid_matcher,
+                               const Matcher<Node*>& rhs_matcher);
+
+Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
+                               const Matcher<Node*>& mid_matcher,
+                               const Matcher<Node*>& rhs_matcher);
 
 }  // namespace compiler
 }  // namespace internal

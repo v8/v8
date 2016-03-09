@@ -327,6 +327,12 @@ class RawMachineAssembler {
   Node* Word32PairShl(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairShl(), low_word, high_word, shift);
   }
+  Node* Word32PairShr(Node* low_word, Node* high_word, Node* shift) {
+    return AddNode(machine()->Word32PairShr(), low_word, high_word, shift);
+  }
+  Node* Word32PairSar(Node* low_word, Node* high_word, Node* shift) {
+    return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
+  }
 
 #define INTPTR_BINOP(prefix, name)                     \
   Node* IntPtr##name(Node* a, Node* b) {               \

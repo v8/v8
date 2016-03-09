@@ -1068,7 +1068,6 @@ void Assembler::sar_cl(const Operand& dst) {
   emit_operand(edi, dst);
 }
 
-
 void Assembler::sbb(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x1B);
@@ -1112,15 +1111,6 @@ void Assembler::shl_cl(const Operand& dst) {
   emit_operand(esp, dst);
 }
 
-
-void Assembler::shrd(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0xAD);
-  emit_operand(dst, src);
-}
-
-
 void Assembler::shr(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint5(imm8));  // illegal shift count
@@ -1141,6 +1131,21 @@ void Assembler::shr_cl(const Operand& dst) {
   emit_operand(ebp, dst);
 }
 
+void Assembler::shrd(Register dst, Register src, uint8_t shift) {
+  DCHECK(is_uint5(shift));
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAC);
+  emit_operand(dst, Operand(src));
+  EMIT(shift);
+}
+
+void Assembler::shrd_cl(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAD);
+  emit_operand(src, dst);
+}
 
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);

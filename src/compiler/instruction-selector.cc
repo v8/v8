@@ -1154,6 +1154,14 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsWord32(NodeProperties::FindProjection(node, 0));
       MarkAsWord32(NodeProperties::FindProjection(node, 1));
       return VisitWord32PairShl(node);
+    case IrOpcode::kWord32PairShr:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitWord32PairShr(node);
+    case IrOpcode::kWord32PairSar:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitWord32PairSar(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1380,6 +1388,10 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 // 32 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_64_BIT
 void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
 void InstructionSelector::VisitFinishRegion(Node* node) {
@@ -1460,6 +1472,8 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kTryTruncateFloat32ToUint64:
     case IrOpcode::kTryTruncateFloat64ToUint64:
     case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairShr:
+    case IrOpcode::kWord32PairSar:
       if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
