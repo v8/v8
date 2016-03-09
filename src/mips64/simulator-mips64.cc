@@ -3478,9 +3478,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
         // Logical right-rotate of a word by a variable number of bits.
         // This is special case od SRLV instruction, added in MIPS32
         // Release 2. SA field is equal to 00001.
-        alu_out =
-            base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
-                                      static_cast<const uint32_t>(rs_u()));
+        alu_out = base::bits::RotateRight64(rt_u(), rs_u());
       }
       SetResult(rd_reg(), alu_out);
       break;

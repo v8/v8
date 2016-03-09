@@ -783,6 +783,7 @@ class Assembler : public AssemblerBase {
   void dsrl(Register rd, Register rt, uint16_t sa);
   void dsrlv(Register rd, Register rt, Register rs);
   void drotr(Register rd, Register rt, uint16_t sa);
+  void drotr32(Register rd, Register rt, uint16_t sa);
   void drotrv(Register rd, Register rt, Register rs);
   void dsra(Register rt, Register rd, uint16_t sa);
   void dsrav(Register rd, Register rt, Register rs);

@@ -1263,7 +1263,11 @@ void MacroAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     rotrv(rd, rs, rt.rm());
   } else {
-    rotr(rd, rs, rt.imm64_);
+    int64_t ror_value = rt.imm64_ % 32;
+    if (ror_value < 0) {
+      ror_value += 32;
+    }
+    rotr(rd, rs, ror_value);
   }
 }
 
@@ -1272,7 +1276,13 @@ void MacroAssembler::Dror(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     drotrv(rd, rs, rt.rm());
   } else {
-    drotr(rd, rs, rt.imm64_);
+    int64_t dror_value = rt.imm64_ % 64;
+    if (dror_value < 0) dror_value += 64;
+    if (dror_value <= 31) {
+      drotr(rd, rs, dror_value);
+    } else {
+      drotr32(rd, rs, dror_value - 32);
+    }
   }
 }
 

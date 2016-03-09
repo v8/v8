@@ -1863,6 +1863,12 @@ void Assembler::drotr(Register rd, Register rt, uint16_t sa) {
   emit(instr);
 }
 
+void Assembler::drotr32(Register rd, Register rt, uint16_t sa) {
+  DCHECK(rd.is_valid() && rt.is_valid() && is_uint5(sa));
+  Instr instr = SPECIAL | (1 << kRsShift) | (rt.code() << kRtShift) |
+                (rd.code() << kRdShift) | (sa << kSaShift) | DSRL32;
+  emit(instr);
+}
 
 void Assembler::drotrv(Register rd, Register rt, Register rs) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid() );
