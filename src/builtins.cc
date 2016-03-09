@@ -673,19 +673,19 @@ class ArrayConcatVisitor {
   bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
-    if (!is_fixed_array()) {
-      Handle<Object> element_value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate_, element_value,
-          Object::SetElement(isolate_, storage_, index, elm, STRICT), false);
-      return true;
-    }
-
     if (i >= JSObject::kMaxElementCount - index_offset_) {
       set_exceeds_array_limit(true);
       // Exception hasn't been thrown at this point. Return true to
       // break out, and caller will throw. !visit would imply that
       // there is already a pending exception.
+      return true;
+    }
+
+    if (!is_fixed_array()) {
+      Handle<Object> element_value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, element_value,
+          Object::SetElement(isolate_, storage_, index, elm, STRICT), false);
       return true;
     }
 
