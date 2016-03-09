@@ -13,6 +13,8 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
+#include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter.h"
 #include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
@@ -1525,6 +1527,8 @@ void Logger::LogCodeObject(Object* object) {
     case AbstractCode::INTERPRETED_FUNCTION:
     case AbstractCode::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
+    case AbstractCode::BYTECODE_HANDLER:
+      return;  // We log it later by walking the dispatch table.
     case AbstractCode::BINARY_OP_IC:    // fall through
     case AbstractCode::COMPARE_IC:      // fall through
     case AbstractCode::TO_BOOLEAN_IC:   // fall through
@@ -1595,6 +1599,18 @@ void Logger::LogCodeObjects() {
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
     if (obj->IsBytecodeArray()) LogCodeObject(obj);
+  }
+}
+
+void Logger::LogBytecodeHandlers() {
+  if (!FLAG_ignition) return;
+
+  const int last_index = static_cast<int>(interpreter::Bytecode::kLast);
+  for (int index = 0; index <= last_index; ++index) {
+    interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
+    Code* code = isolate_->interpreter()->GetBytecodeHandler(bytecode);
+    CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(code),
+                    interpreter::Bytecodes::ToString(bytecode));
   }
 }
 

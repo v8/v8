@@ -309,6 +309,7 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
 StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
   switch (output_code_kind()) {
     case Code::STUB:
+    case Code::BYTECODE_HANDLER:
     case Code::HANDLER:
     case Code::BUILTIN:
       return StackFrame::STUB;

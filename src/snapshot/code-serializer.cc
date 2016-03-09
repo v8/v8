@@ -66,6 +66,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::HANDLER:             // No handlers patched in yet.
       case Code::REGEXP:              // No regexp literals initialized yet.
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
+      case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         CHECK(false);
       case Code::BUILTIN:
         SerializeBuiltin(code_object->builtin_index(), how_to_code,
