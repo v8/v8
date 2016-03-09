@@ -307,10 +307,26 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
 
 void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {
   if (!context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) {
-    Handle<Map> wasm_function_map = isolate->factory()->NewMap(
-        JS_FUNCTION_TYPE, JSFunction::kSize + kPointerSize);
-    wasm_function_map->set_is_callable();
-    context->set_wasm_function_map(*wasm_function_map);
+    // TODO(titzer): Move this to bootstrapper.cc??
+    // TODO(titzer): Also make one for strict mode functions?
+    Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
+
+    InstanceType instance_type = prev_map->instance_type();
+    int internal_fields = JSObject::GetInternalFieldCount(*prev_map);
+    CHECK_EQ(0, internal_fields);
+    int pre_allocated =
+        prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
+    int instance_size;
+    int in_object_properties;
+    JSFunction::CalculateInstanceSizeHelper(instance_type, internal_fields + 1,
+                                            0, &instance_size,
+                                            &in_object_properties);
+
+    int unused_property_fields = in_object_properties - pre_allocated;
+    Handle<Map> map = Map::CopyInitialMap(
+        prev_map, instance_size, in_object_properties, unused_property_fields);
+
+    context->set_wasm_function_map(*map);
   }
 }
 

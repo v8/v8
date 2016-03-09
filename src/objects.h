@@ -7562,7 +7562,11 @@ class JSFunction: public JSObject {
                                             int requested_internal_fields,
                                             int* instance_size,
                                             int* in_object_properties);
-
+  static void CalculateInstanceSizeHelper(InstanceType instance_type,
+                                          int requested_internal_fields,
+                                          int requested_in_object_properties,
+                                          int* instance_size,
+                                          int* in_object_properties);
   // Visiting policy flags define whether the code entry or next function
   // should be visited or not.
   enum BodyVisitingPolicy {

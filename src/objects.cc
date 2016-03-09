@@ -13638,14 +13638,11 @@ int SharedFunctionInfo::SourceSize() {
   return end_position() - start_position();
 }
 
-
-namespace {
-
-void CalculateInstanceSizeHelper(InstanceType instance_type,
-                                 int requested_internal_fields,
-                                 int requested_in_object_properties,
-                                 int* instance_size,
-                                 int* in_object_properties) {
+void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
+                                             int requested_internal_fields,
+                                             int requested_in_object_properties,
+                                             int* instance_size,
+                                             int* in_object_properties) {
   int header_size = JSObject::GetHeaderSize(instance_type);
   DCHECK_LE(requested_internal_fields,
             (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2);
@@ -13657,8 +13654,6 @@ void CalculateInstanceSizeHelper(InstanceType instance_type,
   *in_object_properties = ((*instance_size - header_size) >> kPointerSizeLog2) -
                           requested_internal_fields;
 }
-
-}  // namespace
 
 
 void JSFunction::CalculateInstanceSize(InstanceType instance_type,
