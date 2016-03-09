@@ -494,28 +494,45 @@ ArgumentAdaptorDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
-FunctionType* ApiFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
-  function->InitParameter(0, AnyTagged(zone));           // callee
-  function->InitParameter(1, AnyTagged(zone));           // call_data
-  function->InitParameter(2, AnyTagged(zone));           // holder
-  function->InitParameter(3, ExternalPointer(zone));     // api_function_address
-  function->InitParameter(4, UntaggedIntegral32(zone));  // actual #arguments
-  return function;
+CallInterfaceDescriptor ApiCallbackDescriptorBase::ForArgs(Isolate* isolate,
+                                                           int argc) {
+  switch (argc) {
+    case 0:
+      return ApiCallbackWith0ArgsDescriptor(isolate);
+    case 1:
+      return ApiCallbackWith1ArgsDescriptor(isolate);
+    case 2:
+      return ApiCallbackWith2ArgsDescriptor(isolate);
+    case 3:
+      return ApiCallbackWith3ArgsDescriptor(isolate);
+    case 4:
+      return ApiCallbackWith4ArgsDescriptor(isolate);
+    case 5:
+      return ApiCallbackWith5ArgsDescriptor(isolate);
+    case 6:
+      return ApiCallbackWith6ArgsDescriptor(isolate);
+    case 7:
+      return ApiCallbackWith7ArgsDescriptor(isolate);
+    default:
+      UNREACHABLE();
+      return VoidDescriptor(isolate);
+  }
 }
 
-FunctionType* ApiAccessorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+FunctionType*
+ApiCallbackDescriptorBase::BuildCallInterfaceDescriptorFunctionTypeWithArg(
+    Isolate* isolate, int parameter_count, int argc) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
+      Type::Function(AnyTagged(zone), Type::Undefined(), 4 + argc, zone)
+          ->AsFunction();
   function->InitParameter(0, AnyTagged(zone));        // callee
   function->InitParameter(1, AnyTagged(zone));        // call_data
   function->InitParameter(2, AnyTagged(zone));        // holder
   function->InitParameter(3, ExternalPointer(zone));  // api_function_address
+  for (int i = 0; i < argc; i++) {
+    function->InitParameter(i, AnyTagged(zone));
+  }
   return function;
 }
 

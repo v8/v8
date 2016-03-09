@@ -67,8 +67,14 @@ class PlatformInterfaceDescriptor;
   V(Named)                                    \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
-  V(ApiFunction)                              \
-  V(ApiAccessor)                              \
+  V(ApiCallbackWith0Args)                     \
+  V(ApiCallbackWith1Args)                     \
+  V(ApiCallbackWith2Args)                     \
+  V(ApiCallbackWith3Args)                     \
+  V(ApiCallbackWith4Args)                     \
+  V(ApiCallbackWith5Args)                     \
+  V(ApiCallbackWith6Args)                     \
+  V(ApiCallbackWith7Args)                     \
   V(ApiGetter)                                \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
@@ -199,6 +205,7 @@ class CallInterfaceDescriptor {
   void Initialize(Isolate* isolate, CallDescriptors::Key key) {
     if (!data()->IsInitialized()) {
       CallInterfaceDescriptorData* d = isolate->call_descriptor_data(key);
+      DCHECK(d == data());  // d should be a modifiable pointer to data().
       InitializePlatformSpecific(d);
       FunctionType* function_type = BuildCallInterfaceDescriptorFunctionType(
           isolate, d->register_param_count());
@@ -210,18 +217,20 @@ class CallInterfaceDescriptor {
   const CallInterfaceDescriptorData* data_;
 };
 
+#define DECLARE_DESCRIPTOR_WITH_BASE(name, base)           \
+ public:                                                   \
+  explicit name(Isolate* isolate) : base(isolate, key()) { \
+    Initialize(isolate, key());                            \
+  }                                                        \
+  static inline CallDescriptors::Key key();
 
 #define DECLARE_DESCRIPTOR(name, base)                                         \
-  explicit name(Isolate* isolate) : base(isolate, key()) {                     \
-    Initialize(isolate, key());                                                \
-  }                                                                            \
-                                                                               \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
  protected:                                                                    \
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override; \
   name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}     \
                                                                                \
- public:                                                                       \
-  static inline CallDescriptors::Key key();
+ public:
 
 #define DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(name, base) \
   DECLARE_DESCRIPTOR(name, base)                                 \
@@ -229,6 +238,17 @@ class CallInterfaceDescriptor {
   FunctionType* BuildCallInterfaceDescriptorFunctionType(        \
       Isolate* isolate, int register_param_count) override;      \
                                                                  \
+ public:
+
+#define DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(name, base, arg) \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                  \
+ protected:                                                                 \
+  FunctionType* BuildCallInterfaceDescriptorFunctionType(                   \
+      Isolate* isolate, int register_param_count) override {                \
+    return BuildCallInterfaceDescriptorFunctionTypeWithArg(                 \
+        isolate, register_param_count, arg);                                \
+  }                                                                         \
+                                                                            \
  public:
 
 class VoidDescriptor : public CallInterfaceDescriptor {
@@ -689,18 +709,75 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
-
-class ApiFunctionDescriptor : public CallInterfaceDescriptor {
+// The ApiCallback*Descriptors have a lot of boilerplate. The superclass
+// ApiCallbackDescriptorBase contains all the logic, and the
+// ApiCallbackWith*ArgsDescriptor merely instantiate these with a
+// parameter for the number of args.
+//
+// The base class is not meant to be instantiated directly and has no
+// public constructors to ensure this is so.
+//
+// The simplest usage for all the ApiCallback*Descriptors is probably
+//   ApiCallbackDescriptorBase::ForArgs(isolate, argc)
+//
+class ApiCallbackDescriptorBase : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiFunctionDescriptor,
-                                               CallInterfaceDescriptor)
+  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int argc);
+
+ protected:
+  ApiCallbackDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
+      : CallInterfaceDescriptor(isolate, key) {}
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
+  FunctionType* BuildCallInterfaceDescriptorFunctionTypeWithArg(
+      Isolate* isolate, int parameter_count, int argc);
 };
 
-
-class ApiAccessorDescriptor : public CallInterfaceDescriptor {
+class ApiCallbackWith0ArgsDescriptor : public ApiCallbackDescriptorBase {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiAccessorDescriptor,
-                                               CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith0ArgsDescriptor, ApiCallbackDescriptorBase, 0)
+};
+
+class ApiCallbackWith1ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith1ArgsDescriptor, ApiCallbackDescriptorBase, 1)
+};
+
+class ApiCallbackWith2ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith2ArgsDescriptor, ApiCallbackDescriptorBase, 2)
+};
+
+class ApiCallbackWith3ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith3ArgsDescriptor, ApiCallbackDescriptorBase, 3)
+};
+
+class ApiCallbackWith4ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith4ArgsDescriptor, ApiCallbackDescriptorBase, 4)
+};
+
+class ApiCallbackWith5ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith5ArgsDescriptor, ApiCallbackDescriptorBase, 5)
+};
+
+class ApiCallbackWith6ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith6ArgsDescriptor, ApiCallbackDescriptorBase, 6)
+};
+
+class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(
+      ApiCallbackWith7ArgsDescriptor, ApiCallbackDescriptorBase, 7)
 };
 
 
@@ -744,7 +821,7 @@ class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
   static const Register KeyRegister();
 };
 
-class InterpreterDispatchDescriptor  : public CallInterfaceDescriptor {
+class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(InterpreterDispatchDescriptor,
                                                CallInterfaceDescriptor)
@@ -777,8 +854,10 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
 };
 
+#undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR
-
+#undef DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE
+#undef DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG
 
 // We define the association between CallDescriptors::Key and the specialized
 // descriptor here to reduce boilerplate and mistakes.
