@@ -108,7 +108,7 @@
     },
     {
       "name": "Object",
-      "path": ["."],
+      "path": ["Object"],
       "main": "run.js",
       "flags": ["--harmony"],
       "resources": [
