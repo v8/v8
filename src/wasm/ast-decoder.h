@@ -165,19 +165,17 @@ struct BranchTableOperand {
 };
 
 struct MemoryAccessOperand {
-  bool aligned;
+  uint32_t alignment;
   uint32_t offset;
   int length;
   inline MemoryAccessOperand(Decoder* decoder, const byte* pc) {
-    byte bitfield = decoder->checked_read_u8(pc, 1, "memory access byte");
-    aligned = MemoryAccess::AlignmentField::decode(bitfield);
-    if (MemoryAccess::OffsetField::decode(bitfield)) {
-      offset = decoder->checked_read_u32v(pc, 2, &length, "memory offset");
-      length++;
-    } else {
-      offset = 0;
-      length = 1;
-    }
+    int alignment_length;
+    alignment =
+        decoder->checked_read_u32v(pc, 1, &alignment_length, "alignment");
+    int offset_length;
+    offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
+                                        &offset_length, "offset");
+    length = alignment_length + offset_length;
   }
 };
 

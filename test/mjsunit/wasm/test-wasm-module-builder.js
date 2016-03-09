@@ -103,7 +103,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     module.addMemory(1, 1, false);
     module.addFunction("load", [kAstI32, kAstI32])
-        .addBody([kExprI32LoadMem, 0, kExprGetLocal, 0])
+        .addBody([kExprI32LoadMem, 0, 0, kExprGetLocal, 0])
         .exportAs("load");
     module.addDataSegment(0, [9, 9, 9, 9], true);
 

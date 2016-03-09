@@ -148,8 +148,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
               WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(localIndex)),
               WASM_BRV(2, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
       WASM_I8(11))};
-  uint32_t local_indices[] = {7, 18, 24, 27};
-  f->EmitCode(code, sizeof(code), local_indices, sizeof(local_indices) / 4);
+  f->EmitCode(code, sizeof(code), nullptr, 0);
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 11);
 }
@@ -174,8 +173,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
                                                 WASM_INC_LOCAL(localIndex)),
                               WASM_BRV(1, WASM_CALL_FUNCTION0(0))),
                    WASM_BRV(0, WASM_I8(55))))};
-  uint32_t local_indices[] = {3, 11, 21, 24};
-  f->EmitCode(code, sizeof(code), local_indices, sizeof(local_indices) / 4);
+  f->EmitCode(code, sizeof(code), nullptr, 0);
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 55);
 }

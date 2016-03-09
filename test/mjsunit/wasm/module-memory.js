@@ -21,7 +21,7 @@ function genModule(memory) {
             kExprGetLocal,0,
             kExprBr, 0,
               kExprIfElse,
-                kExprI32LoadMem,0,kExprGetLocal,0,
+                kExprI32LoadMem,0,0,kExprGetLocal,0,
                 kExprBr,2, kExprI8Const, 255,
                 kExprSetLocal,0,
                   kExprI32Sub,kExprGetLocal,0,kExprI8Const,4,
@@ -122,7 +122,7 @@ function testOOBThrows() {
   builder.addMemory(1, 1, true);
   builder.addFunction("geti", [kAstI32, kAstI32, kAstI32])
     .addBody([
-      kExprI32StoreMem, 0, kExprGetLocal, 0, kExprI32LoadMem, 0, kExprGetLocal, 1
+      kExprI32StoreMem, 0, 0, kExprGetLocal, 0, kExprI32LoadMem, 0, 0, kExprGetLocal, 1
     ])
     .exportFunc();
 

@@ -893,49 +893,29 @@ TEST_F(AstDecoderTest, GrowMemory) {
 
 TEST_F(AstDecoderTest, LoadMemOffset) {
   for (int offset = 0; offset < 128; offset += 7) {
-    byte code[] = {kExprI32LoadMem, WasmOpcodes::LoadStoreAccessOf(true),
-                   static_cast<byte>(offset), kExprI8Const, 0};
+    byte code[] = {kExprI32LoadMem, ZERO_ALIGNMENT, static_cast<byte>(offset),
+                   kExprI8Const, 0};
     EXPECT_VERIFIES(sigs.i_i(), code);
   }
 }
 
 TEST_F(AstDecoderTest, StoreMemOffset) {
   for (int offset = 0; offset < 128; offset += 7) {
-    byte code[] = {kExprI32StoreMem,
-                   WasmOpcodes::LoadStoreAccessOf(true),
-                   static_cast<byte>(offset),
-                   kExprI8Const,
-                   0,
-                   kExprI8Const,
-                   0};
+    byte code[] = {
+        kExprI32StoreMem, 0, static_cast<byte>(offset), kExprI8Const, 0,
+        kExprI8Const,     0};
     EXPECT_VERIFIES(sigs.i_i(), code);
   }
 }
 
 TEST_F(AstDecoderTest, LoadMemOffset_varint) {
-  byte code1[] = {kExprI32LoadMem, WasmOpcodes::LoadStoreAccessOf(true), 0,
-                  kExprI8Const, 0};
-  byte code2[] = {kExprI32LoadMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
-                  0x80,
-                  1,
-                  kExprI8Const,
+  byte code1[] = {kExprI32LoadMem, ZERO_ALIGNMENT, ZERO_OFFSET, kExprI8Const,
                   0};
-  byte code3[] = {kExprI32LoadMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
-                  0x81,
-                  0x82,
-                  5,
-                  kExprI8Const,
-                  0};
-  byte code4[] = {kExprI32LoadMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
-                  0x83,
-                  0x84,
-                  0x85,
-                  7,
-                  kExprI8Const,
-                  0};
+  byte code2[] = {kExprI32LoadMem, ZERO_ALIGNMENT, 0x80, 1, kExprI8Const, 0};
+  byte code3[] = {
+      kExprI32LoadMem, ZERO_ALIGNMENT, 0x81, 0x82, 5, kExprI8Const, 0};
+  byte code4[] = {
+      kExprI32LoadMem, ZERO_ALIGNMENT, 0x83, 0x84, 0x85, 7, kExprI8Const, 0};
 
   EXPECT_VERIFIES(sigs.i_i(), code1);
   EXPECT_VERIFIES(sigs.i_i(), code2);
@@ -944,15 +924,10 @@ TEST_F(AstDecoderTest, LoadMemOffset_varint) {
 }
 
 TEST_F(AstDecoderTest, StoreMemOffset_varint) {
-  byte code1[] = {kExprI32StoreMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
-                  0,
-                  kExprI8Const,
-                  0,
-                  kExprI8Const,
-                  0};
+  byte code1[] = {
+      kExprI32StoreMem, ZERO_ALIGNMENT, 0, kExprI8Const, 0, kExprI8Const, 0};
   byte code2[] = {kExprI32StoreMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
+                  ZERO_ALIGNMENT,
                   0x80,
                   1,
                   kExprI8Const,
@@ -960,7 +935,7 @@ TEST_F(AstDecoderTest, StoreMemOffset_varint) {
                   kExprI8Const,
                   0};
   byte code3[] = {kExprI32StoreMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
+                  ZERO_ALIGNMENT,
                   0x81,
                   0x82,
                   5,
@@ -969,7 +944,7 @@ TEST_F(AstDecoderTest, StoreMemOffset_varint) {
                   kExprI8Const,
                   0};
   byte code4[] = {kExprI32StoreMem,
-                  WasmOpcodes::LoadStoreAccessOf(true),
+                  ZERO_ALIGNMENT,
                   0x83,
                   0x84,
                   0x85,
@@ -992,7 +967,7 @@ TEST_F(AstDecoderTest, AllLoadMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {
           static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(mem_type, false)),
-          WasmOpcodes::LoadStoreAccessOf(false), kExprI8Const, 0};
+          ZERO_ALIGNMENT, ZERO_OFFSET, kExprI8Const, 0};
       FunctionSig sig(1, 0, &local_type);
       if (local_type == WasmOpcodes::LocalTypeFor(mem_type)) {
         EXPECT_VERIFIES(&sig, code);
@@ -1010,7 +985,8 @@ TEST_F(AstDecoderTest, AllStoreMemCombinations) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {
           static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(mem_type, true)),
-          WasmOpcodes::LoadStoreAccessOf(false),
+          ZERO_ALIGNMENT,
+          ZERO_OFFSET,
           kExprI8Const,
           0,
           kExprGetLocal,
@@ -1799,30 +1775,30 @@ TEST_F(WasmOpcodeLengthTest, VariableLength) {
 
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
-  EXPECT_LENGTH(2, kExprI32LoadMem8S);
-  EXPECT_LENGTH(2, kExprI32LoadMem8U);
-  EXPECT_LENGTH(2, kExprI32LoadMem16S);
-  EXPECT_LENGTH(2, kExprI32LoadMem16U);
-  EXPECT_LENGTH(2, kExprI32LoadMem);
-  EXPECT_LENGTH(2, kExprI64LoadMem8S);
-  EXPECT_LENGTH(2, kExprI64LoadMem8U);
-  EXPECT_LENGTH(2, kExprI64LoadMem16S);
-  EXPECT_LENGTH(2, kExprI64LoadMem16U);
-  EXPECT_LENGTH(2, kExprI64LoadMem32S);
-  EXPECT_LENGTH(2, kExprI64LoadMem32U);
-  EXPECT_LENGTH(2, kExprI64LoadMem);
-  EXPECT_LENGTH(2, kExprF32LoadMem);
-  EXPECT_LENGTH(2, kExprF64LoadMem);
+  EXPECT_LENGTH(3, kExprI32LoadMem8S);
+  EXPECT_LENGTH(3, kExprI32LoadMem8U);
+  EXPECT_LENGTH(3, kExprI32LoadMem16S);
+  EXPECT_LENGTH(3, kExprI32LoadMem16U);
+  EXPECT_LENGTH(3, kExprI32LoadMem);
+  EXPECT_LENGTH(3, kExprI64LoadMem8S);
+  EXPECT_LENGTH(3, kExprI64LoadMem8U);
+  EXPECT_LENGTH(3, kExprI64LoadMem16S);
+  EXPECT_LENGTH(3, kExprI64LoadMem16U);
+  EXPECT_LENGTH(3, kExprI64LoadMem32S);
+  EXPECT_LENGTH(3, kExprI64LoadMem32U);
+  EXPECT_LENGTH(3, kExprI64LoadMem);
+  EXPECT_LENGTH(3, kExprF32LoadMem);
+  EXPECT_LENGTH(3, kExprF64LoadMem);
 
-  EXPECT_LENGTH(2, kExprI32StoreMem8);
-  EXPECT_LENGTH(2, kExprI32StoreMem16);
-  EXPECT_LENGTH(2, kExprI32StoreMem);
-  EXPECT_LENGTH(2, kExprI64StoreMem8);
-  EXPECT_LENGTH(2, kExprI64StoreMem16);
-  EXPECT_LENGTH(2, kExprI64StoreMem32);
-  EXPECT_LENGTH(2, kExprI64StoreMem);
-  EXPECT_LENGTH(2, kExprF32StoreMem);
-  EXPECT_LENGTH(2, kExprF64StoreMem);
+  EXPECT_LENGTH(3, kExprI32StoreMem8);
+  EXPECT_LENGTH(3, kExprI32StoreMem16);
+  EXPECT_LENGTH(3, kExprI32StoreMem);
+  EXPECT_LENGTH(3, kExprI64StoreMem8);
+  EXPECT_LENGTH(3, kExprI64StoreMem16);
+  EXPECT_LENGTH(3, kExprI64StoreMem32);
+  EXPECT_LENGTH(3, kExprI64StoreMem);
+  EXPECT_LENGTH(3, kExprF32StoreMem);
+  EXPECT_LENGTH(3, kExprF64StoreMem);
 }
 
 

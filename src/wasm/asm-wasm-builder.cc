@@ -799,9 +799,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     } else {
       UNREACHABLE();
     }
-    current_function_builder_->EmitWithU8(
-        WasmOpcodes::LoadStoreOpcodeOf(mtype, is_set_op_),
-        WasmOpcodes::LoadStoreAccessOf(false));
+    // TODO(titzer): use special asm-compatibility opcodes?
+    current_function_builder_->EmitWithU8U8(
+        WasmOpcodes::LoadStoreOpcodeOf(mtype, is_set_op_), 0, 0);
     is_set_op_ = false;
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec

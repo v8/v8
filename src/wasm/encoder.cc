@@ -131,6 +131,13 @@ void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
   body_.push_back(immediate);
 }
 
+void WasmFunctionBuilder::EmitWithU8U8(WasmOpcode opcode, const byte imm1,
+                                       const byte imm2) {
+  body_.push_back(static_cast<byte>(opcode));
+  body_.push_back(imm1);
+  body_.push_back(imm2);
+}
+
 void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
                                          uint32_t immediate) {
   body_.push_back(static_cast<byte>(opcode));

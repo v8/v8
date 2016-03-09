@@ -1777,9 +1777,9 @@ TEST(Run_Wasm_CheckMachIntsZero) {
   WasmRunner<uint32_t> r(&module, MachineType::Int32());
 
   BUILD(r, kExprBlock, 2, kExprLoop, 1, kExprIf, kExprGetLocal, 0, kExprBr, 0,
-        kExprIfElse, kExprI32LoadMem, 0, kExprGetLocal, 0, kExprBr, 2,
-        kExprI8Const, 255, kExprSetLocal, 0, kExprI32Sub, kExprGetLocal, 0,
-        kExprI8Const, 4, kExprI8Const, 0);
+        kExprIfElse, kExprI32LoadMem, ZERO_ALIGNMENT, ZERO_OFFSET,
+        kExprGetLocal, 0, kExprBr, 2, kExprI8Const, 255, kExprSetLocal, 0,
+        kExprI32Sub, kExprGetLocal, 0, kExprI8Const, 4, kExprI8Const, 0);
 
   module.BlankMemory();
   CHECK_EQ(0, r.Call((kNumElems - 1) * 4));
@@ -2558,7 +2558,7 @@ static void Run_WasmMixedCall_N(int start) {
     std::vector<byte> code;
     ADD_CODE(code,
              static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
-             WasmOpcodes::LoadStoreAccessOf(false));
+             ZERO_ALIGNMENT, ZERO_OFFSET);
     ADD_CODE(code, WASM_ZERO);
     ADD_CODE(code, kExprCallFunction, static_cast<byte>(index));
 
@@ -2782,8 +2782,12 @@ TEST(Run_Wasm_LoadStoreI64_sx) {
     byte* memory = module.AddMemoryElems<byte>(16);
     WasmRunner<int64_t> r(&module);
 
-    byte code[] = {kExprI64StoreMem, 0, kExprI8Const, 8,
-                   loads[m],         0, kExprI8Const, 0};
+    byte code[] = {kExprI64StoreMem, ZERO_ALIGNMENT,
+                   ZERO_OFFSET,          // --
+                   kExprI8Const,     8,  // --
+                   loads[m],         ZERO_ALIGNMENT,
+                   ZERO_OFFSET,           // --
+                   kExprI8Const,     0};  // --
 
     r.Build(code, code + arraysize(code));
 

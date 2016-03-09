@@ -52,7 +52,7 @@ TEST_F(WasmMacroGenTest, Statements) {
 
   EXPECT_SIZE(4, WASM_STORE_GLOBAL(0, WASM_ZERO));
 
-  EXPECT_SIZE(6, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO));
+  EXPECT_SIZE(7, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO));
 
   EXPECT_SIZE(4, WASM_IF(WASM_ZERO, WASM_NOP));
 
@@ -104,9 +104,9 @@ TEST_F(WasmMacroGenTest, Expressions) {
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(0));
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(1));
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(12));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO));
 
   EXPECT_SIZE(3, WASM_NOT(WASM_ZERO));
 
@@ -302,10 +302,10 @@ static const MachineType kMemTypes[] = {
 
 TEST_F(WasmMacroGenTest, LoadsAndStores) {
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
-    EXPECT_SIZE(4, WASM_LOAD_MEM(kMemTypes[i], WASM_ZERO));
+    EXPECT_SIZE(5, WASM_LOAD_MEM(kMemTypes[i], WASM_ZERO));
   }
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
-    EXPECT_SIZE(6, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
+    EXPECT_SIZE(7, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
   }
 }
 
