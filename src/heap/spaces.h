@@ -724,12 +724,14 @@ class MemoryChunk {
 };
 
 enum FreeListCategoryType {
+  kTiniest,
+  kTiny,
   kSmall,
   kMedium,
   kLarge,
   kHuge,
 
-  kFirstCategory = kSmall,
+  kFirstCategory = kTiniest,
   kLastCategory = kHuge,
   kNumberOfCategories = kLastCategory + 1
 };
@@ -1650,9 +1652,10 @@ class FreeListCategory {
 // categories would scatter allocation more.
 
 // The free list is organized in categories as follows:
-// 1-31 words (too small): Such small free areas are discarded for efficiency
-//   reasons. They can be reclaimed by the compactor. However the distance
-//   between top and limit may be this small.
+// kMinBlockSize-10 words (tiniest): The tiniest blocks are only used for
+//   allocation, when categories >= small do not have entries anymore.
+// 11-31 words (tiny): The tiny blocks are only used for allocation, when
+//   categories >= small do not have entries anymore.
 // 32-255 words (small): Used for allocating free space between 1-31 words in
 //   size.
 // 256-2047 words (medium): Used for allocating free space between 32-255 words
@@ -1666,8 +1669,12 @@ class FreeList {
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
   static inline int GuaranteedAllocatable(int maximum_freed) {
-    if (maximum_freed <= kSmallListMin) {
+    if (maximum_freed <= kTiniestListMax) {
+      // Since we are not iterating over all list entries, we cannot guarantee
+      // that we can find the maximum freed block in that free list.
       return 0;
+    } else if (maximum_freed <= kTinyListMax) {
+      return kTinyAllocationMax;
     } else if (maximum_freed <= kSmallListMax) {
       return kSmallAllocationMax;
     } else if (maximum_freed <= kMediumListMax) {
@@ -1749,11 +1756,13 @@ class FreeList {
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kAllocatableMemory;
 
-  static const int kSmallListMin = 0x1f * kPointerSize;
+  static const int kTiniestListMax = 0xa * kPointerSize;
+  static const int kTinyListMax = 0x1f * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
   static const int kMediumListMax = 0x7ff * kPointerSize;
   static const int kLargeListMax = 0x3fff * kPointerSize;
-  static const int kSmallAllocationMax = kSmallListMin;
+  static const int kTinyAllocationMax = kTiniestListMax;
+  static const int kSmallAllocationMax = kTinyListMax;
   static const int kMediumAllocationMax = kSmallListMax;
   static const int kLargeAllocationMax = kMediumListMax;
 
@@ -1765,7 +1774,11 @@ class FreeList {
   }
 
   FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kSmallListMax) {
+    if (size_in_bytes <= kTiniestListMax) {
+      return kTiniest;
+    } else if (size_in_bytes <= kTinyListMax) {
+      return kTiny;
+    } else if (size_in_bytes <= kSmallListMax) {
       return kSmall;
     } else if (size_in_bytes <= kMediumListMax) {
       return kMedium;
@@ -1775,6 +1788,7 @@ class FreeList {
     return kHuge;
   }
 
+  // The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
     if (size_in_bytes <= kSmallAllocationMax) {
