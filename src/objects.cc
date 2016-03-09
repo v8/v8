@@ -359,10 +359,10 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
         return Just(false);
       }
     } else if (x->IsJSReceiver()) {
-      if (y->IsUndetectable()) {
-        return Just(x->IsUndetectable());
-      } else if (y->IsJSReceiver()) {
+      if (y->IsJSReceiver()) {
         return Just(x.is_identical_to(y));
+      } else if (y->IsUndetectable()) {
+        return Just(x->IsUndetectable());
       } else if (y->IsBoolean()) {
         y = Oddball::ToNumber(Handle<Oddball>::cast(y));
       } else if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x))

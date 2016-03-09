@@ -506,7 +506,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
          (lhs.is(a1) && rhs.is(a0)));
 
   // a2 is object type of rhs.
-  Label object_test, return_unequal, undetectable;
+  Label object_test, return_equal, return_unequal, undetectable;
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   __ And(at, a2, Operand(kIsNotStringMask));
   __ Branch(&object_test, ne, at, Operand(zero_reg));
@@ -546,6 +546,16 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ bind(&undetectable);
   __ And(at, t1, Operand(1 << Map::kIsUndetectable));
   __ Branch(&return_unequal, eq, at, Operand(zero_reg));
+
+  // If both sides are JSReceivers, then the result is false according to
+  // the HTML specification, which says that only comparisons with null or
+  // undefined are affected by special casing for document.all.
+  __ GetInstanceType(a2, a2);
+  __ Branch(&return_equal, eq, a2, Operand(ODDBALL_TYPE));
+  __ GetInstanceType(a3, a3);
+  __ Branch(&return_unequal, ne, a3, Operand(ODDBALL_TYPE));
+
+  __ bind(&return_equal);
   __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(EQUAL));  // In delay slot.
 }

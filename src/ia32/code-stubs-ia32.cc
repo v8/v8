@@ -1404,7 +1404,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // Non-strict equality.  Objects are unequal if
     // they are both JSObjects and not undetectable,
     // and their pointers are different.
-    Label return_unequal, undetectable;
+    Label return_equal, return_unequal, undetectable;
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
@@ -1412,7 +1412,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     STATIC_ASSERT(kSmiTagMask == 1);
     __ lea(ecx, Operand(eax, edx, times_1, 0));
     __ test(ecx, Immediate(kSmiTagMask));
-    __ j(not_zero, &runtime_call, Label::kNear);
+    __ j(not_zero, &runtime_call);
 
     __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
@@ -1437,6 +1437,16 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
     __ j(zero, &return_unequal, Label::kNear);
+
+    // If both sides are JSReceivers, then the result is false according to
+    // the HTML specification, which says that only comparisons with null or
+    // undefined are affected by special casing for document.all.
+    __ CmpInstanceType(ebx, ODDBALL_TYPE);
+    __ j(zero, &return_equal, Label::kNear);
+    __ CmpInstanceType(ecx, ODDBALL_TYPE);
+    __ j(not_zero, &return_unequal, Label::kNear);
+
+    __ bind(&return_equal);
     __ Move(eax, Immediate(EQUAL));
     __ ret(0);  // eax, edx were pushed
   }

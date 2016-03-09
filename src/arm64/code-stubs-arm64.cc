@@ -425,7 +425,9 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 }
 
 
-// Fast negative check for internalized-to-internalized equality.
+// Fast negative check for internalized-to-internalized equality or receiver
+// equality. Also handles the undetectable receiver to null/undefined
+// comparison.
 // See call site for description.
 static void EmitCheckForInternalizedStringsOrObjects(
     MacroAssembler* masm, Register left, Register right, Register left_map,
@@ -435,7 +437,7 @@ static void EmitCheckForInternalizedStringsOrObjects(
   Register result = x0;
   DCHECK(left.is(x0) || right.is(x0));
 
-  Label object_test, return_unequal, undetectable;
+  Label object_test, return_equal, return_unequal, undetectable;
   STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
   // TODO(all): reexamine this branch sequence for optimisation wrt branch
   // prediction.
@@ -463,12 +465,22 @@ static void EmitCheckForInternalizedStringsOrObjects(
   __ CompareInstanceType(left_map, left_type, FIRST_JS_RECEIVER_TYPE);
   __ B(lt, runtime_call);
 
-  __ bind(&return_unequal);
+  __ Bind(&return_unequal);
   // Return non-equal by returning the non-zero object pointer in x0.
   __ Ret();
 
-  __ bind(&undetectable);
+  __ Bind(&undetectable);
   __ Tbz(left_bitfield, MaskToBit(1 << Map::kIsUndetectable), &return_unequal);
+
+  // If both sides are JSReceivers, then the result is false according to
+  // the HTML specification, which says that only comparisons with null or
+  // undefined are affected by special casing for document.all.
+  __ CompareInstanceType(right_map, right_type, ODDBALL_TYPE);
+  __ B(eq, &return_equal);
+  __ CompareInstanceType(left_map, left_type, ODDBALL_TYPE);
+  __ B(ne, &return_unequal);
+
+  __ Bind(&return_equal);
   __ Mov(result, EQUAL);
   __ Ret();
 }

@@ -477,7 +477,9 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 }
 
 
-// Fast negative check for internalized-to-internalized equality.
+// Fast negative check for internalized-to-internalized equality or receiver
+// equality. Also handles the undetectable receiver to null/undefined
+// comparison.
 static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
                                                      Register lhs, Register rhs,
                                                      Label* possible_strings,
@@ -486,7 +488,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
          (lhs.is(r1) && rhs.is(r0)));
 
   // r2 is object type of rhs.
-  Label object_test, return_unequal, undetectable;
+  Label object_test, return_equal, return_unequal, undetectable;
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   __ tst(r2, Operand(kIsNotStringMask));
   __ b(ne, &object_test);
@@ -524,6 +526,16 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ bind(&undetectable);
   __ tst(r5, Operand(1 << Map::kIsUndetectable));
   __ b(eq, &return_unequal);
+
+  // If both sides are JSReceivers, then the result is false according to
+  // the HTML specification, which says that only comparisons with null or
+  // undefined are affected by special casing for document.all.
+  __ CompareInstanceType(r2, r2, ODDBALL_TYPE);
+  __ b(eq, &return_equal);
+  __ CompareInstanceType(r3, r3, ODDBALL_TYPE);
+  __ b(ne, &return_unequal);
+
+  __ bind(&return_equal);
   __ mov(r0, Operand(EQUAL));
   __ Ret();
 }
