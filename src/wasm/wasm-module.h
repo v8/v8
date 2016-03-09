@@ -29,17 +29,20 @@ const uint32_t kWasmVersion = 0x0a;
 // internally V8 uses an enum to handle them.
 //
 // Entries have the form F(enumerator, string).
-#define FOR_EACH_WASM_SECTION_TYPE(F)     \
-  F(kDeclMemory, "memory")                \
-  F(kDeclSignatures, "signatures")        \
-  F(kDeclFunctions, "functions")          \
-  F(kDeclGlobals, "globals")              \
-  F(kDeclDataSegments, "data_segments")   \
-  F(kDeclFunctionTable, "function_table") \
-  F(kDeclEnd, "end")                      \
-  F(kDeclStartFunction, "start_function") \
-  F(kDeclImportTable, "import_table")     \
-  F(kDeclExportTable, "export_table")
+#define FOR_EACH_WASM_SECTION_TYPE(F)               \
+  F(kDeclMemory, "memory")                          \
+  F(kDeclSignatures, "signatures")                  \
+  F(kDeclFunctions, "functions")                    \
+  F(kDeclGlobals, "globals")                        \
+  F(kDeclDataSegments, "data_segments")             \
+  F(kDeclFunctionTable, "function_table")           \
+  F(kDeclEnd, "end")                                \
+  F(kDeclStartFunction, "start_function")           \
+  F(kDeclImportTable, "import_table")               \
+  F(kDeclExportTable, "export_table")               \
+  F(kDeclFunctionSignatures, "function_signatures") \
+  F(kDeclFunctionBodies, "function_bodies")         \
+  F(kDeclNames, "names")
 
 enum WasmSectionDeclCode : uint32_t {
 #define F(enumerator, string) enumerator,

@@ -61,6 +61,9 @@ var kDeclStartFunction = 0x07;
 var kDeclImportTable = 0x08;
 var kDeclExportTable = 0x09;
 var kDeclEnd = 0x06;
+var kDeclFunctionSignatures = 0x0a;
+var kDeclFunctionBodies = 0x0b;
+var kDeclNames = 0x0c;
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;

@@ -125,6 +125,12 @@ function emit_varint(bytes, val) {
     }
 }
 
+function emit_bytes(bytes, data) {
+  for (var i = 0; i < data.length; i++) {
+    bytes.push(data[i] & 0xff);
+  }
+}
+
 WasmModuleBuilder.prototype.toArray = function(debug) {
     // Add header bytes
     var bytes = [];
@@ -170,26 +176,26 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
     var names = false;
     var exports = 0;
     if (this.functions.length > 0) {
-        if (debug) print("emitting functions @ " + bytes.length);
-        emit_u8(bytes, kDeclFunctions);
+        var has_names = false;
+
+        // emit function signatures
+        if (debug) print("emitting function sigs @ " + bytes.length);
+        emit_u8(bytes, kDeclFunctionSignatures);
         emit_varint(bytes, this.functions.length);
-        var index = 0;
         for (func of this.functions) {
-            var flags = 0;
-            var hasName = func.name != undefined && func.name.length > 0;
-            names = names || hasName;
-            if (hasName) flags |= kDeclFunctionName;
-            exports += func.exports.length;
+          has_names = has_names || (func.name != undefined &&
+                                    func.name.length > 0);
+          exports += func.exports.length;
 
-            emit_u8(bytes, flags);
-            emit_u16(bytes, func.sig_index);
+          emit_varint(bytes, func.sig_index);
+        }
 
-            if (hasName) emit_string(bytes, func.name);
-
+        // emit function bodies
+        if (debug) print("emitting function bodies @ " + bytes.length);
+        emit_u8(bytes, kDeclFunctionBodies);
+        emit_varint(bytes, this.functions.length);
+        for (func of this.functions) {
             // Function body length will be patched later.
-            var length_pos = bytes.length;
-            emit_u16(bytes, 0);
-
             var local_decls = [];
             var l = func.locals;
             if (l != undefined) {
@@ -207,28 +213,37 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
                 local_decls.push({count: l.f64_count, type: kAstF64});
               }
             }
-            emit_varint(bytes, local_decls.length);
+            var header = new Array();
+
+            emit_varint(header, local_decls.length);
             for (decl of local_decls) {
-              emit_varint(bytes, decl.count);
-              emit_u8(bytes, decl.type);
+              emit_varint(header, decl.count);
+              emit_u8(header, decl.type);
             }
 
-            for (var i = 0; i < func.body.length; i++) {
-                emit_u8(bytes, func.body[i]);
-            }
-            var length = bytes.length - length_pos - 2;
-            bytes[length_pos] = length & 0xff;
-            bytes[length_pos + 1] = (length >> 8) & 0xff;
+            emit_varint(bytes, header.length + func.body.length);
+            emit_bytes(bytes, header);
+            emit_bytes(bytes, func.body);
+        }
+    }
 
-            index++;
+    // emit function names
+    if (has_names) {
+        if (debug) print("emitting names @ " + bytes.length);
+        emit_u8(bytes, kDeclNames);
+        emit_varint(bytes, this.functions.length);
+        for (func of this.functions) {
+            var name = func.name == undefined ? "" : func.name;
+           emit_string(bytes, name);
+           emit_u8(bytes, 0);  // local names count == 0
         }
     }
 
     // Add start function section.
     if (this.start_index != undefined) {
         if (debug) print("emitting start function @ " + bytes.length);
-      emit_u8(bytes, kDeclStartFunction);
-      emit_varint(bytes, this.start_index);
+        emit_u8(bytes, kDeclStartFunction);
+        emit_varint(bytes, this.start_index);
     }
 
     if (this.function_table.length > 0) {
@@ -259,18 +274,14 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         for (seg of this.data_segments) {
             emit_varint(bytes, seg.addr);
             emit_varint(bytes, seg.data.length);
-            for (var i = 0; i < seg.data.length; i++) {
-                emit_u8(bytes, seg.data[i]);
-            }
+            emit_bytes(bytes, seg.data);
         }
     }
 
     // Emit any explicitly added sections
     for (exp of this.explicit) {
         if (debug) print("emitting explicit @ " + bytes.length);
-        for (var i = 0; i < exp.length; i++) {
-            emit_u8(bytes, exp[i]);
-        }
+        emit_bytes(bytes, exp);
     }
 
     // End the module.

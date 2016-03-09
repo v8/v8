@@ -13,6 +13,8 @@ namespace internal {
 namespace wasm {
 
 #define EMPTY_FUNCTION(sig_index) 0, SIG_INDEX(sig_index), U16_LE(0)
+#define EMPTY_BODY 0
+#define NOP_BODY 2, 0, kExprNop
 #define VOID_VOID_SIG 0, kLocalVoid
 #define INT_INT_SIG 1, kLocalI32, kLocalI32
 
@@ -1059,10 +1061,18 @@ TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
   EXPECT_OFF_END_FAILURE(data, 5, sizeof(data));
 }
 
-TEST_F(WasmModuleVerifyTest, ExportTable_empty) {
-  static const byte data[] = {kDeclSignatures,  0, kDeclFunctions, 0,
+TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
+  static const byte data[] = {kDeclSignatures,  1, VOID_VOID_SIG,
+                              kDeclFunctions,   1, EMPTY_FUNCTION(0),
                               kDeclExportTable, 0};
   EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_empty2) {
+  static const byte data[] = {kDeclSignatures,  0, kDeclFunctions, 0,
+                              kDeclExportTable, 0};
+  // TODO(titzer): current behavior treats empty functions section as missing.
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions1) {
@@ -1160,6 +1170,96 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
     EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;
   }
+}
+
+#define SIGNATURES_SECTION(count, ...) \
+  kDeclSignatures, U32V_1(count), __VA_ARGS__
+#define FUNCTION_SIGNATURES_SECTION(count, ...) \
+  kDeclFunctionSignatures, U32V_1(count), __VA_ARGS__
+#define FUNCTION_BODIES_SECTION(count, ...) \
+  kDeclFunctionBodies, U32V_1(count), __VA_ARGS__
+#define NAMES_SECTION(count, ...) kDeclNames, U32V_1(count), __VA_ARGS__
+
+#define FOO_STRING 3, 'f', 'o', 'o'
+#define NO_LOCAL_NAMES 0
+
+#define EMPTY_SIGNATURES_SECTION kDeclSignatures, 0
+#define EMPTY_FUNCTION_SIGNATURES_SECTION kDeclFunctionSignatures, 0
+#define EMPTY_FUNCTION_BODIES_SECTION kDeclFunctionBodies, 0
+#define EMPTY_NAMES_SECTION kDeclNames, 0
+
+TEST_F(WasmModuleVerifyTest, FunctionSignatures_empty) {
+  static const byte data[] = {kDeclSignatures, 0, kDeclFunctionSignatures, 0};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionSignatures_one) {
+  static const byte data[] = {SIGNATURES_SECTION(1, VOID_VOID_SIG),
+                              FUNCTION_SIGNATURES_SECTION(1, 0)};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
+  static const byte data[] = {EMPTY_SIGNATURES_SECTION,
+                              EMPTY_FUNCTION_SIGNATURES_SECTION,
+                              EMPTY_FUNCTION_BODIES_SECTION};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodies_one_empty) {
+  static const byte data[] = {SIGNATURES_SECTION(1, VOID_VOID_SIG),
+                              FUNCTION_SIGNATURES_SECTION(1, 0),
+                              FUNCTION_BODIES_SECTION(1, EMPTY_BODY)};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodies_one_nop) {
+  static const byte data[] = {SIGNATURES_SECTION(1, VOID_VOID_SIG),
+                              FUNCTION_SIGNATURES_SECTION(1, 0),
+                              FUNCTION_BODIES_SECTION(1, NOP_BODY)};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodies_count_mismatch1) {
+  static const byte data[] = {SIGNATURES_SECTION(1, VOID_VOID_SIG),
+                              FUNCTION_SIGNATURES_SECTION(2, 0, 0),
+                              FUNCTION_BODIES_SECTION(1, EMPTY_BODY)};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, FunctionBodies_count_mismatch2) {
+  static const byte data[] = {SIGNATURES_SECTION(1, VOID_VOID_SIG),
+                              FUNCTION_SIGNATURES_SECTION(1, 0),
+                              FUNCTION_BODIES_SECTION(2, NOP_BODY, NOP_BODY)};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, Names_empty) {
+  static const byte data[] = {
+      EMPTY_SIGNATURES_SECTION, EMPTY_FUNCTION_SIGNATURES_SECTION,
+      EMPTY_FUNCTION_BODIES_SECTION, EMPTY_NAMES_SECTION};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, Names_one_empty) {
+  static const byte data[] = {
+      SIGNATURES_SECTION(1, VOID_VOID_SIG),         // --
+      FUNCTION_SIGNATURES_SECTION(1, 0),            // --
+      FUNCTION_BODIES_SECTION(1, EMPTY_BODY),       // --
+      NAMES_SECTION(1, FOO_STRING, NO_LOCAL_NAMES)  // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, Names_two_empty) {
+  static const byte data[] = {
+      SIGNATURES_SECTION(1, VOID_VOID_SIG),                // --
+      FUNCTION_SIGNATURES_SECTION(2, 0, 0),                // --
+      FUNCTION_BODIES_SECTION(2, EMPTY_BODY, EMPTY_BODY),  // --
+      NAMES_SECTION(2, FOO_STRING, NO_LOCAL_NAMES,         // --
+                    FOO_STRING, NO_LOCAL_NAMES)            // --
+  };
+  EXPECT_VERIFIES(data);
 }
 
 }  // namespace wasm

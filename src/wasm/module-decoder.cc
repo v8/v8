@@ -117,6 +117,48 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
+        case kDeclFunctionSignatures: {
+          // Functions require a signature table first.
+          CheckForPreviousSection(sections, kDeclSignatures, true);
+          int length;
+          uint32_t functions_count = consume_u32v(&length, "functions count");
+          module->functions.reserve(SafeReserve(functions_count));
+          for (uint32_t i = 0; i < functions_count; i++) {
+            module->functions.push_back(
+                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
+            WasmFunction* function = &module->functions.back();
+            function->sig_index = consume_sig_index(module, &function->sig);
+          }
+          break;
+        }
+        case kDeclFunctionBodies: {
+          // Function bodies should follow signatures.
+          CheckForPreviousSection(sections, kDeclFunctionSignatures, true);
+          int length;
+          const byte* pos = pc_;
+          uint32_t functions_count = consume_u32v(&length, "functions count");
+          if (functions_count != module->functions.size()) {
+            error(pos, pos, "function body count %u mismatch (%u expected)",
+                  functions_count,
+                  static_cast<uint32_t>(module->functions.size()));
+            break;
+          }
+          for (uint32_t i = 0; i < functions_count; i++) {
+            WasmFunction* function = &module->functions[i];
+            int length;
+            uint32_t size = consume_u32v(&length, "body size");
+            function->code_start_offset = pc_offset();
+            function->code_end_offset = pc_offset() + size;
+
+            TRACE("  +%d  %-20s: (%d bytes)\n", pc_offset(), "function body",
+                  size);
+            pc_ += size;
+            if (pc_ > limit_) {
+              error(pc_, "function body extends beyond end of file");
+            }
+          }
+          break;
+        }
         case kDeclFunctions: {
           // Functions require a signature table first.
           CheckForPreviousSection(sections, kDeclSignatures, true);
@@ -148,6 +190,35 @@ class ModuleDecoder : public Decoder {
                 if (result_.failed())
                   error(result_.error_pc, result_.error_msg.get());
               }
+            }
+          }
+          break;
+        }
+        case kDeclNames: {
+          // Names correspond to functions.
+          CheckForPreviousSection(sections, kDeclFunctionSignatures, true);
+          int length;
+          const byte* pos = pc_;
+          uint32_t functions_count = consume_u32v(&length, "functions count");
+          if (functions_count != module->functions.size()) {
+            error(pos, pos, "function name count %u mismatch (%u expected)",
+                  functions_count,
+                  static_cast<uint32_t>(module->functions.size()));
+            break;
+          }
+
+          for (uint32_t i = 0; i < functions_count; i++) {
+            WasmFunction* function = &module->functions[i];
+            function->name_offset =
+                consume_string(&function->name_length, "function name");
+
+            uint32_t local_names_count =
+                consume_u32v(&length, "local names count");
+            for (uint32_t j = 0; j < local_names_count; j++) {
+              uint32_t unused = 0;
+              uint32_t offset = consume_string(&unused, "local name");
+              USE(unused);
+              USE(offset);
             }
           }
           break;
@@ -185,7 +256,7 @@ class ModuleDecoder : public Decoder {
         }
         case kDeclFunctionTable: {
           // An indirect function table requires functions first.
-          CheckForPreviousSection(sections, kDeclFunctions, true);
+          CheckForFunctions(module, section);
           int length;
           uint32_t function_table_count =
               consume_u32v(&length, "function table count");
@@ -206,23 +277,16 @@ class ModuleDecoder : public Decoder {
         }
         case kDeclStartFunction: {
           // Declares a start function for a module.
-          CheckForPreviousSection(sections, kDeclFunctions, true);
+          CheckForFunctions(module, section);
           if (module->start_function_index >= 0) {
             error("start function already declared");
             break;
           }
-          int length;
-          const byte* before = pc_;
-          uint32_t index = consume_u32v(&length, "start function index");
-          if (index >= module->functions.size()) {
-            error(before, "invalid start function index");
-            break;
-          }
-          module->start_function_index = static_cast<int>(index);
-          FunctionSig* sig =
-              module->signatures[module->functions[index].sig_index];
-          if (sig->parameter_count() > 0) {
-            error(before, "invalid start function: non-zero parameter count");
+          WasmFunction* func;
+          const byte* pos = pc_;
+          module->start_function_index = consume_func_index(module, &func);
+          if (func && func->sig->parameter_count() > 0) {
+            error(pos, "invalid start function: non-zero parameter count");
             break;
           }
           break;
@@ -243,14 +307,7 @@ class ModuleDecoder : public Decoder {
             module->import_table.push_back({nullptr, 0, 0});
             WasmImport* import = &module->import_table.back();
 
-            const byte* sigpos = pc_;
-            import->sig_index = consume_u32v(&length, "signature index");
-
-            if (import->sig_index >= module->signatures.size()) {
-              error(sigpos, "invalid signature index");
-            } else {
-              import->sig = module->signatures[import->sig_index];
-            }
+            import->sig_index = consume_sig_index(module, &import->sig);
             const byte* pos = pc_;
             import->module_name_offset = consume_string(
                 &import->module_name_length, "import module name");
@@ -264,7 +321,7 @@ class ModuleDecoder : public Decoder {
         }
         case kDeclExportTable: {
           // Declares an export table.
-          CheckForPreviousSection(sections, kDeclFunctions, true);
+          CheckForFunctions(module, section);
           int length;
           uint32_t export_table_count =
               consume_u32v(&length, "export table count");
@@ -278,14 +335,8 @@ class ModuleDecoder : public Decoder {
             module->export_table.push_back({0, 0});
             WasmExport* exp = &module->export_table.back();
 
-            const byte* sigpos = pc_;
-            exp->func_index = consume_u32v(&length, "function index");
-            if (exp->func_index >= module->functions.size()) {
-              error(sigpos, sigpos,
-                    "function index %u out of bounds (%d functions)",
-                    exp->func_index,
-                    static_cast<int>(module->functions.size()));
-            }
+            WasmFunction* func;
+            exp->func_index = consume_func_index(module, &func);
             exp->name_offset = consume_string(&exp->name_length, "export name");
           }
           break;
@@ -304,34 +355,37 @@ class ModuleDecoder : public Decoder {
     return count < kMaxReserve ? count : kMaxReserve;
   }
 
+  const char* SectionName(WasmSectionDeclCode section) {
+    switch (section) {
+      case kDeclMemory:
+        return "memory";
+      case kDeclSignatures:
+        return "signatures";
+      case kDeclFunctions:
+        return "function declaration";
+      case kDeclGlobals:
+        return "global variable";
+      case kDeclDataSegments:
+        return "data segment";
+      case kDeclFunctionTable:
+        return "function table";
+      default:
+        return "";
+    }
+  }
+
+  void CheckForFunctions(WasmModule* module, WasmSectionDeclCode section) {
+    if (module->functions.size() == 0) {
+      error(pc_ - 1, nullptr, "functions must appear before section %s",
+            SectionName(section));
+    }
+  }
+
   void CheckForPreviousSection(bool* sections, WasmSectionDeclCode section,
                                bool present) {
     if (section >= kMaxModuleSectionCode) return;
     if (sections[section] == present) return;
-    const char* name = "";
-    switch (section) {
-      case kDeclMemory:
-        name = "memory";
-        break;
-      case kDeclSignatures:
-        name = "signatures";
-        break;
-      case kDeclFunctions:
-        name = "function declaration";
-        break;
-      case kDeclGlobals:
-        name = "global variable";
-        break;
-      case kDeclDataSegments:
-        name = "data segment";
-        break;
-      case kDeclFunctionTable:
-        name = "function table";
-        break;
-      default:
-        name = "";
-        break;
-    }
+    const char* name = SectionName(section);
     if (present) {
       error(pc_ - 1, nullptr, "required %s section missing", name);
     } else {
@@ -382,6 +436,7 @@ class ModuleDecoder : public Decoder {
   }
 
   // Decodes a single function entry inside a module starting at {pc_}.
+  // TODO(titzer): legacy function body; remove
   void DecodeFunctionInModule(WasmModule* module, WasmFunction* function,
                               bool verify_body = true) {
     byte decl_bits = consume_u8("function decl");
@@ -517,9 +572,38 @@ class ModuleDecoder : public Decoder {
   uint32_t consume_string(uint32_t* length, const char* name = nullptr) {
     int varint_length;
     *length = consume_u32v(&varint_length, "string length");
-    uint32_t offset = static_cast<uint32_t>(pc_ - start_);
+    uint32_t offset = pc_offset();
+    TRACE("  +%u  %-20s: (%u bytes)\n", offset, "string", *length);
     consume_bytes(*length);
     return offset;
+  }
+
+  uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
+    const byte* pos = pc_;
+    int length;
+    uint32_t sig_index = consume_u32v(&length, "signature index");
+    if (sig_index >= module->signatures.size()) {
+      error(pos, pos, "signature index %u out of bounds (%d signatures)",
+            sig_index, static_cast<int>(module->signatures.size()));
+      *sig = nullptr;
+      return 0;
+    }
+    *sig = module->signatures[sig_index];
+    return sig_index;
+  }
+
+  uint32_t consume_func_index(WasmModule* module, WasmFunction** func) {
+    const byte* pos = pc_;
+    int length;
+    uint32_t func_index = consume_u32v(&length, "function index");
+    if (func_index >= module->functions.size()) {
+      error(pos, pos, "function index %u out of bounds (%d functions)",
+            func_index, static_cast<int>(module->functions.size()));
+      *func = nullptr;
+      return 0;
+    }
+    *func = &module->functions[func_index];
+    return func_index;
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.
