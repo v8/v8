@@ -616,9 +616,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->PushFixedFrame(r4);
-  patcher->masm()->addi(fp, sp,
-                        Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  patcher->masm()->PushStandardFrame(r4);
   for (int i = 0; i < kNoCodeAgeSequenceNops; i++) {
     patcher->masm()->nop();
   }

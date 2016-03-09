@@ -532,6 +532,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- r4     : constructor function
   //  -- r5     : allocation site or undefined
   //  -- r6     : new target
+  //  -- cp     : context
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -547,11 +548,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     if (!create_implicit_receiver) {
       __ SmiTag(r7, r3, SetRC);
-      __ Push(r5, r7);
+      __ Push(cp, r5, r7);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     } else {
       __ SmiTag(r3);
-      __ Push(r5, r3);
+      __ Push(cp, r5, r3);
 
       // Allocate the new receiver object.
       __ Push(r4, r6);
@@ -623,7 +624,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: result
     // sp[0]: receiver
     // sp[1]: number of arguments (smi-tagged)
-    __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ LoadP(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -754,9 +755,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r0,r8-r9, cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // Clear the context before we push it when entering the internal frame.
-  __ li(cp, Operand::Zero());
-
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -853,8 +851,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushFixedFrame(r4);
-  __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r4);
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
@@ -1208,8 +1205,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ mr(ip, r3);
 
   // Perform prologue operations usually performed by the young code stub.
-  __ PushFixedFrame(r4);
-  __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r4);
 
   // Jump to point after the code-age stub.
   __ addi(r3, ip, Operand(kNoCodeAgeSequenceLength));
@@ -1982,7 +1978,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ LoadP(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(scratch3,
+             MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::STUB), r0);
     __ bne(&no_interpreter_frame);
     __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1993,8 +1990,9 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ LoadP(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(scratch3,
-           MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+  __ LoadP(
+      scratch3,
+      MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&no_arguments_adaptor);
 
@@ -2007,7 +2005,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
 
   __ bind(&no_arguments_adaptor);
   // Load caller's formal parameter count
-  __ LoadP(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ LoadP(scratch1,
+           MemOperand(fp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
   __ LoadP(scratch1,
            FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
   __ LoadWordArith(

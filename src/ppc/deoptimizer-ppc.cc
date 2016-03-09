@@ -162,7 +162,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass six arguments in r3 to r8.
   __ PrepareCallCFunction(6, r8);
+  __ li(r3, Operand::Zero());
+  Label context_check;
+  __ LoadP(r4, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r4, &context_check);
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ li(r4, Operand(type()));  // bailout type,
   // r5: bailout id already loaded.
   // r6: code address or 0 already loaded.

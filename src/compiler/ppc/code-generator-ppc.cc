@@ -1648,25 +1648,29 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->IsCFunctionCall()) {
-    __ function_descriptor();
-    __ mflr(r0);
-    if (FLAG_enable_embedded_constant_pool) {
-      __ Push(r0, fp, kConstantPoolRegister);
-      // Adjust FP to point to saved FP.
-      __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+  if (frame()->needs_frame()) {
+    if (descriptor->IsCFunctionCall()) {
+      __ function_descriptor();
+      __ mflr(r0);
+      if (FLAG_enable_embedded_constant_pool) {
+        __ Push(r0, fp, kConstantPoolRegister);
+        // Adjust FP to point to saved FP.
+        __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      } else {
+        __ Push(r0, fp);
+        __ mr(fp, sp);
+      }
+    } else if (descriptor->IsJSFunctionCall()) {
+      __ Prologue(this->info()->GeneratePreagedPrologue(), ip);
     } else {
-      __ Push(r0, fp);
-      __ mr(fp, sp);
-    }
-  } else if (descriptor->IsJSFunctionCall()) {
-    __ Prologue(this->info()->GeneratePreagedPrologue(), ip);
-  } else if (frame()->needs_frame()) {
-    if (!ABI_CALL_VIA_IP && info()->output_code_kind() == Code::WASM_FUNCTION) {
-      // TODO(mbrandy): Restrict only to the wasm wrapper case.
-      __ StubPrologue();
-    } else {
-      __ StubPrologue(ip);
+      StackFrame::Type type = info()->GetOutputStackFrameType();
+      if (!ABI_CALL_VIA_IP &&
+          info()->output_code_kind() == Code::WASM_FUNCTION) {
+        // TODO(mbrandy): Restrict only to the wasm wrapper case.
+        __ StubPrologue(type);
+      } else {
+        __ StubPrologue(type, ip);
+      }
     }
   } else {
     frame()->SetElidedFrameSizeInSlots(0);

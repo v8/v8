@@ -338,10 +338,14 @@ class MacroAssembler : public Assembler {
     addi(sp, sp, Operand(5 * kPointerSize));
   }
 
-  // Push a fixed frame, consisting of lr, fp, context and
-  // JS function / marker id if marker_reg is a valid register.
-  void PushFixedFrame(Register marker_reg = no_reg);
-  void PopFixedFrame(Register marker_reg = no_reg);
+  // Push a fixed frame, consisting of lr, fp, constant pool.
+  void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Push a standard frame, consisting of lr, fp, constant pool,
+  // context and JS function
+  void PushStandardFrame(Register function_reg);
+
+  void PopCommonFrame(Register marker_reg = no_reg);
 
   // Restore caller's frame pointer and return address prior to being
   // overwritten by tail call stack preparation.
@@ -418,7 +422,8 @@ class MacroAssembler : public Assembler {
 #endif
 
   // Generates function and stub prologue code.
-  void StubPrologue(Register base = no_reg, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type, Register base = no_reg,
+                    int prologue_offset = 0);
   void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
 
   // Enter exit frame.

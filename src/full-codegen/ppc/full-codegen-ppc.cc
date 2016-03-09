@@ -1899,9 +1899,7 @@ void FullCodeGenerator::EmitGeneratorResume(
   // fp = caller's frame pointer.
   // cp = callee's context,
   // r7 = callee's JS function.
-  __ PushFixedFrame(r7);
-  // Adjust FP to point to saved FP.
-  __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r7);
 
   // Load the operand stack size.
   __ LoadP(r6, FieldMemOperand(r4, JSGeneratorObject::kOperandStackOffset));

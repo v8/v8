@@ -3813,7 +3813,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+      StubFailureTrampolineFrameConstants::kArgumentsLengthOffset;
   __ LoadP(r4, MemOperand(fp, parameter_count_offset));
   if (function_mode() == JS_FUNCTION_STUB_MODE) {
     __ addi(r4, r4, Operand(1));
@@ -4825,7 +4825,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ LoadP(r5, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kFunctionOffset));
     __ cmp(ip, r4);
     __ bne(&loop);
   }
@@ -4834,7 +4834,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // arguments adaptor frame below the function frame).
   Label no_rest_parameters;
   __ LoadP(r5, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kContextOffset));
+  __ LoadP(ip, MemOperand(r5, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&no_rest_parameters);
 
@@ -4979,7 +4979,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
   __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r3, MemOperand(r7, StandardFrameConstants::kContextOffset));
+  __ LoadP(r3, MemOperand(r7, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
 
@@ -5221,7 +5221,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ LoadP(r5, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kFunctionOffset));
     __ cmp(ip, r4);
     __ bne(&loop);
   }
@@ -5229,7 +5229,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ LoadP(r6, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(ip, MemOperand(r6, StandardFrameConstants::kContextOffset));
+  __ LoadP(ip, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&arguments_adaptor);
   {
