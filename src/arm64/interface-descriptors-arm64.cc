@@ -436,7 +436,25 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
                                    &default_descriptor);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+
+void ApiFunctionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  static PlatformInterfaceDescriptor default_descriptor =
+      PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
+
+  Register registers[] = {
+      x0,  // callee
+      x4,  // call_data
+      x2,  // holder
+      x1,  // api_function_address
+      x3,  // actual number of arguments
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers,
+                                   &default_descriptor);
+}
+
+
+void ApiAccessorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   static PlatformInterfaceDescriptor default_descriptor =
       PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);

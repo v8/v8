@@ -5613,12 +5613,16 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ b(&leave_exit_frame);
 }
 
-void CallApiCallbackStub::Generate(MacroAssembler* masm) {
+static void CallApiFunctionStubHelper(MacroAssembler* masm,
+                                      const ParameterCount& argc,
+                                      bool return_first_arg,
+                                      bool call_data_undefined, bool is_lazy) {
   // ----------- S t a t e -------------
   //  -- r3                  : callee
   //  -- r7                  : call_data
   //  -- r5                  : holder
   //  -- r4                  : api_function_address
+  //  -- r6                  : number of arguments if argc is a register
   //  -- cp                  : context
   //  --
   //  -- sp[0]               : last argument
@@ -5648,7 +5652,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // context save
   __ push(context);
-  if (!is_lazy()) {
+  if (!is_lazy) {
     // load context from callee
     __ LoadP(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
@@ -5660,7 +5664,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(call_data);
 
   Register scratch = call_data;
-  if (!call_data_undefined()) {
+  if (!call_data_undefined) {
     __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   }
   // return value
@@ -5696,15 +5700,28 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ addi(r3, sp, Operand(kFunctionCallbackInfoOffset));
   // FunctionCallbackInfo::implicit_args_
   __ StoreP(scratch, MemOperand(r3, 0 * kPointerSize));
-  // FunctionCallbackInfo::values_
-  __ addi(ip, scratch, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
-  __ StoreP(ip, MemOperand(r3, 1 * kPointerSize));
-  // FunctionCallbackInfo::length_ = argc
-  __ li(ip, Operand(argc()));
-  __ stw(ip, MemOperand(r3, 2 * kPointerSize));
-  // FunctionCallbackInfo::is_construct_call_ = 0
-  __ li(ip, Operand::Zero());
-  __ stw(ip, MemOperand(r3, 2 * kPointerSize + kIntSize));
+  if (argc.is_immediate()) {
+    // FunctionCallbackInfo::values_
+    __ addi(ip, scratch,
+            Operand((FCA::kArgsLength - 1 + argc.immediate()) * kPointerSize));
+    __ StoreP(ip, MemOperand(r3, 1 * kPointerSize));
+    // FunctionCallbackInfo::length_ = argc
+    __ li(ip, Operand(argc.immediate()));
+    __ stw(ip, MemOperand(r3, 2 * kPointerSize));
+    // FunctionCallbackInfo::is_construct_call_ = 0
+    __ li(ip, Operand::Zero());
+    __ stw(ip, MemOperand(r3, 2 * kPointerSize + kIntSize));
+  } else {
+    __ ShiftLeftImm(ip, argc.reg(), Operand(kPointerSizeLog2));
+    __ addi(ip, ip, Operand((FCA::kArgsLength - 1) * kPointerSize));
+    // FunctionCallbackInfo::values_
+    __ add(r0, scratch, ip);
+    __ StoreP(r0, MemOperand(r3, 1 * kPointerSize));
+    // FunctionCallbackInfo::length_ = argc
+    __ stw(argc.reg(), MemOperand(r3, 2 * kPointerSize));
+    // FunctionCallbackInfo::is_construct_call_
+    __ stw(ip, MemOperand(r3, 2 * kPointerSize + kIntSize));
+  }
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_function_callback(masm->isolate());
@@ -5714,7 +5731,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
       fp, (2 + FCA::kContextSaveIndex) * kPointerSize);
   // Stores return the first js argument
   int return_value_offset = 0;
-  if (is_store()) {
+  if (return_first_arg) {
     return_value_offset = 2 + FCA::kArgsLength;
   } else {
     return_value_offset = 2 + FCA::kReturnValueOffset;
@@ -5724,11 +5741,30 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   MemOperand is_construct_call_operand =
       MemOperand(sp, kFunctionCallbackInfoOffset + 2 * kPointerSize + kIntSize);
   MemOperand* stack_space_operand = &is_construct_call_operand;
-  stack_space = argc() + FCA::kArgsLength + 1;
-  stack_space_operand = NULL;
+  if (argc.is_immediate()) {
+    stack_space = argc.immediate() + FCA::kArgsLength + 1;
+    stack_space_operand = NULL;
+  }
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_operand, return_value_operand,
                            &context_restore_operand);
+}
+
+
+void CallApiFunctionStub::Generate(MacroAssembler* masm) {
+  bool call_data_undefined = this->call_data_undefined();
+  CallApiFunctionStubHelper(masm, ParameterCount(r6), false,
+                            call_data_undefined, false);
+}
+
+
+void CallApiAccessorStub::Generate(MacroAssembler* masm) {
+  bool is_store = this->is_store();
+  int argc = this->argc();
+  bool call_data_undefined = this->call_data_undefined();
+  bool is_lazy = this->is_lazy();
+  CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
+                            call_data_undefined, is_lazy);
 }
 
 

@@ -231,7 +231,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   }
   DCHECK(optimization.is_simple_api_call());
 
-  // Abi for CallApiCallbackStub.
+  // Abi for CallApiFunctionStub.
   Register callee = r2;
   Register data = r6;
   Register holder = r4;
@@ -300,7 +300,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ mov(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }

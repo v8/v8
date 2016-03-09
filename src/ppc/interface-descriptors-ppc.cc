@@ -380,7 +380,21 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+
+void ApiFunctionDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      r3,  // callee
+      r7,  // call_data
+      r5,  // holder
+      r4,  // api_function_address
+      r6,  // actual number of arguments
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void ApiAccessorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r3,  // callee

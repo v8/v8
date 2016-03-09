@@ -142,7 +142,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ PushReturnAddressFrom(scratch);
   // Stack now matches JSFunction abi.
 
-  // Abi for CallApiCallbackStub.
+  // Abi for CallApiFunctionStub.
   Register callee = rdi;
   Register data = rbx;
   Register holder = rcx;
@@ -209,7 +209,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
           RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }

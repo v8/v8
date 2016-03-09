@@ -9231,10 +9231,6 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   if (syntactic_tail_call_mode == TailCallMode::kAllow) {
     return false;
   }
-  if (argc > CallApiCallbackStub::kArgMax) {
-    return false;
-  }
-
   CallOptimization optimization(function);
   if (!optimization.is_simple_api_call()) return false;
   Handle<Map> holder_map;
@@ -9330,22 +9326,33 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
                        api_function_address, nullptr};
 
   HInstruction* call = nullptr;
-  CHECK(argc <= CallApiCallbackStub::kArgMax);
   if (!is_function) {
-    CallApiCallbackStub stub(isolate(), is_store, call_data_undefined,
+    CallApiAccessorStub stub(isolate(), is_store, call_data_undefined,
                              !optimization.is_constant_call());
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
+    ApiAccessorDescriptor descriptor(isolate());
     call = New<HCallWithDescriptor>(
-        code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
+        code_value, argc + 1, descriptor,
         Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
-  } else {
-    CallApiCallbackStub stub(isolate(), argc, call_data_undefined);
+  } else if (argc <= CallApiFunctionWithFixedArgsStub::kMaxFixedArgs) {
+    CallApiFunctionWithFixedArgsStub stub(isolate(), argc, call_data_undefined);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
+    ApiFunctionWithFixedArgsDescriptor descriptor(isolate());
     call = New<HCallWithDescriptor>(
-        code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
+        code_value, argc + 1, descriptor,
         Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
+    Drop(1);  // Drop function.
+  } else {
+    op_vals[arraysize(op_vals) - 1] = Add<HConstant>(argc);
+    CallApiFunctionStub stub(isolate(), call_data_undefined);
+    Handle<Code> code = stub.GetCode();
+    HConstant* code_value = Add<HConstant>(code);
+    ApiFunctionDescriptor descriptor(isolate());
+    call =
+        New<HCallWithDescriptor>(code_value, argc + 1, descriptor,
+                                 Vector<HValue*>(op_vals, arraysize(op_vals)));
     Drop(1);  // Drop function.
   }
 

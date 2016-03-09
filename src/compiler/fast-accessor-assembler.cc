@@ -5,7 +5,7 @@
 #include "src/compiler/fast-accessor-assembler.h"
 
 #include "src/base/logging.h"
-#include "src/code-stubs.h"  // For CallApiCallbackStub.
+#include "src/code-stubs.h"  // For CallApiFunctionStub.
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -172,8 +172,7 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
   CHECK_EQ(kBuilding, state_);
 
   // Create API function stub.
-  CallApiCallbackStub stub(assembler_->isolate(), 1, true);
-  DCHECK_EQ(1, stub.GetCallInterfaceDescriptor().GetStackParameterCount());
+  CallApiFunctionStub stub(assembler_->isolate(), true);
 
   // Wrap the FunctionCallback in an ExternalReference.
   ApiFunction callback_api_function(FUNCTION_ADDR(callback_function));
@@ -181,27 +180,30 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
                              ExternalReference::DIRECT_API_CALL,
                              assembler_->isolate());
 
-  // The stub has 6 parameters.
-  // See: ApiCallbackDescriptorBase::BuildCallInterfaceDescriptorFunctionType
+  // The stub has 5 parameters, and kJSParam (here: 1) parameters to pass
+  // through to the callback.
+  // See: ApiFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType
+  static const int kStackParam = 1;
   Node* args[] = {
       // Stub/register parameters:
-      assembler_->Parameter(0),               /* receiver (use accessor's) */
-      assembler_->UndefinedConstant(),        /* call_data (undefined) */
-      assembler_->NullConstant(),             /* holder (null) */
-      assembler_->ExternalConstant(callback), /* API callback function */
+      assembler_->Parameter(0),                /* receiver (use accessor's) */
+      assembler_->UndefinedConstant(),         /* call_data (undefined) */
+      assembler_->NullConstant(),              /* holder (null) */
+      assembler_->ExternalConstant(callback),  /* API callback function */
+      assembler_->IntPtrConstant(kStackParam), /* # JS arguments */
 
-      // JS arguments, on stack:
+      // kStackParam stack parameter(s):
       FromId(arg),
 
       // Context parameter. (See Linkage::GetStubCallDescriptor.)
       assembler_->UndefinedConstant()};
-  DCHECK_EQ(arraysize(args),
-            1 + stub.GetCallInterfaceDescriptor().GetParameterCount());
+  CHECK_EQ(5 + kStackParam + 1, arraysize(args));
 
   Node* call = assembler_->CallN(
       Linkage::GetStubCallDescriptor(
           assembler_->isolate(), zone(), stub.GetCallInterfaceDescriptor(),
-          stub.GetStackParameterCount(), CallDescriptor::kNoFlags),
+          kStackParam + stub.GetStackParameterCount(),
+          CallDescriptor::kNoFlags),
       assembler_->HeapConstant(stub.GetCode()), args);
   return FromRaw(call);
 }
