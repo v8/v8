@@ -3368,7 +3368,9 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
   bool has_new = Check(Token::NEW);
   typename TypeSystem::TypeParameters type_parameters =
       this->NullTypeParameters();
-  if (peek() == Token::LT) type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
+  if (peek() == Token::LT) {  // Braces required here.
+    type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
+  }
   // If any of those were present, then only allow a parenthesized primary
   // type or a parameter list), else also allow unions and intersections.
   typename TypeSystem::Type type =
