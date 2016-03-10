@@ -1905,20 +1905,20 @@ void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(sa < 5 && sa > 0);
+  DCHECK(sa <= 3);
   DCHECK(kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa - 1) << kSaShift | LSA;
+  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
+                rd.code() << kRdShift | sa << kSaShift | LSA;
   emit(instr);
 }
 
 
 void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(sa < 5 && sa > 0);
+  DCHECK(sa <= 3);
   DCHECK(kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa - 1) << kSaShift | DLSA;
+  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
+                rd.code() << kRdShift | sa << kSaShift | DLSA;
   emit(instr);
 }
 

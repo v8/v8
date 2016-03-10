@@ -791,10 +791,6 @@ class Assembler : public AssemblerBase {
   void dsrl32(Register rt, Register rd, uint16_t sa);
   void dsra32(Register rt, Register rd, uint16_t sa);
 
-  // Address computing instructions with shift.
-  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
-  void dlsa(Register rd, Register rt, Register rs, uint8_t sa);
-
   // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
@@ -1209,6 +1205,10 @@ class Assembler : public AssemblerBase {
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
  protected:
+  // Load Scaled Address instructions.
+  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
+  void dlsa(Register rd, Register rt, Register rs, uint8_t sa);
+
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.

@@ -1761,10 +1761,10 @@ void Assembler::rotrv(Register rd, Register rt, Register rs) {
 
 void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(sa < 5 && sa > 0);
+  DCHECK(sa <= 3);
   DCHECK(IsMipsArchVariant(kMips32r6));
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa - 1) << kSaShift | LSA;
+  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
+                rd.code() << kRdShift | sa << kSaShift | LSA;
   emit(instr);
 }
 

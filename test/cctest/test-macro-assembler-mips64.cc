@@ -316,7 +316,7 @@ TEST(jump_tables5) {
         masm, kNumCases * kPointerSize + ((6 + 1) * Assembler::kInstrSize));
 
     __ addiupc(at, 6 + 1);
-    __ dlsa(at, at, a0, 3);
+    __ Dlsa(at, at, a0, 3);
     __ ld(at, MemOperand(at));
     __ jalr(at);
     __ nop();  // Branch delay slot nop.

@@ -647,8 +647,12 @@ class MacroAssembler: public Assembler {
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
 
+  // Load Scaled Address instructions. Parameter sa (shift argument) must be
+  // between [1, 31] (inclusive). On pre-r6 architectures the scratch register
+  // may be clobbered.
   void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
            Register scratch = at);
+
   void Pref(int32_t hint, const MemOperand& rs);
 
 
@@ -1790,7 +1794,7 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   if (kArchVariant >= kMips32r6) {
     BlockTrampolinePoolFor(case_count + 5);
     addiupc(at, 5);
-    lsa(at, at, index, kPointerSizeLog2);
+    Lsa(at, at, index, kPointerSizeLog2);
     lw(at, MemOperand(at));
   } else {
     Label here;

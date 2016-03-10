@@ -1294,8 +1294,9 @@ void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
 
 void MacroAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
                          Register scratch) {
+  DCHECK(sa >= 1 && sa <= 31);
   if (kArchVariant == kMips64r6 && sa <= 4) {
-    lsa(rd, rt, rs, sa);
+    lsa(rd, rt, rs, sa - 1);
   } else {
     Register tmp = rd.is(rt) ? scratch : rd;
     DCHECK(!tmp.is(rt));
@@ -1307,8 +1308,9 @@ void MacroAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
 
 void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
                           Register scratch) {
+  DCHECK(sa >= 1 && sa <= 31);
   if (kArchVariant == kMips64r6 && sa <= 4) {
-    dlsa(rd, rt, rs, sa);
+    dlsa(rd, rt, rs, sa - 1);
   } else {
     Register tmp = rd.is(rt) ? scratch : rd;
     DCHECK(!tmp.is(rt));
