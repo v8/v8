@@ -609,9 +609,6 @@
   'language/statements/generators/yield-as-yield-operand': [FAIL],
   'language/statements/generators/yield-newline': [FAIL],
   'language/statements/generators/yield-star-before-newline': [FAIL],
-
-  # TODO(4680,rmcilroy): Test262Error: Expected a RangeError to be thrown but no exception was thrown at all
-  'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [FAIL],
 }],  # ignition == True
 
 ]
