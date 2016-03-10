@@ -3525,7 +3525,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
                                 CHECK_OK);
 
-      ForEachStatement::VisitMode mode;
+      ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
       int each_beg_pos = scanner()->location().beg_pos;
       int each_end_pos = scanner()->location().end_pos;
 
@@ -3692,7 +3692,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       ExpressionClassifier classifier(this);
       Expression* expression = ParseExpression(false, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
-      ForEachStatement::VisitMode mode;
+      ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
       is_let_identifier_expression =
           expression->IsVariableProxy() &&
           expression->AsVariableProxy()->raw_name() ==
