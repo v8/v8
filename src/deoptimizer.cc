@@ -1378,7 +1378,11 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   if (FLAG_enable_embedded_constant_pool) {
     // Read the caller's constant pool from the previous frame.
     output_offset -= kPointerSize;
-    value = output_[frame_index - 1]->GetConstantPool();
+    if (is_bottommost) {
+      value = caller_constant_pool_;
+    } else {
+      value = output_[frame_index - 1]->GetConstantPool();
+    }
     output_frame->SetCallerConstantPool(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "caller's constant_pool\n");
