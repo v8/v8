@@ -665,11 +665,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   while (it.has_next()) {
     Page* p = it.next();
     if (p->NeverEvacuate()) continue;
-    if (p->IsFlagSet(Page::POPULAR_PAGE)) {
-      // This page had slots buffer overflow on previous GC, skip it.
-      p->ClearFlag(Page::POPULAR_PAGE);
-      continue;
-    }
     // Invariant: Evacuation candidates are just created when marking is
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are
@@ -2958,12 +2953,8 @@ void MarkCompactCollector::EvacuateNewSpaceEpilogue() {
 
 class MarkCompactCollector::Evacuator : public Malloced {
  public:
-  Evacuator(MarkCompactCollector* collector,
-            const List<Page*>& evacuation_candidates,
-            const List<NewSpacePage*>& newspace_evacuation_candidates)
+  explicit Evacuator(MarkCompactCollector* collector)
       : collector_(collector),
-        evacuation_candidates_(evacuation_candidates),
-        newspace_evacuation_candidates_(newspace_evacuation_candidates),
         compaction_spaces_(collector->heap()),
         local_pretenuring_feedback_(HashMap::PointersMatch,
                                     kInitialLocalPretenuringFeedbackCapacity),
@@ -2973,20 +2964,15 @@ class MarkCompactCollector::Evacuator : public Malloced {
         old_space_visitor_(collector->heap(), &compaction_spaces_,
                            &old_to_old_slots_, &old_to_new_slots_),
         duration_(0.0),
-        bytes_compacted_(0),
-        task_id_(0) {}
+        bytes_compacted_(0) {}
 
-  // Evacuate the configured set of pages in parallel.
-  inline void EvacuatePages();
+  inline bool EvacuatePage(MemoryChunk* chunk);
 
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
   inline void Finalize();
 
   CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
-
-  uint32_t task_id() { return task_id_; }
-  void set_task_id(uint32_t id) { task_id_ = id; }
 
  private:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
@@ -3002,10 +2988,6 @@ class MarkCompactCollector::Evacuator : public Malloced {
 
   MarkCompactCollector* collector_;
 
-  // Pages to process.
-  const List<Page*>& evacuation_candidates_;
-  const List<NewSpacePage*>& newspace_evacuation_candidates_;
-
   // Locally cached collector data.
   CompactionSpaceCollection compaction_spaces_;
   LocalSlotsBuffer old_to_old_slots_;
@@ -3019,60 +3001,40 @@ class MarkCompactCollector::Evacuator : public Malloced {
   // Book keeping info.
   double duration_;
   intptr_t bytes_compacted_;
-
-  // Task id, if this evacuator is executed on a background task instead of
-  // the main thread. Can be used to try to abort the task currently scheduled
-  // to executed to evacuate pages.
-  uint32_t task_id_;
 };
 
 bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
     MemoryChunk* p, HeapObjectVisitor* visitor) {
-  bool success = true;
-  if (p->parallel_compaction_state().TrySetValue(
-          MemoryChunk::kCompactingDone, MemoryChunk::kCompactingInProgress)) {
-    if (p->IsEvacuationCandidate() || p->InNewSpace()) {
-      DCHECK_EQ(p->parallel_compaction_state().Value(),
-                MemoryChunk::kCompactingInProgress);
-      int saved_live_bytes = p->LiveBytes();
-      double evacuation_time;
-      {
-        AlwaysAllocateScope always_allocate(heap()->isolate());
-        TimedScope timed_scope(&evacuation_time);
-        success = collector_->VisitLiveObjects(p, visitor, kClearMarkbits);
-      }
-      if (success) {
-        ReportCompactionProgress(evacuation_time, saved_live_bytes);
-        p->parallel_compaction_state().SetValue(
-            MemoryChunk::kCompactingFinalize);
-      } else {
-        p->parallel_compaction_state().SetValue(
-            MemoryChunk::kCompactingAborted);
-      }
-    } else {
-      // There could be popular pages in the list of evacuation candidates
-      // which we do not compact.
-      p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
-    }
+  bool success = false;
+  DCHECK(p->IsEvacuationCandidate() || p->InNewSpace());
+  int saved_live_bytes = p->LiveBytes();
+  double evacuation_time;
+  {
+    AlwaysAllocateScope always_allocate(heap()->isolate());
+    TimedScope timed_scope(&evacuation_time);
+    success = collector_->VisitLiveObjects(p, visitor, kClearMarkbits);
+  }
+  if (success) {
+    ReportCompactionProgress(evacuation_time, saved_live_bytes);
   }
   return success;
 }
 
-void MarkCompactCollector::Evacuator::EvacuatePages() {
-  for (NewSpacePage* p : newspace_evacuation_candidates_) {
-    DCHECK(p->InNewSpace());
-    DCHECK_EQ(p->concurrent_sweeping_state().Value(),
+bool MarkCompactCollector::Evacuator::EvacuatePage(MemoryChunk* chunk) {
+  bool success = false;
+  if (chunk->InNewSpace()) {
+    DCHECK_EQ(chunk->concurrent_sweeping_state().Value(),
               NewSpacePage::kSweepingDone);
-    bool success = EvacuateSinglePage(p, &new_space_visitor_);
+    success = EvacuateSinglePage(chunk, &new_space_visitor_);
     DCHECK(success);
     USE(success);
+  } else {
+    DCHECK(chunk->IsEvacuationCandidate() ||
+           chunk->IsFlagSet(MemoryChunk::RESCAN_ON_EVACUATION));
+    DCHECK_EQ(chunk->concurrent_sweeping_state().Value(), Page::kSweepingDone);
+    success = EvacuateSinglePage(chunk, &old_space_visitor_);
   }
-  for (Page* p : evacuation_candidates_) {
-    DCHECK(p->IsEvacuationCandidate() ||
-           p->IsFlagSet(MemoryChunk::RESCAN_ON_EVACUATION));
-    DCHECK_EQ(p->concurrent_sweeping_state().Value(), Page::kSweepingDone);
-    EvacuateSinglePage(p, &old_space_visitor_);
-  }
+  return success;
 }
 
 void MarkCompactCollector::Evacuator::Finalize() {
@@ -3105,29 +3067,6 @@ void MarkCompactCollector::Evacuator::Finalize() {
       });
 }
 
-class MarkCompactCollector::CompactionTask : public CancelableTask {
- public:
-  explicit CompactionTask(Heap* heap, Evacuator* evacuator)
-      : CancelableTask(heap->isolate()), heap_(heap), evacuator_(evacuator) {
-    evacuator->set_task_id(id());
-  }
-
-  virtual ~CompactionTask() {}
-
- private:
-  // v8::internal::CancelableTask overrides.
-  void RunInternal() override {
-    evacuator_->EvacuatePages();
-    heap_->mark_compact_collector()
-        ->pending_compaction_tasks_semaphore_.Signal();
-  }
-
-  Heap* heap_;
-  Evacuator* evacuator_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompactionTask);
-};
-
 int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
                                                           intptr_t live_bytes) {
   if (!FLAG_parallel_compaction) return 1;
@@ -3158,19 +3097,63 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
   return Min(available_cores, tasks_capped_pages);
 }
 
+class EvacuationJobTraits {
+ public:
+  typedef int* PerPageData;  // Pointer to number of aborted pages.
+  typedef MarkCompactCollector::Evacuator* PerTaskData;
+
+  static const bool NeedSequentialFinalization = true;
+
+  static bool ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
+                                    MemoryChunk* chunk, PerPageData) {
+    return evacuator->EvacuatePage(chunk);
+  }
+
+  static void FinalizePageSequentially(Heap*, MemoryChunk* chunk, bool success,
+                                       PerPageData data) {
+    if (chunk->InNewSpace()) {
+      DCHECK(success);
+    } else {
+      Page* p = static_cast<Page*>(chunk);
+      if (success) {
+        DCHECK(p->IsEvacuationCandidate());
+        DCHECK(p->SweepingDone());
+        p->Unlink();
+      } else {
+        // We have partially compacted the page, i.e., some objects may have
+        // moved, others are still in place.
+        // We need to:
+        // - Leave the evacuation candidate flag for later processing of slots
+        //   buffer entries.
+        // - Leave the slots buffer there for processing of entries added by
+        //   the write barrier.
+        // - Rescan the page as slot recording in the migration buffer only
+        //   happens upon moving (which we potentially didn't do).
+        // - Leave the page in the list of pages of a space since we could not
+        //   fully evacuate it.
+        DCHECK(p->IsEvacuationCandidate());
+        p->SetFlag(Page::COMPACTION_WAS_ABORTED);
+        *data += 1;
+      }
+    }
+  }
+};
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
-  int num_pages = 0;
+  PageParallelJob<EvacuationJobTraits> job(
+      heap_, heap_->isolate()->cancelable_task_manager());
+
+  int abandoned_pages = 0;
   intptr_t live_bytes = 0;
   for (Page* page : evacuation_candidates_) {
-    num_pages++;
     live_bytes += page->LiveBytes();
+    job.AddPage(page, &abandoned_pages);
   }
   for (NewSpacePage* page : newspace_evacuation_candidates_) {
-    num_pages++;
     live_bytes += page->LiveBytes();
+    job.AddPage(page, &abandoned_pages);
   }
-  DCHECK_GE(num_pages, 1);
+  DCHECK_GE(job.NumberOfPages(), 1);
 
   // Used for trace summary.
   intptr_t compaction_speed = 0;
@@ -3178,112 +3161,31 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
   }
 
-  const int num_tasks = NumberOfParallelCompactionTasks(num_pages, live_bytes);
-
-  // Set up compaction spaces.
-  Evacuator** evacuators = new Evacuator*[num_tasks];
-  for (int i = 0; i < num_tasks; i++) {
-    evacuators[i] = new Evacuator(this, evacuation_candidates_,
-                                  newspace_evacuation_candidates_);
+  const int wanted_num_tasks =
+      NumberOfParallelCompactionTasks(job.NumberOfPages(), live_bytes);
+  Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
+  for (int i = 0; i < wanted_num_tasks; i++) {
+    evacuators[i] = new Evacuator(this);
   }
-
-  // Kick off parallel tasks.
-  StartParallelCompaction(evacuators, num_tasks);
-  // Wait for unfinished and not-yet-started tasks.
-  WaitUntilCompactionCompleted(&evacuators[1], num_tasks - 1);
-
-  // Finalize local evacuators by merging back all locally cached data.
-  for (int i = 0; i < num_tasks; i++) {
+  job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
+  for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
     delete evacuators[i];
   }
   delete[] evacuators;
 
-  // Finalize pages sequentially.
-  for (NewSpacePage* p : newspace_evacuation_candidates_) {
-    DCHECK_EQ(p->parallel_compaction_state().Value(),
-              MemoryChunk::kCompactingFinalize);
-    p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
-  }
-
-  int abandoned_pages = 0;
-  for (Page* p : evacuation_candidates_) {
-    switch (p->parallel_compaction_state().Value()) {
-      case MemoryChunk::ParallelCompactingState::kCompactingAborted:
-        // We have partially compacted the page, i.e., some objects may have
-        // moved, others are still in place.
-        // We need to:
-        // - Leave the evacuation candidate flag for later processing of
-        //   slots buffer entries.
-        // - Leave the slots buffer there for processing of entries added by
-        //   the write barrier.
-        // - Rescan the page as slot recording in the migration buffer only
-        //   happens upon moving (which we potentially didn't do).
-        // - Leave the page in the list of pages of a space since we could not
-        //   fully evacuate it.
-        // - Mark them for rescanning for store buffer entries as we otherwise
-        //   might have stale store buffer entries that become "valid" again
-        //   after reusing the memory. Note that all existing store buffer
-        //   entries of such pages are filtered before rescanning.
-        DCHECK(p->IsEvacuationCandidate());
-        p->SetFlag(Page::COMPACTION_WAS_ABORTED);
-        abandoned_pages++;
-        break;
-      case MemoryChunk::kCompactingFinalize:
-        DCHECK(p->IsEvacuationCandidate());
-        DCHECK(p->SweepingDone());
-        p->Unlink();
-        break;
-      case MemoryChunk::kCompactingDone:
-        DCHECK(p->IsFlagSet(Page::POPULAR_PAGE));
-        DCHECK(p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-        break;
-      default:
-        // MemoryChunk::kCompactingInProgress.
-        UNREACHABLE();
-    }
-    p->parallel_compaction_state().SetValue(MemoryChunk::kCompactingDone);
-  }
   if (FLAG_trace_fragmentation) {
     PrintIsolate(isolate(),
                  "%8.0f ms: compaction: parallel=%d pages=%d aborted=%d "
-                 "tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
+                 "wanted_tasks=%d tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
                  "d compaction_speed=%" V8_PTR_PREFIX "d\n",
                  isolate()->time_millis_since_init(), FLAG_parallel_compaction,
-                 num_pages, abandoned_pages, num_tasks,
-                 base::SysInfo::NumberOfProcessors(), live_bytes,
-                 compaction_speed);
+                 job.NumberOfPages(), abandoned_pages, wanted_num_tasks,
+                 job.NumberOfTasks(),
+                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
+                 live_bytes, compaction_speed);
   }
 }
-
-void MarkCompactCollector::StartParallelCompaction(Evacuator** evacuators,
-                                                   int len) {
-  compaction_in_progress_ = true;
-  for (int i = 1; i < len; i++) {
-    CompactionTask* task = new CompactionTask(heap(), evacuators[i]);
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
-  }
-
-  // Contribute on main thread.
-  evacuators[0]->EvacuatePages();
-}
-
-void MarkCompactCollector::WaitUntilCompactionCompleted(Evacuator** evacuators,
-                                                        int len) {
-  // Try to cancel compaction tasks that have not been run (as they might be
-  // stuck in a worker queue). Tasks that cannot be canceled, have either
-  // already completed or are still running, hence we need to wait for their
-  // semaphore signal.
-  for (int i = 0; i < len; i++) {
-    if (!heap()->isolate()->cancelable_task_manager()->TryAbort(
-            evacuators[i]->task_id())) {
-      pending_compaction_tasks_semaphore_.Wait();
-    }
-  }
-  compaction_in_progress_ = false;
-}
-
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
  public:

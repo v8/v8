@@ -321,6 +321,8 @@ class ThreadLocalTop;
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
+  class Evacuator;
+
   enum IterationMode {
     kKeepMarking,
     kClearMarkbits,
@@ -504,11 +506,9 @@ class MarkCompactCollector {
   }
 
  private:
-  class CompactionTask;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
   class EvacuateVisitorBase;
-  class Evacuator;
   class HeapObjectVisitor;
   class SweeperTask;
 
@@ -703,9 +703,6 @@ class MarkCompactCollector {
 
   // The number of parallel compaction tasks, including the main thread.
   int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
-
-  void StartParallelCompaction(Evacuator** evacuators, int len);
-  void WaitUntilCompactionCompleted(Evacuator** evacuators, int len);
 
   void EvacuateNewSpaceAndCandidates();
 

@@ -302,7 +302,6 @@ class MemoryChunk {
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
     NEVER_EVACUATE,  // May contain immortal immutables.
-    POPULAR_PAGE,    // Slots buffer of this page overflowed on the previous GC.
 
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
@@ -329,19 +328,6 @@ class MemoryChunk {
 
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
-  };
-
-  // |kCompactionDone|: Initial compaction state of a |MemoryChunk|.
-  // |kCompactingInProgress|:  Parallel compaction is currently in progress.
-  // |kCompactingFinalize|: Parallel compaction is done but the chunk needs to
-  //   be finalized.
-  // |kCompactingAborted|: Parallel compaction has been aborted, which should
-  //   for now only happen in OOM scenarios.
-  enum ParallelCompactingState {
-    kCompactingDone,
-    kCompactingInProgress,
-    kCompactingFinalize,
-    kCompactingAborted,
   };
 
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
@@ -403,8 +389,7 @@ class MemoryChunk {
       kIntptrSize         // intptr_t write_barrier_counter_
       + kPointerSize      // AtomicValue high_water_mark_
       + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord parallel_sweeping_
-      + kPointerSize      // AtomicValue parallel_compaction_
+      + kPointerSize      // base::AtomicWord concurrent_sweeping_
       + 2 * kPointerSize  // AtomicNumber free-list statistics
       + kPointerSize      // AtomicValue next_chunk_
       + kPointerSize;     // AtomicValue prev_chunk_
@@ -469,10 +454,6 @@ class MemoryChunk {
 
   AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
     return concurrent_sweeping_;
-  }
-
-  AtomicValue<ParallelCompactingState>& parallel_compaction_state() {
-    return parallel_compaction_;
   }
 
   // Manage live byte count, i.e., count of bytes in black objects.
@@ -701,7 +682,6 @@ class MemoryChunk {
   base::Mutex* mutex_;
 
   AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
-  AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.
   AtomicNumber<intptr_t> available_in_free_list_;

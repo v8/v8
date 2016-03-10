@@ -57,7 +57,10 @@ class PageParallelJob {
 
   int NumberOfPages() { return num_items_; }
 
-  // Runs the given number of tasks in parallel and processes the previosly
+  // Returns the number of tasks that were spawned when running the job.
+  int NumberOfTasks() { return num_tasks_; }
+
+  // Runs the given number of tasks in parallel and processes the previously
   // added pages. This function blocks until all tasks finish.
   // The callback takes the index of a task and returns data for that task.
   template <typename Callback>
@@ -69,11 +72,11 @@ class PageParallelJob {
         kMaxNumberOfTasks,
         static_cast<int>(
             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()));
-    num_tasks = Max(1, Min(num_tasks, max_num_tasks));
-    int items_per_task = (num_items_ + num_tasks - 1) / num_tasks;
+    num_tasks_ = Max(1, Min(num_tasks, max_num_tasks));
+    int items_per_task = (num_items_ + num_tasks_ - 1) / num_tasks_;
     int start_index = 0;
     Task* main_task = nullptr;
-    for (int i = 0; i < num_tasks; i++, start_index += items_per_task) {
+    for (int i = 0; i < num_tasks_; i++, start_index += items_per_task) {
       if (start_index >= num_items_) {
         start_index -= num_items_;
       }
@@ -91,7 +94,7 @@ class PageParallelJob {
     main_task->Run();
     delete main_task;
     // Wait for background tasks.
-    for (int i = 0; i < num_tasks; i++) {
+    for (int i = 0; i < num_tasks_; i++) {
       if (!cancelable_task_manager_->TryAbort(task_ids[i])) {
         pending_tasks_.Wait();
       }
@@ -172,6 +175,7 @@ class PageParallelJob {
   CancelableTaskManager* cancelable_task_manager_;
   Item* items_;
   int num_items_;
+  int num_tasks_;
   base::Semaphore pending_tasks_;
   DISALLOW_COPY_AND_ASSIGN(PageParallelJob);
 };
