@@ -3414,8 +3414,7 @@ ParserBase<Traits>::ParseTypeParameters(bool* ok) {
   typename TypeSystem::TypeParameters parameters = this->EmptyTypeParameters();
   do {
     int pos = peek_position();
-    IdentifierT name =
-        ParseIdentifierName(CHECK_OK_CUSTOM(NullTypeParameters));
+    IdentifierT name = ParseIdentifierName(CHECK_OK_CUSTOM(NullTypeParameters));
     typename TypeSystem::Type extends = this->EmptyType();
     if (Check(Token::EXTENDS)) {  // Braces required here.
       extends = ParseValidType(CHECK_OK_CUSTOM(NullTypeParameters));

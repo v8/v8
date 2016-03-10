@@ -3048,15 +3048,12 @@ class TypeParameter : public AstNode {
 
  protected:
   TypeParameter(Zone* zone, const AstRawString* name, Type* extends, int pos)
-      : AstNode(pos),
-        name_(name),
-        extends_(extends) {}
+      : AstNode(pos), name_(name), extends_(extends) {}
 
  private:
   const AstRawString* name_;
   Type* extends_;
 };
-
 
 class FormalParameter : public AstNode {
  public:
@@ -3830,10 +3827,11 @@ class AstNodeFactory final BASE_EMBEDDED {
         typesystem::ParenthesizedTypeThings(local_zone_, things, pos);
   }
 
-  typesystem::TypeParameter* NewTypeParameter(
-      const AstRawString* name, typesystem::Type* extends, int pos) {
-    return new (local_zone_) typesystem::TypeParameter(
-        local_zone_, name, extends, pos);
+  typesystem::TypeParameter* NewTypeParameter(const AstRawString* name,
+                                              typesystem::Type* extends,
+                                              int pos) {
+    return new (local_zone_)
+        typesystem::TypeParameter(local_zone_, name, extends, pos);
   }
 
   Zone* zone() const { return local_zone_; }

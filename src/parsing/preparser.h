@@ -437,9 +437,7 @@ class PreParserType;
 
 class PreParserTypeParameter {
  public:
-  static PreParserTypeParameter Default() {
-    return PreParserTypeParameter();
-  }
+  static PreParserTypeParameter Default() { return PreParserTypeParameter(); }
 
  private:
   PreParserTypeParameter() {}
