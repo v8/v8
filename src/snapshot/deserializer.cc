@@ -584,16 +584,16 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_PPC) || V8_EMBEDDED_CONSTANT_POOL
+#if V8_CODE_EMBEDS_OBJECT_POINTER
       // Deserialize a new object from pointer found in code and write
-      // a pointer to it to the current object. Required only for MIPS, PPC or
-      // ARM with embedded constant pool, and omitted on the other architectures
-      // because it is fully unrolled and would cause bloat.
+      // a pointer to it to the current object. Required only for MIPS, PPC, ARM
+      // or S390 with embedded constant pool, and omitted on the other
+      // architectures because it is fully unrolled and would cause bloat.
       ALL_SPACES(kNewObject, kFromCode, kStartOfObject)
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to it to the current
-      // object. Required only for MIPS, PPC or ARM with embedded constant pool.
+      // object. Required only for MIPS, PPC, ARM or S390 with embedded
+      // constant pool.
       ALL_SPACES(kBackref, kFromCode, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kFromCode, kStartOfObject)
 #endif
@@ -608,8 +608,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_PPC) || V8_EMBEDDED_CONSTANT_POOL
+#if V8_CODE_EMBEDS_OBJECT_POINTER
       // Find an object in the roots array and write a pointer to it to in code.
       SINGLE_CASE(kRootArray, kFromCode, kStartOfObject, 0)
 #endif

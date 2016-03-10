@@ -1144,7 +1144,7 @@ INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
 INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
                               size_t chars));
-#elif defined(V8_HOST_ARCH_PPC)
+#elif defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_S390)
 INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, size_t chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src,
                               size_t chars));
@@ -1307,7 +1307,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
     MemCopy(dest, src, chars * sizeof(*dest));
   }
 }
-#elif defined(V8_HOST_ARCH_PPC)
+#elif defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_S390)
 #define CASE(n)           \
   case n:                 \
     memcpy(dest, src, n); \
