@@ -13,13 +13,13 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 345
+bytecode array length: 344
 bytecodes: [
   B(StackCheck),
-  B(LdaZero),
-  B(Star), R(3),
   B(LdaUndefined),
   B(Star), R(4),
+  B(LdaZero),
+  B(Star), R(3),
   B(Mov), R(context), R(11),
   B(Mov), R(context), R(12),
   B(CreateArrayLiteral), U8(0), U8(0), U8(3),
@@ -46,7 +46,7 @@ bytecodes: [
   B(Star), R(13),
   B(LoadIC), R(13), U8(3), U8(9),
   B(JumpIfToBooleanTrue), U8(28),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(Star), R(3),
   B(Ldar), R(2),
   B(Star), R(13),
@@ -72,10 +72,10 @@ bytecodes: [
   B(PushContext), R(8),
   B(Ldar), R(3),
   B(Star), R(13),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(TestEqualStrict), R(13),
   B(JumpIfFalse), U8(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
   B(Throw),
@@ -96,8 +96,8 @@ bytecodes: [
   B(Star), R(12),
   B(LdaUndefined),
   B(TestEqualStrict), R(12),
-  B(JumpIfToBooleanFalse), U8(4),
-  B(JumpConstant), U8(10),
+  B(LogicalNot),
+  B(JumpIfFalseConstant), U8(10),
   B(Ldar), R(1),
   B(Star), R(12),
   B(LoadIC), R(12), U8(6), U8(13),
@@ -109,7 +109,7 @@ bytecodes: [
   B(Jump), U8(122),
   B(Ldar), R(3),
   B(Star), R(12),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(TestEqualStrict), R(12),
   B(JumpIfFalse), U8(77),
   B(Ldar), R(5),
@@ -183,7 +183,7 @@ constant pool: [
 handlers: [
   [10, 151, 157],
   [13, 105, 107],
-  [248, 261, 263],
+  [247, 260, 262],
 ]
 
 ---
@@ -193,15 +193,15 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 361
+bytecode array length: 360
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(7),
-  B(LdaZero),
-  B(Star), R(3),
   B(LdaUndefined),
   B(Star), R(4),
+  B(LdaZero),
+  B(Star), R(3),
   B(Mov), R(context), R(12),
   B(Mov), R(context), R(13),
   B(Ldar), R(7),
@@ -228,7 +228,7 @@ bytecodes: [
   B(Star), R(14),
   B(LoadIC), R(14), U8(3), U8(9),
   B(JumpIfToBooleanTrue), U8(32),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(Star), R(3),
   B(Ldar), R(2),
   B(Star), R(14),
@@ -256,10 +256,10 @@ bytecodes: [
   B(PushContext), R(9),
   B(Ldar), R(3),
   B(Star), R(14),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(TestEqualStrict), R(14),
   B(JumpIfFalse), U8(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
   B(Throw),
@@ -280,8 +280,8 @@ bytecodes: [
   B(Star), R(13),
   B(LdaUndefined),
   B(TestEqualStrict), R(13),
-  B(JumpIfToBooleanFalse), U8(4),
-  B(JumpConstant), U8(10),
+  B(LogicalNot),
+  B(JumpIfFalseConstant), U8(10),
   B(Ldar), R(1),
   B(Star), R(13),
   B(LoadIC), R(13), U8(6), U8(13),
@@ -293,7 +293,7 @@ bytecodes: [
   B(Jump), U8(122),
   B(Ldar), R(3),
   B(Star), R(13),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(TestEqualStrict), R(13),
   B(JumpIfFalse), U8(77),
   B(Ldar), R(5),
@@ -372,7 +372,7 @@ constant pool: [
 handlers: [
   [14, 157, 163],
   [17, 111, 113],
-  [255, 268, 270],
+  [254, 267, 269],
 ]
 
 ---
@@ -384,13 +384,13 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 367
+bytecode array length: 366
 bytecodes: [
   B(StackCheck),
-  B(LdaZero),
-  B(Star), R(3),
   B(LdaUndefined),
   B(Star), R(4),
+  B(LdaZero),
+  B(Star), R(3),
   B(Mov), R(context), R(11),
   B(Mov), R(context), R(12),
   B(CreateArrayLiteral), U8(0), U8(0), U8(3),
@@ -417,7 +417,7 @@ bytecodes: [
   B(Star), R(13),
   B(LoadIC), R(13), U8(3), U8(9),
   B(JumpIfToBooleanTrue), U8(50),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(Star), R(3),
   B(Ldar), R(2),
   B(Star), R(13),
@@ -454,10 +454,10 @@ bytecodes: [
   B(PushContext), R(8),
   B(Ldar), R(3),
   B(Star), R(13),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(TestEqualStrict), R(13),
   B(JumpIfFalse), U8(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
   B(Throw),
@@ -478,8 +478,8 @@ bytecodes: [
   B(Star), R(12),
   B(LdaUndefined),
   B(TestEqualStrict), R(12),
-  B(JumpIfToBooleanFalse), U8(4),
-  B(JumpConstant), U8(10),
+  B(LogicalNot),
+  B(JumpIfFalseConstant), U8(10),
   B(Ldar), R(1),
   B(Star), R(12),
   B(LoadIC), R(12), U8(6), U8(13),
@@ -491,7 +491,7 @@ bytecodes: [
   B(Jump), U8(122),
   B(Ldar), R(3),
   B(Star), R(12),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(TestEqualStrict), R(12),
   B(JumpIfFalse), U8(77),
   B(Ldar), R(5),
@@ -565,7 +565,7 @@ constant pool: [
 handlers: [
   [10, 173, 179],
   [13, 127, 129],
-  [270, 283, 285],
+  [269, 282, 284],
 ]
 
 ---
@@ -575,16 +575,16 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 377
+bytecode array length: 376
 bytecodes: [
   B(StackCheck),
   B(CreateObjectLiteral), U8(0), U8(0), U8(5),
   B(Star), R(8),
   B(Star), R(6),
-  B(LdaZero),
-  B(Star), R(2),
   B(LdaUndefined),
   B(Star), R(3),
+  B(LdaZero),
+  B(Star), R(2),
   B(Mov), R(context), R(10),
   B(Mov), R(context), R(11),
   B(CreateArrayLiteral), U8(1), U8(1), U8(3),
@@ -611,7 +611,7 @@ bytecodes: [
   B(Star), R(12),
   B(LoadIC), R(12), U8(4), U8(9),
   B(JumpIfToBooleanTrue), U8(42),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(Star), R(2),
   B(Ldar), R(6),
   B(Star), R(12),
@@ -642,10 +642,10 @@ bytecodes: [
   B(PushContext), R(7),
   B(Ldar), R(2),
   B(Star), R(12),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi8), U8(2),
   B(TestEqualStrict), R(12),
   B(JumpIfFalse), U8(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(Star), R(2),
   B(LdaContextSlot), R(context), U8(4),
   B(Throw),
@@ -666,8 +666,8 @@ bytecodes: [
   B(Star), R(11),
   B(LdaUndefined),
   B(TestEqualStrict), R(11),
-  B(JumpIfToBooleanFalse), U8(4),
-  B(JumpConstant), U8(12),
+  B(LogicalNot),
+  B(JumpIfFalseConstant), U8(12),
   B(Ldar), R(0),
   B(Star), R(11),
   B(LoadIC), R(11), U8(8), U8(17),
@@ -679,7 +679,7 @@ bytecodes: [
   B(Jump), U8(122),
   B(Ldar), R(2),
   B(Star), R(11),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi8), U8(1),
   B(TestEqualStrict), R(11),
   B(JumpIfFalse), U8(77),
   B(Ldar), R(4),
@@ -760,6 +760,6 @@ constant pool: [
 handlers: [
   [18, 173, 179],
   [21, 127, 129],
-  [271, 284, 286],
+  [270, 283, 285],
 ]
 

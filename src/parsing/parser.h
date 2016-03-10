@@ -456,6 +456,9 @@ class ParserTraits {
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 
+  void FinalizeIteratorUse(Variable* completion, Expression* condition,
+                           Variable* iter, Block* iterator_use, Block* result);
+
   Statement* FinalizeForOfStatement(ForOfStatement* loop, int pos);
 
   // Reporting errors.
@@ -695,6 +698,13 @@ class Parser : public ParserBase<ParserTraits> {
 
  private:
   friend class ParserTraits;
+
+  // Runtime encoding of different completion modes.
+  enum CompletionKind {
+    kNormalCompletion,
+    kThrowCompletion,
+    kAbruptCompletion
+  };
 
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar

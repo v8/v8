@@ -409,16 +409,27 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* node) {
 
 void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                                                 Variable** temp_var) {
+  DCHECK(block_->ignore_completion_value());
+
   auto temp = *temp_var = CreateTempVar(current_value_);
-
-  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
-
   auto iterator = CreateTempVar(parser_->GetIterator(
       factory()->NewVariableProxy(temp), factory(), RelocInfo::kNoPosition));
   auto done = CreateTempVar(
       factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition));
   auto result = CreateTempVar();
   auto v = CreateTempVar();
+  auto completion = CreateTempVar();
+  auto nopos = RelocInfo::kNoPosition;
+
+  // For the purpose of iterator finalization, we temporarily set block_ to a
+  // new block.  In the main body of this function, we write to block_ (both
+  // explicitly and implicitly via recursion).  At the end of the function, we
+  // wrap this new block in a try-finally statement, restore block_ to its
+  // original value, and add the try-finally statement to block_.
+  auto target = block_;
+  if (FLAG_harmony_iterator_close) {
+    block_ = factory()->NewBlock(nullptr, 8, true, nopos);
+  }
 
   Spread* spread = nullptr;
   for (Expression* value : *node->values()) {
@@ -428,60 +439,101 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     }
 
     PatternContext context = SetInitializerContextIfNeeded(value);
+
     // if (!done) {
+    //   done = true;  // If .next, .done or .value throws, don't close.
     //   result = IteratorNext(iterator);
     //   v = (done = result.done) ? undefined : result.value;
     // }
-    auto next_block =
-        factory()->NewBlock(nullptr, 2, true, RelocInfo::kNoPosition);
-    next_block->statements()->Add(factory()->NewExpressionStatement(
-                                      parser_->BuildIteratorNextResult(
-                                          factory()->NewVariableProxy(iterator),
-                                          result, RelocInfo::kNoPosition),
-                                      RelocInfo::kNoPosition),
-                                  zone());
+    Statement* if_statement;
+    {
+      auto next_block =
+          factory()->NewBlock(nullptr, 3, true, RelocInfo::kNoPosition);
 
-    auto assign_to_done = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(done),
-        factory()->NewProperty(
-            factory()->NewVariableProxy(result),
-            factory()->NewStringLiteral(ast_value_factory()->done_string(),
-                                        RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
-    auto next_value = factory()->NewConditional(
-        assign_to_done, factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-        factory()->NewProperty(
-            factory()->NewVariableProxy(result),
-            factory()->NewStringLiteral(ast_value_factory()->value_string(),
-                                        RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
-    next_block->statements()->Add(
-        factory()->NewExpressionStatement(
-            factory()->NewAssignment(Token::ASSIGN,
-                                     factory()->NewVariableProxy(v), next_value,
-                                     RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition),
-        zone());
+      next_block->statements()->Add(
+          factory()->NewExpressionStatement(
+              factory()->NewAssignment(
+                  Token::ASSIGN, factory()->NewVariableProxy(done),
+                  factory()->NewBooleanLiteral(true, nopos), nopos),
+              nopos),
+          zone());
 
-    auto if_statement = factory()->NewIfStatement(
-        factory()->NewUnaryOperation(Token::NOT,
-                                     factory()->NewVariableProxy(done),
-                                     RelocInfo::kNoPosition),
-        next_block, factory()->NewEmptyStatement(RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
+      next_block->statements()->Add(
+          factory()->NewExpressionStatement(
+              parser_->BuildIteratorNextResult(
+                  factory()->NewVariableProxy(iterator), result,
+                  RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          zone());
+
+      auto assign_to_done = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(done),
+          factory()->NewProperty(
+              factory()->NewVariableProxy(result),
+              factory()->NewStringLiteral(ast_value_factory()->done_string(),
+                                          RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+      auto next_value = factory()->NewConditional(
+          assign_to_done,
+          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+          factory()->NewProperty(
+              factory()->NewVariableProxy(result),
+              factory()->NewStringLiteral(ast_value_factory()->value_string(),
+                                          RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+      next_block->statements()->Add(
+          factory()->NewExpressionStatement(
+              factory()->NewAssignment(Token::ASSIGN,
+                                       factory()->NewVariableProxy(v),
+                                       next_value, RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          zone());
+
+      if_statement = factory()->NewIfStatement(
+          factory()->NewUnaryOperation(Token::NOT,
+                                       factory()->NewVariableProxy(done),
+                                       RelocInfo::kNoPosition),
+          next_block, factory()->NewEmptyStatement(RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+    }
     block_->statements()->Add(if_statement, zone());
 
     if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
+      if (FLAG_harmony_iterator_close) {
+        // completion = kAbruptCompletion;
+        Expression* proxy = factory()->NewVariableProxy(completion);
+        Expression* assignment = factory()->NewAssignment(
+            Token::ASSIGN, proxy,
+            factory()->NewSmiLiteral(kAbruptCompletion, nopos), nopos);
+        block_->statements()->Add(
+            factory()->NewExpressionStatement(assignment, nopos), zone());
+      }
+
       RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
+
+      if (FLAG_harmony_iterator_close) {
+        // completion = kNormalCompletion;
+        Expression* proxy = factory()->NewVariableProxy(completion);
+        Expression* assignment = factory()->NewAssignment(
+            Token::ASSIGN, proxy,
+            factory()->NewSmiLiteral(kNormalCompletion, nopos), nopos);
+        block_->statements()->Add(
+            factory()->NewExpressionStatement(assignment, nopos), zone());
+      }
     }
     set_context(context);
   }
 
   if (spread != nullptr) {
-    // array = [];
+    // A spread can only occur as the last component.  It is not handled by
+    // RecurseIntoSubpattern above.
+
+    // let array = [];
     // if (!done) %concat_iterable_to_array(array, iterator);
+    // done = true;
+
     auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
     auto array = CreateTempVar(factory()->NewArrayLiteral(
         empty_exprs,
@@ -506,8 +558,22 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
         RelocInfo::kNoPosition);
     block_->statements()->Add(if_statement, zone());
 
+    auto set_done = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(done),
+        factory()->NewBooleanLiteral(true, nopos), nopos);
+    block_->statements()->Add(
+        factory()->NewExpressionStatement(set_done, nopos), zone());
+
     RecurseIntoSubpattern(spread->expression(),
                           factory()->NewVariableProxy(array));
+  }
+
+  if (FLAG_harmony_iterator_close) {
+    Expression* closing_condition = factory()->NewUnaryOperation(
+        Token::NOT, factory()->NewVariableProxy(done), nopos);
+    parser_->FinalizeIteratorUse(completion, closing_condition, iterator,
+                                 block_, target);
+    block_ = target;
   }
 }
 

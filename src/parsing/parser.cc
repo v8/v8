@@ -6528,9 +6528,119 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
   statements->Add(validate_output, zone);
 }
 
+void ParserTraits::FinalizeIteratorUse(Variable* completion,
+                                       Expression* condition, Variable* iter,
+                                       Block* iterator_use, Block* target) {
+  if (!FLAG_harmony_iterator_close) return;
 
-// Runtime encoding of different completion modes.
-enum ForOfLoopBodyCompletion { BODY_COMPLETED, BODY_ABORTED, BODY_THREW };
+  //
+  // This function adds two statements to [target], corresponding to the
+  // following code:
+  //
+  //   completion = kNormalCompletion;
+  //   try {
+  //     try {
+  //       iterator_use
+  //     } catch(e) {
+  //       if (completion === kAbruptCompletion) completion = kThrowCompletion;
+  //       throw e;
+  //     }
+  //   } finally {
+  //     if (condition) {
+  //       #BuildIteratorCloseForCompletion(iter, completion)
+  //     }
+  //   }
+  //
+
+  const int nopos = RelocInfo::kNoPosition;
+  auto factory = parser_->factory();
+  auto avfactory = parser_->ast_value_factory();
+  auto scope = parser_->scope_;
+  auto zone = parser_->zone();
+
+  // completion = kNormalCompletion;
+  Statement* initialize_completion;
+  {
+    Expression* proxy = factory->NewVariableProxy(completion);
+    Expression* assignment = factory->NewAssignment(
+        Token::ASSIGN, proxy,
+        factory->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
+    initialize_completion = factory->NewExpressionStatement(assignment, nopos);
+  }
+
+  // if (completion === kAbruptCompletion) completion = kThrowCompletion;
+  Statement* set_completion_throw;
+  {
+    Expression* condition = factory->NewCompareOperation(
+        Token::EQ_STRICT, factory->NewVariableProxy(completion),
+        factory->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
+
+    Expression* proxy = factory->NewVariableProxy(completion);
+    Expression* assignment = factory->NewAssignment(
+        Token::ASSIGN, proxy,
+        factory->NewSmiLiteral(Parser::kThrowCompletion, nopos), nopos);
+    Statement* statement = factory->NewExpressionStatement(assignment, nopos);
+    set_completion_throw = factory->NewIfStatement(
+        condition, statement, factory->NewEmptyStatement(nopos), nopos);
+  }
+
+  // if (condition) {
+  //   #BuildIteratorCloseForCompletion(iter, completion)
+  // }
+  Block* maybe_close;
+  {
+    Block* block = factory->NewBlock(nullptr, 2, true, nopos);
+    parser_->BuildIteratorCloseForCompletion(block->statements(), iter,
+                                             completion);
+    DCHECK(block->statements()->length() == 2);
+
+    maybe_close = factory->NewBlock(nullptr, 1, true, nopos);
+    maybe_close->statements()->Add(
+        factory->NewIfStatement(condition, block,
+                                factory->NewEmptyStatement(nopos), nopos),
+        zone);
+  }
+
+  // try { #try_block }
+  // catch(e) {
+  //   #set_completion_throw;
+  //   throw e;
+  // }
+  Statement* try_catch;
+  {
+    Scope* catch_scope = parser_->NewScope(scope, CATCH_SCOPE);
+    Variable* catch_variable =
+        catch_scope->DeclareLocal(avfactory->dot_catch_string(), VAR,
+                                  kCreatedInitialized, Variable::NORMAL);
+
+    Statement* rethrow;
+    {
+      Expression* proxy = factory->NewVariableProxy(catch_variable);
+      rethrow = factory->NewExpressionStatement(factory->NewThrow(proxy, nopos),
+                                                nopos);
+    }
+
+    Block* catch_block = factory->NewBlock(nullptr, 2, false, nopos);
+    catch_block->statements()->Add(set_completion_throw, zone);
+    catch_block->statements()->Add(rethrow, zone);
+
+    try_catch = factory->NewTryCatchStatement(
+        iterator_use, catch_scope, catch_variable, catch_block, nopos);
+  }
+
+  // try { #try_catch } finally { #maybe_close }
+  Statement* try_finally;
+  {
+    Block* try_block = factory->NewBlock(nullptr, 1, false, nopos);
+    try_block->statements()->Add(try_catch, zone);
+
+    try_finally =
+        factory->NewTryFinallyStatement(try_block, maybe_close, nopos);
+  }
+
+  target->statements()->Add(initialize_completion, zone);
+  target->statements()->Add(try_finally, zone);
+}
 
 void ParserTraits::BuildIteratorCloseForCompletion(
     ZoneList<Statement*>* statements, Variable* iterator,
@@ -6541,7 +6651,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   //
   //   let iteratorReturn = iterator.return;
   //   if (!IS_NULL_OR_UNDEFINED(iteratorReturn)) {
-  //     if (completion === BODY_THREW) {
+  //     if (completion === kThrowCompletion) {
   //       if (!IS_CALLABLE(iteratorReturn)) {
   //         throw MakeTypeError(kReturnMethodNotCallable);
   //       }
@@ -6659,7 +6769,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
     validate_return->statements()->Add(check_return, zone);
   }
 
-  // if (completion === BODY_THREW) {
+  // if (completion === kThrowCompletion) {
   //   #check_return_callable;
   //   #try_call_return;
   // } else {
@@ -6669,7 +6779,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   {
     Expression* condition = factory->NewCompareOperation(
         Token::EQ_STRICT, factory->NewVariableProxy(completion),
-        factory->NewSmiLiteral(BODY_THREW, nopos), nopos);
+        factory->NewSmiLiteral(Parser::kThrowCompletion, nopos), nopos);
 
     Block* then_block = factory->NewBlock(nullptr, 2, false, nopos);
     then_block->statements()->Add(check_return_callable, zone);
@@ -6703,15 +6813,17 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   //
   // This function replaces the loop with the following wrapping:
   //
-  //   let completion = BODY_COMPLETED;
   //   let each;
+  //   let completion = kNormalCompletion;
   //   try {
-  //     #loop;
-  //   } catch(e) {
-  //     if (completion === BODY_ABORTED) completion = BODY_THREW;
-  //     throw e;
+  //     try {
+  //       #loop;
+  //     } catch(e) {
+  //       if (completion === kAbruptCompletion) completion = kThrowCompletion;
+  //       throw e;
+  //     }
   //   } finally {
-  //     if (!(completion === BODY_COMPLETED || IS_UNDEFINED(#iterator))) {
+  //     if (!(completion === kNormalCompletion || IS_UNDEFINED(#iterator))) {
   //       #BuildIteratorCloseForCompletion(#iterator, completion)
   //     }
   //   }
@@ -6720,15 +6832,16 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   //
   //   {
   //     #loop-body
-  //     {{completion = BODY_COMPLETED;}}
+  //     {{completion = kNormalCompletion;}}
   //   }
   //
-  // and assign_each is wrapped as follows
+  // and the loop's assign_each is wrapped as follows
   //
   //   do {
-  //     {{completion = BODY_ABORTED;}}
+  //     {{completion = kAbruptCompletion;}}
   //     #assign-each
-  //   } into each
+  //   }
+  //
 
   const int nopos = RelocInfo::kNoPosition;
   auto factory = parser_->factory();
@@ -6736,17 +6849,7 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   auto scope = parser_->scope_;
   auto zone = parser_->zone();
 
-  // let completion = BODY_COMPLETED;
   Variable* var_completion = scope->NewTemporary(avfactory->empty_string());
-  Statement* initialize_completion;
-  {
-    Expression* proxy = factory->NewVariableProxy(var_completion);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory->NewSmiLiteral(BODY_COMPLETED, nopos), nopos);
-    initialize_completion =
-        factory->NewExpressionStatement(assignment, nopos);
-  }
 
   // let each;
   Variable* var_each = scope->NewTemporary(avfactory->empty_string());
@@ -6760,105 +6863,27 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
         factory->NewExpressionStatement(assignment, nopos);
   }
 
-  // if (completion === BODY_ABORTED) completion = BODY_THREW;
-  Statement* set_completion_throw;
+  // !(completion === kNormalCompletion || IS_UNDEFINED(#iterator))
+  Expression* closing_condition;
   {
-    Expression* condition = factory->NewCompareOperation(
+    Expression* lhs = factory->NewCompareOperation(
         Token::EQ_STRICT, factory->NewVariableProxy(var_completion),
-        factory->NewSmiLiteral(BODY_ABORTED, nopos), nopos);
-
-    Expression* proxy = factory->NewVariableProxy(var_completion);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy, factory->NewSmiLiteral(BODY_THREW, nopos),
-        nopos);
-    Statement* statement = factory->NewExpressionStatement(assignment, nopos);
-    set_completion_throw = factory->NewIfStatement(
-        condition, statement, factory->NewEmptyStatement(nopos), nopos);
-  }
-
-  // if (!(completion === BODY_COMPLETED || IS_UNDEFINED(#iterator))) {
-  //   #BuildIteratorCloseForCompletion(#iterator, completion)
-  // }
-  Block* maybe_close;
-  {
-    Expression* condition1 = factory->NewCompareOperation(
-        Token::EQ_STRICT, factory->NewVariableProxy(var_completion),
-        factory->NewSmiLiteral(BODY_COMPLETED, nopos), nopos);
-    Expression* condition2 = factory->NewCompareOperation(
+        factory->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
+    Expression* rhs = factory->NewCompareOperation(
         Token::EQ_STRICT, factory->NewVariableProxy(loop->iterator()),
         factory->NewUndefinedLiteral(nopos), nopos);
-    Expression* condition = factory->NewBinaryOperation(
-        Token::OR, condition1, condition2, nopos);
-
-    Block* block = factory->NewBlock(nullptr, 2, false, nopos);
-    BuildIteratorCloseForCompletion(
-        block->statements(), loop->iterator(), var_completion);
-    DCHECK(block->statements()->length() == 2);
-
-    maybe_close = factory->NewBlock(nullptr, 1, false, nopos);
-    maybe_close->statements()->Add(factory->NewIfStatement(
-        condition, factory->NewEmptyStatement(nopos), block, nopos), zone);
+    closing_condition = factory->NewUnaryOperation(
+        Token::NOT, factory->NewBinaryOperation(Token::OR, lhs, rhs, nopos),
+        nopos);
   }
 
-  // try { #try_block }
-  // catch(e) {
-  //   #set_completion_throw;
-  //   throw e;
-  // }
-  Statement* try_catch;
-  {
-    Scope* catch_scope = NewScope(scope, CATCH_SCOPE);
-    Variable* catch_variable = catch_scope->DeclareLocal(
-        avfactory->dot_catch_string(), VAR, kCreatedInitialized,
-        Variable::NORMAL);
-
-    Statement* rethrow;
-    {
-      Expression* proxy = factory->NewVariableProxy(catch_variable);
-      rethrow = factory->NewExpressionStatement(
-          factory->NewThrow(proxy, nopos), nopos);
-    }
-
-    Block* try_block = factory->NewBlock(nullptr, 1, false, nopos);
-    try_block->statements()->Add(loop, zone);
-
-    Block* catch_block = factory->NewBlock(nullptr, 2, false, nopos);
-    catch_block->statements()->Add(set_completion_throw, zone);
-    catch_block->statements()->Add(rethrow, zone);
-
-    try_catch = factory->NewTryCatchStatement(
-        try_block, catch_scope, catch_variable, catch_block, nopos);
-  }
-
-  // try { #try_catch } finally { #maybe_close }
-  Statement* try_finally;
-  {
-    Block* try_block = factory->NewBlock(nullptr, 1, false, nopos);
-    try_block->statements()->Add(try_catch, zone);
-
-    try_finally =
-        factory->NewTryFinallyStatement(try_block, maybe_close, nopos);
-  }
-
-  // #initialize_completion;
-  // #initialize_each;
-  // #try_finally;
-  Statement* final_loop;
-  {
-    Block* block = factory->NewBlock(nullptr, 2, false, nopos);
-    block->statements()->Add(initialize_completion, zone);
-    block->statements()->Add(initialize_each, zone);
-    block->statements()->Add(try_finally, zone);
-    final_loop = block;
-  }
-
-  // {{completion = BODY_COMPLETED;}}
+  // {{completion = kNormalCompletion;}}
   Statement* set_completion_normal;
   {
     Expression* proxy = factory->NewVariableProxy(var_completion);
     Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy, factory->NewSmiLiteral(BODY_COMPLETED, nopos),
-        nopos);
+        Token::ASSIGN, proxy,
+        factory->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
 
     Block* block = factory->NewBlock(nullptr, 1, true, nopos);
     block->statements()->Add(
@@ -6866,36 +6891,53 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
     set_completion_normal = block;
   }
 
-  // { #loop-body; #set_completion_normal }
-  Block* new_body = factory->NewBlock(nullptr, 2, false, nopos);
-  new_body->statements()->Add(loop->body(), zone);
-  new_body->statements()->Add(set_completion_normal, zone);
-
-  loop->set_body(new_body);
-
-  // {{completion = BODY_ABORTED;}}
-  Statement* set_completion_break;
+  // {{completion = kAbruptCompletion;}}
+  Statement* set_completion_abrupt;
   {
     Expression* proxy = factory->NewVariableProxy(var_completion);
     Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy, factory->NewSmiLiteral(BODY_ABORTED, nopos),
-        nopos);
+        Token::ASSIGN, proxy,
+        factory->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
 
     Block* block = factory->NewBlock(nullptr, 1, true, nopos);
     block->statements()->Add(factory->NewExpressionStatement(assignment, nopos),
                              zone);
-    set_completion_break = block;
+    set_completion_abrupt = block;
   }
 
-  // { #set_completion_break; #assign-each }
-  Block* new_assign_each = factory->NewBlock(nullptr, 2, false, nopos);
-  new_assign_each->statements()->Add(set_completion_break, zone);
-  new_assign_each->statements()->Add(
-      factory->NewExpressionStatement(loop->assign_each(), nopos), zone);
+  // { #loop-body; #set_completion_normal }
+  Block* new_body = factory->NewBlock(nullptr, 2, false, nopos);
+  {
+    new_body->statements()->Add(loop->body(), zone);
+    new_body->statements()->Add(set_completion_normal, zone);
+  }
 
-  Expression* do_each =
-      factory->NewDoExpression(new_assign_each, var_each, nopos);
-  loop->set_assign_each(do_each);
+  // { #set_completion_abrupt; #assign-each }
+  Block* new_assign_each = factory->NewBlock(nullptr, 2, false, nopos);
+  {
+    new_assign_each->statements()->Add(set_completion_abrupt, zone);
+    new_assign_each->statements()->Add(
+        factory->NewExpressionStatement(loop->assign_each(), nopos), zone);
+  }
+
+  // Now put things together.
+
+  loop->set_body(new_body);
+  loop->set_assign_each(
+      factory->NewDoExpression(new_assign_each, var_each, nopos));
+
+  Statement* final_loop;
+  {
+    Block* target = factory->NewBlock(nullptr, 3, false, nopos);
+    target->statements()->Add(initialize_each, zone);
+
+    Block* try_block = factory->NewBlock(nullptr, 1, false, nopos);
+    try_block->statements()->Add(loop, zone);
+
+    FinalizeIteratorUse(var_completion, closing_condition, loop->iterator(),
+                        try_block, target);
+    final_loop = target;
+  }
 
   return final_loop;
 }
