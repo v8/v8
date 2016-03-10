@@ -3970,14 +3970,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
                                      args.length() - 1,
                                      is_construct);
 
-    v8::Local<v8::Value> value = custom.Call(callback);
-    Handle<Object> result;
-    if (value.IsEmpty()) {
-      result = isolate->factory()->undefined_value();
-    } else {
-      result = v8::Utils::OpenHandle(*value);
-      result->VerifyApiCallResultType();
-    }
+    Handle<Object> result = custom.Call(callback);
+    if (result.is_null()) result = isolate->factory()->undefined_value();
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!is_construct || result->IsJSObject()) {
@@ -4144,8 +4138,6 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
 MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     Isolate* isolate, bool is_construct_call,
     BuiltinArguments<BuiltinExtraArguments::kNone> args) {
-  Heap* heap = isolate->heap();
-
   Handle<Object> receiver = args.receiver();
 
   // Get the object called.
@@ -4180,12 +4172,11 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
                                      &args[0] - 1,
                                      args.length() - 1,
                                      is_construct_call);
-    v8::Local<v8::Value> value = custom.Call(callback);
-    if (value.IsEmpty()) {
-      result = heap->undefined_value();
+    Handle<Object> result_handle = custom.Call(callback);
+    if (result_handle.is_null()) {
+      result = isolate->heap()->undefined_value();
     } else {
-      result = *reinterpret_cast<Object**>(*value);
-      result->VerifyApiCallResultType();
+      result = *result_handle;
     }
   }
   // Check for exceptions and return result.

@@ -1056,18 +1056,13 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
         v8::ToCData<v8::AccessorNameGetterCallback>(info->getter());
     if (call_fun == nullptr) return isolate->factory()->undefined_value();
 
-    LOG(isolate, ApiNamedPropertyAccess("load", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    Object::DONT_THROW);
-    v8::Local<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(name));
+    Handle<Object> result = args.Call(call_fun, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (result.IsEmpty()) {
-      return ReadAbsentProperty(isolate, receiver, name);
-    }
-    Handle<Object> return_value = v8::Utils::OpenHandle(*result);
-    return_value->VerifyApiCallResultType();
+    if (result.is_null()) return ReadAbsentProperty(isolate, receiver, name);
     // Rebox handle before return.
-    return handle(*return_value, isolate);
+    return handle(*result, isolate);
   }
 
   // Regular accessor.
@@ -1131,10 +1126,9 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // have a setter.
     if (call_fun == nullptr) return Just(true);
 
-    LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    should_throw);
-    args.Call(call_fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
+    args.Call(call_fun, name, value);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     return Just(true);
   }
@@ -4072,7 +4066,7 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
   if (interceptor->setter()->IsUndefined()) return Just(false);
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
-  v8::Local<v8::Value> result;
+  bool result;
   PropertyCallbackArguments args(isolate, interceptor->data(),
                                  *it->GetReceiver(), *holder, should_throw);
 
@@ -4080,9 +4074,9 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
     uint32_t index = it->index();
     v8::IndexedPropertySetterCallback setter =
         v8::ToCData<v8::IndexedPropertySetterCallback>(interceptor->setter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-set", *holder, index));
-    result = args.Call(setter, index, v8::Utils::ToLocal(value));
+    // TODO(neis): In the future, we may want to actually return the
+    // interceptor's result, which then should be a boolean.
+    result = !args.Call(setter, index, value).is_null();
   } else {
     Handle<Name> name = it->name();
     DCHECK(!name->IsPrivate());
@@ -4094,21 +4088,11 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
     v8::GenericNamedPropertySetterCallback setter =
         v8::ToCData<v8::GenericNamedPropertySetterCallback>(
             interceptor->setter());
-    LOG(it->isolate(),
-        ApiNamedPropertyAccess("interceptor-named-set", *holder, *name));
-    result =
-        args.Call(setter, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
+    result = !args.Call(setter, name, value).is_null();
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
-  if (result.IsEmpty()) return Just(false);
-#ifdef DEBUG
-  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-  result_internal->VerifyApiCallResultType();
-#endif
-  return Just(true);
-  // TODO(neis): In the future, we may want to actually return the interceptor's
-  // result, which then should be a boolean.
+  return Just(result);
 }
 
 
@@ -5421,13 +5405,11 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
                                  *it->GetReceiver(), *holder,
                                  Object::DONT_THROW);
   if (!interceptor->query()->IsUndefined()) {
-    v8::Local<v8::Integer> result;
+    Handle<Object> result;
     if (it->IsElement()) {
       uint32_t index = it->index();
       v8::IndexedPropertyQueryCallback query =
           v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query());
-      LOG(isolate,
-          ApiIndexedPropertyAccess("interceptor-indexed-has", *holder, index));
       result = args.Call(query, index);
     } else {
       Handle<Name> name = it->name();
@@ -5435,25 +5417,20 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
       v8::GenericNamedPropertyQueryCallback query =
           v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
               interceptor->query());
-      LOG(isolate,
-          ApiNamedPropertyAccess("interceptor-named-has", *holder, *name));
-      result = args.Call(query, v8::Utils::ToLocal(name));
+      result = args.Call(query, name);
     }
-    if (!result.IsEmpty()) {
-      DCHECK(result->IsInt32());
-      return Just(static_cast<PropertyAttributes>(
-          result->Int32Value(reinterpret_cast<v8::Isolate*>(isolate)
-                                 ->GetCurrentContext()).FromJust()));
+    if (!result.is_null()) {
+      int32_t value;
+      CHECK(result->ToInt32(&value));
+      return Just(static_cast<PropertyAttributes>(value));
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     // TODO(verwaest): Use GetPropertyWithInterceptor?
-    v8::Local<v8::Value> result;
+    Handle<Object> result;
     if (it->IsElement()) {
       uint32_t index = it->index();
       v8::IndexedPropertyGetterCallback getter =
           v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-      LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-get-has",
-                                            *holder, index));
       result = args.Call(getter, index);
     } else {
       Handle<Name> name = it->name();
@@ -5461,11 +5438,9 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
       v8::GenericNamedPropertyGetterCallback getter =
           v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
               interceptor->getter());
-      LOG(isolate,
-          ApiNamedPropertyAccess("interceptor-named-get-has", *holder, *name));
-      result = args.Call(getter, v8::Utils::ToLocal(name));
+      result = args.Call(getter, name);
     }
-    if (!result.IsEmpty()) return Just(DONT_ENUM);
+    if (!result.is_null()) return Just(DONT_ENUM);
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<PropertyAttributes>());
@@ -6077,13 +6052,11 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
 
   PropertyCallbackArguments args(isolate, interceptor->data(),
                                  *it->GetReceiver(), *holder, should_throw);
-  v8::Local<v8::Boolean> result;
+  Handle<Object> result;
   if (it->IsElement()) {
     uint32_t index = it->index();
     v8::IndexedPropertyDeleterCallback deleter =
         v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-delete", *holder, index));
     result = args.Call(deleter, index);
   } else if (it->name()->IsSymbol() && !interceptor->can_intercept_symbols()) {
     return Nothing<bool>();
@@ -6093,19 +6066,15 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
     v8::GenericNamedPropertyDeleterCallback deleter =
         v8::ToCData<v8::GenericNamedPropertyDeleterCallback>(
             interceptor->deleter());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-delete", *holder, *name));
-    result = args.Call(deleter, v8::Utils::ToLocal(name));
+    result = args.Call(deleter, name);
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-  if (result.IsEmpty()) return Nothing<bool>();
+  if (result.is_null()) return Nothing<bool>();
 
   DCHECK(result->IsBoolean());
-  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-  result_internal->VerifyApiCallResultType();
   // Rebox CustomArguments::kReturnValueOffset before returning.
-  return Just(result_internal->BooleanValue());
+  return Just(result->IsTrue());
 }
 
 
@@ -8506,7 +8475,7 @@ static Maybe<bool> GetKeysFromInterceptor(Isolate* isolate,
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *object, Object::DONT_THROW);
-  v8::Local<v8::Object> result;
+  Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
     const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
@@ -8515,18 +8484,13 @@ static Maybe<bool> GetKeysFromInterceptor(Isolate* isolate,
     result = args.Call(enum_fun);
   }
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-  if (result.IsEmpty()) return Just(true);
-  DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
-         (v8::Utils::OpenHandle(*result)->IsJSObject() &&
-          Handle<JSObject>::cast(v8::Utils::OpenHandle(*result))
-              ->HasSloppyArgumentsElements()));
+  if (result.is_null()) return Just(true);
+  DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
   // The accumulator takes care of string/symbol filtering.
   if (type == kIndexed) {
-    accumulator->AddElementKeysFromInterceptor(
-        Handle<JSObject>::cast(v8::Utils::OpenHandle(*result)));
+    accumulator->AddElementKeysFromInterceptor(result);
   } else {
-    accumulator->AddKeys(Handle<JSObject>::cast(v8::Utils::OpenHandle(*result)),
-                         DO_NOT_CONVERT);
+    accumulator->AddKeys(result, DO_NOT_CONVERT);
   }
   return Just(true);
 }
@@ -16321,7 +16285,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
   }
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
-  v8::Local<v8::Value> result;
+  Handle<Object> result;
   PropertyCallbackArguments args(isolate, interceptor->data(),
                                  *it->GetReceiver(), *holder,
                                  Object::DONT_THROW);
@@ -16330,8 +16294,6 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
     uint32_t index = it->index();
     v8::IndexedPropertyGetterCallback getter =
         v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-get", *holder, index));
     result = args.Call(getter, index);
   } else {
     Handle<Name> name = it->name();
@@ -16344,18 +16306,14 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
     v8::GenericNamedPropertyGetterCallback getter =
         v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
             interceptor->getter());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
-    result = args.Call(getter, v8::Utils::ToLocal(name));
+    result = args.Call(getter, name);
   }
 
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  if (result.IsEmpty()) return isolate->factory()->undefined_value();
-  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-  result_internal->VerifyApiCallResultType();
+  if (result.is_null()) return isolate->factory()->undefined_value();
   *done = true;
   // Rebox handle before return
-  return handle(*result_internal, isolate);
+  return handle(*result, isolate);
 }
 
 

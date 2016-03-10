@@ -2761,12 +2761,11 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
       FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
   DCHECK(fun != NULL);
 
-  LOG(isolate, ApiNamedPropertyAccess("store", *receiver, *name));
   Object::ShouldThrow should_throw =
       is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;
   PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
                                         *holder, should_throw);
-  custom_args.Call(fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
+  custom_args.Call(fun, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -2796,19 +2795,15 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   v8::GenericNamedPropertyGetterCallback getter =
       v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
           interceptor->getter());
-  LOG(isolate, ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
-  v8::Local<v8::Value> result =
-      arguments.Call(getter, v8::Utils::ToLocal(name));
+  Handle<Object> result = arguments.Call(getter, name);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
 
   Handle<Object> result_internal;
-  if (result.IsEmpty()) {
+  if (result.is_null()) {
     return isolate->heap()->no_interceptor_result_sentinel();
   }
-  result_internal = v8::Utils::OpenHandle(*result);
-  result_internal->VerifyApiCallResultType();
-  return *result_internal;
+  return *result;
 }
 
 
@@ -2886,31 +2881,24 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   uint32_t index = args.smi_at(1);
 
   InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();
-  v8::Local<v8::Value> result;
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, Object::DONT_THROW);
 
   v8::IndexedPropertyGetterCallback getter =
       v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-  LOG(isolate,
-      ApiIndexedPropertyAccess("interceptor-indexed-get", *receiver, index));
-  result = arguments.Call(getter, index);
+  Handle<Object> result = arguments.Call(getter, index);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
 
-  Handle<Object> result_internal;
-  if (result.IsEmpty()) {
+  if (result.is_null()) {
     LookupIterator it(isolate, receiver, index, receiver);
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
     it.Next();
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result_internal,
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                        Object::GetProperty(&it));
-  } else {
-    result_internal = v8::Utils::OpenHandle(*result);
-    result_internal->VerifyApiCallResultType();
   }
 
-  return *result_internal;
+  return *result;
 }
 
 

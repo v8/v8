@@ -5,36 +5,13 @@
 #ifndef V8_API_ARGUMENTS_H_
 #define V8_API_ARGUMENTS_H_
 
+#include "src/api.h"
 #include "src/isolate.h"
 #include "src/tracing/trace-event.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
-
-// For each type of callback, we have a list of arguments
-// They are used to generate the Call() functions below
-// These aren't included in the list as they have duplicate signatures
-// F(GenericNamedPropertyEnumeratorCallback, ...)
-// F(GenericNamedPropertyGetterCallback, ...)
-
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_0(F) \
-  F(IndexedPropertyEnumeratorCallback, v8::Array)
-
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_1(F)                               \
-  F(AccessorNameGetterCallback, v8::Value, v8::Local<v8::Name>)            \
-  F(GenericNamedPropertyQueryCallback, v8::Integer, v8::Local<v8::Name>)   \
-  F(GenericNamedPropertyDeleterCallback, v8::Boolean, v8::Local<v8::Name>) \
-  F(IndexedPropertyGetterCallback, v8::Value, uint32_t)                    \
-  F(IndexedPropertyQueryCallback, v8::Integer, uint32_t)                   \
-  F(IndexedPropertyDeleterCallback, v8::Boolean, uint32_t)
-
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_2(F)                            \
-  F(GenericNamedPropertySetterCallback, v8::Value, v8::Local<v8::Name>, \
-    v8::Local<v8::Value>)                                               \
-  F(IndexedPropertySetterCallback, v8::Value, uint32_t, v8::Local<v8::Value>)
-
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_2_VOID_RETURN(F) \
-  F(AccessorNameSetterCallback, void, v8::Local<v8::Name>, v8::Local<v8::Value>)
 
 // Custom arguments replicate a small segment of stack that can be
 // accessed through an Arguments object the same way the actual stack
@@ -68,12 +45,24 @@ class CustomArguments : public CustomArgumentsBase<T::kArgsLength> {
   explicit inline CustomArguments(Isolate* isolate) : Super(isolate) {}
 
   template <typename V>
-  v8::Local<V> GetReturnValue(Isolate* isolate);
+  Handle<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
     return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
   }
 };
+
+template <typename T>
+template <typename V>
+Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
+  // Check the ReturnValue.
+  Object** handle = &this->begin()[kReturnValueOffset];
+  // Nothing was set, return empty handle as per previous behaviour.
+  if ((*handle)->IsTheHole()) return Handle<V>();
+  Handle<V> result = Handle<V>::cast(Handle<Object>(handle));
+  result->VerifyApiCallResultType();
+  return result;
+}
 
 class PropertyCallbackArguments
     : public CustomArguments<PropertyCallbackInfo<Value> > {
@@ -117,27 +106,91 @@ class PropertyCallbackArguments
  * and used if it's been set to anything inside the callback.
  * New style callbacks always use the return value.
  */
-#define WRITE_CALL_0(Function, ReturnValue) \
-  v8::Local<ReturnValue> Call(Function f);
+  Handle<JSObject> Call(IndexedPropertyEnumeratorCallback f);
 
-#define WRITE_CALL_1(Function, ReturnValue, Arg1) \
-  v8::Local<ReturnValue> Call(Function f, Arg1 arg1);
+#define FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(F)                  \
+  F(AccessorNameGetterCallback, "get", v8::Value, Object)          \
+  F(GenericNamedPropertyQueryCallback, "has", v8::Integer, Object) \
+  F(GenericNamedPropertyDeleterCallback, "delete", v8::Boolean, Object)
 
-#define WRITE_CALL_2(Function, ReturnValue, Arg1, Arg2) \
-  v8::Local<ReturnValue> Call(Function f, Arg1 arg1, Arg2 arg2);
+#define WRITE_CALL_1_NAME(Function, type, ApiReturn, InternalReturn)         \
+  Handle<InternalReturn> Call(Function f, Handle<Name> name) {               \
+    Isolate* isolate = this->isolate();                                      \
+    VMState<EXTERNAL> state(isolate);                                        \
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));             \
+    PropertyCallbackInfo<ApiReturn> info(begin());                           \
+    LOG(isolate,                                                             \
+        ApiNamedPropertyAccess("interceptor-named-" type, holder(), *name)); \
+    f(v8::Utils::ToLocal(name), info);                                       \
+    return GetReturnValue<InternalReturn>(isolate);                          \
+  }
 
-#define WRITE_CALL_2_VOID(Function, ReturnValue, Arg1, Arg2) \
-  void Call(Function f, Arg1 arg1, Arg2 arg2);
+  FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(WRITE_CALL_1_NAME)
 
-  FOR_EACH_CALLBACK_TABLE_MAPPING_0(WRITE_CALL_0)
-  FOR_EACH_CALLBACK_TABLE_MAPPING_1(WRITE_CALL_1)
-  FOR_EACH_CALLBACK_TABLE_MAPPING_2(WRITE_CALL_2)
-  FOR_EACH_CALLBACK_TABLE_MAPPING_2_VOID_RETURN(WRITE_CALL_2_VOID)
+#undef FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME
+#undef WRITE_CALL_1_NAME
 
-#undef WRITE_CALL_0
-#undef WRITE_CALL_1
-#undef WRITE_CALL_2
-#undef WRITE_CALL_2_VOID
+#define FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX(F)            \
+  F(IndexedPropertyGetterCallback, "get", v8::Value, Object)  \
+  F(IndexedPropertyQueryCallback, "has", v8::Integer, Object) \
+  F(IndexedPropertyDeleterCallback, "delete", v8::Boolean, Object)
+
+#define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)  \
+  Handle<InternalReturn> Call(Function f, uint32_t index) {            \
+    Isolate* isolate = this->isolate();                                \
+    VMState<EXTERNAL> state(isolate);                                  \
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));       \
+    PropertyCallbackInfo<ApiReturn> info(begin());                     \
+    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" type, \
+                                          holder(), index));           \
+    f(index, info);                                                    \
+    return GetReturnValue<InternalReturn>(isolate);                    \
+  }
+
+  FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX(WRITE_CALL_1_INDEX)
+
+#undef FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX
+#undef WRITE_CALL_1_INDEX
+
+  Handle<Object> Call(GenericNamedPropertySetterCallback f, Handle<Name> name,
+                      Handle<Object> value) {
+    Isolate* isolate = this->isolate();
+    VMState<EXTERNAL> state(isolate);
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
+    PropertyCallbackInfo<v8::Value> info(begin());
+    LOG(isolate,
+        ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
+    f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
+    return GetReturnValue<Object>(isolate);
+  }
+
+  Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
+                      Handle<Object> value) {
+    Isolate* isolate = this->isolate();
+    VMState<EXTERNAL> state(isolate);
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
+    PropertyCallbackInfo<v8::Value> info(begin());
+    LOG(isolate,
+        ApiIndexedPropertyAccess("interceptor-indexed-set", holder(), index));
+    f(index, v8::Utils::ToLocal(value), info);
+    return GetReturnValue<Object>(isolate);
+  }
+
+  void Call(AccessorNameSetterCallback f, Handle<Name> name,
+            Handle<Object> value) {
+    Isolate* isolate = this->isolate();
+    VMState<EXTERNAL> state(isolate);
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
+    PropertyCallbackInfo<void> info(begin());
+    LOG(isolate,
+        ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
+    f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
+  }
+
+ private:
+  inline JSObject* holder() {
+    return JSObject::cast(this->begin()[T::kHolderIndex]);
+  }
 };
 
 class FunctionCallbackArguments
@@ -187,7 +240,7 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  v8::Local<v8::Value> Call(FunctionCallback f);
+  Handle<Object> Call(FunctionCallback f);
 
  private:
   internal::Object** argv_;
