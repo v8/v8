@@ -239,12 +239,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4785
-  'built-ins/TypedArray/prototype/entries/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/keys/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/values/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/toString': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

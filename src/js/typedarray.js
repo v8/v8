@@ -12,7 +12,8 @@
 // Imports
 
 var AddIndexedProperty;
-var ArrayToString;
+// array.js has to come before typedarray.js for this to work
+var ArrayToString = utils.ImportNow("ArrayToString");
 var ArrayValues;
 var GetIterator;
 var GetMethod;
@@ -71,7 +72,6 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
   AddIndexedProperty = from.AddIndexedProperty;
-  ArrayToString = from.ArrayToString;
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
@@ -675,12 +675,6 @@ function TypedArrayToLocaleString() {
 }
 
 
-// ES6 section 22.2.3.28
-function TypedArrayToString() {
-  return %_Call(ArrayToString, this);
-}
-
-
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
   if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
@@ -873,9 +867,11 @@ utils.InstallFunctions(TypedArray.prototype, DONT_ENUM, [
   "slice", TypedArraySlice,
   "some", TypedArraySome,
   "sort", TypedArraySort,
-  "toString", TypedArrayToString,
   "toLocaleString", TypedArrayToLocaleString
 ]);
+
+%AddNamedProperty(TypedArray.prototype, "toString", ArrayToString,
+                  DONT_ENUM);
 
 
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
