@@ -302,8 +302,7 @@
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   # desugaring regexp property class relies on ICU.
-  'harmony/regexp-property-general-category': [PASS, ['no_i18n == True', FAIL]],
-  'harmony/regexp-property-script-category': [PASS, ['no_i18n == True', FAIL]],
+  'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 }],  # ALWAYS
 
 ['novfp3 == True', {

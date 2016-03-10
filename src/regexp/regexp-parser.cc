@@ -358,13 +358,20 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 p = Next();
             Advance(2);
             if (unicode()) {
-              ZoneList<CharacterRange>* ranges = ParsePropertyClass();
-              if (ranges == nullptr) {
-                return ReportError(CStrVector("Invalid property name"));
+              if (FLAG_harmony_regexp_property) {
+                ZoneList<CharacterRange>* ranges =
+                    new (zone()) ZoneList<CharacterRange>(2, zone());
+                if (!ParsePropertyClass(ranges)) {
+                  return ReportError(CStrVector("Invalid property name"));
+                }
+                RegExpCharacterClass* cc =
+                    new (zone()) RegExpCharacterClass(ranges, p == 'P');
+                builder->AddCharacterClass(cc);
+              } else {
+                // With /u, no identity escapes except for syntax characters
+                // are allowed. Otherwise, all identity escapes are allowed.
+                return ReportError(CStrVector("Invalid escape"));
               }
-              RegExpCharacterClass* cc =
-                  new (zone()) RegExpCharacterClass(ranges, p == 'P');
-              builder->AddCharacterClass(cc);
             } else {
               builder->AddCharacter(p);
             }
@@ -836,18 +843,18 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return result;
 }
 
-ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
 #ifdef V8_I18N_SUPPORT
   ZoneList<char> property_name(0, zone());
   if (current() == '{') {
     for (Advance(); current() != '}'; Advance()) {
-      if (!has_next()) return nullptr;
+      if (!has_next()) return false;
       property_name.Add(static_cast<char>(current()), zone());
     }
   } else if (current() != kEndMarker) {
     property_name.Add(static_cast<char>(current()), zone());
   } else {
-    return nullptr;
+    return false;
   }
   Advance();
   property_name.Add(0, zone());  // null-terminate string.
@@ -870,27 +877,25 @@ ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
     USet* set = uset_openEmpty();
     UErrorCode ec = U_ZERO_ERROR;
     uset_applyIntPropertyValue(set, property_class, category, &ec);
-    ZoneList<CharacterRange>* ranges = nullptr;
     if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
       uset_removeAllStrings(set);
       int item_count = uset_getItemCount(set);
-      ranges = new (zone()) ZoneList<CharacterRange>(item_count, zone());
       int item_result = 0;
       for (int i = 0; i < item_count; i++) {
         uc32 start = 0;
         uc32 end = 0;
         item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-        ranges->Add(CharacterRange::Range(start, end), zone());
+        result->Add(CharacterRange::Range(start, end), zone());
       }
       DCHECK_EQ(U_ZERO_ERROR, ec);
       DCHECK_EQ(0, item_result);
     }
     uset_close(set);
-    return ranges;
+    return true;
   }
 #endif  // V8_I18N_SUPPORT
 
-  return nullptr;
+  return false;
 }
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
@@ -1070,6 +1075,34 @@ static inline void AddRangeOrEscape(ZoneList<CharacterRange>* ranges,
   }
 }
 
+bool RegExpParser::ParseClassProperty(ZoneList<CharacterRange>* ranges) {
+  if (!FLAG_harmony_regexp_property) return false;
+  if (!unicode()) return false;
+  if (current() != '\\') return false;
+  uc32 next = Next();
+  bool parse_success = false;
+  if (next == 'p') {
+    Advance(2);
+    parse_success = ParsePropertyClass(ranges);
+  } else if (next == 'P') {
+    Advance(2);
+    ZoneList<CharacterRange>* property_class =
+        new (zone()) ZoneList<CharacterRange>(2, zone());
+    parse_success = ParsePropertyClass(property_class);
+    if (parse_success) {
+      ZoneList<CharacterRange>* negated =
+          new (zone()) ZoneList<CharacterRange>(2, zone());
+      CharacterRange::Negate(property_class, negated, zone());
+      const Vector<CharacterRange> negated_vector = negated->ToVector();
+      ranges->AddAll(negated_vector, zone());
+    }
+  } else {
+    return false;
+  }
+  if (!parse_success)
+    ReportError(CStrVector("Invalid property name in character class"));
+  return parse_success;
+}
 
 RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
@@ -1086,6 +1119,8 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
   ZoneList<CharacterRange>* ranges =
       new (zone()) ZoneList<CharacterRange>(2, zone());
   while (has_more() && current() != ']') {
+    bool parsed_property = ParseClassProperty(ranges CHECK_FAILED);
+    if (parsed_property) continue;
     uc16 char_class = kNoCharClass;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
     if (current() == '-') {
