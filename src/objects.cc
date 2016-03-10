@@ -9587,9 +9587,8 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
                                 LanguageMode language_mode, FunctionKind kind) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   // Initial map for sloppy mode function is stored in the function
-  // constructor. Initial maps for strict and strong modes are cached as
-  // special transitions using |strict_function_transition_symbol| and
-  // |strong_function_transition_symbol| respectively as a key.
+  // constructor. Initial maps for strict mode are cached as special transitions
+  // using |strict_function_transition_symbol| as a key.
   if (language_mode == SLOPPY) return initial_map;
   Isolate* isolate = initial_map->GetIsolate();
   Factory* factory = isolate->factory();
@@ -9603,9 +9602,6 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   switch (language_mode) {
     case STRICT:
       transition_symbol = factory->strict_function_transition_symbol();
-      break;
-    case STRONG:
-      transition_symbol = factory->strong_function_transition_symbol();
       break;
     default:
       UNREACHABLE();
@@ -16788,7 +16784,6 @@ class StringSharedKey : public HashTableKey {
       hash ^= String::cast(script->source())->Hash();
       STATIC_ASSERT(LANGUAGE_END == 3);
       if (is_strict(language_mode)) hash ^= 0x8000;
-      if (is_strong(language_mode)) hash ^= 0x10000;
       hash += scope_position;
     }
     return hash;

@@ -1644,8 +1644,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     }
   }
 
-  // Set both the prototype and constructor to have fast properties, and also
-  // freeze them in strong mode.
+  // Set both the prototype and constructor to have fast properties.
   prototype = environment()->Pop();
   literal = environment()->Pop();
   const Operator* op =

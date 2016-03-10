@@ -302,10 +302,6 @@ class CallSite {
   T(StrictReadOnlyProperty,                                                    \
     "Cannot assign to read only property '%' of % '%'")                        \
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
-  T(StrongArity,                                                               \
-    "In strong mode, calling a function with too few arguments is deprecated") \
-  T(StrongImplicitConversion,                                                  \
-    "In strong mode, implicit conversions are deprecated")                     \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
   T(SymbolKeyFor, "% is not a symbol")                                         \
@@ -322,9 +318,6 @@ class CallSite {
   /* ReferenceError */                                                         \
   T(NonMethod, "'super' is referenced from non-method")                        \
   T(NotDefined, "% is not defined")                                            \
-  T(StrongSuperCallMissing,                                                    \
-    "In strong mode, invoking the super constructor in a subclass is "         \
-    "required")                                                                \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(DateRange, "Provided date is not in valid range.")                         \
@@ -438,50 +431,6 @@ class CallSite {
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
   T(StrictWith, "Strict mode code may not include a with statement")           \
-  T(StrongArguments,                                                           \
-    "In strong mode, 'arguments' is deprecated, use '...args' instead")        \
-  T(StrongConstructorDirective,                                                \
-    "\"use strong\" directive is disallowed in class constructor body")        \
-  T(StrongConstructorReturnMisplaced,                                          \
-    "In strong mode, returning from a constructor before its super "           \
-    "constructor invocation or all assignments to 'this' is deprecated")       \
-  T(StrongConstructorReturnValue,                                              \
-    "In strong mode, returning a value from a constructor is deprecated")      \
-  T(StrongConstructorSuper,                                                    \
-    "In strong mode, 'super' can only be used to invoke the super "            \
-    "constructor, and cannot be nested inside another statement or "           \
-    "expression")                                                              \
-  T(StrongConstructorThis,                                                     \
-    "In strong mode, 'this' can only be used to initialize properties, and "   \
-    "cannot be nested inside another statement or expression")                 \
-  T(StrongDelete,                                                              \
-    "In strong mode, 'delete' is deprecated, use maps or sets instead")        \
-  T(StrongDirectEval, "In strong mode, direct calls to eval are deprecated")   \
-  T(StrongEllision,                                                            \
-    "In strong mode, arrays with holes are deprecated, use maps instead")      \
-  T(StrongEmpty,                                                               \
-    "In strong mode, empty sub-statements are deprecated, make them explicit " \
-    "with '{}' instead")                                                       \
-  T(StrongEqual,                                                               \
-    "In strong mode, '==' and '!=' are deprecated, use '===' and '!==' "       \
-    "instead")                                                                 \
-  T(StrongForIn,                                                               \
-    "In strong mode, 'for'-'in' loops are deprecated, use 'for'-'of' instead") \
-  T(StrongPropertyAccess,                                                      \
-    "In strong mode, accessing missing property '%' of % is deprecated")       \
-  T(StrongSuperCallDuplicate,                                                  \
-    "In strong mode, invoking the super constructor multiple times is "        \
-    "deprecated")                                                              \
-  T(StrongSuperCallMisplaced,                                                  \
-    "In strong mode, the super constructor must be invoked before any "        \
-    "assignment to 'this'")                                                    \
-  T(StrongSwitchFallthrough,                                                   \
-    "In strong mode, switch fall-through is deprecated, terminate each case "  \
-    "with 'break', 'continue', 'return' or 'throw'")                           \
-  T(StrongUndefined,                                                           \
-    "In strong mode, binding or assigning to 'undefined' is deprecated")       \
-  T(StrongVar,                                                                 \
-    "In strong mode, 'var' is deprecated, use 'let' or 'const' instead")       \
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \

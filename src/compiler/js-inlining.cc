@@ -424,17 +424,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
-  // In strong mode, in case of too few arguments we need to throw a TypeError
-  // so we must not inline this call.
-  int parameter_count = info.literal()->parameter_count();
-  if (is_strong(info.language_mode()) &&
-      call.formal_arguments() < parameter_count) {
-    TRACE("Not inlining %s into %s because too few arguments for strong mode\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
   if (!Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
           shared_info->DebugName()->ToCString().get(),
@@ -555,6 +544,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // count (i.e. value outputs of start node minus target, receiver, new target,
   // arguments count and context) have to match the number of arguments passed
   // to the call.
+  int parameter_count = info.literal()->parameter_count();
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(

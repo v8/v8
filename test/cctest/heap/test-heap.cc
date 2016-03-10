@@ -1572,8 +1572,7 @@ TEST(CompilationCacheCachingBehavior) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  LanguageMode language_mode =
-      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
 
   v8::HandleScope scope(CcTest::isolate());
   const char* raw_source =

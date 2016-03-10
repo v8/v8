@@ -53,7 +53,6 @@ class ParseInfo {
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
   FLAG_ACCESSOR(kGlobal, is_global, set_global)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
-  FLAG_ACCESSOR(kStrongMode, is_strong_mode, set_strong_mode)
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
@@ -137,12 +136,11 @@ class ParseInfo {
   //--------------------------------------------------------------------------
 
   LanguageMode language_mode() {
-    return construct_language_mode(is_strict_mode(), is_strong_mode());
+    return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 3);
-    set_strict_mode(language_mode & STRICT_BIT);
-    set_strong_mode(language_mode & STRONG_BIT);
+    set_strict_mode(is_strict(language_mode));
   }
 
   void ReopenHandlesInNewHandleScope() {
@@ -165,13 +163,12 @@ class ParseInfo {
     kEval = 1 << 2,
     kGlobal = 1 << 3,
     kStrictMode = 1 << 4,
-    kStrongMode = 1 << 5,
-    kNative = 1 << 6,
-    kParseRestriction = 1 << 7,
-    kModule = 1 << 8,
-    kAllowLazyParsing = 1 << 9,
+    kNative = 1 << 5,
+    kParseRestriction = 1 << 6,
+    kModule = 1 << 7,
+    kAllowLazyParsing = 1 << 8,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 10
+    kAstValueFactoryOwned = 1 << 9
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

@@ -6551,13 +6551,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (!info->IsFound()) {
     DCHECK(info->IsLoad());
-    if (is_strong(function_language_mode())) {
-      return New<HCallRuntime>(
-          Runtime::FunctionForId(Runtime::kThrowStrongModeImplicitConversion),
-          0);
-    } else {
-      return graph()->GetConstantUndefined();
-    }
+    return graph()->GetConstantUndefined();
   }
 
   if (info->IsData()) {
@@ -8457,15 +8451,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       TraceInline(target, caller, "target has non-trivial declaration");
       return false;
     }
-  }
-
-  // In strong mode it is an error to call a function with too few arguments.
-  // In that case do not inline because then the arity check would be skipped.
-  if (is_strong(function->language_mode()) &&
-      arguments_count < function->parameter_count()) {
-    TraceInline(target, caller,
-                "too few arguments passed to a strong function");
-    return false;
   }
 
   // Generate the deoptimization data for the unoptimized version of
@@ -10644,7 +10629,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     rep = Representation::Smi();
   }
 
-  if (returns_original_input && !is_strong(function_language_mode())) {
+  if (returns_original_input) {
     // We need an explicit HValue representing ToNumber(input).  The
     // actual HChange instruction we need is (sometimes) added in a later
     // phase, so it is not available now to be used as an input to HAdd and
@@ -10669,11 +10654,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     add->set_observed_input_representation(1, rep);
     add->set_observed_input_representation(2, Representation::Smi());
   }
-  if (!is_strong(function_language_mode())) {
-    instr->ClearAllSideEffects();
-  } else {
-    Add<HSimulate>(expr->ToNumberId(), REMOVABLE_SIMULATE);
-  }
+  instr->ClearAllSideEffects();
   instr->SetFlag(HInstruction::kCannotBeTagged);
   return instr;
 }

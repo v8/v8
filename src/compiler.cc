@@ -1573,12 +1573,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  // TODO(rossberg): The natives do not yet obey strong mode rules
-  // (for example, some macros use '==').
-  bool use_strong = FLAG_use_strong && !isolate->bootstrapper()->IsActive();
-  LanguageMode language_mode =
-      construct_language_mode(FLAG_use_strict, use_strong);
-
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
@@ -1690,8 +1685,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  LanguageMode language_mode =
-      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   parse_info->set_language_mode(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
 

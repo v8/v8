@@ -144,11 +144,6 @@ class PreParserExpression {
                                IsUseStrictField::encode(true));
   }
 
-  static PreParserExpression UseStrongStringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseStrongField::encode(true));
-  }
-
   static PreParserExpression This() {
     return PreParserExpression(TypeField::encode(kExpression) |
                                ExpressionTypeField::encode(kThisExpression));
@@ -212,11 +207,6 @@ class PreParserExpression {
   bool IsUseStrictLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression &&
            IsUseStrictField::decode(code_);
-  }
-
-  bool IsUseStrongLiteral() const {
-    return TypeField::decode(code_) == kStringLiteralExpression &&
-           IsUseStrongField::decode(code_);
   }
 
   bool IsThis() const {
@@ -317,7 +307,6 @@ class PreParserExpression {
   // of the Type field, so they can share the storage.
   typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
-  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
@@ -366,9 +355,6 @@ class PreParserStatement {
     if (expression.IsUseStrictLiteral()) {
       return PreParserStatement(kUseStrictExpressionStatement);
     }
-    if (expression.IsUseStrongLiteral()) {
-      return PreParserStatement(kUseStrongExpressionStatement);
-    }
     if (expression.IsStringLiteral()) {
       return PreParserStatement(kStringLiteralExpressionStatement);
     }
@@ -376,15 +362,12 @@ class PreParserStatement {
   }
 
   bool IsStringLiteral() {
-    return code_ == kStringLiteralExpressionStatement
-        || IsUseStrictLiteral() || IsUseStrongLiteral();
+    return code_ == kStringLiteralExpressionStatement || IsUseStrictLiteral();
   }
 
   bool IsUseStrictLiteral() {
     return code_ == kUseStrictExpressionStatement;
   }
-
-  bool IsUseStrongLiteral() { return code_ == kUseStrongExpressionStatement; }
 
   bool IsFunctionDeclaration() {
     return code_ == kFunctionDeclaration;
@@ -400,7 +383,6 @@ class PreParserStatement {
     kJumpStatement,
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
-    kUseStrongExpressionStatement,
     kFunctionDeclaration
   };
 

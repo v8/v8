@@ -226,7 +226,6 @@ namespace internal {
   F(FunctionIsAPIFunction, 1, 1)           \
   F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)                   \
-  F(ThrowStrongModeTooFewArguments, 0, 1)  \
   F(IsConstructor, 1, 1)                   \
   F(SetForceInlineFlag, 1, 1)              \
   F(Call, -1 /* >= 2 */, 1)                \
@@ -297,7 +296,6 @@ namespace internal {
   F(ThrowIllegalInvocation, 0, 1)                   \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowStackOverflow, 0, 1)                       \
-  F(ThrowStrongModeImplicitConversion, 0, 1)        \
   F(PromiseRejectEvent, 3, 1)                       \
   F(PromiseRevokeReject, 1, 1)                      \
   F(StackGuard, 0, 1)                               \

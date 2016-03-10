@@ -783,7 +783,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_destructuring_bind(FLAG_harmony_destructuring_bind);
   set_allow_harmony_destructuring_assignment(
       FLAG_harmony_destructuring_assignment);
-  set_allow_strong_mode(FLAG_strong_mode);
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
@@ -917,7 +916,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
                                  kNormalFunction, &function_factory);
 
     // Don't count the mode in the use counters--give the program a chance
-    // to enable script/module-wide strict/strong mode below.
+    // to enable script/module-wide strict mode below.
     scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -1170,28 +1169,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
     }
 
     Scanner::Location token_loc = scanner()->peek_location();
-    Scanner::Location old_this_loc = function_state_->this_location();
-    Scanner::Location old_super_loc = function_state_->super_location();
     Statement* stat = ParseStatementListItem(CHECK_OK);
-
-    if (is_strong(language_mode()) && scope_->is_function_scope() &&
-        IsClassConstructor(function_state_->kind())) {
-      Scanner::Location this_loc = function_state_->this_location();
-      Scanner::Location super_loc = function_state_->super_location();
-      if (this_loc.beg_pos != old_this_loc.beg_pos &&
-          this_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(this_loc, MessageTemplate::kStrongConstructorThis);
-        *ok = false;
-        return nullptr;
-      }
-      if (super_loc.beg_pos != old_super_loc.beg_pos &&
-          super_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(super_loc, MessageTemplate::kStrongConstructorSuper);
-        *ok = false;
-        return nullptr;
-      }
-    }
-
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1205,43 +1183,21 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
           literal->raw_value()->IsString()) {
-        // Check "use strict" directive (ES5 14.1), "use asm" directive, and
-        // "use strong" directive (experimental).
+        // Check "use strict" directive (ES5 14.1), "use asm" directive.
         bool use_strict_found =
             literal->raw_value()->AsString() ==
                 ast_value_factory()->use_strict_string() &&
             token_loc.end_pos - token_loc.beg_pos ==
                 ast_value_factory()->use_strict_string()->length() + 2;
-        bool use_strong_found =
-            allow_strong_mode() &&
-            literal->raw_value()->AsString() ==
-                ast_value_factory()->use_strong_string() &&
-            token_loc.end_pos - token_loc.beg_pos ==
-                ast_value_factory()->use_strong_string()->length() + 2;
-        if (use_strict_found || use_strong_found) {
-          // Strong mode implies strict mode. If there are several "use strict"
-          // / "use strong" directives, do the strict mode changes only once.
+        if (use_strict_found) {
           if (is_sloppy(scope_->language_mode())) {
             RaiseLanguageMode(STRICT);
           }
 
-          if (use_strong_found) {
-            RaiseLanguageMode(STRONG);
-            if (IsClassConstructor(function_state_->kind())) {
-              // "use strong" cannot occur in a class constructor body, to avoid
-              // unintuitive strong class object semantics.
-              ParserTraits::ReportMessageAt(
-                  token_loc, MessageTemplate::kStrongConstructorDirective);
-              *ok = false;
-              return nullptr;
-            }
-          }
           if (!scope_->HasSimpleParameters()) {
             // TC39 deemed "use strict" directives to be an error when occurring
             // in the body of a function with non-simple parameter list, on
             // 29/7/2015. https://goo.gl/ueA7Ln
-            //
-            // In V8, this also applies to "use strong " directives.
             const AstRawString* string = literal->raw_value()->AsString();
             ParserTraits::ReportMessageAt(
                 token_loc, MessageTemplate::kIllegalLanguageModeDirective,
@@ -1460,10 +1416,6 @@ ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
     } else if (IsEvalOrArguments(local_name)) {
       *ok = false;
       ReportMessage(MessageTemplate::kStrictEvalArguments);
-      return NULL;
-    } else if (is_strong(language_mode()) && IsUndefined(local_name)) {
-      *ok = false;
-      ReportMessage(MessageTemplate::kStrongUndefined);
       return NULL;
     }
     VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
@@ -1809,12 +1761,6 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
       return ParseBlock(labels, ok);
 
     case Token::SEMICOLON:
-      if (is_strong(language_mode())) {
-        ReportMessageAt(scanner()->peek_location(),
-                        MessageTemplate::kStrongEmpty);
-        *ok = false;
-        return NULL;
-      }
       Next();
       return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
 
@@ -2168,12 +2114,10 @@ Statement* Parser::ParseFunctionDeclaration(
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
-      is_strong(language_mode())
-          ? CONST
-          : (is_strict(language_mode()) || allow_harmony_sloppy_function()) &&
-                    !scope_->is_declaration_scope()
-                ? LET
-                : VAR;
+      (is_strict(language_mode()) || allow_harmony_sloppy_function()) &&
+      !scope_->is_declaration_scope()
+          ? LET
+          : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
@@ -2222,10 +2166,9 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
                                           is_strict_reserved, pos, CHECK_OK);
 
-  VariableMode mode = is_strong(language_mode()) ? CONST : LET;
-  VariableProxy* proxy = NewUnresolved(name, mode);
+  VariableProxy* proxy = NewUnresolved(name, LET);
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
+      factory()->NewVariableDeclaration(proxy, LET, scope_, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   proxy->var()->set_initializer_position(position());
   Assignment* assignment =
@@ -2345,12 +2288,6 @@ Block* Parser::ParseVariableDeclarations(
   }
 
   if (peek() == Token::VAR) {
-    if (is_strong(language_mode())) {
-      Scanner::Location location = scanner()->peek_location();
-      ReportMessageAt(location, MessageTemplate::kStrongVar);
-      *ok = false;
-      return nullptr;
-    }
     Consume(Token::VAR);
   } else if (peek() == Token::CONST && allow_const()) {
     Consume(Token::CONST);
@@ -2520,42 +2457,6 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       ReportUnexpectedToken(Next());
       *ok = false;
       return nullptr;
-
-    case Token::THIS:
-      if (!FLAG_strong_this) break;
-      // Fall through.
-    case Token::SUPER:
-      if (is_strong(language_mode()) &&
-          IsClassConstructor(function_state_->kind())) {
-        bool is_this = peek() == Token::THIS;
-        Expression* expr;
-        ExpressionClassifier classifier(this);
-        if (is_this) {
-          expr = ParseStrongInitializationExpression(&classifier, CHECK_OK);
-        } else {
-          expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
-        }
-        RewriteNonPattern(&classifier, CHECK_OK);
-        switch (peek()) {
-          case Token::SEMICOLON:
-            Consume(Token::SEMICOLON);
-            break;
-          case Token::RBRACE:
-          case Token::EOS:
-            break;
-          default:
-            if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-              ReportMessageAt(function_state_->this_location(),
-                              is_this
-                                  ? MessageTemplate::kStrongConstructorThis
-                                  : MessageTemplate::kStrongConstructorSuper);
-              *ok = false;
-              return nullptr;
-            }
-        }
-        return factory()->NewExpressionStatement(expr, pos);
-      }
-      break;
 
     default:
       break;
@@ -2736,15 +2637,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       return_value = GetLiteralUndefined(position());
     }
   } else {
-    if (is_strong(language_mode()) &&
-        IsClassConstructor(function_state_->kind())) {
-      int pos = peek_position();
-      ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      MessageTemplate::kStrongConstructorReturnValue);
-      *ok = false;
-      return NULL;
-    }
-
     int pos = peek_position();
     return_value = ParseExpression(true, CHECK_OK);
 
@@ -2870,13 +2762,6 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
          peek() != Token::RBRACE) {
     stat = ParseStatementListItem(CHECK_OK);
     statements->Add(stat, zone());
-  }
-  if (is_strong(language_mode()) && stat != NULL && !stat->IsJump() &&
-      peek() != Token::RBRACE) {
-    ReportMessageAt(scanner()->location(),
-                    MessageTemplate::kStrongSwitchFallthrough);
-    *ok = false;
-    return NULL;
   }
   return factory()->NewCaseClause(label, statements, pos);
 }
@@ -4372,16 +4257,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Parsing the body may change the language mode in our scope.
     language_mode = scope->language_mode();
 
-    if (is_strong(language_mode) && IsSubclassConstructor(kind)) {
-      if (!function_state.super_location().IsValid()) {
-        ReportMessageAt(function_name_location,
-                        MessageTemplate::kStrongSuperCallMissing,
-                        kReferenceError);
-        *ok = false;
-        return nullptr;
-      }
-    }
-
     // Validate name and parameter names. We can do this only after parsing the
     // function, since the function can declare itself strict.
     CheckFunctionName(language_mode, function_name, function_name_validity,
@@ -4823,7 +4698,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_default_parameters);
     SET_ALLOW(harmony_destructuring_bind);
     SET_ALLOW(harmony_destructuring_assignment);
-    SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
@@ -4852,11 +4726,6 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   }
   if (IsEvalOrArguments(name)) {
     ReportMessageAt(class_name_location, MessageTemplate::kStrictEvalArguments);
-    *ok = false;
-    return NULL;
-  }
-  if (is_strong(language_mode()) && IsUndefined(name)) {
-    ReportMessageAt(class_name_location, MessageTemplate::kStrongUndefined);
     *ok = false;
     return NULL;
   }
@@ -4932,8 +4801,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
                                      end_pos, block_scope->language_mode());
   }
 
-  // Note that we do not finalize this block scope because strong
-  // mode uses it as a sentinel value indicating an anonymous class.
+  // Note that we do not finalize this block scope because it is
+  // used as a sentinel value indicating an anonymous class.
   block_scope->set_end_position(end_pos);
 
   if (name != NULL) {
@@ -5503,8 +5372,6 @@ void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
   v8::Isolate::UseCounterFeature feature;
   if (is_sloppy(mode))
     feature = v8::Isolate::kSloppyMode;
-  else if (is_strong(mode))
-    feature = v8::Isolate::kStrongMode;
   else if (is_strict(mode))
     feature = v8::Isolate::kStrictMode;
   else
@@ -5515,8 +5382,8 @@ void Parser::SetLanguageMode(Scope* scope, LanguageMode mode) {
 
 
 void Parser::RaiseLanguageMode(LanguageMode mode) {
-  SetLanguageMode(scope_,
-                  static_cast<LanguageMode>(scope_->language_mode() | mode));
+  LanguageMode old = scope_->language_mode();
+  SetLanguageMode(scope_, old > mode ? old : mode);
 }
 
 

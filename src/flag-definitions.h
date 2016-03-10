@@ -177,12 +177,6 @@ DEFINE_BOOL(experimental_extras, false,
 
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
-DEFINE_BOOL(use_strong, false, "enforce strong mode")
-DEFINE_IMPLICATION(use_strong, use_strict)
-
-DEFINE_BOOL(strong_mode, false, "experimental strong language mode")
-DEFINE_IMPLICATION(use_strong, strong_mode)
-DEFINE_BOOL(strong_this, true, "don't allow 'this' to escape from constructors")
 
 DEFINE_BOOL(es_staging, false,
             "enable test-worthy harmony features (for internal use only)")

@@ -287,14 +287,6 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(MessageTemplate::kStrongArity));
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

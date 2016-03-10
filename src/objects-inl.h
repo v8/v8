@@ -5738,8 +5738,7 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 3);
   return construct_language_mode(
-      BooleanBit::get(compiler_hints(), kStrictModeFunction),
-      BooleanBit::get(compiler_hints(), kStrongModeFunction));
+      BooleanBit::get(compiler_hints(), kStrictModeFunction));
 }
 
 
@@ -5750,7 +5749,6 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
   int hints = compiler_hints();
   hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
-  hints = BooleanBit::set(hints, kStrongModeFunction, is_strong(language_mode));
   set_compiler_hints(hints);
 }
 

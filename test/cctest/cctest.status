@@ -89,10 +89,6 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # BUG(3956). Strong mode is being deprecated. Decide about these tests.
-  'test-api/StrongModeAccessCheckAllowed': [FAIL],
-  'test-api/StrongModeAccessCheckBlocked': [FAIL],
-
   ##############################################################################
   # TurboFan compiler failures.
 

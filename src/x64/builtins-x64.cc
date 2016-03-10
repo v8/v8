@@ -1809,40 +1809,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Too few parameters: Actual < expected.
     __ bind(&too_few);
 
-    // If the function is strong we need to throw an error.
-    Label no_strong_error;
-    __ movp(kScratchRegister,
-            FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ testb(FieldOperand(kScratchRegister,
-                          SharedFunctionInfo::kStrongModeByteOffset),
-             Immediate(1 << SharedFunctionInfo::kStrongModeBitWithinByte));
-    __ j(equal, &no_strong_error, Label::kNear);
-
-    // What we really care about is the required number of arguments.
-
-    if (kPointerSize == kInt32Size) {
-      __ movp(
-          kScratchRegister,
-          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
-      __ SmiToInteger32(kScratchRegister, kScratchRegister);
-    } else {
-      // See comment near kLengthOffset in src/objects.h
-      __ movsxlq(
-          kScratchRegister,
-          FieldOperand(kScratchRegister, SharedFunctionInfo::kLengthOffset));
-      __ shrq(kScratchRegister, Immediate(1));
-    }
-
-    __ cmpp(rax, kScratchRegister);
-    __ j(greater_equal, &no_strong_error, Label::kNear);
-
-    {
-      FrameScope frame(masm, StackFrame::MANUAL);
-      EnterArgumentsAdaptorFrame(masm);
-      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments);
-    }
-
-    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
     ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 

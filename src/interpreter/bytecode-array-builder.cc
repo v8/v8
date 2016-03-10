@@ -1486,7 +1486,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreIC(LanguageMode language_mode) {
     case SLOPPY:
       return Bytecode::kStoreICSloppy;
     case STRICT:
-    case STRONG:
       return Bytecode::kStoreICStrict;
     default:
       UNREACHABLE();
@@ -1502,7 +1501,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
     case SLOPPY:
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
-    case STRONG:
       return Bytecode::kKeyedStoreICStrict;
     default:
       UNREACHABLE();
@@ -1526,8 +1524,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
       return Bytecode::kStaGlobalSloppy;
     case STRICT:
       return Bytecode::kStaGlobalStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
@@ -1543,8 +1539,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreLookupSlot(
       return Bytecode::kStaLookupSlotSloppy;
     case STRICT:
       return Bytecode::kStaLookupSlotStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
@@ -1574,8 +1568,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForDelete(LanguageMode language_mode) {
       return Bytecode::kDeletePropertySloppy;
     case STRICT:
       return Bytecode::kDeletePropertyStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }

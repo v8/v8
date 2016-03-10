@@ -2496,31 +2496,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Too few parameters: Actual < expected
     __ bind(&too_few);
 
-    // If the function is strong we need to throw an error.
-    Label no_strong_error;
-    __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-    __ lwz(r8, FieldMemOperand(r7, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestBit(r8, SharedFunctionInfo::kStrongModeBit, r0);
-    __ beq(&no_strong_error, cr0);
-
-    // What we really care about is the required number of arguments.
-    __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kLengthOffset));
-#if V8_TARGET_ARCH_PPC64
-    // See commment near kLenghtOffset in src/objects.h
-    __ srawi(r7, r7, kSmiTagSize);
-#else
-    __ SmiUntag(r7);
-#endif
-    __ cmp(r3, r7);
-    __ bge(&no_strong_error);
-
-    {
-      FrameScope frame(masm, StackFrame::MANUAL);
-      EnterArgumentsAdaptorFrame(masm);
-      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments);
-    }
-
-    __ bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
     ArgumentAdaptorStackCheck(masm, &stack_overflow);
 

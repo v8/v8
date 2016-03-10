@@ -7185,9 +7185,9 @@ class SharedFunctionInfo: public HeapObject {
     kAllowLazyCompilation,
     kAllowLazyCompilationWithoutContext,
     kOptimizationDisabled,
+    kNeverCompiled,
     kNative,
     kStrictModeFunction,
-    kStrongModeFunction,
     kUsesArguments,
     kNeedsHomeObject,
     // byte 1
@@ -7211,7 +7211,6 @@ class SharedFunctionInfo: public HeapObject {
     kIsSetterFunction,
     // byte 3
     kDeserialized,
-    kNeverCompiled,
     kIsDeclaration,
     kCompilerHintsCount,  // Pseudo entry
   };
@@ -7261,8 +7260,6 @@ class SharedFunctionInfo: public HeapObject {
   // native tests when using integer-width instructions.
   static const int kStrictModeBit =
       kStrictModeFunction + kCompilerHintsSmiTagSize;
-  static const int kStrongModeBit =
-      kStrongModeFunction + kCompilerHintsSmiTagSize;
   static const int kNativeBit = kNative + kCompilerHintsSmiTagSize;
 
   static const int kClassConstructorBits =
@@ -7273,7 +7270,6 @@ class SharedFunctionInfo: public HeapObject {
   // native tests.
   // Allows to use byte-width instructions.
   static const int kStrictModeBitWithinByte = kStrictModeBit % kBitsPerByte;
-  static const int kStrongModeBitWithinByte = kStrongModeBit % kBitsPerByte;
   static const int kNativeBitWithinByte = kNativeBit % kBitsPerByte;
 
   static const int kClassConstructorBitsWithinByte =
@@ -7292,7 +7288,6 @@ class SharedFunctionInfo: public HeapObject {
 #error Unknown byte ordering
 #endif
   static const int kStrictModeByteOffset = BYTE_OFFSET(kStrictModeFunction);
-  static const int kStrongModeByteOffset = BYTE_OFFSET(kStrongModeFunction);
   static const int kNativeByteOffset = BYTE_OFFSET(kNative);
   static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
 #undef BYTE_OFFSET

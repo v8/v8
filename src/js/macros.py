@@ -255,7 +255,6 @@ define kObjectObserve = 6;
 define kForcedGC = 7;
 define kSloppyMode = 8;
 define kStrictMode = 9;
-define kStrongMode = 10;
 define kRegExpPrototypeStickyGetter = 11;
 define kRegExpPrototypeToString = 12;
 define kRegExpPrototypeUnicodeGetter = 13;

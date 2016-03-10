@@ -287,7 +287,6 @@ class Genesis BASE_EMBEDDED {
 
   void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                            FunctionMode function_mode);
-  void SetStrongFunctionInstanceDescriptor(Handle<Map> map);
 
   static bool CallUtilsFunction(Isolate* isolate, const char* name);
 
@@ -623,29 +622,6 @@ void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
     AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
                                  prototype, attribs);
-    map->AppendDescriptor(&d);
-  }
-}
-
-
-void Genesis::SetStrongFunctionInstanceDescriptor(Handle<Map> map) {
-  Map::EnsureDescriptorSlack(map, 2);
-
-  PropertyAttributes ro_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-  Handle<AccessorInfo> length =
-      Accessors::FunctionLengthInfo(isolate(), ro_attribs);
-  {  // Add length.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, ro_attribs);
-    map->AppendDescriptor(&d);
-  }
-  Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), ro_attribs);
-  {  // Add name.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 ro_attribs);
     map->AppendDescriptor(&d);
   }
 }

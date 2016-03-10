@@ -243,60 +243,36 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode {
-  // LanguageMode is expressed as a bitmask. Descriptions of the bits:
-  STRICT_BIT = 1 << 0,
-  STRONG_BIT = 1 << 1,
-  LANGUAGE_END,
-
-  // Shorthands for some common language modes.
-  SLOPPY = 0,
-  STRICT = STRICT_BIT,
-  STRONG = STRICT_BIT | STRONG_BIT
-};
+enum LanguageMode { SLOPPY, STRICT, LANGUAGE_END = 3 };
 
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
-    case SLOPPY:
-      return os << "sloppy";
-    case STRICT:
-      return os << "strict";
-    case STRONG:
-      return os << "strong";
-    default:
-      return os << "unknown";
+    case SLOPPY: return os << "sloppy";
+    case STRICT: return os << "strict";
+    default: UNREACHABLE();
   }
+  return os;
 }
 
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return (language_mode & STRICT_BIT) == 0;
+  return language_mode == SLOPPY;
 }
 
 
 inline bool is_strict(LanguageMode language_mode) {
-  return language_mode & STRICT_BIT;
-}
-
-
-inline bool is_strong(LanguageMode language_mode) {
-  return language_mode & STRONG_BIT;
+  return language_mode != SLOPPY;
 }
 
 
 inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT ||
-         language_mode == STRONG;
+  return language_mode == SLOPPY || language_mode == STRICT;
 }
 
 
-inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
-  int language_mode = 0;
-  if (strict_bit) language_mode |= STRICT_BIT;
-  if (strong_bit) language_mode |= STRONG_BIT;
-  DCHECK(is_valid_language_mode(language_mode));
-  return static_cast<LanguageMode>(language_mode);
+inline LanguageMode construct_language_mode(bool strict_bit) {
+  return static_cast<LanguageMode>(strict_bit);
 }
 
 
@@ -1034,7 +1010,6 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
   if (IsGeneratorFunction(kind)) return false;
-  if (is_strong(mode)) return IsClassConstructor(kind);
   return true;
 }
 

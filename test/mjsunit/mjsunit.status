@@ -92,7 +92,6 @@
   # Proxy tests rely on non ES6 version of Proxies
   # TODO(neis,cbruni): figure out which Proxy tests can be reused
   'harmony/proxies-example-membrane': [SKIP],
-  'strong/load-proxy': [SKIP],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
@@ -120,27 +119,6 @@
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
-
-  # Issue 3956: Strong mode is deprecating. The expectations inside the
-  # following tests should be updated once deprecation is complete.
-  'strong/class-extend-null': [SKIP],
-  'strong/class-literals': [SKIP],
-  'strong/class-object-frozen': [SKIP],
-  'strong/destructuring': [SKIP],
-  'strong/functions': [SKIP],
-  'strong/implicit-conversions': [SKIP],
-  'strong/implicit-conversions-count': [SKIP],
-  'strong/implicit-conversions-inlining': [SKIP],
-  'strong/load-builtins': [SKIP],
-  'strong/load-element': [SKIP],
-  'strong/load-element-mutate-backing-store': [SKIP],
-  'strong/load-property': [SKIP],
-  'strong/load-property-mutate-backing-store': [SKIP],
-  'strong/load-super': [SKIP],
-  'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
-  'strong/object-delete': [SKIP],
-  'strong/object-freeze-property': [SKIP],
-  'strong/object-set-prototype': [SKIP],
 
   # Issue 4035: unexpected frame->context() in debugger
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
@@ -390,9 +368,6 @@
 
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
-
-  # BUG(v8:4359)
-  'strong/load-proxy': [SKIP],
 
   # Slow tests.
   'array-constructor': [PASS, SLOW],
@@ -858,8 +833,6 @@
   'harmony/iterator-close': [FAIL],
   'harmony/reflect-construct': [FAIL],
   'es6/promises': [FAIL],
-  'strong/function-arity': [FAIL],
-  'strong/undefined': [FAIL],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
@@ -902,8 +875,6 @@
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
-  'strong/implicit-conversions': [SKIP],
-  'strong/load-element-mutate-backing-store': [SKIP],
 
   # Stack overflow.
   'big-array-literal': [SKIP],
