@@ -5,12 +5,15 @@
 
 """Script for merging sancov files in parallel.
 
-The sancov files are expected
+When merging test runner output, the sancov files are expected
 to be located in one directory with the file-name pattern:
 <executable name>.test.<id>.sancov
 
 For each executable, this script writes a new file:
 <executable name>.result.sancov
+
+When --swarming-output-dir is specified, this script will merge the result
+files found there into the coverage folder.
 
 The sancov tool is expected to be in the llvm compiler-rt third-party
 directory. It's not checked out by default and must be added as a custom deps:
@@ -46,6 +49,9 @@ CPUS = cpu_count()
 # Regexp to find sancov file as output by the v8 test runner. Also grabs the
 # executable name in group 1.
 SANCOV_FILE_RE = re.compile(r'^(.*)\.test\.\d+\.sancov$')
+
+# Regexp to find sancov result files as returned from swarming.
+SANCOV_RESULTS_FILE_RE = re.compile(r'^.*\.result\.sancov$')
 
 
 def merge(args):
@@ -110,27 +116,16 @@ def generate_inputs(keep, coverage_dir, file_map, cpus):
   return inputs
 
 
-def merge_parallel(inputs):
+def merge_parallel(inputs, merge_fun=merge):
   """Process several merge jobs in parallel."""
   pool = Pool(CPUS)
   try:
-    return pool.map(merge, inputs)
+    return pool.map(merge_fun, inputs)
   finally:
     pool.close()
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--coverage-dir', required=True,
-                      help='Path to the sancov output files.')
-  parser.add_argument('--keep', default=False, action='store_true',
-                      help='Keep sancov output files after merging.')
-  options = parser.parse_args()
-
-  # Check if folder with coverage output exists.
-  assert (os.path.exists(options.coverage_dir) and
-          os.path.isdir(options.coverage_dir))
-
+def merge_test_runner_output(options):
   # Map executable names to their respective sancov files.
   file_map = {}
   for f in os.listdir(options.coverage_dir):
@@ -160,6 +155,73 @@ def main():
   logging.info('Merging %d intermediate results.' % len(inputs))
 
   merge_parallel(inputs)
+
+
+def merge_two(args):
+  """Merge two sancov files.
+
+  Called trough multiprocessing pool. The args are expected to unpack to:
+    swarming_output_dir: Folder where to find the new file.
+    coverage_dir: Folder where to find the existing file.
+    f: File name of the file to be merged.
+  """
+  swarming_output_dir, coverage_dir, f = args
+  input_file = os.path.join(swarming_output_dir, f)
+  output_file = os.path.join(coverage_dir, f)
+  process = subprocess.Popen(
+      [SANCOV_TOOL, 'merge', input_file, output_file],
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+  )
+  output, _ = process.communicate()
+  assert process.returncode == 0
+  with open(output_file, "wb") as f:
+    f.write(output)
+
+
+def merge_swarming_output(options):
+  # Iterate sancov files from swarming.
+  files = []
+  for f in os.listdir(options.swarming_output_dir):
+    match = SANCOV_RESULTS_FILE_RE.match(f)
+    if match:
+      if os.path.exists(os.path.join(options.coverage_dir, f)):
+        # If the same file already exists, we'll merge the data.
+        files.append(f)
+      else:
+        # No file yet? Just move it.
+        os.rename(os.path.join(options.swarming_output_dir, f),
+                  os.path.join(options.coverage_dir, f))
+
+  inputs = [(options.swarming_output_dir, options.coverage_dir, f)
+            for f in files]
+
+  logging.info('Executing %d merge jobs in parallel.' % len(inputs))
+  merge_parallel(inputs, merge_two)
+
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--coverage-dir', required=True,
+                      help='Path to the sancov output files.')
+  parser.add_argument('--keep', default=False, action='store_true',
+                      help='Keep sancov output files after merging.')
+  parser.add_argument('--swarming-output-dir',
+                      help='Folder containing a results shard from swarming.')
+  options = parser.parse_args()
+
+  # Check if folder with coverage output exists.
+  assert (os.path.exists(options.coverage_dir) and
+          os.path.isdir(options.coverage_dir))
+
+  if options.swarming_output_dir:
+    # Check if folder with swarming output exists.
+    assert (os.path.exists(options.swarming_output_dir) and
+            os.path.isdir(options.swarming_output_dir))
+    merge_swarming_output(options)
+  else:
+    merge_test_runner_output(options)
+
   return 0
 
 
