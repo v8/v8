@@ -524,11 +524,6 @@
   'test-func-name-inference/UpperCaseClass': [TIMEOUT],
   'test-func-name-inference/LowerCaseClass': [TIMEOUT],
 
-  # TODO(rmcilroy,4681): Requires support for generators.
-  'test-inobject-slack-tracking/JSGeneratorObjectBasic': [FAIL],
-  'test-inobject-slack-tracking/JSGeneratorObjectBasicNoInlineNew': [FAIL],
-  'test-api/IsGeneratorFunctionOrObject': [FAIL],
-
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
   'test-api/SetFunctionEntryHook': [FAIL],
 

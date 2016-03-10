@@ -761,6 +761,7 @@
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 
+##############################################################################
 ['ignition == True', {
   # TODO(yangguo,4690): assertion failures in debugger tests.
   'debug-allscopes-on-debugger': [FAIL],
@@ -804,15 +805,12 @@
   'es6/classes-subclass-builtins': [FAIL],
   'es6/computed-property-names-classes': [FAIL],
   'es6/computed-property-names-object-literals-methods': [FAIL],
-  'es6/function-length-configurable': [FAIL],
   'es6/generators-poisoned-properties': [FAIL],
   'es6/generators-runtime': [FAIL],
-  'es6/generators-objects': [FAIL],
   'es6/generators-parsing': [FAIL],
   'es6/generators-iteration': [FAIL],
   'es6/generators-states': [FAIL],
   'es6/iteration-semantics': [FAIL],
-  'es6/iterator-prototype': [FAIL],
   'es6/generators-mirror': [FAIL],
   'es6/object-literals-method': [FAIL],
   'es6/object-literals-super': [FAIL],
@@ -869,7 +867,7 @@
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
-}],  # ignition == True and (arch == arm or arch == arm64)
+}],  # ignition == True and arch == arm
 
 ##############################################################################
 ['gcov_coverage', {

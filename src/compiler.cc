@@ -784,6 +784,11 @@ static bool UseIgnition(CompilationInfo* info) {
     return false;
   }
 
+  // TODO(4681): Generators are not yet supported.
+  if (info->has_shared_info() && info->shared_info()->is_generator()) {
+    return false;
+  }
+
   // Checks whether top level functions should be passed by the filter.
   if (info->closure().is_null()) {
     Vector<const char> filter = CStrVector(FLAG_ignition_filter);
