@@ -187,6 +187,7 @@ class CallSite {
   T(PromiseCyclic, "Chaining cycle detected for promise %")                    \
   T(PromiseExecutorAlreadyInvoked,                                             \
     "Promise executor has already been invoked with non-undefined arguments")  \
+  T(PromiseNonCallable, "Promise resolve or reject function is not callable")  \
   T(PropertyDescObject, "Property description must be an object: %")           \
   T(PropertyNotFunction,                                                       \
     "'%' returned for property '%' of object '%' is not a function")           \

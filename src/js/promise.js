@@ -217,8 +217,6 @@ function PromiseReject(promise, r) {
   PromiseDone(promise, -1, r, promiseOnRejectSymbol)
 }
 
-// Convenience.
-
 function NewPromiseCapability(C) {
   if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
@@ -238,6 +236,9 @@ function NewPromiseCapability(C) {
     result.resolve = resolve;
     result.reject = reject;
   });
+
+  if (!IS_CALLABLE(result.resolve) || !IS_CALLABLE(result.reject))
+      throw MakeTypeError(kPromiseNonCallable);
 
   return result;
 }
