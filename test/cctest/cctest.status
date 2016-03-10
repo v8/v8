@@ -99,7 +99,7 @@
   # Some tests are just too slow to run for now.
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
-  'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
+  'test-serialize/CodeSerializerLargeCodeObject': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
@@ -151,8 +151,8 @@
   'test-api/Bug618': [PASS],
 
   # BUG(v8:3385).
-  'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],
+  'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
+  'test-serialize/StartupSerializerTwiceRunScript': [PASS, FAIL],
 
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
@@ -296,10 +296,10 @@
   'test-log/ProfLazyMode': [SKIP],
 
   # BUG(1075): Unresolved crashes.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -321,10 +321,10 @@
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
   # BUG(1075): Unresolved crashes on MIPS also.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -348,10 +348,10 @@
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
   # BUG(1075): Unresolved crashes on MIPS also.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -563,7 +563,7 @@
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
-  'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
+  'test-serialize/CodeSerializerInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
 
 }],  # ignition == True
 

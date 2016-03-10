@@ -626,7 +626,6 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(BASE_DIR, "test", root))
     if suite:
-      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data or options.download_data_only:
