@@ -777,6 +777,7 @@ DEFINE_BOOL(eliminate_prototype_chain_checks, true,
             "Collapse prototype chain checks into single-cell checks")
 DEFINE_IMPLICATION(eliminate_prototype_chain_checks, track_prototype_users)
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
+DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 #if TRACE_MAPS
 DEFINE_BOOL(trace_maps, false, "trace map creation")
 #endif

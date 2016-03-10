@@ -44,6 +44,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   for (size_t level = 0; level < max_level; level++) {
     int num_string_properties = level_lengths_[level * 2];
     int num_symbol_properties = level_lengths_[level * 2 + 1];
+    int num_elements = 0;
     if (num_string_properties < 0) {
       // If the |num_string_properties| is negative, the current level contains
       // properties from a proxy, hence we skip the integer keys in |elements_|
@@ -52,7 +53,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
     } else if (level < elements_.size()) {
       // Add the element indices for this prototype level.
       std::vector<uint32_t>* elements = elements_[level];
-      int num_elements = static_cast<int>(elements->size());
+      num_elements = static_cast<int>(elements->size());
       for (int i = 0; i < num_elements; i++) {
         Handle<Object> key;
         if (convert == KEEP_NUMBERS) {
@@ -78,6 +79,13 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
       insertion_index++;
       symbol_properties_index++;
     }
+    if (FLAG_trace_for_in_enumerate) {
+      PrintF("| strings=%d symbols=%d elements=%i ", num_string_properties,
+             num_symbol_properties, num_elements);
+    }
+  }
+  if (FLAG_trace_for_in_enumerate) {
+    PrintF("|| prototypes=%zu ||\n", max_level);
   }
 
   DCHECK_EQ(insertion_index, length_);
@@ -358,8 +366,14 @@ Handle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                           GetKeysConversion convert) {
   Handle<FixedArray> keys = JSObject::GetFastEnumPropertyKeys(isolate, object);
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  return accessor->PrependElementIndices(object, keys, convert,
-                                         ONLY_ENUMERABLE);
+  Handle<FixedArray> result =
+      accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
+
+  if (FLAG_trace_for_in_enumerate) {
+    PrintF("| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
+           keys->length(), result->length() - keys->length());
+  }
+  return result;
 }
 
 MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache(
@@ -407,6 +421,11 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     // Try initializing the enum cache and return own properties.
     if (GetOwnKeysWithUninitializedEnumCache(isolate_, object)
             .ToHandle(&keys)) {
+      if (FLAG_trace_for_in_enumerate) {
+        PrintF("| strings=%d symbols=0 elements=0 || prototypes>=1 ||\n",
+               keys->length());
+      }
+
       is_receiver_simple_enum_ =
           object->map()->EnumLength() != kInvalidEnumCacheSentinel;
       return keys;
