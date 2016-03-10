@@ -19,7 +19,7 @@
 #if DEBUG
 #define TRACE(...)                                    \
   do {                                                \
-    if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
+    if (FLAG_trace_wasm_encoder) PrintF(__VA_ARGS__); \
   } while (false)
 #else
 #define TRACE(...)
