@@ -21,11 +21,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Xor:
     case kPPC_ShiftLeft32:
     case kPPC_ShiftLeft64:
+    case kPPC_ShiftLeftPair:
     case kPPC_ShiftRight32:
     case kPPC_ShiftRight64:
+    case kPPC_ShiftRightPair:
     case kPPC_ShiftRightAlg32:
     case kPPC_ShiftRightAlg64:
-    case kPPC_PairShiftLeft:
+    case kPPC_ShiftRightAlgPair:
     case kPPC_RotRight32:
     case kPPC_RotRight64:
     case kPPC_Not:

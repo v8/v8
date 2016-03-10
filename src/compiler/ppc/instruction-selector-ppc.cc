@@ -723,12 +723,6 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   VisitRRO(this, kPPC_ShiftRight32, node, kShift32Imm);
 }
 
-#if !V8_TARGET_ARCH_PPC64
-void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
-#endif
-
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Shr(Node* node) {
   PPCOperandGenerator g(this);
@@ -791,8 +785,9 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 }
 
 #if !V8_TARGET_ARCH_PPC64
-void InstructionSelector::VisitWord32PairShl(Node* node) {
-  PPCOperandGenerator g(this);
+void VisitPairShift(InstructionSelector* selector, ArchOpcode opcode,
+                    Node* node) {
+  PPCOperandGenerator g(selector);
   Int32Matcher m(node->InputAt(2));
   InstructionOperand shift_operand;
   if (m.HasValue()) {
@@ -809,7 +804,19 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
       g.DefineSameAsFirst(node),
       g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
 
-  Emit(kPPC_PairShiftLeft, 2, outputs, 3, inputs);
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitPairShift(this, kPPC_ShiftLeftPair, node);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  VisitPairShift(this, kPPC_ShiftRightPair, node);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  VisitPairShift(this, kPPC_ShiftRightAlgPair, node);
 }
 #endif
 

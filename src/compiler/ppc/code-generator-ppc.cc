@@ -966,15 +966,37 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #endif
 #if !V8_TARGET_ARCH_PPC64
-    case kPPC_PairShiftLeft:
+    case kPPC_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
-        __ PairShiftLeft(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
                          i.InputRegister(0), i.InputRegister(1),
                          i.InputInt32(2));
       } else {
-        __ PairShiftLeft(i.OutputRegister(0), i.OutputRegister(1),
+        __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
                          i.InputRegister(0), i.InputRegister(1), kScratchReg,
                          i.InputRegister(2));
+      }
+      break;
+    case kPPC_ShiftRightPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ ShiftRightPair(i.OutputRegister(0), i.OutputRegister(1),
+                          i.InputRegister(0), i.InputRegister(1),
+                          i.InputInt32(2));
+      } else {
+        __ ShiftRightPair(i.OutputRegister(0), i.OutputRegister(1),
+                          i.InputRegister(0), i.InputRegister(1), kScratchReg,
+                          i.InputRegister(2));
+      }
+      break;
+    case kPPC_ShiftRightAlgPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ ShiftRightAlgPair(i.OutputRegister(0), i.OutputRegister(1),
+                             i.InputRegister(0), i.InputRegister(1),
+                             i.InputInt32(2));
+      } else {
+        __ ShiftRightAlgPair(i.OutputRegister(0), i.OutputRegister(1),
+                             i.InputRegister(0), i.InputRegister(1),
+                             kScratchReg, i.InputRegister(2));
       }
       break;
 #endif
