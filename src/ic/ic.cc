@@ -2787,13 +2787,27 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
-  LookupIterator it(receiver, name, holder, LookupIterator::OWN);
-  bool done;
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::GetPropertyWithInterceptor(&it, &done));
-  if (done) return *result;
-  return isolate->heap()->no_interceptor_result_sentinel();
+
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *holder, Object::DONT_THROW);
+
+  v8::GenericNamedPropertyGetterCallback getter =
+      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+          interceptor->getter());
+  LOG(isolate, ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
+  v8::Local<v8::Value> result =
+      arguments.Call(getter, v8::Utils::ToLocal(name));
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  Handle<Object> result_internal;
+  if (result.IsEmpty()) {
+    return isolate->heap()->no_interceptor_result_sentinel();
+  }
+  result_internal = v8::Utils::OpenHandle(*result);
+  result_internal->VerifyApiCallResultType();
+  return *result_internal;
 }
 
 
@@ -2869,10 +2883,33 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
-  Handle<Object> result;
-  LookupIterator it(isolate, receiver, index, receiver);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
-  return *result;
+
+  InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();
+  v8::Local<v8::Value> result;
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *receiver, Object::DONT_THROW);
+
+  v8::IndexedPropertyGetterCallback getter =
+      v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
+  LOG(isolate,
+      ApiIndexedPropertyAccess("interceptor-indexed-get", *receiver, index));
+  result = arguments.Call(getter, index);
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  Handle<Object> result_internal;
+  if (result.IsEmpty()) {
+    LookupIterator it(isolate, receiver, index, receiver);
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+    it.Next();
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result_internal,
+                                       Object::GetProperty(&it));
+  } else {
+    result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+  }
+
+  return *result_internal;
 }
 
 

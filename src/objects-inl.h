@@ -1883,12 +1883,27 @@ void JSObject::initialize_elements() {
 
 
 InterceptorInfo* JSObject::GetIndexedInterceptor() {
-  DCHECK(map()->has_indexed_interceptor());
-  JSFunction* constructor = JSFunction::cast(map()->GetConstructor());
+  return map()->GetIndexedInterceptor();
+}
+
+InterceptorInfo* JSObject::GetNamedInterceptor() {
+  return map()->GetNamedInterceptor();
+}
+
+InterceptorInfo* Map::GetNamedInterceptor() {
+  DCHECK(has_named_interceptor());
+  JSFunction* constructor = JSFunction::cast(GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
-  Object* result =
-      constructor->shared()->get_api_func_data()->indexed_property_handler();
-  return InterceptorInfo::cast(result);
+  return InterceptorInfo::cast(
+      constructor->shared()->get_api_func_data()->named_property_handler());
+}
+
+InterceptorInfo* Map::GetIndexedInterceptor() {
+  DCHECK(has_indexed_interceptor());
+  JSFunction* constructor = JSFunction::cast(GetConstructor());
+  DCHECK(constructor->shared()->IsApiFunction());
+  return InterceptorInfo::cast(
+      constructor->shared()->get_api_func_data()->indexed_property_handler());
 }
 
 

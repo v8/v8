@@ -2156,7 +2156,7 @@ class JSObject: public JSReceiver {
   };
 
   // Retrieve interceptors.
-  InterceptorInfo* GetNamedInterceptor();
+  inline InterceptorInfo* GetNamedInterceptor();
   inline InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
@@ -5603,6 +5603,10 @@ class Map: public HeapObject {
   inline void SetConstructorFunctionIndex(int value);
   static MaybeHandle<JSFunction> GetConstructorFunction(
       Handle<Map> map, Handle<Context> native_context);
+
+  // Retrieve interceptors.
+  inline InterceptorInfo* GetNamedInterceptor();
+  inline InterceptorInfo* GetIndexedInterceptor();
 
   // Instance type.
   inline InstanceType instance_type();
