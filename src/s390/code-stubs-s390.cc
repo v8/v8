@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/code-stubs.h"
+#include "src/api-arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"

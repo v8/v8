@@ -4,9 +4,10 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/code-stubs.h"
+#include "src/api-arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
-#include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/ia32/code-stubs-ia32.h"
 #include "src/ia32/frames-ia32.h"

@@ -459,6 +459,8 @@
         '../../src/api-experimental.h',
         '../../src/api.cc',
         '../../src/api.h',
+        '../../src/api-arguments.cc',
+        '../../src/api-arguments.h',
         '../../src/api-natives.cc',
         '../../src/api-natives.h',
         '../../src/arguments.cc',
