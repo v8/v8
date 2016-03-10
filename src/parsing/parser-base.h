@@ -870,6 +870,7 @@ class ParserBase : public Traits {
 
   // Parsing optional types.
   typename TypeSystem::Type ParseValidType(bool* ok);
+  typename TypeSystem::Type ParseValidTypeOrStringLiteral(bool* ok);
   typename TypeSystem::Type ParseType(bool* ok);
   typename TypeSystem::Type ParseUnionOrIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParseIntersectionOrPrimaryType(bool* ok);
@@ -879,6 +880,17 @@ class ParserBase : public Traits {
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
+    typename TypeSystem::Type result = type->Uncover(ok);
+    if (*ok) {
+      if (!result->IsStringLiteralType()) return result;
+      *ok = false;
+    }
+    ReportMessageAt(location, MessageTemplate::kInvalidType);
+    return type;
+  }
+
+  typename TypeSystem::Type ValidateTypeOrStringLiteral(
+      typename TypeSystem::Type type, Scanner::Location location, bool* ok) {
     typename TypeSystem::Type result = type->Uncover(ok);
     if (*ok) return result;
     ReportMessageAt(location, MessageTemplate::kInvalidType);
@@ -3351,6 +3363,16 @@ ParserBase<Traits>::ParseValidType(bool* ok) {
 
 
 template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseValidTypeOrStringLiteral(bool* ok) {
+  Scanner::Location type_location = scanner()->peek_location();
+  typename TypeSystem::Type type = ParseType(CHECK_OK_TYPE);
+  type = ValidateTypeOrStringLiteral(type, type_location, CHECK_OK_TYPE);
+  return type;
+}
+
+
+template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
     bool* ok) {
   // Type ::
@@ -3517,7 +3539,7 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             bool optional = Check(Token::CONDITIONAL);
             IdentifierT name = type->AsSimpleIdentifier();
             if (Check(Token::COLON)) {  // Braces required here.
-              type = ParseValidType(CHECK_OK_TYPE);
+              type = ParseValidTypeOrStringLiteral(CHECK_OK_TYPE);
             } else {
               type = this->EmptyType();
             }
@@ -3578,6 +3600,12 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
     }
     // TODO(nikolaos): Missing object types.
     // TODO(nikolaos): Missing tuple types.
+    case Token::STRING: {
+      Consume(Token::STRING);
+      IdentifierT str = this->GetSymbol(scanner());
+      type = factory()->NewStringLiteralType(str, pos);
+      break;
+    }
     default:
       ReportUnexpectedToken(Next());
       *ok = false;

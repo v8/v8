@@ -202,8 +202,6 @@ function* ValidFunctionTypes(size, constr) {
     (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
     (t) => c + "(a:" + t + ", b:" + t + ", c, ...d) => " + t,
     (t) => c + "(a:" + t + ", b:" + t + ", c, ...d: string[]) => " + t,
-    //(t) => c + "(a: 'string-lit', b: " + t + ") => " + t,
-    //(t) => c + "(a?: 'string-lit', b?: " + t + ") => " + t
   ]]];
   yield* Serve(size, L);
 }

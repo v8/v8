@@ -8283,3 +8283,41 @@ TEST(TypedModeTypeParameters) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeStringLiteralTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  // These are not really valid here.
+  // They should only be valid in function/constructor signatures.
+  const char* correct_data[] = {
+    "var f: (cmd: 'add', x: number, y: number) => number",
+    "var f: (cmd: \"sum\", a: number[]) => number",
+    "var f: (x: number, cmd: 'one', ...rest) => any",
+    "var f: (x: string, y: number, cmd: 'two', ...rest) => any",
+    "var f: (x: number, cmd?: 'two', ...rest) => string",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var x: 'foo'",
+    "var x: ('foo')",
+    "var x: 'foo'[]",
+    "var x: ('foo')[]",
+    "var x: ('foo'[])",
+    "var x: (('foo')[])",
+    "var x: 'foo' | 'bar'",
+    "var f: ('foo') => any",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
