@@ -38,15 +38,17 @@ TEST(Run_WasmModule_CallAdd_rev) {
   static const byte data[] = {
       WASM_MODULE_HEADER,
       // sig#0 ------------------------------------------
-      kDeclSignatures, 2, 0, kLocalI32,    // void -> int
-      2, kLocalI32, kLocalI32, kLocalI32,  // int,int -> int
+      WASM_SECTION_SIGNATURES_SIZE + 7,          // Section size.
+      WASM_SECTION_SIGNATURES, 2, 0, kLocalI32,  // void -> int
+      2, kLocalI32, kLocalI32, kLocalI32,        // int,int -> int
       // func#0 (main) ----------------------------------
-      kDeclFunctions, 2, kDeclFunctionExport, 0, 0,  // sig index
-      7, 0,                                          // body size
-      0,                                             // locals
-      kExprCallFunction, 1,                          // --
-      kExprI8Const, 77,                              // --
-      kExprI8Const, 22,                              // --
+      WASM_SECTION_FUNCTIONS_SIZE + 24, WASM_SECTION_FUNCTIONS, 2,
+      kDeclFunctionExport, 0, 0,  // sig index
+      7, 0,                       // body size
+      0,                          // locals
+      kExprCallFunction, 1,       // --
+      kExprI8Const, 77,           // --
+      kExprI8Const, 22,           // --
       // func#1 -----------------------------------------
       0,                 // no name, not exported
       1, 0,              // sig index

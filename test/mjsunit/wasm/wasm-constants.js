@@ -57,13 +57,18 @@ var kDeclFunctions = 0x02;
 var kDeclGlobals = 0x03;
 var kDeclDataSegments = 0x04;
 var kDeclFunctionTable = 0x05;
+var kDeclEnd = 0x06;
 var kDeclStartFunction = 0x07;
 var kDeclImportTable = 0x08;
 var kDeclExportTable = 0x09;
-var kDeclEnd = 0x06;
 var kDeclFunctionSignatures = 0x0a;
 var kDeclFunctionBodies = 0x0b;
 var kDeclNames = 0x0c;
+
+var section_names = [
+  "memory", "signatures", "functions", "globals", "data_segments",
+  "function_table", "end", "start_function", "import_table", "export_table",
+  "function_signatures", "function_bodies", "names"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;

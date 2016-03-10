@@ -29,26 +29,72 @@ const uint32_t kWasmVersion = 0x0a;
 // internally V8 uses an enum to handle them.
 //
 // Entries have the form F(enumerator, string).
-#define FOR_EACH_WASM_SECTION_TYPE(F)               \
-  F(kDeclMemory, "memory")                          \
-  F(kDeclSignatures, "signatures")                  \
-  F(kDeclFunctions, "functions")                    \
-  F(kDeclGlobals, "globals")                        \
-  F(kDeclDataSegments, "data_segments")             \
-  F(kDeclFunctionTable, "function_table")           \
-  F(kDeclEnd, "end")                                \
-  F(kDeclStartFunction, "start_function")           \
-  F(kDeclImportTable, "import_table")               \
-  F(kDeclExportTable, "export_table")               \
-  F(kDeclFunctionSignatures, "function_signatures") \
-  F(kDeclFunctionBodies, "function_bodies")         \
-  F(kDeclNames, "names")
+#define FOR_EACH_WASM_SECTION_TYPE(F)          \
+  F(Memory, "memory")                          \
+  F(Signatures, "signatures")                  \
+  F(Functions, "functions")                    \
+  F(Globals, "globals")                        \
+  F(DataSegments, "data_segments")             \
+  F(FunctionTable, "function_table")           \
+  F(End, "end")                                \
+  F(StartFunction, "start_function")           \
+  F(ImportTable, "import_table")               \
+  F(ExportTable, "export_table")               \
+  F(FunctionSignatures, "function_signatures") \
+  F(FunctionBodies, "function_bodies")         \
+  F(Names, "names")
 
-enum WasmSectionDeclCode : uint32_t {
+// Contants for the above section types: {LEB128 length, characters...}.
+#define WASM_SECTION_MEMORY 6, 'm', 'e', 'm', 'o', 'r', 'y'
+#define WASM_SECTION_SIGNATURES \
+  10, 's', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e', 's'
+#define WASM_SECTION_FUNCTIONS 9, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', 's'
+#define WASM_SECTION_GLOBALS 7, 'g', 'l', 'o', 'b', 'a', 'l', 's'
+#define WASM_SECTION_DATA_SEGMENTS \
+  13, 'd', 'a', 't', 'a', '_', 's', 'e', 'g', 'm', 'e', 'n', 't', 's'
+#define WASM_SECTION_FUNCTION_TABLE \
+  14, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 't', 'a', 'b', 'l', 'e'
+#define WASM_SECTION_END 3, 'e', 'n', 'd'
+#define WASM_SECTION_START_FUNCTION \
+  14, 's', 't', 'a', 'r', 't', '_', 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
+#define WASM_SECTION_IMPORT_TABLE \
+  12, 'i', 'm', 'p', 'o', 'r', 't', '_', 't', 'a', 'b', 'l', 'e'
+#define WASM_SECTION_EXPORT_TABLE \
+  12, 'e', 'x', 'p', 'o', 'r', 't', '_', 't', 'a', 'b', 'l', 'e'
+#define WASM_SECTION_FUNCTION_SIGNATURES                                    \
+  19, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 's', 'i', 'g', 'n', 'a', \
+      't', 'u', 'r', 'e', 's'
+#define WASM_SECTION_FUNCTION_BODIES \
+  15, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 'b', 'o', 'd', 'i', 'e', 's'
+#define WASM_SECTION_NAMES 5, 'n', 'a', 'm', 'e', 's'
+
+// Constants for the above section headers' size (LEB128 + characters).
+#define WASM_SECTION_MEMORY_SIZE ((size_t)7)
+#define WASM_SECTION_SIGNATURES_SIZE ((size_t)11)
+#define WASM_SECTION_FUNCTIONS_SIZE ((size_t)10)
+#define WASM_SECTION_GLOBALS_SIZE ((size_t)8)
+#define WASM_SECTION_DATA_SEGMENTS_SIZE ((size_t)14)
+#define WASM_SECTION_FUNCTION_TABLE_SIZE ((size_t)15)
+#define WASM_SECTION_END_SIZE ((size_t)4)
+#define WASM_SECTION_START_FUNCTION_SIZE ((size_t)15)
+#define WASM_SECTION_IMPORT_TABLE_SIZE ((size_t)13)
+#define WASM_SECTION_EXPORT_TABLE_SIZE ((size_t)13)
+#define WASM_SECTION_FUNCTION_SIGNATURES_SIZE ((size_t)20)
+#define WASM_SECTION_FUNCTION_BODIES_SIZE ((size_t)16)
+#define WASM_SECTION_NAMES_SIZE ((size_t)6)
+
+struct WasmSection {
+  enum class Code : uint32_t {
 #define F(enumerator, string) enumerator,
-  FOR_EACH_WASM_SECTION_TYPE(F)
+    FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
-      kMaxModuleSectionCode
+        Max
+  };
+  static WasmSection::Code begin();
+  static WasmSection::Code end();
+  static WasmSection::Code next(WasmSection::Code code);
+  static const char* getName(Code code);
+  static size_t getNameLength(Code code);
 };
 
 enum WasmFunctionDeclBit {

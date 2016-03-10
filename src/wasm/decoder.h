@@ -303,6 +303,7 @@ class Decoder {
   Result<T> toResult(T val) {
     Result<T> result;
     if (error_pc_) {
+      TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
       result.start = start_;
       result.error_pc = error_pc_;

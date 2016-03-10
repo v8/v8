@@ -19,6 +19,36 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+static const char* wasmSections[] = {
+#define F(enumerator, string) string,
+    FOR_EACH_WASM_SECTION_TYPE(F)
+#undef F
+};
+
+static uint8_t wasmSectionsLengths[]{
+#define F(enumerator, string) sizeof(string) - 1,
+    FOR_EACH_WASM_SECTION_TYPE(F)
+#undef F
+};
+
+static_assert(sizeof(wasmSections) / sizeof(wasmSections[0]) ==
+                  (size_t)WasmSection::Code::Max,
+              "expected enum WasmSection::Code to be monotonic from 0");
+
+WasmSection::Code WasmSection::begin() { return (WasmSection::Code)0; }
+WasmSection::Code WasmSection::end() { return WasmSection::Code::Max; }
+WasmSection::Code WasmSection::next(WasmSection::Code code) {
+  return (WasmSection::Code)(1 + (uint32_t)code);
+}
+
+const char* WasmSection::getName(WasmSection::Code code) {
+  return wasmSections[(size_t)code];
+}
+
+size_t WasmSection::getNameLength(WasmSection::Code code) {
+  return wasmSectionsLengths[(size_t)code];
+}
+
 std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
   os << "WASM module with ";
   os << (module.min_mem_pages * module.kPageSize) << " min mem";
