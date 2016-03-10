@@ -98,7 +98,7 @@ bool LCodeGen::GeneratePrologue() {
     DCHECK(!frame_is_built_);
     frame_is_built_ = true;
     if (info()->IsStub()) {
-      __ StubPrologue();
+      __ StubPrologue(StackFrame::STUB);
     } else {
       __ Prologue(info()->GeneratePreagedPrologue());
     }
@@ -273,32 +273,24 @@ bool LCodeGen::GenerateJumpTable() {
   }
   if (needs_frame.is_linked()) {
     __ bind(&needs_frame);
-
     /* stack layout
-       4: entry address
-       3: return address  <-- esp
-       2: garbage
+       3: entry address
+       2: return address  <-- esp
        1: garbage
        0: garbage
     */
-    __ sub(esp, Immediate(kPointerSize));    // Reserve space for stub marker.
-    __ push(MemOperand(esp, kPointerSize));  // Copy return address.
-    __ push(MemOperand(esp, 3 * kPointerSize));  // Copy entry address.
+    __ push(MemOperand(esp, 0));                 // Copy return address.
+    __ push(MemOperand(esp, 2 * kPointerSize));  // Copy entry address.
 
     /* stack layout
        4: entry address
        3: return address
-       2: garbage
        1: return address
        0: entry address  <-- esp
     */
-    __ mov(MemOperand(esp, 4 * kPointerSize), ebp);  // Save ebp.
-
-    // Copy context.
-    __ mov(ebp, MemOperand(ebp, StandardFrameConstants::kContextOffset));
-    __ mov(MemOperand(esp, 3 * kPointerSize), ebp);
+    __ mov(MemOperand(esp, 3 * kPointerSize), ebp);  // Save ebp.
     // Fill ebp with the right stack frame address.
-    __ lea(ebp, MemOperand(esp, 4 * kPointerSize));
+    __ lea(ebp, MemOperand(esp, 3 * kPointerSize));
 
     // This variant of deopt can only be used with stubs. Since we don't
     // have a function pointer to install in the stack frame that we're
@@ -308,8 +300,7 @@ bool LCodeGen::GenerateJumpTable() {
            Immediate(Smi::FromInt(StackFrame::STUB)));
 
     /* stack layout
-       4: old ebp
-       3: context pointer
+       3: old ebp
        2: stub marker
        1: return address
        0: entry address  <-- esp
@@ -346,9 +337,8 @@ bool LCodeGen::GenerateDeferredCode() {
         frame_is_built_ = true;
         // Build the frame in such a way that esi isn't trashed.
         __ push(ebp);  // Caller's frame pointer.
-        __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
         __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
-        __ lea(ebp, Operand(esp, 2 * kPointerSize));
+        __ lea(ebp, Operand(esp, TypedFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -3088,7 +3078,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // Check for arguments adapter frame.
     Label done, adapted;
     __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
+    __ mov(result,
+           Operand(result, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ cmp(Operand(result),
            Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
     __ j(equal, &adapted, Label::kNear);
