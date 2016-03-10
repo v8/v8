@@ -21,6 +21,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/page-parallel-job.h"
 #include "src/heap/spaces-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -2788,22 +2789,6 @@ class PointersUpdatingVisitor : public ObjectVisitor {
   Heap* heap_;
 };
 
-
-static void UpdatePointer(HeapObject** address, HeapObject* object) {
-  MapWord map_word = object->map_word();
-  // Since we only filter invalid slots in old space, the store buffer can
-  // still contain stale pointers in large object and in map spaces. Ignore
-  // these pointers here.
-  DCHECK(map_word.IsForwardingAddress() ||
-         !object->GetHeap()->old_space()->Contains(
-             reinterpret_cast<Address>(address)));
-  if (map_word.IsForwardingAddress()) {
-    // Update the corresponding slot.
-    *address = map_word.ToForwardingAddress();
-  }
-}
-
-
 static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
                                                          Object** p) {
   MapWord map_word = HeapObject::cast(*p)->map_word();
@@ -3158,8 +3143,10 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
   intptr_t compaction_speed =
       heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
 
-  const int available_cores =
-      Max(1, base::SysInfo::NumberOfProcessors() - kNumSweepingTasks - 1);
+  const int available_cores = Max(
+      1, static_cast<int>(
+             V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads()) -
+             kNumSweepingTasks - 1);
   int tasks;
   if (compaction_speed > 0) {
     tasks = 1 + static_cast<int>(static_cast<double>(live_bytes) /
@@ -3585,6 +3572,81 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 #endif
 }
 
+template <PointerDirection direction>
+class PointerUpdateJobTraits {
+ public:
+  typedef int PerPageData;  // Per page data is not used in this job.
+  typedef PointersUpdatingVisitor* PerTaskData;
+
+  static bool ProcessPageInParallel(Heap* heap, PerTaskData visitor,
+                                    MemoryChunk* chunk, PerPageData) {
+    UpdateUntypedPointers(heap, chunk);
+    UpdateTypedPointers(heap, chunk, visitor);
+    return true;
+  }
+  static const bool NeedSequentialFinalization = false;
+  static void FinalizePageSequentially(Heap*, MemoryChunk*, bool, PerPageData) {
+  }
+
+ private:
+  static void UpdateUntypedPointers(Heap* heap, MemoryChunk* chunk) {
+    if (direction == OLD_TO_NEW) {
+      RememberedSet<OLD_TO_NEW>::IterateWithWrapper(heap, chunk,
+                                                    UpdateOldToNewSlot);
+    } else {
+      RememberedSet<OLD_TO_OLD>::Iterate(chunk, [heap](Address slot) {
+        PointersUpdatingVisitor::UpdateSlot(heap,
+                                            reinterpret_cast<Object**>(slot));
+        return REMOVE_SLOT;
+      });
+    }
+  }
+
+  static void UpdateTypedPointers(Heap* heap, MemoryChunk* chunk,
+                                  PointersUpdatingVisitor* visitor) {
+    if (direction == OLD_TO_OLD) {
+      Isolate* isolate = heap->isolate();
+      RememberedSet<OLD_TO_OLD>::IterateTyped(
+          chunk, [isolate, visitor](SlotType type, Address slot) {
+            UpdateTypedSlot(isolate, visitor, type, slot);
+            return REMOVE_SLOT;
+          });
+    }
+  }
+
+  static void UpdateOldToNewSlot(HeapObject** address, HeapObject* object) {
+    MapWord map_word = object->map_word();
+    // Since we only filter invalid slots in old space, the store buffer can
+    // still contain stale pointers in large object and in map spaces. Ignore
+    // these pointers here.
+    DCHECK(map_word.IsForwardingAddress() ||
+           !object->GetHeap()->old_space()->Contains(
+               reinterpret_cast<Address>(address)));
+    if (map_word.IsForwardingAddress()) {
+      // Update the corresponding slot.
+      *address = map_word.ToForwardingAddress();
+    }
+  }
+};
+
+int NumberOfPointerUpdateTasks(int pages) {
+  if (!FLAG_parallel_pointer_update) return 1;
+  const int kMaxTasks = 4;
+  const int kPagesPerTask = 4;
+  return Min(kMaxTasks, (pages + kPagesPerTask - 1) / kPagesPerTask);
+}
+
+template <PointerDirection direction>
+void UpdatePointersInParallel(Heap* heap) {
+  PageParallelJob<PointerUpdateJobTraits<direction> > job(
+      heap, heap->isolate()->cancelable_task_manager());
+  RememberedSet<direction>::IterateMemoryChunks(
+      heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
+  PointersUpdatingVisitor visitor(heap);
+  int num_pages = job.NumberOfPages();
+  int num_tasks = NumberOfPointerUpdateTasks(num_pages);
+  job.Run(num_tasks, [&visitor](int i) { return &visitor; });
+}
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   GCTracer::Scope gc_scope(heap()->tracer(),
@@ -3606,7 +3668,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
 
-    RememberedSet<OLD_TO_NEW>::IterateWithWrapper(heap_, UpdatePointer);
+    UpdatePointersInParallel<OLD_TO_NEW>(heap_);
   }
 
   {
@@ -3614,19 +3676,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     GCTracer::Scope gc_scope(
         heap->tracer(),
         GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
-
-    RememberedSet<OLD_TO_OLD>::Iterate(heap, [heap](Address slot) {
-      PointersUpdatingVisitor::UpdateSlot(heap,
-                                          reinterpret_cast<Object**>(slot));
-      return REMOVE_SLOT;
-    });
-    Isolate* isolate = heap->isolate();
-    PointersUpdatingVisitor* visitor = &updating_visitor;
-    RememberedSet<OLD_TO_OLD>::IterateTyped(
-        heap, [isolate, visitor](SlotType type, Address slot) {
-          UpdateTypedSlot(isolate, visitor, type, slot);
-          return REMOVE_SLOT;
-        });
+    UpdatePointersInParallel<OLD_TO_OLD>(heap_);
   }
 
   {
