@@ -107,11 +107,10 @@ namespace internal {
   V(IntersectionType)           \
   V(ArrayType)                  \
   V(FunctionType)               \
-  V(ConstructorType)            \
   V(TypeParameter)              \
   V(FormalParameter)            \
   V(TypeReference)              \
-  V(ParenthesizedTypeThings)
+  V(TypeOrParameters)
 
 // Forward declarations
 class AstNodeFactory;
@@ -144,11 +143,6 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
 #define DECLARE_NODE_TYPE(type)                                          \
   void Accept(AstVisitor* v) override;                                   \
   AstNode::NodeType node_type() const final { return AstNode::k##type; } \
-  friend class v8::internal::AstNodeFactory;
-
-#define DECLARE_NODE_TYPE_INHERITABLE(type)                                 \
-  void Accept(AstVisitor* v) override;                                      \
-  AstNode::NodeType node_type() const override { return AstNode::k##type; } \
   friend class v8::internal::AstNodeFactory;
 
 
@@ -2946,7 +2940,9 @@ class FormalParameter;
 
 class Type : public AstNode {
  public:
+  // Uncovers the case of a single, parenthesized valid type.
   V8_INLINE Type* Uncover(bool* ok);
+
   V8_INLINE ZoneList<FormalParameter*>* AsValidParameterList(Zone* zone,
                                                              bool* ok) const;
 
@@ -3096,37 +3092,29 @@ class FormalParameter : public AstNode {
 
 class FunctionType : public Type {
  public:
-  DECLARE_NODE_TYPE_INHERITABLE(FunctionType)
+  DECLARE_NODE_TYPE(FunctionType)
 
+  bool IsConstructorType() const { return constructor_; }
   ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
   ZoneList<FormalParameter*>* parameters() const { return parameters_; }
   Type* result_type() const { return result_type_; }
 
  protected:
-  FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
+  FunctionType(Zone* zone, bool constructor,
+               ZoneList<TypeParameter*>* type_parameters,
                ZoneList<FormalParameter*>* parameters, Type* result_type,
                int pos)
       : Type(zone, pos),
+        constructor_(constructor),
         type_parameters_(type_parameters),
         parameters_(parameters),
         result_type_(result_type) {}
 
  private:
+  bool constructor_;
   ZoneList<TypeParameter*>* type_parameters_;
   ZoneList<FormalParameter*>* parameters_;
   Type* result_type_;
-};
-
-
-class ConstructorType : public FunctionType {
- public:
-  DECLARE_NODE_TYPE(ConstructorType)
-
- protected:
-  ConstructorType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
-                  ZoneList<FormalParameter*>* parameters, Type* result_type,
-                  int pos)
-      : FunctionType(zone, type_parameters, parameters, result_type, pos) {}
 };
 
 
@@ -3148,21 +3136,19 @@ class TypeReference : public Type {
 };
 
 
-class ParenthesizedTypeThings : public Type {
+class TypeOrParameters : public Type {
  public:
-  DECLARE_NODE_TYPE(ParenthesizedTypeThings)
+  DECLARE_NODE_TYPE(TypeOrParameters)
 
-  ZoneList<FormalParameter*>* type_things() const { return type_things_; }
+  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
 
  protected:
-  ParenthesizedTypeThings(Zone* zone, ZoneList<FormalParameter*>* type_things,
-                          int pos)
-      : Type(zone, pos), type_things_(type_things) {}
+  TypeOrParameters(Zone* zone, ZoneList<FormalParameter*>* parameters, int pos)
+      : Type(zone, pos), parameters_(parameters) {}
 
  private:
-  ZoneList<FormalParameter*>* type_things_;
+  ZoneList<FormalParameter*>* parameters_;
 };
-
 
 V8_INLINE bool Type::IsSimpleIdentifier() const {
   const TypeReference* ref = AsTypeReference();
@@ -3178,23 +3164,21 @@ V8_INLINE const AstRawString* Type::AsSimpleIdentifier() const {
 }
 
 V8_INLINE Type* Type::Uncover(bool* ok) {
-  if (!IsParenthesizedTypeThings()) return this;
-  ZoneList<FormalParameter*>* type_things =
-      AsParenthesizedTypeThings()->type_things();
-  if (type_things->length() == 1 && type_things->at(0)->IsValidType())
-    return type_things->at(0)->type();
+  if (!IsTypeOrParameters()) return this;
+  ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
+  if (parameters->length() == 1 && parameters->at(0)->IsValidType())
+    return parameters->at(0)->type();
   *ok = false;
   return nullptr;
 }
 
 V8_INLINE ZoneList<FormalParameter*>* Type::AsValidParameterList(
     Zone* zone, bool* ok) const {
-  if (!IsParenthesizedTypeThings()) {
+  if (!IsTypeOrParameters()) {
     *ok = false;
     return nullptr;
   }
-  ZoneList<FormalParameter*>* parameters =
-      AsParenthesizedTypeThings()->type_things();
+  ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
   for (int i = 0; i < parameters->length(); i++) {
     parameters->at(i)->MakeValidParameter(ok);
     if (!*ok) return nullptr;
@@ -3778,19 +3762,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   typesystem::FunctionType* NewFunctionType(
-      ZoneList<typesystem::TypeParameter*>* type_parameters,
+      bool constructor, ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
       typesystem::Type* result_type, int pos) {
-    return new (local_zone_) typesystem::FunctionType(
-        local_zone_, type_parameters, parameters, result_type, pos);
-  }
-
-  typesystem::ConstructorType* NewConstructorType(
-      ZoneList<typesystem::TypeParameter*>* type_parameters,
-      ZoneList<typesystem::FormalParameter*>* parameters,
-      typesystem::Type* result_type, int pos) {
-    return new (local_zone_) typesystem::ConstructorType(
-        local_zone_, type_parameters, parameters, result_type, pos);
+    return new (local_zone_)
+        typesystem::FunctionType(local_zone_, constructor, type_parameters,
+                                 parameters, result_type, pos);
   }
 
   typesystem::TypeReference* NewTypeReference(
@@ -3814,10 +3791,10 @@ class AstNodeFactory final BASE_EMBEDDED {
         typesystem::FormalParameter(local_zone_, type, pos);
   }
 
-  typesystem::ParenthesizedTypeThings* NewParenthesizedTypeThings(
-      ZoneList<typesystem::FormalParameter*>* things, int pos) {
+  typesystem::TypeOrParameters* NewTypeOrParameters(
+      ZoneList<typesystem::FormalParameter*>* parameters, int pos) {
     return new (local_zone_)
-        typesystem::ParenthesizedTypeThings(local_zone_, things, pos);
+        typesystem::TypeOrParameters(local_zone_, parameters, pos);
   }
 
   Zone* zone() const { return local_zone_; }

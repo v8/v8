@@ -700,13 +700,7 @@ class PreParserFactory {
   }
 
   typesystem::PreParserType NewFunctionType(
-      const typesystem::PreParserTypeParameters& type_parameters,
-      const typesystem::PreParserFormalParameters& parameters,
-      typesystem::PreParserType result_type, int pos) {
-    return typesystem::PreParserType::Default();
-  }
-
-  typesystem::PreParserType NewConstructorType(
+      bool constructor,
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
       typesystem::PreParserType result_type, int pos) {
@@ -730,10 +724,10 @@ class PreParserFactory {
     return typesystem::PreParserFormalParameter::Unnamed(type);
   }
 
-  typesystem::PreParserType NewParenthesizedTypeThings(
-      const typesystem::PreParserFormalParameters& things, int pos) {
-    return typesystem::PreParserType::Parenthesized(things.IsValidType(),
-                                                    things.length());
+  typesystem::PreParserType NewTypeOrParameters(
+      const typesystem::PreParserFormalParameters& parameters, int pos) {
+    return typesystem::PreParserType::Parenthesized(parameters.IsValidType(),
+                                                    parameters.length());
   }
 
   // Return the object itself as AstVisitor and implement the needed

@@ -3388,11 +3388,8 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
       return this->EmptyType();
     }
     typename TypeSystem::Type result_type = ParseValidType(CHECK_OK_TYPE);
-    return has_new
-               ? factory()->NewConstructorType(type_parameters, parameters,
-                                               result_type, pos)
-               : factory()->NewFunctionType(type_parameters, parameters,
-                                            result_type, pos);
+    return factory()->NewFunctionType(has_new, type_parameters, parameters,
+                                      result_type, pos);
   }
   // Report invalid function or constructor type.
   if (has_new || !this->IsNullTypeParameters(type_parameters)) {
@@ -3472,11 +3469,11 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   switch (peek()) {
     case Token::LPAREN: {
       Consume(Token::LPAREN);
-      typename TypeSystem::FormalParameters things =
+      typename TypeSystem::FormalParameters parameters =
           this->EmptyFormalParameters();
       if (peek() != Token::RPAREN) {
         do {
-          Scanner::Location thing_location = scanner()->peek_location();
+          Scanner::Location parameter_location = scanner()->peek_location();
           if (Check(Token::ELLIPSIS)) {
             IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
             if (Check(Token::COLON)) {  // Braces required here.
@@ -3484,9 +3481,10 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             } else {
               type = this->EmptyType();
             }
-            things->Add(factory()->NewFormalParameter(name, false, true, type,
-                                                      thing_location.beg_pos),
-                        zone());
+            parameters->Add(
+                factory()->NewFormalParameter(name, false, true, type,
+                                              parameter_location.beg_pos),
+                zone());
             break;
           }
           type = ParseType(CHECK_OK_TYPE);
@@ -3503,20 +3501,20 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             } else {
               type = this->EmptyType();
             }
-            things->Add(
+            parameters->Add(
                 factory()->NewFormalParameter(name, optional, false, type,
-                                              thing_location.beg_pos),
+                                              parameter_location.beg_pos),
                 zone());
           } else {
-            type = ValidateType(type, thing_location, CHECK_OK_TYPE);
-            things->Add(
-                factory()->NewFormalParameter(type, thing_location.beg_pos),
+            type = ValidateType(type, parameter_location, CHECK_OK_TYPE);
+            parameters->Add(
+                factory()->NewFormalParameter(type, parameter_location.beg_pos),
                 zone());
           }
         } while (Check(Token::COMMA));
       }
       Expect(Token::RPAREN, CHECK_OK_TYPE);
-      type = factory()->NewParenthesizedTypeThings(things, pos);
+      type = factory()->NewTypeOrParameters(parameters, pos);
       break;
     }
     case Token::IDENTIFIER: {
