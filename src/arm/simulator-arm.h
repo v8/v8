@@ -363,6 +363,9 @@ class Simulator {
   template<class InputType, int register_size>
       void SetVFPRegister(int reg_index, const InputType& value);
 
+  void SetSpecialRegister(SRegisterFieldMask reg_and_mask, uint32_t value);
+  uint32_t GetFromSpecialRegister(SRegister reg);
+
   void CallInternal(byte* entry);
 
   // Architecture state.
