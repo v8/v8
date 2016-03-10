@@ -790,26 +790,13 @@
   'es6/debug-liveedit-new-target-1': [FAIL],
   'es6/debug-liveedit-new-target-2': [FAIL],
   'es6/debug-liveedit-new-target-3': [FAIL],
+  'es6/generators-debug-liveedit': [FAIL],
 
   # TODO(yangguo/rmcilroy,4690): Related to Debugger. Goes into a loop
   # in function: Debug::FindSharedFunctionInfoInScript and times out.
   'regress/regress-crbug-517592': [SKIP],
   'regress/regress-1853': [SKIP],
   'regress/regress-crbug-424142': [SKIP],
-
-  # TODO(rmcilroy,4681): Requires support for generators.
-  'es6/classes-subclass-builtins': [FAIL],
-  'es6/generators-runtime': [FAIL],
-  'es6/generators-parsing': [FAIL],
-  'es6/generators-iteration': [FAIL],
-  'es6/generators-states': [FAIL],
-  'es6/generators-relocation': [FAIL],
-  'es6/generators-debug-liveedit': [FAIL],
-  'es6/spread-call': [FAIL],
-  'es6/regress/regress-2691': [FAIL],
-  'harmony/destructuring-assignment': [FAIL],
-  'harmony/regress/regress-4482': [FAIL],
-  'harmony/reflect-construct': [FAIL],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],

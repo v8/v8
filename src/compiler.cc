@@ -793,7 +793,8 @@ static bool UseIgnition(CompilationInfo* info) {
   }
 
   // TODO(4681): Generators are not yet supported.
-  if (info->has_shared_info() && info->shared_info()->is_generator()) {
+  if ((info->has_shared_info() && info->shared_info()->is_generator()) ||
+      (info->has_literal() && IsGeneratorFunction(info->literal()->kind()))) {
     return false;
   }
 
