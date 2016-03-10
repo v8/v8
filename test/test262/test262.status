@@ -47,9 +47,6 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # https://code.google.com/p/v8/issues/detail?id=4163
-  'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
-
   # The order of adding the name property is wrong
   # https://code.google.com/p/v8/issues/detail?id=4199
   'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
