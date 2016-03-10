@@ -765,12 +765,28 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sar_cl(i.OutputOperand());
       }
       break;
-    case kX87PairShl:
+    case kX87ShlPair:
       if (HasImmediateInput(instr, 2)) {
-        __ PairShl(i.InputRegister(1), i.InputRegister(0), i.InputInt6(2));
+        __ ShlPair(i.InputRegister(1), i.InputRegister(0), i.InputInt6(2));
       } else {
         // Shift has been loaded into CL by the register allocator.
-        __ PairShl_cl(i.InputRegister(1), i.InputRegister(0));
+        __ ShlPair_cl(i.InputRegister(1), i.InputRegister(0));
+      }
+      break;
+    case kX87ShrPair:
+      if (HasImmediateInput(instr, 2)) {
+        __ ShrPair(i.InputRegister(1), i.InputRegister(0), i.InputInt6(2));
+      } else {
+        // Shift has been loaded into CL by the register allocator.
+        __ ShrPair_cl(i.InputRegister(1), i.InputRegister(0));
+      }
+      break;
+    case kX87SarPair:
+      if (HasImmediateInput(instr, 2)) {
+        __ SarPair(i.InputRegister(1), i.InputRegister(0), i.InputInt6(2));
+      } else {
+        // Shift has been loaded into CL by the register allocator.
+        __ SarPair_cl(i.InputRegister(1), i.InputRegister(0));
       }
       break;
     case kX87Ror:

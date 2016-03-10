@@ -241,7 +241,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
           Immediate(static_cast<uint32_t>(Double::kSignificandMask >> 32)));
   __ add(result_reg,
          Immediate(static_cast<uint32_t>(Double::kHiddenBit >> 32)));
-  __ shrd(result_reg, scratch1);
+  __ shrd_cl(scratch1, result_reg);
   __ shr_cl(result_reg);
   __ test(ecx, Immediate(32));
   {

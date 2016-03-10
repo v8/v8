@@ -731,21 +731,20 @@ class Assembler : public AssemblerBase {
 
   void sbb(Register dst, const Operand& src);
 
-  void shld(Register dst, Register src, uint8_t shift);
-  void shld_cl(Register dst, Register src);
-
   void shl(Register dst, uint8_t imm8) { shl(Operand(dst), imm8); }
   void shl(const Operand& dst, uint8_t imm8);
   void shl_cl(Register dst) { shl_cl(Operand(dst)); }
   void shl_cl(const Operand& dst);
-
-  void shrd(Register dst, Register src) { shrd(dst, Operand(src)); }
-  void shrd(Register dst, const Operand& src);
+  void shld(Register dst, Register src, uint8_t shift);
+  void shld_cl(Register dst, Register src);
 
   void shr(Register dst, uint8_t imm8) { shr(Operand(dst), imm8); }
   void shr(const Operand& dst, uint8_t imm8);
   void shr_cl(Register dst) { shr_cl(Operand(dst)); }
   void shr_cl(const Operand& dst);
+  void shrd(Register dst, Register src, uint8_t shift);
+  void shrd_cl(Register dst, Register src) { shrd_cl(Operand(dst), src); }
+  void shrd_cl(const Operand& dst, Register src);
 
   void sub(Register dst, const Immediate& imm) { sub(Operand(dst), imm); }
   void sub(const Operand& dst, const Immediate& x);

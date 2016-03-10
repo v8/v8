@@ -597,7 +597,7 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
-void MacroAssembler::PairShl(Register high, Register low, uint8_t shift) {
+void MacroAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   if (shift >= 32) {
     mov(high, low);
     shl(high, shift - 32);
@@ -608,7 +608,7 @@ void MacroAssembler::PairShl(Register high, Register low, uint8_t shift) {
   }
 }
 
-void MacroAssembler::PairShl_cl(Register high, Register low) {
+void MacroAssembler::ShlPair_cl(Register high, Register low) {
   shld_cl(high, low);
   shl_cl(low);
   Label done;
@@ -616,6 +616,50 @@ void MacroAssembler::PairShl_cl(Register high, Register low) {
   j(equal, &done, Label::kNear);
   mov(high, low);
   xor_(low, low);
+  bind(&done);
+}
+
+void MacroAssembler::ShrPair(Register high, Register low, uint8_t shift) {
+  if (shift >= 32) {
+    mov(low, high);
+    shr(low, shift - 32);
+    xor_(high, high);
+  } else {
+    shrd(high, low, shift);
+    shr(high, shift);
+  }
+}
+
+void MacroAssembler::ShrPair_cl(Register high, Register low) {
+  shrd_cl(low, high);
+  shr_cl(high);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(low, high);
+  xor_(high, high);
+  bind(&done);
+}
+
+void MacroAssembler::SarPair(Register high, Register low, uint8_t shift) {
+  if (shift >= 32) {
+    mov(low, high);
+    sar(low, shift - 32);
+    sar(high, 31);
+  } else {
+    shrd(high, low, shift);
+    sar(high, shift);
+  }
+}
+
+void MacroAssembler::SarPair_cl(Register high, Register low) {
+  shrd_cl(low, high);
+  sar_cl(high);
+  Label done;
+  test(ecx, Immediate(0x20));
+  j(equal, &done, Label::kNear);
+  mov(low, high);
+  sar(high, 31);
   bind(&done);
 }
 
