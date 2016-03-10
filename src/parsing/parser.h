@@ -510,6 +510,7 @@ class ParserTraits {
 
   static typesystem::Type* EmptyType() { return NULL; }
   static ZoneList<typesystem::Type*>* NullTypeArguments() { return nullptr; }
+  V8_INLINE ZoneList<typesystem::Type*>* EmptyTypeArguments() const;
   static ZoneList<typesystem::TypeParameter*>* NullTypeParameters() {
     return nullptr;
   }
@@ -517,6 +518,7 @@ class ParserTraits {
       ZoneList<typesystem::TypeParameter*>* typ_pars) {
     return typ_pars == nullptr;
   }
+  V8_INLINE ZoneList<typesystem::TypeParameter*>* EmptyTypeParameters() const;
   V8_INLINE ZoneList<typesystem::FormalParameter*>* EmptyFormalParameters()
       const;
 
@@ -1105,6 +1107,18 @@ bool ParserTraits::IsFutureStrictReserved(
 Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
                               FunctionKind kind) {
   return parser_->NewScope(parent_scope, scope_type, kind);
+}
+
+
+ZoneList<typesystem::Type*>* ParserTraits::EmptyTypeArguments() const {
+  return new (parser_->zone()) ZoneList<typesystem::Type*>(1, parser_->zone());
+}
+
+
+ZoneList<typesystem::TypeParameter*>* ParserTraits::EmptyTypeParameters()
+    const {
+  return new (parser_->zone())
+      ZoneList<typesystem::TypeParameter*>(1, parser_->zone());
 }
 
 

@@ -3410,16 +3410,35 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::TypeParameters
 ParserBase<Traits>::ParseTypeParameters(bool* ok) {
-  // TODO(nikolaos): Implement this.
-  return this->NullTypeParameters();
+  Expect(Token::LT, CHECK_OK_CUSTOM(NullTypeParameters));
+  typename TypeSystem::TypeParameters parameters = this->EmptyTypeParameters();
+  do {
+    int pos = peek_position();
+    IdentifierT name =
+        ParseIdentifierName(CHECK_OK_CUSTOM(NullTypeParameters));
+    typename TypeSystem::Type extends = this->EmptyType();
+    if (Check(Token::EXTENDS)) {  // Braces required here.
+      extends = ParseValidType(CHECK_OK_CUSTOM(NullTypeParameters));
+    }
+    parameters->Add(factory()->NewTypeParameter(name, extends, pos), zone());
+  } while (Check(Token::COMMA));
+  Expect(Token::GT, CHECK_OK_CUSTOM(NullTypeParameters));
+  return parameters;
 }
 
 
 template <typename Traits>
 typename ParserBase<Traits>::TypeSystem::TypeArguments
 ParserBase<Traits>::ParseTypeArguments(bool* ok) {
-  // TODO(nikolaos): Implement this.
-  return this->NullTypeArguments();
+  Expect(Token::LT, CHECK_OK_CUSTOM(NullTypeArguments));
+  typename TypeSystem::TypeArguments arguments = this->EmptyTypeArguments();
+  do {
+    typename TypeSystem::Type type =
+        ParseValidType(CHECK_OK_CUSTOM(NullTypeArguments));
+    arguments->Add(type, zone());
+  } while (Check(Token::COMMA));
+  Expect(Token::GT, CHECK_OK_CUSTOM(NullTypeArguments));
+  return arguments;
 }
 
 
@@ -3429,7 +3448,7 @@ ParserBase<Traits>::ParseUnionOrIntersectionOrPrimaryType(bool* ok) {
   Scanner::Location type_location = scanner()->peek_location();
   typename TypeSystem::Type type =
       ParseIntersectionOrPrimaryType(CHECK_OK_TYPE);
-  if (peek() == Token::BIT_OR) {  // braces required here
+  if (peek() == Token::BIT_OR) {  // Braces required here
     type = ValidateType(type, type_location, CHECK_OK_TYPE);
   }
   while (Check(Token::BIT_OR)) {
@@ -3449,7 +3468,7 @@ ParserBase<Traits>::ParseIntersectionOrPrimaryType(bool* ok) {
   Scanner::Location type_location = scanner()->peek_location();
   typename TypeSystem::Type type =
       ParsePrimaryTypeOrParameterList(CHECK_OK_TYPE);
-  if (peek() == Token::BIT_AND) {  // braces required here
+  if (peek() == Token::BIT_AND) {  // Braces required here
     type = ValidateType(type, type_location, CHECK_OK_TYPE);
   }
   while (Check(Token::BIT_AND)) {
@@ -3567,10 +3586,10 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   }
 
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-    if (peek() == Token::LBRACK) {  // braces required here
+    if (peek() == Token::LBRACK) {  // Braces required here
       type = ValidateType(type, type_location, CHECK_OK_TYPE);
     }
-    while (Check(Token::LBRACK)) {  // braces required here
+    while (Check(Token::LBRACK)) {  // Braces required here
       Expect(Token::RBRACK, CHECK_OK_TYPE);
       type = factory()->NewArrayType(type, pos);
     }
