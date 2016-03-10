@@ -5447,7 +5447,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::values_.
   __ mov(ApiParameterOperand(3), scratch);
   // FunctionCallbackInfo::length_.
-  __ Move(ApiParameterOperand(4), Immediate(argc));
+  __ Move(ApiParameterOperand(4), Immediate(argc()));
   // FunctionCallbackInfo::is_construct_call_.
   __ Move(ApiParameterOperand(5), Immediate(0));
 
