@@ -8,11 +8,13 @@
 #include <iomanip>
 #include <sstream>
 
+#include "src/objects-inl.h"
+
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
+#include "src/api.h"
 #include "src/api-arguments.h"
 #include "src/api-natives.h"
-#include "src/api.h"
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
@@ -41,7 +43,6 @@
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
-#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
