@@ -271,21 +271,6 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   return FromCodeOffset(debug_info, call_offset);
 }
 
-// Find the break point at the supplied address, or the closest one before
-// the address.
-void BreakLocation::FromCodeOffsetSameStatement(
-    Handle<DebugInfo> debug_info, int offset, List<BreakLocation>* result_out) {
-  int break_index = BreakIndexFromCodeOffset(debug_info, offset);
-  base::SmartPointer<Iterator> it(GetIterator(debug_info));
-  it->SkipTo(break_index);
-  int statement_position = it->statement_position();
-  while (!it->Done() && it->statement_position() == statement_position) {
-    result_out->Add(it->GetBreakLocation());
-    it->Next();
-  }
-}
-
-
 void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
                                             int statement_position,
                                             List<BreakLocation>* result_out) {
@@ -1665,45 +1650,6 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   }
   results->Shrink(length);
   return results;
-}
-
-
-void Debug::GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
-                               List<int>* results_out) {
-  FrameSummary summary = GetFirstFrameSummary(frame);
-
-  Handle<JSFunction> fun = Handle<JSFunction>(summary.function());
-  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(fun->shared());
-
-  if (!EnsureDebugInfo(shared, fun)) return;
-
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  // Refresh frame summary if the code has been recompiled for debugging.
-  if (AbstractCode::cast(shared->code()) != *summary.abstract_code()) {
-    summary = GetFirstFrameSummary(frame);
-  }
-
-  int call_offset =
-      CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
-  List<BreakLocation> locations;
-  BreakLocation::FromCodeOffsetSameStatement(debug_info, call_offset,
-                                             &locations);
-
-  for (BreakLocation location : locations) {
-    if (location.code_offset() <= summary.code_offset()) {
-      // The break point is near our pc. Could be a step-in possibility,
-      // that is currently taken by active debugger call.
-      if (break_frame_id() == StackFrame::NO_ID) {
-        continue;  // We are not stepping.
-      } else {
-        JavaScriptFrameIterator frame_it(isolate_, break_frame_id());
-        // If our frame is a top frame and we are stepping, we can do step-in
-        // at this place.
-        if (frame_it.frame()->id() != frame_id) continue;
-      }
-    }
-    if (location.IsCall()) results_out->Add(location.position());
-  }
 }
 
 

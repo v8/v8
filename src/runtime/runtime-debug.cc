@@ -740,33 +740,6 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 }
 
 
-// Returns the list of step-in positions (text offset) in a function of the
-// stack frame in a range from the current debug break position to the end
-// of the corresponding statement.
-RUNTIME_FUNCTION(Runtime_GetStepInPositions) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
-  RUNTIME_ASSERT(isolate->debug()->CheckExecutionState(break_id));
-
-  CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
-
-  // Get the frame where the debugging is performed.
-  StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(isolate, id);
-  RUNTIME_ASSERT(!frame_it.done());
-
-  List<int> positions;
-  isolate->debug()->GetStepinPositions(frame_it.frame(), id, &positions);
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> array = factory->NewFixedArray(positions.length());
-  for (int i = 0; i < positions.length(); ++i) {
-    array->set(i, Smi::FromInt(positions[i]));
-  }
-  return *factory->NewJSArrayWithElements(array, FAST_SMI_ELEMENTS);
-}
-
-
 // Return an array with scope details
 // args[0]: number: break id
 // args[1]: number: frame index

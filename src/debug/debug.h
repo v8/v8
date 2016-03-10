@@ -70,10 +70,6 @@ class BreakLocation {
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
                                  JavaScriptFrame* frame);
 
-  static void FromCodeOffsetSameStatement(Handle<DebugInfo> debug_info,
-                                          int offset,
-                                          List<BreakLocation>* result_out);
-
   static void AllForStatementPosition(Handle<DebugInfo> debug_info,
                                       int statement_position,
                                       List<BreakLocation>* result_out);
@@ -459,9 +455,6 @@ class Debug {
   void ClearStepping();
   void ClearStepOut();
   void EnableStepIn();
-
-  void GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
-                          List<int>* results_out);
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
 
