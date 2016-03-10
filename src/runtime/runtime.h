@@ -35,7 +35,6 @@ namespace internal {
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 0, 1)     \
   F(TransitionElementsKind, 2, 1)    \
-  F(PushIfAbsent, 2, 1)              \
   F(RemoveArrayHoles, 2, 1)          \
   F(MoveArrayContents, 2, 1)         \
   F(EstimateNumberOfElements, 1, 1)  \
@@ -851,7 +850,6 @@ namespace internal {
   F(StringCharCodeAtRT, 2, 1)             \
   F(StringCompare, 2, 1)                  \
   F(StringBuilderConcat, 3, 1)            \
-  F(StringBuilderJoin, 3, 1)              \
   F(SparseJoinWithSeparator, 3, 1)        \
   F(StringToArray, 2, 1)                  \
   F(StringToLowerCase, 1, 1)              \
