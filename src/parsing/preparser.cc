@@ -521,18 +521,11 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     PreParserExpression pattern = PreParserExpression::Default();
     {
       ExpressionClassifier pattern_classifier(this);
-      Token::Value next = peek();
       pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
 
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
       if (lexical) {
         ValidateLetPattern(&pattern_classifier, CHECK_OK);
-      }
-
-      if (!allow_harmony_destructuring_bind() && !pattern.IsIdentifier()) {
-        ReportUnexpectedToken(next);
-        *ok = false;
-        return Statement::Default();
       }
     }
 
@@ -855,7 +848,6 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       bool is_for_each = CheckInOrOf(&mode, ok);
       if (!*ok) return Statement::Default();
       bool is_destructuring = is_for_each &&
-                              allow_harmony_destructuring_assignment() &&
                               (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
 
       if (is_destructuring) {

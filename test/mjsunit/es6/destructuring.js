@@ -1,9 +1,6 @@
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --harmony-destructuring-bind
-// Flags: --harmony-default-parameters
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y, get, set } = { x : 1, y : 2, get: 3, set: 4 };

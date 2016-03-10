@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-destructuring-bind
-
 assertThrows(`for(const { method() {} } = this) {}`, SyntaxError);
 assertThrows(`var { method() {} } = this;`, SyntaxError);
 assertThrows(`for(const { *method() {} } = this) {}`, SyntaxError);

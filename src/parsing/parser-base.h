@@ -111,9 +111,6 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_(false),
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
-        allow_harmony_default_parameters_(false),
-        allow_harmony_destructuring_bind_(false),
-        allow_harmony_destructuring_assignment_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false),
@@ -129,9 +126,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
-  ALLOW_ACCESSORS(harmony_default_parameters);
-  ALLOW_ACCESSORS(harmony_destructuring_bind);
-  ALLOW_ACCESSORS(harmony_destructuring_assignment);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
@@ -925,9 +919,6 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_;
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
-  bool allow_harmony_default_parameters_;
-  bool allow_harmony_destructuring_bind_;
-  bool allow_harmony_destructuring_assignment_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
@@ -1263,15 +1254,9 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       return this->ParseRegExpLiteral(false, classifier, ok);
 
     case Token::LBRACK:
-      if (!allow_harmony_destructuring_bind()) {
-        BindingPatternUnexpectedToken(classifier);
-      }
       return this->ParseArrayLiteral(classifier, ok);
 
     case Token::LBRACE:
-      if (!allow_harmony_destructuring_bind()) {
-        BindingPatternUnexpectedToken(classifier);
-      }
       return this->ParseObjectLiteral(classifier, ok);
 
     case Token::LPAREN: {
@@ -1973,23 +1958,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   // Now pending non-pattern expressions must be discarded.
   arrow_formals_classifier.Discard();
 
-  if (!(allow_harmony_destructuring_bind() ||
-        allow_harmony_default_parameters())) {
-    BindingPatternUnexpectedToken(classifier);
-  }
-
-  if (allow_harmony_destructuring_assignment() && IsValidPattern(expression) &&
-      peek() == Token::ASSIGN) {
+  if (IsValidPattern(expression) && peek() == Token::ASSIGN) {
     classifier->ForgiveCoverInitializedNameError();
     ValidateAssignmentPattern(classifier, CHECK_OK);
     is_destructuring_assignment = true;
-  } else if (allow_harmony_default_parameters() &&
-             !allow_harmony_destructuring_assignment()) {
-    // TODO(adamk): This branch should be removed once the destructuring
-    // assignment and default parameter flags are removed.
-    expression = this->ClassifyAndRewriteReferenceExpression(
-        classifier, expression, lhs_beg_pos, scanner()->location().end_pos,
-        MessageTemplate::kInvalidLhsInAssignment);
   } else {
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,
@@ -2665,7 +2637,6 @@ void ParserBase<Traits>::ParseFormalParameter(
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
 
-  Token::Value next = peek();
   ExpressionT pattern = ParsePrimaryExpression(classifier, ok);
   if (!*ok) return;
 
@@ -2673,11 +2644,6 @@ void ParserBase<Traits>::ParseFormalParameter(
   if (!*ok) return;
 
   if (!Traits::IsIdentifier(pattern)) {
-    if (!allow_harmony_destructuring_bind()) {
-      ReportUnexpectedToken(next);
-      *ok = false;
-      return;
-    }
     parameters->is_simple = false;
     ValidateFormalParameterInitializer(classifier, ok);
     if (!*ok) return;
@@ -2685,7 +2651,7 @@ void ParserBase<Traits>::ParseFormalParameter(
   }
 
   ExpressionT initializer = Traits::EmptyExpression();
-  if (!is_rest && allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
+  if (!is_rest && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, &init_classifier, ok);
     if (!*ok) return;

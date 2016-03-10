@@ -779,10 +779,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_sloppy_function(FLAG_harmony_sloppy_function);
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
-  set_allow_harmony_default_parameters(FLAG_harmony_default_parameters);
-  set_allow_harmony_destructuring_bind(FLAG_harmony_destructuring_bind);
-  set_allow_harmony_destructuring_assignment(
-      FLAG_harmony_destructuring_assignment);
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
@@ -941,8 +937,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       // unchanged if the property already exists.
       InsertSloppyBlockFunctionVarBindings(scope, &ok);
     }
-    if (ok && (is_strict(language_mode()) || allow_harmony_sloppy() ||
-               allow_harmony_destructuring_bind())) {
+    if (ok) {
       CheckConflictingVarDeclarations(scope_, &ok);
     }
 
@@ -2323,16 +2318,10 @@ Block* Parser::ParseVariableDeclarations(
     int decl_pos = peek_position();
     {
       ExpressionClassifier pattern_classifier(this);
-      Token::Value next = peek();
       pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
       if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
         ValidateLetPattern(&pattern_classifier, CHECK_OK);
-      }
-      if (!allow_harmony_destructuring_bind() && !pattern->IsVariableProxy()) {
-        ReportUnexpectedToken(next);
-        *ok = false;
-        return nullptr;
       }
     }
 
@@ -3147,7 +3136,6 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
                              RelocInfo::kNoPosition);
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
-      DCHECK(allow_harmony_destructuring_assignment());
       Variable* temp =
           scope_->NewTemporary(ast_value_factory()->empty_string());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
@@ -3223,7 +3211,6 @@ void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
     assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
                                            RelocInfo::kNoPosition);
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
-      DCHECK(allow_harmony_destructuring_assignment());
       assign_each = PatternRewriter::RewriteDestructuringAssignment(
           this, assign_each->AsAssignment(), scope_);
     }
@@ -3700,9 +3687,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
       bool is_for_each = CheckInOrOf(&mode, ok);
       if (!*ok) return nullptr;
-      bool is_destructuring =
-          is_for_each && allow_harmony_destructuring_assignment() &&
-          (expression->IsArrayLiteral() || expression->IsObjectLiteral());
+      bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
+                                              expression->IsObjectLiteral());
 
       if (is_destructuring) {
         ValidateAssignmentPattern(&classifier, CHECK_OK);
@@ -3956,7 +3942,6 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     parser_->scope_->RemoveUnresolved(expr->AsVariableProxy());
   } else if (expr->IsAssignment()) {
     Assignment* assignment = expr->AsAssignment();
-    DCHECK(parser_->allow_harmony_default_parameters());
     DCHECK(!assignment->is_compound());
     initializer = assignment->value();
     expr = assignment->target();
@@ -4273,10 +4258,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_sloppy(language_mode) && allow_harmony_sloppy_function()) {
       InsertSloppyBlockFunctionVarBindings(scope, CHECK_OK);
     }
-    if (is_strict(language_mode) || allow_harmony_sloppy() ||
-        allow_harmony_destructuring_bind()) {
-      CheckConflictingVarDeclarations(scope, CHECK_OK);
-    }
+    CheckConflictingVarDeclarations(scope, CHECK_OK);
 
     if (body) {
       // If body can be inspected, rewrite queued destructuring assignments
@@ -4695,9 +4677,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_let);
-    SET_ALLOW(harmony_default_parameters);
-    SET_ALLOW(harmony_destructuring_bind);
-    SET_ALLOW(harmony_destructuring_assignment);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
@@ -5464,7 +5443,6 @@ void Parser::RewriteNonPattern(ExpressionClassifier* classifier, bool* ok) {
 
 
 void Parser::RewriteDestructuringAssignments() {
-  if (!allow_harmony_destructuring_assignment()) return;
   const auto& assignments =
       function_state_->destructuring_assignments_to_rewrite();
   for (int i = assignments.length() - 1; i >= 0; --i) {
