@@ -203,26 +203,23 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   return isolate->heap()->undefined_value();
 }
 
-
-// Optimization for the following three functions is disabled in
-// js/generator.js and compiler/ast-graph-builder.cc.
-
+// Optimization for builtins calling any of the following three functions is
+// disabled in js/generator.js and compiler.cc, hence they are unreachable.
 
 RUNTIME_FUNCTION(Runtime_GeneratorNext) {
   UNREACHABLE();
   return nullptr;
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorReturn) {
   UNREACHABLE();
   return nullptr;
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
   UNREACHABLE();
   return nullptr;
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -2745,6 +2745,37 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   InstallBuiltinFunctionIds();
 
+  // Also install builtin function ids to some generator object methods. These
+  // three methods use the three resume operations (Runtime_GeneratorNext,
+  // Runtime_GeneratorReturn, Runtime_GeneratorThrow) respectively. Those
+  // operations are not supported by Crankshaft, TurboFan, nor Ignition.
+  {
+    Handle<JSObject> generator_object_prototype(JSObject::cast(
+        native_context()->generator_object_prototype_map()->prototype()));
+
+    {  // GeneratorObject.prototype.next
+      Handle<String> key = factory()->next_string();
+      Handle<JSFunction> function = Handle<JSFunction>::cast(
+          JSReceiver::GetProperty(generator_object_prototype, key)
+              .ToHandleChecked());
+      function->shared()->set_builtin_function_id(kGeneratorObjectNext);
+    }
+    {  // GeneratorObject.prototype.return
+      Handle<String> key = factory()->NewStringFromAsciiChecked("return");
+      Handle<JSFunction> function = Handle<JSFunction>::cast(
+          JSReceiver::GetProperty(generator_object_prototype, key)
+              .ToHandleChecked());
+      function->shared()->set_builtin_function_id(kGeneratorObjectReturn);
+    }
+    {  // GeneratorObject.prototype.throw
+      Handle<String> key = factory()->throw_string();
+      Handle<JSFunction> function = Handle<JSFunction>::cast(
+          JSReceiver::GetProperty(generator_object_prototype, key)
+              .ToHandleChecked());
+      function->shared()->set_builtin_function_id(kGeneratorObjectThrow);
+    }
+  }
+
   // Create a map for accessor property descriptors (a variant of JSObject
   // that predefines four properties get, set, configurable and enumerable).
   {

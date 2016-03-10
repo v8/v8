@@ -2568,22 +2568,12 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     return VisitCallJSRuntime(expr);
   }
 
-  const Runtime::Function* function = expr->function();
-
-  // TODO(mstarzinger): This bailout is a gigantic hack, the owner is ashamed.
-  if (function->function_id == Runtime::kInlineGeneratorNext ||
-      function->function_id == Runtime::kInlineGeneratorReturn ||
-      function->function_id == Runtime::kInlineGeneratorThrow) {
-    ast_context()->ProduceValue(jsgraph()->TheHoleConstant());
-    return SetStackOverflow();
-  }
-
   // Evaluate all arguments to the runtime call.
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
   // Create node to perform the runtime call.
-  Runtime::FunctionId functionId = function->function_id;
+  Runtime::FunctionId functionId = expr->function()->function_id;
   const Operator* call = javascript()->CallRuntime(functionId, args->length());
   FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length());
