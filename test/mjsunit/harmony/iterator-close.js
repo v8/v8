@@ -1010,6 +1010,94 @@ function* g() { yield 42; return 88 };
 }
 
 
+// Value throws.
+{
+  g.prototype.next = () => ({get value() {throw 666}});
+  g.prototype.return = () => { assertUnreachable() };
+
+
+  assertThrowsEquals(() => {
+    for (var x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (let x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (const x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    var [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    let [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    const [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    (([x]) => x)(g());
+  }, 666);
+}
+
+
+// Done throws.
+{
+  g.prototype.next = () => ({get done() {throw 666}});
+  g.prototype.return = () => { assertUnreachable() };
+
+
+  assertThrowsEquals(() => {
+    for (var x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (let x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (const x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    for (x of g()) {}
+  }, 666);
+
+  assertThrowsEquals(() => {
+    var [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    let [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    const [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    [x] = g();
+  }, 666);
+
+  assertThrowsEquals(() => {
+    (([x]) => x)(g());
+  }, 666);
+}
+
+
 // Nested loops.
 {
   function* g1() { yield 1; yield 2; throw 3; }

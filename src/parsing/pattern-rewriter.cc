@@ -443,13 +443,54 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // if (!done) {
     //   done = true;  // If .next, .done or .value throws, don't close.
     //   result = IteratorNext(iterator);
-    //   v = (done = result.done) ? undefined : result.value;
+    //   if (result.done) {
+    //     v = undefined;
+    //   } else {
+    //     v = result.value;
+    //     done = false;
+    //   }
     // }
-    Statement* if_statement;
+    Statement* if_not_done;
     {
+      auto result_done = factory()->NewProperty(
+          factory()->NewVariableProxy(result),
+          factory()->NewStringLiteral(ast_value_factory()->done_string(),
+                                      RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+
+      auto assign_undefined = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(v),
+          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+
+      auto assign_value = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(v),
+          factory()->NewProperty(
+              factory()->NewVariableProxy(result),
+              factory()->NewStringLiteral(ast_value_factory()->value_string(),
+                                          RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+
+      auto unset_done = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(done),
+          factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition),
+          RelocInfo::kNoPosition);
+
+      auto inner_else =
+          factory()->NewBlock(nullptr, 2, true, RelocInfo::kNoPosition);
+      inner_else->statements()->Add(
+          factory()->NewExpressionStatement(assign_value, nopos), zone());
+      inner_else->statements()->Add(
+          factory()->NewExpressionStatement(unset_done, nopos), zone());
+
+      auto inner_if = factory()->NewIfStatement(
+          result_done,
+          factory()->NewExpressionStatement(assign_undefined, nopos),
+          inner_else, nopos);
+
       auto next_block =
           factory()->NewBlock(nullptr, 3, true, RelocInfo::kNoPosition);
-
       next_block->statements()->Add(
           factory()->NewExpressionStatement(
               factory()->NewAssignment(
@@ -457,7 +498,6 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                   factory()->NewBooleanLiteral(true, nopos), nopos),
               nopos),
           zone());
-
       next_block->statements()->Add(
           factory()->NewExpressionStatement(
               parser_->BuildIteratorNextResult(
@@ -465,40 +505,16 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                   RelocInfo::kNoPosition),
               RelocInfo::kNoPosition),
           zone());
+      next_block->statements()->Add(inner_if, zone());
 
-      auto assign_to_done = factory()->NewAssignment(
-          Token::ASSIGN, factory()->NewVariableProxy(done),
-          factory()->NewProperty(
-              factory()->NewVariableProxy(result),
-              factory()->NewStringLiteral(ast_value_factory()->done_string(),
-                                          RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-      auto next_value = factory()->NewConditional(
-          assign_to_done,
-          factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-          factory()->NewProperty(
-              factory()->NewVariableProxy(result),
-              factory()->NewStringLiteral(ast_value_factory()->value_string(),
-                                          RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-      next_block->statements()->Add(
-          factory()->NewExpressionStatement(
-              factory()->NewAssignment(Token::ASSIGN,
-                                       factory()->NewVariableProxy(v),
-                                       next_value, RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          zone());
-
-      if_statement = factory()->NewIfStatement(
+      if_not_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(Token::NOT,
                                        factory()->NewVariableProxy(done),
                                        RelocInfo::kNoPosition),
           next_block, factory()->NewEmptyStatement(RelocInfo::kNoPosition),
           RelocInfo::kNoPosition);
     }
-    block_->statements()->Add(if_statement, zone());
+    block_->statements()->Add(if_not_done, zone());
 
     if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
       if (FLAG_harmony_iterator_close) {
