@@ -110,6 +110,7 @@ namespace internal {
   V(TypeParameter)              \
   V(FormalParameter)            \
   V(TypeReference)              \
+  V(StringLiteralType)          \
   V(TypeOrParameters)
 
 // Forward declarations
@@ -3142,6 +3143,21 @@ class TypeReference : public Type {
 };
 
 
+class StringLiteralType : public Type {
+ public:
+  DECLARE_NODE_TYPE(StringLiteralType)
+
+  const AstRawString* string() const { return string_; }
+
+ protected:
+  StringLiteralType(Zone* zone, const AstRawString* string, int pos)
+      : Type(zone, pos), string_(string) {}
+
+ private:
+  const AstRawString* string_;
+};
+
+
 class TypeOrParameters : public Type {
  public:
   DECLARE_NODE_TYPE(TypeOrParameters)
@@ -3781,6 +3797,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       int pos) {
     return new (local_zone_)
         typesystem::TypeReference(local_zone_, name, type_arguments, pos);
+  }
+
+  typesystem::StringLiteralType* NewStringLiteralType(
+      const AstRawString* string, int pos) {
+    return new (local_zone_)
+        typesystem::StringLiteralType(local_zone_, string, pos);
   }
 
   typesystem::FormalParameter* NewFormalParameter(const AstRawString* name,

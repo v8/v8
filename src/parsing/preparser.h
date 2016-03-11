@@ -489,13 +489,16 @@ class PreParserFormalParameters
 class PreParserType {
  public:
   static PreParserType Default(bool valid = true) {
-    return PreParserType(valid, false);
+    return PreParserType(valid, false, false);
   }
   static PreParserType Reference(bool simple) {
-    return PreParserType(true, simple);
+    return PreParserType(true, simple, false);
   }
   static PreParserType Parenthesized(bool valid, int arity) {
-    return PreParserType(valid, false, arity);
+    return PreParserType(valid, false, false, arity);
+  }
+  static PreParserType StringLiteral() {
+    return PreParserType(true, false, true);
   }
 
   // Dummy implementation for making type->somefunc() work in both Parser
@@ -515,6 +518,7 @@ class PreParserType {
 
   bool IsValidType() const { return valid_type_; }
   bool IsSimpleIdentifier() const { return simple_identifier_; }
+  bool IsStringLiteralType() const { return string_; }
 
   PreParserIdentifier AsSimpleIdentifier() const {
     DCHECK(simple_identifier_);
@@ -522,11 +526,15 @@ class PreParserType {
   }
 
  private:
-  PreParserType(bool valid, bool simple, int arity = -1)
-      : valid_type_(valid), simple_identifier_(simple), arity_(arity) {}
+  PreParserType(bool valid, bool simple, bool string, int arity = -1)
+      : valid_type_(valid),
+        simple_identifier_(simple),
+        string_(string),
+        arity_(arity) {}
 
   bool valid_type_;
   bool simple_identifier_;
+  bool string_;
   int arity_;
 };
 
@@ -713,6 +721,11 @@ class PreParserFactory {
       typesystem::PreParserType result_type, int pos,
       bool constructor = false) {
     return typesystem::PreParserType::Default();
+  }
+
+  typesystem::PreParserType NewStringLiteralType(
+      const PreParserIdentifier& string, int pos) {
+    return typesystem::PreParserType::StringLiteral();
   }
 
   typesystem::PreParserType NewTypeReference(
