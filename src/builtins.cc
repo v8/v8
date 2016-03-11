@@ -142,13 +142,18 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
                                                      Isolate* isolate);        \
   MUST_USE_RESULT static Object* Builtin_##name(                               \
       int args_length, Object** args_object, Isolate* isolate) {               \
+    Object* value;                                                             \
     isolate->counters()->runtime_calls()->Increment();                         \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
-    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                      \
                  "V8.Builtin_" #name);                                         \
     name##ArgumentsType args(args_length, args_object);                        \
-    Object* value = Builtin_Impl_##name(args, isolate);                        \
+    if (FLAG_runtime_call_stats) {                                             \
+      RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();     \
+      RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);            \
+      value = Builtin_Impl_##name(args, isolate);                              \
+    } else {                                                                   \
+      value = Builtin_Impl_##name(args, isolate);                              \
+    }                                                                          \
     return value;                                                              \
   }                                                                            \
                                                                                \
