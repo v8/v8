@@ -843,58 +843,71 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return result;
 }
 
+bool LookupPropertyClass(UProperty property, const char* property_name,
+                         ZoneList<CharacterRange>* result, Zone* zone) {
+  int32_t property_value = u_getPropertyValueEnum(property, property_name);
+  if (property_value == UCHAR_INVALID_CODE) return false;
+
+  USet* set = uset_openEmpty();
+  UErrorCode ec = U_ZERO_ERROR;
+  uset_applyIntPropertyValue(set, property, property_value, &ec);
+  bool success = ec == U_ZERO_ERROR && !uset_isEmpty(set);
+
+  if (success) {
+    uset_removeAllStrings(set);
+    int item_count = uset_getItemCount(set);
+    int item_result = 0;
+    for (int i = 0; i < item_count; i++) {
+      uc32 start = 0;
+      uc32 end = 0;
+      item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
+      result->Add(CharacterRange::Range(start, end), zone);
+    }
+    DCHECK_EQ(U_ZERO_ERROR, ec);
+    DCHECK_EQ(0, item_result);
+  }
+  uset_close(set);
+  return success;
+}
+
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
 #ifdef V8_I18N_SUPPORT
-  ZoneList<char> property_name(0, zone());
+  List<char> property_name_list;
   if (current() == '{') {
     for (Advance(); current() != '}'; Advance()) {
       if (!has_next()) return false;
-      property_name.Add(static_cast<char>(current()), zone());
+      property_name_list.Add(static_cast<char>(current()));
     }
   } else if (current() != kEndMarker) {
-    property_name.Add(static_cast<char>(current()), zone());
+    property_name_list.Add(static_cast<char>(current()));
   } else {
     return false;
   }
   Advance();
-  property_name.Add(0, zone());  // null-terminate string.
+  property_name_list.Add(0);  // null-terminate string.
 
-  // Property names are defined in unicode database files. For aliases of
-  // these property names, see PropertyValueAliases.txt.
-  UProperty kPropertyClasses[] = {
-      // General_Category (gc) found in PropertyValueAliases.txt
-      UCHAR_GENERAL_CATEGORY_MASK,
-      // Script (sc) found in Scripts.txt
-      UCHAR_SCRIPT,
-  };
+  const char* property_name = property_name_list.ToConstVector().start();
 
-  for (int i = 0; i < arraysize(kPropertyClasses); i++) {
-    UProperty property_class = kPropertyClasses[i];
-    int32_t category = u_getPropertyValueEnum(
-        property_class, property_name.ToConstVector().start());
-    if (category == UCHAR_INVALID_CODE) continue;
+#define PROPERTY_NAME_LOOKUP(PROPERTY)                                  \
+  do {                                                                  \
+    if (LookupPropertyClass(PROPERTY, property_name, result, zone())) { \
+      return true;                                                      \
+    }                                                                   \
+  } while (false)
 
-    USet* set = uset_openEmpty();
-    UErrorCode ec = U_ZERO_ERROR;
-    uset_applyIntPropertyValue(set, property_class, category, &ec);
-    if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
-      uset_removeAllStrings(set);
-      int item_count = uset_getItemCount(set);
-      int item_result = 0;
-      for (int i = 0; i < item_count; i++) {
-        uc32 start = 0;
-        uc32 end = 0;
-        item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-        result->Add(CharacterRange::Range(start, end), zone());
-      }
-      DCHECK_EQ(U_ZERO_ERROR, ec);
-      DCHECK_EQ(0, item_result);
-    }
-    uset_close(set);
-    return true;
+  // General_Category (gc) found in PropertyValueAliases.txt
+  PROPERTY_NAME_LOOKUP(UCHAR_GENERAL_CATEGORY_MASK);
+  // Script (sc) found in Scripts.txt
+  PROPERTY_NAME_LOOKUP(UCHAR_SCRIPT);
+  // To disambiguate from script names, block names have an "In"-prefix.
+  if (property_name_list.length() > 3 && property_name[0] == 'I' &&
+      property_name[1] == 'n') {
+    // Block (blk) found in Blocks.txt
+    property_name += 2;
+    PROPERTY_NAME_LOOKUP(UCHAR_BLOCK);
   }
+#undef PROPERTY_NAME_LOOKUP
 #endif  // V8_I18N_SUPPORT
-
   return false;
 }
 
