@@ -29,32 +29,34 @@ function CheckInvalid(type) {
 // A "test generator" object will have its "generator" generate tests,
 // will transform each generated test with all of its "transformations"
 // and will yield the results.  false transformations will be ignored.
-function TestGen(multiplicity, generator, transformations, ...params) {
-  // Determines how often this generator will run, compared to other ones.
-  this.multiplicity = multiplicity;
-  // The generator function.  It will be called with (size, ...params),
-  // for an appropriate size provided externally to method initialize.
-  this.generator = generator;
-  // The list of transformation functions, excluding false ones.
-  this.transformations = transformations.filter(f => f !== false);
-  // The optional parameters to be passed to the generator function.
-  this.params = params;
+class TestGen {
+  constructor(multiplicity, generator, transformations, ...params) {
+    // Determines how often this generator will run, compared to other ones.
+    this.multiplicity = multiplicity;
+    // The generator function.  It will be called with (size, ...params),
+    // for an appropriate size provided externally to method initialize.
+    this.generator = generator;
+    // The list of transformation functions, excluding false ones.
+    this.transformations = transformations.filter(f => f !== false);
+    // The optional parameters to be passed to the generator function.
+    this.params = params;
+  }
   // Returns how many tests this test generator is expected to yield
   // in a row.
-  this.weight = function() {
-    return this.multiplicity * transformations.length;
-  };
+  weight() {
+    return this.multiplicity * this.transformations.length;
+  }
   // Initialize the generator function.
-  this.initialize = function(size) {
+  initialize(size) {
     this.factory = this.generator(size, ...this.params);
-  };
+  }
   // Is the test generator exhausted?
-  this.exhausted = function() {
+  exhausted() {
     return this.factory === null;
-  };
+  }
   // Return a generator that will yield up to weight tests.
   // It returns an Iterator<OtherType>.
-  this.tests = function*() {
+  * [Symbol.iterator]() {
     for (let i = 0; i < this.multiplicity; i++) {
       let element = this.factory.next();
       if (element.done) {
@@ -63,7 +65,7 @@ function TestGen(multiplicity, generator, transformations, ...params) {
       }
       for (let f of this.transformations) yield f(element.value);
     }
-  };
+  }
 }
 
 // Parameters:
@@ -105,7 +107,7 @@ function* Generate(size, generators) {
         continue;
       }
       if (gen.exhausted()) continue;
-      for (test of gen.tests()) {
+      for (let test of gen) {
         if (size-- <= 0) return; else yield test;
       }
       if (gen.exhausted()) remaining--;

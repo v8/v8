@@ -3388,8 +3388,8 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
       return this->EmptyType();
     }
     typename TypeSystem::Type result_type = ParseValidType(CHECK_OK_TYPE);
-    return factory()->NewFunctionType(has_new, type_parameters, parameters,
-                                      result_type, pos);
+    return factory()->NewFunctionType(type_parameters, parameters, result_type,
+                                      pos, has_new);
   }
   // Report invalid function or constructor type.
   if (has_new || !this->IsNullTypeParameters(type_parameters)) {

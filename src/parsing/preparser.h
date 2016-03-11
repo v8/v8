@@ -700,10 +700,10 @@ class PreParserFactory {
   }
 
   typesystem::PreParserType NewFunctionType(
-      bool constructor,
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
-      typesystem::PreParserType result_type, int pos) {
+      typesystem::PreParserType result_type, int pos,
+      bool constructor = false) {
     return typesystem::PreParserType::Default();
   }
 

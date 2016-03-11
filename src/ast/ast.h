@@ -3100,21 +3100,20 @@ class FunctionType : public Type {
   Type* result_type() const { return result_type_; }
 
  protected:
-  FunctionType(Zone* zone, bool constructor,
-               ZoneList<TypeParameter*>* type_parameters,
+  FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
                ZoneList<FormalParameter*>* parameters, Type* result_type,
-               int pos)
+               int pos, bool constructor = false)
       : Type(zone, pos),
-        constructor_(constructor),
         type_parameters_(type_parameters),
         parameters_(parameters),
-        result_type_(result_type) {}
+        result_type_(result_type),
+        constructor_(constructor) {}
 
  private:
-  bool constructor_;
   ZoneList<TypeParameter*>* type_parameters_;
   ZoneList<FormalParameter*>* parameters_;
   Type* result_type_;
+  bool constructor_;
 };
 
 
@@ -3762,12 +3761,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   typesystem::FunctionType* NewFunctionType(
-      bool constructor, ZoneList<typesystem::TypeParameter*>* type_parameters,
+      ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
-      typesystem::Type* result_type, int pos) {
+      typesystem::Type* result_type, int pos, bool constructor = false) {
     return new (local_zone_)
-        typesystem::FunctionType(local_zone_, constructor, type_parameters,
-                                 parameters, result_type, pos);
+        typesystem::FunctionType(local_zone_, type_parameters, parameters,
+                                 result_type, pos, constructor);
   }
 
   typesystem::TypeReference* NewTypeReference(
