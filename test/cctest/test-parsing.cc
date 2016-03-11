@@ -8247,3 +8247,39 @@ TEST(TypedModeSimpleTypes) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeTypeParameters) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var f: <A> (x: A) => A",
+    "var f: <A extends string> (x: A) => A",
+    "var f: <A, B> (x: A, y: B) => A",
+    "var f: <A, B extends number[], C> (x: A, y: B) => C",
+    "var f: <A, B, C, D> (x: A, y: B, z: C[], d: (e: D) => D) => A",
+    "var x: Tree<number>",
+    "var x: Map<string, number>",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var z: <A> A[]",
+    "var f: <> (x: number) => number",
+    "var f: <A extends ()> (x: A) => A",
+    "var x: Map<string, (number, void)>",
+    "var x: number<string>",
+    "var x: Foo<>",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

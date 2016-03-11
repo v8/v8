@@ -433,7 +433,15 @@ namespace typesystem {
 
 
 class PreParserType;
-class PreParserTypeParameter {};
+
+
+class PreParserTypeParameter {
+ public:
+  static PreParserTypeParameter Default() { return PreParserTypeParameter(); }
+
+ private:
+  PreParserTypeParameter() {}
+};
 
 
 class PreParserFormalParameter {
@@ -730,6 +738,12 @@ class PreParserFactory {
                                                     parameters.length());
   }
 
+  typesystem::PreParserTypeParameter NewTypeParameter(
+      PreParserIdentifier name, const typesystem::PreParserType& extends,
+      int pos) {
+    return typesystem::PreParserTypeParameter::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -958,6 +972,12 @@ class PreParserTraits {
   static bool IsNullTypeParameters(
       const typesystem::PreParserTypeParameters& typ_pars) {
     return typ_pars.length() == 0;
+  }
+  static typesystem::PreParserTypeArguments EmptyTypeArguments() {
+    return typesystem::PreParserTypeArguments();
+  }
+  static typesystem::PreParserTypeParameters EmptyTypeParameters() {
+    return typesystem::PreParserTypeParameters();
   }
   static typesystem::PreParserFormalParameters EmptyFormalParameters() {
     return typesystem::PreParserFormalParameters();
