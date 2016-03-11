@@ -5391,8 +5391,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  DCHECK(argc.is_immediate() || eax.is(argc.reg()));
-
   __ pop(return_address);
   // context save.
   __ push(context);
@@ -5448,7 +5446,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::values_.
   __ mov(ApiParameterOperand(3), scratch);
   // FunctionCallbackInfo::length_.
-  __ Move(ApiParameterOperand(4), Immediate(argc));
+  __ Move(ApiParameterOperand(4), Immediate(argc()));
   // FunctionCallbackInfo::is_construct_call_.
   __ Move(ApiParameterOperand(5), Immediate(0));
 
