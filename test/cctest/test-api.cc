@@ -13300,8 +13300,6 @@ THREADED_TEST(ObjectProtoToString) {
 
 
 TEST(ObjectProtoToStringES6) {
-  // TODO(dslomov, caitp): merge into ObjectProtoToString test once shipped.
-  i::FLAG_harmony_tostring = true;
   LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -24759,7 +24757,6 @@ TEST(AccessCheckedIsConcatSpreadable) {
 
 
 TEST(AccessCheckedToStringTag) {
-  i::FLAG_harmony_tostring = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext env;

@@ -2463,11 +2463,9 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
     }
   }
 
-  if (FLAG_harmony_tostring) {
-    Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
-        receiver, isolate->factory()->to_string_tag_symbol());
-    if (maybe_tag->IsString()) return Handle<String>::cast(maybe_tag);
-  }
+  Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
+      receiver, isolate->factory()->to_string_tag_symbol());
+  if (maybe_tag->IsString()) return Handle<String>::cast(maybe_tag);
 
   PrototypeIterator iter(isolate, receiver);
   if (iter.IsAtEnd()) return handle(receiver->class_name());
@@ -16647,16 +16645,14 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
       Object::ToObject(isolate, object).ToHandleChecked();
 
   Handle<String> tag;
-  if (FLAG_harmony_tostring) {
-    Handle<Object> to_string_tag;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, to_string_tag,
-        JSReceiver::GetProperty(receiver,
-                                isolate->factory()->to_string_tag_symbol()),
-        String);
-    if (to_string_tag->IsString()) {
-      tag = Handle<String>::cast(to_string_tag);
-    }
+  Handle<Object> to_string_tag;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, to_string_tag,
+      JSReceiver::GetProperty(receiver,
+                              isolate->factory()->to_string_tag_symbol()),
+      String);
+  if (to_string_tag->IsString()) {
+    tag = Handle<String>::cast(to_string_tag);
   }
 
   if (tag.is_null()) {

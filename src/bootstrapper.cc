@@ -2251,7 +2251,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                           isolate->factory()->ToBoolean(FLAG), NONE); \
   }
 
-  INITIALIZE_FLAG(FLAG_harmony_tostring)
   INITIALIZE_FLAG(FLAG_harmony_species)
 
 #undef INITIALIZE_FLAG
@@ -2290,13 +2289,6 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
   JSObject::AddProperty(symbol, name_string, value, attributes);
-}
-
-
-void Genesis::InitializeGlobal_harmony_tostring() {
-  if (!FLAG_harmony_tostring) return;
-  InstallPublicSymbol(factory(), native_context(), "toStringTag",
-                      factory()->to_string_tag_symbol());
 }
 
 
@@ -2957,7 +2949,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_modules_natives[] = {nullptr};
   static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",
                                                   nullptr};
-  static const char* harmony_tostring_natives[] = {nullptr};
   static const char* harmony_iterator_close_natives[] = {nullptr};
   static const char* harmony_sloppy_natives[] = {nullptr};
   static const char* harmony_sloppy_function_natives[] = {nullptr};

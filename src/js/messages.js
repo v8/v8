@@ -23,7 +23,6 @@ var callSitePositionSymbol =
     utils.ImportNow("call_site_position_symbol");
 var callSiteStrictSymbol =
     utils.ImportNow("call_site_strict_symbol");
-var FLAG_harmony_tostring;
 var Float32x4ToString;
 var formattedStackTraceSymbol =
     utils.ImportNow("formatted_stack_trace_symbol");
@@ -67,10 +66,6 @@ utils.Import(function(from) {
   Uint8x16ToString = from.Uint8x16ToString;
 });
 
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tostring = from.FLAG_harmony_tostring;
-});
-
 // -------------------------------------------------------------------
 
 var GlobalError;
@@ -87,13 +82,8 @@ function NoSideEffectsObjectToString() {
   if (IS_NULL(this)) return "[object Null]";
   var O = TO_OBJECT(this);
   var builtinTag = %_ClassOf(O);
-  var tag;
-  if (FLAG_harmony_tostring) {
-    tag = %GetDataProperty(O, toStringTagSymbol);
-    if (!IS_STRING(tag)) {
-      tag = builtinTag;
-    }
-  } else {
+  var tag = %GetDataProperty(O, toStringTagSymbol);
+  if (!IS_STRING(tag)) {
     tag = builtinTag;
   }
   return `[object ${tag}]`;
