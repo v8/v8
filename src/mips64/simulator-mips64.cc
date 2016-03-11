@@ -4330,11 +4330,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BOVC
           if (HaveSameSign(rs, rt)) {
-            if (rs > 0) {
-              BranchCompactHelper(rs > Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs < Registers::kMinValue - rt, 16);
-            }
+            int64_t sum = rs + rt;
+            BranchCompactHelper(sum < INT32_MIN || sum > INT32_MAX, 16);
           }
         } else {
           if (rs_reg == 0) {  // BEQZALC
@@ -4364,11 +4361,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
           if (!HaveSameSign(rs, rt) || rs == 0 || rt == 0) {
             BranchCompactHelper(true, 16);
           } else {
-            if (rs > 0) {
-              BranchCompactHelper(rs <= Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs >= Registers::kMinValue - rt, 16);
-            }
+            int64_t sum = rs + rt;
+            BranchCompactHelper(sum >= INT32_MIN && sum <= INT32_MAX, 16);
           }
         } else {
           if (rs_reg == 0) {  // BNEZALC

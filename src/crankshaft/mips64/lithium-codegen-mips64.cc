@@ -1338,9 +1338,10 @@ void LCodeGen::DoMulS(LMulS* instr) {
     switch (constant) {
       case -1:
         if (overflow) {
-          __ DsubuAndCheckForOverflow(result, zero_reg, left, scratch);
-          DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, scratch,
-                       Operand(zero_reg));
+          Label no_overflow;
+          __ DsubBranchNoOvf(result, zero_reg, Operand(left), &no_overflow);
+          DeoptimizeIf(al, instr);
+          __ bind(&no_overflow);
         } else {
           __ Dsubu(result, zero_reg, left);
         }
@@ -1439,9 +1440,10 @@ void LCodeGen::DoMulI(LMulI* instr) {
     switch (constant) {
       case -1:
         if (overflow) {
-          __ SubuAndCheckForOverflow(result, zero_reg, left, scratch);
-          DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, scratch,
-                       Operand(zero_reg));
+          Label no_overflow;
+          __ SubBranchNoOvf(result, zero_reg, Operand(left), &no_overflow);
+          DeoptimizeIf(al, instr);
+          __ bind(&no_overflow);
         } else {
           __ Subu(result, zero_reg, left);
         }
@@ -1647,13 +1649,13 @@ void LCodeGen::DoSubS(LSubS* instr) {
     DCHECK(right->IsRegister() || right->IsConstantOperand());
     __ Dsubu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
-    Register overflow = scratch0();
-    Register scratch = scratch1();
+    Register scratch = scratch0();
+    Label no_overflow_label;
     DCHECK(right->IsRegister() || right->IsConstantOperand());
-    __ DsubuAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                ToOperand(right), overflow, scratch);
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    __ DsubBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                       &no_overflow_label, scratch);
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
@@ -1668,13 +1670,13 @@ void LCodeGen::DoSubI(LSubI* instr) {
     DCHECK(right->IsRegister() || right->IsConstantOperand());
     __ Subu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
-    Register overflow = scratch0();
-    Register scratch = scratch1();
+    Register scratch = scratch0();
+    Label no_overflow_label;
     DCHECK(right->IsRegister() || right->IsConstantOperand());
-    __ SubuAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                               ToOperand(right), overflow, scratch);
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    __ SubBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                      &no_overflow_label, scratch);
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
@@ -1808,13 +1810,13 @@ void LCodeGen::DoAddS(LAddS* instr) {
     DCHECK(right->IsRegister() || right->IsConstantOperand());
     __ Daddu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
-    Register overflow = scratch0();
+    Label no_overflow_label;
     Register scratch = scratch1();
     DCHECK(right->IsRegister() || right->IsConstantOperand());
-    __ DadduAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                ToOperand(right), overflow, scratch);
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    __ DaddBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                       &no_overflow_label, scratch);
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
@@ -1829,13 +1831,13 @@ void LCodeGen::DoAddI(LAddI* instr) {
     DCHECK(right->IsRegister() || right->IsConstantOperand());
     __ Addu(ToRegister(result), ToRegister(left), ToOperand(right));
   } else {  // can_overflow.
-    Register overflow = scratch0();
+    Label no_overflow_label;
     Register scratch = scratch1();
     DCHECK(right->IsRegister() || right->IsConstantOperand());
-    __ AdduAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                               ToOperand(right), overflow, scratch);
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    __ AddBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                      &no_overflow_label, scratch);
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
