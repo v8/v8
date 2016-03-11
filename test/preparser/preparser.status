@@ -27,7 +27,5 @@
 
 [
 [ALWAYS, {
-  # TODO(mstarzinger): This script parses but throws a TypeError when run.
-  'non-alphanum': [FAIL],
 }],  # ALWAYS
 ]
