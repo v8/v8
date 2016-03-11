@@ -710,14 +710,8 @@ class PreParserFactory {
   typesystem::PreParserType NewFunctionType(
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
-      typesystem::PreParserType result_type, int pos) {
-    return typesystem::PreParserType::Default();
-  }
-
-  typesystem::PreParserType NewConstructorType(
-      const typesystem::PreParserTypeParameters& type_parameters,
-      const typesystem::PreParserFormalParameters& parameters,
-      typesystem::PreParserType result_type, int pos) {
+      typesystem::PreParserType result_type, int pos,
+      bool constructor = false) {
     return typesystem::PreParserType::Default();
   }
 
@@ -738,10 +732,10 @@ class PreParserFactory {
     return typesystem::PreParserFormalParameter::Unnamed(type);
   }
 
-  typesystem::PreParserType NewParenthesizedTypeThings(
-      const typesystem::PreParserFormalParameters& things, int pos) {
-    return typesystem::PreParserType::Parenthesized(things.IsValidType(),
-                                                    things.length());
+  typesystem::PreParserType NewTypeOrParameters(
+      const typesystem::PreParserFormalParameters& parameters, int pos) {
+    return typesystem::PreParserType::Parenthesized(parameters.IsValidType(),
+                                                    parameters.length());
   }
 
   typesystem::PreParserTypeParameter NewTypeParameter(
