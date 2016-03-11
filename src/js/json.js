@@ -19,10 +19,6 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty;
-var Stack;
-var StackHas;
-var StackPop;
-var StackPush;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -30,10 +26,6 @@ utils.Import(function(from) {
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  Stack = from.Stack;
-  StackHas = from.StackHas;
-  StackPop = from.StackPop;
-  StackPush = from.StackPush;
 });
 
 // -------------------------------------------------------------------
@@ -86,8 +78,7 @@ function JSONParse(text, reviver) {
 
 
 function SerializeArray(value, replacer, stack, indent, gap) {
-  if (StackHas(stack, value)) throw MakeTypeError(kCircularStructure);
-  StackPush(stack, value);
+  if (!%PushIfAbsent(stack, value)) throw MakeTypeError(kCircularStructure);
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
@@ -110,14 +101,13 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   } else {
     final = "[]";
   }
-  StackPop(stack);
+  stack.pop();
   return final;
 }
 
 
 function SerializeObject(value, replacer, stack, indent, gap) {
-  if (StackHas(stack, value)) throw MakeTypeError(kCircularStructure);
-  StackPush(stack, value);
+  if (!%PushIfAbsent(stack, value)) throw MakeTypeError(kCircularStructure);
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
@@ -156,7 +146,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   } else {
     final = "{}";
   }
-  StackPop(stack);
+  stack.pop();
   return final;
 }
 
@@ -251,7 +241,7 @@ function JSONStringify(value, replacer, space) {
   if (!IS_CALLABLE(replacer) && !property_list && !gap && !IS_PROXY(value)) {
     return %BasicJSONStringify(value);
   }
-  return JSONSerialize('', {'': value}, replacer, new Stack(), "", gap);
+  return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
 // -------------------------------------------------------------------
@@ -289,7 +279,7 @@ function JsonSerializeAdapter(key, object) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
-  return JSONSerialize(key, holder, UNDEFINED, new Stack(), "", "");
+  return JSONSerialize(key, holder, UNDEFINED, new InternalArray(), "", "");
 }
 
 %InstallToContext(["json_serialize_adapter", JsonSerializeAdapter]);
