@@ -85,6 +85,7 @@ TEST_MAP = {
   "ignition": [
     "mjsunit",
     "cctest",
+    "message",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [

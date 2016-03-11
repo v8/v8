@@ -30,4 +30,15 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 }],  # ALWAYS
+['ignition == True', {
+  # TODO(4680): Some source positions are off with Ignition.
+  'default-parameter-tdz': [SKIP],
+  'default-parameter-tdz-arrow': [SKIP],
+  'destructuring-modify-const': [SKIP],
+  'instanceof': [SKIP],
+  'overwritten-builtins': [SKIP],
+  'regress/regress-1527': [SKIP],
+  'regress/regress-3995': [SKIP],
+  'replacement-marker-as-argument': [SKIP],
+}],  # ignition == True
 ]
