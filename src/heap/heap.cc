@@ -1585,8 +1585,7 @@ void PromotionQueue::RelocateQueueHead() {
     struct Entry* entry = head_start++;
     // New space allocation in SemiSpaceCopyObject marked the region
     // overlapping with promotion queue as uninitialized.
-    MSAN_MEMORY_IS_INITIALIZED(&entry->size_, sizeof(size));
-    MSAN_MEMORY_IS_INITIALIZED(&entry->obj_, sizeof(obj));
+    MSAN_MEMORY_IS_INITIALIZED(entry, sizeof(struct Entry));
     emergency_stack_->Add(*entry);
   }
   rear_ = head_end;
