@@ -28,168 +28,54 @@
 // Flags: --harmony --harmony-proxies
 
 
-// A simple no-op handler. Adapted from:
-// http://wiki.ecmascript.org/doku.php?id=harmony:proxies#examplea_no-op_forwarding_proxy
-
-function createHandler(obj) {
-  return {
-    getOwnPropertyDescriptor: function(name) {
-      var desc = Object.getOwnPropertyDescriptor(obj, name);
-      if (desc !== undefined) desc.configurable = true;
-      return desc;
-    },
-    getPropertyDescriptor: function(name) {
-      var desc = Object.getOwnPropertyDescriptor(obj, name);
-      //var desc = Object.getPropertyDescriptor(obj, name);  // not in ES5
-      if (desc !== undefined) desc.configurable = true;
-      return desc;
-    },
-    getOwnPropertyNames: function() {
-      return Object.getOwnPropertyNames(obj);
-    },
-    getPropertyNames: function() {
-      return Object.getOwnPropertyNames(obj);
-      //return Object.getPropertyNames(obj);  // not in ES5
-    },
-    defineProperty: function(name, desc) {
-      Object.defineProperty(obj, name, desc);
-    },
-    delete: function(name) {
-      return delete obj[name];
-    },
-    fix: function() {
-      if (Object.isFrozen(obj)) {
-        var result = {};
-        Object.getOwnPropertyNames(obj).forEach(function(name) {
-          result[name] = Object.getOwnPropertyDescriptor(obj, name);
-        });
-        return result;
-      }
-      // As long as obj is not frozen, the proxy won't allow itself to be fixed
-      return undefined; // will cause a TypeError to be thrown
-    },
-    has: function(name) { return name in obj; },
-    hasOwn: function(name) { return ({}).hasOwnProperty.call(obj, name); },
-    get: function(receiver, name) { return obj[name]; },
-    set: function(receiver, name, val) {
-      obj[name] = val;  // bad behavior when set fails in sloppy mode
-      return true;
-    },
-    keys: function() { return Object.keys(obj); }
-  };
-}
-
-
-
-// Auxiliary definitions enabling tracking of object identity in output.
-
-var objectMap = new WeakMap;
-var objectCounter = 0;
-
-function registerObject(x, s) {
-  if (x === Object(x) && !objectMap.has(x))
-    objectMap.set(x, ++objectCounter + (s == undefined ? "" : ":" + s));
-}
-
-registerObject(this, "global");
-registerObject(Object.prototype, "Object.prototype");
-
-function str(x) {
-  if (x === Object(x)) return "[" + typeof x + " " + objectMap.get(x) + "]";
-  if (typeof x == "string") return "\"" + x + "\"";
-  return "" + x;
-}
-
-
 
 // A simple membrane. Adapted from:
 // http://wiki.ecmascript.org/doku.php?id=harmony:proxies#a_simple_membrane
 
 function createSimpleMembrane(target) {
-  var enabled = true;
+  let enabled = true;
 
   function wrap(obj) {
-    registerObject(obj);
-    print("wrap enter", str(obj));
-    try {
-      var x = wrap2(obj);
-      registerObject(x, "wrapped");
-      print("wrap exit", str(obj), "as", str(x));
-      return x;
-    } catch(e) {
-      print("wrap exception", str(e));
-      throw e;
-    }
-  }
+    if (obj !== Object(obj)) return obj;
 
-  function wrap2(obj) {
-    if (obj !== Object(obj)) {
-      return obj;
-    }
-
-    function wrapCall(fun, that, args) {
-      registerObject(that);
-      print("wrapCall enter", fun, str(that));
-      try {
-        var x = wrapCall2(fun, that, args);
-        print("wrapCall exit", fun, str(that), "returning", str(x));
-        return x;
-      } catch(e) {
-        print("wrapCall exception", fun, str(that), str(e));
-        throw e;
-      }
-    }
-
-    function wrapCall2(fun, that, args) {
-      if (!enabled) { throw new Error("disabled"); }
-      try {
-        return wrap(fun.apply(that, Array.prototype.map.call(args, wrap)));
-      } catch (e) {
-        throw wrap(e);
-      }
-    }
-
-    var baseHandler = createHandler(obj);
-    var handler = new Proxy({}, Object.freeze({
-      get: function(receiver, name) {
-        return function() {
-          var arg = (name === "get" || name == "set") ? arguments[1] : "";
-          print("handler enter", name, arg);
-          var x = wrapCall(baseHandler[name], baseHandler, arguments);
-          print("handler exit", name, arg, "returning", str(x));
-          return x;
+    let handler = new Proxy({}, {get: function(_, key) {
+      if (!enabled) throw new Error("disabled");
+      switch (key) {
+      case "apply":
+        return (_, that, args) => {
+          try {
+            return wrap(Reflect.apply(
+                obj, wrap(that), args.map((x) => wrap(x))));
+          } catch(e) {
+            throw wrap(e);
+          }
+        }
+      case "construct":
+        return (_, args, newt) => {
+          try {
+            return wrap(Reflect.construct(
+                obj, args.map((x) => wrap(x)), wrap(newt)));
+          } catch(e) {
+            throw wrap(e);
+          }
+        }
+      default:
+        return (_, ...args) => {
+          try {
+            return wrap(Reflect[key](obj, ...(args.map(wrap))));
+          } catch(e) {
+            throw wrap(e);
+          }
         }
       }
-    }));
-    registerObject(baseHandler, "basehandler");
-    registerObject(handler, "handler");
+    }});
 
-    if (typeof obj === "function") {
-      function callTrap() {
-        print("call trap enter", str(obj), str(this));
-        var x = wrapCall(obj, wrap(this), arguments);
-        print("call trap exit", str(obj), str(this), "returning", str(x));
-        return x;
-      }
-      function constructTrap() {
-        if (!enabled) { throw new Error("disabled"); }
-        try {
-          function forward(args) { return obj.apply(this, args) }
-          return wrap(new forward(Array.prototype.map.call(arguments, wrap)));
-        } catch (e) {
-          throw wrap(e);
-        }
-      }
-      return Proxy.createFunction(handler, callTrap, constructTrap);
-    } else {
-      var prototype = wrap(Object.getPrototypeOf(obj));
-      return new Proxy(prototype, handler);
-    }
+    return new Proxy(obj, handler);
   }
 
-  var gate = Object.freeze({
-    enable: function() { enabled = true; },
-    disable: function() { enabled = false; }
+  const gate = Object.freeze({
+    enable: () => enabled = true,
+    disable: () => enabled = false
   });
 
   return Object.freeze({
@@ -199,309 +85,227 @@ function createSimpleMembrane(target) {
 }
 
 
-var o = {
-  a: 6,
-  b: {bb: 8},
-  f: function(x) { return x },
-  g: function(x) { return x.a },
-  h: function(x) { this.q = x }
-};
-o[2] = {c: 7};
-var m = createSimpleMembrane(o);
-var w = m.wrapper;
-print("o =", str(o))
-print("w =", str(w));
+// Test the simple membrane.
+{
+  var o = {
+    a: 6,
+    b: {bb: 8},
+    f: function(x) { return x },
+    g: function(x) { return x.a },
+    h: function(x) { this.q = x }
+  };
+  o[2] = {c: 7};
+  var m = createSimpleMembrane(o);
+  var w = m.wrapper;
+  var f = w.f;
+  var x = f(66);
+  var x = f({a: 1});
+  var x = w.f({a: 1});
+  var a = x.a;
+  assertEquals(6, w.a);
+  assertEquals(8, w.b.bb);
+  assertEquals(7, w[2]["c"]);
+  assertEquals(undefined, w.c);
+  assertEquals(1, w.f(1));
+  assertEquals(1, w.f({a: 1}).a);
+  assertEquals(2, w.g({a: 2}));
+  assertEquals(3, (w.r = {a: 3}).a);
+  assertEquals(3, w.r.a);
+  assertEquals(3, o.r.a);
+  w.h(3);
+  assertEquals(3, w.q);
+  assertEquals(3, o.q);
+  assertEquals(4, (new w.h(4)).q);
 
-var f = w.f;
-var x = f(66);
-var x = f({a: 1});
-var x = w.f({a: 1});
-var a = x.a;
-assertEquals(6, w.a);
-assertEquals(8, w.b.bb);
-assertEquals(7, w[2]["c"]);
-assertEquals(undefined, w.c);
-assertEquals(1, w.f(1));
-assertEquals(1, w.f({a: 1}).a);
-assertEquals(2, w.g({a: 2}));
-assertEquals(3, (w.r = {a: 3}).a);
-assertEquals(3, w.r.a);
-assertEquals(3, o.r.a);
-w.h(3);
-assertEquals(3, w.q);
-assertEquals(3, o.q);
-assertEquals(4, (new w.h(4)).q);
+  var wb = w.b;
+  var wr = w.r;
+  var wf = w.f;
+  var wf3 = w.f(3);
+  var wfx = w.f({a: 6});
+  var wgx = w.g({a: {aa: 7}});
+  var wh4 = new w.h(4);
+  m.gate.disable();
+  assertEquals(3, wf3);
+  assertThrows(function() { w.a }, Error);
+  assertThrows(function() { w.r }, Error);
+  assertThrows(function() { w.r = {a: 4} }, Error);
+  assertThrows(function() { o.r.a }, Error);
+  assertEquals("object", typeof o.r);
+  assertEquals(5, (o.r = {a: 5}).a);
+  assertEquals(5, o.r.a);
+  assertThrows(function() { w[1] }, Error);
+  assertThrows(function() { w.c }, Error);
+  assertThrows(function() { wb.bb }, Error);
+  assertThrows(function() { wr.a }, Error);
+  assertThrows(function() { wf(4) }, Error);
+  assertThrows(function() { wfx.a }, Error);
+  assertThrows(function() { wgx.aa }, Error);
+  assertThrows(function() { wh4.q }, Error);
 
-var wb = w.b;
-var wr = w.r;
-var wf = w.f;
-var wf3 = w.f(3);
-var wfx = w.f({a: 6});
-var wgx = w.g({a: {aa: 7}});
-var wh4 = new w.h(4);
-m.gate.disable();
-assertEquals(3, wf3);
-assertThrows(function() { w.a }, Error);
-assertThrows(function() { w.r }, Error);
-assertThrows(function() { w.r = {a: 4} }, Error);
-assertThrows(function() { o.r.a }, Error);
-assertEquals("object", typeof o.r);
-assertEquals(5, (o.r = {a: 5}).a);
-assertEquals(5, o.r.a);
-assertThrows(function() { w[1] }, Error);
-assertThrows(function() { w.c }, Error);
-assertThrows(function() { wb.bb }, Error);
-assertThrows(function() { wr.a }, Error);
-assertThrows(function() { wf(4) }, Error);
-assertThrows(function() { wfx.a }, Error);
-assertThrows(function() { wgx.aa }, Error);
-assertThrows(function() { wh4.q }, Error);
+  m.gate.enable();
+  assertEquals(6, w.a);
+  assertEquals(5, w.r.a);
+  assertEquals(5, o.r.a);
+  assertEquals(7, w.r = 7);
+  assertEquals(7, w.r);
+  assertEquals(7, o.r);
+  assertEquals(8, w.b.bb);
+  assertEquals(7, w[2]["c"]);
+  assertEquals(undefined, w.c);
+  assertEquals(8, wb.bb);
+  assertEquals(3, wr.a);
+  assertEquals(4, wf(4));
+  assertEquals(3, wf3);
+  assertEquals(6, wfx.a);
+  assertEquals(7, wgx.aa);
+  assertEquals(4, wh4.q);
+}
 
-m.gate.enable();
-assertEquals(6, w.a);
-assertEquals(5, w.r.a);
-assertEquals(5, o.r.a);
-assertEquals(7, w.r = 7);
-assertEquals(7, w.r);
-assertEquals(7, o.r);
-assertEquals(8, w.b.bb);
-assertEquals(7, w[2]["c"]);
-assertEquals(undefined, w.c);
-assertEquals(8, wb.bb);
-assertEquals(3, wr.a);
-assertEquals(4, wf(4));
-assertEquals(3, wf3);
-assertEquals(6, wfx.a);
-assertEquals(7, wgx.aa);
-assertEquals(4, wh4.q);
 
 
 // An identity-preserving membrane. Adapted from:
 // http://wiki.ecmascript.org/doku.php?id=harmony:proxies#an_identity-preserving_membrane
 
-function createMembrane(wetTarget) {
-  var wet2dry = new WeakMap();
-  var dry2wet = new WeakMap();
+function createMembrane(target) {
+  const wet2dry = 0;
+  const dry2wet = 1;
 
-  function asDry(obj) {
-    registerObject(obj)
-    print("asDry enter", str(obj))
-    try {
-      var x = asDry2(obj);
-      registerObject(x, "dry");
-      print("asDry exit", str(obj), "as", str(x));
-      return x;
-    } catch(e) {
-      print("asDry exception", str(e));
-      throw e;
-    }
-  }
-  function asDry2(wet) {
-    if (wet !== Object(wet)) {
-      // primitives provide only irrevocable knowledge, so don't
-      // bother wrapping it.
-      return wet;
-    }
-    var dryResult = wet2dry.get(wet);
-    if (dryResult) { return dryResult; }
+  function flip(dir) { return (dir + 1) % 2 }
 
-    var wetHandler = createHandler(wet);
-    var dryRevokeHandler = new Proxy({}, Object.freeze({
-      get: function(receiver, name) {
-        return function() {
-          var arg = (name === "get" || name == "set") ? arguments[1] : "";
-          print("dry handler enter", name, arg);
-          var optWetHandler = dry2wet.get(dryRevokeHandler);
+  let maps = [new WeakMap(), new WeakMap()];
+
+  let revoked = false;
+
+  function wrap(dir, obj) {
+    if (obj !== Object(obj)) return obj;
+
+    let wrapper = maps[dir].get(obj);
+    if (wrapper) return wrapper;
+
+    let handler = new Proxy({}, {get: function(_, key) {
+      if (revoked) throw new Error("revoked");
+      switch (key) {
+      case "apply":
+        return (_, that, args) => {
           try {
-            var x = asDry(optWetHandler[name].apply(
-              optWetHandler, Array.prototype.map.call(arguments, asWet)));
-            print("dry handler exit", name, arg, "returning", str(x));
-            return x;
-          } catch (eWet) {
-            var x = asDry(eWet);
-            print("dry handler exception", name, arg, "throwing", str(x));
-            throw x;
+            return wrap(dir, Reflect.apply(
+                obj, wrap(flip(dir), that),
+                args.map((x) => wrap(flip(dir), x))));
+          } catch(e) {
+            throw wrap(dir, e);
           }
-        };
-      }
-    }));
-    dry2wet.set(dryRevokeHandler, wetHandler);
-
-    if (typeof wet === "function") {
-      function callTrap() {
-        print("dry call trap enter", str(this));
-        var x = asDry(wet.apply(
-          asWet(this), Array.prototype.map.call(arguments, asWet)));
-        print("dry call trap exit", str(this), "returning", str(x));
-        return x;
-      }
-      function constructTrap() {
-        function forward(args) { return wet.apply(this, args) }
-        return asDry(new forward(Array.prototype.map.call(arguments, asWet)));
-      }
-      dryResult =
-        Proxy.createFunction(dryRevokeHandler, callTrap, constructTrap);
-    } else {
-      dryResult =
-        new Proxy(asDry(Object.getPrototypeOf(wet)), dryRevokeHandler);
-    }
-    wet2dry.set(wet, dryResult);
-    dry2wet.set(dryResult, wet);
-    return dryResult;
-  }
-
-  function asWet(obj) {
-    registerObject(obj)
-    print("asWet enter", str(obj))
-    try {
-      var x = asWet2(obj)
-      registerObject(x, "wet")
-      print("asWet exit", str(obj), "as", str(x))
-      return x
-    } catch(e) {
-      print("asWet exception", str(e))
-      throw e
-    }
-  }
-  function asWet2(dry) {
-    if (dry !== Object(dry)) {
-      // primitives provide only irrevocable knowledge, so don't
-      // bother wrapping it.
-      return dry;
-    }
-    var wetResult = dry2wet.get(dry);
-    if (wetResult) { return wetResult; }
-
-    var dryHandler = createHandler(dry);
-    var wetRevokeHandler = new Proxy({}, Object.freeze({
-      get: function(receiver, name) {
-        return function() {
-          var arg = (name === "get" || name == "set") ? arguments[1] : "";
-          print("wet handler enter", name, arg);
-          var optDryHandler = wet2dry.get(wetRevokeHandler);
+        }
+      case "construct":
+        return (_, args, newt) => {
           try {
-            var x = asWet(optDryHandler[name].apply(
-              optDryHandler, Array.prototype.map.call(arguments, asDry)));
-            print("wet handler exit", name, arg, "returning", str(x));
-            return x;
-          } catch (eDry) {
-            var x = asWet(eDry);
-            print("wet handler exception", name, arg, "throwing", str(x));
-            throw x;
+            return wrap(dir, Reflect.construct(
+                obj, args.map((x) => wrap(flip(dir), x)),
+                wrap(flip(dir), newt)));
+          } catch(e) {
+            throw wrap(dir, e);
           }
-        };
+        }
+      default:
+        return (_, ...args) => {
+          try {
+            return wrap(dir, Reflect[key](
+                obj, ...(args.map((x) => wrap(flip(dir), x)))))
+          } catch(e) {
+            throw wrap(dir, e);
+          }
+        }
       }
-    }));
-    wet2dry.set(wetRevokeHandler, dryHandler);
+    }});
 
-    if (typeof dry === "function") {
-      function callTrap() {
-        print("wet call trap enter", str(this));
-        var x = asWet(dry.apply(
-          asDry(this), Array.prototype.map.call(arguments, asDry)));
-        print("wet call trap exit", str(this), "returning", str(x));
-        return x;
-      }
-      function constructTrap() {
-        function forward(args) { return dry.apply(this, args) }
-        return asWet(new forward(Array.prototype.map.call(arguments, asDry)));
-      }
-      wetResult =
-        Proxy.createFunction(wetRevokeHandler, callTrap, constructTrap);
-    } else {
-      wetResult =
-        new Proxy(asWet(Object.getPrototypeOf(dry)), wetRevokeHandler);
-    }
-    dry2wet.set(dry, wetResult);
-    wet2dry.set(wetResult, dry);
-    return wetResult;
+    wrapper = new Proxy(obj, handler);
+    maps[dir].set(obj, wrapper);
+    maps[flip(dir)].set(wrapper, obj);
+    return wrapper;
   }
 
-  var gate = Object.freeze({
-    revoke: function() {
-      dry2wet = wet2dry = Object.freeze({
-        get: function(key) { throw new Error("revoked"); },
-        set: function(key, val) { throw new Error("revoked"); }
-      });
-    }
+  const gate = Object.freeze({
+    revoke: () => revoked = true
   });
 
-  return Object.freeze({ wrapper: asDry(wetTarget), gate: gate });
+  return Object.freeze({
+    wrapper: wrap(wet2dry, target),
+    gate: gate
+  });
 }
 
 
-var receiver
-var argument
-var o = {
-  a: 6,
-  b: {bb: 8},
-  f: function(x) { receiver = this; argument = x; return x },
-  g: function(x) { receiver = this; argument = x; return x.a },
-  h: function(x) { receiver = this; argument = x; this.q = x },
-  s: function(x) { receiver = this; argument = x; this.x = {y: x}; return this }
+// Test the identity-preserving membrane.
+{
+  var receiver
+  var argument
+  var o = {
+    a: 6,
+    b: {bb: 8},
+    f: function(x) {receiver = this; argument = x; return x},
+    g: function(x) {receiver = this; argument = x; return x.a},
+    h: function(x) {receiver = this; argument = x; this.q = x},
+    s: function(x) {receiver = this; argument = x; this.x = {y: x}; return this}
+  }
+  o[2] = {c: 7}
+  var m = createMembrane(o)
+  var w = m.wrapper
+  var f = w.f
+  var x = f(66)
+  var x = f({a: 1})
+  var x = w.f({a: 1})
+  var a = x.a
+  assertEquals(6, w.a)
+  assertEquals(8, w.b.bb)
+  assertEquals(7, w[2]["c"])
+  assertEquals(undefined, w.c)
+  assertEquals(1, w.f(1))
+  assertSame(o, receiver)
+  assertEquals(1, w.f({a: 1}).a)
+  assertSame(o, receiver)
+  assertEquals(2, w.g({a: 2}))
+  assertSame(o, receiver)
+  assertSame(w, w.f(w))
+  assertSame(o, receiver)
+  assertSame(o, argument)
+  assertSame(o, w.f(o))
+  assertSame(o, receiver)
+  // Note that argument !== o, since o isn't dry, so gets wrapped wet again.
+  assertEquals(3, (w.r = {a: 3}).a)
+  assertEquals(3, w.r.a)
+  assertEquals(3, o.r.a)
+  w.h(3)
+  assertEquals(3, w.q)
+  assertEquals(3, o.q)
+  assertEquals(4, (new w.h(4)).q)
+  assertEquals(5, w.s(5).x.y)
+  assertSame(o, receiver)
+
+  var wb = w.b
+  var wr = w.r
+  var wf = w.f
+  var wf3 = w.f(3)
+  var wfx = w.f({a: 6})
+  var wgx = w.g({a: {aa: 7}})
+  var wh4 = new w.h(4)
+  var ws5 = w.s(5)
+  var ws5x = ws5.x
+  m.gate.revoke()
+  assertEquals(3, wf3)
+  assertThrows(function() { w.a }, Error)
+  assertThrows(function() { w.r }, Error)
+  assertThrows(function() { w.r = {a: 4} }, Error)
+  assertThrows(function() { o.r.a }, Error)
+  assertEquals("object", typeof o.r)
+  assertEquals(5, (o.r = {a: 5}).a)
+  assertEquals(5, o.r.a)
+  assertThrows(function() { w[1] }, Error)
+  assertThrows(function() { w.c }, Error)
+  assertThrows(function() { wb.bb }, Error)
+  assertEquals(3, wr.a)
+  assertThrows(function() { wf(4) }, Error)
+  assertEquals(6, wfx.a)
+  assertEquals(7, wgx.aa)
+  assertThrows(function() { wh4.q }, Error)
+  assertThrows(function() { ws5.x }, Error)
+  assertThrows(function() { ws5x.y }, Error)
 }
-o[2] = {c: 7}
-var m = createMembrane(o)
-var w = m.wrapper
-print("o =", str(o))
-print("w =", str(w))
-
-var f = w.f
-var x = f(66)
-var x = f({a: 1})
-var x = w.f({a: 1})
-var a = x.a
-assertEquals(6, w.a)
-assertEquals(8, w.b.bb)
-assertEquals(7, w[2]["c"])
-assertEquals(undefined, w.c)
-assertEquals(1, w.f(1))
-assertSame(o, receiver)
-assertEquals(1, w.f({a: 1}).a)
-assertSame(o, receiver)
-assertEquals(2, w.g({a: 2}))
-assertSame(o, receiver)
-assertSame(w, w.f(w))
-assertSame(o, receiver)
-assertSame(o, argument)
-assertSame(o, w.f(o))
-assertSame(o, receiver)
-// Note that argument !== o, since o isn't dry, so gets wrapped wet again.
-assertEquals(3, (w.r = {a: 3}).a)
-assertEquals(3, w.r.a)
-assertEquals(3, o.r.a)
-w.h(3)
-assertEquals(3, w.q)
-assertEquals(3, o.q)
-assertEquals(4, (new w.h(4)).q)
-assertEquals(5, w.s(5).x.y)
-assertSame(o, receiver)
-
-var wb = w.b
-var wr = w.r
-var wf = w.f
-var wf3 = w.f(3)
-var wfx = w.f({a: 6})
-var wgx = w.g({a: {aa: 7}})
-var wh4 = new w.h(4)
-var ws5 = w.s(5)
-var ws5x = ws5.x
-m.gate.revoke()
-assertEquals(3, wf3)
-assertThrows(function() { w.a }, Error)
-assertThrows(function() { w.r }, Error)
-assertThrows(function() { w.r = {a: 4} }, Error)
-assertThrows(function() { o.r.a }, Error)
-assertEquals("object", typeof o.r)
-assertEquals(5, (o.r = {a: 5}).a)
-assertEquals(5, o.r.a)
-assertThrows(function() { w[1] }, Error)
-assertThrows(function() { w.c }, Error)
-assertThrows(function() { wb.bb }, Error)
-assertEquals(3, wr.a)
-assertThrows(function() { wf(4) }, Error)
-assertEquals(6, wfx.a)
-assertEquals(7, wgx.aa)
-assertThrows(function() { wh4.q }, Error)
-assertThrows(function() { ws5.x }, Error)
-assertThrows(function() { ws5x.y }, Error)

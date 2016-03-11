@@ -89,10 +89,6 @@
   'harmony/module-resolution': [SKIP],
   'harmony/regress/regress-343928': [SKIP],
 
-  # Proxy tests rely on non ES6 version of Proxies
-  # TODO(neis,cbruni): figure out which Proxy tests can be reused
-  'harmony/proxies-example-membrane': [SKIP],
-
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
