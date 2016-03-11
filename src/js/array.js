@@ -74,6 +74,11 @@ function DefineIndexedProperty(array, i, value) {
 }
 
 
+// Global list of arrays visited during toString, toLocaleString and
+// join invocations.
+var visited_arrays = new InternalArray();
+
+
 // Gets a sorted array of array keys.  Useful for operations on sparse
 // arrays.  Dupes have not been removed.
 function GetSortedArrayKeys(array, indices) {
@@ -145,17 +150,6 @@ function SparseJoin(array, len, convert) {
 }
 
 
-function StringBuilderJoin(elements, length, separator) {
-  length = MinSimple(elements.length, length);
-  if (length == 0) return "";
-  var result = elements[0];
-  for (var i = 1; i < length; i++) {
-    result = result + separator + elements[i];
-  }
-  return result;
-}
-
-
 function UseSparseVariant(array, length, is_array, touched) {
   // Only use the sparse variant on arrays that are likely to be sparse and the
   // number of elements touched in the operation is relatively small compared to
@@ -173,36 +167,6 @@ function UseSparseVariant(array, length, is_array, touched) {
     (touched > estimated_elements * 4);
 }
 
-function Stack() {
-  this.length = 0;
-  this.values = new InternalArray();
-}
-
-// Predeclare the instance variables on the prototype. Otherwise setting them in
-// the constructor will leak the instance through settings on Object.prototype.
-Stack.prototype.length = null;
-Stack.prototype.values = null;
-
-function StackPush(stack, value) {
-  stack.values[stack.length++] = value;
-}
-
-function StackPop(stack) {
-  stack.values[--stack.length] = null
-}
-
-function StackHas(stack, v) {
-  var length = stack.length;
-  var values = stack.values;
-  for (var i = 0; i < length; i++) {
-    if (values[i] === v) return true;
-  }
-  return false;
-}
-
-// Global list of arrays visited during toString, toLocaleString and
-// join invocations.
-var visited_arrays = new Stack();
 
 function Join(array, length, separator, convert) {
   if (length == 0) return '';
@@ -212,8 +176,7 @@ function Join(array, length, separator, convert) {
   if (is_array) {
     // If the array is cyclic, return the empty string for already
     // visited arrays.
-    if (StackHas(visited_arrays, array)) return '';
-    StackPush(visited_arrays, array);
+    if (!%PushIfAbsent(visited_arrays, array)) return '';
   }
 
   // Attempt to convert the elements.
@@ -272,11 +235,11 @@ function Join(array, length, separator, convert) {
         elements[i] = e;
       }
     }
-    return StringBuilderJoin(elements, length, separator);
+    return %StringBuilderJoin(elements, length, separator);
   } finally {
     // Make sure to remove the last element of the visited array no
     // matter what happens.
-    if (is_array) StackPop(visited_arrays);
+    if (is_array) visited_arrays.length = visited_arrays.length - 1;
   }
 }
 
@@ -1996,10 +1959,6 @@ utils.Export(function(to) {
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
   to.PackedArrayReverse = PackedArrayReverse;
-  to.Stack = Stack;
-  to.StackHas = StackHas;
-  to.StackPush = StackPush;
-  to.StackPop = StackPop;
 });
 
 %InstallToContext([

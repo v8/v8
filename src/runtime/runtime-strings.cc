@@ -497,6 +497,89 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  int32_t array_length;
+  if (!args[1]->ToInt32(&array_length)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
+  }
+  CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
+  RUNTIME_ASSERT(array->HasFastObjectElements());
+  RUNTIME_ASSERT(array_length >= 0);
+
+  Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
+  if (fixed_array->length() < array_length) {
+    array_length = fixed_array->length();
+  }
+
+  if (array_length == 0) {
+    return isolate->heap()->empty_string();
+  } else if (array_length == 1) {
+    Object* first = fixed_array->get(0);
+    RUNTIME_ASSERT(first->IsString());
+    return first;
+  }
+
+  int separator_length = separator->length();
+  RUNTIME_ASSERT(separator_length > 0);
+  int max_nof_separators =
+      (String::kMaxLength + separator_length - 1) / separator_length;
+  if (max_nof_separators < (array_length - 1)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
+  }
+  int length = (array_length - 1) * separator_length;
+  for (int i = 0; i < array_length; i++) {
+    Object* element_obj = fixed_array->get(i);
+    RUNTIME_ASSERT(element_obj->IsString());
+    String* element = String::cast(element_obj);
+    int increment = element->length();
+    if (increment > String::kMaxLength - length) {
+      STATIC_ASSERT(String::kMaxLength < kMaxInt);
+      length = kMaxInt;  // Provoke exception;
+      break;
+    }
+    length += increment;
+  }
+
+  Handle<SeqTwoByteString> answer;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, answer, isolate->factory()->NewRawTwoByteString(length));
+
+  DisallowHeapAllocation no_gc;
+
+  uc16* sink = answer->GetChars();
+#ifdef DEBUG
+  uc16* end = sink + length;
+#endif
+
+  RUNTIME_ASSERT(fixed_array->get(0)->IsString());
+  String* first = String::cast(fixed_array->get(0));
+  String* separator_raw = *separator;
+  int first_length = first->length();
+  String::WriteToFlat(first, sink, 0, first_length);
+  sink += first_length;
+
+  for (int i = 1; i < array_length; i++) {
+    DCHECK(sink + separator_length <= end);
+    String::WriteToFlat(separator_raw, sink, 0, separator_length);
+    sink += separator_length;
+
+    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    String* element = String::cast(fixed_array->get(i));
+    int element_length = element->length();
+    DCHECK(sink + element_length <= end);
+    String::WriteToFlat(element, sink, 0, element_length);
+    sink += element_length;
+  }
+  DCHECK(sink == end);
+
+  // Use %_FastOneByteArrayJoin instead.
+  DCHECK(!answer->IsOneByteRepresentation());
+  return *answer;
+}
+
 template <typename Char>
 static void JoinSparseArrayWithSeparator(FixedArray* elements,
                                          int elements_length,
