@@ -944,7 +944,6 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost || stack_fp_ == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
@@ -1168,7 +1167,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  DCHECK(!is_bottommost || stack_fp_ == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
