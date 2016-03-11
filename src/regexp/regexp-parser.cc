@@ -843,6 +843,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return result;
 }
 
+#ifdef V8_I18N_SUPPORT
 bool LookupPropertyClass(UProperty property, const char* property_name,
                          ZoneList<CharacterRange>* result, Zone* zone) {
   int32_t property_value = u_getPropertyValueEnum(property, property_name);
@@ -869,6 +870,7 @@ bool LookupPropertyClass(UProperty property, const char* property_name,
   uset_close(set);
   return success;
 }
+#endif  // V8_I18N_SUPPORT
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
 #ifdef V8_I18N_SUPPORT
