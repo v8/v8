@@ -282,6 +282,15 @@ inline void USE(T) { }
 #define V8PRIuPTR "lxu"
 #endif
 
+// GCC on S390 31-bit expands 'size_t' to 'long unsigned int'
+// instead of 'int', resulting in compilation errors with %d.
+// The printf format specifier needs to be %zd instead.
+#if V8_HOST_ARCH_S390 && !V8_HOST_ARCH_64_BIT
+#define V8_SIZET_PREFIX "z"
+#else
+#define V8_SIZET_PREFIX ""
+#endif
+
 // The following macro works on both 32 and 64-bit platforms.
 // Usage: instead of writing 0x1234567890123456
 //      write V8_2PART_UINT64_C(0x12345678,90123456);
