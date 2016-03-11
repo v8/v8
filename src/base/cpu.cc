@@ -656,8 +656,8 @@ CPU::CPU()
   }
 
   CacheLineSizes sizes;
-  icache_line_size_ = sizes.dcache_line_size();
-  dcache_line_size_ = sizes.icache_line_size();
+  icache_line_size_ = sizes.icache_line_size();
+  dcache_line_size_ = sizes.dcache_line_size();
 
 #elif V8_HOST_ARCH_PPC
 
