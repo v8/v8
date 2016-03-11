@@ -1568,6 +1568,12 @@ TEST(CodeSerializerInternalReference) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   return;
 #endif
+  // In ignition there are only relative jumps, so the following code
+  // would not have any internal references. This test is not relevant
+  // for ignition.
+  if (FLAG_ignition) {
+    return;
+  }
   // Disable experimental natives that are loaded after deserialization.
   FLAG_function_context_specialization = false;
   FLAG_always_opt = true;
