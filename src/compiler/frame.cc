@@ -44,16 +44,13 @@ void FrameAccessState::SetFrameAccessToDefault() {
 
 
 FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
-  const int offset =
-      (StandardFrameConstants::kFixedSlotCountAboveFp - spill_slot - 1) *
-      kPointerSize;
+  const int frame_offset = FrameSlotToFPOffset(spill_slot);
   if (access_frame_with_fp()) {
     DCHECK(frame()->needs_frame());
-    return FrameOffset::FromFramePointer(offset);
+    return FrameOffset::FromFramePointer(frame_offset);
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
-    int sp_offset =
-        offset + ((frame()->GetSpToFpSlotCount() + sp_delta()) * kPointerSize);
+    int sp_offset = frame_offset + GetSPToFPOffset();
     return FrameOffset::FromStackPointer(sp_offset);
   }
 }

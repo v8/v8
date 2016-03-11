@@ -210,10 +210,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     FrameOffset offset = frame_access_state()->GetFrameOffset(
         AllocatedOperand::cast(op)->index());
     if (offset.from_frame_pointer()) {
-      int from_sp =
-          offset.offset() +
-          ((frame()->GetSpToFpSlotCount() + frame_access_state()->sp_delta()) *
-           kPointerSize);
+      int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
       // Convert FP-offsets to SP-offsets if it results in better code.
       if (Assembler::IsImmLSUnscaled(from_sp) ||
           Assembler::IsImmLSScaled(from_sp, LSDoubleWord)) {

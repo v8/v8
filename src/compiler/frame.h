@@ -86,7 +86,7 @@ class Frame : public ZoneObject {
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
 
-  inline int GetSpToFpSlotCount() const {
+  inline int GetSPToFPSlotCount() const {
     return GetTotalFrameSlotCount() -
            StandardFrameConstants::kFixedSlotCountAboveFp;
   }
@@ -224,6 +224,11 @@ class FrameAccessState : public ZoneObject {
   void SetFrameAccessToDefault();
   void SetFrameAccessToFP() { access_frame_with_fp_ = true; }
   void SetFrameAccessToSP() { access_frame_with_fp_ = false; }
+
+  int GetSPToFPSlotCount() const {
+    return frame_->GetSPToFPSlotCount() + sp_delta();
+  }
+  int GetSPToFPOffset() const { return GetSPToFPSlotCount() * kPointerSize; }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be
