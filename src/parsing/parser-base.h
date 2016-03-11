@@ -800,10 +800,6 @@ class ParserBase : public Traits {
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression, int beg_pos, int end_pos,
       MessageTemplate::Template message, bool* ok);
-  ExpressionT ClassifyAndRewriteReferenceExpression(
-      ExpressionClassifier* classifier, ExpressionT expression, int beg_pos,
-      int end_pos, MessageTemplate::Template message,
-      ParseErrorType type = kSyntaxError);
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression, int beg_pos, int end_pos,
       MessageTemplate::Template message, ParseErrorType type, bool* ok);
@@ -2990,41 +2986,25 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::CheckAndRewriteReferenceExpression(
     ExpressionT expression, int beg_pos, int end_pos,
     MessageTemplate::Template message, ParseErrorType type, bool* ok) {
-  ExpressionClassifier classifier(this);
-  ExpressionT result = ClassifyAndRewriteReferenceExpression(
-      &classifier, expression, beg_pos, end_pos, message, type);
-  ValidateExpression(&classifier, ok);
-  if (!*ok) return this->EmptyExpression();
-  return result;
-}
-
-
-template <typename Traits>
-typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ClassifyAndRewriteReferenceExpression(
-    ExpressionClassifier* classifier, ExpressionT expression, int beg_pos,
-    int end_pos, MessageTemplate::Template message, ParseErrorType type) {
-  Scanner::Location location(beg_pos, end_pos);
-  if (this->IsIdentifier(expression)) {
-    if (is_strict(language_mode()) &&
-        this->IsEvalOrArguments(this->AsIdentifier(expression))) {
-      classifier->RecordExpressionError(
-          location, MessageTemplate::kStrictEvalArguments, kSyntaxError);
-      return expression;
-    }
+  if (this->IsIdentifier(expression) && is_strict(language_mode()) &&
+      this->IsEvalOrArguments(this->AsIdentifier(expression))) {
+    ReportMessageAt(Scanner::Location(beg_pos, end_pos),
+                    MessageTemplate::kStrictEvalArguments, kSyntaxError);
+    *ok = false;
+    return this->EmptyExpression();
   }
   if (expression->IsValidReferenceExpression()) {
     return expression;
-  } else if (expression->IsCall()) {
+  }
+  if (expression->IsCall()) {
     // If it is a call, make it a runtime error for legacy web compatibility.
     // Rewrite `expr' to `expr[throw ReferenceError]'.
-    int pos = location.beg_pos;
-    ExpressionT error = this->NewThrowReferenceError(message, pos);
-    return factory()->NewProperty(expression, error, pos);
-  } else {
-    classifier->RecordExpressionError(location, message, type);
-    return expression;
+    ExpressionT error = this->NewThrowReferenceError(message, beg_pos);
+    return factory()->NewProperty(expression, error, beg_pos);
   }
+  ReportMessageAt(Scanner::Location(beg_pos, end_pos), message, type);
+  *ok = false;
+  return this->EmptyExpression();
 }
 
 
