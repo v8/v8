@@ -779,7 +779,6 @@ void MarkCompactCollector::AbortCompaction() {
     RememberedSet<OLD_TO_OLD>::ClearAll(heap());
     for (Page* p : evacuation_candidates_) {
       p->ClearEvacuationCandidate();
-      p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
     }
     compacting_ = false;
     evacuation_candidates_.Rewind(0);
@@ -3023,8 +3022,7 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(MemoryChunk* chunk) {
     DCHECK(success);
     USE(success);
   } else {
-    DCHECK(chunk->IsEvacuationCandidate() ||
-           chunk->IsFlagSet(MemoryChunk::RESCAN_ON_EVACUATION));
+    DCHECK(chunk->IsEvacuationCandidate());
     DCHECK_EQ(chunk->concurrent_sweeping_state().Value(), Page::kSweepingDone);
     success = EvacuateSinglePage(chunk, &old_space_visitor_);
   }
@@ -3580,53 +3578,17 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         heap()->tracer(),
         GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED);
     for (Page* p : evacuation_candidates_) {
-      DCHECK(p->IsEvacuationCandidate() ||
-             p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+      DCHECK(p->IsEvacuationCandidate());
+      // Important: skip list should be cleared only after roots were updated
+      // because root iteration traverses the stack and might have to find
+      // code objects from non-updated pc pointing into evacuation candidate.
+      SkipList* list = p->skip_list();
+      if (list != NULL) list->Clear();
 
-      if (p->IsEvacuationCandidate()) {
-        // Important: skip list should be cleared only after roots were updated
-        // because root iteration traverses the stack and might have to find
-        // code objects from non-updated pc pointing into evacuation candidate.
-        SkipList* list = p->skip_list();
-        if (list != NULL) list->Clear();
-
-        // First pass on aborted pages, fixing up all live objects.
-        if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-          p->ClearEvacuationCandidate();
-          VisitLiveObjectsBody(p, &updating_visitor);
-        }
-      }
-
-      if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " during evacuation.\n",
-                 reinterpret_cast<intptr_t>(p));
-        }
-        PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-        p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
-        p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
-
-        switch (space->identity()) {
-          case OLD_SPACE:
-            Sweep<SWEEP_AND_VISIT_LIVE_OBJECTS, SWEEP_ON_MAIN_THREAD,
-                  IGNORE_SKIP_LIST, IGNORE_FREE_SPACE>(space, NULL, p,
-                                                       &updating_visitor);
-            break;
-          case CODE_SPACE:
-            if (FLAG_zap_code_space) {
-              Sweep<SWEEP_AND_VISIT_LIVE_OBJECTS, SWEEP_ON_MAIN_THREAD,
-                    REBUILD_SKIP_LIST, ZAP_FREE_SPACE>(space, NULL, p,
-                                                       &updating_visitor);
-            } else {
-              Sweep<SWEEP_AND_VISIT_LIVE_OBJECTS, SWEEP_ON_MAIN_THREAD,
-                    REBUILD_SKIP_LIST, IGNORE_FREE_SPACE>(space, NULL, p,
-                                                          &updating_visitor);
-            }
-            break;
-          default:
-            UNREACHABLE();
-            break;
-        }
+      // First pass on aborted pages, fixing up all live objects.
+      if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+        p->ClearEvacuationCandidate();
+        VisitLiveObjectsBody(p, &updating_visitor);
       }
     }
   }
@@ -3730,8 +3692,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     Page* p = it.next();
     DCHECK(p->SweepingDone());
 
-    if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION) ||
-        p->IsEvacuationCandidate()) {
+    if (p->IsEvacuationCandidate()) {
       // Will be processed in EvacuateNewSpaceAndCandidates.
       DCHECK(evacuation_candidates_.length() > 0);
       continue;
