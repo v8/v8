@@ -110,13 +110,11 @@ namespace wasm {
 inline void CheckI32v(int32_t value, int length) {
   DCHECK(length >= 1 && length <= 5);
   DCHECK(length == 5 || I32V_IN_RANGE(value, length));
-  DCHECK(length == 1 || !I32V_IN_RANGE(value, length - 1));
 }
 
 inline void CheckI64v(int64_t value, int length) {
   DCHECK(length >= 1 && length <= 10);
   DCHECK(length == 10 || I64V_IN_RANGE(value, length));
-  DCHECK(length == 1 || !I64V_IN_RANGE(value, length - 1));
 }
 
 // A helper for encoding local declarations prepended to the body of a

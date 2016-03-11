@@ -334,12 +334,18 @@ class WasmDecoder : public Decoder {
         BranchTableOperand operand(this, pc);
         return 1 + operand.length;
       }
+      case kExprI32Const: {
+        ImmI32Operand operand(this, pc);
+        return 1 + operand.length;
+      }
+      case kExprI64Const: {
+        ImmI64Operand operand(this, pc);
+        return 1 + operand.length;
+      }
       case kExprI8Const:
         return 2;
-      case kExprI32Const:
       case kExprF32Const:
         return 5;
-      case kExprI64Const:
       case kExprF64Const:
         return 9;
 
@@ -653,7 +659,7 @@ class SR_WasmDecoder : public WasmDecoder {
             PushBlock(break_env);
             SsaEnv* cont_env = Steal(break_env);
             // The continue environment is the inner environment.
-            PrepareForLoop(cont_env);
+            PrepareForLoop(pc_, cont_env);
             SetEnv("loop:start", Split(cont_env));
             if (ssa_env_->go()) ssa_env_->state = SsaEnv::kReached;
             PushBlock(cont_env);
@@ -1452,28 +1458,18 @@ class SR_WasmDecoder : public WasmDecoder {
     return tnode;
   }
 
-  void BuildInfiniteLoop() {
-    if (ssa_env_->go()) {
-      PrepareForLoop(ssa_env_);
-      SsaEnv* cont_env = ssa_env_;
-      ssa_env_ = Split(ssa_env_);
-      ssa_env_->state = SsaEnv::kReached;
-      Goto(ssa_env_, cont_env);
-    }
-  }
+  void PrepareForLoop(const byte* pc, SsaEnv* env) {
+    if (!env->go()) return;
+    env->state = SsaEnv::kMerged;
+    if (!builder_) return;
 
-  void PrepareForLoop(SsaEnv* env) {
-    if (env->go()) {
-      env->state = SsaEnv::kMerged;
-      if (builder_) {
-        env->control = builder_->Loop(env->control);
-        env->effect = builder_->EffectPhi(1, &env->effect, env->control);
-        builder_->Terminate(env->effect, env->control);
-        for (int i = EnvironmentCount() - 1; i >= 0; i--) {
-          env->locals[i] = builder_->Phi(local_type_vec_[i], 1, &env->locals[i],
-                                         env->control);
-        }
-      }
+    env->control = builder_->Loop(env->control);
+    env->effect = builder_->EffectPhi(1, &env->effect, env->control);
+    builder_->Terminate(env->effect, env->control);
+    // Conservatively introduce phis for all local variables.
+    for (int i = EnvironmentCount() - 1; i >= 0; i--) {
+      env->locals[i] =
+          builder_->Phi(local_type_vec_[i], 1, &env->locals[i], env->control);
     }
   }
 
@@ -1592,6 +1588,9 @@ class SR_WasmDecoder : public WasmDecoder {
         length = OpcodeLength(pc);
       }
 
+      TRACE("loop-assign module+%-6d %s func+%d: 0x%02x %s (len=%d)\n",
+            baserel(pc), indentation(), startrel(pc), opcode,
+            WasmOpcodes::OpcodeName(opcode), length);
       pc += length;
       arity_stack.push_back(arity);
       while (arity_stack.back() == 0) {

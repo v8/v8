@@ -1725,6 +1725,12 @@ class WasmOpcodeLengthTest : public TestWithZone {
     EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code))); \
   }
 
+#define EXPECT_LENGTH_N(expected, ...)                            \
+  {                                                               \
+    static const byte code[] = {__VA_ARGS__};                     \
+    EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code))); \
+  }
+
 TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprNop);
   EXPECT_LENGTH(2, kExprBlock);
@@ -1739,9 +1745,7 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
 
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(2, kExprI8Const);
-  EXPECT_LENGTH(5, kExprI32Const);
   EXPECT_LENGTH(5, kExprF32Const);
-  EXPECT_LENGTH(9, kExprI64Const);
   EXPECT_LENGTH(9, kExprF64Const);
   EXPECT_LENGTH(2, kExprGetLocal);
   EXPECT_LENGTH(2, kExprSetLocal);
@@ -1758,21 +1762,33 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(2, kExprBrIf);
 }
 
-
-TEST_F(WasmOpcodeLengthTest, VariableLength) {
-  byte size2[] = {kExprLoadGlobal, 1};
-  byte size3[] = {kExprLoadGlobal, 1 | 0x80, 2};
-  byte size4[] = {kExprLoadGlobal, 1 | 0x80, 2 | 0x80, 3};
-  byte size5[] = {kExprLoadGlobal, 1 | 0x80, 2 | 0x80, 3 | 0x80, 4};
-  byte size6[] = {kExprLoadGlobal, 1 | 0x80, 2 | 0x80, 3 | 0x80, 4 | 0x80, 5};
-
-  EXPECT_EQ(2, OpcodeLength(size2, size2 + sizeof(size2)));
-  EXPECT_EQ(3, OpcodeLength(size3, size3 + sizeof(size3)));
-  EXPECT_EQ(4, OpcodeLength(size4, size4 + sizeof(size4)));
-  EXPECT_EQ(5, OpcodeLength(size5, size5 + sizeof(size5)));
-  EXPECT_EQ(6, OpcodeLength(size6, size6 + sizeof(size6)));
+TEST_F(WasmOpcodeLengthTest, I32Const) {
+  EXPECT_LENGTH_N(2, kExprI32Const, U32V_1(1));
+  EXPECT_LENGTH_N(3, kExprI32Const, U32V_2(999));
+  EXPECT_LENGTH_N(4, kExprI32Const, U32V_3(9999));
+  EXPECT_LENGTH_N(5, kExprI32Const, U32V_4(999999));
+  EXPECT_LENGTH_N(6, kExprI32Const, U32V_5(99999999));
 }
 
+TEST_F(WasmOpcodeLengthTest, I64Const) {
+  EXPECT_LENGTH_N(2, kExprI64Const, U32V_1(1));
+  EXPECT_LENGTH_N(3, kExprI64Const, U32V_2(99));
+  EXPECT_LENGTH_N(4, kExprI64Const, U32V_3(9999));
+  EXPECT_LENGTH_N(5, kExprI64Const, U32V_4(99999));
+  EXPECT_LENGTH_N(6, kExprI64Const, U32V_5(9999999));
+  EXPECT_LENGTH_N(7, WASM_I64V_6(777777));
+  EXPECT_LENGTH_N(8, WASM_I64V_7(7777777));
+  EXPECT_LENGTH_N(9, WASM_I64V_8(77777777));
+  EXPECT_LENGTH_N(10, WASM_I64V_9(777777777));
+}
+
+TEST_F(WasmOpcodeLengthTest, VariableLength) {
+  EXPECT_LENGTH_N(2, kExprLoadGlobal, U32V_1(1));
+  EXPECT_LENGTH_N(3, kExprLoadGlobal, U32V_2(33));
+  EXPECT_LENGTH_N(4, kExprLoadGlobal, U32V_3(44));
+  EXPECT_LENGTH_N(5, kExprLoadGlobal, U32V_4(66));
+  EXPECT_LENGTH_N(6, kExprLoadGlobal, U32V_5(77));
+}
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
   EXPECT_LENGTH(3, kExprI32LoadMem8S);
