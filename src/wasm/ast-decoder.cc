@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/platform/elapsed-timer.h"
 #include "src/signature.h"
 
 #include "src/bit-vector.h"
@@ -369,11 +368,6 @@ class SR_WasmDecoder : public WasmDecoder {
   }
 
   TreeResult Decode() {
-    base::ElapsedTimer decode_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      decode_timer.Start();
-    }
-
     if (end_ < pc_) {
       error(pc_, "function body end < start");
       return result_;
@@ -405,12 +399,7 @@ class SR_WasmDecoder : public WasmDecoder {
         FunctionBody body = {module_, sig_, base_, start_, end_};
         PrintAst(body);
       }
-      if (FLAG_trace_wasm_decode_time) {
-        double ms = decode_timer.Elapsed().InMillisecondsF();
-        PrintF("wasm-decode ok (%0.3f ms)\n\n", ms);
-      } else {
-        TRACE("wasm-decode ok\n\n");
-      }
+      TRACE("wasm-decode ok\n");
     } else {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
             startrel(error_pc_), error_msg_.get());

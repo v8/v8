@@ -6,6 +6,7 @@
 
 #include "src/isolate-inl.h"
 
+#include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 
 #include "src/compiler/access-builder.h"
@@ -2404,11 +2405,17 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
                                  const wasm::WasmFunction& function) {
-  if (FLAG_trace_wasm_compiler || FLAG_trace_wasm_decode_time) {
+  if (FLAG_trace_wasm_compiler) {
     OFStream os(stdout);
     os << "Compiling WASM function "
        << wasm::WasmFunctionName(&function, module_env) << std::endl;
     os << std::endl;
+  }
+
+  double decode_ms = 0;
+  base::ElapsedTimer decode_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    decode_timer.Start();
   }
 
   // Create a TF graph during decoding.
@@ -2441,6 +2448,14 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     return Handle<Code>::null();
   }
 
+  if (FLAG_trace_wasm_decode_time) {
+    decode_ms = decode_timer.Elapsed().InMillisecondsF();
+  }
+
+  base::ElapsedTimer compile_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    compile_timer.Start();
+  }
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor =
       wasm::ModuleEnv::GetWasmCallDescriptor(&zone, function.sig);
@@ -2479,6 +2494,13 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
                                   function.name_offset, function.name_length));
   }
 
+  if (FLAG_trace_wasm_decode_time) {
+    double compile_ms = compile_timer.Elapsed().InMillisecondsF();
+    PrintF(
+        "wasm-compile ok: %d bytes, %0.3f ms decode, %0.3f ms compile\n",
+        static_cast<int>(function.code_end_offset - function.code_start_offset),
+        decode_ms, compile_ms);
+  }
   return code;
 }
 
