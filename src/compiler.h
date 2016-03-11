@@ -487,7 +487,8 @@ class CompilationInfo {
     if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
       // If Crankshaft tried to optimize this function, bailed out, and
       // doesn't want to try again, then use TurboFan next time.
-      if (!shared_info()->dont_crankshaft()) {
+      if (!shared_info()->dont_crankshaft() &&
+          bailout_reason() != kOptimizedTooManyTimes) {
         shared_info()->set_dont_crankshaft(true);
         if (FLAG_trace_opt) {
           PrintF("[disabled Crankshaft for ");
