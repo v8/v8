@@ -62,7 +62,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       have_code_to_deoptimize_(false),
       compacting_(false),
       sweeping_in_progress_(false),
-      compaction_in_progress_(false),
       pending_sweeper_tasks_semaphore_(0),
       pending_compaction_tasks_semaphore_(0) {
 }
@@ -2512,12 +2511,7 @@ void MarkCompactCollector::RecordMigratedSlot(
   // When parallel compaction is in progress, store and slots buffer entries
   // require synchronization.
   if (heap_->InNewSpace(value)) {
-    if (compaction_in_progress_) {
-      old_to_new_slots->Record(slot);
-    } else {
-      Page* page = Page::FromAddress(slot);
-      RememberedSet<OLD_TO_NEW>::Insert(page, slot);
-    }
+    old_to_new_slots->Record(slot);
   } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
     old_to_old_slots->Record(slot);
   }

@@ -767,9 +767,6 @@ class MarkCompactCollector {
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_in_progress_;
 
-  // True if parallel compaction is currently in progress.
-  bool compaction_in_progress_;
-
   // Semaphore used to synchronize sweeper tasks.
   base::Semaphore pending_sweeper_tasks_semaphore_;
 
