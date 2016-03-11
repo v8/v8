@@ -171,9 +171,9 @@ class ParseInfo {
     kParseRestriction = 1 << 7,
     kModule = 1 << 8,
     kAllowLazyParsing = 1 << 9,
-    kTyped = 1 << 11,  // TODO(nikolaos): OK to use 11 here?
+    kTyped = 1 << 10,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 10
+    kAstValueFactoryOwned = 1 << 11
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -353,7 +353,17 @@ class ParserTraits {
     typedef ParserFormalParameters::Parameter FormalParameter;
     typedef ParserFormalParameters FormalParameters;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
-    typedef v8::internal::OTSType* OTSType;
+
+    struct TypeSystem {
+      typedef v8::internal::typesystem::Type* Type;
+      typedef ZoneList<v8::internal::typesystem::Type*>* TypeArguments;
+      typedef v8::internal::typesystem::TypeParameter* TypeParameter;
+      typedef ZoneList<v8::internal::typesystem::TypeParameter*>*
+          TypeParameters;
+      typedef v8::internal::typesystem::FormalParameter* FormalParameter;
+      typedef ZoneList<v8::internal::typesystem::FormalParameter*>*
+          FormalParameters;
+    };
 
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory Factory;
@@ -497,7 +507,18 @@ class ParserTraits {
   }
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
-  static OTSType* EmptyOTSType() { return NULL; }
+
+  static typesystem::Type* EmptyType() { return NULL; }
+  static ZoneList<typesystem::Type*>* NullTypeArguments() { return nullptr; }
+  static ZoneList<typesystem::TypeParameter*>* NullTypeParameters() {
+    return nullptr;
+  }
+  static bool IsNullTypeParameters(
+      ZoneList<typesystem::TypeParameter*>* typ_pars) {
+    return typ_pars == nullptr;
+  }
+  V8_INLINE ZoneList<typesystem::FormalParameter*>* EmptyFormalParameters()
+      const;
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1084,6 +1105,13 @@ bool ParserTraits::IsFutureStrictReserved(
 Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
                               FunctionKind kind) {
   return parser_->NewScope(parent_scope, scope_type, kind);
+}
+
+
+ZoneList<typesystem::FormalParameter*>* ParserTraits::EmptyFormalParameters()
+    const {
+  return new (parser_->zone())
+      ZoneList<typesystem::FormalParameter*>(1, parser_->zone());
 }
 
 

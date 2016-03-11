@@ -614,7 +614,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
 
     // Optional type annotation.
     if (scope_->typed() && Check(Token::COLON)) {
-      ParseType(CHECK_OK);
+      ParseValidType(CHECK_OK);
     }
 
     Scanner::Location variable_loc = scanner()->location();

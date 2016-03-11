@@ -8090,16 +8090,18 @@ TEST(FunctionDeclarationError) {
 
 TEST(TypedVariableDeclarations) {
   const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
-  const char* typed_context_data[][2] = {{"'use types';", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
 
   const char* untyped_data[] = {
-      "var x = 42",
-      NULL};
+    "var x = 42",
+    NULL
+  };
 
   const char* typed_data[] = {
-      "var x: number = 42",
-      "var s: string = 'hello world'",
-      NULL};
+    "var x: number = 42",
+    "var s: string = 'hello world'",
+    NULL
+  };
 
   static const ParserFlag always_flags[] = {kAllowTypes};
   RunParserSyncTest(untyped_context_data, untyped_data, kSuccess, NULL, 0,
@@ -8114,38 +8116,41 @@ TEST(TypedVariableDeclarations) {
 
 TEST(TypedModeChecks) {
   const char* strict_context_data[][2] = {
-    {"'use types';", ""},
-    {"'use strict'; 'use types';", ""},
-    {"'use types'; 'use strict';", ""},
-    {"'use strict'; 'use types'; 'use strict';", ""},
-    {"'use types'; 'use strict'; 'use types';", ""},
+    {"'use types'; ", ""},
+    {"'use strict'; 'use types'; ", ""},
+    {"'use types'; 'use strict'; ", ""},
+    {"'use strict'; 'use types'; 'use strict'; ", ""},
+    {"'use types'; 'use strict'; 'use types'; ", ""},
     {NULL, NULL}
   };
 
   const char* strong_context_data[][2] = {
-    {"'use strong'; 'use types';", ""},
-    {"'use types'; 'use strong';", ""},
-    {"'use strict'; 'use strong'; 'use types';", ""},
-    {"'use strict'; 'use types'; 'use strong';", ""},
-    {"'use strong'; 'use strict'; 'use types';", ""},
-    {"'use strong'; 'use types'; 'use strict';", ""},
-    {"'use types'; 'use strict'; 'use strong';", ""},
-    {"'use types'; 'use strong'; 'use strict';", ""},
+    {"'use strong'; 'use types'; ", ""},
+    {"'use types'; 'use strong'; ", ""},
+    {"'use strict'; 'use strong'; 'use types'; ", ""},
+    {"'use strict'; 'use types'; 'use strong'; ", ""},
+    {"'use strong'; 'use strict'; 'use types'; ", ""},
+    {"'use strong'; 'use types'; 'use strict'; ", ""},
+    {"'use types'; 'use strict'; 'use strong'; ", ""},
+    {"'use types'; 'use strong'; 'use strict'; ", ""},
     {NULL, NULL}
   };
 
   const char* typed_data[] = {
-      "let x: number = 42",
-      "const s: string = 'hello world'",
-      NULL};
+    "let x: number = 42",
+    "const s: string = 'hello world'",
+    NULL
+  };
 
   const char* strict_error_data[] = {
-      "var x = 42; delete x",
-      NULL};
+    "var x = 42; delete x",
+    NULL
+  };
 
   const char* strong_error_data[] = {
-      "var x = 42",
-      NULL};
+    "var x = 42",
+    NULL
+  };
 
   static const ParserFlag always_flags[] = {kAllowTypes, kAllowStrongMode};
   RunParserSyncTest(strict_context_data, typed_data, kSuccess, NULL, 0,
@@ -8165,27 +8170,24 @@ TEST(TypedModeChecks) {
 TEST(TypedModeIllegalInFunctionScope) {
   const char* context_data[][2] = {
     { "", "" },
-    //{ "'use types'", "" },
+    { "'use types'; ", "" },
     { NULL, NULL }
   };
 
   const char* error_data[] = {
-    /*
     "function f() { 'use types'; }",
     "function f() { 'use types'; 'use strict'; }",
     "function f() { 'use types'; 'use strong'; }",
     "function f() { 'use strict'; 'use types'; }",
-    */
     "function f() { 'use strong'; 'use types'; }",
-    /*
     "function f() { 'use strict'; 'use strong'; 'use types'; }",
     "function f() { 'use strict'; 'use types'; 'use strong'; }",
     "function f() { 'use strong'; 'use strict'; 'use types'; }",
     "function f() { 'use strong'; 'use types'; 'use strict'; }",
     "function f() { 'use types'; 'use strict'; 'use strong'; }",
     "function f() { 'use types'; 'use strong'; 'use strict'; }",
-    */
-    NULL};
+    NULL
+  };
 
   static const ParserFlag varying_flags[] = {kAllowStrongMode};
   RunParserSyncTest(context_data, error_data, kSuccess,
@@ -8195,4 +8197,53 @@ TEST(TypedModeIllegalInFunctionScope) {
   RunParserSyncTest(context_data, error_data, kError,
                     varying_flags, arraysize(varying_flags),
                     typed_flags, arraysize(typed_flags));
+}
+
+TEST(TypedModeSimpleTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var x: number",
+    "var x: (number)",
+    "var x: ((number))",
+    "var x: ((number))[]",
+    "var x: ((number)[])",
+    "var x: ((number[]))",
+    "var x: ((a: string) => string) & ((b: number) => number)",
+    "var x: number | any & string",
+    "var s: (a: number, b?: string) => number",
+    "var s: (a: number, b?: string, c?) => number",
+    "var s: (a: number, b: string, c, ...d) => number",
+    "var s: (a: number, b: string, c, ...d: string[]) => number",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var x: ()",
+    "var x: (a, b)",
+    "var x: ((a, b))",
+    "var x: ()[]",
+    "var x: (()[])",
+    "var x: (())[]",
+    "var x: () & any",
+    "var x: any & ()",
+    "var x: () | any",
+    "var x: any | ()",
+    "var x: (number\n[])",
+    "var x: any & (x: number) => number",
+    "var x: any | (x: number) => number",
+    "var x: (...a, b) => number",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }

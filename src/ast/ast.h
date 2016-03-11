@@ -98,11 +98,19 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
-// OTS type nodes are intentionally not in in AST_NODE_LIST.
+// Optional type nodes are intentionally not in in AST_NODE_LIST.
 // Visitors should not have to worry about them.
-#define OTSTYPE_NODE_LIST(V)                    \
-  V(PredefinedType)
-
+#define TYPESYSTEM_NODE_LIST(V) \
+  V(PredefinedType)             \
+  V(ThisType)                   \
+  V(UnionType)                  \
+  V(IntersectionType)           \
+  V(ArrayType)                  \
+  V(FunctionType)               \
+  V(TypeParameter)              \
+  V(FormalParameter)            \
+  V(TypeReference)              \
+  V(TypeOrParameters)
 
 // Forward declarations
 class AstNodeFactory;
@@ -115,11 +123,15 @@ class IterationStatement;
 class MaterializedLiteral;
 class Statement;
 class TypeFeedbackOracle;
-class OTSType;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
-OTSTYPE_NODE_LIST(DEF_FORWARD_DECLARATION)
+
+namespace typesystem {
+class Type;
+TYPESYSTEM_NODE_LIST(DEF_FORWARD_DECLARATION)
+}  // namespace typesystem
+
 #undef DEF_FORWARD_DECLARATION
 
 
@@ -131,7 +143,7 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
 #define DECLARE_NODE_TYPE(type)                                          \
   void Accept(AstVisitor* v) override;                                   \
   AstNode::NodeType node_type() const final { return AstNode::k##type; } \
-  friend class AstNodeFactory;
+  friend class v8::internal::AstNodeFactory;
 
 
 class FeedbackVectorSlotCache {
@@ -191,7 +203,7 @@ class AstNode: public ZoneObject {
 #define DECLARE_TYPE_ENUM(type) k##type,
   enum NodeType {
     AST_NODE_LIST(DECLARE_TYPE_ENUM)
-    OTSTYPE_NODE_LIST(DECLARE_TYPE_ENUM)
+    TYPESYSTEM_NODE_LIST(DECLARE_TYPE_ENUM)
     kInvalid = -1
   };
 #undef DECLARE_TYPE_ENUM
@@ -216,7 +228,13 @@ class AstNode: public ZoneObject {
   V8_INLINE type* As##type();        \
   V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
-  OTSTYPE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
+
+#define DECLARE_NODE_FUNCTIONS(type)      \
+  V8_INLINE bool Is##type() const;        \
+  V8_INLINE typesystem::type* As##type(); \
+  V8_INLINE const typesystem::type* As##type() const;
+  TYPESYSTEM_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
@@ -2916,13 +2934,27 @@ class EmptyParentheses final : public Expression {
 
 
 // Nodes for the optional type system.
-class OTSType : public AstNode {
+namespace typesystem {
+
+class FormalParameter;
+
+class Type : public AstNode {
+ public:
+  // Uncovers the case of a single, parenthesized valid type.
+  V8_INLINE Type* Uncover(bool* ok);
+
+  V8_INLINE ZoneList<FormalParameter*>* AsValidParameterList(Zone* zone,
+                                                             bool* ok) const;
+
+  V8_INLINE bool IsSimpleIdentifier() const;
+  V8_INLINE const AstRawString* AsSimpleIdentifier() const;
+
  protected:
-  explicit OTSType(Zone* zone, int position) : AstNode(position) {}
+  explicit Type(Zone* zone, int position) : AstNode(position) {}
 };
 
 
-class PredefinedType : public OTSType {
+class PredefinedType : public Type {
  public:
   DECLARE_NODE_TYPE(PredefinedType)
 
@@ -2939,12 +2971,222 @@ class PredefinedType : public OTSType {
 
  protected:
   PredefinedType(Zone* zone, Kind kind, int pos)
-      : OTSType(zone, pos), kind_(kind) {}
+      : Type(zone, pos), kind_(kind) {}
 
  private:
   Kind kind_;
 };
 
+
+class ThisType : public Type {
+ public:
+  DECLARE_NODE_TYPE(ThisType)
+
+ protected:
+  ThisType(Zone* zone, int pos) : Type(zone, pos) {}
+};
+
+
+class UnionType : public Type {
+ public:
+  DECLARE_NODE_TYPE(UnionType)
+
+  Type* left() const { return left_; }
+  Type* right() const { return right_; }
+
+ protected:
+  UnionType(Zone* zone, Type* left, Type* right, int pos)
+      : Type(zone, pos), left_(left), right_(right) {}
+
+ private:
+  Type* left_;
+  Type* right_;
+};
+
+
+class IntersectionType : public Type {
+ public:
+  DECLARE_NODE_TYPE(IntersectionType)
+
+  Type* left() const { return left_; }
+  Type* right() const { return right_; }
+
+ protected:
+  IntersectionType(Zone* zone, Type* left, Type* right, int pos)
+      : Type(zone, pos), left_(left), right_(right) {}
+
+ private:
+  Type* left_;
+  Type* right_;
+};
+
+
+class ArrayType : public Type {
+ public:
+  DECLARE_NODE_TYPE(ArrayType)
+
+  Type* base() const { return base_; }
+
+ protected:
+  ArrayType(Zone* zone, Type* base, int pos) : Type(zone, pos), base_(base) {}
+
+ private:
+  Type* base_;
+};
+
+
+class TypeParameter : public AstNode {
+ public:
+  DECLARE_NODE_TYPE(TypeParameter)
+
+ protected:
+  TypeParameter(Zone* zone, int pos) : AstNode(pos) {}
+};
+
+
+class FormalParameter : public AstNode {
+ public:
+  DECLARE_NODE_TYPE(FormalParameter)
+
+  bool IsValidType() const { return name_ == nullptr; }
+
+  void MakeValidParameter(bool* ok) {
+    if (name_ != nullptr) return;
+    if (optional_ || spread_ || !type_->IsSimpleIdentifier()) {
+      *ok = false;
+      return;
+    }
+    name_ = type_->AsSimpleIdentifier();
+    type_ = nullptr;
+  }
+
+  const AstRawString* name() const { return name_; }
+  bool optional() const { return optional_; }
+  bool spread() const { return spread_; }
+  Type* type() const { return type_; }
+
+ protected:
+  FormalParameter(Zone* zone, const AstRawString* name, bool optional,
+                  bool spread, Type* type, int pos)
+      : AstNode(pos),
+        name_(name),
+        optional_(optional),
+        spread_(spread),
+        type_(type) {}
+  FormalParameter(Zone* zone, Type* type, int pos)
+      : AstNode(pos),
+        name_(nullptr),
+        optional_(false),
+        spread_(false),
+        type_(type) {}
+
+  friend class Type;
+
+ private:
+  const AstRawString* name_;
+  bool optional_;
+  bool spread_;
+  Type* type_;
+};
+
+
+class FunctionType : public Type {
+ public:
+  DECLARE_NODE_TYPE(FunctionType)
+
+  bool IsConstructorType() const { return constructor_; }
+  ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
+  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
+  Type* result_type() const { return result_type_; }
+
+ protected:
+  FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
+               ZoneList<FormalParameter*>* parameters, Type* result_type,
+               int pos, bool constructor = false)
+      : Type(zone, pos),
+        type_parameters_(type_parameters),
+        parameters_(parameters),
+        result_type_(result_type),
+        constructor_(constructor) {}
+
+ private:
+  ZoneList<TypeParameter*>* type_parameters_;
+  ZoneList<FormalParameter*>* parameters_;
+  Type* result_type_;
+  bool constructor_;
+};
+
+
+class TypeReference : public Type {
+ public:
+  DECLARE_NODE_TYPE(TypeReference)
+
+  const AstRawString* name() const { return name_; }
+  ZoneList<Type*>* type_arguments() const { return type_arguments_; }
+
+ protected:
+  TypeReference(Zone* zone, const AstRawString* name,
+                ZoneList<Type*>* type_arguments, int pos)
+      : Type(zone, pos), name_(name), type_arguments_(type_arguments) {}
+
+ private:
+  const AstRawString* name_;
+  ZoneList<Type*>* type_arguments_;
+};
+
+
+class TypeOrParameters : public Type {
+ public:
+  DECLARE_NODE_TYPE(TypeOrParameters)
+
+  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
+
+ protected:
+  TypeOrParameters(Zone* zone, ZoneList<FormalParameter*>* parameters, int pos)
+      : Type(zone, pos), parameters_(parameters) {}
+
+ private:
+  ZoneList<FormalParameter*>* parameters_;
+};
+
+V8_INLINE bool Type::IsSimpleIdentifier() const {
+  const TypeReference* ref = AsTypeReference();
+  if (ref == nullptr) return false;
+  return ref->type_arguments() == nullptr;
+}
+
+V8_INLINE const AstRawString* Type::AsSimpleIdentifier() const {
+  const TypeReference* ref = AsTypeReference();
+  DCHECK_NOT_NULL(ref);
+  DCHECK_NULL(ref->type_arguments());
+  return ref->name();
+}
+
+V8_INLINE Type* Type::Uncover(bool* ok) {
+  if (!IsTypeOrParameters()) return this;
+  ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
+  if (parameters->length() == 1 && parameters->at(0)->IsValidType())
+    return parameters->at(0)->type();
+  *ok = false;
+  return nullptr;
+}
+
+V8_INLINE ZoneList<FormalParameter*>* Type::AsValidParameterList(
+    Zone* zone, bool* ok) const {
+  if (!IsTypeOrParameters()) {
+    *ok = false;
+    return nullptr;
+  }
+  ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
+  for (int i = 0; i < parameters->length(); i++) {
+    parameters->at(i)->MakeValidParameter(ok);
+    if (!*ok) return nullptr;
+  }
+  return parameters;
+}
+
+
+}  // namespace typesystem
 
 #undef DECLARE_NODE_TYPE
 
@@ -3492,8 +3734,66 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (local_zone_) EmptyParentheses(local_zone_, pos);
   }
 
-  PredefinedType* NewPredefinedType(PredefinedType::Kind kind, int pos) {
-    return new (local_zone_) PredefinedType(local_zone_, kind, pos);
+  typesystem::PredefinedType* NewPredefinedType(
+      typesystem::PredefinedType::Kind kind, int pos) {
+    return new (local_zone_) typesystem::PredefinedType(local_zone_, kind, pos);
+  }
+
+  typesystem::ThisType* NewThisType(int pos) {
+    return new (local_zone_) typesystem::ThisType(local_zone_, pos);
+  }
+
+  typesystem::UnionType* NewUnionType(typesystem::Type* left,
+                                      typesystem::Type* right, int pos) {
+    return new (local_zone_)
+        typesystem::UnionType(local_zone_, left, right, pos);
+  }
+
+  typesystem::IntersectionType* NewIntersectionType(typesystem::Type* left,
+                                                    typesystem::Type* right,
+                                                    int pos) {
+    return new (local_zone_)
+        typesystem::IntersectionType(local_zone_, left, right, pos);
+  }
+
+  typesystem::ArrayType* NewArrayType(typesystem::Type* base, int pos) {
+    return new (local_zone_) typesystem::ArrayType(local_zone_, base, pos);
+  }
+
+  typesystem::FunctionType* NewFunctionType(
+      ZoneList<typesystem::TypeParameter*>* type_parameters,
+      ZoneList<typesystem::FormalParameter*>* parameters,
+      typesystem::Type* result_type, int pos, bool constructor = false) {
+    return new (local_zone_)
+        typesystem::FunctionType(local_zone_, type_parameters, parameters,
+                                 result_type, pos, constructor);
+  }
+
+  typesystem::TypeReference* NewTypeReference(
+      const AstRawString* name, ZoneList<typesystem::Type*>* type_arguments,
+      int pos) {
+    return new (local_zone_)
+        typesystem::TypeReference(local_zone_, name, type_arguments, pos);
+  }
+
+  typesystem::FormalParameter* NewFormalParameter(const AstRawString* name,
+                                                  bool optional, bool spread,
+                                                  typesystem::Type* type,
+                                                  int pos) {
+    return new (local_zone_) typesystem::FormalParameter(
+        local_zone_, name, optional, spread, type, pos);
+  }
+
+  typesystem::FormalParameter* NewFormalParameter(typesystem::Type* type,
+                                                  int pos) {
+    return new (local_zone_)
+        typesystem::FormalParameter(local_zone_, type, pos);
+  }
+
+  typesystem::TypeOrParameters* NewTypeOrParameters(
+      ZoneList<typesystem::FormalParameter*>* parameters, int pos) {
+    return new (local_zone_)
+        typesystem::TypeOrParameters(local_zone_, parameters, pos);
   }
 
   Zone* zone() const { return local_zone_; }
@@ -3565,6 +3865,22 @@ class AstNodeFactory final BASE_EMBEDDED {
                                     : NULL;                                   \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
+
+
+#define DECLARE_NODE_FUNCTIONS(type)                                          \
+  bool AstNode::Is##type() const { return node_type() == AstNode::k##type; }  \
+  typesystem::type* AstNode::As##type() {                                     \
+    return node_type() == AstNode::k##type                                    \
+        ? reinterpret_cast<typesystem::type*>(this)                           \
+        : NULL;                                                               \
+  }                                                                           \
+  const typesystem::type* AstNode::As##type() const {                         \
+    return node_type() == AstNode::k##type                                    \
+        ? reinterpret_cast<const typesystem::type*>(this)                     \
+        : NULL;                                                               \
+  }
+TYPESYSTEM_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
 
