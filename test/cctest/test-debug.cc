@@ -2747,7 +2747,7 @@ TEST(DebugStepKeyedLoadLoop) {
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(45, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2797,7 +2797,7 @@ TEST(DebugStepKeyedStoreLoop) {
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(45, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2842,7 +2842,7 @@ TEST(DebugStepNamedLoadLoop) {
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(66, break_point_hit_count);
+  CHECK_EQ(65, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2886,7 +2886,7 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 
 
 // Test of the stepping mechanism for named load in a loop.
-TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(35); }
+TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
 
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
@@ -3293,7 +3293,7 @@ TEST(DebugStepForContinue) {
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   result = foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
   CHECK_EQ(5, result->Int32Value(context).FromJust());
-  CHECK_EQ(63, break_point_hit_count);
+  CHECK_EQ(62, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
@@ -3301,7 +3301,7 @@ TEST(DebugStepForContinue) {
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   result = foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
   CHECK_EQ(50, result->Int32Value(context).FromJust());
-  CHECK_EQ(558, break_point_hit_count);
+  CHECK_EQ(557, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(isolate, nullptr);
@@ -3347,7 +3347,7 @@ TEST(DebugStepForBreak) {
   v8::Local<v8::Value> argv_10[argc] = {v8::Number::New(isolate, 10)};
   result = foo->Call(context, env->Global(), argc, argv_10).ToLocalChecked();
   CHECK_EQ(9, result->Int32Value(context).FromJust());
-  CHECK_EQ(65, break_point_hit_count);
+  CHECK_EQ(64, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
@@ -3355,7 +3355,7 @@ TEST(DebugStepForBreak) {
   v8::Local<v8::Value> argv_100[argc] = {v8::Number::New(isolate, 100)};
   result = foo->Call(context, env->Global(), argc, argv_100).ToLocalChecked();
   CHECK_EQ(99, result->Int32Value(context).FromJust());
-  CHECK_EQ(605, break_point_hit_count);
+  CHECK_EQ(604, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(isolate, nullptr);

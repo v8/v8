@@ -1202,7 +1202,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Iteration loop_statement(this, stmt);
 
   if (stmt->init() != NULL) {
-    SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
 
