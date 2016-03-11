@@ -265,8 +265,8 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
 Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
   FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
-  Handle<SharedFunctionInfo> shared =
-      frame_info.shared_info().ToHandleChecked();
+  Handle<SharedFunctionInfo> shared;
+  frame_info.shared_info().ToHandle(&shared);
 
   Node* function = frame_state->InputAt(kFrameStateFunctionInput);
 
@@ -274,8 +274,8 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
   // arguments adaptor if it exists.
   frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
   if (frame_state->opcode() == IrOpcode::kFrameState) {
-    FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
-    if (state_info.type() == FrameStateType::kArgumentsAdaptor) {
+    FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
+    if (frame_info.type() == FrameStateType::kArgumentsAdaptor) {
       frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
     }
   }
