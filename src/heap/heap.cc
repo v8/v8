@@ -1561,8 +1561,8 @@ void PromotionQueue::Initialize() {
   DCHECK((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize) ==
          0);
   front_ = rear_ =
-      reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceEnd());
-  limit_ = reinterpret_cast<intptr_t*>(
+      reinterpret_cast<struct Entry*>(heap_->new_space()->ToSpaceEnd());
+  limit_ = reinterpret_cast<struct Entry*>(
       Page::FromAllocationTop(reinterpret_cast<Address>(rear_))->area_start());
   emergency_stack_ = NULL;
 }
@@ -1572,8 +1572,9 @@ void PromotionQueue::RelocateQueueHead() {
   DCHECK(emergency_stack_ == NULL);
 
   Page* p = Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
-  intptr_t* head_start = rear_;
-  intptr_t* head_end = Min(front_, reinterpret_cast<intptr_t*>(p->area_end()));
+  struct Entry* head_start = rear_;
+  struct Entry* head_end =
+      Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
 
   int entries_count =
       static_cast<int>(head_end - head_start) / kEntrySizeInWords;
@@ -1581,13 +1582,12 @@ void PromotionQueue::RelocateQueueHead() {
   emergency_stack_ = new List<Entry>(2 * entries_count);
 
   while (head_start != head_end) {
-    int size = static_cast<int>(*(head_start++));
-    HeapObject* obj = reinterpret_cast<HeapObject*>(*(head_start++));
+    struct Entry* entry = head_start++;
     // New space allocation in SemiSpaceCopyObject marked the region
     // overlapping with promotion queue as uninitialized.
-    MSAN_MEMORY_IS_INITIALIZED(&size, sizeof(size));
-    MSAN_MEMORY_IS_INITIALIZED(&obj, sizeof(obj));
-    emergency_stack_->Add(Entry(obj, size));
+    MSAN_MEMORY_IS_INITIALIZED(&entry->size_, sizeof(size));
+    MSAN_MEMORY_IS_INITIALIZED(&entry->obj_, sizeof(obj));
+    emergency_stack_->Add(*entry);
   }
   rear_ = head_end;
 }
@@ -1945,7 +1945,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     {
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
-        int size;
+        intptr_t size;
         promotion_queue()->remove(&target, &size);
 
         // Promoted object might be already partially visited
@@ -1954,7 +1954,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // to new space.
         DCHECK(!target->IsMap());
 
-        IteratePointersToFromSpace(target, size, &Scavenger::ScavengeObject);
+        IteratePointersToFromSpace(target, static_cast<int>(size),
+                                   &Scavenger::ScavengeObject);
       }
     }
 
