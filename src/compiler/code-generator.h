@@ -77,7 +77,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Check if a heap object can be materialized by loading from the frame, which
   // is usually way cheaper than materializing the actual heap object constant.
-  bool IsMaterializableFromFrame(Handle<HeapObject> object, int* offset_return);
+  bool IsMaterializableFromFrame(Handle<HeapObject> object, int* slot_return);
   // Check if a heap object can be materialized by loading from a heap root,
   // which is cheaper on some platforms than materializing the actual heap
   // object constant.

@@ -49,16 +49,13 @@ class IA32OperandConverter : public InstructionOperandConverter {
       return Operand(ToDoubleRegister(op));
     }
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    FrameOffset offset = frame_access_state()->GetFrameOffset(
-        AllocatedOperand::cast(op)->index());
-    return Operand(offset.from_stack_pointer() ? esp : ebp,
-                   offset.offset() + extra);
+    return SlotToOperand(AllocatedOperand::cast(op)->index(), extra);
   }
 
-  Operand ToMaterializableOperand(int materializable_offset) {
-    FrameOffset offset = frame_access_state()->GetFrameOffset(
-        FPOffsetToFrameSlot(materializable_offset));
-    return Operand(offset.from_stack_pointer() ? esp : ebp, offset.offset());
+  Operand SlotToOperand(int slot, int extra = 0) {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
+    return Operand(offset.from_stack_pointer() ? esp : ebp,
+                   offset.offset() + extra);
   }
 
   Operand HighOperand(InstructionOperand* op) {
@@ -1652,15 +1649,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     Constant src_constant = g.ToConstant(source);
     if (src_constant.type() == Constant::kHeapObject) {
       Handle<HeapObject> src = src_constant.ToHeapObject();
-      int offset;
-      if (IsMaterializableFromFrame(src, &offset)) {
+      int slot;
+      if (IsMaterializableFromFrame(src, &slot)) {
         if (destination->IsRegister()) {
           Register dst = g.ToRegister(destination);
-          __ mov(dst, g.ToMaterializableOperand(offset));
+          __ mov(dst, g.SlotToOperand(slot));
         } else {
           DCHECK(destination->IsStackSlot());
           Operand dst = g.ToOperand(destination);
-          __ push(g.ToMaterializableOperand(offset));
+          __ push(g.SlotToOperand(slot));
           __ pop(dst);
         }
       } else if (destination->IsRegister()) {

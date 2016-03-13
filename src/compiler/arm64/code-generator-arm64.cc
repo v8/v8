@@ -207,8 +207,11 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
   MemOperand ToMemOperand(InstructionOperand* op, MacroAssembler* masm) const {
     DCHECK_NOT_NULL(op);
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    FrameOffset offset = frame_access_state()->GetFrameOffset(
-        AllocatedOperand::cast(op)->index());
+    return SlotToMemOperand(AllocatedOperand::cast(op)->index(), masm);
+  }
+
+  MemOperand SlotToMemOperand(int slot, MacroAssembler* masm) const {
+    FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
     if (offset.from_frame_pointer()) {
       int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
       // Convert FP-offsets to SP-offsets if it results in better code.
@@ -1613,9 +1616,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (src.type() == Constant::kHeapObject) {
         Handle<HeapObject> src_object = src.ToHeapObject();
         Heap::RootListIndex index;
-        int offset;
-        if (IsMaterializableFromFrame(src_object, &offset)) {
-          __ Ldr(dst, MemOperand(fp, offset));
+        int slot;
+        if (IsMaterializableFromFrame(src_object, &slot)) {
+          __ Ldr(dst, g.SlotToMemOperand(slot, masm()));
         } else if (IsMaterializableFromRoot(src_object, &index)) {
           __ LoadRoot(dst, index);
         } else {
