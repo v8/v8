@@ -1209,3 +1209,15 @@ TEST(Run_Wasm_I64Global) {
     CHECK_EQ(expected, *global);
   }
 }
+
+TEST(Run_WasmI64Eqz) {
+  REQUIRE(I64Eq);
+
+  WasmRunner<int32_t> r(MachineType::Int64());
+  BUILD(r, WASM_I64_EQZ(WASM_GET_LOCAL(0)));
+
+  FOR_INT64_INPUTS(i) {
+    int32_t result = *i == 0 ? 1 : 0;
+    CHECK_EQ(result, r.Call(*i));
+  }
+}

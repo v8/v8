@@ -865,6 +865,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     // kExprI64Ctz:
     // kExprI64Popcnt:
     // kExprF32SConvertI64:
+    case wasm::kExprI64Eqz:
+      op = m->Word64Equal();
+      return graph()->NewNode(op, input, jsgraph()->Int64Constant(0));
     case wasm::kExprF32SConvertI64:
       if (m->Is32()) {
         return BuildF32SConvertI64(input);
