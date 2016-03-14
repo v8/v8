@@ -302,6 +302,21 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 // todo(ahaas): I added a list of missing instructions here to make merging
 // easier when I do them one by one.
 // kExprI64Add:
+TEST_F(Int64LoweringTest, Int64Add) {
+  LowerGraph(graph()->NewNode(machine()->Int64Add(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> add;
+  Matcher<Node*> add_matcher = IsInt32PairAdd(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)), IsInt32Constant(high_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&add), add_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&add), add_matcher)),
+                        start(), start()));
+}
 // kExprI64Sub:
 // kExprI64Mul:
 // kExprI64DivS:

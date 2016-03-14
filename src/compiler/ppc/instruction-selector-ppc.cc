@@ -898,6 +898,9 @@ void InstructionSelector::VisitInt64Add(Node* node) {
 }
 #endif
 
+#if !V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitInt32PairAdd(Node* node) { UNIMPLEMENTED(); }
+#endif
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   PPCOperandGenerator g(this);

@@ -494,6 +494,9 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     // todo(ahaas): I added a list of missing instructions here to make merging
     // easier when I do them one by one.
     // kExprI64Add:
+    case wasm::kExprI64Add:
+      op = m->Int64Add();
+      break;
     // kExprI64Sub:
     // kExprI64Mul:
     // kExprI64DivS:
@@ -559,9 +562,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
-    case wasm::kExprI64Add:
-      op = m->Int64Add();
-      break;
     case wasm::kExprI64Sub:
       op = m->Int64Sub();
       break;

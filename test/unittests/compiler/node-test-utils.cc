@@ -1406,6 +1406,50 @@ class IsLoadContextMatcher final : public NodeMatcher {
   const Matcher<Node*> context_matcher_;
 };
 
+class IsQuadopMatcher final : public NodeMatcher {
+ public:
+  IsQuadopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& a_matcher,
+                  const Matcher<Node*>& b_matcher,
+                  const Matcher<Node*>& c_matcher,
+                  const Matcher<Node*>& d_matcher)
+      : NodeMatcher(opcode),
+        a_matcher_(a_matcher),
+        b_matcher_(b_matcher),
+        c_matcher_(c_matcher),
+        d_matcher_(d_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose a (";
+    a_matcher_.DescribeTo(os);
+    *os << ") and b (";
+    b_matcher_.DescribeTo(os);
+    *os << ") and c (";
+    c_matcher_.DescribeTo(os);
+    *os << ") and d (";
+    d_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "a",
+                                 a_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "b",
+                                 b_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2), "c",
+                                 c_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 3), "d",
+                                 d_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> a_matcher_;
+  const Matcher<Node*> b_matcher_;
+  const Matcher<Node*> c_matcher_;
+  const Matcher<Node*> d_matcher_;
+};
+
 class IsTernopMatcher final : public NodeMatcher {
  public:
   IsTernopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& lhs_matcher,
@@ -2103,6 +2147,16 @@ Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
 Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
+
+#define IS_QUADOP_MATCHER(Name)                                               \
+  Matcher<Node*> Is##Name(                                                    \
+      const Matcher<Node*>& a_matcher, const Matcher<Node*>& b_matcher,       \
+      const Matcher<Node*>& c_matcher, const Matcher<Node*>& d_matcher) {     \
+    return MakeMatcher(new IsQuadopMatcher(IrOpcode::k##Name, a_matcher,      \
+                                           b_matcher, c_matcher, d_matcher)); \
+  }
+
+IS_QUADOP_MATCHER(Int32PairAdd)
 
 #define IS_TERNOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,               \

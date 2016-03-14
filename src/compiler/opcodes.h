@@ -334,6 +334,7 @@
   V(LoadParentFramePointer)     \
   V(CheckedLoad)                \
   V(CheckedStore)               \
+  V(Int32PairAdd)               \
   V(Word32PairShl)              \
   V(Word32PairShr)              \
   V(Word32PairSar)

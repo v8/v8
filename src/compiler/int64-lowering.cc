@@ -251,6 +251,25 @@ void Int64Lowering::LowerNode(Node* node) {
     // todo(ahaas): I added a list of missing instructions here to make merging
     // easier when I do them one by one.
     // kExprI64Add:
+    case IrOpcode::kInt64Add: {
+      DCHECK(node->InputCount() == 2);
+
+      Node* right = node->InputAt(1);
+      node->ReplaceInput(1, GetReplacementLow(right));
+      node->AppendInput(zone(), GetReplacementHigh(right));
+
+      Node* left = node->InputAt(0);
+      node->ReplaceInput(0, GetReplacementLow(left));
+      node->InsertInput(zone(), 1, GetReplacementHigh(left));
+
+      NodeProperties::ChangeOp(node, machine()->Int32PairAdd());
+      // We access the additional return values through projections.
+      Node* low_node = graph()->NewNode(common()->Projection(0), node);
+      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
+
     // kExprI64Sub:
     // kExprI64Mul:
     // kExprI64DivS:

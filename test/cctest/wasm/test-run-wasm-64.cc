@@ -35,7 +35,7 @@
   V(I64Return, true)              \
   V(I64Param, true)               \
   V(I64LoadStore, true)           \
-  V(I64Add, false)                \
+  V(I64Add, true)                 \
   V(I64Sub, false)                \
   V(I64Mul, false)                \
   V(I64DivS, false)               \
@@ -118,6 +118,14 @@ TEST(Run_Wasm_Return_I64) {
 // todo(ahaas): I added a list of missing instructions here to make merging
 // easier when I do them one by one.
 // kExprI64Add:
+TEST(Run_WasmI64Add) {
+  REQUIRE(I64Add);
+  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i + *j, r.Call(*i, *j)); }
+  }
+}
 // kExprI64Sub:
 // kExprI64Mul:
 // kExprI64DivS:
