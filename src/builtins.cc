@@ -3908,9 +3908,9 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
   HandleScope scope(isolate);
   Handle<HeapObject> function = args.target<HeapObject>();
   Handle<JSReceiver> receiver;
-  // TODO(ishell): turn this back to a DCHECK.
-  CHECK(function->IsFunctionTemplateInfo() ||
-        Handle<JSFunction>::cast(function)->shared()->IsApiFunction());
+
+  DCHECK(function->IsFunctionTemplateInfo() ||
+         Handle<JSFunction>::cast(function)->shared()->IsApiFunction());
 
   Handle<FunctionTemplateInfo> fun_data =
       function->IsFunctionTemplateInfo()
@@ -3956,8 +3956,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
   Object* raw_call_data = fun_data->call_code();
   if (!raw_call_data->IsUndefined()) {
-    // TODO(ishell): remove this debugging code.
-    CHECK(raw_call_data->IsCallHandlerInfo());
+    DCHECK(raw_call_data->IsCallHandlerInfo());
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* callback_obj = call_data->callback();
     v8::FunctionCallback callback =
