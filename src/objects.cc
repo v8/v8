@@ -14359,6 +14359,12 @@ void Code::MakeYoung(Isolate* isolate) {
   if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, isolate);
 }
 
+void Code::PreAge(Isolate* isolate) {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence != NULL) {
+    PatchPlatformCodeAge(isolate, sequence, kPreAgedCodeAge, NO_MARKING_PARITY);
+  }
+}
 
 void Code::MarkToBeExecutedOnce(Isolate* isolate) {
   byte* sequence = FindCodeAgeSequence();
@@ -14367,7 +14373,6 @@ void Code::MarkToBeExecutedOnce(Isolate* isolate) {
                          NO_MARKING_PARITY);
   }
 }
-
 
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();

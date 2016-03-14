@@ -319,8 +319,8 @@ class CompilationInfo {
     // Generate a pre-aged prologue if we are optimizing for size, which
     // will make code flushing more aggressive. Only apply to Code::FUNCTION,
     // since StaticMarkingVisitor::IsFlushable only flushes proper functions.
-    return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug() && output_code_kind() == Code::FUNCTION;
+    return FLAG_optimize_for_size && FLAG_age_code && !is_debug() &&
+           output_code_kind() == Code::FUNCTION;
   }
 
   void EnsureFeedbackVector();

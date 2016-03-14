@@ -41,6 +41,7 @@ void Deserializer::FlushICacheForNewIsolate() {
 void Deserializer::FlushICacheForNewCodeObjects() {
   DCHECK(deserializing_user_code_);
   for (Code* code : new_code_objects_) {
+    if (FLAG_serialize_age_code) code->PreAge(isolate_);
     Assembler::FlushICache(isolate_, code->instruction_start(),
                            code->instruction_size());
   }

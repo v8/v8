@@ -5258,6 +5258,7 @@ class Code: public HeapObject {
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
   void MakeYoung(Isolate* isolate);
+  void PreAge(Isolate* isolate);
   void MarkToBeExecutedOnce(Isolate* isolate);
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(Isolate* isolate, byte* sequence);
