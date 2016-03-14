@@ -341,6 +341,7 @@ class PreParserList {
 };
 
 
+typedef PreParserList<PreParserIdentifier> PreParserIdentifierList;
 typedef PreParserList<PreParserExpression> PreParserExpressionList;
 
 
@@ -716,6 +717,12 @@ class PreParserFactory {
     return typesystem::PreParserType::Reference(type_arguments.length() == 0);
   }
 
+  typesystem::PreParserType NewQueryType(
+      const PreParserIdentifier& name,
+      const PreParserIdentifierList& property_names, int pos) {
+    return typesystem::PreParserType::Default();
+  }
+
   typesystem::PreParserFormalParameter NewFormalParameter(
       const PreParserIdentifier& name, bool optional, bool spread,
       const typesystem::PreParserType& type, int pos) {
@@ -778,6 +785,7 @@ class PreParserTraits {
 
     // Return types for traversing functions.
     typedef PreParserIdentifier Identifier;
+    typedef PreParserIdentifierList IdentifierList;
     typedef PreParserExpression Expression;
     typedef PreParserExpression YieldExpression;
     typedef PreParserExpression FunctionLiteral;
@@ -973,6 +981,12 @@ class PreParserTraits {
   }
   static typesystem::PreParserFormalParameters EmptyFormalParameters() {
     return typesystem::PreParserFormalParameters();
+  }
+  static PreParserIdentifierList NullIdentifierList() {
+    return PreParserIdentifierList();
+  }
+  static PreParserIdentifierList EmptyIdentifierList() {
+    return PreParserIdentifierList();
   }
 
   // Odd-ball literal creators.

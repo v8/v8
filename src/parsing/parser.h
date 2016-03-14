@@ -339,6 +339,7 @@ class ParserTraits {
 
     // Return types for traversing functions.
     typedef const AstRawString* Identifier;
+    typedef ZoneList<const AstRawString*>* IdentifierList;
     typedef v8::internal::Expression* Expression;
     typedef Yield* YieldExpression;
     typedef v8::internal::FunctionLiteral* FunctionLiteral;
@@ -511,6 +512,8 @@ class ParserTraits {
   V8_INLINE ZoneList<typesystem::TypeParameter*>* EmptyTypeParameters() const;
   V8_INLINE ZoneList<typesystem::FormalParameter*>* EmptyFormalParameters()
       const;
+  static ZoneList<const AstRawString*>* NullIdentifierList() { return nullptr; }
+  V8_INLINE ZoneList<const AstRawString*>* EmptyIdentifierList() const;
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1125,6 +1128,12 @@ ZoneList<typesystem::FormalParameter*>* ParserTraits::EmptyFormalParameters()
     const {
   return new (parser_->zone())
       ZoneList<typesystem::FormalParameter*>(1, parser_->zone());
+}
+
+
+ZoneList<const AstRawString*>* ParserTraits::EmptyIdentifierList() const {
+  return new (parser_->zone())
+      ZoneList<const AstRawString*>(1, parser_->zone());
 }
 
 

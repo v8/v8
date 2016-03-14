@@ -82,6 +82,7 @@ class ParserBase : public Traits {
   // Shorten type names defined by Traits.
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
+  typedef typename Traits::Type::IdentifierList IdentifierListT;
   typedef typename Traits::Type::FormalParameter FormalParameterT;
   typedef typename Traits::Type::FormalParameters FormalParametersT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
@@ -842,6 +843,7 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
   typename TypeSystem::TypeArguments ParseTypeArguments(bool* ok);
+  IdentifierListT ParsePropertyNameList(bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
@@ -3288,7 +3290,6 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
         type = factory()->NewPredefinedType(
             typesystem::PredefinedType::kSymbolType, pos);
       } else {
-        // TODO(nikolaos): Missing typeof.
         IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
         typename TypeSystem::TypeArguments type_arguments =
             this->NullTypeArguments();
@@ -3297,6 +3298,16 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
         }
         type = factory()->NewTypeReference(name, type_arguments, pos);
       }
+      break;
+    }
+    case Token::TYPEOF: {
+      Consume(Token::TYPEOF);
+      IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
+      IdentifierListT property_names = this->NullIdentifierList();
+      if (peek() == Token::PERIOD) {  // Braces required here.
+        property_names = ParsePropertyNameList(CHECK_OK_TYPE);
+      }
+      type = factory()->NewQueryType(name, property_names, pos);
       break;
     }
     case Token::VOID: {
@@ -3335,6 +3346,20 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   }
 
   return type;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::IdentifierListT
+ParserBase<Traits>::ParsePropertyNameList(bool* ok) {
+  Expect(Token::PERIOD, CHECK_OK_CUSTOM(NullIdentifierList));
+  IdentifierListT property_names = this->EmptyIdentifierList();
+  do {
+    IdentifierT property_name =
+        ParseIdentifierName(CHECK_OK_CUSTOM(NullIdentifierList));
+    property_names->Add(property_name, zone());
+  } while (Check(Token::PERIOD));
+  return property_names;
 }
 
 
