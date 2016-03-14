@@ -78,8 +78,6 @@ PreParserExpression PreParserTraits::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) {
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
-  } else if (scanner->UnescapedLiteralMatches("use strong", 10)) {
-    return PreParserExpression::UseStrongStringLiteral();
   } else if (scanner->UnescapedLiteralMatches("use types", 9)) {
     return PreParserExpression::UseTypesStringLiteral();
   }
@@ -134,15 +132,6 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
       if (!ok) return kPreParseSuccess;
-
-      if (is_strong(scope_->language_mode()) && IsSubclassConstructor(kind)) {
-        if (!function_state.super_location().IsValid()) {
-          ReportMessageAt(Scanner::Location(start_position, start_position + 1),
-                          MessageTemplate::kStrongSuperCallMissing,
-                          kReferenceError);
-          return kPreParseSuccess;
-        }
-      }
     }
   }
   return kPreParseSuccess;
@@ -228,50 +217,17 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     }
     bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
-    Scanner::Location old_this_loc = function_state_->this_location();
-    Scanner::Location old_super_loc = function_state_->super_location();
     Statement statement = ParseStatementListItem(ok);
     if (!*ok) return;
 
-    if (is_strong(language_mode()) && scope_->is_function_scope() &&
-        IsClassConstructor(function_state_->kind())) {
-      Scanner::Location this_loc = function_state_->this_location();
-      Scanner::Location super_loc = function_state_->super_location();
-      if (this_loc.beg_pos != old_this_loc.beg_pos &&
-          this_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(this_loc, MessageTemplate::kStrongConstructorThis);
-        *ok = false;
-        return;
-      }
-      if (super_loc.beg_pos != old_super_loc.beg_pos &&
-          super_loc.beg_pos != token_loc.beg_pos) {
-        ReportMessageAt(super_loc, MessageTemplate::kStrongConstructorSuper);
-        *ok = false;
-        return;
-      }
-    }
-
     if (directive_prologue) {
       bool use_strict_found = statement.IsUseStrictLiteral();
-      bool use_strong_found =
-          statement.IsUseStrongLiteral() && allow_strong_mode();
       bool use_types_found =
           statement.IsUseTypesLiteral() && allow_harmony_types();
 
       if (use_strict_found) {
         scope_->SetLanguageMode(
             static_cast<LanguageMode>(scope_->language_mode() | STRICT));
-      } else if (use_strong_found) {
-        scope_->SetLanguageMode(static_cast<LanguageMode>(
-            scope_->language_mode() | STRONG));
-        if (IsClassConstructor(function_state_->kind())) {
-          // "use strong" cannot occur in a class constructor body, to avoid
-          // unintuitive strong class object semantics.
-          PreParserTraits::ReportMessageAt(
-              token_loc, MessageTemplate::kStrongConstructorDirective);
-          *ok = false;
-          return;
-        }
       } else if (use_types_found) {
         scope_->SetLanguageMode(
             static_cast<LanguageMode>(scope_->language_mode() | STRICT));
@@ -287,16 +243,13 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
         directive_prologue = false;
       }
 
-      if ((use_strict_found || use_strong_found) &&
-          !scope_->HasSimpleParameters()) {
+      if (use_strict_found && !scope_->HasSimpleParameters()) {
         // TC39 deemed "use strict" directives to be an error when occurring
         // in the body of a function with non-simple parameter list, on
         // 29/7/2015. https://goo.gl/ueA7Ln
-        //
-        // In V8, this also applies to "use strong " directives.
         PreParserTraits::ReportMessageAt(
             token_loc, MessageTemplate::kIllegalLanguageModeDirective,
-            use_strict_found ? "use strict" : "use strong");
+            "use strict");
         *ok = false;
         return;
       }
@@ -378,12 +331,6 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
       return ParseBlock(ok);
 
     case Token::SEMICOLON:
-      if (is_strong(language_mode())) {
-        PreParserTraits::ReportMessageAt(scanner()->peek_location(),
-                                         MessageTemplate::kStrongEmpty);
-        *ok = false;
-        return Statement::Default();
-      }
       Next();
       return Statement::Default();
 
@@ -548,12 +495,6 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   bool lexical = false;
   bool is_pattern = false;
   if (peek() == Token::VAR) {
-    if (is_strong(language_mode())) {
-      Scanner::Location location = scanner()->peek_location();
-      ReportMessageAt(location, MessageTemplate::kStrongVar);
-      *ok = false;
-      return Statement::Default();
-    }
     Consume(Token::VAR);
   } else if (peek() == Token::CONST && allow_const()) {
     // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
@@ -595,18 +536,11 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     PreParserExpression pattern = PreParserExpression::Default();
     {
       ExpressionClassifier pattern_classifier(this);
-      Token::Value next = peek();
       pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
 
       ValidateBindingPattern(&pattern_classifier, CHECK_OK);
       if (lexical) {
         ValidateLetPattern(&pattern_classifier, CHECK_OK);
-      }
-
-      if (!allow_harmony_destructuring_bind() && !pattern.IsIdentifier()) {
-        ReportUnexpectedToken(next);
-        *ok = false;
-        return Statement::Default();
       }
     }
 
@@ -665,45 +599,6 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
       ReportUnexpectedToken(Next());
       *ok = false;
       return Statement::Default();
-
-    case Token::THIS:
-      if (!FLAG_strong_this) break;
-      // Fall through.
-    case Token::SUPER:
-      if (is_strong(language_mode()) &&
-          IsClassConstructor(function_state_->kind())) {
-        bool is_this = peek() == Token::THIS;
-        Expression expr = Expression::Default();
-        ExpressionClassifier classifier(this);
-        if (is_this) {
-          expr = ParseStrongInitializationExpression(&classifier, CHECK_OK);
-        } else {
-          expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
-        }
-        ValidateExpression(&classifier, CHECK_OK);
-        switch (peek()) {
-          case Token::SEMICOLON:
-            Consume(Token::SEMICOLON);
-            break;
-          case Token::RBRACE:
-          case Token::EOS:
-            break;
-          default:
-            if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-              ReportMessageAt(function_state_->this_location(),
-                              is_this
-                                  ? MessageTemplate::kStrongConstructorThis
-                                  : MessageTemplate::kStrongConstructorSuper);
-              *ok = false;
-              return Statement::Default();
-            }
-        }
-        return Statement::ExpressionStatement(expr);
-      }
-      break;
-
-    // TODO(arv): Handle `let [`
-    // https://code.google.com/p/v8/issues/detail?id=3847
 
     default:
       break;
@@ -825,14 +720,6 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
-    if (is_strong(language_mode()) &&
-        IsClassConstructor(function_state_->kind())) {
-      int pos = peek_position();
-      ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      MessageTemplate::kStrongConstructorReturnValue);
-      *ok = false;
-      return Statement::Default();
-    }
     ParseExpression(true, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
@@ -886,13 +773,6 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
            token != Token::RBRACE) {
       statement = ParseStatementListItem(CHECK_OK);
       token = peek();
-    }
-    if (is_strong(language_mode()) && !statement.IsJumpStatement() &&
-        token != Token::RBRACE) {
-      ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kStrongSwitchFallthrough);
-      *ok = false;
-      return Statement::Default();
     }
   }
   Expect(Token::RBRACE, ok);
@@ -988,7 +868,6 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       bool is_for_each = CheckInOrOf(&mode, ok);
       if (!*ok) return Statement::Default();
       bool is_destructuring = is_for_each &&
-                              allow_harmony_destructuring_assignment() &&
                               (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
 
       if (is_destructuring) {
@@ -1186,16 +1065,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
 
-  if (is_strong(language_mode) && IsSubclassConstructor(kind)) {
-    if (!function_state.super_location().IsValid()) {
-      ReportMessageAt(function_name_location,
-                      MessageTemplate::kStrongSuperCallMissing,
-                      kReferenceError);
-      *ok = false;
-      return Expression::Default();
-    }
-  }
-
   return Expression::Default();
 }
 
@@ -1232,13 +1101,8 @@ PreParserExpression PreParser::ParseClassLiteral(
     *ok = false;
     return EmptyExpression();
   }
-  LanguageMode class_language_mode = language_mode();
-  if (is_strong(class_language_mode) && IsUndefined(name)) {
-    ReportMessageAt(class_name_location, MessageTemplate::kStrongUndefined);
-    *ok = false;
-    return EmptyExpression();
-  }
 
+  LanguageMode class_language_mode = language_mode();
   Scope* scope = NewScope(scope_, BLOCK_SCOPE);
   BlockState block_state(&scope_, scope);
   scope_->SetLanguageMode(

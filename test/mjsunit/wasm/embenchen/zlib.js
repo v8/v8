@@ -5687,7 +5687,7 @@ function asmPrintFloat(x, y) {
   Module.print('float ' + x + ',' + y);// + ' ' + new Error().stack);
 }
 // EMSCRIPTEN_START_ASM
-var asm = _WASMEXP_.instantiateModuleFromAsm((function Module(global, env, buffer) {
+var asm = Wasm.instantiateModuleFromAsm((function Module(global, env, buffer) {
   'use asm';
   var HEAP8 = new global.Int8Array(buffer);
   var HEAP16 = new global.Int16Array(buffer);

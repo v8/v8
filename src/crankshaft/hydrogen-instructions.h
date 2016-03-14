@@ -144,7 +144,6 @@ class LChunkBuilder;
   V(StringCompareAndBranch)                   \
   V(Sub)                                      \
   V(ThisFunction)                             \
-  V(ToFastProperties)                         \
   V(TransitionElementsKind)                   \
   V(TrapAllocationMemento)                    \
   V(Typeof)                                   \
@@ -2307,49 +2306,50 @@ class HCallWithDescriptor final : public HInstruction {
 
 class HInvokeFunction final : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInvokeFunction, HValue*, int);
-
-  HInvokeFunction(HValue* context,
-                  HValue* function,
-                  Handle<JSFunction> known_function,
-                  int argument_count)
-      : HBinaryCall(context, function, argument_count),
-        known_function_(known_function) {
-    formal_parameter_count_ =
-        known_function.is_null()
-            ? 0
-            : known_function->shared()->internal_formal_parameter_count();
-    has_stack_check_ = !known_function.is_null() &&
-        (known_function->code()->kind() == Code::FUNCTION ||
-         known_function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-  }
-
-  static HInvokeFunction* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* function,
-                              Handle<JSFunction> known_function,
-                              int argument_count) {
-    return new(zone) HInvokeFunction(context, function,
-                                     known_function, argument_count);
-  }
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HInvokeFunction, HValue*,
+                                              Handle<JSFunction>, int,
+                                              TailCallMode);
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
   Handle<JSFunction> known_function() { return known_function_; }
   int formal_parameter_count() const { return formal_parameter_count_; }
 
-  bool HasStackCheck() final { return has_stack_check_; }
+  bool HasStackCheck() final { return HasStackCheckField::decode(bit_field_); }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
 
  private:
-  HInvokeFunction(HValue* context, HValue* function, int argument_count)
+  void set_has_stack_check(bool has_stack_check) {
+    bit_field_ = HasStackCheckField::update(bit_field_, has_stack_check);
+  }
+
+  HInvokeFunction(HValue* context, HValue* function,
+                  Handle<JSFunction> known_function, int argument_count,
+                  TailCallMode tail_call_mode)
       : HBinaryCall(context, function, argument_count),
-        has_stack_check_(false) {
+        known_function_(known_function),
+        bit_field_(TailCallModeField::encode(tail_call_mode)) {
+    formal_parameter_count_ =
+        known_function.is_null()
+            ? 0
+            : known_function->shared()->internal_formal_parameter_count();
+    set_has_stack_check(
+        !known_function.is_null() &&
+        (known_function->code()->kind() == Code::FUNCTION ||
+         known_function->code()->kind() == Code::OPTIMIZED_FUNCTION));
   }
 
   Handle<JSFunction> known_function_;
   int formal_parameter_count_;
-  bool has_stack_check_;
+
+  class HasStackCheckField : public BitField<bool, 0, 1> {};
+  class TailCallModeField
+      : public BitField<TailCallMode, HasStackCheckField::kNext, 1> {};
+  uint32_t bit_field_;
 };
 
 
@@ -3785,8 +3785,8 @@ class HWrapReceiver final : public HTemplateInstruction<2> {
 
 class HApplyArguments final : public HTemplateInstruction<4> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HApplyArguments, HValue*, HValue*, HValue*,
-                                 HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P5(HApplyArguments, HValue*, HValue*, HValue*,
+                                 HValue*, TailCallMode);
 
   Representation RequiredInputRepresentation(int index) override {
     // The length is untagged, all other inputs are tagged.
@@ -3800,13 +3800,16 @@ class HApplyArguments final : public HTemplateInstruction<4> {
   HValue* length() { return OperandAt(2); }
   HValue* elements() { return OperandAt(3); }
 
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments)
 
  private:
-  HApplyArguments(HValue* function,
-                  HValue* receiver,
-                  HValue* length,
-                  HValue* elements) {
+  HApplyArguments(HValue* function, HValue* receiver, HValue* length,
+                  HValue* elements, TailCallMode tail_call_mode)
+      : bit_field_(TailCallModeField::encode(tail_call_mode)) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, function);
     SetOperandAt(1, receiver);
@@ -3814,6 +3817,9 @@ class HApplyArguments final : public HTemplateInstruction<4> {
     SetOperandAt(3, elements);
     SetAllSideEffects();
   }
+
+  class TailCallModeField : public BitField<TailCallMode, 0, 1> {};
+  uint32_t bit_field_;
 };
 
 
@@ -7308,35 +7314,6 @@ class HMaybeGrowElements final : public HTemplateInstruction<5> {
 
   bool is_js_array_;
   ElementsKind kind_;
-};
-
-
-class HToFastProperties final : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HToFastProperties, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties)
-
- private:
-  explicit HToFastProperties(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kNewSpacePromotion);
-
-    // This instruction is not marked as kChangesMaps, but does
-    // change the map of the input operand. Use it only when creating
-    // object literals via a runtime call.
-    DCHECK(value->IsCallRuntime());
-#ifdef DEBUG
-    const Runtime::Function* function = HCallRuntime::cast(value)->function();
-    DCHECK(function->function_id == Runtime::kCreateObjectLiteral);
-#endif
-  }
-
-  bool IsDeletable() const override { return true; }
 };
 
 

@@ -654,7 +654,6 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
     case Bytecode::kTestEqual:
     case Bytecode::kTestNotEqual:
     case Bytecode::kTestEqualStrict:
-    case Bytecode::kTestNotEqualStrict:
     case Bytecode::kTestLessThan:
     case Bytecode::kTestLessThanOrEqual:
     case Bytecode::kTestGreaterThan:
@@ -1420,8 +1419,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
       return Bytecode::kTestNotEqual;
     case Token::Value::EQ_STRICT:
       return Bytecode::kTestEqualStrict;
-    case Token::Value::NE_STRICT:
-      return Bytecode::kTestNotEqualStrict;
     case Token::Value::LT:
       return Bytecode::kTestLessThan;
     case Token::Value::GT:
@@ -1489,7 +1486,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreIC(LanguageMode language_mode) {
     case SLOPPY:
       return Bytecode::kStoreICSloppy;
     case STRICT:
-    case STRONG:
       return Bytecode::kStoreICStrict;
     default:
       UNREACHABLE();
@@ -1505,7 +1501,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
     case SLOPPY:
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
-    case STRONG:
       return Bytecode::kKeyedStoreICStrict;
     default:
       UNREACHABLE();
@@ -1529,8 +1524,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
       return Bytecode::kStaGlobalSloppy;
     case STRICT:
       return Bytecode::kStaGlobalStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
@@ -1546,8 +1539,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreLookupSlot(
       return Bytecode::kStaLookupSlotSloppy;
     case STRICT:
       return Bytecode::kStaLookupSlotStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
@@ -1577,8 +1568,6 @@ Bytecode BytecodeArrayBuilder::BytecodeForDelete(LanguageMode language_mode) {
       return Bytecode::kDeletePropertySloppy;
     case STRICT:
       return Bytecode::kDeletePropertyStrict;
-    case STRONG:
-      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }

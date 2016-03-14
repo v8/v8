@@ -21,6 +21,18 @@ Frame::Frame(int fixed_frame_size_in_slots, const CallDescriptor* descriptor)
       allocated_registers_(nullptr),
       allocated_double_registers_(nullptr) {}
 
+int Frame::AlignFrame(int alignment) {
+  DCHECK_EQ(0, callee_saved_slot_count_);
+  int alignment_slots = alignment / kPointerSize;
+  int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
+  if (delta != alignment_slots) {
+    frame_slot_count_ += delta;
+    if (spill_slot_count_ != 0) {
+      spill_slot_count_ += delta;
+    }
+  }
+  return delta;
+}
 
 void FrameAccessState::SetFrameAccessToDefault() {
   if (frame()->needs_frame() && !FLAG_turbo_sp_frame_access) {
@@ -32,16 +44,13 @@ void FrameAccessState::SetFrameAccessToDefault() {
 
 
 FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
-  const int offset =
-      (StandardFrameConstants::kFixedSlotCountAboveFp - spill_slot - 1) *
-      kPointerSize;
+  const int frame_offset = FrameSlotToFPOffset(spill_slot);
   if (access_frame_with_fp()) {
     DCHECK(frame()->needs_frame());
-    return FrameOffset::FromFramePointer(offset);
+    return FrameOffset::FromFramePointer(frame_offset);
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
-    int sp_offset =
-        offset + ((frame()->GetSpToFpSlotCount() + sp_delta()) * kPointerSize);
+    int sp_offset = frame_offset + GetSPToFPOffset();
     return FrameOffset::FromStackPointer(sp_offset);
   }
 }

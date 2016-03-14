@@ -23,7 +23,7 @@ void TestExternalReferenceRoundingFunction(
   FOR_FLOAT64_INPUTS(i) {
     parameter = *i;
     m->Call();
-    CheckDoubleEq(comparison(*i), parameter);
+    CHECK_DOUBLE_EQ(comparison(*i), parameter);
   }
 }
 
@@ -90,7 +90,7 @@ TEST(RunCallInt64ToFloat32) {
   FOR_INT64_INPUTS(i) {
     input = *i;
     m.Call();
-    CheckFloatEq(static_cast<float>(*i), output);
+    CHECK_FLOAT_EQ(static_cast<float>(*i), output);
   }
 }
 
@@ -218,7 +218,7 @@ TEST(RunCallInt64ToFloat64) {
   FOR_INT64_INPUTS(i) {
     input = *i;
     m.Call();
-    CheckDoubleEq(static_cast<double>(*i), output);
+    CHECK_DOUBLE_EQ(static_cast<double>(*i), output);
   }
 }
 

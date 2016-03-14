@@ -23,9 +23,10 @@ using compiler::Node;
 
 InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
                                            Bytecode bytecode)
-    : compiler::CodeStubAssembler(
-          isolate, zone, InterpreterDispatchDescriptor(isolate),
-          Code::ComputeFlags(Code::STUB), Bytecodes::ToString(bytecode), 0),
+    : compiler::CodeStubAssembler(isolate, zone,
+                                  InterpreterDispatchDescriptor(isolate),
+                                  Code::ComputeFlags(Code::BYTECODE_HANDLER),
+                                  Bytecodes::ToString(bytecode), 0),
       bytecode_(bytecode),
       accumulator_(this, MachineRepresentation::kTagged),
       context_(this, MachineRepresentation::kTagged),
@@ -530,7 +531,8 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
   return false;
 #elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
   return CpuFeatures::IsSupported(UNALIGNED_ACCESSES);
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X87
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X87 || \
+    V8_TARGET_ARCH_S390
   return true;
 #else
 #error "Unknown Architecture"

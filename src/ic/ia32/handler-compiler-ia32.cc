@@ -6,6 +6,7 @@
 
 #include "src/ic/handler-compiler.h"
 
+#include "src/api-arguments.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
@@ -22,6 +23,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     int accessor_index, int expected_arguments, Register scratch) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save context register
+    __ push(esi);
 
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
@@ -46,7 +50,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ pop(esi);
   }
   __ ret(0);
 }
@@ -158,7 +162,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   // Stack now matches JSFunction abi.
   DCHECK(optimization.is_simple_api_call());
 
-  // Abi for CallApiFunctionStub.
+  // Abi for CallApiCallbackStub.
   Register callee = edi;
   Register data = ebx;
   Register holder = ecx;
@@ -220,7 +224,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
@@ -252,6 +256,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ push(esi);
     // Save value register, so we can restore it later.
     __ push(value());
 
@@ -280,9 +286,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
 
     // We have to return the passed value, not the return value of the setter.
     __ pop(eax);
-
     // Restore context register.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    __ pop(esi);
   }
   __ ret(0);
 }

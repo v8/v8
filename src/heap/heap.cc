@@ -453,10 +453,6 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  if (isolate()->concurrent_osr_enabled()) {
-    isolate()->optimizing_compile_dispatcher()->AgeBufferedOsrJobs();
-  }
-
   if (new_space_.IsAtMaximumCapacity()) {
     maximum_size_scavenges_++;
   } else {
@@ -1044,7 +1040,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   }
 
   if (collector == MARK_COMPACTOR &&
-      (gc_callback_flags & kGCCallbackFlagForced) != 0) {
+      (gc_callback_flags & (kGCCallbackFlagForced |
+                            kGCCallbackFlagCollectAllAvailableGarbage)) != 0) {
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
@@ -1401,6 +1398,10 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
       }
     }
   }
+  if (FLAG_trace_object_groups && (gc_type == kGCTypeIncrementalMarking ||
+                                   gc_type == kGCTypeMarkSweepCompact)) {
+    isolate_->global_handles()->PrintObjectGroups();
+  }
 }
 
 
@@ -1560,8 +1561,8 @@ void PromotionQueue::Initialize() {
   DCHECK((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize) ==
          0);
   front_ = rear_ =
-      reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceEnd());
-  limit_ = reinterpret_cast<intptr_t*>(
+      reinterpret_cast<struct Entry*>(heap_->new_space()->ToSpaceEnd());
+  limit_ = reinterpret_cast<struct Entry*>(
       Page::FromAllocationTop(reinterpret_cast<Address>(rear_))->area_start());
   emergency_stack_ = NULL;
 }
@@ -1571,8 +1572,9 @@ void PromotionQueue::RelocateQueueHead() {
   DCHECK(emergency_stack_ == NULL);
 
   Page* p = Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
-  intptr_t* head_start = rear_;
-  intptr_t* head_end = Min(front_, reinterpret_cast<intptr_t*>(p->area_end()));
+  struct Entry* head_start = rear_;
+  struct Entry* head_end =
+      Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
 
   int entries_count =
       static_cast<int>(head_end - head_start) / kEntrySizeInWords;
@@ -1580,13 +1582,11 @@ void PromotionQueue::RelocateQueueHead() {
   emergency_stack_ = new List<Entry>(2 * entries_count);
 
   while (head_start != head_end) {
-    int size = static_cast<int>(*(head_start++));
-    HeapObject* obj = reinterpret_cast<HeapObject*>(*(head_start++));
+    struct Entry* entry = head_start++;
     // New space allocation in SemiSpaceCopyObject marked the region
     // overlapping with promotion queue as uninitialized.
-    MSAN_MEMORY_IS_INITIALIZED(&size, sizeof(size));
-    MSAN_MEMORY_IS_INITIALIZED(&obj, sizeof(obj));
-    emergency_stack_->Add(Entry(obj, size));
+    MSAN_MEMORY_IS_INITIALIZED(entry, sizeof(struct Entry));
+    emergency_stack_->Add(*entry);
   }
   rear_ = head_end;
 }
@@ -1851,6 +1851,10 @@ void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
   set_allocation_sites_list(allocation_site_obj);
 }
 
+void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
+  set_native_contexts_list(retainer->RetainAs(native_contexts_list()));
+  set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
+}
 
 void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
   DisallowHeapAllocation no_allocation_scope;
@@ -1940,7 +1944,7 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     {
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
-        int size;
+        intptr_t size;
         promotion_queue()->remove(&target, &size);
 
         // Promoted object might be already partially visited
@@ -1949,7 +1953,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // to new space.
         DCHECK(!target->IsMap());
 
-        IteratePointersToFromSpace(target, size, &Scavenger::ScavengeObject);
+        IteratePointersToFromSpace(target, static_cast<int>(size),
+                                   &Scavenger::ScavengeObject);
       }
     }
 

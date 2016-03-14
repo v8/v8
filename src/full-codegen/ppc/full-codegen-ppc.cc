@@ -1559,13 +1559,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  if (expr->has_function()) {
-    DCHECK(result_saved);
-    __ LoadP(r3, MemOperand(sp));
-    __ push(r3);
-    __ CallRuntime(Runtime::kToFastProperties);
-  }
-
   if (result_saved) {
     context()->PlugTOS();
   } else {
@@ -1906,9 +1899,7 @@ void FullCodeGenerator::EmitGeneratorResume(
   // fp = caller's frame pointer.
   // cp = callee's context,
   // r7 = callee's JS function.
-  __ PushFixedFrame(r7);
-  // Adjust FP to point to saved FP.
-  __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r7);
 
   // Load the operand stack size.
   __ LoadP(r6, FieldMemOperand(r4, JSGeneratorObject::kOperandStackOffset));
@@ -4106,7 +4097,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
       break;
     }
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
       //         crset
       //         bge     <ok>            ;; not changed
@@ -4135,8 +4125,10 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Isolate* isolate, Code* unoptimized_code, Address pc) {
   Address mov_address = Assembler::target_address_from_return_address(pc);
   Address cmp_address = mov_address - 2 * Assembler::kInstrSize;
+#ifdef DEBUG
   Address interrupt_address =
       Assembler::target_address_at(mov_address, unoptimized_code);
+#endif
 
   if (Assembler::IsCmpImmediate(Assembler::instr_at(cmp_address))) {
     DCHECK(interrupt_address == isolate->builtins()->InterruptCheck()->entry());
@@ -4145,13 +4137,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   DCHECK(Assembler::IsCrSet(Assembler::instr_at(cmp_address)));
 
-  if (interrupt_address == isolate->builtins()->OnStackReplacement()->entry()) {
-    return ON_STACK_REPLACEMENT;
-  }
-
   DCHECK(interrupt_address ==
-         isolate->builtins()->OsrAfterStackCheck()->entry());
-  return OSR_AFTER_STACK_CHECK;
+         isolate->builtins()->OnStackReplacement()->entry());
+  return ON_STACK_REPLACEMENT;
 }
 }  // namespace internal
 }  // namespace v8

@@ -76,9 +76,9 @@ class LinkageLocation {
                               kPointerSize);
   }
 
-  static LinkageLocation ForSavedCallerMarker() {
+  static LinkageLocation ForSavedCallerFunction() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
-                               StandardFrameConstants::kMarkerOffset) /
+                               StandardFrameConstants::kFunctionOffset) /
                               kPointerSize);
   }
 

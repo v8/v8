@@ -485,7 +485,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
-  chunk->parallel_compaction_state().SetValue(kCompactingDone);
   chunk->mutex_ = nullptr;
   chunk->available_in_free_list_ = 0;
   chunk->wasted_memory_ = 0;
@@ -2379,8 +2378,8 @@ int FreeList::Free(Address start, int size_in_bytes) {
 
   Page* page = Page::FromAddress(start);
 
-  // Early return to drop too-small blocks on the floor.
-  if (size_in_bytes <= kSmallListMin) {
+  // Blocks have to be a minimum size to hold free list items.
+  if (size_in_bytes < kMinBlockSize) {
     page->add_wasted_memory(size_in_bytes);
     wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
@@ -2437,7 +2436,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (type == kHuge) return nullptr;
 
   // Now search the best fitting free list for a node that has at least the
-  // requested size. This takes linear time in the number of elements.
+  // requested size.
   type = SelectFreeListCategoryType(size_in_bytes);
   node = category_[type].PickNodeFromList(size_in_bytes, node_size);
   if (node != nullptr) {
@@ -2462,18 +2461,18 @@ FreeSpace* FreeList::TryRemoveMemory(intptr_t hint_size_in_bytes) {
   if (node == nullptr) node = FindNodeIn(kHuge, &node_size);
   if (node == nullptr) node = FindNodeIn(kLarge, &node_size);
   if (node != nullptr) {
-    // We round up the size to (kSmallListMin + kPointerSize) to (a) have a
+    // We round up the size to (kMinBlockSize + kPointerSize) to (a) have a
     // size larger then the minimum size required for FreeSpace, and (b) to get
     // a block that can actually be freed into some FreeList later on.
-    if (hint_size_in_bytes <= kSmallListMin) {
-      hint_size_in_bytes = kSmallListMin + kPointerSize;
+    if (hint_size_in_bytes <= kMinBlockSize) {
+      hint_size_in_bytes = kMinBlockSize + kPointerSize;
     }
     // Give back left overs that were not required by {size_in_bytes}.
     intptr_t left_over = node_size - hint_size_in_bytes;
 
-    // Do not bother to return anything below {kSmallListMin} as it would be
+    // Do not bother to return anything below {kMinBlockSize} as it would be
     // immediately discarded anyways.
-    if (left_over > kSmallListMin) {
+    if (left_over > kMinBlockSize) {
       Free(node->address() + hint_size_in_bytes, static_cast<int>(left_over));
       node->set_size(static_cast<int>(hint_size_in_bytes));
     }

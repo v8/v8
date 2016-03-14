@@ -119,8 +119,10 @@ TEST(DisasmIa320) {
 
   __ nop();
   __ imul(edx, ecx);
-  __ shld(edx, ecx);
-  __ shrd(edx, ecx);
+  __ shld(edx, ecx, 10);
+  __ shld_cl(edx, ecx);
+  __ shrd(edx, ecx, 10);
+  __ shrd_cl(edx, ecx);
   __ bts(edx, ecx);
   __ bts(Operand(ebx, ecx, times_4, 0), ecx);
   __ nop();
@@ -214,14 +216,13 @@ TEST(DisasmIa320) {
   __ sar(Operand(ebx, ecx, times_4, 10000), 6);
   __ sar_cl(Operand(ebx, ecx, times_4, 10000));
   __ sbb(edx, Operand(ebx, ecx, times_4, 10000));
-  __ shld(edx, Operand(ebx, ecx, times_4, 10000));
   __ shl(edx, 1);
   __ shl(edx, 6);
   __ shl_cl(edx);
   __ shl(Operand(ebx, ecx, times_4, 10000), 1);
   __ shl(Operand(ebx, ecx, times_4, 10000), 6);
   __ shl_cl(Operand(ebx, ecx, times_4, 10000));
-  __ shrd(edx, Operand(ebx, ecx, times_4, 10000));
+  __ shrd_cl(Operand(ebx, ecx, times_4, 10000), edx);
   __ shr(edx, 1);
   __ shr(edx, 7);
   __ shr_cl(edx);

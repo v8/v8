@@ -785,7 +785,7 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(CreateObjectLiteralWide), U16(256), U16(0), U8(9),
+  B(CreateObjectLiteralWide), U16(256), U16(0), U8(5),
   B(Star), R(1),
   B(Return),
 ]

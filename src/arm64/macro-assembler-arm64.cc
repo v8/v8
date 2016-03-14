@@ -2330,6 +2330,66 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register type,
   B(ne, not_unique_name);
 }
 
+void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
+                                        Register caller_args_count_reg,
+                                        Register scratch0, Register scratch1) {
+#if DEBUG
+  if (callee_args_count.is_reg()) {
+    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
+                       scratch1));
+  } else {
+    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
+  }
+#endif
+
+  // Calculate the end of destination area where we will put the arguments
+  // after we drop current frame. We add kPointerSize to count the receiver
+  // argument which is not included into formal parameters count.
+  Register dst_reg = scratch0;
+  __ add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
+  __ add(dst_reg, dst_reg,
+         Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+
+  Register src_reg = caller_args_count_reg;
+  // Calculate the end of source area. +kPointerSize is for the receiver.
+  if (callee_args_count.is_reg()) {
+    add(src_reg, jssp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
+    add(src_reg, src_reg, Operand(kPointerSize));
+  } else {
+    add(src_reg, jssp,
+        Operand((callee_args_count.immediate() + 1) * kPointerSize));
+  }
+
+  if (FLAG_debug_code) {
+    __ Cmp(src_reg, dst_reg);
+    __ Check(lo, kStackAccessBelowStackPointer);
+  }
+
+  // Restore caller's frame pointer and return address now as they will be
+  // overwritten by the copying loop.
+  __ Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+  // Now copy callee arguments to the caller frame going backwards to avoid
+  // callee arguments corruption (source and destination areas could overlap).
+
+  // Both src_reg and dst_reg are pointing to the word after the one to copy,
+  // so they must be pre-decremented in the loop.
+  Register tmp_reg = scratch1;
+  Label loop, entry;
+  __ B(&entry);
+  __ bind(&loop);
+  __ Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
+  __ Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
+  __ bind(&entry);
+  __ Cmp(jssp, src_reg);
+  __ B(ne, &loop);
+
+  // Leave current frame.
+  __ Mov(jssp, dst_reg);
+  __ SetStackPointer(jssp);
+  __ AssertStackConsistency();
+}
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
@@ -2651,17 +2711,16 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
   Bind(&done);
 }
 
-
-void MacroAssembler::StubPrologue() {
+void MacroAssembler::StubPrologue(StackFrame::Type type, int frame_slots) {
   UseScratchRegisterScope temps(this);
+  frame_slots -= TypedFrameConstants::kFixedSlotCountAboveFp;
   Register temp = temps.AcquireX();
-  __ Mov(temp, Smi::FromInt(StackFrame::STUB));
-  // Compiled stubs don't age, and so they don't need the predictable code
-  // ageing sequence.
-  __ Push(lr, fp, cp, temp);
-  __ Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
+  Mov(temp, Smi::FromInt(type));
+  Push(lr, fp);
+  Mov(fp, StackPointer());
+  Claim(frame_slots);
+  str(temp, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
 }
-
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
   if (code_pre_aging) {
@@ -2694,18 +2753,26 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   Register type_reg = temps.AcquireX();
   Register code_reg = temps.AcquireX();
 
-  Push(lr, fp, cp);
-  Mov(type_reg, Smi::FromInt(type));
-  Mov(code_reg, Operand(CodeObject()));
-  Push(type_reg, code_reg);
-  // jssp[4] : lr
-  // jssp[3] : fp
-  // jssp[2] : cp
-  // jssp[1] : type
-  // jssp[0] : code object
-
-  // Adjust FP to point to saved FP.
-  Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+  if (type == StackFrame::INTERNAL) {
+    Mov(type_reg, Smi::FromInt(type));
+    Push(lr, fp);
+    Push(type_reg);
+    Mov(code_reg, Operand(CodeObject()));
+    Push(code_reg);
+    Add(fp, jssp, InternalFrameConstants::kFixedFrameSizeFromFp);
+    // jssp[4] : lr
+    // jssp[3] : fp
+    // jssp[1] : type
+    // jssp[0] : [code object]
+  } else {
+    Mov(type_reg, Smi::FromInt(type));
+    Push(lr, fp);
+    Push(type_reg);
+    Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp);
+    // jssp[2] : lr
+    // jssp[1] : fp
+    // jssp[0] : type
+  }
 }
 
 
@@ -2746,20 +2813,23 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   DCHECK(jssp.Is(StackPointer()));
 
   // Set up the new stack frame.
-  Mov(scratch, Operand(CodeObject()));
   Push(lr, fp);
   Mov(fp, StackPointer());
-  Push(xzr, scratch);
+  Mov(scratch, Smi::FromInt(StackFrame::EXIT));
+  Push(scratch);
+  Push(xzr);
+  Mov(scratch, Operand(CodeObject()));
+  Push(scratch);
   //          fp[8]: CallerPC (lr)
   //    fp -> fp[0]: CallerFP (old fp)
-  //          fp[-8]: Space reserved for SPOffset.
-  //  jssp -> fp[-16]: CodeObject()
-  STATIC_ASSERT((2 * kPointerSize) ==
-                ExitFrameConstants::kCallerSPDisplacement);
+  //          fp[-8]: STUB marker
+  //          fp[-16]: Space reserved for SPOffset.
+  //  jssp -> fp[-24]: CodeObject()
+  STATIC_ASSERT((2 * kPointerSize) == ExitFrameConstants::kCallerSPOffset);
   STATIC_ASSERT((1 * kPointerSize) == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT((0 * kPointerSize) == ExitFrameConstants::kCallerFPOffset);
-  STATIC_ASSERT((-1 * kPointerSize) == ExitFrameConstants::kSPOffset);
-  STATIC_ASSERT((-2 * kPointerSize) == ExitFrameConstants::kCodeOffset);
+  STATIC_ASSERT((-2 * kPointerSize) == ExitFrameConstants::kSPOffset);
+  STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kCodeOffset);
 
   // Save the frame pointer and context pointer in the top frame.
   Mov(scratch, Operand(ExternalReference(Isolate::kCEntryFPAddress,
@@ -2769,8 +2839,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
                                          isolate())));
   Str(cp, MemOperand(scratch));
 
-  STATIC_ASSERT((-2 * kPointerSize) ==
-                ExitFrameConstants::kLastExitFrameField);
+  STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
   if (save_doubles) {
     ExitFramePreserveFPRegs();
   }
@@ -2781,9 +2850,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   Claim(extra_space + 1, kXRegSize);
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
-  //         fp[-8]: Space reserved for SPOffset.
-  //         fp[-16]: CodeObject()
-  //         fp[-16 - fp_size]: Saved doubles (if save_doubles is true).
+  //         fp[-8]: STUB marker
+  //         fp[-16]: Space reserved for SPOffset.
+  //         fp[-24]: CodeObject()
+  //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
   //         jssp[8]: Extra space reserved for caller (if extra_space != 0).
   // jssp -> jssp[0]: Space reserved for the return address.
 
@@ -2793,9 +2863,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
 
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
-  //         fp[-8]: Space reserved for SPOffset.
-  //         fp[-16]: CodeObject()
-  //         fp[-16 - fp_size]: Saved doubles (if save_doubles is true).
+  //         fp[-8]: STUB marker
+  //         fp[-16]: Space reserved for SPOffset.
+  //         fp[-24]: CodeObject()
+  //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
   //         csp[8]: Memory reserved for the caller if extra_space != 0.
   //                 Alignment padding, if necessary.
   //  csp -> csp[0]: Space reserved for the return address.
@@ -3678,8 +3749,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!AreAliased(holder_reg, scratch1, scratch2));
   Label same_contexts;
 
-  // Load current lexical context from the stack frame.
-  Ldr(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  Mov(scratch2, fp);
+  bind(&load_context);
+  Ldr(scratch1,
+      MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch1, &has_context);
+  Ldr(scratch2, MemOperand(scratch2, CommonFrameConstants::kCallerFPOffset));
+  B(&load_context);
+  bind(&has_context);
+
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   Cmp(scratch1, 0);

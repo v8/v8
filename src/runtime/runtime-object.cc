@@ -205,7 +205,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   // Get attributes.
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name,
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name, obj,
                                                         LookupIterator::HIDDEN);
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
 
@@ -293,7 +293,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -328,7 +328,7 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -413,7 +413,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!name->ToArrayIndex(&index));
-  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   RUNTIME_ASSERT(!it.IsFound());
@@ -441,7 +441,7 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
   CHECK(key->ToArrayIndex(&index));
 
 #ifdef DEBUG
-  LookupIterator it(isolate, object, index,
+  LookupIterator it(isolate, object, index, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
@@ -761,8 +761,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
-                                                        LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, object, LookupIterator::OWN);
   if (it.state() == LookupIterator::ACCESS_CHECK && !it.HasAccess()) {
     return isolate->heap()->undefined_value();
   }
@@ -790,8 +790,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
                         isolate->factory()->empty_string());
   }
 
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
-                                                        LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
@@ -1058,7 +1058,8 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
   Handle<Object> prototype;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, prototype,
-      Object::GetProperty(callable, isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->prototype_string()));
   if (!prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,

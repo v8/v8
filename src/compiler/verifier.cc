@@ -135,6 +135,11 @@ void Verifier::Visitor::Check(Node* node) {
     CheckOutput(value, node, value->op()->ValueOutputCount(), "value");
     CHECK(IsDefUseChainLinkPresent(value, node));
     CHECK(IsUseDefChainLinkPresent(value, node));
+    // Verify that only parameters and projections can have input nodes with
+    // multiple outputs.
+    CHECK(node->opcode() == IrOpcode::kParameter ||
+          node->opcode() == IrOpcode::kProjection ||
+          value->op()->ValueOutputCount() <= 1);
   }
 
   // Verify all context inputs are value nodes.
@@ -159,16 +164,6 @@ void Verifier::Visitor::Check(Node* node) {
     CheckOutput(control, node, control->op()->ControlOutputCount(), "control");
     CHECK(IsDefUseChainLinkPresent(control, node));
     CHECK(IsUseDefChainLinkPresent(control, node));
-  }
-
-  // Verify all successors are projections if multiple value outputs exist.
-  if (node->op()->ValueOutputCount() > 1) {
-    for (Edge edge : node->use_edges()) {
-      Node* use = edge.from();
-      CHECK(!NodeProperties::IsValueEdge(edge) ||
-            use->opcode() == IrOpcode::kProjection ||
-            use->opcode() == IrOpcode::kParameter);
-    }
   }
 
   switch (node->opcode()) {
@@ -951,6 +946,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
     case IrOpcode::kFloat64InsertHighWord32:
+    case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairShr:
+    case IrOpcode::kWord32PairSar:
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:

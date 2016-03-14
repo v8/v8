@@ -85,6 +85,7 @@ TEST_MAP = {
   "ignition": [
     "mjsunit",
     "cctest",
+    "message",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
@@ -208,6 +209,8 @@ def BuildOptions():
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
+  result.add_option("--sancov-dir",
+                    help="Directory where to collect coverage data")
   result.add_option("--cfi-vptr",
                     help="Run tests with UBSAN cfi_vptr option.",
                     default=False, action="store_true")
@@ -384,6 +387,14 @@ def SetupEnvironment(options):
 
   if options.asan:
     os.environ['ASAN_OPTIONS'] = symbolizer
+
+  if options.sancov_dir:
+    assert os.path.exists(options.sancov_dir)
+    os.environ['ASAN_OPTIONS'] = ":".join([
+      'coverage=1',
+      'coverage_dir=%s' % options.sancov_dir,
+      symbolizer,
+    ])
 
   if options.cfi_vptr:
     os.environ['UBSAN_OPTIONS'] = ":".join([
@@ -616,7 +627,6 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(BASE_DIR, "test", root))
     if suite:
-      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data or options.download_data_only:
@@ -688,7 +698,8 @@ def Execute(arch, mode, args, options, suites):
                         options.rerun_failures_max,
                         options.predictable,
                         options.no_harness,
-                        use_perf_data=not options.swarming)
+                        use_perf_data=not options.swarming,
+                        sancov_dir=options.sancov_dir)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
@@ -814,6 +825,18 @@ def Execute(arch, mode, args, options, suites):
     print("Force exit code 0 after failures. Json test results file generated "
           "with failure information.")
     exit_code = 0
+
+  if options.sancov_dir:
+    # If tests ran with sanitizer coverage, merge coverage files in the end.
+    try:
+      print "Merging sancov files."
+      subprocess.check_call([
+        sys.executable,
+        join(BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
+        "--coverage-dir=%s" % options.sancov_dir])
+    except:
+      print >> sys.stderr, "Error: Merging sancov files failed."
+      exit_code = 1
 
   return exit_code
 

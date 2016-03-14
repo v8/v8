@@ -1150,6 +1150,18 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kCheckedStore:
       return VisitCheckedStore(node);
+    case IrOpcode::kWord32PairShl:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitWord32PairShl(node);
+    case IrOpcode::kWord32PairShr:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitWord32PairShr(node);
+    case IrOpcode::kWord32PairSar:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitWord32PairSar(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1373,6 +1385,14 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 
 #endif  // V8_TARGET_ARCH_32_BIT
 
+// 32 bit targets do not implement the following instructions.
+#if V8_TARGET_ARCH_64_BIT
+void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+#endif  // V8_TARGET_ARCH_64_BIT
 
 void InstructionSelector::VisitFinishRegion(Node* node) {
   OperandGenerator g(this);
@@ -1451,6 +1471,9 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTryTruncateFloat32ToUint64:
     case IrOpcode::kTryTruncateFloat64ToUint64:
+    case IrOpcode::kWord32PairShl:
+    case IrOpcode::kWord32PairShr:
+    case IrOpcode::kWord32PairSar:
       if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
@@ -1561,16 +1584,35 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
     // Select the appropriate opcode based on the call type.
     InstructionCode opcode;
-    switch (descriptor->kind()) {
-      case CallDescriptor::kCallCodeObject:
-        opcode = kArchTailCallCodeObject;
-        break;
-      case CallDescriptor::kCallJSFunction:
-        opcode = kArchTailCallJSFunction;
-        break;
-      default:
-        UNREACHABLE();
-        return;
+    InstructionOperandVector temps(zone());
+    if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
+      switch (descriptor->kind()) {
+        case CallDescriptor::kCallCodeObject:
+          opcode = kArchTailCallCodeObjectFromJSFunction;
+          break;
+        case CallDescriptor::kCallJSFunction:
+          opcode = kArchTailCallJSFunctionFromJSFunction;
+          break;
+        default:
+          UNREACHABLE();
+          return;
+      }
+      int temps_count = GetTempsCountForTailCallFromJSFunction();
+      for (int i = 0; i < temps_count; i++) {
+        temps.push_back(g.TempRegister());
+      }
+    } else {
+      switch (descriptor->kind()) {
+        case CallDescriptor::kCallCodeObject:
+          opcode = kArchTailCallCodeObject;
+          break;
+        case CallDescriptor::kCallJSFunction:
+          opcode = kArchTailCallJSFunction;
+          break;
+        default:
+          UNREACHABLE();
+          return;
+      }
     }
     opcode |= MiscField::encode(descriptor->flags());
 
@@ -1581,7 +1623,8 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
     // Emit the tailcall instruction.
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),
-         &buffer.instruction_args.front());
+         &buffer.instruction_args.front(), temps.size(),
+         temps.empty() ? nullptr : &temps.front());
   } else {
     FrameStateDescriptor* frame_state_descriptor =
         descriptor->NeedsFrameState()

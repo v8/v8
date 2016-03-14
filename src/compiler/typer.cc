@@ -2441,6 +2441,11 @@ Type* Typer::Visitor::TypeCheckedStore(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeWord32PairShl(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeWord32PairShr(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
 
 // Heap constants.
 

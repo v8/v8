@@ -542,33 +542,6 @@ TEST(InlineNestedBuiltin) {
 }
 
 
-TEST(StrongModeArity) {
-  FLAG_strong_mode = true;
-  FunctionTester T(
-      "(function () {"
-      "  function foo(x, y) { 'use strong'; return x; }"
-      "  function bar(x, y) { return foo(x); }"
-      "  return bar;"
-      "})();",
-      kInlineFlags);
-  T.CheckThrows(T.undefined(), T.undefined());
-}
-
-
-TEST(StrongModeArityOuter) {
-  FLAG_strong_mode = true;
-  FunctionTester T(
-      "(function () {"
-      "  'use strong';"
-      "  function foo(x, y) { return x; }"
-      "  function bar(x, y) { return foo(x); }"
-      "  return bar;"
-      "})();",
-      kInlineFlags);
-  T.CheckThrows(T.undefined(), T.undefined());
-}
-
-
 TEST(InlineSelfRecursive) {
   FunctionTester T(
       "(function () {"

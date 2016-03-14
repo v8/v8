@@ -144,7 +144,6 @@ class LCodeGen;
   V(RSubI)                                   \
   V(TaggedToI)                               \
   V(ThisFunction)                            \
-  V(ToFastProperties)                        \
   V(TransitionElementsKind)                  \
   V(TrapAllocationMemento)                   \
   V(Typeof)                                  \
@@ -533,6 +532,7 @@ class LApplyArguments final : public LTemplateInstruction<1, 4, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
+  DECLARE_HYDROGEN_ACCESSOR(ApplyArguments)
 
   LOperand* function() { return inputs_[0]; }
   LOperand* receiver() { return inputs_[1]; }
@@ -2381,19 +2381,6 @@ class LAllocate final : public LTemplateInstruction<1, 2, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
   DECLARE_HYDROGEN_ACCESSOR(Allocate)
-};
-
-
-class LToFastProperties final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LToFastProperties(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ToFastProperties, "to-fast-properties")
-  DECLARE_HYDROGEN_ACCESSOR(ToFastProperties)
 };
 
 

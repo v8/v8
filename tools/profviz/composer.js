@@ -104,15 +104,15 @@ function PlotScriptComposer(kResX, kResY, error_output) {
         new TimerEvent("recompile sync", "#CC0044",  true, 0),
       'V8.RecompileConcurrent':
         new TimerEvent("recompile async", "#CC4499", false, 1),
-      'V8.CompileEval':
+      'V8.CompileEvalMicroSeconds':
         new TimerEvent("compile eval", "#CC4400",  true, 0),
       'V8.IcMiss':
         new TimerEvent("ic miss", "#CC9900", false, 0),
-      'V8.Parse':
+      'V8.ParseMicroSeconds':
         new TimerEvent("parse", "#00CC00",  true, 0),
-      'V8.PreParse':
+      'V8.PreParseMicroSeconds':
         new TimerEvent("preparse", "#44CC00",  true, 0),
-      'V8.ParseLazy':
+      'V8.ParseLazyMicroSeconds':
         new TimerEvent("lazy parse", "#00CC44",  true, 0),
       'V8.GCScavenger':
         new TimerEvent("gc scavenge", "#0044CC",  true, 0),

@@ -106,10 +106,6 @@ class Space;
 #define DCHECK_PAGE_OFFSET(offset) \
   DCHECK((Page::kObjectStartOffset <= offset) && (offset <= Page::kPageSize))
 
-#define DCHECK_MAP_PAGE_INDEX(index) \
-  DCHECK((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
-
-
 class MarkBit {
  public:
   typedef uint32_t CellType;
@@ -304,9 +300,7 @@ class MemoryChunk {
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
     EVACUATION_CANDIDATE,
-    RESCAN_ON_EVACUATION,
     NEVER_EVACUATE,  // May contain immortal immutables.
-    POPULAR_PAGE,    // Slots buffer of this page overflowed on the previous GC.
 
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
@@ -335,19 +329,6 @@ class MemoryChunk {
     NUM_MEMORY_CHUNK_FLAGS
   };
 
-  // |kCompactionDone|: Initial compaction state of a |MemoryChunk|.
-  // |kCompactingInProgress|:  Parallel compaction is currently in progress.
-  // |kCompactingFinalize|: Parallel compaction is done but the chunk needs to
-  //   be finalized.
-  // |kCompactingAborted|: Parallel compaction has been aborted, which should
-  //   for now only happen in OOM scenarios.
-  enum ParallelCompactingState {
-    kCompactingDone,
-    kCompactingInProgress,
-    kCompactingFinalize,
-    kCompactingAborted,
-  };
-
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
   //   not be performed on that page. Sweeper threads that are done with their
   //   work will set this value and not touch the page anymore.
@@ -373,8 +354,7 @@ class MemoryChunk {
   static const int kEvacuationCandidateMask = 1 << EVACUATION_CANDIDATE;
 
   static const int kSkipEvacuationSlotsRecordingMask =
-      (1 << EVACUATION_CANDIDATE) | (1 << RESCAN_ON_EVACUATION) |
-      (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
+      (1 << EVACUATION_CANDIDATE) | (1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE);
 
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
@@ -407,8 +387,7 @@ class MemoryChunk {
       kIntptrSize         // intptr_t write_barrier_counter_
       + kPointerSize      // AtomicValue high_water_mark_
       + kPointerSize      // base::Mutex* mutex_
-      + kPointerSize      // base::AtomicWord parallel_sweeping_
-      + kPointerSize      // AtomicValue parallel_compaction_
+      + kPointerSize      // base::AtomicWord concurrent_sweeping_
       + 2 * kPointerSize  // AtomicNumber free-list statistics
       + kPointerSize      // AtomicValue next_chunk_
       + kPointerSize;     // AtomicValue prev_chunk_
@@ -473,10 +452,6 @@ class MemoryChunk {
 
   AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
     return concurrent_sweeping_;
-  }
-
-  AtomicValue<ParallelCompactingState>& parallel_compaction_state() {
-    return parallel_compaction_;
   }
 
   // Manage live byte count, i.e., count of bytes in black objects.
@@ -705,7 +680,6 @@ class MemoryChunk {
   base::Mutex* mutex_;
 
   AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
-  AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.
   AtomicNumber<intptr_t> available_in_free_list_;
@@ -724,12 +698,14 @@ class MemoryChunk {
 };
 
 enum FreeListCategoryType {
+  kTiniest,
+  kTiny,
   kSmall,
   kMedium,
   kLarge,
   kHuge,
 
-  kFirstCategory = kSmall,
+  kFirstCategory = kTiniest,
   kLastCategory = kHuge,
   kNumberOfCategories = kLastCategory + 1
 };
@@ -1650,9 +1626,10 @@ class FreeListCategory {
 // categories would scatter allocation more.
 
 // The free list is organized in categories as follows:
-// 1-31 words (too small): Such small free areas are discarded for efficiency
-//   reasons. They can be reclaimed by the compactor. However the distance
-//   between top and limit may be this small.
+// kMinBlockSize-10 words (tiniest): The tiniest blocks are only used for
+//   allocation, when categories >= small do not have entries anymore.
+// 11-31 words (tiny): The tiny blocks are only used for allocation, when
+//   categories >= small do not have entries anymore.
 // 32-255 words (small): Used for allocating free space between 1-31 words in
 //   size.
 // 256-2047 words (medium): Used for allocating free space between 32-255 words
@@ -1666,8 +1643,12 @@ class FreeList {
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
   static inline int GuaranteedAllocatable(int maximum_freed) {
-    if (maximum_freed <= kSmallListMin) {
+    if (maximum_freed <= kTiniestListMax) {
+      // Since we are not iterating over all list entries, we cannot guarantee
+      // that we can find the maximum freed block in that free list.
       return 0;
+    } else if (maximum_freed <= kTinyListMax) {
+      return kTinyAllocationMax;
     } else if (maximum_freed <= kSmallListMax) {
       return kSmallAllocationMax;
     } else if (maximum_freed <= kMediumListMax) {
@@ -1749,11 +1730,13 @@ class FreeList {
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kAllocatableMemory;
 
-  static const int kSmallListMin = 0x1f * kPointerSize;
+  static const int kTiniestListMax = 0xa * kPointerSize;
+  static const int kTinyListMax = 0x1f * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
   static const int kMediumListMax = 0x7ff * kPointerSize;
   static const int kLargeListMax = 0x3fff * kPointerSize;
-  static const int kSmallAllocationMax = kSmallListMin;
+  static const int kTinyAllocationMax = kTiniestListMax;
+  static const int kSmallAllocationMax = kTinyListMax;
   static const int kMediumAllocationMax = kSmallListMax;
   static const int kLargeAllocationMax = kMediumListMax;
 
@@ -1765,7 +1748,11 @@ class FreeList {
   }
 
   FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kSmallListMax) {
+    if (size_in_bytes <= kTiniestListMax) {
+      return kTiniest;
+    } else if (size_in_bytes <= kTinyListMax) {
+      return kTiny;
+    } else if (size_in_bytes <= kSmallListMax) {
       return kSmall;
     } else if (size_in_bytes <= kMediumListMax) {
       return kMedium;
@@ -1775,6 +1762,7 @@ class FreeList {
     return kHuge;
   }
 
+  // The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
     if (size_in_bytes <= kSmallAllocationMax) {
@@ -2865,12 +2853,7 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object.
   MapSpace(Heap* heap, AllocationSpace id)
-      : PagedSpace(heap, id, NOT_EXECUTABLE),
-        max_map_space_pages_(kMaxMapPageIndex - 1) {}
-
-  // Given an index, returns the page address.
-  // TODO(1600): this limit is artifical just to keep code compilable
-  static const int kMaxMapPageIndex = 1 << 16;
+      : PagedSpace(heap, id, NOT_EXECUTABLE) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
     if (base::bits::IsPowerOfTwo32(Map::kSize)) {
@@ -2883,16 +2866,6 @@ class MapSpace : public PagedSpace {
 #ifdef VERIFY_HEAP
   void VerifyObject(HeapObject* obj) override;
 #endif
-
- private:
-  static const int kMapsPerPage = Page::kAllocatableMemory / Map::kSize;
-
-  // Do map space compaction if there is a page gap.
-  int CompactionThreshold() {
-    return kMapsPerPage * (max_map_space_pages_ - 1);
-  }
-
-  const int max_map_space_pages_;
 };
 
 

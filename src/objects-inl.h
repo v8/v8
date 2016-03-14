@@ -1053,6 +1053,13 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
   return GetProperty(&it);
 }
 
+MaybeHandle<Object> JSReceiver::GetProperty(Handle<JSReceiver> receiver,
+                                            Handle<Name> name) {
+  LookupIterator it(receiver, name, receiver);
+  if (!it.IsFound()) return it.factory()->undefined_value();
+  return Object::GetProperty(&it);
+}
+
 MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
                                        uint32_t index) {
   LookupIterator it(isolate, object, index);
@@ -1060,9 +1067,17 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
   return GetProperty(&it);
 }
 
+MaybeHandle<Object> JSReceiver::GetElement(Isolate* isolate,
+                                           Handle<JSReceiver> receiver,
+                                           uint32_t index) {
+  LookupIterator it(isolate, receiver, index, receiver);
+  if (!it.IsFound()) return it.factory()->undefined_value();
+  return Object::GetProperty(&it);
+}
+
 Handle<Object> JSReceiver::GetDataProperty(Handle<JSReceiver> object,
                                            Handle<Name> name) {
-  LookupIterator it(object, name,
+  LookupIterator it(object, name, object,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetDataProperty(&it);
@@ -1090,10 +1105,11 @@ MaybeHandle<Object> JSReceiver::GetPrototype(Isolate* isolate,
   return PrototypeIterator::GetCurrent(iter);
 }
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
-                                        const char* name) {
+MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
+                                            Handle<JSReceiver> receiver,
+                                            const char* name) {
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  return GetProperty(object, str);
+  return GetProperty(receiver, str);
 }
 
 
@@ -1867,12 +1883,27 @@ void JSObject::initialize_elements() {
 
 
 InterceptorInfo* JSObject::GetIndexedInterceptor() {
-  DCHECK(map()->has_indexed_interceptor());
-  JSFunction* constructor = JSFunction::cast(map()->GetConstructor());
+  return map()->GetIndexedInterceptor();
+}
+
+InterceptorInfo* JSObject::GetNamedInterceptor() {
+  return map()->GetNamedInterceptor();
+}
+
+InterceptorInfo* Map::GetNamedInterceptor() {
+  DCHECK(has_named_interceptor());
+  JSFunction* constructor = JSFunction::cast(GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
-  Object* result =
-      constructor->shared()->get_api_func_data()->indexed_property_handler();
-  return InterceptorInfo::cast(result);
+  return InterceptorInfo::cast(
+      constructor->shared()->get_api_func_data()->named_property_handler());
+}
+
+InterceptorInfo* Map::GetIndexedInterceptor() {
+  DCHECK(has_indexed_interceptor());
+  JSFunction* constructor = JSFunction::cast(GetConstructor());
+  DCHECK(constructor->shared()->IsApiFunction());
+  return InterceptorInfo::cast(
+      constructor->shared()->get_api_func_data()->indexed_property_handler());
 }
 
 
@@ -5707,8 +5738,7 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 3);
   return construct_language_mode(
-      BooleanBit::get(compiler_hints(), kStrictModeFunction),
-      BooleanBit::get(compiler_hints(), kStrongModeFunction));
+      BooleanBit::get(compiler_hints(), kStrictModeFunction));
 }
 
 
@@ -5719,7 +5749,6 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
   int hints = compiler_hints();
   hints = BooleanBit::set(hints, kStrictModeFunction, is_strict(language_mode));
-  hints = BooleanBit::set(hints, kStrongModeFunction, is_strong(language_mode));
   set_compiler_hints(hints);
 }
 
@@ -7042,8 +7071,8 @@ NameDictionary* JSReceiver::property_dictionary() {
 
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
-  LookupIterator it =
-      LookupIterator::PropertyOrElement(object->GetIsolate(), object, name);
+  LookupIterator it = LookupIterator::PropertyOrElement(object->GetIsolate(),
+                                                        object, name, object);
   return HasProperty(&it);
 }
 
@@ -7052,7 +7081,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
   if (object->IsJSObject()) {  // Shortcut
     LookupIterator it = LookupIterator::PropertyOrElement(
-        object->GetIsolate(), object, name, LookupIterator::HIDDEN);
+        object->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
     return HasProperty(&it);
   }
 
@@ -7065,8 +7094,8 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
-  LookupIterator it =
-      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
+  LookupIterator it = LookupIterator::PropertyOrElement(name->GetIsolate(),
+                                                        object, name, object);
   return GetPropertyAttributes(&it);
 }
 
@@ -7074,13 +7103,13 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, LookupIterator::HIDDEN);
+      name->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
   return GetPropertyAttributes(&it);
 }
 
 
 Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
-  LookupIterator it(object->GetIsolate(), object, index);
+  LookupIterator it(object->GetIsolate(), object, index, object);
   return HasProperty(&it);
 }
 
@@ -7088,7 +7117,7 @@ Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
 Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
     Handle<JSReceiver> object, uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index);
+  LookupIterator it(isolate, object, index, object);
   return GetPropertyAttributes(&it);
 }
 
@@ -7096,7 +7125,7 @@ Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
     Handle<JSReceiver> object, uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index, LookupIterator::HIDDEN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::HIDDEN);
   return GetPropertyAttributes(&it);
 }
 

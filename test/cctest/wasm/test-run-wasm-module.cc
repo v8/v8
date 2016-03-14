@@ -38,18 +38,22 @@ TEST(Run_WasmModule_CallAdd_rev) {
   static const byte data[] = {
       WASM_MODULE_HEADER,
       // sig#0 ------------------------------------------
-      kDeclSignatures, 2, 0, kLocalI32,    // void -> int
-      2, kLocalI32, kLocalI32, kLocalI32,  // int,int -> int
+      WASM_SECTION_SIGNATURES_SIZE + 7,          // Section size.
+      WASM_SECTION_SIGNATURES, 2, 0, kLocalI32,  // void -> int
+      2, kLocalI32, kLocalI32, kLocalI32,        // int,int -> int
       // func#0 (main) ----------------------------------
-      kDeclFunctions, 2, kDeclFunctionExport, 0, 0,  // sig index
-      6, 0,                                          // body size
-      kExprCallFunction, 1,                          // --
-      kExprI8Const, 77,                              // --
-      kExprI8Const, 22,                              // --
+      WASM_SECTION_FUNCTIONS_SIZE + 24, WASM_SECTION_FUNCTIONS, 2,
+      kDeclFunctionExport, 0, 0,  // sig index
+      7, 0,                       // body size
+      0,                          // locals
+      kExprCallFunction, 1,       // --
+      kExprI8Const, 77,           // --
+      kExprI8Const, 22,           // --
       // func#1 -----------------------------------------
       0,                 // no name, not exported
       1, 0,              // sig index
-      5, 0,              // body size
+      6, 0,              // body size
+      0,                 // locals
       kExprI32Add,       // --
       kExprGetLocal, 0,  // --
       kExprGetLocal, 1,  // --
@@ -146,8 +150,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
               WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(localIndex)),
               WASM_BRV(2, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
       WASM_I8(11))};
-  uint32_t local_indices[] = {7, 18, 24, 27};
-  f->EmitCode(code, sizeof(code), local_indices, sizeof(local_indices) / 4);
+  f->EmitCode(code, sizeof(code), nullptr, 0);
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 11);
 }
@@ -172,8 +175,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
                                                 WASM_INC_LOCAL(localIndex)),
                               WASM_BRV(1, WASM_CALL_FUNCTION0(0))),
                    WASM_BRV(0, WASM_I8(55))))};
-  uint32_t local_indices[] = {3, 11, 21, 24};
-  f->EmitCode(code, sizeof(code), local_indices, sizeof(local_indices) / 4);
+  f->EmitCode(code, sizeof(code), nullptr, 0);
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 55);
 }

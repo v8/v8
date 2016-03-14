@@ -362,16 +362,22 @@ class BytecodeGenerator::ControlScopeForTryFinally final
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
-  ContextScope* context = this->context();
+  ContextScope* context = generator()->execution_context();
   do {
-    if (current->Execute(command, statement)) { return; }
-    current = current->outer();
     if (current->context() != context) {
-      // Pop context to the expected depth.
+      // Pop context to the expected depth for break and continue. For return
+      // and throw it is not required to pop. Debugger expects that the
+      // context is not popped on return. So do not pop on return.
       // TODO(rmcilroy): Only emit a single context pop.
-      generator()->builder()->PopContext(current->context()->reg());
+      if (command == CMD_BREAK || command == CMD_CONTINUE) {
+        generator()->builder()->PopContext(current->context()->reg());
+      }
       context = current->context();
     }
+    if (current->Execute(command, statement)) {
+      return;
+    }
+    current = current->outer();
   } while (current != nullptr);
   UNREACHABLE();
 }
@@ -871,11 +877,13 @@ void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
 
 
 void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   execution_control()->Continue(stmt->target());
 }
 
 
 void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   execution_control()->Break(stmt->target());
 }
 
@@ -888,6 +896,7 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
   builder()->CastAccumulatorToJSObject();
   VisitNewLocalWithContext();
@@ -902,6 +911,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   SwitchBuilder switch_builder(builder(), clauses->length());
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
   int default_index = -1;
+
+  builder()->SetStatementPosition(stmt);
 
   // Keep the switch value in a register until a case matches.
   Register tag = VisitForRegisterValue(stmt->tag());
@@ -957,6 +968,7 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   LoopBuilder loop_builder(builder());
   loop_builder.LoopHeader();
   if (stmt->cond()->ToBooleanIsFalse()) {
@@ -969,6 +981,7 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   } else {
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.Condition();
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
   }
@@ -985,6 +998,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
@@ -996,6 +1010,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->init() != nullptr) {
+    builder()->SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
@@ -1008,12 +1023,14 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     loop_builder.Next();
+    builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
   loop_builder.JumpToHeader();
@@ -1106,6 +1123,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   BytecodeLabel subject_null_label, subject_undefined_label;
 
   // Prepare the state for executing ForIn.
+  builder()->SetExpressionAsStatementPosition(stmt->subject());
   VisitForAccumulatorValue(stmt->subject());
   builder()->JumpIfUndefined(&subject_undefined_label);
   builder()->JumpIfNull(&subject_null_label);
@@ -1135,6 +1153,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
   builder()->ForInNext(receiver, index, cache_type, feedback_index(slot));
   loop_builder.ContinueIfUndefined();
+  builder()->SetExpressionAsStatementPosition(stmt->each());
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.Next();
@@ -1155,6 +1174,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
   loop_builder.LoopHeader();
   loop_builder.Next();
+  builder()->SetExpressionAsStatementPosition(stmt->next_result());
   VisitForEffect(stmt->next_result());
   VisitForAccumulatorValue(stmt->result_done());
   loop_builder.BreakIfTrue();
@@ -1688,11 +1708,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                                literal_argument, 4);
         break;
     }
-  }
-
-  // Transform literals that contain functions to fast properties.
-  if (expr->has_function()) {
-    builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
   }
 
   execution_result()->SetResultInRegister(literal);

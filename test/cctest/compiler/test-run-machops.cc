@@ -1197,7 +1197,7 @@ TEST(RunLoadStoreFloat32Offset) {
       p1 = *j;
       p2 = *j - 5;
       CHECK_EQ(magic, m.Call());
-      CheckDoubleEq(p1, p2);
+      CHECK_DOUBLE_EQ(p1, p2);
     }
   }
 }
@@ -1224,7 +1224,7 @@ TEST(RunLoadStoreFloat64Offset) {
       p1 = *j;
       p2 = *j - 5;
       CHECK_EQ(magic, m.Call());
-      CheckDoubleEq(p1, p2);
+      CHECK_DOUBLE_EQ(p1, p2);
     }
   }
 }
@@ -3658,10 +3658,7 @@ TEST(RunFloat32Add) {
   m.Return(m.Float32Add(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i + *j;
-      CheckFloatEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i + *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3672,10 +3669,7 @@ TEST(RunFloat32Sub) {
   m.Return(m.Float32Sub(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i - *j;
-      CheckFloatEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i - *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3686,10 +3680,7 @@ TEST(RunFloat32Mul) {
   m.Return(m.Float32Mul(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i * *j;
-      CheckFloatEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i * *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3700,10 +3691,7 @@ TEST(RunFloat32Div) {
   m.Return(m.Float32Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i / *j;
-      CheckFloatEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i / *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3714,10 +3702,7 @@ TEST(RunFloat64Add) {
   m.Return(m.Float64Add(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      volatile double expected = *i + *j;
-      CheckDoubleEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i + *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3728,10 +3713,7 @@ TEST(RunFloat64Sub) {
   m.Return(m.Float64Sub(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      volatile double expected = *i - *j;
-      CheckDoubleEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i - *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3742,10 +3724,7 @@ TEST(RunFloat64Mul) {
   m.Return(m.Float64Mul(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      volatile double expected = *i * *j;
-      CheckDoubleEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i * *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3756,10 +3735,7 @@ TEST(RunFloat64Div) {
   m.Return(m.Float64Div(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      volatile double expected = *i / *j;
-      CheckDoubleEq(expected, m.Call(*i, *j));
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i / *j, m.Call(*i, *j)); }
   }
 }
 
@@ -3770,7 +3746,7 @@ TEST(RunFloat64Mod) {
   m.Return(m.Float64Mod(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(modulo(*i, *j), m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), m.Call(*i, *j)); }
   }
 }
 
@@ -3816,10 +3792,7 @@ TEST(RunFloat32AddP) {
   bt.AddReturn(m.Float32Add(bt.param0, bt.param1));
 
   FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) {
-      float expected = *pl + *pr;
-      CheckFloatEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT32_INPUTS(pr) { CHECK_FLOAT_EQ(*pl + *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -3831,10 +3804,7 @@ TEST(RunFloat64AddP) {
   bt.AddReturn(m.Float64Add(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double expected = *pl + *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT64_INPUTS(pr) { CHECK_DOUBLE_EQ(*pl + *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -3848,8 +3818,7 @@ TEST(RunFloa32MaxP) {
 
   FOR_FLOAT32_INPUTS(pl) {
     FOR_FLOAT32_INPUTS(pr) {
-      double expected = *pl > *pr ? *pl : *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(*pl > *pr ? *pl : *pr, bt.call(*pl, *pr));
     }
   }
 }
@@ -3864,8 +3833,7 @@ TEST(RunFloat64MaxP) {
 
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
-      double expected = *pl > *pr ? *pl : *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(*pl > *pr ? *pl : *pr, bt.call(*pl, *pr));
     }
   }
 }
@@ -3880,8 +3848,7 @@ TEST(RunFloat32MinP) {
 
   FOR_FLOAT32_INPUTS(pl) {
     FOR_FLOAT32_INPUTS(pr) {
-      double expected = *pl < *pr ? *pl : *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(*pl < *pr ? *pl : *pr, bt.call(*pl, *pr));
     }
   }
 }
@@ -3896,8 +3863,7 @@ TEST(RunFloat64MinP) {
 
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
-      double expected = *pl < *pr ? *pl : *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(*pl < *pr ? *pl : *pr, bt.call(*pl, *pr));
     }
   }
 }
@@ -3910,10 +3876,7 @@ TEST(RunFloat32SubP) {
   bt.AddReturn(m.Float32Sub(bt.param0, bt.param1));
 
   FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) {
-      float expected = *pl - *pr;
-      CheckFloatEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT32_INPUTS(pr) { CHECK_FLOAT_EQ(*pl - *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -3923,10 +3886,7 @@ TEST(RunFloat32SubImm1) {
     BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
     m.Return(m.Float32Sub(m.Float32Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *i - *j;
-      CheckFloatEq(expected, m.Call(*j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*i - *j, m.Call(*j)); }
   }
 }
 
@@ -3936,10 +3896,7 @@ TEST(RunFloat32SubImm2) {
     BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
     m.Return(m.Float32Sub(m.Parameter(0), m.Float32Constant(*i)));
 
-    FOR_FLOAT32_INPUTS(j) {
-      volatile float expected = *j - *i;
-      CheckFloatEq(expected, m.Call(*j));
-    }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(*j - *i, m.Call(*j)); }
   }
 }
 
@@ -3949,7 +3906,7 @@ TEST(RunFloat64SubImm1) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Sub(m.Float64Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT64_INPUTS(j) { CheckFloatEq(*i - *j, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*i - *j, m.Call(*j)); }
   }
 }
 
@@ -3959,7 +3916,7 @@ TEST(RunFloat64SubImm2) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Sub(m.Parameter(0), m.Float64Constant(*i)));
 
-    FOR_FLOAT64_INPUTS(j) { CheckFloatEq(*j - *i, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*j - *i, m.Call(*j)); }
   }
 }
 
@@ -3973,7 +3930,7 @@ TEST(RunFloat64SubP) {
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
       double expected = *pl - *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(expected, bt.call(*pl, *pr));
     }
   }
 }
@@ -3986,10 +3943,7 @@ TEST(RunFloat32MulP) {
   bt.AddReturn(m.Float32Mul(bt.param0, bt.param1));
 
   FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) {
-      float expected = *pl * *pr;
-      CheckFloatEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT32_INPUTS(pr) { CHECK_FLOAT_EQ(*pl * *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -4003,7 +3957,7 @@ TEST(RunFloat64MulP) {
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
       double expected = *pl * *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
+      CHECK_DOUBLE_EQ(expected, bt.call(*pl, *pr));
     }
   }
 }
@@ -4018,7 +3972,7 @@ TEST(RunFloat64MulAndFloat64Add1) {
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
       FOR_FLOAT64_INPUTS(k) {
-        CheckDoubleEq((*i * *j) + *k, m.Call(*i, *j, *k));
+        CHECK_DOUBLE_EQ((*i * *j) + *k, m.Call(*i, *j, *k));
       }
     }
   }
@@ -4034,7 +3988,7 @@ TEST(RunFloat64MulAndFloat64Add2) {
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
       FOR_FLOAT64_INPUTS(k) {
-        CheckDoubleEq(*i + (*j * *k), m.Call(*i, *j, *k));
+        CHECK_DOUBLE_EQ(*i + (*j * *k), m.Call(*i, *j, *k));
       }
     }
   }
@@ -4050,7 +4004,7 @@ TEST(RunFloat64MulAndFloat64Sub1) {
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
       FOR_FLOAT64_INPUTS(k) {
-        CheckDoubleEq((*i * *j) - *k, m.Call(*i, *j, *k));
+        CHECK_DOUBLE_EQ((*i * *j) - *k, m.Call(*i, *j, *k));
       }
     }
   }
@@ -4066,7 +4020,7 @@ TEST(RunFloat64MulAndFloat64Sub2) {
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
       FOR_FLOAT64_INPUTS(k) {
-        CheckDoubleEq(*i - (*j * *k), m.Call(*i, *j, *k));
+        CHECK_DOUBLE_EQ(*i - (*j * *k), m.Call(*i, *j, *k));
       }
     }
   }
@@ -4078,7 +4032,7 @@ TEST(RunFloat64MulImm1) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Mul(m.Float64Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT64_INPUTS(j) { CheckFloatEq(*i * *j, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*i * *j, m.Call(*j)); }
   }
 }
 
@@ -4088,7 +4042,7 @@ TEST(RunFloat64MulImm2) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Mul(m.Parameter(0), m.Float64Constant(*i)));
 
-    FOR_FLOAT64_INPUTS(j) { CheckFloatEq(*j * *i, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*j * *i, m.Call(*j)); }
   }
 }
 
@@ -4100,10 +4054,7 @@ TEST(RunFloat32DivP) {
   bt.AddReturn(m.Float32Div(bt.param0, bt.param1));
 
   FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) {
-      float expected = *pl / *pr;
-      CheckFloatEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT32_INPUTS(pr) { CHECK_FLOAT_EQ(*pl / *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -4115,10 +4066,7 @@ TEST(RunFloat64DivP) {
   bt.AddReturn(m.Float64Div(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double expected = *pl / *pr;
-      CheckDoubleEq(expected, bt.call(*pl, *pr));
-    }
+    FOR_FLOAT64_INPUTS(pr) { CHECK_DOUBLE_EQ(*pl / *pr, bt.call(*pl, *pr)); }
   }
 }
 
@@ -4130,11 +4078,7 @@ TEST(RunFloat64ModP) {
   bt.AddReturn(m.Float64Mod(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      double expected = modulo(*i, *j);
-      double found = bt.call(*i, *j);
-      CheckDoubleEq(expected, found);
-    }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), bt.call(*i, *j)); }
   }
 }
 
@@ -4143,7 +4087,7 @@ TEST(RunChangeInt32ToFloat64_A) {
   int32_t magic = 0x986234;
   BufferedRawMachineAssemblerTester<double> m;
   m.Return(m.ChangeInt32ToFloat64(m.Int32Constant(magic)));
-  CheckDoubleEq(static_cast<double>(magic), m.Call());
+  CHECK_DOUBLE_EQ(static_cast<double>(magic), m.Call());
 }
 
 
@@ -4151,7 +4095,7 @@ TEST(RunChangeInt32ToFloat64_B) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Int32());
   m.Return(m.ChangeInt32ToFloat64(m.Parameter(0)));
 
-  FOR_INT32_INPUTS(i) { CheckDoubleEq(static_cast<double>(*i), m.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(*i), m.Call(*i)); }
 }
 
 
@@ -4159,7 +4103,7 @@ TEST(RunChangeUint32ToFloat64) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Uint32());
   m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
 
-  FOR_UINT32_INPUTS(i) { CheckDoubleEq(static_cast<double>(*i), m.Call(*i)); }
+  FOR_UINT32_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(*i), m.Call(*i)); }
 }
 
 
@@ -4169,7 +4113,7 @@ TEST(RunTruncateFloat32ToInt32) {
   FOR_FLOAT32_INPUTS(i) {
     if (*i <= static_cast<float>(std::numeric_limits<int32_t>::max()) &&
         *i >= static_cast<float>(std::numeric_limits<int32_t>::min())) {
-      CheckFloatEq(static_cast<int32_t>(*i), m.Call(*i));
+      CHECK_FLOAT_EQ(static_cast<int32_t>(*i), m.Call(*i));
     }
   }
 }
@@ -4193,7 +4137,7 @@ TEST(RunTruncateFloat32ToUint32) {
     FOR_FLOAT32_INPUTS(i) {
       if (*i <= static_cast<float>(std::numeric_limits<uint32_t>::max()) &&
           *i >= static_cast<float>(std::numeric_limits<uint32_t>::min())) {
-        CheckFloatEq(static_cast<uint32_t>(*i), m.Call(*i));
+        CHECK_FLOAT_EQ(static_cast<uint32_t>(*i), m.Call(*i));
       }
     }
   }
@@ -4250,7 +4194,7 @@ TEST(RunTruncateFloat64ToFloat32) {
 
   m.Return(m.TruncateFloat64ToFloat32(m.Parameter(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckFloatEq(DoubleToFloat32(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(DoubleToFloat32(*i), m.Call(*i)); }
 }
 
 
@@ -5298,7 +5242,9 @@ TEST(RunChangeFloat32ToFloat64) {
 
   m.Return(m.ChangeFloat32ToFloat64(m.Parameter(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckDoubleEq(static_cast<double>(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) {
+    CHECK_DOUBLE_EQ(static_cast<double>(*i), m.Call(*i));
+  }
 }
 
 
@@ -5306,7 +5252,7 @@ TEST(RunFloat32Constant) {
   FOR_FLOAT32_INPUTS(i) {
     BufferedRawMachineAssemblerTester<float> m;
     m.Return(m.Float32Constant(*i));
-    CheckFloatEq(*i, m.Call());
+    CHECK_FLOAT_EQ(*i, m.Call());
   }
 }
 
@@ -5340,7 +5286,7 @@ TEST(RunFloat64InsertLowWord32) {
       double expected = bit_cast<double>(
           (bit_cast<uint64_t>(*i) & ~(V8_UINT64_C(0xFFFFFFFF))) |
           (static_cast<uint64_t>(bit_cast<uint32_t>(*j))));
-      CheckDoubleEq(expected, m.Call(*i, *j));
+      CHECK_DOUBLE_EQ(expected, m.Call(*i, *j));
     }
   }
 }
@@ -5355,7 +5301,7 @@ TEST(RunFloat64InsertHighWord32) {
       uint64_t expected = (bit_cast<uint64_t>(*i) & 0xFFFFFFFF) |
                           (static_cast<uint64_t>(*j) << 32);
 
-      CheckDoubleEq(bit_cast<double>(expected), m.Call(*i, *j));
+      CHECK_DOUBLE_EQ(bit_cast<double>(expected), m.Call(*i, *j));
     }
   }
 }
@@ -5364,14 +5310,14 @@ TEST(RunFloat64InsertHighWord32) {
 TEST(RunFloat32Abs) {
   BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
   m.Return(m.Float32Abs(m.Parameter(0)));
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(std::abs(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(std::abs(*i), m.Call(*i)); }
 }
 
 
 TEST(RunFloat64Abs) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.Float64Abs(m.Parameter(0)));
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(std::abs(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(std::abs(*i), m.Call(*i)); }
 }
 
 
@@ -5479,7 +5425,7 @@ TEST(RunFloat32RoundDown) {
 
   m.Return(m.Float32RoundDown(m.Parameter(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(floorf(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(floorf(*i), m.Call(*i)); }
 }
 
 
@@ -5489,7 +5435,7 @@ TEST(RunFloat64RoundDown1) {
 
   m.Return(m.Float64RoundDown(m.Parameter(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(floor(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(floor(*i), m.Call(*i)); }
 }
 
 
@@ -5511,7 +5457,7 @@ TEST(RunFloat32RoundUp) {
   if (!m.machine()->Float32RoundUp().IsSupported()) return;
   m.Return(m.Float32RoundUp(m.Parameter(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(ceilf(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(ceilf(*i), m.Call(*i)); }
 }
 
 
@@ -5520,7 +5466,7 @@ TEST(RunFloat64RoundUp) {
   if (!m.machine()->Float64RoundUp().IsSupported()) return;
   m.Return(m.Float64RoundUp(m.Parameter(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(ceil(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ceil(*i), m.Call(*i)); }
 }
 
 
@@ -5529,7 +5475,7 @@ TEST(RunFloat32RoundTiesEven) {
   if (!m.machine()->Float32RoundTiesEven().IsSupported()) return;
   m.Return(m.Float32RoundTiesEven(m.Parameter(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(nearbyint(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(nearbyint(*i), m.Call(*i)); }
 }
 
 
@@ -5538,7 +5484,7 @@ TEST(RunFloat64RoundTiesEven) {
   if (!m.machine()->Float64RoundTiesEven().IsSupported()) return;
   m.Return(m.Float64RoundTiesEven(m.Parameter(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(nearbyint(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(nearbyint(*i), m.Call(*i)); }
 }
 
 
@@ -5548,7 +5494,7 @@ TEST(RunFloat32RoundTruncate) {
 
   m.Return(m.Float32RoundTruncate(m.Parameter(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(truncf(*i), m.Call(*i)); }
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(truncf(*i), m.Call(*i)); }
 }
 
 

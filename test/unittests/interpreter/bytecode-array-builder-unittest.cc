@@ -139,7 +139,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CompareOperation(Token::Value::EQ, reg)
       .CompareOperation(Token::Value::NE, reg)
       .CompareOperation(Token::Value::EQ_STRICT, reg)
-      .CompareOperation(Token::Value::NE_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg)
       .CompareOperation(Token::Value::GT, reg)
       .CompareOperation(Token::Value::LTE, reg)

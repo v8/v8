@@ -46,6 +46,7 @@ namespace compiler {
   V(ArmUxtab)                      \
   V(ArmRbit)                       \
   V(ArmUxtah)                      \
+  V(ArmPairLsl)                    \
   V(ArmVcmpF32)                    \
   V(ArmVaddF32)                    \
   V(ArmVsubF32)                    \

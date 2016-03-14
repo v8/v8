@@ -23,8 +23,7 @@ namespace internal {
   /* PlatformCodeStubs */                   \
   V(ArrayConstructor)                       \
   V(BinaryOpICWithAllocationSite)           \
-  V(CallApiFunction)                        \
-  V(CallApiAccessor)                        \
+  V(CallApiCallback)                        \
   V(CallApiGetter)                          \
   V(CallConstruct)                          \
   V(CallIC)                                 \
@@ -168,13 +167,24 @@ namespace internal {
 #define CODE_STUB_LIST_MIPS(V)
 #endif
 
+// List of code stubs only used on S390 platforms.
+#ifdef V8_TARGET_ARCH_S390
+#define CODE_STUB_LIST_S390(V) \
+  V(DirectCEntry)              \
+  V(StoreRegistersState)       \
+  V(RestoreRegistersState)
+#else
+#define CODE_STUB_LIST_S390(V)
+#endif
+
 // Combined list of code stubs.
 #define CODE_STUB_LIST(V)         \
   CODE_STUB_LIST_ALL_PLATFORMS(V) \
   CODE_STUB_LIST_ARM(V)           \
   CODE_STUB_LIST_ARM64(V)         \
   CODE_STUB_LIST_PPC(V)           \
-  CODE_STUB_LIST_MIPS(V)
+  CODE_STUB_LIST_MIPS(V)          \
+  CODE_STUB_LIST_S390(V)
 
 static const int kHasReturnedMinusZeroSentinel = 1;
 
@@ -594,6 +604,8 @@ class RuntimeCallHelper {
 #include "src/mips/code-stubs-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/mips64/code-stubs-mips64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/code-stubs-s390.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/code-stubs-x87.h"
 #else
@@ -1533,48 +1545,36 @@ class StoreGlobalViaContextStub final : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(StoreGlobalViaContext, PlatformCodeStub);
 };
 
-
-class CallApiFunctionStub : public PlatformCodeStub {
+class CallApiCallbackStub : public PlatformCodeStub {
  public:
-  explicit CallApiFunctionStub(Isolate* isolate, bool call_data_undefined)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = CallDataUndefinedBits::encode(call_data_undefined);
+  static const int kArgBits = 3;
+  static const int kArgMax = (1 << kArgBits) - 1;
+
+  // CallApiCallbackStub for regular setters and getters.
+  CallApiCallbackStub(Isolate* isolate, bool is_store, bool call_data_undefined,
+                      bool is_lazy)
+      : CallApiCallbackStub(isolate, is_store ? 1 : 0, is_store,
+                            call_data_undefined, is_lazy) {}
+
+  // CallApiCallbackStub for callback functions.
+  CallApiCallbackStub(Isolate* isolate, int argc, bool call_data_undefined)
+      : CallApiCallbackStub(isolate, argc, false, call_data_undefined, false) {}
+
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    return ApiCallbackDescriptorBase::ForArgs(isolate(), argc());
   }
 
  private:
-  bool call_data_undefined() const {
-    return CallDataUndefinedBits::decode(minor_key_);
-  }
-
-  class CallDataUndefinedBits : public BitField<bool, 0, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiFunction);
-  DEFINE_PLATFORM_CODE_STUB(CallApiFunction, PlatformCodeStub);
-};
-
-
-class CallApiAccessorStub : public PlatformCodeStub {
- public:
-  CallApiAccessorStub(Isolate* isolate, bool is_store, bool call_data_undefined,
-                      bool is_lazy)
+  CallApiCallbackStub(Isolate* isolate, int argc, bool is_store,
+                      bool call_data_undefined, bool is_lazy)
       : PlatformCodeStub(isolate) {
+    CHECK(0 <= argc && argc <= kArgMax);
     minor_key_ = IsStoreBits::encode(is_store) |
                  CallDataUndefinedBits::encode(call_data_undefined) |
-                 ArgumentBits::encode(is_store ? 1 : 0) |
+                 ArgumentBits::encode(argc) |
                  IsLazyAccessorBits::encode(is_lazy);
   }
 
- protected:
-  // For CallApiFunctionWithFixedArgsStub, see below.
-  static const int kArgBits = 3;
-  CallApiAccessorStub(Isolate* isolate, int argc, bool call_data_undefined)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = IsStoreBits::encode(false) |
-                 CallDataUndefinedBits::encode(call_data_undefined) |
-                 ArgumentBits::encode(argc);
-  }
-
- private:
   bool is_store() const { return IsStoreBits::decode(minor_key_); }
   bool is_lazy() const { return IsLazyAccessorBits::decode(minor_key_); }
   bool call_data_undefined() const {
@@ -1587,27 +1587,8 @@ class CallApiAccessorStub : public PlatformCodeStub {
   class ArgumentBits : public BitField<int, 2, kArgBits> {};
   class IsLazyAccessorBits : public BitField<bool, 3 + kArgBits, 1> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiAccessor);
-  DEFINE_PLATFORM_CODE_STUB(CallApiAccessor, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);
 };
-
-
-// TODO(dcarney): see if it's possible to remove this later without performance
-// degradation.
-// This is not a real stub, but a way of generating the CallApiAccessorStub
-// (which has the same abi) which makes it clear that it is not an accessor.
-class CallApiFunctionWithFixedArgsStub : public CallApiAccessorStub {
- public:
-  static const int kMaxFixedArgs = (1 << kArgBits) - 1;
-  CallApiFunctionWithFixedArgsStub(Isolate* isolate, int argc,
-                                   bool call_data_undefined)
-      : CallApiAccessorStub(isolate, argc, call_data_undefined) {
-    DCHECK(0 <= argc && argc <= kMaxFixedArgs);
-  }
-};
-
-
-typedef ApiAccessorDescriptor ApiFunctionWithFixedArgsDescriptor;
 
 
 class CallApiGetterStub : public PlatformCodeStub {

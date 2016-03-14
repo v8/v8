@@ -1350,35 +1350,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }
 
-  if (FLAG_always_opt && info->allows_lazy_compilation()) {
-    result->MarkForOptimization();
-  }
-
-  CodeAndLiterals cached = info->SearchOptimizedCodeMap(
-      context->native_context(), BailoutId::None());
-  if (cached.code != nullptr) {
-    // Caching of optimized code enabled and optimized code found.
-    DCHECK(!cached.code->marked_for_deoptimization());
-    DCHECK(result->shared()->is_compiled());
-    result->ReplaceCode(cached.code);
-  }
-
-  if (cached.literals != nullptr) {
-    result->set_literals(cached.literals);
-  } else {
-    int number_of_literals = info->num_literals();
-    Handle<LiteralsArray> literals =
-        LiteralsArray::New(isolate(), handle(info->feedback_vector()),
-                           number_of_literals, pretenure);
-    result->set_literals(*literals);
-
-    // Cache context-specific literals.
-    MaybeHandle<Code> code;
-    if (cached.code != nullptr) code = handle(cached.code);
-    Handle<Context> native_context(context->native_context());
-    SharedFunctionInfo::AddToOptimizedCodeMap(info, native_context, code,
-                                              literals, BailoutId::None());
-  }
+  // Give compiler a chance to pre-initialize.
+  Compiler::PostInstantiation(result, pretenure);
 
   return result;
 }

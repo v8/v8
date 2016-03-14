@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<SharedFunctionInfo> target_shared(target->shared());
   Handle<SharedFunctionInfo> source_shared(source->shared());
 
-  if (!Compiler::Compile(source, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(source, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
 
@@ -284,14 +284,6 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, object, 0);
   return isolate->heap()->ToBoolean(object->IsFunction());
-}
-
-
-RUNTIME_FUNCTION(Runtime_ThrowStrongModeTooFewArguments) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(MessageTemplate::kStrongArity));
 }
 
 

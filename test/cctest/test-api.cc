@@ -13076,7 +13076,6 @@ static void ShouldThrowOnErrorSetter(Local<Name> name, Local<v8::Value> value,
 
 
 THREADED_TEST(AccessorShouldThrowOnError) {
-  i::FLAG_strong_mode = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -13106,14 +13105,6 @@ THREADED_TEST(AccessorShouldThrowOnError) {
   value = v8_compile("'use strict';o.f")->Run(context.local()).ToLocalChecked();
   CHECK(value->IsFalse());
   v8_compile("'use strict'; o.f = 153")->Run(context.local()).ToLocalChecked();
-  value = global->Get(context.local(), v8_str("should_throw_setter"))
-              .ToLocalChecked();
-  CHECK(value->IsTrue());
-
-  // STRONG mode
-  value = v8_compile("'use strong';o.f")->Run(context.local()).ToLocalChecked();
-  CHECK(value->IsFalse());
-  v8_compile("'use strong'; o.f = 153")->Run(context.local()).ToLocalChecked();
   value = global->Get(context.local(), v8_str("should_throw_setter"))
               .ToLocalChecked();
   CHECK(value->IsTrue());
@@ -13172,7 +13163,6 @@ static void ShouldThrowOnErrorPropertyEnumerator(
 
 
 THREADED_TEST(InterceptorShouldThrowOnError) {
-  i::FLAG_strong_mode = true;
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -13224,21 +13214,6 @@ THREADED_TEST(InterceptorShouldThrowOnError) {
   CHECK(value->IsTrue());
 
   v8_compile("'use strict'; Object.getOwnPropertyNames(o)")
-      ->Run(context.local())
-      .ToLocalChecked();
-  value = global->Get(context.local(), v8_str("should_throw_enumerator"))
-              .ToLocalChecked();
-  CHECK(value->IsFalse());
-
-  // STRONG mode
-  value = v8_compile("'use strong';o.f")->Run(context.local()).ToLocalChecked();
-  CHECK(value->IsFalse());
-  v8_compile("'use strong'; o.f = 153")->Run(context.local()).ToLocalChecked();
-  value = global->Get(context.local(), v8_str("should_throw_setter"))
-              .ToLocalChecked();
-  CHECK(value->IsTrue());
-
-  v8_compile("'use strong'; Object.getOwnPropertyNames(o)")
       ->Run(context.local())
       .ToLocalChecked();
   value = global->Get(context.local(), v8_str("should_throw_enumerator"))
@@ -13325,8 +13300,6 @@ THREADED_TEST(ObjectProtoToString) {
 
 
 TEST(ObjectProtoToStringES6) {
-  // TODO(dslomov, caitp): merge into ObjectProtoToString test once shipped.
-  i::FLAG_harmony_tostring = true;
   LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -24360,247 +24333,6 @@ TEST(SealHandleScopeNested) {
 }
 
 
-static bool access_was_called = false;
-
-static bool AccessAlwaysAllowedWithFlag(Local<v8::Context> accessing_context,
-                                        Local<v8::Object> accessed_object,
-                                        Local<v8::Value> data) {
-  access_was_called = true;
-  return true;
-}
-
-static bool AccessAlwaysBlockedWithFlag(Local<v8::Context> accessing_context,
-                                        Local<v8::Object> accessed_object,
-                                        Local<v8::Value> data) {
-  access_was_called = true;
-  return false;
-}
-
-
-TEST(StrongModeAccessCheckAllowed) {
-  i::FLAG_strong_mode = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<Value> value;
-  access_was_called = false;
-
-  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
-
-  obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
-  obj_template->SetAccessCheckCallback(AccessAlwaysAllowedWithFlag);
-
-  // Create an environment
-  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
-  context0->Enter();
-  v8::Local<v8::Object> global0 = context0->Global();
-  global0->Set(context0, v8_str("object"),
-               obj_template->NewInstance(context0).ToLocalChecked())
-      .FromJust();
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.x");
-    CHECK(!try_catch.HasCaught());
-    CHECK(!access_was_called);
-    CHECK_EQ(42, value->Int32Value(context0).FromJust());
-  }
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.foo");
-    CHECK(try_catch.HasCaught());
-    CHECK(!access_was_called);
-  }
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object[10]");
-    CHECK(try_catch.HasCaught());
-    CHECK(!access_was_called);
-  }
-
-  // Create an environment
-  v8::Local<Context> context1 = Context::New(isolate);
-  context1->Enter();
-  v8::Local<v8::Object> global1 = context1->Global();
-  global1->Set(context1, v8_str("object"),
-               obj_template->NewInstance(context1).ToLocalChecked())
-      .FromJust();
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.x");
-    CHECK(!try_catch.HasCaught());
-    CHECK(access_was_called);
-    CHECK_EQ(42, value->Int32Value(context1).FromJust());
-  }
-  access_was_called = false;
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.foo");
-    CHECK(try_catch.HasCaught());
-    CHECK(access_was_called);
-  }
-  access_was_called = false;
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object[10]");
-    CHECK(try_catch.HasCaught());
-    CHECK(access_was_called);
-  }
-
-  context1->Exit();
-  context0->Exit();
-}
-
-
-TEST(StrongModeAccessCheckBlocked) {
-  i::FLAG_strong_mode = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<Value> value;
-  access_was_called = false;
-
-  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
-
-  obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
-  obj_template->SetAccessCheckCallback(AccessAlwaysBlockedWithFlag);
-
-  // Create an environment
-  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
-  context0->Enter();
-  v8::Local<v8::Object> global0 = context0->Global();
-  global0->Set(context0, v8_str("object"),
-               obj_template->NewInstance(context0).ToLocalChecked())
-      .FromJust();
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.x");
-    CHECK(!try_catch.HasCaught());
-    CHECK(!access_was_called);
-    CHECK_EQ(42, value->Int32Value(context0).FromJust());
-  }
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.foo");
-    CHECK(try_catch.HasCaught());
-    CHECK(!access_was_called);
-  }
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object[10]");
-    CHECK(try_catch.HasCaught());
-    CHECK(!access_was_called);
-  }
-
-  // Create an environment
-  v8::Local<Context> context1 = Context::New(isolate);
-  context1->Enter();
-  v8::Local<v8::Object> global1 = context1->Global();
-  global1->Set(context1, v8_str("object"),
-               obj_template->NewInstance(context1).ToLocalChecked())
-      .FromJust();
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.x");
-    CHECK(try_catch.HasCaught());
-    CHECK(access_was_called);
-  }
-  access_was_called = false;
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object.foo");
-    CHECK(try_catch.HasCaught());
-    CHECK(access_was_called);
-  }
-  access_was_called = false;
-  {
-    v8::TryCatch try_catch(isolate);
-    value = CompileRun("'use strong'; object[10]");
-    CHECK(try_catch.HasCaught());
-    CHECK(access_was_called);
-  }
-
-  context1->Exit();
-  context0->Exit();
-}
-
-
-TEST(StrongModeArityCallFromApi) {
-  i::FLAG_strong_mode = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<Function> fun;
-  {
-    v8::TryCatch try_catch(isolate);
-    fun = Local<Function>::Cast(CompileRun(
-        "function f(x) { 'use strong'; }"
-        "f"));
-
-    CHECK(!try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CHECK(fun->Call(env.local(), v8::Undefined(isolate), 0, nullptr).IsEmpty());
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    v8::Local<Value> args[] = {v8_num(42)};
-    fun->Call(env.local(), v8::Undefined(isolate), arraysize(args), args)
-        .ToLocalChecked();
-    CHECK(!try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    v8::Local<Value> args[] = {v8_num(42), v8_num(555)};
-    fun->Call(env.local(), v8::Undefined(isolate), arraysize(args), args)
-        .ToLocalChecked();
-    CHECK(!try_catch.HasCaught());
-  }
-}
-
-
-TEST(StrongModeArityCallFromApi2) {
-  i::FLAG_strong_mode = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<Function> fun;
-  {
-    v8::TryCatch try_catch(isolate);
-    fun = Local<Function>::Cast(CompileRun(
-        "'use strong';"
-        "function f(x) {}"
-        "f"));
-
-    CHECK(!try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    CHECK(fun->Call(env.local(), v8::Undefined(isolate), 0, nullptr).IsEmpty());
-    CHECK(try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    v8::Local<Value> args[] = {v8_num(42)};
-    fun->Call(env.local(), v8::Undefined(isolate), arraysize(args), args)
-        .ToLocalChecked();
-    CHECK(!try_catch.HasCaught());
-  }
-
-  {
-    v8::TryCatch try_catch(isolate);
-    v8::Local<Value> args[] = {v8_num(42), v8_num(555)};
-    fun->Call(env.local(), v8::Undefined(isolate), arraysize(args), args)
-        .ToLocalChecked();
-    CHECK(!try_catch.HasCaught());
-  }
-}
-
-
 static void ExtrasBindingTestRuntimeFunction(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(
@@ -25025,7 +24757,6 @@ TEST(AccessCheckedIsConcatSpreadable) {
 
 
 TEST(AccessCheckedToStringTag) {
-  i::FLAG_harmony_tostring = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext env;

@@ -5546,6 +5546,8 @@ class V8_EXPORT Isolate {
     kArrayInstanceProtoModified = 27,
     kArrayInstanceConstructorModified = 28,
     kLegacyFunctionDeclaration = 29,
+    kRegExpPrototypeSourceGetter = 30,
+    kRegExpPrototypeOldFlagGetter = 31,
 
     // If you add new values here, you'll also need to update V8Initializer.cpp
     // in Chromium.

@@ -12,7 +12,8 @@
 // Imports
 
 var AddIndexedProperty;
-var ArrayToString;
+// array.js has to come before typedarray.js for this to work
+var ArrayToString = utils.ImportNow("ArrayToString");
 var ArrayValues;
 var GetIterator;
 var GetMethod;
@@ -71,7 +72,6 @@ TYPED_ARRAYS(DECLARE_GLOBALS)
 
 utils.Import(function(from) {
   AddIndexedProperty = from.AddIndexedProperty;
-  ArrayToString = from.ArrayToString;
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
@@ -200,8 +200,7 @@ function NAMEConstructByLength(obj, length) {
   }
 }
 
-function NAMEConstructByArrayLike(obj, arrayLike) {
-  var length = arrayLike.length;
+function NAMEConstructByArrayLike(obj, arrayLike, length) {
   var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
@@ -241,7 +240,7 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   for (var value of newIterable) {
     list.push(value);
   }
-  NAMEConstructByArrayLike(obj, list);
+  NAMEConstructByArrayLike(obj, list, list.length);
 }
 
 // ES#sec-typedarray-typedarray TypedArray ( typedArray )
@@ -251,20 +250,12 @@ function NAMEConstructByTypedArray(obj, typedArray) {
   var length = %_TypedArrayGetLength(typedArray);
   var byteLength = %_ArrayBufferViewGetByteLength(typedArray);
   var newByteLength = length * ELEMENT_SIZE;
+  NAMEConstructByArrayLike(obj, typedArray, length);
   var bufferConstructor = SpeciesConstructor(srcData, GlobalArrayBuffer);
-  var data = new GlobalArrayBuffer(newByteLength);
   var prototype = bufferConstructor.prototype;
   // TODO(littledan): Use the right prototype based on bufferConstructor's realm
   if (IS_RECEIVER(prototype) && prototype !== GlobalArrayBufferPrototype) {
-    %InternalSetPrototype(data, prototype);
-  }
-  %_TypedArrayInitialize(obj, ARRAY_ID, data, 0, newByteLength, true);
-  // Note: The separate CloneArrayBuffer path in the spec ensures
-  // that NaNs are not canonicalized, but because V8 does not
-  // canonicalize NaNs, we do not have to do anything different.
-  // TODO(littledan): Make a fastpath based on memcpy
-  for (var i = 0; i < length; i++) {
-    obj[i] = typedArray[i];
+    %InternalSetPrototype(%TypedArrayGetBuffer(obj), prototype);
   }
 }
 
@@ -280,7 +271,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
     } else {
       var iteratorFn = arg1[iteratorSymbol];
       if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
-        NAMEConstructByArrayLike(this, arg1);
+        NAMEConstructByArrayLike(this, arg1, arg1.length);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
       }
@@ -684,12 +675,6 @@ function TypedArrayToLocaleString() {
 }
 
 
-// ES6 section 22.2.3.28
-function TypedArrayToString() {
-  return %_Call(ArrayToString, this);
-}
-
-
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
   if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
@@ -882,9 +867,11 @@ utils.InstallFunctions(TypedArray.prototype, DONT_ENUM, [
   "slice", TypedArraySlice,
   "some", TypedArraySome,
   "sort", TypedArraySort,
-  "toString", TypedArrayToString,
   "toLocaleString", TypedArrayToLocaleString
 ]);
+
+%AddNamedProperty(TypedArray.prototype, "toString", ArrayToString,
+                  DONT_ENUM);
 
 
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)

@@ -307,6 +307,24 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
   return name;
 }
 
+StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
+  switch (output_code_kind()) {
+    case Code::STUB:
+    case Code::BYTECODE_HANDLER:
+    case Code::HANDLER:
+    case Code::BUILTIN:
+      return StackFrame::STUB;
+    case Code::WASM_FUNCTION:
+      return StackFrame::WASM;
+    case Code::JS_TO_WASM_FUNCTION:
+      return StackFrame::JS_TO_WASM;
+    case Code::WASM_TO_JS_FUNCTION:
+      return StackFrame::WASM_TO_JS;
+    default:
+      UNIMPLEMENTED();
+      return StackFrame::NONE;
+  }
+}
 
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(language_mode()) && !is_native();
@@ -364,6 +382,14 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (info()->shared_info()->HasDebugInfo()) {
     return AbortOptimization(kFunctionBeingDebugged);
+  }
+
+  // Resuming a suspended frame is not supported by Crankshaft/TurboFan.
+  if (info()->shared_info()->HasBuiltinFunctionId() &&
+      (info()->shared_info()->builtin_function_id() == kGeneratorObjectNext ||
+       info()->shared_info()->builtin_function_id() == kGeneratorObjectReturn ||
+       info()->shared_info()->builtin_function_id() == kGeneratorObjectThrow)) {
+    return AbortOptimization(kGeneratorResumeMethod);
   }
 
   // Limit the number of times we try to optimize functions.
@@ -764,6 +790,12 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 static bool UseIgnition(CompilationInfo* info) {
   // Cannot use Ignition when the {function_data} is already used.
   if (info->has_shared_info() && info->shared_info()->HasBuiltinFunctionId()) {
+    return false;
+  }
+
+  // TODO(4681): Generators are not yet supported.
+  if ((info->has_shared_info() && info->shared_info()->is_generator()) ||
+      (info->has_literal() && IsGeneratorFunction(info->literal()->kind()))) {
     return false;
   }
 
@@ -1519,8 +1551,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       compilation_cache->PutEval(source, outer_info, context, shared_info,
                                  line_offset);
     }
-  } else if (shared_info->ic_age() != isolate->heap()->global_ic_age()) {
-    shared_info->ResetForNewContext(isolate->heap()->global_ic_age());
   }
 
   Handle<JSFunction> result =
@@ -1535,8 +1565,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   return result;
 }
 
-
-Handle<SharedFunctionInfo> Compiler::CompileScript(
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<String> source, Handle<Object> script_name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Object> source_map_url, Handle<Context> context,
@@ -1561,12 +1590,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  // TODO(rossberg): The natives do not yet obey strong mode rules
-  // (for example, some macros use '==').
-  bool use_strong = FLAG_use_strong && !isolate->bootstrapper()->IsActive();
-  LanguageMode language_mode =
-      construct_language_mode(FLAG_use_strict, use_strong);
-
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
@@ -1672,16 +1696,14 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   return result;
 }
 
-
-Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
     Handle<Script> script, ParseInfo* parse_info, int source_length) {
   Isolate* isolate = script->GetIsolate();
   // TODO(titzer): increment the counters in caller.
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  LanguageMode language_mode =
-      construct_language_mode(FLAG_use_strict, FLAG_use_strong);
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   parse_info->set_language_mode(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
   parse_info->set_typed(FLAG_use_types);
@@ -1854,18 +1876,15 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   return shared;
 }
 
-MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(
-    Handle<JSFunction> function, Compiler::ConcurrencyMode mode,
-    BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
+MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
+                                                   BailoutId osr_ast_id,
+                                                   JavaScriptFrame* osr_frame) {
   DCHECK(!osr_ast_id.IsNone());
-  // TODO(mstarzinger): Once concurrent OSR is removed, the following check
-  // should hold and can be enabled.
-  // DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(function, mode, osr_ast_id, osr_frame);
+  DCHECK_NOT_NULL(osr_frame);
+  return GetOptimizedCode(function, NOT_CONCURRENT, osr_ast_id, osr_frame);
 }
 
-MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
-    OptimizedCompileJob* job) {
+void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
   // Take ownership of compilation info.  Deleting compilation info
   // also tears down the zone and the recompile job.
   base::SmartPointer<CompilationInfo> info(job->info());
@@ -1901,7 +1920,8 @@ MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
         info->closure()->ShortPrint();
         PrintF("]\n");
       }
-      return Handle<Code>(*info->code());
+      info->closure()->ReplaceCode(*info->code());
+      return;
     }
   }
 
@@ -1911,9 +1931,44 @@ MaybeHandle<Code> Compiler::GetConcurrentlyOptimizedCode(
     info->closure()->ShortPrint();
     PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
-  return MaybeHandle<Code>();
+  info->closure()->ReplaceCode(shared->code());
 }
 
+void Compiler::PostInstantiation(Handle<JSFunction> function,
+                                 PretenureFlag pretenure) {
+  Handle<SharedFunctionInfo> shared(function->shared());
+
+  if (FLAG_always_opt && shared->allows_lazy_compilation()) {
+    function->MarkForOptimization();
+  }
+
+  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+      function->context()->native_context(), BailoutId::None());
+  if (cached.code != nullptr) {
+    // Caching of optimized code enabled and optimized code found.
+    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(function->shared()->is_compiled());
+    function->ReplaceCode(cached.code);
+  }
+
+  if (cached.literals != nullptr) {
+    function->set_literals(cached.literals);
+  } else {
+    Isolate* isolate = function->GetIsolate();
+    int number_of_literals = shared->num_literals();
+    Handle<LiteralsArray> literals =
+        LiteralsArray::New(isolate, handle(shared->feedback_vector()),
+                           number_of_literals, pretenure);
+    function->set_literals(*literals);
+
+    // Cache context-specific literals.
+    MaybeHandle<Code> code;
+    if (cached.code != nullptr) code = handle(cached.code);
+    Handle<Context> native_context(function->context()->native_context());
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
+                                              literals, BailoutId::None());
+  }
+}
 
 #if DEBUG
 void CompilationInfo::PrintAstForTesting() {

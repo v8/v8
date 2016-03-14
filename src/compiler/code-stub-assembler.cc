@@ -287,7 +287,8 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Node* limit = Load(MachineType::Pointer(), limit_address);
 
   // If there's not enough space, call the runtime.
-  RawMachineLabel runtime_call, no_runtime_call, merge_runtime;
+  RawMachineLabel runtime_call(RawMachineLabel::kDeferred), no_runtime_call,
+      merge_runtime;
   raw_assembler_->Branch(
       raw_assembler_->IntPtrLessThan(IntPtrSub(limit, top), size_in_bytes),
       &runtime_call, &no_runtime_call);

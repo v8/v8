@@ -326,7 +326,7 @@ class PromotionQueue {
     // If the limit is not on the same page, we can ignore it.
     if (Page::FromAllocationTop(limit) != GetHeadPage()) return;
 
-    limit_ = reinterpret_cast<intptr_t*>(limit);
+    limit_ = reinterpret_cast<struct Entry*>(limit);
 
     if (limit_ <= rear_) {
       return;
@@ -348,7 +348,7 @@ class PromotionQueue {
     }
     // If the to space top pointer is smaller or equal than the promotion
     // queue head, then the to-space objects are below the promotion queue.
-    return reinterpret_cast<intptr_t*>(to_space_top) <= rear_;
+    return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
   }
 
   bool is_empty() {
@@ -356,9 +356,9 @@ class PromotionQueue {
            (emergency_stack_ == NULL || emergency_stack_->length() == 0);
   }
 
-  inline void insert(HeapObject* target, int size);
+  inline void insert(HeapObject* target, intptr_t size);
 
-  void remove(HeapObject** target, int* size) {
+  void remove(HeapObject** target, intptr_t* size) {
     DCHECK(!is_empty());
     if (front_ == rear_) {
       Entry e = emergency_stack_->RemoveLast();
@@ -367,32 +367,37 @@ class PromotionQueue {
       return;
     }
 
-    *target = reinterpret_cast<HeapObject*>(*(--front_));
-    *size = static_cast<int>(*(--front_));
+    struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
+    *target = entry->obj_;
+    *size = entry->size_;
+
     // Assert no underflow.
     SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
                                 reinterpret_cast<Address>(front_));
   }
 
  private:
-  // The front of the queue is higher in the memory page chain than the rear.
-  intptr_t* front_;
-  intptr_t* rear_;
-  intptr_t* limit_;
-
   static const int kEntrySizeInWords = 2;
 
   struct Entry {
-    Entry(HeapObject* obj, int size) : obj_(obj), size_(size) {}
+    Entry(HeapObject* obj, intptr_t size) : obj_(obj), size_(size) {}
 
     HeapObject* obj_;
-    int size_;
+    intptr_t size_;
   };
+
+  // The front of the queue is higher in the memory page chain than the rear.
+  struct Entry* front_;
+  struct Entry* rear_;
+  struct Entry* limit_;
+
   List<Entry>* emergency_stack_;
 
   Heap* heap_;
 
   void RelocateQueueHead();
+
+  STATIC_ASSERT(sizeof(struct Entry) == kEntrySizeInWords * kPointerSize);
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
@@ -1675,6 +1680,7 @@ class Heap {
   void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
+  void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
   // ===========================================================================
   // GC statistics. ============================================================

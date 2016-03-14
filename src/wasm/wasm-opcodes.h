@@ -46,27 +46,13 @@ const LocalType kAstF64 = MachineRepresentation::kFloat64;
 // We use kTagged here because kNone is already used by kAstStmt.
 const LocalType kAstEnd = MachineRepresentation::kTagged;
 
-// Functionality related to encoding memory accesses.
-struct MemoryAccess {
-  // Atomicity annotations for access to the memory and globals.
-  enum Atomicity {
-    kNone = 0,        // non-atomic
-    kSequential = 1,  // sequential consistency
-    kAcquire = 2,     // acquire semantics
-    kRelease = 3      // release semantics
-  };
-
-  // Alignment annotations for memory accesses.
-  enum Alignment { kAligned = 0, kUnaligned = 1 };
-
-  // Bitfields for the various annotations for memory accesses.
-  typedef BitField<Alignment, 7, 1> AlignmentField;
-  typedef BitField<Atomicity, 5, 2> AtomicityField;
-  typedef BitField<bool, 4, 1> OffsetField;
-};
-
 typedef Signature<LocalType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
+
+struct WasmName {
+  const char* name;
+  uint32_t length;
+};
 
 // TODO(titzer): Renumber all the opcodes to fill in holes.
 
@@ -97,7 +83,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
   V(StoreGlobal, 0x11, _)      \
   V(CallFunction, 0x12, _)     \
   V(CallIndirect, 0x13, _)     \
-  V(CallImport, 0x1F, _)
+  V(CallImport, 0x1F, _)       \
+  V(DeclLocals, 0x1E, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -445,10 +432,6 @@ class WasmOpcodes {
       UNREACHABLE();
       return kExprNop;
     }
-  }
-
-  static byte LoadStoreAccessOf(bool with_offset) {
-    return MemoryAccess::OffsetField::encode(with_offset);
   }
 
   static char ShortNameOf(LocalType type) {

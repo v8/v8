@@ -242,6 +242,9 @@ class GlobalHandles {
   // can be skipped and false otherwise.
   bool IterateObjectGroups(ObjectVisitor* v, WeakSlotCallbackWithHeap can_skip);
 
+  // Print all objects in object groups
+  void PrintObjectGroups();
+
   // Add an object group.
   // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a garbage collection.

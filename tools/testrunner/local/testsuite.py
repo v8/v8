@@ -102,18 +102,12 @@ class TestSuite(object):
 
   def __init__(self, name, root):
     # Note: This might be called concurrently from different processes.
-    # Changing harddisk state should be done in 'SetupWorkingDirectory' below.
     self.name = name  # string
     self.root = root  # string containing path
     self.tests = None  # list of TestCase objects
     self.rules = None  # dictionary mapping test path to list of outcomes
     self.wildcards = None  # dictionary mapping test paths to list of outcomes
     self.total_duration = None  # float, assigned on demand
-
-  def SetupWorkingDirectory(self):
-    # This is called once per test suite object in a multi-process setting.
-    # Multi-process-unsafe work-directory setup can go here.
-    pass
 
   def shell(self):
     return "d8"

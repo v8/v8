@@ -46,8 +46,7 @@ struct ImmI32Operand {
   int32_t value;
   int length;
   inline ImmI32Operand(Decoder* decoder, const byte* pc) {
-    value =
-        bit_cast<int32_t>(decoder->checked_read_i32v(pc, 1, &length, "immi32"));
+    value = decoder->checked_read_i32v(pc, 1, &length, "immi32");
   }
 };
 
@@ -55,8 +54,7 @@ struct ImmI64Operand {
   int64_t value;
   int length;
   inline ImmI64Operand(Decoder* decoder, const byte* pc) {
-    value =
-        bit_cast<int64_t>(decoder->checked_read_i64v(pc, 1, &length, "immi64"));
+    value = decoder->checked_read_i64v(pc, 1, &length, "immi64");
   }
 };
 
@@ -97,8 +95,7 @@ struct BreakDepthOperand {
   Block* target;
   int length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u8(pc, 1, "break depth");
-    length = 1;
+    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
     target = nullptr;
   }
 };
@@ -107,8 +104,7 @@ struct BlockCountOperand {
   uint32_t count;
   int length;
   inline BlockCountOperand(Decoder* decoder, const byte* pc) {
-    count = decoder->checked_read_u8(pc, 1, "block count");
-    length = 1;
+    count = decoder->checked_read_u32v(pc, 1, &length, "block count");
   }
 };
 
@@ -147,97 +143,50 @@ struct BranchTableOperand {
   const byte* table;
   int length;
   inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    table_count = decoder->checked_read_u16(pc, 1, "expected #entries");
-    length = 2 + table_count * 2 + 2;
+    int varint_length;
+    table_count =
+        decoder->checked_read_u32v(pc, 1, &varint_length, "expected #entries");
+    length = varint_length + (table_count + 1) * sizeof(uint32_t);
 
-    if (decoder->check(pc, 3, table_count * 2 + 2,
+    uint32_t table_start = 1 + varint_length;
+    if (decoder->check(pc, table_start, (table_count + 1) * sizeof(uint32_t),
                        "expected <table entries>")) {
-      table = pc + 3;
+      table = pc + table_start;
     } else {
       table = nullptr;
     }
   }
-  inline uint16_t read_entry(Decoder* decoder, int i) {
+  inline uint32_t read_entry(Decoder* decoder, int i) {
     DCHECK(i >= 0 && static_cast<uint32_t>(i) <= table_count);
-    return table ? decoder->read_u16(table + i * sizeof(uint16_t)) : 0;
+    return table ? decoder->read_u32(table + i * sizeof(uint32_t)) : 0;
   }
 };
 
 struct MemoryAccessOperand {
-  bool aligned;
+  uint32_t alignment;
   uint32_t offset;
   int length;
   inline MemoryAccessOperand(Decoder* decoder, const byte* pc) {
-    byte bitfield = decoder->checked_read_u8(pc, 1, "memory access byte");
-    aligned = MemoryAccess::AlignmentField::decode(bitfield);
-    if (MemoryAccess::OffsetField::decode(bitfield)) {
-      offset = decoder->checked_read_u32v(pc, 2, &length, "memory offset");
-      length++;
-    } else {
-      offset = 0;
-      length = 1;
-    }
+    int alignment_length;
+    alignment =
+        decoder->checked_read_u32v(pc, 1, &alignment_length, "alignment");
+    int offset_length;
+    offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
+                                        &offset_length, "offset");
+    length = alignment_length + offset_length;
   }
 };
 
 typedef compiler::WasmGraphBuilder TFBuilder;
 struct ModuleEnv;  // forward declaration of module interface.
 
-// Interface the function environment during decoding, include the signature
-// and number of locals.
-struct FunctionEnv {
-  ModuleEnv* module;             // module environment
-  FunctionSig* sig;              // signature of this function
-  uint32_t local_i32_count;      // number of int32 locals
-  uint32_t local_i64_count;      // number of int64 locals
-  uint32_t local_f32_count;      // number of float32 locals
-  uint32_t local_f64_count;      // number of float64 locals
-  uint32_t total_locals;         // sum of parameters and all locals
-
-  uint32_t GetLocalCount() { return total_locals; }
-  LocalType GetLocalType(uint32_t index) {
-    if (index < static_cast<uint32_t>(sig->parameter_count())) {
-      return sig->GetParam(index);
-    }
-    index -= static_cast<uint32_t>(sig->parameter_count());
-    if (index < local_i32_count) return kAstI32;
-    index -= local_i32_count;
-    if (index < local_i64_count) return kAstI64;
-    index -= local_i64_count;
-    if (index < local_f32_count) return kAstF32;
-    index -= local_f32_count;
-    if (index < local_f64_count) return kAstF64;
-    return kAstStmt;
-  }
-
-  void AddLocals(LocalType type, uint32_t count) {
-    switch (type) {
-      case kAstI32:
-        local_i32_count += count;
-        break;
-      case kAstI64:
-        local_i64_count += count;
-        break;
-      case kAstF32:
-        local_f32_count += count;
-        break;
-      case kAstF64:
-        local_f64_count += count;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    total_locals += count;
-    DCHECK_EQ(total_locals,
-              (sig->parameter_count() + local_i32_count + local_i64_count +
-               local_f32_count + local_f64_count));
-  }
-
-  void SumLocals() {
-    total_locals = static_cast<uint32_t>(sig->parameter_count()) +
-                   local_i32_count + local_i64_count + local_f32_count +
-                   local_f64_count;
-  }
+// All of the various data structures necessary to decode a function body.
+struct FunctionBody {
+  ModuleEnv* module;  // module environment
+  FunctionSig* sig;   // function signature
+  const byte* base;   // base of the module bytes, for error reporting
+  const byte* start;  // start of the function body
+  const byte* end;    // end of the function body
 };
 
 struct Tree;
@@ -245,21 +194,21 @@ typedef Result<Tree*> TreeResult;
 
 std::ostream& operator<<(std::ostream& os, const Tree& tree);
 
-TreeResult VerifyWasmCode(FunctionEnv* env, const byte* base, const byte* start,
-                          const byte* end);
-TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env, const byte* base,
-                        const byte* start, const byte* end);
+TreeResult VerifyWasmCode(FunctionBody& body);
+TreeResult BuildTFGraph(TFBuilder* builder, FunctionBody& body);
+void PrintAst(FunctionBody& body);
 
-void PrintAst(FunctionEnv* env, const byte* start, const byte* end);
-
-inline TreeResult VerifyWasmCode(FunctionEnv* env, const byte* start,
-                                 const byte* end) {
-  return VerifyWasmCode(env, nullptr, start, end);
+inline TreeResult VerifyWasmCode(ModuleEnv* module, FunctionSig* sig,
+                                 const byte* start, const byte* end) {
+  FunctionBody body = {module, sig, nullptr, start, end};
+  return VerifyWasmCode(body);
 }
 
-inline TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env,
-                               const byte* start, const byte* end) {
-  return BuildTFGraph(builder, env, nullptr, start, end);
+inline TreeResult BuildTFGraph(TFBuilder* builder, ModuleEnv* module,
+                               FunctionSig* sig, const byte* start,
+                               const byte* end) {
+  FunctionBody body = {module, sig, nullptr, start, end};
+  return BuildTFGraph(builder, body);
 }
 
 enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
@@ -267,14 +216,17 @@ enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
 ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte*, const byte*,
                                                       int*, uint32_t*);
 
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, FunctionEnv* env,
+std::vector<LocalType>* DecodeLocalDeclsForTesting(const byte* start,
+                                                   const byte* end);
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end);
 
 // Computes the length of the opcode at the given address.
 int OpcodeLength(const byte* pc, const byte* end);
 
 // Computes the arity (number of sub-nodes) of the opcode at the given address.
-int OpcodeArity(FunctionEnv* env, const byte* pc, const byte* end);
+int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
+                const byte* end);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

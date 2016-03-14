@@ -144,11 +144,6 @@ class PreParserExpression {
                                IsUseStrictField::encode(true));
   }
 
-  static PreParserExpression UseStrongStringLiteral() {
-    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
-                               IsUseStrongField::encode(true));
-  }
-
   static PreParserExpression UseTypesStringLiteral() {
     return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
                                IsUseTypesField::encode(true));
@@ -217,11 +212,6 @@ class PreParserExpression {
   bool IsUseStrictLiteral() const {
     return TypeField::decode(code_) == kStringLiteralExpression &&
            IsUseStrictField::decode(code_);
-  }
-
-  bool IsUseStrongLiteral() const {
-    return TypeField::decode(code_) == kStringLiteralExpression &&
-           IsUseStrongField::decode(code_);
   }
 
   bool IsUseTypesLiteral() const {
@@ -327,8 +317,7 @@ class PreParserExpression {
   // of the Type field, so they can share the storage.
   typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
-  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
-  typedef BitField<bool, IsUseStrongField::kNext, 1> IsUseTypesField;
+  typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseTypesField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
@@ -377,9 +366,6 @@ class PreParserStatement {
     if (expression.IsUseStrictLiteral()) {
       return PreParserStatement(kUseStrictExpressionStatement);
     }
-    if (expression.IsUseStrongLiteral()) {
-      return PreParserStatement(kUseStrongExpressionStatement);
-    }
     if (expression.IsUseTypesLiteral()) {
       return PreParserStatement(kUseTypesExpressionStatement);
     }
@@ -391,14 +377,12 @@ class PreParserStatement {
 
   bool IsStringLiteral() {
     return code_ == kStringLiteralExpressionStatement
-        || IsUseStrictLiteral() || IsUseStrongLiteral() || IsUseTypesLiteral();
+        || IsUseStrictLiteral() || IsUseTypesLiteral();
   }
 
   bool IsUseStrictLiteral() {
     return code_ == kUseStrictExpressionStatement;
   }
-
-  bool IsUseStrongLiteral() { return code_ == kUseStrongExpressionStatement; }
 
   bool IsUseTypesLiteral() { return code_ == kUseTypesExpressionStatement; }
 
@@ -416,7 +400,6 @@ class PreParserStatement {
     kJumpStatement,
     kStringLiteralExpressionStatement,
     kUseStrictExpressionStatement,
-    kUseStrongExpressionStatement,
     kFunctionDeclaration,
     kUseTypesExpressionStatement
   };
@@ -593,7 +576,6 @@ class PreParserFactory {
   PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
                                        int literal_index,
                                        int boilerplate_properties,
-                                       bool has_function,
                                        int pos) {
     return PreParserExpression::ObjectLiteral();
   }
@@ -896,9 +878,6 @@ class PreParserTraits {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
-
-  static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      Scope* scope, PreParserExpression property, bool* has_function) {}
 
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}

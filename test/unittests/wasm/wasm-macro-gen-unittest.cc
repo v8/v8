@@ -27,12 +27,16 @@ TEST_F(WasmMacroGenTest, Constants) {
   EXPECT_SIZE(2, WASM_I8(254));
 
   EXPECT_SIZE(2, WASM_I32V_1(1));
+  EXPECT_SIZE(3, WASM_I32V_2(200));
   EXPECT_SIZE(4, WASM_I32V_3(10000));
   EXPECT_SIZE(5, WASM_I32V_4(-9828934));
+  EXPECT_SIZE(6, WASM_I32V_5(-1119828934));
 
   EXPECT_SIZE(2, WASM_I64V_1(1));
+  EXPECT_SIZE(3, WASM_I64V_2(300));
   EXPECT_SIZE(4, WASM_I64V_3(10000));
   EXPECT_SIZE(5, WASM_I64V_4(-9828934));
+  EXPECT_SIZE(6, WASM_I64V_5(-1119828934));
   EXPECT_SIZE(10, WASM_I64V_9(0x123456789abcdef0ULL));
 
   EXPECT_SIZE(5, WASM_F32(1.0f));
@@ -52,7 +56,7 @@ TEST_F(WasmMacroGenTest, Statements) {
 
   EXPECT_SIZE(4, WASM_STORE_GLOBAL(0, WASM_ZERO));
 
-  EXPECT_SIZE(6, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO));
+  EXPECT_SIZE(7, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO));
 
   EXPECT_SIZE(4, WASM_IF(WASM_ZERO, WASM_NOP));
 
@@ -93,7 +97,7 @@ TEST_F(WasmMacroGenTest, MacroStatements) {
 }
 
 TEST_F(WasmMacroGenTest, BrTable) {
-  EXPECT_SIZE(7, WASM_BR_TABLE(WASM_ZERO, 1, BR_TARGET(1)));
+  EXPECT_SIZE(8, WASM_BR_TABLE(WASM_ZERO, 1, BR_TARGET(1)));
 }
 
 
@@ -104,9 +108,9 @@ TEST_F(WasmMacroGenTest, Expressions) {
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(0));
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(1));
   EXPECT_SIZE(2, WASM_LOAD_GLOBAL(12));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO));
-  EXPECT_SIZE(4, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO));
+  EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO));
 
   EXPECT_SIZE(3, WASM_NOT(WASM_ZERO));
 
@@ -302,10 +306,10 @@ static const MachineType kMemTypes[] = {
 
 TEST_F(WasmMacroGenTest, LoadsAndStores) {
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
-    EXPECT_SIZE(4, WASM_LOAD_MEM(kMemTypes[i], WASM_ZERO));
+    EXPECT_SIZE(5, WASM_LOAD_MEM(kMemTypes[i], WASM_ZERO));
   }
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
-    EXPECT_SIZE(6, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
+    EXPECT_SIZE(7, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
   }
 }
 

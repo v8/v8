@@ -246,7 +246,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ push(edi);
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, eax);
+  __ mov(eax, Immediate(0));
+  Label context_check;
+  __ mov(edi, Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(edi, &context_check);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(type()));  // Bailout type.
   __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
@@ -322,8 +327,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(eax);
   __ pop(edi);
+  __ mov(esp, Operand(eax, Deoptimizer::caller_frame_top_offset()));
 
-  // Replace the current frame with the output frames.
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: eax = current FrameDescription**, edx = one past the

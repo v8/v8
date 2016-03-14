@@ -42,15 +42,6 @@ class CcTestSuite(testsuite.TestSuite):
       build_dir = "build"
     else:
       build_dir = "out"
-    self.serdes_dir = os.path.normpath(
-        os.path.join(root, "..", "..", build_dir, ".serdes"))
-
-  def SetupWorkingDirectory(self):
-    # This is only called once per machine, while init above is called once per
-    # process.
-    if os.path.exists(self.serdes_dir):
-      shutil.rmtree(self.serdes_dir, True)
-    os.makedirs(self.serdes_dir)
 
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
@@ -72,10 +63,7 @@ class CcTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     testname = testcase.path.split(os.path.sep)[-1]
-    serialization_file = os.path.join(self.serdes_dir, "serdes_" + testname)
-    serialization_file += ''.join(testcase.flags).replace('-', '_')
-    return (testcase.flags + [testcase.path] + context.mode_flags +
-            ["--testing_serialization_file=" + serialization_file])
+    return (testcase.flags + [testcase.path] + context.mode_flags)
 
   def shell(self):
     return "cctest"

@@ -35,11 +35,6 @@
 
   ###################### NEEDS INVESTIGATION #######################
 
-  # Possibly same cause as S8.5_A2.1, below: floating-point tests.
-  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
-  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
-  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
-
   # This is an incompatibility between ES5 and V8 on enumerating
   # shadowed elements in a for..in loop.
   # https://code.google.com/p/v8/issues/detail?id=705
@@ -47,29 +42,11 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # https://code.google.com/p/v8/issues/detail?id=4163
-  'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4348
-  'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
-
   # The order of adding the name property is wrong
   # https://code.google.com/p/v8/issues/detail?id=4199
   'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
-
-  # We do not expose Array.prototype.values
-  # https://code.google.com/p/v8/issues/detail?id=4247
-  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
-  'built-ins/Array/prototype/values/prop-desc': [FAIL],
-  'built-ins/Array/prototype/values/name': [FAIL],
-  'built-ins/Array/prototype/values/length': [FAIL],
-  'built-ins/Array/prototype/values/iteration': [FAIL],
-  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
@@ -142,9 +119,6 @@
   # happens to be thrown for some other reason (e.g,
   # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
   'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/String/prototype/endsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/includes/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/startsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
   'built-ins/String/prototype/match/invoke-builtin-match': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4343
@@ -195,12 +169,6 @@
   'built-ins/Promise/resolve-function-name': [FAIL],
   'built-ins/Promise/all/resolve-element-function-name': [FAIL],
   'built-ins/Promise/executor-function-name': [FAIL],
-  'built-ins/Promise/all/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/reject/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/race/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/prototype/then/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/resolve/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4634
   'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
@@ -266,12 +234,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4785
-  'built-ins/TypedArray/prototype/entries/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/keys/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/values/invoked-as-method': [FAIL],
-  'built-ins/TypedArray/prototype/toString': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -304,15 +266,6 @@
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
-
-  # Linux for ia32 (and therefore simulators) default to extended 80 bit
-  # floating point formats, so these tests checking 64-bit FP precision fail.
-  # The other platforms/arch's pass these tests.
-  # We follow the other major JS engines by keeping this default.
-  'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
-  'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
-
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
 
@@ -333,19 +286,19 @@
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
-  # Tests do not return boolean.
-  'built-ins/Object/keys/15.2.3.14-1-1': [PASS, FAIL_OK],
-  'built-ins/Object/keys/15.2.3.14-1-2': [PASS, FAIL_OK],
-  'built-ins/Object/keys/15.2.3.14-1-3': [PASS, FAIL_OK],
-
   # Test bug https://github.com/tc39/test262/issues/518
   'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
   'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
   'built-ins/Object/getOwnPropertyDescriptors/symbols-included': [FAIL],
 
-
   # Test bug https://github.com/tc39/test262/issues/521
   'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
+
+  # Test bug https://github.com/tc39/test262/issues/529
+  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
+  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
+  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
+  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
 
   ############################ SKIPPED TESTS #############################
 
@@ -432,204 +385,5 @@
   # The failed allocation causes an asan/msan/tsan error
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
 }],  # asan == True or msan == True or tsan == True
-
-['ignition == True', {
-  # TODO(rmcilroy,4681): Requires generator support.
-  'built-ins/GeneratorFunction/has-instance': [FAIL],
-  'built-ins/GeneratorFunction/instance-name': [FAIL],
-  'built-ins/GeneratorFunction/instance-restricted-properties': [FAIL],
-  'built-ins/GeneratorFunction/invoked-as-constructor-no-arguments': [FAIL],
-  'built-ins/GeneratorFunction/invoked-as-function-multiple-arguments': [FAIL],
-  'built-ins/GeneratorFunction/invoked-as-function-no-arguments': [FAIL],
-  'built-ins/GeneratorFunction/invoked-as-function-single-argument': [FAIL],
-  'built-ins/GeneratorPrototype/next/consecutive-yields': [FAIL],
-  'built-ins/GeneratorPrototype/next/context-method-invocation': [FAIL],
-  'built-ins/GeneratorPrototype/next/from-state-executing': [FAIL],
-  'built-ins/GeneratorPrototype/next/lone-return': [FAIL],
-  'built-ins/GeneratorPrototype/next/lone-yield': [FAIL],
-  'built-ins/GeneratorPrototype/next/no-control-flow': [FAIL],
-  'built-ins/GeneratorPrototype/next/result-prototype': [FAIL],
-  'built-ins/GeneratorPrototype/next/return-yield-expr': [FAIL],
-  'built-ins/GeneratorPrototype/return/from-state-completed': [FAIL],
-  'built-ins/GeneratorPrototype/return/from-state-executing': [FAIL],
-  'built-ins/GeneratorPrototype/return/from-state-suspended-start': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-following-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-within-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-following-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-inner-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-after-nested': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-before-nested': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
-  'built-ins/GeneratorPrototype/Symbol.toStringTag': [FAIL],
-  'built-ins/GeneratorPrototype/throw/from-state-completed': [FAIL],
-  'built-ins/GeneratorPrototype/throw/from-state-executing': [FAIL],
-  'built-ins/GeneratorPrototype/throw/from-state-suspended-start': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-catch-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-catch-following-catch': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-catch-within-try': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-following-finally': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-inner-try': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-outer-try-after-nested': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-nested-try-catch-within-outer-try-before-nested': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/throw/try-finally-within-try': [FAIL],
-  'built-ins/TypedArrays/object-arg-as-generator-iterable-returns': [FAIL],
-  'built-ins/TypedArrays/object-arg-iterating-throws': [FAIL],
-  'language/default-parameters/generators': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-init-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-nested-array-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-nested-obj-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-target-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-iteration': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iteration': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-nested-array-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-nested-obj-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/obj-prop-elem-init-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/obj-prop-elem-target-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/obj-prop-nested-array-yield-expr': [FAIL],
-  'language/expressions/assignment/destructuring/obj-prop-nested-obj-yield-expr': [FAIL],
-  'language/expressions/generators/has-instance': [FAIL],
-  'language/expressions/generators/implicit-name': [FAIL],
-  'language/expressions/generators/length-property-descriptor': [FAIL],
-  'language/expressions/generators/no-name': [FAIL],
-  'language/expressions/generators/no-yield': [FAIL],
-  'language/expressions/generators/prototype-value': [FAIL],
-  'language/expressions/generators/return': [FAIL],
-  'language/expressions/generators/yield-as-expression-without-rhs': [FAIL],
-  'language/expressions/generators/yield-as-expression-with-rhs': [FAIL],
-  'language/expressions/generators/yield-as-function-expression-binding-identifier': [FAIL],
-  'language/expressions/generators/yield-as-identifier-in-nested-function': [FAIL],
-  'language/expressions/generators/yield-as-literal-property-name': [FAIL],
-  'language/expressions/generators/yield-as-property-name': [FAIL],
-  'language/expressions/generators/yield-as-statement': [FAIL],
-  'language/expressions/generators/yield-as-yield-operand': [FAIL],
-  'language/expressions/generators/yield-newline': [FAIL],
-  'language/expressions/generators/yield-star-before-newline': [FAIL],
-  'language/expressions/object/concise-generator': [FAIL],
-  'language/expressions/object/method-definition/generator-invoke-fn-no-strict': [FAIL],
-  'language/expressions/object/method-definition/generator-invoke-fn-strict': [FAIL],
-  'language/expressions/object/method-definition/generator-length': [FAIL],
-  'language/expressions/object/method-definition/generator-no-yield': [FAIL],
-  'language/expressions/object/method-definition/generator-params': [FAIL],
-  'language/expressions/object/method-definition/generator-prop-name-yield-expr': [FAIL],
-  'language/expressions/object/method-definition/generator-return': [FAIL],
-  'language/expressions/object/method-definition/generator-super-prop-body': [FAIL],
-  'language/expressions/object/method-definition/generator-super-prop-param': [FAIL],
-  'language/expressions/object/method-definition/name-prop-name-yield-expr': [FAIL],
-  'language/expressions/object/method-definition/yield-as-expression-without-rhs': [FAIL],
-  'language/expressions/object/method-definition/yield-as-expression-with-rhs': [FAIL],
-  'language/expressions/object/method-definition/yield-as-function-expression-binding-identifier': [FAIL],
-  'language/expressions/object/method-definition/yield-as-generator-method-binding-identifier': [FAIL],
-  'language/expressions/object/method-definition/yield-as-identifier-in-nested-function': [FAIL],
-  'language/expressions/object/method-definition/yield-as-literal-property-name': [FAIL],
-  'language/expressions/object/method-definition/yield-as-property-name': [FAIL],
-  'language/expressions/object/method-definition/yield-as-statement': [FAIL],
-  'language/expressions/object/method-definition/yield-as-yield-operand': [FAIL],
-  'language/expressions/object/method-definition/yield-newline': [FAIL],
-  'language/expressions/object/method-definition/yield-return': [FAIL],
-  'language/expressions/object/method-definition/yield-star-before-newline': [FAIL],
-  'language/expressions/yield/arguments-object-attributes': [FAIL],
-  'language/expressions/yield/captured-free-vars': [FAIL],
-  'language/expressions/yield/expr-value-specified': [FAIL],
-  'language/expressions/yield/expr-value-unspecified': [FAIL],
-  'language/expressions/yield/formal-parameters-after-reassignment-non-strict': [FAIL],
-  'language/expressions/yield/formal-parameters-after-reassignment-strict': [FAIL],
-  'language/expressions/yield/formal-parameters': [FAIL],
-  'language/expressions/yield/from-catch': [FAIL],
-  'language/expressions/yield/from-try': [FAIL],
-  'language/expressions/yield/from-with': [FAIL],
-  'language/expressions/yield/star-array': [FAIL],
-  'language/expressions/yield/star-iterable': [FAIL],
-  'language/expressions/yield/star-string': [FAIL],
-  'language/expressions/yield/then-return': [FAIL],
-  'language/expressions/yield/within-for': [FAIL],
-  'language/expressions/yield/yield-expr': [FAIL],
-  'language/object-literal/concise-generator': [FAIL],
-  'language/statements/class/definition/methods-gen-no-yield': [FAIL],
-  'language/statements/class/definition/methods-gen-return': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-expression-without-rhs': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-expression-with-rhs': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-generator-method-binding-identifier': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-literal-property-name': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-property-name': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-statement': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-as-yield-operand': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-newline': [FAIL],
-  'language/statements/class/definition/methods-gen-yield-star-before-newline': [FAIL],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-length': [FAIL],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-name': [FAIL],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/instance-prototype': [FAIL],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/super-must-be-called': [FAIL],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/regular-subclassing': [FAIL],
-  'language/statements/for-of/break': [FAIL],
-  'language/statements/for-of/break-from-catch': [FAIL],
-  'language/statements/for-of/break-from-finally': [FAIL],
-  'language/statements/for-of/break-from-try': [FAIL],
-  'language/statements/for-of/break-label': [FAIL],
-  'language/statements/for-of/break-label-from-catch': [FAIL],
-  'language/statements/for-of/break-label-from-finally': [FAIL],
-  'language/statements/for-of/break-label-from-try': [FAIL],
-  'language/statements/for-of/continue': [FAIL],
-  'language/statements/for-of/continue-from-catch': [FAIL],
-  'language/statements/for-of/continue-from-finally': [FAIL],
-  'language/statements/for-of/continue-from-try': [FAIL],
-  'language/statements/for-of/continue-label': [FAIL],
-  'language/statements/for-of/continue-label-from-catch': [FAIL],
-  'language/statements/for-of/continue-label-from-finally': [FAIL],
-  'language/statements/for-of/continue-label-from-try': [FAIL],
-  'language/statements/for-of/generator-close-via-break': [FAIL],
-  'language/statements/for-of/generator-close-via-return': [FAIL],
-  'language/statements/for-of/generator-close-via-throw': [FAIL],
-  'language/statements/for-of/generator': [FAIL],
-  'language/statements/for-of/generator-next-error': [FAIL],
-  'language/statements/for-of/nested': [FAIL],
-  'language/statements/for-of/return': [FAIL],
-  'language/statements/for-of/return-from-catch': [FAIL],
-  'language/statements/for-of/return-from-finally': [FAIL],
-  'language/statements/for-of/return-from-try': [FAIL],
-  'language/statements/for-of/throw': [FAIL],
-  'language/statements/for-of/throw-from-catch': [FAIL],
-  'language/statements/for-of/throw-from-finally': [FAIL],
-  'language/statements/for-of/yield': [FAIL],
-  'language/statements/for-of/yield-from-catch': [FAIL],
-  'language/statements/for-of/yield-from-finally': [FAIL],
-  'language/statements/for-of/yield-from-try': [FAIL],
-  'language/statements/for-of/yield-star': [FAIL],
-  'language/statements/for-of/yield-star-from-catch': [FAIL],
-  'language/statements/for-of/yield-star-from-finally': [FAIL],
-  'language/statements/for-of/yield-star-from-try': [FAIL],
-  'language/statements/generators/declaration': [FAIL],
-  'language/statements/generators/has-instance': [FAIL],
-  'language/statements/generators/length-property-descriptor': [FAIL],
-  'language/statements/generators/no-yield': [FAIL],
-  'language/statements/generators/prototype-value': [FAIL],
-  'language/statements/generators/return': [FAIL],
-  'language/statements/generators/yield-as-expression-without-rhs': [FAIL],
-  'language/statements/generators/yield-as-expression-with-rhs': [FAIL],
-  'language/statements/generators/yield-as-function-expression-binding-identifier': [FAIL],
-  'language/statements/generators/yield-as-generator-declaration-binding-identifier': [FAIL],
-  'language/statements/generators/yield-as-identifier-in-nested-function': [FAIL],
-  'language/statements/generators/yield-as-literal-property-name': [FAIL],
-  'language/statements/generators/yield-as-property-name': [FAIL],
-  'language/statements/generators/yield-as-statement': [FAIL],
-  'language/statements/generators/yield-as-yield-operand': [FAIL],
-  'language/statements/generators/yield-newline': [FAIL],
-  'language/statements/generators/yield-star-before-newline': [FAIL],
-
-  # TODO(4680,rmcilroy): Test262Error: Expected a RangeError to be thrown but no exception was thrown at all
-  'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [FAIL],
-}],  # ignition == True
 
 ]

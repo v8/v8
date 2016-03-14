@@ -2888,7 +2888,6 @@ static void DoDebugStepNamedStoreLoop(int expected) {
 // Test of the stepping mechanism for named load in a loop.
 TEST(DebugStepNamedStoreLoop) { DoDebugStepNamedStoreLoop(34); }
 
-
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
   DebugLocalContext env;

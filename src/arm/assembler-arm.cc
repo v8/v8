@@ -1966,7 +1966,8 @@ void Assembler::mrs(Register dst, SRegister s, Condition cond) {
 
 void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
                     Condition cond) {
-  DCHECK(fields >= B16 && fields < B20);  // at least one field set
+  DCHECK((fields & 0x000f0000) != 0);  // At least one field must be set.
+  DCHECK(((fields & 0xfff0ffff) == CPSR) || ((fields & 0xfff0ffff) == SPSR));
   Instr instr;
   if (!src.rm_.is_valid()) {
     // Immediate.

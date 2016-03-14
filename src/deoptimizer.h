@@ -116,6 +116,7 @@ class TranslatedFrame {
     kInterpretedFunction,
     kGetter,
     kSetter,
+    kTailCallerFunction,
     kArgumentsAdaptor,
     kConstructStub,
     kCompiledStub,
@@ -186,6 +187,7 @@ class TranslatedFrame {
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
+  static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
   static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
                                             int height);
   static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
@@ -529,6 +531,10 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
+  static int caller_frame_top_offset() {
+    return OFFSET_OF(Deoptimizer, caller_frame_top_);
+  }
+
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
@@ -582,12 +588,20 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(int frame_index, bool goto_catch_handler);
-  void DoComputeInterpretedFrame(int frame_index, bool goto_catch_handler);
-  void DoComputeArgumentsAdaptorFrame(int frame_index);
-  void DoComputeConstructStubFrame(int frame_index);
-  void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(int frame_index);
+  void DoComputeJSFrame(TranslatedFrame* translated_frame, int frame_index,
+                        bool goto_catch_handler);
+  void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
+                                 int frame_index, bool goto_catch_handler);
+  void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
+                                      int frame_index);
+  void DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
+                                int frame_index);
+  void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
+                                   int frame_index);
+  void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
+                                  int frame_index, bool is_setter_stub_frame);
+  void DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
+                                  int frame_index);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
@@ -600,6 +614,7 @@ class Deoptimizer : public Malloced {
                             unsigned output_offset,
                             const char* debug_hint_string);
 
+  unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
   static unsigned ComputeJavascriptFixedSize(SharedFunctionInfo* shared);
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
@@ -659,8 +674,15 @@ class Deoptimizer : public Malloced {
   // Array of output frame descriptions.
   FrameDescription** output_;
 
+  // Caller frame details computed from input frame.
+  intptr_t caller_frame_top_;
+  intptr_t caller_fp_;
+  intptr_t caller_pc_;
+  intptr_t caller_constant_pool_;
+  intptr_t input_frame_context_;
+
   // Key for lookup of previously materialized objects
-  Address stack_fp_;
+  intptr_t stack_fp_;
 
   TranslatedState translated_state_;
   struct ValueToMaterialize {
@@ -927,6 +949,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(GETTER_STUB_FRAME)             \
   V(SETTER_STUB_FRAME)             \
   V(ARGUMENTS_ADAPTOR_FRAME)       \
+  V(TAIL_CALLER_FRAME)             \
   V(COMPILED_STUB_FRAME)           \
   V(DUPLICATED_OBJECT)             \
   V(ARGUMENTS_OBJECT)              \
@@ -970,6 +993,7 @@ class Translation BASE_EMBEDDED {
                              unsigned height);
   void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
+  void BeginTailCallerFrame(int literal_id);
   void BeginConstructStubFrame(int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);

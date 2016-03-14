@@ -9,7 +9,7 @@
 #include "src/elements.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
-#include "src/key-accumulator.h"
+#include "src/keys.h"
 #include "src/messages.h"
 #include "src/prototype.h"
 

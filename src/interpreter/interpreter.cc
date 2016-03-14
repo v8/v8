@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
+#include "src/log.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -37,6 +38,9 @@ void Interpreter::Initialize() {
     Do##Name(&assembler);                                               \
     Handle<Code> code = assembler.GenerateCode();                       \
     TraceCodegen(code, #Name);                                          \
+    LOG_CODE_EVENT(isolate_,                                            \
+                   CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG,        \
+                                   AbstractCode::cast(*code), #Name));  \
     dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] = *code;      \
   }
   BYTECODE_LIST(GENERATE_CODE)
@@ -1189,15 +1193,6 @@ void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
   DoBinaryOp(CodeFactory::StrictEqual(isolate_), assembler);
-}
-
-
-// TestNotEqualStrict <src>
-//
-// Test if the value in the <src> register is not strictly equal to the
-// accumulator.
-void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::StrictNotEqual(isolate_), assembler);
 }
 
 

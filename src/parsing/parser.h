@@ -53,7 +53,6 @@ class ParseInfo {
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
   FLAG_ACCESSOR(kGlobal, is_global, set_global)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
-  FLAG_ACCESSOR(kStrongMode, is_strong_mode, set_strong_mode)
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
@@ -138,12 +137,11 @@ class ParseInfo {
   //--------------------------------------------------------------------------
 
   LanguageMode language_mode() {
-    return construct_language_mode(is_strict_mode(), is_strong_mode());
+    return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 3);
-    set_strict_mode(language_mode & STRICT_BIT);
-    set_strong_mode(language_mode & STRONG_BIT);
+    set_strict_mode(is_strict(language_mode));
   }
 
   void ReopenHandlesInNewHandleScope() {
@@ -166,14 +164,13 @@ class ParseInfo {
     kEval = 1 << 2,
     kGlobal = 1 << 3,
     kStrictMode = 1 << 4,
-    kStrongMode = 1 << 5,
-    kNative = 1 << 6,
-    kParseRestriction = 1 << 7,
-    kModule = 1 << 8,
-    kAllowLazyParsing = 1 << 9,
-    kTyped = 1 << 10,
+    kNative = 1 << 5,
+    kParseRestriction = 1 << 6,
+    kModule = 1 << 7,
+    kAllowLazyParsing = 1 << 8,
+    kTyped = 1 << 9,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 11
+    kAstValueFactoryOwned = 1 << 10
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -417,16 +414,6 @@ class ParserTraits {
     fni->AddFunction(func_to_infer);
   }
 
-  static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      Scope* scope, ObjectLiteralProperty* property, bool* has_function) {
-    Expression* value = property->value();
-    if (scope->DeclarationScope()->is_script_scope() &&
-        value->AsFunctionLiteral() != NULL) {
-      *has_function = true;
-      value->AsFunctionLiteral()->set_pretenure();
-    }
-  }
-
   // If we assign a function literal to a property we pretenure the
   // literal so it can be added as a constant function property.
   static void CheckAssigningFunctionLiteralToProperty(Expression* left,
@@ -478,6 +465,9 @@ class ParserTraits {
   Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
+
+  void FinalizeIteratorUse(Variable* completion, Expression* condition,
+                           Variable* iter, Block* iterator_use, Block* result);
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, int pos);
 
@@ -733,6 +723,13 @@ class Parser : public ParserBase<ParserTraits> {
  private:
   friend class ParserTraits;
 
+  // Runtime encoding of different completion modes.
+  enum CompletionKind {
+    kNormalCompletion,
+    kThrowCompletion,
+    kAbruptCompletion
+  };
+
   // Limit the allowed number of local variables in a function. The hard limit
   // is that offsets computed by FullCodeGenerator::StackOperand and similar
   // functions are ints, and they should not overflow. In addition, accessing
@@ -965,8 +962,10 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
-                                  Expression* subject, Statement* body,
-                                  bool is_destructuring);
+                                  Expression* subject, Statement* body);
+  void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
+                                Expression* iterable, Statement* body,
+                                int iterable_pos);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,

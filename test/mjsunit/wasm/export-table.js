@@ -5,38 +5,20 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExportedMain() {
-  var kBodySize = 3;
-  var kReturnValue = 99;
-  var kNameMainOffset = kHeaderSize + 4 + 7 + kBodySize + 8 + 1;
+  var kReturnValue = 88;
+  var builder = new WasmModuleBuilder();
 
-  var data = bytesWithHeader(
-    // signatures
-    kDeclSignatures, 1,
-    0, kAstI32,                  // void -> i32
-    // -- main function
-    kDeclFunctions,
-    1,
-    0,                           // decl flags
-    0, 0,                        // signature index
-    kBodySize, 0,
-    // main body
-    kExprReturn,
-    kExprI8Const,
-    kReturnValue,
-    // exports
-    kDeclExportTable,
-    1,
-    0, 0,                       // func index index
-    kNameMainOffset, 0, 0, 0,   // function name offset
-    // names
-    kDeclEnd,
-    'm', 'a', 'i', 'n', 0       // --
-  );
+  builder.addFunction("main", [kAstI32])
+    .addBody([
+      kExprReturn,
+      kExprI8Const,
+      kReturnValue])
+    .exportFunc();
 
-  var ffi = new Object();
-  var module = _WASMEXP_.instantiateModule(data, ffi);
+  var module = builder.instantiate();
 
   assertEquals("object", typeof module.exports);
   assertEquals("function", typeof module.exports.main);
@@ -45,45 +27,24 @@ load("test/mjsunit/wasm/wasm-constants.js");
 })();
 
 (function testExportedTwice() {
-  var kBodySize = 3;
   var kReturnValue = 99;
-  var kNameMainOffset = kHeaderSize + 4 + 7 + kBodySize + 14 + 1;
-  var kNameFooOffset = kNameMainOffset + 5;
 
-  var data = bytesWithHeader(
-    // signatures
-    kDeclSignatures, 1,
-    0, kAstI32,                  // void -> i32
-    // -- main function
-    kDeclFunctions,
-    1,
-    0,                           // decl flags
-    0, 0,                        // signature index
-    kBodySize, 0,
-    // main body
-    kExprReturn,
-    kExprI8Const,
-    kReturnValue,
-    // exports
-    kDeclExportTable,
-    2,
-    0, 0,                       // func index index
-    kNameMainOffset, 0, 0, 0,   // function name offset
-    0, 0,                       // func index index
-    kNameFooOffset, 0, 0, 0,    // function name offset
-    // names
-    kDeclEnd,
-    'b', 'l', 'a', 'h', 0,       // --
-    'f', 'o', 'o', 0             // --
-  );
+  var builder = new WasmModuleBuilder();
 
-  var ffi = new Object();
-  var module = _WASMEXP_.instantiateModule(data, ffi);
+  builder.addFunction("main", [kAstI32])
+    .addBody([
+      kExprReturn,
+      kExprI8Const,
+      kReturnValue])
+    .exportAs("blah")
+    .exportAs("foo");
+
+  var module = builder.instantiate();
 
   assertEquals("object", typeof module.exports);
   assertEquals("function", typeof module.exports.blah);
   assertEquals("function", typeof module.exports.foo);
 
-  assertEquals(kReturnValue, module.exports.blah());
   assertEquals(kReturnValue, module.exports.foo());
+  assertEquals(kReturnValue, module.exports.blah());
 })();

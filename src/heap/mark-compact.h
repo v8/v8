@@ -321,6 +321,8 @@ class ThreadLocalTop;
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
+  class Evacuator;
+
   enum IterationMode {
     kKeepMarking,
     kClearMarkbits,
@@ -504,11 +506,9 @@ class MarkCompactCollector {
   }
 
  private:
-  class CompactionTask;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
   class EvacuateVisitorBase;
-  class Evacuator;
   class HeapObjectVisitor;
   class SweeperTask;
 
@@ -704,9 +704,6 @@ class MarkCompactCollector {
   // The number of parallel compaction tasks, including the main thread.
   int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
 
-  void StartParallelCompaction(Evacuator** evacuators, int len);
-  void WaitUntilCompactionCompleted(Evacuator** evacuators, int len);
-
   void EvacuateNewSpaceAndCandidates();
 
   void UpdatePointersAfterEvacuation();
@@ -769,9 +766,6 @@ class MarkCompactCollector {
 
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_in_progress_;
-
-  // True if parallel compaction is currently in progress.
-  bool compaction_in_progress_;
 
   // Semaphore used to synchronize sweeper tasks.
   base::Semaphore pending_sweeper_tasks_semaphore_;

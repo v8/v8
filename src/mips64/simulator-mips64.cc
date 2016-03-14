@@ -3478,9 +3478,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
         // Logical right-rotate of a word by a variable number of bits.
         // This is special case od SRLV instruction, added in MIPS32
         // Release 2. SA field is equal to 00001.
-        alu_out =
-            base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
-                                      static_cast<const uint32_t>(rs_u()));
+        alu_out = base::bits::RotateRight64(rt_u(), rs_u());
       }
       SetResult(rd_reg(), alu_out);
       break;
@@ -4332,11 +4330,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BOVC
           if (HaveSameSign(rs, rt)) {
-            if (rs > 0) {
-              BranchCompactHelper(rs > Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs < Registers::kMinValue - rt, 16);
-            }
+            int64_t sum = rs + rt;
+            BranchCompactHelper(sum < INT32_MIN || sum > INT32_MAX, 16);
           }
         } else {
           if (rs_reg == 0) {  // BEQZALC
@@ -4366,11 +4361,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
           if (!HaveSameSign(rs, rt) || rs == 0 || rt == 0) {
             BranchCompactHelper(true, 16);
           } else {
-            if (rs > 0) {
-              BranchCompactHelper(rs <= Registers::kMaxValue - rt, 16);
-            } else if (rs < 0) {
-              BranchCompactHelper(rs >= Registers::kMinValue - rt, 16);
-            }
+            int64_t sum = rs + rt;
+            BranchCompactHelper(sum >= INT32_MIN && sum <= INT32_MAX, 16);
           }
         } else {
           if (rs_reg == 0) {  // BNEZALC

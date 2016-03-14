@@ -471,18 +471,15 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // much larger than the number of elements, creating an object
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
-    if (key->IsString()
-        && Handle<String>::cast(key)->AsArrayIndex(&element_index)
-        && element_index > max_element_index) {
-      max_element_index = element_index;
+    if (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index)) {
+      max_element_index = Max(element_index, max_element_index);
       elements++;
-    } else if (key->IsSmi()) {
-      int key_value = Smi::cast(*key)->value();
-      if (key_value > 0
-          && static_cast<uint32_t>(key_value) > max_element_index) {
-        max_element_index = key_value;
-      }
+      key = isolate->factory()->NewNumberFromUint(element_index);
+    } else if (key->ToArrayIndex(&element_index)) {
+      max_element_index = Max(element_index, max_element_index);
       elements++;
+    } else if (key->IsNumber()) {
+      key = isolate->factory()->NumberToString(key);
     }
 
     // Add name, value pair to the fixed array.

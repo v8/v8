@@ -58,6 +58,8 @@
 #include "src/crankshaft/mips/lithium-codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/crankshaft/mips64/lithium-codegen-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-codegen-x87.h"  // NOLINT
 #else
@@ -5988,17 +5990,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  if (expr->has_function()) {
-    // Return the result of the transformation to fast properties
-    // instead of the original since this operation changes the map
-    // of the object. This makes sure that the original object won't
-    // be used by other optimized code before it is transformed
-    // (e.g. because of code motion).
-    HToFastProperties* result = Add<HToFastProperties>(Pop());
-    return ast_context()->ReturnValue(result);
-  } else {
-    return ast_context()->ReturnValue(Pop());
-  }
+  return ast_context()->ReturnValue(Pop());
 }
 
 
@@ -6559,13 +6551,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
   if (!info->IsFound()) {
     DCHECK(info->IsLoad());
-    if (is_strong(function_language_mode())) {
-      return New<HCallRuntime>(
-          Runtime::FunctionForId(Runtime::kThrowStrongModeImplicitConversion),
-          0);
-    } else {
-      return graph()->GetConstantUndefined();
-    }
+    return graph()->GetConstantUndefined();
   }
 
   if (info->IsData()) {
@@ -8015,8 +8001,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
 
   HValue* op_vals[] = {context(), function, arity};
 
-  // TODO(ishell): use tail_call_mode here.
-  Callable callable = CodeFactory::Call(isolate(), convert_mode);
+  Callable callable =
+      CodeFactory::Call(isolate(), convert_mode, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
@@ -8033,9 +8019,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 
   HValue* op_vals[] = {context(), function, index_val, vector_val};
 
-  // TODO(ishell): use tail_call_mode here.
   Callable callable = CodeFactory::CallICInOptimizedCode(
-      isolate(), arity, ConvertReceiverMode::kNullOrUndefined);
+      isolate(), arity, ConvertReceiverMode::kNullOrUndefined, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
@@ -8045,9 +8030,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
 HInstruction* HOptimizedGraphBuilder::NewCallConstantFunction(
     Handle<JSFunction> function, int argument_count,
     TailCallMode tail_call_mode) {
-  // TODO(ishell): use tail_call_mode here.
   HValue* target = Add<HConstant>(function);
-  return New<HInvokeFunction>(target, function, argument_count);
+  return New<HInvokeFunction>(target, function, argument_count, tail_call_mode);
 }
 
 
@@ -8467,15 +8451,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       TraceInline(target, caller, "target has non-trivial declaration");
       return false;
     }
-  }
-
-  // In strong mode it is an error to call a function with too few arguments.
-  // In that case do not inline because then the arity check would be skipped.
-  if (is_strong(function->language_mode()) &&
-      arguments_count < function->parameter_count()) {
-    TraceInline(target, caller,
-                "too few arguments passed to a strong function");
-    return false;
   }
 
   // Generate the deoptimization data for the unoptimized version of
@@ -9241,6 +9216,10 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   if (syntactic_tail_call_mode == TailCallMode::kAllow) {
     return false;
   }
+  if (argc > CallApiCallbackStub::kArgMax) {
+    return false;
+  }
+
   CallOptimization optimization(function);
   if (!optimization.is_simple_api_call()) return false;
   Handle<Map> holder_map;
@@ -9336,33 +9315,22 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
                        api_function_address, nullptr};
 
   HInstruction* call = nullptr;
+  CHECK(argc <= CallApiCallbackStub::kArgMax);
   if (!is_function) {
-    CallApiAccessorStub stub(isolate(), is_store, call_data_undefined,
+    CallApiCallbackStub stub(isolate(), is_store, call_data_undefined,
                              !optimization.is_constant_call());
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
-    ApiAccessorDescriptor descriptor(isolate());
     call = New<HCallWithDescriptor>(
-        code_value, argc + 1, descriptor,
+        code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
         Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
-  } else if (argc <= CallApiFunctionWithFixedArgsStub::kMaxFixedArgs) {
-    CallApiFunctionWithFixedArgsStub stub(isolate(), argc, call_data_undefined);
-    Handle<Code> code = stub.GetCode();
-    HConstant* code_value = Add<HConstant>(code);
-    ApiFunctionWithFixedArgsDescriptor descriptor(isolate());
-    call = New<HCallWithDescriptor>(
-        code_value, argc + 1, descriptor,
-        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
-    Drop(1);  // Drop function.
   } else {
-    op_vals[arraysize(op_vals) - 1] = Add<HConstant>(argc);
-    CallApiFunctionStub stub(isolate(), call_data_undefined);
+    CallApiCallbackStub stub(isolate(), argc, call_data_undefined);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
-    ApiFunctionDescriptor descriptor(isolate());
-    call =
-        New<HCallWithDescriptor>(code_value, argc + 1, descriptor,
-                                 Vector<HValue*>(op_vals, arraysize(op_vals)));
+    call = New<HCallWithDescriptor>(
+        code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
+        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
     Drop(1);  // Drop function.
   }
 
@@ -9397,12 +9365,10 @@ void HOptimizedGraphBuilder::HandleIndirectCall(Call* expr, HValue* function,
   TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
   TailCallMode tail_call_mode =
       function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
-  USE(tail_call_mode);
 
-  // TODO(ishell): use tail_call_mode here.
   PushArgumentsFromEnvironment(arguments_count);
-  HInvokeFunction* call =
-      New<HInvokeFunction>(function, known_function, arguments_count);
+  HInvokeFunction* call = New<HInvokeFunction>(function, known_function,
+                                               arguments_count, tail_call_mode);
   Drop(1);  // Function
   ast_context()->ReturnInstruction(call, expr->id());
 }
@@ -9457,16 +9423,12 @@ void HOptimizedGraphBuilder::BuildFunctionApply(Call* expr) {
     TailCallMode syntactic_tail_call_mode = expr->tail_call_mode();
     TailCallMode tail_call_mode =
         function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
-    USE(tail_call_mode);
 
-    // TODO(ishell): use tail_call_mode here.
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
     HValue* wrapped_receiver = BuildWrapReceiver(receiver, checked_function);
-    HInstruction* result = New<HApplyArguments>(function,
-                                                wrapped_receiver,
-                                                length,
-                                                elements);
+    HInstruction* result = New<HApplyArguments>(
+        function, wrapped_receiver, length, elements, tail_call_mode);
     ast_context()->ReturnInstruction(result, expr->id());
   } else {
     // We are inside inlined function and we know exactly what is inside
@@ -9734,9 +9696,6 @@ bool HOptimizedGraphBuilder::CanBeFunctionApplyArguments(Call* expr) {
 
 
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
-  if (expr->tail_call_mode() == TailCallMode::kAllow) {
-    return Bailout(kTailCall);
-  }
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
@@ -10670,7 +10629,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     rep = Representation::Smi();
   }
 
-  if (returns_original_input && !is_strong(function_language_mode())) {
+  if (returns_original_input) {
     // We need an explicit HValue representing ToNumber(input).  The
     // actual HChange instruction we need is (sometimes) added in a later
     // phase, so it is not available now to be used as an input to HAdd and
@@ -10695,11 +10654,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
     add->set_observed_input_representation(1, rep);
     add->set_observed_input_representation(2, Representation::Smi());
   }
-  if (!is_strong(function_language_mode())) {
-    instr->ClearAllSideEffects();
-  } else {
-    Add<HSimulate>(expr->ToNumberId(), REMOVABLE_SIMULATE);
-  }
+  instr->ClearAllSideEffects();
   instr->SetFlag(HInstruction::kCannotBeTagged);
   return instr;
 }
@@ -11708,6 +11663,20 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         New<HCompareNumericAndBranch>(left, right, op);
     return result;
   } else {
+    if (op == Token::EQ) {
+      if (left->IsConstant() &&
+          HConstant::cast(left)->GetInstanceType() == ODDBALL_TYPE &&
+          HConstant::cast(left)->IsUndetectable()) {
+        return New<HIsUndetectableAndBranch>(right);
+      }
+
+      if (right->IsConstant() &&
+          HConstant::cast(right)->GetInstanceType() == ODDBALL_TYPE &&
+          HConstant::cast(right)->IsUndetectable()) {
+        return New<HIsUndetectableAndBranch>(left);
+      }
+    }
+
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result = Add<HCompareGeneric>(left, right, op);
       result->set_observed_input_representation(1, left_rep);

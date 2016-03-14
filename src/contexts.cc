@@ -164,14 +164,16 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it) {
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, unscopables,
-      Object::GetProperty(it->GetReceiver(),
-                          isolate->factory()->unscopables_symbol()),
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(it->GetReceiver()),
+                              isolate->factory()->unscopables_symbol()),
       Nothing<bool>());
   if (!unscopables->IsJSReceiver()) return Just(true);
   Handle<Object> blacklist;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, blacklist,
-                                   Object::GetProperty(unscopables, it->name()),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, blacklist,
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(unscopables),
+                              it->name()),
+      Nothing<bool>());
   return Just(!blacklist->BooleanValue());
 }
 
@@ -291,7 +293,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         if (name->Equals(*isolate->factory()->this_string())) {
           maybe = Just(ABSENT);
         } else {
-          LookupIterator it(object, name);
+          LookupIterator it(object, name, object);
           Maybe<bool> found = UnscopableLookup(&it);
           if (found.IsNothing()) {
             maybe = Nothing<PropertyAttributes>();

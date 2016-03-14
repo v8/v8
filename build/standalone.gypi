@@ -68,7 +68,9 @@
         'target_arch%': '<(host_arch)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
 
-        # Instrument for code coverage with gcov.
+        # Instrument for code coverage and use coverage wrapper to exclude some
+        # files. Uses gcov if clang=0 is set explicitly. Otherwise,
+        # sanitizer_coverage must be set too.
         'coverage%': 0,
       },
       'base_dir%': '<(base_dir)',
@@ -122,8 +124,7 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
-        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and host_arch!="s390" and host_arch!="s390x" and \
-          coverage==0', {
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and host_arch!="s390" and host_arch!="s390x"', {
           'host_clang%': 1,
         }, {
           'host_clang%': 0,
@@ -228,7 +229,7 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87" and v8_target_arch!="x32") and coverage==0', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -727,7 +728,7 @@
           [ 'component=="shared_library"', {
             'cflags': [ '-fPIC', ],
           }],
-          [ 'coverage==1', {
+          [ 'clang==0 and coverage==1', {
             'cflags': [ '-fprofile-arcs', '-ftest-coverage'],
             'ldflags': [ '-fprofile-arcs'],
           }],

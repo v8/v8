@@ -51,10 +51,11 @@ class LookupIterator final BASE_EMBEDDED {
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
         name_(isolate_->factory()->InternalizeName(name)),
+        receiver_(receiver),
+        initial_holder_(GetRoot(isolate_, receiver)),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
-        receiver_(receiver),
-        initial_holder_(GetRoot(isolate_, receiver)) {
+        number_(DescriptorArray::kNotFound) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
@@ -70,10 +71,11 @@ class LookupIterator final BASE_EMBEDDED {
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
         name_(isolate_->factory()->InternalizeName(name)),
+        receiver_(receiver),
+        initial_holder_(holder),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
-        receiver_(receiver),
-        initial_holder_(holder) {
+        number_(DescriptorArray::kNotFound) {
 #ifdef DEBUG
     uint32_t index;  // Assert that the name is not an array index.
     DCHECK(!name->AsArrayIndex(&index));
@@ -87,10 +89,10 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
-        name_(),
-        index_(index),
         receiver_(receiver),
-        initial_holder_(GetRoot(isolate, receiver, index)) {
+        initial_holder_(GetRoot(isolate, receiver, index)),
+        index_(index),
+        number_(DescriptorArray::kNotFound) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
     Start<true>();
@@ -103,10 +105,10 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(isolate),
-        name_(),
-        index_(index),
         receiver_(receiver),
-        initial_holder_(holder) {
+        initial_holder_(holder),
+        index_(index),
+        number_(DescriptorArray::kNotFound) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
     Start<true>();
@@ -253,7 +255,10 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetAccessors() const;
   inline Handle<InterceptorInfo> GetInterceptor() const {
     DCHECK_EQ(INTERCEPTOR, state_);
-    return handle(GetInterceptor(JSObject::cast(*holder_)), isolate_);
+    InterceptorInfo* result =
+        IsElement() ? GetInterceptor<true>(JSObject::cast(*holder_))
+                    : GetInterceptor<false>(JSObject::cast(*holder_));
+    return handle(result, isolate_);
   }
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
@@ -302,10 +307,12 @@ class LookupIterator final BASE_EMBEDDED {
   template <bool is_element>
   void ReloadPropertyInformation();
 
-  inline bool SkipInterceptor(JSObject* holder);
+  template <bool is_element>
+  bool SkipInterceptor(JSObject* holder);
+  template <bool is_element>
   inline InterceptorInfo* GetInterceptor(JSObject* holder) const {
-    if (IsElement()) return holder->GetIndexedInterceptor();
-    return holder->GetNamedInterceptor();
+    return is_element ? holder->GetIndexedInterceptor()
+                      : holder->GetNamedInterceptor();
   }
 
   bool check_hidden() const { return (configuration_ & kHidden) != 0; }
@@ -357,11 +364,11 @@ class LookupIterator final BASE_EMBEDDED {
   PropertyDetails property_details_;
   Isolate* const isolate_;
   Handle<Name> name_;
-  uint32_t index_;
   Handle<Object> transition_;
   const Handle<Object> receiver_;
   Handle<JSReceiver> holder_;
   const Handle<JSReceiver> initial_holder_;
+  const uint32_t index_;
   uint32_t number_;
 };
 

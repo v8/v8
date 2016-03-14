@@ -6,6 +6,7 @@
 
 #include "src/ic/handler-compiler.h"
 
+#include "src/api-arguments.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
@@ -142,7 +143,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ PushReturnAddressFrom(scratch);
   // Stack now matches JSFunction abi.
 
-  // Abi for CallApiFunctionStub.
+  // Abi for CallApiCallbackStub.
   Register callee = rdi;
   Register data = rbx;
   Register holder = rcx;
@@ -209,7 +210,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
           RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
@@ -238,6 +239,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ pushq(rsi);
     // Save value register, so we can restore it later.
     __ Push(value());
 
@@ -269,7 +272,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ Pop(rax);
 
     // Restore context register.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ popq(rsi);
   }
   __ ret(0);
 }
@@ -285,6 +288,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save context register
+    __ pushq(rsi);
 
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
@@ -309,7 +315,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ popq(rsi);
   }
   __ ret(0);
 }

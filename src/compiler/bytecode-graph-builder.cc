@@ -944,8 +944,9 @@ void BytecodeGraphBuilder::BuildCreateArrayLiteral() {
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
   int literal_flags = bytecode_iterator().GetImmediateOperand(2);
+  int number_of_elements = constant_elements->length();
   const Operator* op = javascript()->CreateLiteralArray(
-      constant_elements, literal_flags, literal_index);
+      constant_elements, literal_flags, literal_index, number_of_elements);
   BuildCreateLiteral(op);
 }
 
@@ -962,8 +963,10 @@ void BytecodeGraphBuilder::BuildCreateObjectLiteral() {
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
   int literal_flags = bytecode_iterator().GetImmediateOperand(2);
+  // TODO(mstarzinger): Thread through number of properties.
+  int number_of_properties = constant_properties->length() / 2;
   const Operator* op = javascript()->CreateLiteralObject(
-      constant_properties, literal_flags, literal_index);
+      constant_properties, literal_flags, literal_index, number_of_properties);
   BuildCreateLiteral(op);
 }
 
@@ -1280,10 +1283,6 @@ void BytecodeGraphBuilder::VisitTestNotEqual() {
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
   BuildCompareOp(javascript()->StrictEqual());
-}
-
-void BytecodeGraphBuilder::VisitTestNotEqualStrict() {
-  BuildCompareOp(javascript()->StrictNotEqual());
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {

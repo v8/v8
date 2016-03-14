@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-tailcalls
+// TODO(v8:4698), TODO(ishell): support these cases.
+// Flags: --max-inlined-source-size=0
 "use strict";
 
 Error.prepareStackTrace = (error,stack) => {
@@ -69,6 +71,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4(1));
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -110,6 +113,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(19, g3());
     assertEquals(12, g4());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -162,6 +166,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4(1));
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -212,6 +217,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4());
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -236,6 +242,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(true, g2());
     assertEquals(153, g3());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -280,6 +287,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tc3());
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -320,6 +328,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tf2());
     assertEquals(153, tf3());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -380,6 +389,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tcf3());
     assertEquals(153, tcf4());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();

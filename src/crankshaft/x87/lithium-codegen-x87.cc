@@ -98,7 +98,7 @@ bool LCodeGen::GeneratePrologue() {
     DCHECK(!frame_is_built_);
     frame_is_built_ = true;
     if (info()->IsStub()) {
-      __ StubPrologue();
+      __ StubPrologue(StackFrame::STUB);
     } else {
       __ Prologue(info()->GeneratePreagedPrologue());
     }
@@ -273,32 +273,24 @@ bool LCodeGen::GenerateJumpTable() {
   }
   if (needs_frame.is_linked()) {
     __ bind(&needs_frame);
-
     /* stack layout
-       4: entry address
-       3: return address  <-- esp
-       2: garbage
+       3: entry address
+       2: return address  <-- esp
        1: garbage
        0: garbage
     */
-    __ sub(esp, Immediate(kPointerSize));    // Reserve space for stub marker.
-    __ push(MemOperand(esp, kPointerSize));  // Copy return address.
-    __ push(MemOperand(esp, 3 * kPointerSize));  // Copy entry address.
+    __ push(MemOperand(esp, 0));                 // Copy return address.
+    __ push(MemOperand(esp, 2 * kPointerSize));  // Copy entry address.
 
     /* stack layout
        4: entry address
        3: return address
-       2: garbage
        1: return address
        0: entry address  <-- esp
     */
-    __ mov(MemOperand(esp, 4 * kPointerSize), ebp);  // Save ebp.
-
-    // Copy context.
-    __ mov(ebp, MemOperand(ebp, StandardFrameConstants::kContextOffset));
-    __ mov(MemOperand(esp, 3 * kPointerSize), ebp);
+    __ mov(MemOperand(esp, 3 * kPointerSize), ebp);  // Save ebp.
     // Fill ebp with the right stack frame address.
-    __ lea(ebp, MemOperand(esp, 4 * kPointerSize));
+    __ lea(ebp, MemOperand(esp, 3 * kPointerSize));
 
     // This variant of deopt can only be used with stubs. Since we don't
     // have a function pointer to install in the stack frame that we're
@@ -308,8 +300,7 @@ bool LCodeGen::GenerateJumpTable() {
            Immediate(Smi::FromInt(StackFrame::STUB)));
 
     /* stack layout
-       4: old ebp
-       3: context pointer
+       3: old ebp
        2: stub marker
        1: return address
        0: entry address  <-- esp
@@ -346,9 +337,8 @@ bool LCodeGen::GenerateDeferredCode() {
         frame_is_built_ = true;
         // Build the frame in such a way that esi isn't trashed.
         __ push(ebp);  // Caller's frame pointer.
-        __ push(Operand(ebp, StandardFrameConstants::kContextOffset));
         __ push(Immediate(Smi::FromInt(StackFrame::STUB)));
-        __ lea(ebp, Operand(esp, 2 * kPointerSize));
+        __ lea(ebp, Operand(esp, TypedFrameConstants::kFixedFrameSizeFromFp));
         Comment(";;; Deferred code");
       }
       code->Generate();
@@ -3088,7 +3078,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // Check for arguments adapter frame.
     Label done, adapted;
     __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ mov(result, Operand(result, StandardFrameConstants::kContextOffset));
+    __ mov(result,
+           Operand(result, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ cmp(Operand(result),
            Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
     __ j(equal, &adapted, Label::kNear);
@@ -3207,13 +3198,25 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Invoke the function.
   __ bind(&invoke);
+
+  InvokeFlag flag = CALL_FUNCTION;
+  if (instr->hydrogen()->tail_call_mode() == TailCallMode::kAllow) {
+    DCHECK(!info()->saves_caller_doubles());
+    // TODO(ishell): drop current frame before pushing arguments to the stack.
+    flag = JUMP_FUNCTION;
+    ParameterCount actual(eax);
+    // It is safe to use ebx, ecx and edx as scratch registers here given that
+    // 1) we are not going to return to caller function anyway,
+    // 2) ebx (expected arguments count) and edx (new.target) will be
+    //    initialized below.
+    PrepareForTailCall(actual, ebx, ecx, edx);
+  }
+
   DCHECK(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
-  SafepointGenerator safepoint_generator(
-      this, pointers, Safepoint::kLazyDeopt);
+  SafepointGenerator safepoint_generator(this, pointers, Safepoint::kLazyDeopt);
   ParameterCount actual(eax);
-  __ InvokeFunction(function, no_reg, actual, CALL_FUNCTION,
-                    safepoint_generator);
+  __ InvokeFunction(function, no_reg, actual, flag, safepoint_generator);
 }
 
 
@@ -3257,10 +3260,9 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   CallRuntime(Runtime::kDeclareGlobals, instr);
 }
 
-
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int formal_parameter_count, int arity,
-                                 LInstruction* instr) {
+                                 bool is_tail_call, LInstruction* instr) {
   bool dont_adapt_arguments =
       formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
   bool can_invoke_directly =
@@ -3276,21 +3278,38 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     __ mov(edx, factory()->undefined_value());
     __ mov(eax, arity);
 
+    bool is_self_call = function.is_identical_to(info()->closure());
+
     // Invoke function directly.
-    if (function.is_identical_to(info()->closure())) {
-      __ CallSelf();
+    if (is_self_call) {
+      Handle<Code> self(reinterpret_cast<Code**>(__ CodeObject().location()));
+      if (is_tail_call) {
+        __ Jump(self, RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(self, RelocInfo::CODE_TARGET);
+      }
     } else {
-      __ call(FieldOperand(function_reg, JSFunction::kCodeEntryOffset));
+      Operand target = FieldOperand(function_reg, JSFunction::kCodeEntryOffset);
+      if (is_tail_call) {
+        __ jmp(target);
+      } else {
+        __ call(target);
+      }
     }
-    RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+
+    if (!is_tail_call) {
+      // Set up deoptimization.
+      RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+    }
   } else {
     // We need to adapt arguments.
     LPointerMap* pointers = instr->pointer_map();
     SafepointGenerator generator(
         this, pointers, Safepoint::kLazyDeopt);
-    ParameterCount count(arity);
+    ParameterCount actual(arity);
     ParameterCount expected(formal_parameter_count);
-    __ InvokeFunction(function_reg, expected, count, CALL_FUNCTION, generator);
+    InvokeFlag flag = is_tail_call ? JUMP_FUNCTION : CALL_FUNCTION;
+    __ InvokeFunction(function_reg, expected, actual, flag, generator);
   }
 }
 
@@ -3764,23 +3783,78 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
   X87CommitWrite(result_reg);
 }
 
+void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
+                                  Register scratch1, Register scratch2,
+                                  Register scratch3) {
+#if DEBUG
+  if (actual.is_reg()) {
+    DCHECK(!AreAliased(actual.reg(), scratch1, scratch2, scratch3));
+  } else {
+    DCHECK(!AreAliased(scratch1, scratch2, scratch3));
+  }
+#endif
+  if (FLAG_code_comments) {
+    if (actual.is_reg()) {
+      Comment(";;; PrepareForTailCall, actual: %s {", actual.reg().ToString());
+    } else {
+      Comment(";;; PrepareForTailCall, actual: %d {", actual.immediate());
+    }
+  }
+
+  // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
+  Label no_arguments_adaptor, formal_parameter_count_loaded;
+  __ mov(scratch2, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ cmp(Operand(scratch2, StandardFrameConstants::kContextOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &no_arguments_adaptor, Label::kNear);
+
+  // Drop current frame and load arguments count from arguments adaptor frame.
+  __ mov(ebp, scratch2);
+  __ mov(caller_args_count_reg,
+         Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiUntag(caller_args_count_reg);
+  __ jmp(&formal_parameter_count_loaded, Label::kNear);
+
+  __ bind(&no_arguments_adaptor);
+  // Load caller's formal parameter count.
+  __ mov(caller_args_count_reg,
+         Immediate(info()->literal()->parameter_count()));
+
+  __ bind(&formal_parameter_count_loaded);
+  __ PrepareForTailCall(actual, caller_args_count_reg, scratch2, scratch3,
+                        ReturnAddressState::kNotOnStack, 0);
+  Comment(";;; }");
+}
 
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  HInvokeFunction* hinstr = instr->hydrogen();
   DCHECK(ToRegister(instr->context()).is(esi));
   DCHECK(ToRegister(instr->function()).is(edi));
   DCHECK(instr->HasPointerMap());
 
-  Handle<JSFunction> known_function = instr->hydrogen()->known_function();
+  bool is_tail_call = hinstr->tail_call_mode() == TailCallMode::kAllow;
+
+  if (is_tail_call) {
+    DCHECK(!info()->saves_caller_doubles());
+    ParameterCount actual(instr->arity());
+    // It is safe to use ebx, ecx and edx as scratch registers here given that
+    // 1) we are not going to return to caller function anyway,
+    // 2) ebx (expected arguments count) and edx (new.target) will be
+    //    initialized below.
+    PrepareForTailCall(actual, ebx, ecx, edx);
+  }
+
+  Handle<JSFunction> known_function = hinstr->known_function();
   if (known_function.is_null()) {
     LPointerMap* pointers = instr->pointer_map();
-    SafepointGenerator generator(
-        this, pointers, Safepoint::kLazyDeopt);
-    ParameterCount count(instr->arity());
-    __ InvokeFunction(edi, no_reg, count, CALL_FUNCTION, generator);
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount actual(instr->arity());
+    InvokeFlag flag = is_tail_call ? JUMP_FUNCTION : CALL_FUNCTION;
+    __ InvokeFunction(edi, no_reg, actual, flag, generator);
   } else {
-    CallKnownFunction(known_function,
-                      instr->hydrogen()->formal_parameter_count(),
-                      instr->arity(), instr);
+    CallKnownFunction(known_function, hinstr->formal_parameter_count(),
+                      instr->arity(), is_tail_call, instr);
   }
 }
 
@@ -5392,13 +5466,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   CallRuntimeFromDeferred(
       Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, eax);
-}
-
-
-void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
-  DCHECK(ToRegister(instr->value()).is(eax));
-  __ push(eax);
-  CallRuntime(Runtime::kToFastProperties, 1, instr);
 }
 
 

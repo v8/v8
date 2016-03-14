@@ -259,16 +259,15 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
   }
 }
 
-
 bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
-                                              int* offset_return) {
+                                              int* slot_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     if (info()->has_context() && object.is_identical_to(info()->context()) &&
         !info()->is_osr()) {
-      *offset_return = StandardFrameConstants::kContextOffset;
+      *slot_return = Frame::kContextSlot;
       return true;
     } else if (object.is_identical_to(info()->closure())) {
-      *offset_return = JavaScriptFrameConstants::kFunctionOffset;
+      *slot_return = Frame::kJSFunctionSlot;
       return true;
     }
   }
@@ -628,6 +627,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       translation->BeginArgumentsAdaptorFrame(
           shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
+      break;
+    case FrameStateType::kTailCallerFunction:
+      translation->BeginTailCallerFrame(shared_info_id);
       break;
     case FrameStateType::kConstructStub:
       translation->BeginConstructStubFrame(

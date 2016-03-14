@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
-  if (!Compiler::Compile(function, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
   DCHECK(function->is_compiled());
@@ -122,10 +122,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   deoptimizer->MaterializeHeapObjects(&it);
   delete deoptimizer;
 
-  JavaScriptFrame* frame = it.frame();
-  RUNTIME_ASSERT(frame->function()->IsJSFunction());
-  DCHECK(frame->function() == *function);
-
   // Ensure the context register is updated for materialized objects.
   JavaScriptFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
@@ -135,7 +131,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Search for other activations of the same function and code.
+  // Search for other activations of the same optimized code.
+  // At this point {it} is at the topmost frame of all the frames materialized
+  // by the deoptimizer. Note that this frame does not necessarily represent
+  // an activation of {function} because of potential inlined tail-calls.
   ActivationsFinder activations_finder(*optimized_code);
   activations_finder.VisitFrames(&it);
   isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
@@ -212,59 +211,17 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK(caller_code->contains(frame->pc()));
 #endif  // DEBUG
 
-
   BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
   DCHECK(!ast_id.IsNone());
 
-  // Disable concurrent OSR for asm.js, to enable frame specialization.
-  Compiler::ConcurrencyMode mode = (isolate->concurrent_osr_enabled() &&
-                                    !function->shared()->asm_function() &&
-                                    function->shared()->ast_node_count() > 512)
-                                       ? Compiler::CONCURRENT
-                                       : Compiler::NOT_CONCURRENT;
-
-  OptimizedCompileJob* job = NULL;
-  if (mode == Compiler::CONCURRENT) {
-    // Gate the OSR entry with a stack check.
-    BackEdgeTable::AddStackCheck(caller_code, pc_offset);
-    // Poll already queued compilation jobs.
-    OptimizingCompileDispatcher* dispatcher =
-        isolate->optimizing_compile_dispatcher();
-    if (dispatcher->IsQueuedForOSR(function, ast_id)) {
-      if (FLAG_trace_osr) {
-        PrintF("[OSR - Still waiting for queued: ");
-        function->PrintName();
-        PrintF(" at AST id %d]\n", ast_id.ToInt());
-      }
-      return NULL;
-    }
-
-    job = dispatcher->FindReadyOSRCandidate(function, ast_id);
-  }
-
   MaybeHandle<Code> maybe_result;
-  if (job != NULL) {
-    if (FLAG_trace_osr) {
-      PrintF("[OSR - Found ready: ");
-      function->PrintName();
-      PrintF(" at AST id %d]\n", ast_id.ToInt());
-    }
-    maybe_result = Compiler::GetConcurrentlyOptimizedCode(job);
-  } else if (IsSuitableForOnStackReplacement(isolate, function)) {
+  if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    maybe_result = Compiler::GetOptimizedCodeForOSR(
-        function, mode, ast_id,
-        (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
-    Handle<Code> result;
-    if (maybe_result.ToHandle(&result) &&
-        result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
-      // Optimization is queued.  Return to check later.
-      return NULL;
-    }
+    maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
   }
 
   // Revert the patched back edge table, regardless of whether OSR succeeds.

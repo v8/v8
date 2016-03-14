@@ -1594,13 +1594,6 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  if (expr->has_function()) {
-    DCHECK(result_saved);
-    __ ld(a0, MemOperand(sp));
-    __ push(a0);
-    __ CallRuntime(Runtime::kToFastProperties);
-  }
-
   if (result_saved) {
     context()->PlugTOS();
   } else {
@@ -1937,9 +1930,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // fp = caller's frame pointer.
   // cp = callee's context,
   // a4 = callee's JS function.
-  __ Push(ra, fp, cp, a4);
-  // Adjust FP to point to saved FP.
-  __ Daddu(fp, sp, 2 * kPointerSize);
+  __ PushStandardFrame(a4);
 
   // Load the operand stack size.
   __ ld(a3, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
@@ -2092,12 +2083,10 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::ADD:
-      __ DadduAndCheckForOverflow(v0, left, right, scratch1);
-      __ BranchOnOverflow(&stub_call, scratch1);
+      __ DaddBranchOvf(v0, left, Operand(right), &stub_call);
       break;
     case Token::SUB:
-      __ DsubuAndCheckForOverflow(v0, left, right, scratch1);
-      __ BranchOnOverflow(&stub_call, scratch1);
+      __ DsubBranchOvf(v0, left, Operand(right), &stub_call);
       break;
     case Token::MUL: {
       __ Dmulh(v0, left, right);
@@ -3681,10 +3670,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
 
     Register scratch1 = a1;
-    Register scratch2 = a4;
     __ li(scratch1, Operand(Smi::FromInt(count_value)));
-    __ DadduAndCheckForOverflow(v0, v0, scratch1, scratch2);
-    __ BranchOnNoOverflow(&done, scratch2);
+    __ DaddBranchNoOvf(v0, v0, Operand(scratch1), &done);
     // Call stub. Undo operation first.
     __ Move(v0, a0);
     __ jmp(&stub_call);
@@ -4135,7 +4122,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       patcher.masm()->slt(at, a3, zero_reg);
       break;
     case ON_STACK_REPLACEMENT:
-    case OSR_AFTER_STACK_CHECK:
       // addiu at, zero_reg, 1
       // beq  at, zero_reg, ok  ;; Not changed
       // lui  t9, <on-stack replacement address> upper
@@ -4165,7 +4151,9 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Address pc) {
   static const int kInstrSize = Assembler::kInstrSize;
   Address branch_address = pc - 8 * kInstrSize;
+#ifdef DEBUG
   Address pc_immediate_load_address = pc - 6 * kInstrSize;
+#endif
 
   DCHECK(Assembler::IsBeq(Assembler::instr_at(pc - 7 * kInstrSize)));
   if (!Assembler::IsAddImmediate(Assembler::instr_at(branch_address))) {
@@ -4178,18 +4166,11 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
 
   DCHECK(Assembler::IsAddImmediate(Assembler::instr_at(branch_address)));
 
-  if (reinterpret_cast<uint64_t>(
-      Assembler::target_address_at(pc_immediate_load_address)) ==
-          reinterpret_cast<uint64_t>(
-              isolate->builtins()->OnStackReplacement()->entry())) {
-    return ON_STACK_REPLACEMENT;
-  }
-
   DCHECK(reinterpret_cast<uint64_t>(
-      Assembler::target_address_at(pc_immediate_load_address)) ==
+             Assembler::target_address_at(pc_immediate_load_address)) ==
          reinterpret_cast<uint64_t>(
-             isolate->builtins()->OsrAfterStackCheck()->entry()));
-  return OSR_AFTER_STACK_CHECK;
+             isolate->builtins()->OnStackReplacement()->entry()));
+  return ON_STACK_REPLACEMENT;
 }
 
 

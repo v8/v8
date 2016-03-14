@@ -1218,20 +1218,34 @@ static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
     case 0x0B:
       return "ud2";
-    case 0x18: return "prefetch";
-    case 0xA2: return "cpuid";
-    case 0xBE: return "movsx_b";
-    case 0xBF: return "movsx_w";
-    case 0xB6: return "movzx_b";
-    case 0xB7: return "movzx_w";
-    case 0xAF: return "imul";
-    case 0xA5: return "shld";
-    case 0xAD: return "shrd";
-    case 0xAC: return "shrd";  // 3-operand version.
-    case 0xAB: return "bts";
+    case 0x18:
+      return "prefetch";
+    case 0xA2:
+      return "cpuid";
+    case 0xBE:
+      return "movsx_b";
+    case 0xBF:
+      return "movsx_w";
+    case 0xB6:
+      return "movzx_b";
+    case 0xB7:
+      return "movzx_w";
+    case 0xAF:
+      return "imul";
+    case 0xA4:
+      return "shld";
+    case 0xA5:
+      return "shld";
+    case 0xAD:
+      return "shrd";
+    case 0xAC:
+      return "shrd";  // 3-operand version.
+    case 0xAB:
+      return "bts";
     case 0xBC:
       return "bsf";
-    case 0xBD: return "bsr";
+    case 0xBD:
+      return "bsr";
     default: return NULL;
   }
 }
@@ -1470,8 +1484,18 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += SetCC(data);
           } else if ((f0byte & 0xF0) == 0x40) {
             data += CMov(data);
+          } else if (f0byte == 0xA4 || f0byte == 0xAC) {
+            // shld, shrd
+            data += 2;
+            AppendToBuffer("%s ", f0mnem);
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            data += 2;
+            AppendToBuffer("%s,%s,%d", NameOfCPURegister(rm),
+                           NameOfCPURegister(regop), static_cast<int>(imm8));
           } else if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-            // shrd, shld, bts
+            // shrd_cl, shld_cl, bts
             data += 2;
             AppendToBuffer("%s ", f0mnem);
             int mod, regop, rm;

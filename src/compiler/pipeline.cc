@@ -280,10 +280,7 @@ class PipelineData {
     DCHECK(frame_ == nullptr);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
-      fixed_frame_size = (descriptor->IsCFunctionCall())
-                             ? StandardFrameConstants::kFixedSlotCountAboveFp +
-                                   StandardFrameConstants::kCPSlotCount
-                             : StandardFrameConstants::kFixedSlotCount;
+      fixed_frame_size = CalculateFixedFrameSize(descriptor);
     }
     frame_ = new (instruction_zone()) Frame(fixed_frame_size, descriptor);
   }
@@ -337,6 +334,16 @@ class PipelineData {
   ZonePool::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
   RegisterAllocationData* register_allocation_data_;
+
+  int CalculateFixedFrameSize(CallDescriptor* descriptor) {
+    if (descriptor->IsJSFunctionCall()) {
+      return StandardFrameConstants::kFixedSlotCount;
+    }
+    return descriptor->IsCFunctionCall()
+               ? (CommonFrameConstants::kFixedSlotCountAboveFp +
+                  CommonFrameConstants::kCPSlotCount)
+               : TypedFrameConstants::kFixedSlotCount;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };

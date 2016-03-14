@@ -104,7 +104,7 @@ parameter count: 1
 bytecode array length: 26
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(9),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
   B(Star), R(1),
   B(Star), R(0),
   B(Star), R(1),
@@ -132,7 +132,7 @@ parameter count: 1
 bytecode array length: 22
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(9),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
   B(Star), R(1),
   B(Star), R(0),
   B(Star), R(1),
@@ -160,7 +160,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(9),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(5),
   B(Star), R(2),
   B(Star), R(1),
   B(Star), R(2),
@@ -192,7 +192,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(9),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(5),
   B(Star), R(2),
   B(Star), R(1),
   B(Star), R(2),

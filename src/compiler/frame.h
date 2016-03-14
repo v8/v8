@@ -59,9 +59,9 @@ class CallDescriptor;
 //       |- - - - - - - - -|   |                        |
 //   1   | saved frame ptr | Fixed                      |
 //       |- - - - - - - - -| Header <-- frame ptr       |
-//   2   |     Context     |   |                        |
+//   2   |Context/Frm. Type|   |                        |
 //       |- - - - - - - - -|   |                        |
-//   3   |JSFunction/Marker|   v                        |
+//   3   |   [JSFunction]  |   v                        |
 //       +-----------------+----                        |
 //   4   |    spill 1      |   ^                      Callee
 //       |- - - - - - - - -|   |                   frame slots
@@ -86,7 +86,7 @@ class Frame : public ZoneObject {
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
 
-  inline int GetSpToFpSlotCount() const {
+  inline int GetSPToFPSlotCount() const {
     return GetTotalFrameSlotCount() -
            StandardFrameConstants::kFixedSlotCountAboveFp;
   }
@@ -115,11 +115,14 @@ class Frame : public ZoneObject {
     return !allocated_double_registers_->IsEmpty();
   }
 
-  int AlignSavedCalleeRegisterSlots() {
+  int AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
     DCHECK_EQ(0, callee_saved_slot_count_);
-    needs_frame_ = true;
-    int delta = frame_slot_count_ & 1;
-    frame_slot_count_ += delta;
+    int alignment_slots = alignment / kPointerSize;
+    int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
+    if (delta != alignment_slots) {
+      DCHECK(needs_frame_);
+      frame_slot_count_ += delta;
+    }
     return delta;
   }
 
@@ -137,6 +140,8 @@ class Frame : public ZoneObject {
     spill_slot_count_ += (frame_slot_count_ - frame_slot_count_before);
     return slot;
   }
+
+  int AlignFrame(int alignment = kDoubleSize);
 
   int ReserveSpillSlots(size_t slot_count) {
     DCHECK_EQ(0, callee_saved_slot_count_);
@@ -219,6 +224,11 @@ class FrameAccessState : public ZoneObject {
   void SetFrameAccessToDefault();
   void SetFrameAccessToFP() { access_frame_with_fp_ = true; }
   void SetFrameAccessToSP() { access_frame_with_fp_ = false; }
+
+  int GetSPToFPSlotCount() const {
+    return frame_->GetSPToFPSlotCount() + sp_delta();
+  }
+  int GetSPToFPOffset() const { return GetSPToFPSlotCount() * kPointerSize; }
 
   // Get the frame offset for a given spill slot. The location depends on the
   // calling convention and the specific frame layout, and may thus be

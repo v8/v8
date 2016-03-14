@@ -92,15 +92,16 @@ for (var i = 0; i < 5; i++) {
 }
 
 
-assertTrue(undetectable == %GetUndetectable());
+assertFalse(undetectable == %GetUndetectable());
 assertFalse(undetectable === %GetUndetectable());
 
 
 function test2(a, b) {
-  assertTrue(a == b);
+  return a == b;
 }
-test2(1, 1);
-test2(undetectable, undetectable);
+test2(0, 1);
+test2(undetectable, {});
+%OptimizeFunctionOnNextCall(test2);
 for (var i = 0; i < 5; ++i) {
-  test2(undetectable, %GetUndetectable());
+  assertFalse(test2(undetectable, %GetUndetectable()));
 }

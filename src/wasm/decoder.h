@@ -225,6 +225,8 @@ class Decoder {
       *length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
         error(pc_ - 1, "varint too large");
+      } else if (*length == 0) {
+        error(pc_, "varint of length 0");
       } else {
         TRACE("= %u\n", result);
       }
@@ -301,6 +303,7 @@ class Decoder {
   Result<T> toResult(T val) {
     Result<T> result;
     if (error_pc_) {
+      TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
       result.start = start_;
       result.error_pc = error_pc_;
@@ -327,9 +330,11 @@ class Decoder {
 
   bool ok() const { return error_pc_ == nullptr; }
   bool failed() const { return error_pc_ != nullptr; }
+  bool more() const { return pc_ < limit_; }
 
   const byte* start() { return start_; }
   const byte* pc() { return pc_; }
+  uint32_t pc_offset() { return static_cast<uint32_t>(pc_ - start_); }
 
  protected:
   const byte* start_;

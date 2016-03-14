@@ -1644,8 +1644,7 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     }
   }
 
-  // Set both the prototype and constructor to have fast properties, and also
-  // freeze them in strong mode.
+  // Set both the prototype and constructor to have fast properties.
   prototype = environment()->Pop();
   literal = environment()->Pop();
   const Operator* op =
@@ -1725,7 +1724,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralObject(
       expr->constant_properties(), expr->ComputeFlags(true),
-      expr->literal_index());
+      expr->literal_index(), expr->properties_count());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -1900,13 +1899,6 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  // Transform literals that contain functions to fast properties.
-  literal = environment()->Top();  // Reload from operand stack.
-  if (expr->has_function()) {
-    const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties);
-    NewNode(op, literal);
-  }
-
   ast_context()->ProduceValue(environment()->Pop());
 }
 
@@ -1928,7 +1920,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralArray(
       expr->constant_elements(), expr->ComputeFlags(true),
-      expr->literal_index());
+      expr->literal_index(), expr->values()->length());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -2576,22 +2568,12 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     return VisitCallJSRuntime(expr);
   }
 
-  const Runtime::Function* function = expr->function();
-
-  // TODO(mstarzinger): This bailout is a gigantic hack, the owner is ashamed.
-  if (function->function_id == Runtime::kInlineGeneratorNext ||
-      function->function_id == Runtime::kInlineGeneratorReturn ||
-      function->function_id == Runtime::kInlineGeneratorThrow) {
-    ast_context()->ProduceValue(jsgraph()->TheHoleConstant());
-    return SetStackOverflow();
-  }
-
   // Evaluate all arguments to the runtime call.
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
   // Create node to perform the runtime call.
-  Runtime::FunctionId functionId = function->function_id;
+  Runtime::FunctionId functionId = expr->function()->function_id;
   const Operator* call = javascript()->CallRuntime(functionId, args->length());
   FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length());
@@ -2817,8 +2799,57 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   }
 }
 
+void AstGraphBuilder::VisitLiteralCompareNil(CompareOperation* expr,
+                                             Expression* sub_expr,
+                                             Node* nil_value) {
+  const Operator* op = nullptr;
+  switch (expr->op()) {
+    case Token::EQ:
+      op = javascript()->Equal();
+      break;
+    case Token::EQ_STRICT:
+      op = javascript()->StrictEqual();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  VisitForValue(sub_expr);
+  FrameStateBeforeAndAfter states(this, sub_expr->id());
+  Node* value_to_compare = environment()->Pop();
+  Node* value = NewNode(op, value_to_compare, nil_value);
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
+  return ast_context()->ProduceValue(value);
+}
+
+void AstGraphBuilder::VisitLiteralCompareTypeof(CompareOperation* expr,
+                                                Expression* sub_expr,
+                                                Handle<String> check) {
+  VisitTypeofExpression(sub_expr);
+  FrameStateBeforeAndAfter states(this, sub_expr->id());
+  Node* typeof_arg = NewNode(javascript()->TypeOf(), environment()->Pop());
+  Node* value = NewNode(javascript()->StrictEqual(), typeof_arg,
+                        jsgraph()->Constant(check));
+  states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
+  return ast_context()->ProduceValue(value);
+}
 
 void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
+  // Check for a few fast cases. The AST visiting behavior must be in sync
+  // with the full codegen: We don't push both left and right values onto
+  // the expression stack when one side is a special-case literal.
+  Expression* sub_expr = nullptr;
+  Handle<String> check;
+  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    return VisitLiteralCompareTypeof(expr, sub_expr, check);
+  }
+  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+    return VisitLiteralCompareNil(expr, sub_expr,
+                                  jsgraph()->UndefinedConstant());
+  }
+  if (expr->IsLiteralCompareNull(&sub_expr)) {
+    return VisitLiteralCompareNil(expr, sub_expr, jsgraph()->NullConstant());
+  }
+
   const Operator* op;
   switch (expr->op()) {
     case Token::EQ:
@@ -2980,23 +3011,25 @@ void AstGraphBuilder::VisitVoid(UnaryOperation* expr) {
   ast_context()->ProduceValue(value);
 }
 
-
-void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
-  Node* operand;
-  if (expr->expression()->IsVariableProxy()) {
+void AstGraphBuilder::VisitTypeofExpression(Expression* expr) {
+  if (expr->IsVariableProxy()) {
     // Typeof does not throw a reference error on global variables, hence we
     // perform a non-contextual load in case the operand is a variable proxy.
-    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    VariableProxy* proxy = expr->AsVariableProxy();
     VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
     FrameStateBeforeAndAfter states(this, BeforeId(proxy));
-    operand =
-        BuildVariableLoad(proxy->var(), expr->expression()->id(), states, pair,
+    Node* load =
+        BuildVariableLoad(proxy->var(), expr->id(), states, pair,
                           OutputFrameStateCombine::Push(), INSIDE_TYPEOF);
+    environment()->Push(load);
   } else {
-    VisitForValue(expr->expression());
-    operand = environment()->Pop();
+    VisitForValue(expr);
   }
-  Node* value = NewNode(javascript()->TypeOf(), operand);
+}
+
+void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
+  VisitTypeofExpression(expr->expression());
+  Node* value = NewNode(javascript()->TypeOf(), environment()->Pop());
   ast_context()->ProduceValue(value);
 }
 

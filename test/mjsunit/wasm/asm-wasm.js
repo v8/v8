@@ -15,7 +15,7 @@ function EmptyTest() {
   return {caller: caller};
 }
 
-assertEquals(11, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(11, Wasm.instantiateModuleFromAsm(
       EmptyTest.toString()).caller());
 
 
@@ -37,7 +37,7 @@ function IntTest() {
   return {caller: caller};
 }
 
-assertEquals(101, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(101, Wasm.instantiateModuleFromAsm(
       IntTest.toString()).caller());
 
 
@@ -63,7 +63,7 @@ function Float64Test() {
   return {caller: caller};
 }
 
-assertEquals(1, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(1, Wasm.instantiateModuleFromAsm(
       Float64Test.toString()).caller());
 
 
@@ -84,7 +84,7 @@ function BadModule() {
 }
 
 assertThrows(function() {
-  _WASMEXP_.instantiateModuleFromAsm(BadModule.toString()).caller();
+  Wasm.instantiateModuleFromAsm(BadModule.toString()).caller();
 });
 
 
@@ -105,7 +105,7 @@ function TestReturnInBlock() {
   return {caller: caller};
 }
 
-assertEquals(1, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(1, Wasm.instantiateModuleFromAsm(
       TestReturnInBlock.toString()).caller());
 
 
@@ -123,7 +123,7 @@ function TestWhileSimple() {
   return {caller: caller};
 }
 
-assertEquals(5, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(5, Wasm.instantiateModuleFromAsm(
       TestWhileSimple.toString()).caller());
 
 
@@ -140,7 +140,7 @@ function TestWhileWithoutBraces() {
   return {caller: caller};
 }
 
-assertEquals(4, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(4, Wasm.instantiateModuleFromAsm(
       TestWhileWithoutBraces.toString()).caller());
 
 
@@ -159,7 +159,7 @@ function TestReturnInWhile() {
   return {caller: caller};
 }
 
-assertEquals(6, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(6, Wasm.instantiateModuleFromAsm(
       TestReturnInWhile.toString()).caller());
 
 
@@ -177,7 +177,7 @@ function TestReturnInWhileWithoutBraces() {
 }
 
 assertEquals(
-    7, _WASMEXP_.instantiateModuleFromAsm(
+    7, Wasm.instantiateModuleFromAsm(
       TestReturnInWhileWithoutBraces.toString()).caller());
 
 
@@ -194,7 +194,7 @@ function TestBreakInWhile() {
   return {caller: caller};
 }
 
-assertEquals(8, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(8, Wasm.instantiateModuleFromAsm(
       TestBreakInWhile.toString()).caller());
 
 
@@ -218,7 +218,7 @@ function TestBreakInNestedWhile() {
   return {caller: caller};
 }
 
-assertEquals(9, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(9, Wasm.instantiateModuleFromAsm(
       TestBreakInNestedWhile.toString()).caller());
 
 
@@ -240,7 +240,7 @@ function TestBreakInBlock() {
   return {caller: caller};
 }
 
-assertEquals(10, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(10, Wasm.instantiateModuleFromAsm(
       TestBreakInBlock.toString()).caller());
 
 
@@ -261,7 +261,7 @@ function TestBreakInNamedWhile() {
   return {caller: caller};
 }
 
-assertEquals(11, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(11, Wasm.instantiateModuleFromAsm(
       TestBreakInNamedWhile.toString()).caller());
 
 
@@ -284,7 +284,7 @@ function TestContinue() {
   return {caller: caller};
 }
 
-assertEquals(-5, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(-5, Wasm.instantiateModuleFromAsm(
       TestContinue.toString()).caller());
 
 
@@ -312,7 +312,7 @@ function TestContinueInNamedWhile() {
   return {caller: caller};
 }
 
-assertEquals(20, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(20, Wasm.instantiateModuleFromAsm(
       TestContinueInNamedWhile.toString()).caller());
 
 
@@ -327,7 +327,7 @@ function TestNot() {
   return {caller:caller};
 }
 
-assertEquals(1, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(1, Wasm.instantiateModuleFromAsm(
       TestNot.toString()).caller());
 
 
@@ -345,7 +345,7 @@ function TestNotEquals() {
   return {caller:caller};
 }
 
-assertEquals(21, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(21, Wasm.instantiateModuleFromAsm(
       TestNotEquals.toString()).caller());
 
 
@@ -363,7 +363,7 @@ function TestUnsignedComparison() {
   return {caller:caller};
 }
 
-assertEquals(22, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(22, Wasm.instantiateModuleFromAsm(
       TestUnsignedComparison.toString()).caller());
 
 
@@ -386,7 +386,7 @@ function TestMixedAdd() {
   return {caller:caller};
 }
 
-assertEquals(23, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(23, Wasm.instantiateModuleFromAsm(
       TestMixedAdd.toString()).caller());
 
 
@@ -406,14 +406,14 @@ function TestInt32HeapAccess(stdlib, foreign, buffer) {
   return {caller: caller};
 }
 
-assertEquals(7, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(7, Wasm.instantiateModuleFromAsm(
       TestInt32HeapAccess.toString()).caller());
 
 
 function TestInt32HeapAccessExternal() {
   var memory = new ArrayBuffer(1024);
   var memory_int32 = new Int32Array(memory);
-  var module = _WASMEXP_.instantiateModuleFromAsm(
+  var module = Wasm.instantiateModuleFromAsm(
       TestInt32HeapAccess.toString(), null, memory);
   assertEquals(7, module.caller());
   assertEquals(7, memory_int32[2]);
@@ -437,10 +437,10 @@ function TestHeapAccessIntTypes() {
     code = code.replace(/>> 2/g, types[i][2]);
     var memory = new ArrayBuffer(1024);
     var memory_view = new types[i][0](memory);
-    var module = _WASMEXP_.instantiateModuleFromAsm(code, null, memory);
+    var module = Wasm.instantiateModuleFromAsm(code, null, memory);
     assertEquals(7, module.caller());
     assertEquals(7, memory_view[2]);
-    assertEquals(7, _WASMEXP_.instantiateModuleFromAsm(code).caller());
+    assertEquals(7, Wasm.instantiateModuleFromAsm(code).caller());
   }
 }
 
@@ -469,14 +469,14 @@ function TestFloatHeapAccess(stdlib, foreign, buffer) {
   return {caller: caller};
 }
 
-assertEquals(1, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(1, Wasm.instantiateModuleFromAsm(
       TestFloatHeapAccess.toString()).caller());
 
 
 function TestFloatHeapAccessExternal() {
   var memory = new ArrayBuffer(1024);
   var memory_float64 = new Float64Array(memory);
-  var module = _WASMEXP_.instantiateModuleFromAsm(
+  var module = Wasm.instantiateModuleFromAsm(
       TestFloatHeapAccess.toString(), null, memory);
   assertEquals(1, module.caller());
   assertEquals(9.0, memory_float64[1]);
@@ -499,7 +499,7 @@ function TestConvertI32() {
   return {caller:caller};
 }
 
-assertEquals(24, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(24, Wasm.instantiateModuleFromAsm(
       TestConvertI32.toString()).caller());
 
 
@@ -517,7 +517,7 @@ function TestConvertF64FromInt() {
   return {caller:caller};
 }
 
-assertEquals(25, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(25, Wasm.instantiateModuleFromAsm(
       TestConvertF64FromInt.toString()).caller());
 
 
@@ -537,7 +537,7 @@ function TestConvertF64FromUnsigned() {
   return {caller:caller};
 }
 
-assertEquals(26, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(26, Wasm.instantiateModuleFromAsm(
       TestConvertF64FromUnsigned.toString()).caller());
 
 
@@ -553,7 +553,7 @@ function TestModInt() {
   return {caller:caller};
 }
 
-assertEquals(-27, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(-27, Wasm.instantiateModuleFromAsm(
       TestModInt.toString()).caller());
 
 
@@ -569,7 +569,7 @@ function TestModUnsignedInt() {
   return {caller:caller};
 }
 
-assertEquals(8, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(8, Wasm.instantiateModuleFromAsm(
       TestModUnsignedInt.toString()).caller());
 
 
@@ -588,7 +588,7 @@ function TestModDouble() {
   return {caller:caller};
 }
 
-assertEquals(28, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(28, Wasm.instantiateModuleFromAsm(
       TestModDouble.toString()).caller());
 
 
@@ -610,7 +610,7 @@ function TestModDoubleNegative() {
   return {caller:caller};
 }
 
-assertEquals(28, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(28, Wasm.instantiateModuleFromAsm(
       TestModDoubleNegative.toString()).caller());
 */
 
@@ -634,7 +634,7 @@ function TestNamedFunctions() {
           add:add};
 }
 
-var module = _WASMEXP_.instantiateModuleFromAsm(TestNamedFunctions.toString());
+var module = Wasm.instantiateModuleFromAsm(TestNamedFunctions.toString());
 module.init();
 assertEquals(77.5, module.add());
 
@@ -652,7 +652,7 @@ function TestGlobalsWithInit() {
   return {add:add};
 }
 
-var module = _WASMEXP_.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
+var module = Wasm.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
 assertEquals(77.5, module.add());
 
 
@@ -671,7 +671,7 @@ function TestForLoop() {
   return {caller:caller};
 }
 
-assertEquals(54, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(54, Wasm.instantiateModuleFromAsm(
       TestForLoop.toString()).caller());
 
 
@@ -690,7 +690,7 @@ function TestForLoopWithoutInit() {
   return {caller:caller};
 }
 
-assertEquals(100, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(100, Wasm.instantiateModuleFromAsm(
       TestForLoopWithoutInit.toString()).caller());
 
 
@@ -712,7 +712,7 @@ function TestForLoopWithoutCondition() {
   return {caller:caller};
 }
 
-assertEquals(66, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(66, Wasm.instantiateModuleFromAsm(
       TestForLoopWithoutCondition.toString()).caller());
 
 
@@ -730,7 +730,7 @@ function TestForLoopWithoutNext() {
   return {caller:caller};
 }
 
-assertEquals(41, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(41, Wasm.instantiateModuleFromAsm(
       TestForLoopWithoutNext.toString()).caller());
 
 
@@ -747,7 +747,7 @@ function TestForLoopWithoutBody() {
   return {caller:caller};
 }
 
-assertEquals(45, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(45, Wasm.instantiateModuleFromAsm(
       TestForLoopWithoutBody.toString()).caller());
 
 
@@ -767,7 +767,7 @@ function TestDoWhile() {
   return {caller:caller};
 }
 
-assertEquals(84, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(84, Wasm.instantiateModuleFromAsm(
       TestDoWhile.toString()).caller());
 
 
@@ -782,7 +782,7 @@ function TestConditional() {
   return {caller:caller};
 }
 
-assertEquals(41, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(41, Wasm.instantiateModuleFromAsm(
       TestConditional.toString()).caller());
 
 
@@ -811,7 +811,7 @@ function TestSwitch() {
   return {caller:caller};
 }
 
-assertEquals(23, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(23, Wasm.instantiateModuleFromAsm(
       TestSwitch.toString()).caller());
 
 
@@ -834,7 +834,7 @@ function TestSwitchFallthrough() {
   return {caller:caller};
 }
 
-assertEquals(42, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(42, Wasm.instantiateModuleFromAsm(
       TestSwitchFallthrough.toString()).caller());
 
 
@@ -861,7 +861,7 @@ function TestNestedSwitch() {
   return {caller:caller};
 }
 
-assertEquals(43, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(43, Wasm.instantiateModuleFromAsm(
       TestNestedSwitch.toString()).caller());
 
 
@@ -873,7 +873,7 @@ function TestInitFunctionWithNoGlobals() {
   return {caller};
 }
 
-var module = _WASMEXP_.instantiateModuleFromAsm(
+var module = Wasm.instantiateModuleFromAsm(
     TestInitFunctionWithNoGlobals.toString());
 assertEquals(51, module.caller());
 
@@ -886,7 +886,7 @@ function TestExportNameDifferentFromFunctionName() {
   return {alt_caller:caller};
 }
 
-var module = _WASMEXP_.instantiateModuleFromAsm(
+var module = Wasm.instantiateModuleFromAsm(
     TestExportNameDifferentFromFunctionName.toString());
 assertEquals(55, module.alt_caller());
 
@@ -907,7 +907,7 @@ function TestFunctionTableSingleFunction() {
   return {caller:caller};
 }
 
-assertEquals(71, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(71, Wasm.instantiateModuleFromAsm(
       TestFunctionTableSingleFunction.toString()).caller());
 
 
@@ -938,7 +938,7 @@ function TestFunctionTableMultipleFunctions() {
   return {caller:caller};
 }
 
-assertEquals(73, _WASMEXP_.instantiateModuleFromAsm(
+assertEquals(73, Wasm.instantiateModuleFromAsm(
       TestFunctionTableMultipleFunctions.toString()).caller());
 
 
@@ -981,7 +981,7 @@ function TestFunctionTable() {
   return {caller:caller};
 }
 
-var module = _WASMEXP_.instantiateModuleFromAsm(TestFunctionTable.toString());
+var module = Wasm.instantiateModuleFromAsm(TestFunctionTable.toString());
 assertEquals(55, module.caller(0, 0, 33, 22));
 assertEquals(11, module.caller(0, 1, 33, 22));
 assertEquals(9, module.caller(0, 2, 54, 45));
@@ -1026,7 +1026,7 @@ function TestForeignFunctions() {
 
   var foreign = new ffi(23);
 
-  var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
+  var module = Wasm.instantiateModuleFromAsm(AsmModule.toString(),
                                                   foreign, null);
 
   assertEquals(103, module.caller(23, 103));
@@ -1065,7 +1065,7 @@ function TestForeignFunctionMultipleUse() {
 
   var foreign = new ffi();
 
-  var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
+  var module = Wasm.instantiateModuleFromAsm(AsmModule.toString(),
                                                   foreign, null);
 
   assertEquals(89, module.caller(83, 83.25));
@@ -1103,7 +1103,7 @@ function TestForeignVariables() {
   }
 
   function TestCase(env, i1, f1, i2, f2) {
-    var module = _WASMEXP_.instantiateModuleFromAsm(
+    var module = Wasm.instantiateModuleFromAsm(
         AsmModule.toString(), env);
     assertEquals(i1, module.geti1());
     assertEquals(f1, module.getf1());
@@ -1195,7 +1195,7 @@ TestForeignVariables();
     return {load: load, iload: iload, store: store, storeb: storeb};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(
+  var m = Wasm.instantiateModuleFromAsm(
       TestByteHeapAccessCompat.toString());
   m.store(0, 20);
   m.store(4, 21);
@@ -1225,7 +1225,7 @@ TestForeignVariables();
     return {test: test};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(
+  var m = Wasm.instantiateModuleFromAsm(
       Module.toString(), { x: 4, y: 11 });
   assertEquals(15, m.test());
 })();
@@ -1250,7 +1250,7 @@ TestForeignVariables();
     return {ifunc: ifunc, dfunc: dfunc};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(CommaModule.toString());
+  var m = Wasm.instantiateModuleFromAsm(CommaModule.toString());
   assertEquals(123, m.ifunc(456.7, 123));
   assertEquals(123.4, m.dfunc(456, 123.4));
 })();
@@ -1291,7 +1291,7 @@ TestForeignVariables();
     return {caller:caller, nanCheck:nanCheck};
   }
 
-  var m =_WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m =Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(1, m.caller());
   assertTrue(isNaN(m.nanCheck()));
 })();
@@ -1369,7 +1369,7 @@ TestForeignVariables();
     return {caller:caller};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(1, m.caller());
 })();
 
@@ -1385,7 +1385,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
 })();
 
@@ -1401,7 +1401,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(2, m.func());
 })();
 
@@ -1417,7 +1417,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(1, m.func());
 })();
 
@@ -1435,7 +1435,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
 })();
 
@@ -1454,7 +1454,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
 });  // TODO(bradnelson): Enable when Math.fround implementation lands.
 
@@ -1472,7 +1472,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(1.23, m.func());
 });
 
@@ -1487,7 +1487,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(7, m.func());
 })();
 
@@ -1502,7 +1502,7 @@ TestForeignVariables();
     return {func: func};
   }
   assertThrows(function() {
-    _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+    Wasm.instantiateModuleFromAsm(Module.toString());
   });
 })();
 
@@ -1520,7 +1520,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
 })();
 
@@ -1536,7 +1536,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(-34359738370.75, m.func());
 })();
 
@@ -1553,7 +1553,7 @@ TestForeignVariables();
   }
 
   assertThrows(function() {
-    _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+    Wasm.instantiateModuleFromAsm(Module.toString());
   });
 })();
 
@@ -1570,7 +1570,7 @@ TestForeignVariables();
     return {func: func};
   }
 
-  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(0, m.func());
 })();
 
@@ -1585,6 +1585,6 @@ TestForeignVariables();
     }
     return { main : aaa };
   }
-  var wasm = _WASMEXP_.instantiateModuleFromAsm(asmModule.toString());
+  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
   assertEquals(1321347704, wasm.main());
 })();
