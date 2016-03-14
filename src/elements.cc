@@ -866,10 +866,10 @@ class ElementsAccessorBase : public ElementsAccessor {
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
       Isolate* isolate, Handle<JSObject> object,
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices) {
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
+      uint32_t insertion_index = 0) {
     uint32_t length =
         ElementsAccessorSubclass::GetIterationLength(*object, *backing_store);
-    uint32_t insertion_index = 0;
     for (uint32_t i = 0; i < length; i++) {
       if (ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
                                                    filter)) {
@@ -914,7 +914,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         &nof_indices);
 
     // Sort the indices list if necessary.
-    if (IsDictionaryElementsKind(kind())) {
+    if (IsDictionaryElementsKind(kind()) || IsSloppyArgumentsElements(kind())) {
       struct {
         bool operator()(Object* a, Object* b) {
           if (!a->IsUndefined()) {
@@ -1227,11 +1227,11 @@ class DictionaryElementsAccessor
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
       Isolate* isolate, Handle<JSObject> object,
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
-      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices) {
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
+      uint32_t insertion_index = 0) {
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     uint32_t capacity = dictionary->Capacity();
-    uint32_t insertion_index = 0;
     for (uint32_t i = 0; i < capacity; i++) {
       uint32_t key = GetKeyForEntryImpl(dictionary, i, filter);
       if (key == kMaxUInt32) continue;
@@ -2222,6 +2222,55 @@ class SloppyArgumentsElementsAccessor
       SloppyArgumentsElementsAccessorSubclass::DeleteFromArguments(
           obj, entry - length);
     }
+  }
+
+  static void CollectElementIndicesImpl(Handle<JSObject> object,
+                                        Handle<FixedArrayBase> backing_store,
+                                        KeyAccumulator* keys, uint32_t range,
+                                        PropertyFilter filter,
+                                        uint32_t offset) {
+    FixedArray* parameter_map = FixedArray::cast(*backing_store);
+    uint32_t length = parameter_map->length() - 2;
+    if (range < length) length = range;
+
+    for (uint32_t i = offset; i < length; ++i) {
+      if (!parameter_map->get(i + 2)->IsTheHole()) {
+        keys->AddKey(i);
+      }
+    }
+
+    Handle<FixedArrayBase> store(FixedArrayBase::cast(parameter_map->get(1)));
+    ArgumentsAccessor::CollectElementIndicesImpl(object, store, keys, range,
+                                                 filter, offset);
+    if (SloppyArgumentsElementsAccessorSubclass::kind() ==
+        FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+      keys->SortCurrentElementsList();
+    }
+  }
+
+  static Handle<FixedArray> DirectCollectElementIndicesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
+      PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
+      uint32_t insertion_index = 0) {
+    FixedArray* parameter_map = FixedArray::cast(*backing_store);
+    uint32_t length = parameter_map->length() - 2;
+
+    for (uint32_t i = 0; i < length; ++i) {
+      if (parameter_map->get(i + 2)->IsTheHole()) continue;
+      if (convert == CONVERT_TO_STRING) {
+        Handle<String> index_string = isolate->factory()->Uint32ToString(i);
+        list->set(insertion_index, *index_string);
+      } else {
+        list->set(insertion_index, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+      }
+      insertion_index++;
+    }
+
+    Handle<FixedArrayBase> store(FixedArrayBase::cast(parameter_map->get(1)));
+    return ArgumentsAccessor::DirectCollectElementIndicesImpl(
+        isolate, object, store, convert, filter, list, nof_indices,
+        insertion_index);
   }
 };
 
