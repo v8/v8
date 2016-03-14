@@ -25,14 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This file contains no identifiers or string literals, but does contain
-// symbols.
+// The with statement is allowed in non-strict code, and even around
+// strict code.
 
-(function () {
-  if (this != null) {
-    return this;
+function foo() {
+  with ({}) {}
+
+  with ({x : 42}) {
+    var foo = function () {
+      "use strict";
+      return x;
+    };
   }
-  while (true) {
-    if ([][2]) return false;
-  }
-})({}, function() { return [true]; } );
+
+  with ({}) {}
+}

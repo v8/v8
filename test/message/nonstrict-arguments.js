@@ -27,24 +27,26 @@
 
 // Eval restrictions should not trigger outside of strict-mode code.
 
-var arguments = 42;
-arguments = arguments++;
-arguments += --arguments;
-arguments -= ++arguments;
-arguments *= arguments--;
-function arguments(arguments) {};
-try {} catch (arguments) {}
+function foo() {
+  var arguments = 42;
+  arguments = arguments++;
+  arguments += --arguments;
+  arguments -= ++arguments;
+  arguments *= arguments--;
+  function arguments(arguments) {};
+  try {} catch (arguments) {}
 
-function strict() {
-  "use strict";
-  // Reading eval and arguments is allowed.
-  eval(arguments);
+  function strict() {
+    "use strict";
+    // Reading eval and arguments is allowed.
+    eval(arguments);
+  }
+
+  var arguments = 42;
+  arguments = arguments++;
+  arguments += --arguments;
+  arguments -= ++arguments;
+  arguments *= arguments--;
+  function arguments(arguments) {};
+  try {} catch (arguments) {}
 }
-
-var arguments = 42;
-arguments = arguments++;
-arguments += --arguments;
-arguments -= ++arguments;
-arguments *= arguments--;
-function arguments(arguments) {};
-try {} catch (arguments) {}

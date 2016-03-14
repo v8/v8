@@ -25,16 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The with statement is allowed in non-strict code, and even around
-// strict code.
+// Eval restrictions should not trigger outside of strict-mode code.
 
-with ({}) {}
+function foo() {
+  var eval = 42;
+  eval = eval++;
+  eval += --eval;
+  eval -= ++eval;
+  eval *= eval--;
+  function eval(eval) {};
+  try {} catch (eval) {}
 
-with ({x : 42}) {
-  var foo = function () {
+  function strict() {
     "use strict";
-    return x;
-  };
-}
+    // Reading eval and arguments is allowed.
+    eval(arguments);
+  }
 
-with ({}) {}
+  var eval = 42;
+  eval = eval++;
+  eval += --eval;
+  eval -= ++eval;
+  eval *= eval--;
+  function eval(eval) {};
+  try {} catch (eval) {}
+}
