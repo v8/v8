@@ -49,7 +49,7 @@ class X64OperandConverter : public InstructionOperandConverter {
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    return SlotToOperand(AllocatedOperand::cast(op)->index());
+    return SlotToOperand(AllocatedOperand::cast(op)->index(), extra);
   }
 
   Operand SlotToOperand(int slot_index, int extra = 0) {
