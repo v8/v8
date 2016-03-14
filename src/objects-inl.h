@@ -1959,11 +1959,14 @@ void WeakCell::clear() {
 
 void WeakCell::initialize(HeapObject* val) {
   WRITE_FIELD(this, kValueOffset, val);
-  Heap* heap = GetHeap();
   // We just have to execute the generational barrier here because we never
   // mark through a weak cell and collect evacuation candidates when we process
   // all weak cells.
-  heap->RecordWrite(this, kValueOffset, val);
+  WriteBarrierMode mode =
+      Page::FromAddress(this->address())->IsFlagSet(Page::BLACK_PAGE)
+          ? UPDATE_WRITE_BARRIER
+          : UPDATE_WEAK_WRITE_BARRIER;
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kValueOffset, val, mode);
 }
 
 

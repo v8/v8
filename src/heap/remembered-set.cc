@@ -42,8 +42,8 @@ void RememberedSet<direction>::VerifyValidSlots(Heap* heap) {
       // The old to old remembered set should not have dead slots.
       CHECK_NE(direction, OLD_TO_OLD);
       // The old to new remembered set is allowed to have slots in dead
-      // objects only in map and large object space because these spaces cannot
-      // have raw untaged pointers.
+      // objects only in map and large object space because these space
+      // cannot have raw untagged pointers.
       CHECK(owner == MAP_SPACE || owner == LO_SPACE);
     } else {
       int offset = static_cast<int>(addr - obj->address());

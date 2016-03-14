@@ -25,6 +25,11 @@ void Bitmap::Clear(MemoryChunk* chunk) {
   chunk->ResetLiveBytes();
 }
 
+void Bitmap::SetAllBits(MemoryChunk* chunk) {
+  Bitmap* bitmap = chunk->markbits();
+  for (int i = 0; i < bitmap->CellsCount(); i++)
+    bitmap->cells()[i] = 0xffffffff;
+}
 
 // -----------------------------------------------------------------------------
 // PageIterator
@@ -277,6 +282,7 @@ void MemoryChunk::ResetLiveBytes() {
 }
 
 void MemoryChunk::IncrementLiveBytes(int by) {
+  if (IsFlagSet(BLACK_PAGE)) return;
   if (FLAG_trace_live_bytes) {
     PrintIsolate(heap()->isolate(),
                  "live-bytes: update page=%p delta=%d %d->%d\n", this, by,

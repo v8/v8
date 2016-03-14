@@ -25,21 +25,23 @@
 namespace v8 {
 namespace internal {
 
-void PromotionQueue::insert(HeapObject* target, intptr_t size) {
+void PromotionQueue::insert(HeapObject* target, int32_t size,
+                            bool was_marked_black) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
   if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
   struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
   entry->obj_ = target;
   entry->size_ = size;
+  entry->was_marked_black_ = was_marked_black;
 
 // Assert no overflow into live objects.
 #ifdef DEBUG

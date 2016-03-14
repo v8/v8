@@ -356,20 +356,22 @@ class PromotionQueue {
            (emergency_stack_ == NULL || emergency_stack_->length() == 0);
   }
 
-  inline void insert(HeapObject* target, intptr_t size);
+  inline void insert(HeapObject* target, int32_t size, bool was_marked_black);
 
-  void remove(HeapObject** target, intptr_t* size) {
+  void remove(HeapObject** target, int32_t* size, bool* was_marked_black) {
     DCHECK(!is_empty());
     if (front_ == rear_) {
       Entry e = emergency_stack_->RemoveLast();
       *target = e.obj_;
       *size = e.size_;
+      *was_marked_black = e.was_marked_black_;
       return;
     }
 
     struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
     *target = entry->obj_;
     *size = entry->size_;
+    *was_marked_black = entry->was_marked_black_;
 
     // Assert no underflow.
     SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
@@ -377,14 +379,16 @@ class PromotionQueue {
   }
 
  private:
-  static const int kEntrySizeInWords = 2;
-
   struct Entry {
-    Entry(HeapObject* obj, intptr_t size) : obj_(obj), size_(size) {}
+    Entry(HeapObject* obj, int32_t size, bool was_marked_black)
+        : obj_(obj), size_(size), was_marked_black_(was_marked_black) {}
 
     HeapObject* obj_;
-    intptr_t size_;
+    int32_t size_ : 31;
+    bool was_marked_black_ : 1;
   };
+
+  void RelocateQueueHead();
 
   // The front of the queue is higher in the memory page chain than the rear.
   struct Entry* front_;
@@ -394,10 +398,6 @@ class PromotionQueue {
   List<Entry>* emergency_stack_;
 
   Heap* heap_;
-
-  void RelocateQueueHead();
-
-  STATIC_ASSERT(sizeof(struct Entry) == kEntrySizeInWords * kPointerSize);
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
@@ -1047,14 +1047,14 @@ class Heap {
   // Iterates over all the other roots in the heap.
   void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
-  // Iterate pointers to from semispace of new space found in memory interval
-  // from start to end within |object|.
-  void IteratePointersToFromSpace(HeapObject* target, int size,
-                                  ObjectSlotCallback callback);
+  // Iterate pointers of promoted objects.
+  void IteratePromotedObject(HeapObject* target, int size,
+                             bool was_marked_black,
+                             ObjectSlotCallback callback);
 
-  void IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
-                                         Address end, bool record_slots,
-                                         ObjectSlotCallback callback);
+  void IteratePromotedObjectPointers(HeapObject* object, Address start,
+                                     Address end, bool record_slots,
+                                     ObjectSlotCallback callback);
 
   // ===========================================================================
   // Store buffer API. =========================================================
@@ -1088,6 +1088,8 @@ class Heap {
   void FinalizeIncrementalMarkingIfComplete(const char* comment);
 
   bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms);
+
+  void RegisterReservationsForBlackAllocation(Reservation* reservations);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
@@ -2219,7 +2221,7 @@ class Heap {
   friend class HeapIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
-  friend class IteratePointersToFromSpaceVisitor;
+  friend class IteratePromotedObjectsVisitor;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;

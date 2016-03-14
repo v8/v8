@@ -4937,7 +4937,8 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
                i, i, i, i, i, i, i, i);
       CompileRun(source.start());
     }
-    heap->CollectAllGarbage();
+    // We have to abort incremental marking here to abandon black pages.
+    heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   }
   int elements = 0;
   if (heap->weak_object_to_code_table()->IsHashTable()) {
@@ -5457,6 +5458,9 @@ TEST(WeakCellsWithIncrementalMarking) {
     CHECK(weak_cell->value()->IsFixedArray());
     weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
   }
+  // Call collect all twice to make sure that we also cleared
+  // weak cells that were allocated on black pages.
+  heap->CollectAllGarbage();
   heap->CollectAllGarbage();
   CHECK_EQ(*survivor, weak_cells[0]->value());
   for (int i = 1; i < N; i++) {

@@ -42,6 +42,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       no_marking_scope_depth_(0),
       unscanned_bytes_of_large_object_(0),
       was_activated_(false),
+      black_allocation_(false),
       finalize_marking_completed_(false),
       incremental_marking_finalization_rounds_(0),
       request_type_(COMPLETE_MARKING) {}
@@ -321,6 +322,12 @@ class IncrementalMarkingMarkingVisitor
   }
 };
 
+void IncrementalMarking::IterateBlackObject(HeapObject* object) {
+  if (black_allocation() &&
+      Page::FromAddress(object->address())->IsFlagSet(Page::BLACK_PAGE)) {
+    IncrementalMarkingMarkingVisitor::IterateBody(object->map(), object);
+  }
+}
 
 class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
  public:
@@ -554,6 +561,15 @@ void IncrementalMarking::Start(const char* reason) {
 
 
 void IncrementalMarking::StartMarking() {
+  if (heap_->isolate()->serializer_enabled()) {
+    // Black allocation currently starts when we start incremental marking,
+    // but we cannot enable black allocation while deserializing. Hence, we
+    // have to delay the start of incremental marking in that case.
+    if (FLAG_trace_incremental_marking) {
+      PrintF("[IncrementalMarking] Start delayed - serializer\n");
+    }
+    return;
+  }
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start marking\n");
   }
@@ -595,12 +611,37 @@ void IncrementalMarking::StartMarking() {
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
+  if (FLAG_black_allocation) {
+    StartBlackAllocation();
+  }
+
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Running\n");
   }
 }
 
+void IncrementalMarking::StartBlackAllocation() {
+  DCHECK(FLAG_black_allocation);
+  DCHECK(IsMarking());
+  black_allocation_ = true;
+  PagedSpaces spaces(heap());
+  for (PagedSpace* space = spaces.next(); space != NULL;
+       space = spaces.next()) {
+    space->EmptyAllocationInfo();
+    space->free_list()->Reset();
+  }
+  if (FLAG_trace_incremental_marking) {
+    PrintF("[IncrementalMarking] Black allocation started\n");
+  }
+}
+
+void IncrementalMarking::FinishBlackAllocation() {
+  black_allocation_ = false;
+  if (FLAG_trace_incremental_marking) {
+    PrintF("[IncrementalMarking] Black allocation finished\n");
+  }
+}
 
 void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
@@ -803,6 +844,8 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       // them.
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
+        if (Page::FromAddress(dest->address())->IsFlagSet(Page::BLACK_PAGE))
+          continue;
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
         DCHECK(new_top != marking_deque->bottom());
@@ -902,7 +945,12 @@ void IncrementalMarking::ProcessMarkingDeque() {
 
 
 void IncrementalMarking::Hurry() {
-  if (state() == MARKING) {
+  // A scavenge may have pushed new objects on the marking deque (due to black
+  // allocation) even in COMPLETE state. This may happen if scavenges are
+  // forced e.g. in tests. It should not happen when COMPLETE was set when
+  // incremental marking finished and a regular GC was triggered after that
+  // because should_hurry_ will force a full GC.
+  if (!heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       start = heap_->MonotonicallyIncreasingTimeInMs();
@@ -967,6 +1015,7 @@ void IncrementalMarking::Stop() {
   heap_->isolate()->stack_guard()->ClearGC();
   state_ = STOPPED;
   is_compacting_ = false;
+  FinishBlackAllocation();
 }
 
 

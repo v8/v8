@@ -201,6 +201,8 @@ class Bitmap {
 
   static inline void Clear(MemoryChunk* chunk);
 
+  static inline void SetAllBits(MemoryChunk* chunk);
+
   static void PrintWord(uint32_t word, uint32_t himask = 0) {
     for (uint32_t mask = 1; mask != 0; mask <<= 1) {
       if ((mask & himask) != 0) PrintF("[");
@@ -307,6 +309,11 @@ class MemoryChunk {
     // Even if the mutator writes to them they will be kept black and a white
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
+
+    // A black page has all mark bits set to 1 (black). A black page currently
+    // cannot be iterated because it is not swept. Moreover live bytes are also
+    // not updated.
+    BLACK_PAGE,
 
     // This flag is intended to be used for testing. Works only when both
     // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
@@ -459,11 +466,13 @@ class MemoryChunk {
   inline void IncrementLiveBytes(int by);
 
   int LiveBytes() {
-    DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
+    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
+    DCHECK(!IsFlagSet(BLACK_PAGE) || live_byte_count_ == 0);
     return live_byte_count_;
   }
 
   void SetLiveBytes(int live_bytes) {
+    if (IsFlagSet(BLACK_PAGE)) return;
     DCHECK_GE(live_bytes, 0);
     DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
@@ -2140,6 +2149,7 @@ class PagedSpace : public Space {
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
+  friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class PageIterator;
 

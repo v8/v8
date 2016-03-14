@@ -1577,7 +1577,7 @@ void PromotionQueue::RelocateQueueHead() {
       Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
 
   int entries_count =
-      static_cast<int>(head_end - head_start) / kEntrySizeInWords;
+      static_cast<int>(head_end - head_start) / sizeof(struct Entry);
 
   emergency_stack_ = new List<Entry>(2 * entries_count);
 
@@ -1944,8 +1944,9 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     {
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
-        intptr_t size;
-        promotion_queue()->remove(&target, &size);
+        int32_t size;
+        bool was_marked_black;
+        promotion_queue()->remove(&target, &size, &was_marked_black);
 
         // Promoted object might be already partially visited
         // during old space pointer iteration. Thus we search specifically
@@ -1953,8 +1954,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // to new space.
         DCHECK(!target->IsMap());
 
-        IteratePointersToFromSpace(target, static_cast<int>(size),
-                                   &Scavenger::ScavengeObject);
+        IteratePromotedObject(target, static_cast<int>(size), was_marked_black,
+                              &Scavenger::ScavengeObject);
       }
     }
 
@@ -2552,6 +2553,15 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
   TransitionArray* array = TransitionArray::cast(raw_array);
   array->set_length(capacity);
   MemsetPointer(array->data_start(), undefined_value(), capacity);
+  // Transition arrays are tenured. When black allocation is on we have to
+  // add the transition array to the list of encountered_transition_arrays.
+  if (incremental_marking()->black_allocation()) {
+    array->set_next_link(encountered_transition_arrays(),
+                         UPDATE_WEAK_WRITE_BARRIER);
+    set_encountered_transition_arrays(array);
+  } else {
+    array->set_next_link(undefined_value(), SKIP_WRITE_BARRIER);
+  }
   return array;
 }
 
@@ -3332,7 +3342,6 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
 
   HeapObject* result = nullptr;
   if (!allocation.To(&result)) return allocation;
-
   if (immovable) {
     Address address = result->address();
     // Code objects which should stay at a fixed address are allocated either
@@ -3383,6 +3392,9 @@ AllocationResult Heap::CopyCode(Code* code) {
          isolate_->code_range()->contains(code->address()) ||
          obj_size <= code_space()->AreaSize());
   new_code->Relocate(new_addr - old_addr);
+  // We have to iterate over the object and process its pointers when black
+  // allocation is on.
+  incremental_marking()->IterateBlackObject(new_code);
   return new_code;
 }
 
@@ -3449,7 +3461,9 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
          new_obj_size <= code_space()->AreaSize());
 
   new_code->Relocate(new_addr - old_addr);
-
+  // We have to iterate over over the object and process its pointers when
+  // black allocation is on.
+  incremental_marking()->IterateBlackObject(new_code);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) code->ObjectVerify();
 #endif
@@ -4232,6 +4246,24 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   return false;
 }
 
+void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
+  // TODO(hpayer): We do not have to iterate reservations on black objects
+  // for marking. We just have to execute the special visiting side effect
+  // code that adds objects to global data structures, e.g. for array buffers.
+  if (incremental_marking()->black_allocation()) {
+    for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+      const Heap::Reservation& res = reservations[i];
+      for (auto& chunk : res) {
+        Address addr = chunk.start;
+        while (addr < chunk.end) {
+          HeapObject* obj = HeapObject::FromAddress(addr);
+          incremental_marking()->IterateBlackObject(obj);
+          addr += obj->Size();
+        }
+      }
+    }
+  }
+}
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
   GCIdleTimeHeapState heap_state;
@@ -4578,10 +4610,9 @@ void Heap::ZapFromSpace() {
   }
 }
 
-
-void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
-                                             Address end, bool record_slots,
-                                             ObjectSlotCallback callback) {
+void Heap::IteratePromotedObjectPointers(HeapObject* object, Address start,
+                                         Address end, bool record_slots,
+                                         ObjectSlotCallback callback) {
   Address slot_address = start;
   Page* page = Page::FromAddress(start);
 
@@ -4608,24 +4639,29 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
   }
 }
 
-
-class IteratePointersToFromSpaceVisitor final : public ObjectVisitor {
+class IteratePromotedObjectsVisitor final : public ObjectVisitor {
  public:
-  IteratePointersToFromSpaceVisitor(Heap* heap, HeapObject* target,
-                                    bool record_slots,
-                                    ObjectSlotCallback callback)
+  IteratePromotedObjectsVisitor(Heap* heap, HeapObject* target,
+                                bool record_slots, ObjectSlotCallback callback)
       : heap_(heap),
         target_(target),
         record_slots_(record_slots),
         callback_(callback) {}
 
   V8_INLINE void VisitPointers(Object** start, Object** end) override {
-    heap_->IterateAndMarkPointersToFromSpace(
+    heap_->IteratePromotedObjectPointers(
         target_, reinterpret_cast<Address>(start),
         reinterpret_cast<Address>(end), record_slots_, callback_);
   }
 
-  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {}
+  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {
+    // Black allocation requires us to process objects referenced by
+    // promoted objects.
+    if (heap_->incremental_marking()->black_allocation()) {
+      Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
+      IncrementalMarking::MarkObject(heap_, code);
+    }
+  }
 
  private:
   Heap* heap_;
@@ -4634,9 +4670,9 @@ class IteratePointersToFromSpaceVisitor final : public ObjectVisitor {
   ObjectSlotCallback callback_;
 };
 
-
-void Heap::IteratePointersToFromSpace(HeapObject* target, int size,
-                                      ObjectSlotCallback callback) {
+void Heap::IteratePromotedObject(HeapObject* target, int size,
+                                 bool was_marked_black,
+                                 ObjectSlotCallback callback) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
   // promote objects. But we should not record any slots in non-black
@@ -4649,9 +4685,21 @@ void Heap::IteratePointersToFromSpace(HeapObject* target, int size,
     record_slots = Marking::IsBlack(mark_bit);
   }
 
-  IteratePointersToFromSpaceVisitor visitor(this, target, record_slots,
-                                            callback);
+  IteratePromotedObjectsVisitor visitor(this, target, record_slots, callback);
   target->IterateBody(target->map()->instance_type(), size, &visitor);
+
+  // When black allocations is on, we have to visit not already marked black
+  // objects (in new space) promoted to black pages to keep their references
+  // alive.
+  // TODO(hpayer): Implement a special promotion visitor that incorporates
+  // regular visiting and IteratePromotedObjectPointers.
+  if (!was_marked_black) {
+    if (incremental_marking()->black_allocation()) {
+      Map* map = target->map();
+      IncrementalMarking::MarkObject(this, map);
+    }
+    incremental_marking()->IterateBlackObject(target);
+  }
 }
 
 

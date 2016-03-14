@@ -208,13 +208,17 @@ class IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
-  INLINE(static void MarkObject(Heap* heap, HeapObject* object));
+  static void MarkObject(Heap* heap, HeapObject* object);
+
+  void IterateBlackObject(HeapObject* object);
 
   Heap* heap() const { return heap_; }
 
   IncrementalMarkingJob* incremental_marking_job() {
     return &incremental_marking_job_;
   }
+
+  bool black_allocation() { return black_allocation_; }
 
  private:
   class Observer : public AllocationObserver {
@@ -239,6 +243,9 @@ class IncrementalMarking {
   void ResetStepCounters();
 
   void StartMarking();
+
+  void StartBlackAllocation();
+  void FinishBlackAllocation();
 
   void MarkRoots();
   void MarkObjectGroups();
@@ -291,6 +298,8 @@ class IncrementalMarking {
   int unscanned_bytes_of_large_object_;
 
   bool was_activated_;
+
+  bool black_allocation_;
 
   bool finalize_marking_completed_;
 
