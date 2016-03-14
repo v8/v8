@@ -956,7 +956,6 @@ void AsmTyper::VisitCall(Call* expr) {
     ZoneList<Expression*>* args = expr->arguments();
     if (Type::Any()->Is(result_type)) {
       // For foreign calls.
-      ZoneList<Expression*>* args = expr->arguments();
       for (int i = 0; i < args->length(); ++i) {
         Expression* arg = args->at(i);
         RECURSE(VisitWithExpectation(
