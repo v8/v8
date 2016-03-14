@@ -33,7 +33,7 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
-#include "src/interpreter/bytecodes.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -15018,50 +15018,29 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
   Vector<char> buf = Vector<char>::New(50);
 
-  const uint8_t* first_bytecode_address = GetFirstBytecodeAddress();
-  int bytecode_size = 0;
-
+  const uint8_t* base_address = GetFirstBytecodeAddress();
   interpreter::SourcePositionTableIterator source_positions(
       source_position_table());
-
-  for (int i = 0; i < this->length(); i += bytecode_size) {
-    const uint8_t* bytecode_start = &first_bytecode_address[i];
-    interpreter::Bytecode bytecode =
-        interpreter::Bytecodes::FromByte(bytecode_start[0]);
-    bytecode_size = interpreter::Bytecodes::Size(bytecode);
-
-    if (!source_positions.done() && i == source_positions.bytecode_offset()) {
+  interpreter::BytecodeArrayIterator iterator(handle(this));
+  while (!iterator.done()) {
+    if (!source_positions.done() &&
+        iterator.current_offset() == source_positions.bytecode_offset()) {
       os << std::setw(5) << source_positions.source_position();
       os << (source_positions.is_statement() ? " S> " : " E> ");
       source_positions.Advance();
     } else {
       os << "         ";
     }
-
-    SNPrintF(buf, "%p", bytecode_start);
+    const uint8_t* current_address = base_address + iterator.current_offset();
+    SNPrintF(buf, "%p", current_address);
     os << buf.start() << " : ";
-    interpreter::Bytecodes::Decode(os, bytecode_start, parameter_count());
-
-    if (interpreter::Bytecodes::IsJumpConstantWide(bytecode)) {
-      DCHECK_EQ(bytecode_size, 3);
-      int index = static_cast<int>(ReadUnalignedUInt16(bytecode_start + 1));
-      int offset = Smi::cast(constant_pool()->get(index))->value();
-      SNPrintF(buf, " (%p)", bytecode_start + offset);
-      os << buf.start();
-    } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-      DCHECK_EQ(bytecode_size, 2);
-      int index = static_cast<int>(bytecode_start[1]);
-      int offset = Smi::cast(constant_pool()->get(index))->value();
-      SNPrintF(buf, " (%p)", bytecode_start + offset);
-      os << buf.start();
-    } else if (interpreter::Bytecodes::IsJump(bytecode)) {
-      DCHECK_EQ(bytecode_size, 2);
-      int offset = static_cast<int8_t>(bytecode_start[1]);
-      SNPrintF(buf, " (%p)", bytecode_start + offset);
+    interpreter::Bytecodes::Decode(os, current_address, parameter_count());
+    if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
+      SNPrintF(buf, " (%p)", base_address + iterator.GetJumpTargetOffset());
       os << buf.start();
     }
-
     os << std::endl;
+    iterator.Advance();
   }
 
   if (constant_pool()->length() > 0) {
