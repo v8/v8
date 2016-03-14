@@ -2547,12 +2547,6 @@ void  Assembler::vstm(BlockAddrMode am,
 }
 
 
-void Assembler::vmov(const SwVfpRegister dst, float imm) {
-  mov(ip, Operand(bit_cast<int32_t>(imm)));
-  vmov(dst, ip);
-}
-
-
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
   memcpy(&i, &d, 8);
@@ -2564,7 +2558,7 @@ static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
 
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
-static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
+static bool FitsVmovFPImmediate(double d, uint32_t* encoding) {
   DCHECK(CpuFeatures::IsSupported(VFP3));
 
   // VMOV can accept an immediate of the form:
@@ -2593,12 +2587,12 @@ static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
     return false;
   }
 
-  // Bits 62:55 must be all clear or all set.
+  // Bits 61:54 must be all clear or all set.
   if (((hi & 0x3fc00000) != 0) && ((hi & 0x3fc00000) != 0x3fc00000)) {
     return false;
   }
 
-  // Bit 63 must be NOT bit 62.
+  // Bit 62 must be NOT bit 61.
   if (((hi ^ (hi << 1)) & (0x40000000)) == 0) {
     return false;
   }
@@ -2613,6 +2607,25 @@ static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
 }
 
 
+void Assembler::vmov(const SwVfpRegister dst, float imm) {
+  uint32_t enc;
+  if (CpuFeatures::IsSupported(VFP3) && FitsVmovFPImmediate(imm, &enc)) {
+    // The float can be encoded in the instruction.
+    //
+    // Sd = immediate
+    // Instruction details available in ARM DDI 0406C.b, A8-936.
+    // cond(31-28) | 11101(27-23) | D(22) | 11(21-20) | imm4H(19-16) |
+    // Vd(15-12) | 101(11-9) | sz=0(8) | imm4L(3-0)
+    int vd, d;
+    dst.split_code(&vd, &d);
+    emit(al | 0x1D * B23 | d * B22 | 0x3 * B20 | vd * B12 | 0x5 * B9 | enc);
+  } else {
+    mov(ip, Operand(bit_cast<int32_t>(imm)));
+    vmov(dst, ip);
+  }
+}
+
+
 void Assembler::vmov(const DwVfpRegister dst,
                      double imm,
                      const Register scratch) {
@@ -2623,7 +2636,7 @@ void Assembler::vmov(const DwVfpRegister dst,
   // pointer (pp) is valid.
   bool can_use_pool =
       !FLAG_enable_embedded_constant_pool || is_constant_pool_available();
-  if (CpuFeatures::IsSupported(VFP3) && FitsVMOVDoubleImmediate(imm, &enc)) {
+  if (CpuFeatures::IsSupported(VFP3) && FitsVmovFPImmediate(imm, &enc)) {
     // The double can be encoded in the instruction.
     //
     // Dd = immediate

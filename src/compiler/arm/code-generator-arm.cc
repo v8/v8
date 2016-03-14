@@ -168,7 +168,9 @@ class OutOfLineLoadFloat32 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ vmov(result_, std::numeric_limits<float>::quiet_NaN());
+    // Compute sqrtf(-1.0f), which results in a quiet single-precision NaN.
+    __ vmov(result_, -1.0f);
+    __ vsqrt(result_, result_);
   }
 
  private:
@@ -182,7 +184,9 @@ class OutOfLineLoadFloat64 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ vmov(result_, std::numeric_limits<double>::quiet_NaN(), kScratchReg);
+    // Compute sqrt(-1.0), which results in a quiet double-precision NaN.
+    __ vmov(result_, -1.0);
+    __ vsqrt(result_, result_);
   }
 
  private:

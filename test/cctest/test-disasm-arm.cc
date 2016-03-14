@@ -614,6 +614,11 @@ TEST(Vfp) {
     COMPARE(vmov(d2, -13.0),
             "eeba2b0a       vmov.f64 d2, #-13");
 
+    COMPARE(vmov(s1, -1.0),
+            "eeff0a00       vmov.f32 s1, #-1");
+    COMPARE(vmov(s3, 13.0),
+            "eef21a0a       vmov.f32 s3, #13");
+
     COMPARE(vmov(d0, VmovIndexLo, r0),
             "ee000b10       vmov.32 d0[0], r0");
     COMPARE(vmov(d0, VmovIndexHi, r0),

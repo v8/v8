@@ -3256,7 +3256,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           set_d_register_from_double(vd, instr->DoubleImmedVmov());
         } else {
-          UNREACHABLE();  // Not used by v8.
+          set_s_register_from_float(d, instr->DoubleImmedVmov());
         }
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate
