@@ -720,8 +720,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   DCHECK(target.is_bound());
-  PatchJump(bytecodes()->begin() + target.offset(),
-            bytecodes()->begin() + label->offset());
+  if (label->is_forward_target()) {
+    // An earlier jump instruction refers to this label. Update it's location.
+    PatchJump(bytecodes()->begin() + target.offset(),
+              bytecodes()->begin() + label->offset());
+    // Now treat as if the label will only be back referred to.
+  }
   label->bind_to(target.offset());
   LeaveBasicBlock();
   return *this;

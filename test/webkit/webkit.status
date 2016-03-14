@@ -100,9 +100,6 @@
 ['ignition == True', {
   # TODO(4680): Throws a RangeError due to stack overflow. Need investigation.
   'fast/js/excessive-comma-usage': [SKIP],  # Stack is brittle, SKIP not FAIL.
-
-  # TODO(4680): Assertion is C++ collection, looks like ordinary bug.
-  'fast/js/parser-syntax-check': [SKIP],  # Only some C++ libs, SKIP not FAIL.
 }],  # ignition == True
 
 ##############################################################################
