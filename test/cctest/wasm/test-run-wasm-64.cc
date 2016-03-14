@@ -442,9 +442,64 @@ TEST(Run_Wasm_F64UConvertI64) {
   }
 }
 // kExprI64SConvertF32:
+
+TEST(Run_Wasm_I64SConvertF32) {
+  WasmRunner<int64_t> r(MachineType::Float32());
+  BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+        *i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
 // kExprI64SConvertF64:
+TEST(Run_Wasm_I64SConvertF64) {
+  WasmRunner<int64_t> r(MachineType::Float64());
+  BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        *i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
+
 // kExprI64UConvertF32:
+TEST(Run_Wasm_I64UConvertF32) {
+  WasmRunner<uint64_t> r(MachineType::Float32());
+  BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        *i > -1) {
+      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
+
 // kExprI64UConvertF64:
+TEST(Run_Wasm_I64UConvertF64) {
+  WasmRunner<uint64_t> r(MachineType::Float64());
+  BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        *i > -1) {
+      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
 
 TEST(Run_WasmCallI64Parameter) {
   // Build the target function.

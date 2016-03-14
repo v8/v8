@@ -207,7 +207,7 @@ class WasmGraphBuilder {
   Node* BuildF64Atan2(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
 
-  Node* BuildConversionInstruction(
+  Node* BuildIntToFloatConversionInstruction(
       Node* input, ExternalReference ref,
       MachineRepresentation parameter_representation,
       const MachineType result_type);
@@ -215,6 +215,15 @@ class WasmGraphBuilder {
   Node* BuildF32UConvertI64(Node* input);
   Node* BuildF64SConvertI64(Node* input);
   Node* BuildF64UConvertI64(Node* input);
+
+  Node* BuildFloatToIntConversionInstruction(
+      Node* input, ExternalReference ref,
+      MachineRepresentation parameter_representation,
+      const MachineType result_type);
+  Node* BuildI64SConvertF32(Node* input);
+  Node* BuildI64UConvertF32(Node* input);
+  Node* BuildI64SConvertF64(Node* input);
+  Node* BuildI64UConvertF64(Node* input);
 
   Node** Realloc(Node** buffer, size_t count) {
     Node** buf = Buffer(count);

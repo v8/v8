@@ -3129,66 +3129,6 @@ TEST(Run_Wasm_F64Max_Snan) {
 
 #endif
 
-#if WASM_64
-TEST(Run_Wasm_I64SConvertF32) {
-  WasmRunner<int64_t> r(MachineType::Float32());
-  BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(INT64_MAX) &&
-        *i >= static_cast<float>(INT64_MIN)) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64SConvertF64) {
-  WasmRunner<int64_t> r(MachineType::Float64());
-  BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<double>(INT64_MAX) &&
-        *i >= static_cast<double>(INT64_MIN)) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64UConvertF32) {
-  WasmRunner<uint64_t> r(MachineType::Float32());
-  BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(UINT64_MAX) && *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64UConvertF64) {
-  WasmRunner<uint64_t> r(MachineType::Float64());
-  BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<float>(UINT64_MAX) && *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-#endif
-
-
 // TODO(titzer): Fix and re-enable.
 #if 0
 TEST(Run_Wasm_I32SConvertF32) {
