@@ -798,12 +798,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmPairLsl:
+    case kArmLslPair:
       if (instr->InputAt(2)->IsImmediate()) {
-        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
