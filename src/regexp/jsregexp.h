@@ -268,7 +268,9 @@ class DispatchTable : public ZoneObject {
    public:
     Entry() : from_(0), to_(0), out_set_(NULL) { }
     Entry(uc32 from, uc32 to, OutSet* out_set)
-        : from_(from), to_(to), out_set_(out_set) {}
+        : from_(from), to_(to), out_set_(out_set) {
+      DCHECK(from <= to);
+    }
     uc32 from() { return from_; }
     uc32 to() { return to_; }
     void set_to(uc32 value) { to_ = value; }

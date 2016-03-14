@@ -686,7 +686,7 @@ TEST(DispatchTableConstruction) {
   for (int i = 0; i < kRangeCount; i++) {
     uc16* range = ranges[i];
     for (int j = 0; j < 2 * kRangeSize; j += 2)
-      table.AddRange(CharacterRange(range[j], range[j + 1]), i, &zone);
+      table.AddRange(CharacterRange::Range(range[j], range[j + 1]), i, &zone);
   }
   // Check that the table looks as we would expect
   for (int p = 0; p < kLimit; p++) {
@@ -1498,7 +1498,7 @@ TEST(AddInverseToTable) {
       int from = PseudoRandom(t + 87, i + 25) % kLimit;
       int to = from + (PseudoRandom(i + 87, t + 25) % (kLimit / 20));
       if (to > kLimit) to = kLimit;
-      ranges->Add(CharacterRange(from, to), &zone);
+      ranges->Add(CharacterRange::Range(from, to), &zone);
     }
     DispatchTable table(&zone);
     DispatchTableConstructor cons(&table, false, &zone);
@@ -1515,7 +1515,7 @@ TEST(AddInverseToTable) {
   Zone zone;
   ZoneList<CharacterRange>* ranges =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
-  ranges->Add(CharacterRange(0xFFF0, 0xFFFE), &zone);
+  ranges->Add(CharacterRange::Range(0xFFF0, 0xFFFE), &zone);
   DispatchTable table(&zone);
   DispatchTableConstructor cons(&table, false, &zone);
   cons.set_choice_index(0);
@@ -1655,27 +1655,29 @@ TEST(CharacterRangeCaseIndependence) {
                                   CharacterRange::Singleton('A'));
   TestSimpleRangeCaseIndependence(isolate, CharacterRange::Singleton('z'),
                                   CharacterRange::Singleton('Z'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('a', 'z'),
-                                  CharacterRange('A', 'Z'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('c', 'f'),
-                                  CharacterRange('C', 'F'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('a', 'b'),
-                                  CharacterRange('A', 'B'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('y', 'z'),
-                                  CharacterRange('Y', 'Z'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('a' - 1, 'z' + 1),
-                                  CharacterRange('A', 'Z'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('A', 'Z'),
-                                  CharacterRange('a', 'z'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('C', 'F'),
-                                  CharacterRange('c', 'f'));
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('A' - 1, 'Z' + 1),
-                                  CharacterRange('a', 'z'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('a', 'z'),
+                                  CharacterRange::Range('A', 'Z'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('c', 'f'),
+                                  CharacterRange::Range('C', 'F'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('a', 'b'),
+                                  CharacterRange::Range('A', 'B'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('y', 'z'),
+                                  CharacterRange::Range('Y', 'Z'));
+  TestSimpleRangeCaseIndependence(isolate,
+                                  CharacterRange::Range('a' - 1, 'z' + 1),
+                                  CharacterRange::Range('A', 'Z'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('A', 'Z'),
+                                  CharacterRange::Range('a', 'z'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('C', 'F'),
+                                  CharacterRange::Range('c', 'f'));
+  TestSimpleRangeCaseIndependence(isolate,
+                                  CharacterRange::Range('A' - 1, 'Z' + 1),
+                                  CharacterRange::Range('a', 'z'));
   // Here we need to add [l-z] to complete the case independence of
   // [A-Za-z] but we expect [a-z] to be added since we always add a
   // whole block at a time.
-  TestSimpleRangeCaseIndependence(isolate, CharacterRange('A', 'k'),
-                                  CharacterRange('a', 'z'));
+  TestSimpleRangeCaseIndependence(isolate, CharacterRange::Range('A', 'k'),
+                                  CharacterRange::Range('a', 'z'));
 }
 
 
@@ -1741,9 +1743,9 @@ TEST(CanonicalizeCharacterSets) {
       new(&zone) ZoneList<CharacterRange>(4, &zone);
   CharacterSet set(list);
 
-  list->Add(CharacterRange(10, 20), &zone);
-  list->Add(CharacterRange(30, 40), &zone);
-  list->Add(CharacterRange(50, 60), &zone);
+  list->Add(CharacterRange::Range(10, 20), &zone);
+  list->Add(CharacterRange::Range(30, 40), &zone);
+  list->Add(CharacterRange::Range(50, 60), &zone);
   set.Canonicalize();
   CHECK_EQ(3, list->length());
   CHECK_EQ(10, list->at(0).from());
@@ -1754,9 +1756,9 @@ TEST(CanonicalizeCharacterSets) {
   CHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
-  list->Add(CharacterRange(10, 20), &zone);
-  list->Add(CharacterRange(50, 60), &zone);
-  list->Add(CharacterRange(30, 40), &zone);
+  list->Add(CharacterRange::Range(10, 20), &zone);
+  list->Add(CharacterRange::Range(50, 60), &zone);
+  list->Add(CharacterRange::Range(30, 40), &zone);
   set.Canonicalize();
   CHECK_EQ(3, list->length());
   CHECK_EQ(10, list->at(0).from());
@@ -1767,11 +1769,11 @@ TEST(CanonicalizeCharacterSets) {
   CHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
-  list->Add(CharacterRange(30, 40), &zone);
-  list->Add(CharacterRange(10, 20), &zone);
-  list->Add(CharacterRange(25, 25), &zone);
-  list->Add(CharacterRange(100, 100), &zone);
-  list->Add(CharacterRange(1, 1), &zone);
+  list->Add(CharacterRange::Range(30, 40), &zone);
+  list->Add(CharacterRange::Range(10, 20), &zone);
+  list->Add(CharacterRange::Range(25, 25), &zone);
+  list->Add(CharacterRange::Range(100, 100), &zone);
+  list->Add(CharacterRange::Range(1, 1), &zone);
   set.Canonicalize();
   CHECK_EQ(5, list->length());
   CHECK_EQ(1, list->at(0).from());
@@ -1786,9 +1788,9 @@ TEST(CanonicalizeCharacterSets) {
   CHECK_EQ(100, list->at(4).to());
 
   list->Rewind(0);
-  list->Add(CharacterRange(10, 19), &zone);
-  list->Add(CharacterRange(21, 30), &zone);
-  list->Add(CharacterRange(20, 20), &zone);
+  list->Add(CharacterRange::Range(10, 19), &zone);
+  list->Add(CharacterRange::Range(21, 30), &zone);
+  list->Add(CharacterRange::Range(20, 20), &zone);
   set.Canonicalize();
   CHECK_EQ(1, list->length());
   CHECK_EQ(10, list->at(0).from());
