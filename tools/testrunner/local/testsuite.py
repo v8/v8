@@ -256,14 +256,14 @@ class TestSuite(object):
   def GetSourceForTest(self, testcase):
     return "(no source available)"
 
-  def IsFailureOutput(self, output, testpath):
-    return output.exit_code != 0
+  def IsFailureOutput(self, testcase):
+    return testcase.output.exit_code != 0
 
   def IsNegativeTest(self, testcase):
     return False
 
   def HasFailed(self, testcase):
-    execution_failed = self.IsFailureOutput(testcase.output, testcase.path)
+    execution_failed = self.IsFailureOutput(testcase)
     if self.IsNegativeTest(testcase):
       return not execution_failed
     else:
