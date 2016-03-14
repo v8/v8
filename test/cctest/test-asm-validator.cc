@@ -2032,6 +2032,30 @@ TEST(CeilFloat) {
   CHECK_FUNC_TYPES_END
 }
 
+TEST(FloatReturnAsDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = fround(3.1); return +fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(TypeConsistency) {
   v8::V8::Initialize();
