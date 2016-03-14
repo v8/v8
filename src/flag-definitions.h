@@ -471,6 +471,8 @@ DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_BOOL(trace_wasm_ast, false, "dump AST after WASM decode")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
+DEFINE_BOOL(wasm_loop_assignment_analysis, false,
+            "perform loop assignment analysis for WASM")
 
 DEFINE_BOOL(enable_simd_asmjs, false, "enable SIMD.js in asm.js stdlib")
 

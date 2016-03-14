@@ -1354,6 +1354,7 @@ class SR_WasmDecoder : public WasmDecoder {
   }
 
   void SetEnv(const char* reason, SsaEnv* env) {
+#if DEBUG
     TRACE("  env = %p, block depth = %d, reason = %s", static_cast<void*>(env),
           static_cast<int>(blocks_.size()), reason);
     if (FLAG_trace_wasm_decoder && env && env->control) {
@@ -1361,6 +1362,7 @@ class SR_WasmDecoder : public WasmDecoder {
       compiler::WasmGraphBuilder::PrintDebugName(env->control);
     }
     TRACE("\n");
+#endif
     ssa_env_ = env;
     if (builder_) {
       builder_->set_control_ptr(&env->control);
@@ -1466,6 +1468,19 @@ class SR_WasmDecoder : public WasmDecoder {
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
+    if (FLAG_wasm_loop_assignment_analysis) {
+      BitVector* assigned = AnalyzeLoopAssignment(pc);
+      if (assigned != nullptr) {
+        // Only introduce phis for variables assigned in this loop.
+        for (int i = EnvironmentCount() - 1; i >= 0; i--) {
+          if (!assigned->Contains(i)) continue;
+          env->locals[i] = builder_->Phi(local_type_vec_[i], 1, &env->locals[i],
+                                         env->control);
+        }
+        return;
+      }
+    }
+
     // Conservatively introduce phis for all local variables.
     for (int i = EnvironmentCount() - 1; i >= 0; i--) {
       env->locals[i] =
@@ -1574,12 +1589,15 @@ class SR_WasmDecoder : public WasmDecoder {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
       int arity = 0;
       int length = 1;
+      int assigned_index = -1;
       if (opcode == kExprSetLocal) {
         LocalIndexOperand operand(this, pc);
         if (assigned->length() > 0 &&
             static_cast<int>(operand.index) < assigned->length()) {
           // Unverified code might have an out-of-bounds index.
+          // Ignore out-of-bounds indices, as the main verification will fail.
           assigned->Add(operand.index);
+          assigned_index = operand.index;
         }
         arity = 1;
         length = 1 + operand.length;
@@ -1588,9 +1606,16 @@ class SR_WasmDecoder : public WasmDecoder {
         length = OpcodeLength(pc);
       }
 
-      TRACE("loop-assign module+%-6d %s func+%d: 0x%02x %s (len=%d)\n",
-            baserel(pc), indentation(), startrel(pc), opcode,
-            WasmOpcodes::OpcodeName(opcode), length);
+      TRACE("loop-assign module+%-6d %s func+%d: 0x%02x %s", baserel(pc),
+            indentation(), startrel(pc), opcode,
+            WasmOpcodes::OpcodeName(opcode));
+
+      if (assigned_index >= 0) {
+        TRACE(" (assigned local #%d)\n", assigned_index);
+      } else {
+        TRACE("\n");
+      }
+
       pc += length;
       arity_stack.push_back(arity);
       while (arity_stack.back() == 0) {

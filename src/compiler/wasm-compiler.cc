@@ -2567,9 +2567,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   if (FLAG_trace_wasm_decode_time) {
     double compile_ms = compile_timer.Elapsed().InMillisecondsF();
     PrintF(
-        "wasm-compile ok: %d bytes, %0.3f ms decode, %0.3f ms compile\n",
+        "wasm-compile ok: %d bytes, %0.3f ms decode, %d nodes, %0.3f ms "
+        "compile\n",
         static_cast<int>(function.code_end_offset - function.code_start_offset),
-        decode_ms, compile_ms);
+        decode_ms, static_cast<int>(graph.NodeCount()), compile_ms);
   }
   return code;
 }
