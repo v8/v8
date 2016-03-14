@@ -182,8 +182,11 @@ HeapObject* LiveObjectIterator<T>::Next() {
       } else if (T == kGreyObjectsOnBlackPage) {
         object = HeapObject::FromAddress(addr);
       }
-      // Clear the second bit of the found object.
-      current_cell_ &= ~second_bit_index;
+
+      if (T != kGreyObjectsOnBlackPage) {
+        // Clear the second bit of the found object.
+        current_cell_ &= ~second_bit_index;
+      }
 
       // We found a live object.
       if (object != nullptr) break;
