@@ -228,18 +228,8 @@ RUNTIME_FUNCTION(Runtime_MathSqrt) {
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  if (isolate->serializer_enabled()) {
-    // Random numbers in the snapshot are not really that random. And we cannot
-    // return a typed array as it cannot be serialized. To make calling
-    // Math.random possible when creating a custom startup snapshot, we simply
-    // return a normal array with a single random number.
-    Handle<HeapNumber> random_number = isolate->factory()->NewHeapNumber(
-        isolate->random_number_generator()->NextDouble());
-    Handle<FixedArray> array_backing = isolate->factory()->NewFixedArray(1);
-    array_backing->set(0, *random_number);
-    return *isolate->factory()->NewJSArrayWithElements(array_backing);
-  }
-
+  // Random numbers in the snapshot are not really that random.
+  CHECK(!isolate->serializer_enabled());
   static const int kState0Offset = 0;
   static const int kState1Offset = 1;
   static const int kRandomBatchSize = 64;

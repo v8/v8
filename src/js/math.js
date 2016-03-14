@@ -10,6 +10,7 @@
 // -------------------------------------------------------------------
 // Imports
 
+define kRandomBatchSize = 64;
 // The first two slots are reserved to persist PRNG state.
 define kRandomNumberStart = 2;
 
@@ -18,7 +19,7 @@ var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
-var nextRandomIndex = 0;
+var nextRandomIndex = kRandomBatchSize;
 var randomNumbers = UNDEFINED;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
@@ -66,24 +67,19 @@ function MathPowJS(x, y) {
 
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
-  // While creating a startup snapshot, %GenerateRandomNumbers returns a
-  // normal array containing a single random number, and has to be called for
-  // every new random number.
-  // Otherwise, it returns a pre-populated typed array of random numbers. The
-  // first two elements are reserved for the PRNG state.
-  if (nextRandomIndex <= kRandomNumberStart) {
+  if (nextRandomIndex >= kRandomBatchSize) {
     randomNumbers = %GenerateRandomNumbers(randomNumbers);
-    nextRandomIndex = randomNumbers.length;
+    nextRandomIndex = kRandomNumberStart;
   }
-  return randomNumbers[--nextRandomIndex];
+  return randomNumbers[nextRandomIndex++];
 }
 
 function MathRandomRaw() {
-  if (nextRandomIndex <= kRandomNumberStart) {
+  if (nextRandomIndex >= kRandomBatchSize) {
     randomNumbers = %GenerateRandomNumbers(randomNumbers);
-    nextRandomIndex = randomNumbers.length;
+    nextRandomIndex = kRandomNumberStart;
   }
-  return %_DoubleLo(randomNumbers[--nextRandomIndex]) & 0x3FFFFFFF;
+  return %_DoubleLo(randomNumbers[nextRandomIndex++]) & 0x3FFFFFFF;
 }
 
 // ECMA 262 - 15.8.2.15

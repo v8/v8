@@ -462,8 +462,7 @@ static void PartiallySerializeCustomContext(
           "  e = function(s) { return eval (s); }"
           "})();"
           "var o = this;"
-          "var r = Math.random();"
-          "var c = Math.sin(0) + Math.cos(0);"
+          "var r = Math.sin(0) + Math.cos(0);"
           "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
           "var s = parseInt('12345');");
 
@@ -559,18 +558,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
                      ->ToNumber(v8_isolate->GetCurrentContext())
                      .ToLocalChecked()
                      ->Value();
-      CHECK(0.0 <= r && r < 1.0);
-      // Math.random still works.
-      double random = CompileRun("Math.random()")
-                          ->ToNumber(v8_isolate->GetCurrentContext())
-                          .ToLocalChecked()
-                          ->Value();
-      CHECK(0.0 <= random && random < 1.0);
-      double c = CompileRun("c")
-                     ->ToNumber(v8_isolate->GetCurrentContext())
-                     .ToLocalChecked()
-                     ->Value();
-      CHECK_EQ(1, c);
+      CHECK_EQ(1, r);
       int f = CompileRun("f()")
                   ->ToNumber(v8_isolate->GetCurrentContext())
                   .ToLocalChecked()
