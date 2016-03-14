@@ -642,13 +642,6 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   RUNTIME_ASSERT(elements_length <= elements_array->elements()->length());
   RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
-  for (int i = 0; i < elements_length; i += 2) {
-    RUNTIME_ASSERT(elements->get(i)->IsNumber());
-    CONVERT_NUMBER_CHECKED(uint32_t, position, Uint32, elements->get(i));
-    RUNTIME_ASSERT(position < array_length);
-    RUNTIME_ASSERT(elements->get(i + 1)->IsString());
-  }
-
   {
     DisallowHeapAllocation no_gc;
     for (int i = 0; i < elements_length; i += 2) {

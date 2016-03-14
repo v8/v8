@@ -3485,10 +3485,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     return NumberOfElementsFilterAttributes(ENUMERABLE_STRINGS);
   }
 
-  // Returns true if the dictionary contains any elements that are non-writable,
-  // non-configurable, non-enumerable, or have getters/setters.
-  bool HasComplexElements();
-
   enum SortMode { UNSORTED, SORTED };
 
   // Fill in details for properties into storage.
@@ -3720,6 +3716,10 @@ class SeededNumberDictionary
       Handle<Object> value, PropertyDetails details, bool used_as_prototype);
 
   void UpdateMaxNumberKey(uint32_t key, bool used_as_prototype);
+
+  // Returns true if the dictionary contains any elements that are non-writable,
+  // non-configurable, non-enumerable, or have getters/setters.
+  bool HasComplexElements();
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow

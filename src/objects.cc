@@ -17482,9 +17482,6 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     EnsureCapacity(Handle<NameDictionary>, int, Handle<Name>);
 
-template bool Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape,
-                         uint32_t>::HasComplexElements();
-
 template int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape,
                        uint32_t>::FindEntry(uint32_t);
 
@@ -18325,6 +18322,21 @@ void Dictionary<Derived, Shape, Key>::AddEntry(
   dictionary->ElementAdded();
 }
 
+bool SeededNumberDictionary::HasComplexElements() {
+  if (!requires_slow_elements()) return false;
+  int capacity = this->Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = this->KeyAt(i);
+    if (this->IsKey(k)) {
+      DCHECK(!IsDeleted(i));
+      PropertyDetails details = this->DetailsAt(i);
+      if (details.type() == ACCESSOR_CONSTANT) return true;
+      PropertyAttributes attr = details.attributes();
+      if (attr & ALL_ATTRIBUTES_MASK) return true;
+    }
+  }
+  return false;
+}
 
 void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key,
                                                 bool used_as_prototype) {
@@ -18429,23 +18441,6 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
     }
   }
   return result;
-}
-
-
-template <typename Derived, typename Shape, typename Key>
-bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
-  int capacity = this->Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !k->FilterKey(ALL_PROPERTIES)) {
-      if (this->IsDeleted(i)) continue;
-      PropertyDetails details = this->DetailsAt(i);
-      if (details.type() == ACCESSOR_CONSTANT) return true;
-      PropertyAttributes attr = details.attributes();
-      if (attr & ALL_ATTRIBUTES_MASK) return true;
-    }
-  }
-  return false;
 }
 
 
