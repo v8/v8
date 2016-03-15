@@ -817,7 +817,7 @@
   'regress/regress-crbug-352058': [PASS, ['no_snap == True', SKIP]],
 
   # TODO(rmcilroy,4680): Fails on win32 debug.
-  'div-mod': [PASS, ['arch == ia32 and mode == debug', FAIL]],
+  'div-mod': [PASS, ['arch == ia32', SKIP]],
 }],  # ignition == True and system == windows
 
 ['ignition == True and arch == arm64', {
