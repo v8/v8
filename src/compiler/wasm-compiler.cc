@@ -834,6 +834,16 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     // kExprI64Clz:
     // kExprI64Ctz:
     // kExprI64Popcnt:
+    case wasm::kExprI64Popcnt: {
+      if (m->Word64Popcnt().IsSupported()) {
+        op = m->Word64Popcnt().op();
+      } else if (m->Is32() && m->Word32Popcnt().IsSupported()) {
+        op = m->Word64PopcntPlaceholder();
+      } else {
+        return BuildI64Popcnt(input);
+      }
+      break;
+    }
     // kExprF32SConvertI64:
     case wasm::kExprI64Eqz:
       op = m->Word64Equal();
@@ -903,14 +913,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
         return result;
       } else {
         return BuildI64Ctz(input);
-      }
-    }
-    case wasm::kExprI64Popcnt: {
-      if (m->Word64Popcnt().IsSupported()) {
-        op = m->Word64Popcnt().op();
-        break;
-      } else {
-        return BuildI64Popcnt(input);
       }
     }
 #endif

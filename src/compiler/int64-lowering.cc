@@ -447,6 +447,21 @@ void Int64Lowering::LowerNode(Node* node) {
 
     // kExprI64Clz:
     // kExprI64Ctz:
+    case IrOpcode::kWord64Popcnt: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      // We assume that a Word64Popcnt node only has been created if
+      // Word32Popcnt is actually supported.
+      DCHECK(machine()->Word32Popcnt().IsSupported());
+      ReplaceNode(node, graph()->NewNode(
+                            machine()->Int32Add(),
+                            graph()->NewNode(machine()->Word32Popcnt().op(),
+                                             GetReplacementLow(input)),
+                            graph()->NewNode(machine()->Word32Popcnt().op(),
+                                             GetReplacementHigh(input))),
+                  graph()->NewNode(common()->Int32Constant(0)));
+      break;
+    }
     // kExprI64Popcnt:
 
     default: { DefaultLowering(node); }

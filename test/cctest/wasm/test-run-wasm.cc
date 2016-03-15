@@ -324,7 +324,6 @@ TEST(Run_WasmI32Eqz) {
   TestInt32Unop(kExprI32Eqz, 1, 0);
 }
 
-
 TEST(Run_WASM_Int32DivS_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));

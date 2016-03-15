@@ -278,6 +278,7 @@ Matcher<Node*> IsWord32Ror(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsWord32Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Clz(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsWord32Popcnt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsWord64And(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Or(const Matcher<Node*>& lhs_matcher,

@@ -29,7 +29,9 @@ namespace compiler {
 class Int64LoweringTest : public GraphTest {
  public:
   Int64LoweringTest()
-      : GraphTest(), machine_(zone(), MachineRepresentation::kWord32) {
+      : GraphTest(),
+        machine_(zone(), MachineRepresentation::kWord32,
+                 MachineOperatorBuilder::Flag::kAllOptionalOps) {
     value_[0] = 0x1234567890abcdef;
     value_[1] = 0x1edcba098765432f;
     value_[2] = 0x1133557799886644;
@@ -511,6 +513,18 @@ TEST_F(Int64LoweringTest, Dfs) {
                             IsWord32And(IsInt32Constant(high_word_value(0)),
                                         IsInt32Constant(high_word_value(1)))),
                 start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Popcnt) {
+  LowerGraph(graph()->NewNode(machine()->Word64PopcntPlaceholder(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsInt32Add(IsWord32Popcnt(IsInt32Constant(low_word_value(0))),
+                           IsWord32Popcnt(IsInt32Constant(high_word_value(0)))),
+                IsInt32Constant(0), start(), start()));
 }
 }  // namespace compiler
 }  // namespace internal

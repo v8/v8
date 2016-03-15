@@ -164,6 +164,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const OptionalOperator Word32Ctz();
   const OptionalOperator Word32Popcnt();
   const OptionalOperator Word64Popcnt();
+  const Operator* Word64PopcntPlaceholder();
   const OptionalOperator Word32ReverseBits();
   const OptionalOperator Word64ReverseBits();
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }

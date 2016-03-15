@@ -2247,6 +2247,7 @@ IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(ObjectIsReceiver)
 IS_UNOP_MATCHER(ObjectIsSmi)
 IS_UNOP_MATCHER(Word32Clz)
+IS_UNOP_MATCHER(Word32Popcnt)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

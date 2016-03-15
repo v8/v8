@@ -70,7 +70,7 @@
   V(I64GeU, true)               \
   V(I64Clz, false)              \
   V(I64Ctz, false)              \
-  V(I64Popcnt, false)           \
+  V(I64Popcnt, !MIPS_OR_X87)    \
   V(I32ConvertI64, true)        \
   V(I64SConvertF32, false)      \
   V(I64SConvertF64, false)      \
@@ -519,6 +519,22 @@ TEST(Run_Wasm_I64UConvertI32) {
 // kExprI64Clz:
 // kExprI64Ctz:
 // kExprI64Popcnt:
+TEST(Run_WasmI64Popcnt) {
+  struct {
+    int64_t expected;
+    uint64_t input;
+  } values[] = {{64, 0xffffffffffffffff},
+                {0, 0x0000000000000000},
+                {2, 0x0000080000008000},
+                {26, 0x1123456782345678},
+                {38, 0xffedcba09edcba09}};
+
+  WasmRunner<int64_t> r(MachineType::Uint64());
+  BUILD(r, WASM_I64_POPCNT(WASM_GET_LOCAL(0)));
+  for (size_t i = 0; i < arraysize(values); i++) {
+    CHECK_EQ(values[i].expected, r.Call(values[i].input));
+  }
+}
 
 // kExprF32SConvertI64:
 TEST(Run_WasmF32SConvertI64) {
