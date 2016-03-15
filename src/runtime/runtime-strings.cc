@@ -557,6 +557,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   RUNTIME_ASSERT(fixed_array->get(0)->IsString());
   String* first = String::cast(fixed_array->get(0));
   String* separator_raw = *separator;
+
   int first_length = first->length();
   String::WriteToFlat(first, sink, 0, first_length);
   sink += first_length;
@@ -580,6 +581,26 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   return *answer;
 }
 
+template <typename sinkchar>
+static void WriteRepeatToFlat(String* src, Vector<sinkchar> buffer, int cursor,
+                              int repeat, int length) {
+  if (repeat == 0) return;
+
+  sinkchar* start = &buffer[cursor];
+  String::WriteToFlat<sinkchar>(src, start, 0, length);
+
+  int done = 1;
+  sinkchar* next = start + length;
+
+  while (done < repeat) {
+    int block = Min(done, repeat - done);
+    int block_chars = block * length;
+    CopyChars(next, start, block_chars);
+    next += block_chars;
+    done += block;
+  }
+}
+
 template <typename Char>
 static void JoinSparseArrayWithSeparator(FixedArray* elements,
                                          int elements_length,
@@ -589,34 +610,30 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   DisallowHeapAllocation no_gc;
   int previous_separator_position = 0;
   int separator_length = separator->length();
+  DCHECK_LT(0, separator_length);
   int cursor = 0;
   for (int i = 0; i < elements_length; i += 2) {
     int position = NumberToInt32(elements->get(i));
     String* string = String::cast(elements->get(i + 1));
     int string_length = string->length();
     if (string->length() > 0) {
-      while (previous_separator_position < position) {
-        String::WriteToFlat<Char>(separator, &buffer[cursor], 0,
-                                  separator_length);
-        cursor += separator_length;
-        previous_separator_position++;
-      }
+      int repeat = position - previous_separator_position;
+      WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat,
+                              separator_length);
+      cursor += repeat * separator_length;
+      previous_separator_position = position;
       String::WriteToFlat<Char>(string, &buffer[cursor], 0, string_length);
       cursor += string->length();
     }
   }
-  if (separator_length > 0) {
-    // Array length must be representable as a signed 32-bit number,
-    // otherwise the total string length would have been too large.
-    DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
-    int last_array_index = static_cast<int>(array_length - 1);
-    while (previous_separator_position < last_array_index) {
-      String::WriteToFlat<Char>(separator, &buffer[cursor], 0,
-                                separator_length);
-      cursor += separator_length;
-      previous_separator_position++;
-    }
-  }
+
+  int last_array_index = static_cast<int>(array_length - 1);
+  // Array length must be representable as a signed 32-bit number,
+  // otherwise the total string length would have been too large.
+  DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
+  int repeat = last_array_index - previous_separator_position;
+  WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
+  cursor += repeat * separator_length;
   DCHECK(cursor <= buffer.length());
 }
 
