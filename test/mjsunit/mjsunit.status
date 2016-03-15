@@ -807,6 +807,9 @@
   # TODO(mythria, 4680): possibly problem with line numbers.
   'es6/regress/regress-468661': [FAIL],
 
+  # Debugger test cases that pass with ignition, but not full-codegen.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction-no-ignition': [FAIL],
 }],  # ignition == True
 
 ['ignition == True and arch == arm64', {
@@ -822,6 +825,12 @@
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
 }],  # ignition == True and arch == arm
+
+['ignition == False', {
+  # Debugger test cases that pass with full-codegen, but not ignition.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction': [FAIL],
+}],  # ignition == False
 
 ##############################################################################
 ['gcov_coverage', {

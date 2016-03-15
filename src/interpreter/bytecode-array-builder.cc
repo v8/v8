@@ -1197,8 +1197,9 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 void BytecodeArrayBuilder::SetReturnPosition() {
   if (return_position_ == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
-                                                      return_position_);
+  source_position_table_builder_.AddStatementPosition(
+      bytecodes_.size(), return_position_,
+      SourcePositionTableBuilder::OVERWRITE_DUPLICATE);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
