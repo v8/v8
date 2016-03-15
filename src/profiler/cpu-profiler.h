@@ -259,6 +259,7 @@ class CpuProfiler : public CodeEventListener {
   void ResetProfiles();
   void LogBuiltins();
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
   Isolate* isolate_;
   base::TimeDelta sampling_interval_;

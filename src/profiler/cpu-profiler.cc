@@ -248,7 +248,8 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
       tag, profiles_->GetFunctionName(shared->DebugName()),
-      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name),
+      CodeEntry::kEmptyNamePrefix,
+      profiles_->GetName(InferScriptName(script_name, shared)),
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       NULL, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
@@ -300,8 +301,9 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   }
   rec->entry = profiles_->NewCodeEntry(
       tag, profiles_->GetFunctionName(shared->DebugName()),
-      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name), line,
-      column, line_table, abstract_code->instruction_start());
+      CodeEntry::kEmptyNamePrefix,
+      profiles_->GetName(InferScriptName(script_name, shared)), line, column,
+      line_table, abstract_code->instruction_start());
   RecordInliningInfo(rec->entry, abstract_code);
   if (info) {
     rec->entry->set_inlined_function_infos(info->inlined_function_infos());
@@ -389,6 +391,13 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
       "set ");
   rec->size = 1;
   processor_->Enqueue(evt_rec);
+}
+
+Name* CpuProfiler::InferScriptName(Name* name, SharedFunctionInfo* info) {
+  if (name->IsString() && String::cast(name)->length()) return name;
+  if (!info->script()->IsScript()) return name;
+  Object* source_url = Script::cast(info->script())->source_url();
+  return source_url->IsName() ? Name::cast(source_url) : name;
 }
 
 void CpuProfiler::RecordInliningInfo(CodeEntry* entry,
