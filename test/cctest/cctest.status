@@ -549,10 +549,6 @@
 
   # TODO(mythria,4680): Incorrect column number on eval.
   'test-api/PromiseRejectCallback': [FAIL],
-
-  # TODO(rmcilroy,4680): Test assert errors.
-  'test-run-inlining/InlineTwice': [FAIL],
-
 }],  # ignition == True
 
 ['ignition == True and msan', {
