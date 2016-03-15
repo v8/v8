@@ -139,6 +139,41 @@ static int32_t float64_to_uint64_wrapper(double* input, uint64_t* output) {
   }
   return 0;
 }
+
+static int32_t int64_div_wrapper(int64_t* dst, int64_t* src) {
+  if (*src == 0) {
+    return 0;
+  }
+  if (*src == -1 && *dst == std::numeric_limits<int64_t>::min()) {
+    return -1;
+  }
+  *dst /= *src;
+  return 1;
+}
+
+static int32_t int64_mod_wrapper(int64_t* dst, int64_t* src) {
+  if (*src == 0) {
+    return 0;
+  }
+  *dst %= *src;
+  return 1;
+}
+
+static int32_t uint64_div_wrapper(uint64_t* dst, uint64_t* src) {
+  if (*src == 0) {
+    return 0;
+  }
+  *dst /= *src;
+  return 1;
+}
+
+static int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
+  if (*src == 0) {
+    return 0;
+  }
+  *dst %= *src;
+  return 1;
+}
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

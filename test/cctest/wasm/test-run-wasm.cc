@@ -420,7 +420,6 @@ TEST(Run_WASM_Int32DivS_trap_effect) {
   CHECK_TRAP(r.Call(0, 0));
 }
 
-
 void TestFloat32Binop(WasmOpcode opcode, int32_t expected, float a, float b) {
   {
     WasmRunner<int32_t> r;

@@ -131,6 +131,12 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "wasm::float64_to_int64_wrapper");
   Add(ExternalReference::wasm_float64_to_uint64(isolate).address(),
       "wasm::float64_to_uint64_wrapper");
+  Add(ExternalReference::wasm_int64_div(isolate).address(), "wasm::int64_div");
+  Add(ExternalReference::wasm_int64_mod(isolate).address(), "wasm::int64_mod");
+  Add(ExternalReference::wasm_uint64_div(isolate).address(),
+      "wasm::uint64_div");
+  Add(ExternalReference::wasm_uint64_mod(isolate).address(),
+      "wasm::uint64_mod");
   Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),

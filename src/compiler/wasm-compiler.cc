@@ -500,9 +500,17 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     // kExprI64Sub:
     // kExprI64Mul:
     // kExprI64DivS:
+    case wasm::kExprI64DivS:
+      return BuildI64DivS(left, right);
     // kExprI64DivU:
+    case wasm::kExprI64DivU:
+      return BuildI64DivU(left, right);
     // kExprI64RemS:
+    case wasm::kExprI64RemS:
+      return BuildI64RemS(left, right);
     // kExprI64RemU:
+    case wasm::kExprI64RemU:
+      return BuildI64RemU(left, right);
     case wasm::kExprI64Ior:
       op = m->Word64Or();
       break;
@@ -568,44 +576,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI64Mul:
       op = m->Int64Mul();
       break;
-    case wasm::kExprI64DivS: {
-      trap_->ZeroCheck64(kTrapDivByZero, right);
-      Node* before = *control_;
-      Node* denom_is_m1;
-      Node* denom_is_not_m1;
-      Branch(graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
-                              jsgraph()->Int64Constant(-1)),
-             &denom_is_m1, &denom_is_not_m1);
-      *control_ = denom_is_m1;
-      trap_->TrapIfEq64(kTrapDivUnrepresentable, left,
-                        std::numeric_limits<int64_t>::min());
-      if (*control_ != denom_is_m1) {
-        *control_ = graph()->NewNode(jsgraph()->common()->Merge(2),
-                                     denom_is_not_m1, *control_);
-      } else {
-        *control_ = before;
-      }
-      return graph()->NewNode(m->Int64Div(), left, right, *control_);
-    }
-    case wasm::kExprI64DivU:
-      op = m->Uint64Div();
-      return graph()->NewNode(op, left, right,
-                              trap_->ZeroCheck64(kTrapDivByZero, right));
-    case wasm::kExprI64RemS: {
-      trap_->ZeroCheck64(kTrapRemByZero, right);
-      Diamond d(jsgraph()->graph(), jsgraph()->common(),
-                graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
-                                 jsgraph()->Int64Constant(-1)));
-
-      Node* rem = graph()->NewNode(m->Int64Mod(), left, right, d.if_false);
-
-      return d.Phi(MachineRepresentation::kWord64, jsgraph()->Int64Constant(0),
-                   rem);
-    }
-    case wasm::kExprI64RemU:
-      op = m->Uint64Mod();
-      return graph()->NewNode(op, left, right,
-                              trap_->ZeroCheck64(kTrapRemByZero, right));
     case wasm::kExprI64Ror:
       op = m->Word64Ror();
       break;
@@ -1769,6 +1739,108 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
   Node* load =
       graph()->NewNode(load_op, stack_slot_result, jsgraph()->Int32Constant(0),
+                       *effect_, *control_);
+  *effect_ = load;
+  return load;
+}
+
+Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right) {
+  if (jsgraph()->machine()->Is32()) {
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_int64_div(jsgraph()->isolate()),
+        MachineType::Int64(), kTrapDivByZero);
+  }
+  trap_->ZeroCheck64(kTrapDivByZero, right);
+  Node* before = *control_;
+  Node* denom_is_m1;
+  Node* denom_is_not_m1;
+  Branch(graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
+                          jsgraph()->Int64Constant(-1)),
+         &denom_is_m1, &denom_is_not_m1);
+  *control_ = denom_is_m1;
+  trap_->TrapIfEq64(kTrapDivUnrepresentable, left,
+                    std::numeric_limits<int64_t>::min());
+  if (*control_ != denom_is_m1) {
+    *control_ = graph()->NewNode(jsgraph()->common()->Merge(2), denom_is_not_m1,
+                                 *control_);
+  } else {
+    *control_ = before;
+  }
+  return graph()->NewNode(jsgraph()->machine()->Int64Div(), left, right,
+                          *control_);
+}
+
+Node* WasmGraphBuilder::BuildI64RemS(Node* left, Node* right) {
+  if (jsgraph()->machine()->Is32()) {
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_int64_mod(jsgraph()->isolate()),
+        MachineType::Int64(), kTrapRemByZero);
+  }
+  trap_->ZeroCheck64(kTrapRemByZero, right);
+  Diamond d(jsgraph()->graph(), jsgraph()->common(),
+            graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
+                             jsgraph()->Int64Constant(-1)));
+
+  Node* rem = graph()->NewNode(jsgraph()->machine()->Int64Mod(), left, right,
+                               d.if_false);
+
+  return d.Phi(MachineRepresentation::kWord64, jsgraph()->Int64Constant(0),
+               rem);
+}
+
+Node* WasmGraphBuilder::BuildI64DivU(Node* left, Node* right) {
+  if (jsgraph()->machine()->Is32()) {
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_uint64_div(jsgraph()->isolate()),
+        MachineType::Int64(), kTrapDivByZero);
+  }
+  return graph()->NewNode(jsgraph()->machine()->Uint64Div(), left, right,
+                          trap_->ZeroCheck64(kTrapDivByZero, right));
+}
+Node* WasmGraphBuilder::BuildI64RemU(Node* left, Node* right) {
+  if (jsgraph()->machine()->Is32()) {
+    return BuildDiv64Call(
+        left, right, ExternalReference::wasm_uint64_mod(jsgraph()->isolate()),
+        MachineType::Int64(), kTrapRemByZero);
+  }
+  return graph()->NewNode(jsgraph()->machine()->Uint64Mod(), left, right,
+                          trap_->ZeroCheck64(kTrapRemByZero, right));
+}
+
+Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
+                                       ExternalReference ref,
+                                       MachineType result_type, int trap_zero) {
+  Node* stack_slot_dst = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(MachineRepresentation::kWord64));
+  Node* stack_slot_src = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(MachineRepresentation::kWord64));
+
+  const Operator* store_op = jsgraph()->machine()->Store(
+      StoreRepresentation(MachineRepresentation::kWord64, kNoWriteBarrier));
+  *effect_ =
+      graph()->NewNode(store_op, stack_slot_dst, jsgraph()->Int32Constant(0),
+                       left, *effect_, *control_);
+  *effect_ =
+      graph()->NewNode(store_op, stack_slot_src, jsgraph()->Int32Constant(0),
+                       right, *effect_, *control_);
+
+  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 2);
+  sig_builder.AddReturn(MachineType::Int32());
+  sig_builder.AddParam(MachineType::Pointer());
+  sig_builder.AddParam(MachineType::Pointer());
+
+  Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
+  Node* args[] = {function, stack_slot_dst, stack_slot_src};
+
+  Node* call = BuildCCall(sig_builder.Build(), args);
+
+  // TODO(wasm): This can get simpler if we have a specialized runtime call to
+  // throw WASM exceptions by trap code instead of by string.
+  trap_->ZeroCheck32(static_cast<TrapReason>(trap_zero), call);
+  trap_->TrapIfEq32(kTrapDivUnrepresentable, call, -1);
+  const Operator* load_op = jsgraph()->machine()->Load(result_type);
+  Node* load =
+      graph()->NewNode(load_op, stack_slot_dst, jsgraph()->Int32Constant(0),
                        *effect_, *control_);
   *effect_ = load;
   return load;
