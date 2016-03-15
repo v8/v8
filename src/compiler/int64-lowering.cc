@@ -444,7 +444,30 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     // kExprF64ReinterpretI64:
     // kExprI64ReinterpretF64:
+    case IrOpcode::kBitcastFloat64ToInt64: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      Node* stack_slot = graph()->NewNode(
+          machine()->StackSlot(MachineRepresentation::kWord64));
+      Node* store = graph()->NewNode(
+          machine()->Store(
+              StoreRepresentation(MachineRepresentation::kFloat64,
+                                  WriteBarrierKind::kNoWriteBarrier)),
+          stack_slot, graph()->NewNode(common()->Int32Constant(0)), input,
+          graph()->start(), graph()->start());
 
+      Node* high_node =
+          graph()->NewNode(machine()->Load(MachineType::Int32()), stack_slot,
+                           graph()->NewNode(common()->Int32Constant(4)), store,
+                           graph()->start());
+
+      Node* low_node =
+          graph()->NewNode(machine()->Load(MachineType::Int32()), stack_slot,
+                           graph()->NewNode(common()->Int32Constant(0)), store,
+                           graph()->start());
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
     // kExprI64Clz:
     // kExprI64Ctz:
     case IrOpcode::kWord64Popcnt: {

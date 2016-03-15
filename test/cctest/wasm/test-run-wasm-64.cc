@@ -83,7 +83,7 @@
   V(F64SConvertI64, true)       \
   V(F64UConvertI64, true)       \
   V(F64ReinterpretI64, false)   \
-  V(I64ReinterpretF64, false)   \
+  V(I64ReinterpretF64, true)    \
   V(I64Ror, false)              \
   V(I64Rol, false)
 
@@ -1184,8 +1184,8 @@ TEST(Run_Wasm_I64UConvertF64b) {
   }
 }
 
-TEST(Run_Wasm_F64ReinterpretI64) {
-  REQUIRE(F64ReinterpretI64);
+TEST(Run_Wasm_I64ReinterpretF64) {
+  REQUIRE(I64ReinterpretF64);
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
   WasmRunner<int64_t> r(&module);
@@ -1200,8 +1200,8 @@ TEST(Run_Wasm_F64ReinterpretI64) {
   }
 }
 
-TEST(Run_Wasm_I64ReinterpretF64) {
-  REQUIRE(I64ReinterpretF64);
+TEST(Run_Wasm_F64ReinterpretI64) {
+  REQUIRE(F64ReinterpretI64);
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
   WasmRunner<int64_t> r(&module, MachineType::Int64());

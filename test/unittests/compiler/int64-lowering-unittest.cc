@@ -492,7 +492,34 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
 }
 // kExprF64ReinterpretI64:
 // kExprI64ReinterpretF64:
+TEST_F(Int64LoweringTest, I64ReinterpretF64) {
+  LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),
+                              Float64Constant(bit_cast<double>(value(0)))),
+             MachineRepresentation::kWord64);
 
+  Capture<Node*> stack_slot;
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(MachineRepresentation::kWord64);
+
+  Capture<Node*> store;
+  Matcher<Node*> store_matcher = IsStore(
+      StoreRepresentation(MachineRepresentation::kFloat64,
+                          WriteBarrierKind::kNoWriteBarrier),
+      AllOf(CaptureEq(&stack_slot), stack_slot_matcher), IsInt32Constant(0),
+      IsFloat64Constant(bit_cast<double>(value(0))), start(), start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsLoad(MachineType::Int32(),
+                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
+                       IsInt32Constant(0),
+                       AllOf(CaptureEq(&store), store_matcher), start()),
+                IsLoad(MachineType::Int32(),
+                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
+                       IsInt32Constant(0x4),
+                       AllOf(CaptureEq(&store), store_matcher), start()),
+                start(), start()));
+}
 // kExprI64Clz:
 // kExprI64Ctz:
 // kExprI64Popcnt:

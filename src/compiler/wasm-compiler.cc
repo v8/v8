@@ -831,6 +831,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       break;
     // kExprF64ReinterpretI64:
     // kExprI64ReinterpretF64:
+    case wasm::kExprI64ReinterpretF64:
+      op = m->BitcastFloat64ToInt64();
+      break;
     // kExprI64Clz:
     // kExprI64Ctz:
     // kExprI64Popcnt:
@@ -896,9 +899,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
     case wasm::kExprF64ReinterpretI64:
       op = m->BitcastInt64ToFloat64();
-      break;
-    case wasm::kExprI64ReinterpretF64:
-      op = m->BitcastFloat64ToInt64();
       break;
     case wasm::kExprI64Clz:
       op = m->Word64Clz();
