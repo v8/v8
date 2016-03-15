@@ -160,6 +160,11 @@
             'compiler/ppc/instruction-selector-ppc-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+          'sources': [  ### gcmole(arch:s390) ###
+            'compiler/s390/instruction-selector-s390-unittest.cc',
+          ],
+        }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
         }],

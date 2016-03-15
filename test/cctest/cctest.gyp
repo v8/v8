@@ -236,6 +236,20 @@
             'test-js-arm64-variables.cc'
           ],
         }],
+        ['v8_target_arch=="s390"', {
+          'sources': [  ### gcmole(arch:s390) ###
+            'test-assembler-s390.cc',
+            'test-code-stubs.cc',
+            'test-disasm-s390.cc'
+          ],
+        }],
+        ['v8_target_arch=="s390x"', {
+          'sources': [  ### gcmole(arch:s390x) ###
+            'test-assembler-s390.cc',
+            'test-code-stubs.cc',
+            'test-disasm-s390.cc'
+          ],
+        }],
         ['v8_target_arch=="ppc"', {
           'sources': [  ### gcmole(arch:ppc) ###
             'test-assembler-ppc.cc',
