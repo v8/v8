@@ -14963,7 +14963,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     }
 #ifdef OBJECT_PRINT
     if (!type_feedback_info()->IsUndefined()) {
-      OFStream os(stdout);
       TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(os);
       os << "\n";
     }
