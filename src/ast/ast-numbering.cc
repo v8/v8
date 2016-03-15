@@ -268,7 +268,7 @@ void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   ReserveFeedbackSlots(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
-    DisableOptimization(kCallToAJavaScriptRuntimeFunction);
+    DisableCrankshaft(kCallToAJavaScriptRuntimeFunction);
   }
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
