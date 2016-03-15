@@ -968,7 +968,6 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  builder()->SetStatementPosition(stmt);
   LoopBuilder loop_builder(builder());
   loop_builder.LoopHeader();
   if (stmt->cond()->ToBooleanIsFalse()) {
@@ -1010,7 +1009,6 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->init() != nullptr) {
-    builder()->SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
@@ -1146,6 +1144,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The loop
   loop_builder.LoopHeader();
+  builder()->SetExpressionAsStatementPosition(stmt->each());
   loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
@@ -1153,7 +1152,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
   builder()->ForInNext(receiver, index, cache_type, feedback_index(slot));
   loop_builder.ContinueIfUndefined();
-  builder()->SetExpressionAsStatementPosition(stmt->each());
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.Next();

@@ -3458,26 +3458,25 @@ TEST(DebugConditional) {
   v8::Local<v8::Context> context = env.context();
   // Create a function for testing stepping. Run it to allow it to get
   // optimized.
-  const char* src = "function foo(x) { "
-                    "  var a;"
-                    "  a = x ? 1 : 2;"
-                    "  return a;"
-                    "}"
-                    "foo()";
+  const char* src =
+      "function foo(x) { "
+      "  return x ? 1 : 2;"
+      "}"
+      "foo()";
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 0);  // "var a;"
 
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(3, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   step_action = StepIn;
   break_point_hit_count = 0;
   const int argc = 1;
   v8::Local<v8::Value> argv_true[argc] = {v8::True(isolate)};
   foo->Call(context, env->Global(), argc, argv_true).ToLocalChecked();
-  CHECK_EQ(3, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(isolate, nullptr);

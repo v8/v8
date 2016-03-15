@@ -761,7 +761,6 @@
   'harmony/debug-stepin-proxies': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
-  'regress/regress-crbug-568477-2': [FAIL],
 
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
