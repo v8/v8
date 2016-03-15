@@ -171,7 +171,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   this_function_ = nullptr;
   illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
-  scope_contains_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
   scope_uses_super_property_ = false;
@@ -210,7 +209,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
-  bool contains_with = false;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new (zone)
@@ -218,7 +216,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                 script_scope->ast_value_factory_);
       current_scope = with_scope;
       // All the inner scopes are inside a with.
-      contains_with = true;
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
@@ -252,13 +249,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
           script_scope->ast_value_factory_->GetString(Handle<String>(name)),
           script_scope->ast_value_factory_);
     }
-    if (contains_with) current_scope->RecordWithStatement();
     if (innermost_scope == NULL) innermost_scope = current_scope;
-
-    // Forget about a with when we move to a context for a different function.
-    if (context->previous()->closure() != context->closure()) {
-      contains_with = false;
-    }
     context = context->previous();
   }
 
@@ -392,7 +383,6 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   if (uses_arguments()) other->RecordArgumentsUsage();
   if (uses_super_property()) other->RecordSuperPropertyUsage();
   if (calls_eval()) other->RecordEvalCall();
-  if (scope_contains_with_) other->RecordWithStatement();
 }
 
 
@@ -982,7 +972,6 @@ void Scope::Print(int n) {
     Indent(n1, "// strict mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
-  if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
@@ -1254,8 +1243,8 @@ bool Scope::MustAllocate(Variable* var) {
   // visible name.
   if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
       (var->has_forced_context_allocation() || scope_calls_eval_ ||
-       inner_scope_calls_eval_ || scope_contains_with_ || is_catch_scope() ||
-       is_block_scope() || is_module_scope() || is_script_scope())) {
+       inner_scope_calls_eval_ || is_catch_scope() || is_block_scope() ||
+       is_module_scope() || is_script_scope())) {
     var->set_is_used();
     if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
@@ -1278,10 +1267,8 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope() || is_module_scope()) return true;
   if (is_script_scope() && IsLexicalVariableMode(var->mode())) return true;
-  return var->has_forced_context_allocation() ||
-      scope_calls_eval_ ||
-      inner_scope_calls_eval_ ||
-      scope_contains_with_;
+  return var->has_forced_context_allocation() || scope_calls_eval_ ||
+         inner_scope_calls_eval_;
 }
 
 
