@@ -984,7 +984,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   int freed_nodes = 0;
   bool synchronous_second_pass =
       (gc_callback_flags &
-       (kGCCallbackFlagForced |
+       (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   freed_nodes += DispatchPendingPhantomCallbacks(synchronous_second_pass);
   if (initial_post_gc_processing_count != post_gc_processing_count_) {
