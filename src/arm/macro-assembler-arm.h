@@ -553,6 +553,14 @@ class MacroAssembler: public Assembler {
                Register src_high, Register scratch, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
+  void LsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, Register scratch, Register shift);
+  void LsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, uint32_t shift);
+  void AsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, Register scratch, Register shift);
+  void AsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, uint32_t shift);
 
   // Loads the number from object into dst register.
   // If |object| is neither smi nor heap number, |not_number| is jumped to

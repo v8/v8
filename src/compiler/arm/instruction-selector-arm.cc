@@ -806,9 +806,51 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
   Emit(kArmLslPair, 2, outputs, 3, inputs);
 }
 
-void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  ArmOperandGenerator g(this);
+  // We use g.UseUniqueRegister here for InputAt(1) and InputAt(2) to to
+  // guarantee that there is no register aliasing with output register.
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
 
-void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmLsrPair, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  ArmOperandGenerator g(this);
+  // We use g.UseUniqueRegister here for InputAt(1) and InputAt(2) to to
+  // guarantee that there is no register aliasing with output register.
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmAsrPair, 2, outputs, 3, inputs);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, TryMatchROR);

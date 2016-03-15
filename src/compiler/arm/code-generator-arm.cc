@@ -807,6 +807,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
+    case kArmLsrPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputInt32(2));
+      } else {
+        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+      }
+      break;
+    case kArmAsrPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputInt32(2));
+      } else {
+        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+      }
+      break;
     case kArmVcmpF32:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat32Register(0),
