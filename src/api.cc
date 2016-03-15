@@ -1853,7 +1853,6 @@ Local<Script> ScriptCompiler::Compile(
 MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
                                                  Source* source,
                                                  CompileOptions options) {
-  CHECK(i::FLAG_harmony_modules);
   auto isolate = context->GetIsolate();
   TRACE_EVENT_SCOPED_CONTEXT("V8", "Isolate", isolate);
   auto maybe = CompileUnboundInternal(isolate, source, options, true);

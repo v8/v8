@@ -1902,12 +1902,9 @@ void RunModuleParserSyncTest(const char* context_data[][2],
                              int always_true_len = 0,
                              const ParserFlag* always_false_flags = NULL,
                              int always_false_len = 0) {
-  bool flag = i::FLAG_harmony_modules;
-  i::FLAG_harmony_modules = true;
   RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
                     always_true_flags, always_true_len, always_false_flags,
                     always_false_len, true);
-  i::FLAG_harmony_modules = flag;
 }
 
 
@@ -5579,8 +5576,6 @@ TEST(ComputedPropertyNameShorthandError) {
 
 
 TEST(BasicImportExportParsing) {
-  i::FLAG_harmony_modules = true;
-
   // clang-format off
   const char* kSources[] = {
       "export let x = 0;",
@@ -5679,8 +5674,6 @@ TEST(BasicImportExportParsing) {
 
 
 TEST(ImportExportParsingErrors) {
-  i::FLAG_harmony_modules = true;
-
   // clang-format off
   const char* kErrorSources[] = {
       "export {",
@@ -5770,8 +5763,6 @@ TEST(ImportExportParsingErrors) {
 
 
 TEST(ModuleParsingInternals) {
-  i::FLAG_harmony_modules = true;
-
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope handles(CcTest::isolate());

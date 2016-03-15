@@ -1650,7 +1650,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Zone zone;
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info);
-    if (FLAG_harmony_modules && is_module) {
+    if (is_module) {
       parse_info.set_module();
     } else {
       parse_info.set_global();
