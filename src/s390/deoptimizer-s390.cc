@@ -151,7 +151,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass six arguments in r2 to r7.
   __ PrepareCallCFunction(6, r7);
+  __ LoadImmP(r2, Operand::Zero());
+  Label context_check;
+  __ LoadP(r3, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r3, &context_check);
   __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ LoadImmP(r3, Operand(type()));  // bailout type,
   // r4: bailout id already loaded.
   // r5: code address or 0 already loaded.
@@ -229,6 +234,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(r2);  // Restore deoptimizer object (class Deoptimizer).
+
+  __ LoadP(sp, MemOperand(r2, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop, outer_loop_header, inner_loop_header;

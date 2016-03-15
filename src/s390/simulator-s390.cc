@@ -3819,60 +3819,11 @@ bool Simulator::DecodeSixByte(Instruction* instr) {
     }
     case SLLK:
     case RLL:
-    case SRLK: {
-      // For SLLK/SRLL, the 32-bit third operand is shifted the number
-      // of bits specified by the second-operand address, and the result is
-      // placed at the first-operand location. Except for when the R1 and R3
-      // fields designate the same register, the third operand remains
-      // unchanged in general register R3.
-      int r1 = rsyInstr->R1Value();
-      int r3 = rsyInstr->R3Value();
-      int b2 = rsyInstr->B2Value();
-      intptr_t d2 = rsyInstr->D2Value();
-      // only takes rightmost 6 bits
-      int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-      int shiftBits = (b2_val + d2) & 0x3F;
-      // unsigned
-      uint32_t r3_val = get_low_register<uint32_t>(r3);
-      uint32_t alu_out = 0;
-      if (SLLK == op) {
-        alu_out = r3_val << shiftBits;
-      } else if (SRLK == op) {
-        alu_out = r3_val >> shiftBits;
-      } else if (RLL == op) {
-        uint32_t rotateBits = r3_val >> (32 - shiftBits);
-        alu_out = (r3_val << shiftBits) | (rotateBits);
-      } else {
-        UNREACHABLE();
-      }
-      set_low_register(r1, alu_out);
-      break;
-    }
+    case SRLK:
     case SLLG:
+    case RLLG:
     case SRLG: {
-      // For SLLG/SRLG, the 64-bit third operand is shifted the number
-      // of bits specified by the second-operand address, and the result is
-      // placed at the first-operand location. Except for when the R1 and R3
-      // fields designate the same register, the third operand remains
-      // unchanged in general register R3.
-      int r1 = rsyInstr->R1Value();
-      int r3 = rsyInstr->R3Value();
-      int b2 = rsyInstr->B2Value();
-      intptr_t d2 = rsyInstr->D2Value();
-      // only takes rightmost 6 bits
-      int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-      int shiftBits = (b2_val + d2) & 0x3F;
-      // unsigned
-      uint64_t r3_val = get_register(r3);
-      uint64_t alu_out = 0;
-      if (op == SLLG) {
-        alu_out = r3_val << shiftBits;
-      } else if (op == SRLG) {
-        alu_out = r3_val >> shiftBits;
-      } else {
-        UNREACHABLE();
-      }
-      set_register(r1, alu_out);
+      DecodeSixByteBitShift(instr);
       break;
     }
     case SLAK:
@@ -4194,6 +4145,81 @@ bool Simulator::DecodeSixByte(Instruction* instr) {
       return DecodeSixByteArithmetic(instr);
   }
   return true;
+}
+
+void Simulator::DecodeSixByteBitShift(Instruction* instr) {
+  Opcode op = instr->S390OpcodeValue();
+
+  // Pre-cast instruction to various types
+
+  RSYInstruction* rsyInstr = reinterpret_cast<RSYInstruction*>(instr);
+
+  switch (op) {
+    case SLLK:
+    case RLL:
+    case SRLK: {
+      // For SLLK/SRLL, the 32-bit third operand is shifted the number
+      // of bits specified by the second-operand address, and the result is
+      // placed at the first-operand location. Except for when the R1 and R3
+      // fields designate the same register, the third operand remains
+      // unchanged in general register R3.
+      int r1 = rsyInstr->R1Value();
+      int r3 = rsyInstr->R3Value();
+      int b2 = rsyInstr->B2Value();
+      intptr_t d2 = rsyInstr->D2Value();
+      // only takes rightmost 6 bits
+      int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+      int shiftBits = (b2_val + d2) & 0x3F;
+      // unsigned
+      uint32_t r3_val = get_low_register<uint32_t>(r3);
+      uint32_t alu_out = 0;
+      if (SLLK == op) {
+        alu_out = r3_val << shiftBits;
+      } else if (SRLK == op) {
+        alu_out = r3_val >> shiftBits;
+      } else if (RLL == op) {
+        uint32_t rotateBits = r3_val >> (32 - shiftBits);
+        alu_out = (r3_val << shiftBits) | (rotateBits);
+      } else {
+        UNREACHABLE();
+      }
+      set_low_register(r1, alu_out);
+      break;
+    }
+    case SLLG:
+    case RLLG:
+    case SRLG: {
+      // For SLLG/SRLG, the 64-bit third operand is shifted the number
+      // of bits specified by the second-operand address, and the result is
+      // placed at the first-operand location. Except for when the R1 and R3
+      // fields designate the same register, the third operand remains
+      // unchanged in general register R3.
+      int r1 = rsyInstr->R1Value();
+      int r3 = rsyInstr->R3Value();
+      int b2 = rsyInstr->B2Value();
+      intptr_t d2 = rsyInstr->D2Value();
+      // only takes rightmost 6 bits
+      int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+      int shiftBits = (b2_val + d2) & 0x3F;
+      // unsigned
+      uint64_t r3_val = get_register(r3);
+      uint64_t alu_out = 0;
+      if (op == SLLG) {
+        alu_out = r3_val << shiftBits;
+      } else if (op == SRLG) {
+        alu_out = r3_val >> shiftBits;
+      } else if (op == RLLG) {
+        uint64_t rotateBits = r3_val >> (64 - shiftBits);
+        alu_out = (r3_val << shiftBits) | (rotateBits);
+      } else {
+        UNREACHABLE();
+      }
+      set_register(r1, alu_out);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 /**

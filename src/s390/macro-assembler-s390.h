@@ -208,12 +208,6 @@ class MacroAssembler : public Assembler {
 
   void Call(Label* target);
 
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    Call(self, RelocInfo::CODE_TARGET);
-  }
-
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<Object> value);
@@ -598,10 +592,14 @@ class MacroAssembler : public Assembler {
     la(sp, MemOperand(sp, 5 * kPointerSize));
   }
 
-  // Push a fixed frame, consisting of lr, fp, context and
-  // JS function / marker id if marker_reg is a valid register.
-  void PushFixedFrame(Register marker_reg = no_reg);
-  void PopFixedFrame(Register marker_reg = no_reg);
+  // Push a fixed frame, consisting of lr, fp, constant pool.
+  void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Push a standard frame, consisting of lr, fp, constant pool,
+  // context and JS function
+  void PushStandardFrame(Register function_reg);
+
+  void PopCommonFrame(Register marker_reg = no_reg);
 
   // Restore caller's frame pointer and return address prior to being
   // overwritten by tail call stack preparation.
@@ -696,8 +694,25 @@ class MacroAssembler : public Assembler {
       FPRoundingMode rounding_mode = kRoundToZero);
 #endif
 
+#if !V8_TARGET_ARCH_S390X
+  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, Register scratch, Register shift);
+  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, uint32_t shift);
+  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
+                      Register src_high, Register scratch, Register shift);
+  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
+                      Register src_high, uint32_t shift);
+  void ShiftRightArithPair(Register dst_low, Register dst_high,
+                           Register src_low, Register src_high,
+                           Register scratch, Register shift);
+  void ShiftRightArithPair(Register dst_low, Register dst_high,
+                           Register src_low, Register src_high, uint32_t shift);
+#endif
+
   // Generates function and stub prologue code.
-  void StubPrologue(Register base = no_reg, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type, Register base = no_reg,
+                    int prologue_offset = 0);
   void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
 
   // Enter exit frame.
@@ -818,6 +833,15 @@ class MacroAssembler : public Assembler {
   // explicit first parameter to make the code more readable at the
   // call sites.
   // void SetCallKind(Register dst, CallKind kind);
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,

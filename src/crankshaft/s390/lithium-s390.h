@@ -503,6 +503,7 @@ class LApplyArguments final : public LTemplateInstruction<1, 4, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
+  DECLARE_HYDROGEN_ACCESSOR(ApplyArguments)
 
   LOperand* function() { return inputs_[0]; }
   LOperand* receiver() { return inputs_[1]; }

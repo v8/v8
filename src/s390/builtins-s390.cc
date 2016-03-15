@@ -521,6 +521,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- r3     : constructor function
   //  -- r4     : allocation site or undefined
   //  -- r5     : new target
+  //  -- cp     : context
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
@@ -537,11 +538,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     if (!create_implicit_receiver) {
       __ SmiTag(r6, r2);
       __ LoadAndTestP(r6, r6);
-      __ Push(r4, r6);
+      __ Push(cp, r4, r6);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     } else {
       __ SmiTag(r2);
-      __ Push(r4, r2);
+      __ Push(cp, r4, r2);
 
       // Allocate the new receiver object.
       __ Push(r3, r5);
@@ -614,7 +615,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r2: result
     // sp[0]: receiver
     // sp[1]: number of arguments (smi-tagged)
-    __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ LoadP(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -738,9 +739,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r0,r7-r9, cp may be clobbered
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // Clear the context before we push it when entering the internal frame.
-  __ LoadImmP(cp, Operand::Zero());
-
   // Enter an internal frame.
   {
     // FrameScope ends up calling MacroAssembler::EnterFrame here
@@ -841,14 +839,24 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushFixedFrame(r3);
-  __ AddP(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r3);
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
   __ LoadP(r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+  Label array_done;
+  Register debug_info = r4;
+  DCHECK(!debug_info.is(r2));
+  __ LoadP(debug_info,
+           FieldMemOperand(r2, SharedFunctionInfo::kDebugInfoOffset));
+  // Load original bytecode array or the debug copy.
   __ LoadP(kInterpreterBytecodeArrayRegister,
            FieldMemOperand(r2, SharedFunctionInfo::kFunctionDataOffset));
+  __ CmpSmiLiteral(debug_info, DebugInfo::uninitialized(), r0);
+  __ beq(&array_done);
+  __ LoadP(kInterpreterBytecodeArrayRegister,
+           FieldMemOperand(debug_info, DebugInfo::kAbstractCodeIndex));
+  __ bind(&array_done);
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.
@@ -1178,8 +1186,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ LoadRR(ip, r2);
 
   // Perform prologue operations usually performed by the young code stub.
-  __ PushFixedFrame(r3);
-  __ la(fp, MemOperand(sp, StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ PushStandardFrame(r3);
 
   // Jump to point after the code-age stub.
   __ AddP(r2, ip, Operand(kNoCodeAgeSequenceLength));
@@ -1932,7 +1939,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ LoadP(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(scratch3,
+             MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::STUB), r0);
     __ bne(&no_interpreter_frame);
     __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1940,80 +1948,40 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   }
 
   // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ LoadP(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(scratch3,
-           MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+  __ LoadP(
+      scratch3,
+      MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&no_arguments_adaptor);
 
-  // Drop arguments adaptor frame and load arguments count.
+  // Drop current frame and load arguments count from arguments adaptor frame.
   __ LoadRR(fp, scratch2);
-  __ LoadP(scratch1,
+  __ LoadP(caller_args_count_reg,
            MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
   __ b(&formal_parameter_count_loaded);
 
   __ bind(&no_arguments_adaptor);
   // Load caller's formal parameter count
-  __ LoadP(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ LoadP(scratch1,
+           MemOperand(fp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
   __ LoadP(scratch1,
            FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadW(scratch1,
+  __ LoadW(caller_args_count_reg,
            FieldMemOperand(scratch1,
                            SharedFunctionInfo::kFormalParameterCountOffset));
 #if !V8_TARGET_ARCH_S390X
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
 #endif
 
   __ bind(&formal_parameter_count_loaded);
 
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We AddP kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch2;
-  __ ShiftLeftP(dst_reg, scratch1, Operand(kPointerSizeLog2));
-  __ AddP(dst_reg, fp, dst_reg);
-  __ AddP(dst_reg, dst_reg,
-          Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = scratch1;
-  __ ShiftLeftP(src_reg, args_reg, Operand(kPointerSizeLog2));
-  __ AddP(src_reg, sp, src_reg);
-  // Count receiver argument as well (not included in args_reg).
-  __ AddP(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    __ CmpLogicalP(src_reg, dst_reg);
-    __ Check(lt, kStackAccessBelowStackPointer);
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  __ RestoreFrameStateForTailCall();
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch3;
-  Label loop;
-  DCHECK(!src_reg.is(r1));
-  DCHECK(!dst_reg.is(r1));
-  DCHECK(!tmp_reg.is(r1));
-
-  __ AddP(r1, args_reg, Operand(1));  // +1 for receiver
-  __ bind(&loop);
-  __ lay(src_reg, MemOperand(src_reg, -kPointerSize));
-  __ LoadP(tmp_reg, MemOperand(src_reg));
-  __ lay(dst_reg, MemOperand(dst_reg, -kPointerSize));
-  __ StoreP(tmp_reg, MemOperand(dst_reg));
-  __ BranchOnCount(r1, &loop);
-
-  // Leave current frame.
-  __ LoadRR(sp, dst_reg);
-
+  ParameterCount callee_args_count(args_reg);
+  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
+                        scratch3);
   __ bind(&done);
 }
 }  // namespace
@@ -2261,6 +2229,12 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   __ CmpP(r7, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(masm->isolate()->builtins()->CallBoundFunction(tail_call_mode),
           RelocInfo::CODE_TARGET, eq);
+
+  // Check if target has a [[Call]] internal method.
+  __ LoadlB(r6, FieldMemOperand(r6, Map::kBitFieldOffset));
+  __ TestBit(r6, Map::kIsCallable);
+  __ beq(&non_callable);
+
   __ CmpP(r7, Operand(JS_PROXY_TYPE));
   __ bne(&non_function);
 
@@ -2281,10 +2255,6 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   __ bind(&non_function);
-  // Check if target has a [[Call]] internal method.
-  __ LoadlB(r6, FieldMemOperand(r6, Map::kBitFieldOffset));
-  __ TestBit(r6, Map::kIsCallable, r0);
-  __ beq(&non_callable);
   // Overwrite the original receiver the (original) target.
   __ ShiftLeftP(r7, r2, Operand(kPointerSizeLog2));
   __ StoreP(r3, MemOperand(sp, r7));

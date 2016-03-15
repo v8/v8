@@ -270,6 +270,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register array = r8;
   Register length = r7;
   Register scratch = r1;
+  Register scratch3 = r9;
+  Register hole_value = r9;
 
   // Verify input registers don't conflict with locals.
   DCHECK(!AreAliased(receiver, key, value, target_map, elements, array, length,
@@ -315,11 +317,11 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AddP(src_elements,
           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   __ SmiToPtrArrayOffset(length, length);
-  __ LoadRoot(r9, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(hole_value, Heap::kTheHoleValueRootIndex);
 
   Label initialization_loop, loop_done;
-  __ ShiftRightP(r0, length, Operand(kPointerSizeLog2));
-  __ beq(&loop_done, Label::kNear /*, cr0*/);
+  __ ShiftRightP(scratch, length, Operand(kPointerSizeLog2));
+  __ beq(&loop_done, Label::kNear);
 
   // Allocating heap numbers in the loop below can fail and cause a jump to
   // gc_required. We can't leave a partly initialized FixedArray behind,
@@ -327,9 +329,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AddP(dst_elements, array,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
   __ bind(&initialization_loop);
-  __ StoreP(r9, MemOperand(dst_elements, kPointerSize));
+  __ StoreP(hole_value, MemOperand(dst_elements, kPointerSize));
   __ lay(dst_elements, MemOperand(dst_elements, kPointerSize));
-  __ BranchOnCount(r0, &initialization_loop);
+  __ BranchOnCount(scratch, &initialization_loop);
 
   __ AddP(dst_elements, array,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -342,7 +344,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //               not tagged, +4
   // dst_end: end of destination FixedArray, not tagged
   // array: destination FixedArray
-  // r9: the-hole pointer
+  // hole_value: the-hole pointer
   // heap_number_map: heap number map
   __ b(&loop, Label::kNear);
 
@@ -353,7 +355,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ StoreP(r9, MemOperand(dst_elements));
+  __ StoreP(hole_value, MemOperand(dst_elements));
   __ AddP(dst_elements, Operand(kPointerSize));
   __ CmpLogicalP(dst_elements, dst_end);
   __ bge(&loop_done);
@@ -370,7 +372,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Non-hole double, copy value into a heap number.
   Register heap_number = receiver;
   Register scratch2 = value;
-  __ AllocateHeapNumber(heap_number, scratch2, r1, heap_number_map,
+  __ AllocateHeapNumber(heap_number, scratch2, scratch3, heap_number_map,
                         &gc_required);
 // heap_number: new heap number
 #if V8_TARGET_ARCH_S390X
@@ -607,9 +609,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
       new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length(), CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->PushFixedFrame(r3);
-  patcher->masm()->la(
-      fp, MemOperand(sp, StandardFrameConstants::kFixedFrameSizeFromFp));
+  patcher->masm()->PushStandardFrame(r3);
 }
 
 #ifdef DEBUG

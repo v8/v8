@@ -316,6 +316,7 @@ class Simulator {
   bool DecodeSixByte(Instruction* instr);
   bool DecodeSixByteArithmetic(Instruction* instr);
   bool S390InstructionDecode(Instruction* instr);
+  void DecodeSixByteBitShift(Instruction* instr);
 
   // Used by the CL**BR instructions.
   template <typename T1, typename T2>

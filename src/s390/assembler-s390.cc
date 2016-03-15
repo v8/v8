@@ -1804,7 +1804,7 @@ void Assembler::ay(Register r1, const MemOperand& opnd) {
 
 // Add Immediate (32)
 void Assembler::afi(Register r1, const Operand& opnd) {
-  ril_form(ALFI, r1, opnd);
+  ril_form(AFI, r1, opnd);
 }
 
 // Add Halfword Register-Storage (32)
@@ -1920,7 +1920,7 @@ void Assembler::alg(Register r1, const MemOperand& opnd) {
 
 // Add Logical Immediate (64)
 void Assembler::algfi(Register r1, const Operand& opnd) {
-  ril_form(ALFI, r1, opnd);
+  ril_form(ALGFI, r1, opnd);
 }
 
 // Add Logical Register-Register (64)
