@@ -762,6 +762,9 @@
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
 
+  # TODO(yangguo,4690): flaky failures on the bots.
+  'debug-stepin-builtin-callback-opt': [SKIP],
+
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
   'debug-liveedit-literals': [FAIL],
@@ -864,6 +867,7 @@
   'regress/regress-crbug-409614': [SKIP],
   'regress/regress-crbug-432493': [SKIP],
   'regress/regress-crbug-467180': [SKIP],
+  'regress/regress-crbug-568477-2': [SKIP],
   'regress/regress-crbug-481896': [SKIP],
   'regress/regress-crbug-568477-4': [SKIP],
   'regress/regress-debug-deopt-while-recompile': [SKIP],
