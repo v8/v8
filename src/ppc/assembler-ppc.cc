@@ -849,6 +849,10 @@ void Assembler::addc(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | ADDCX, dst, src1, src2, o, r);
 }
 
+void Assembler::adde(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
+  xo_form(EXT2 | ADDEX, dst, src1, src2, o, r);
+}
 
 void Assembler::addze(Register dst, Register src1, OEBit o, RCBit r) {
   // a special xo_form

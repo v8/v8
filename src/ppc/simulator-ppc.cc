@@ -2046,11 +2046,29 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       uintptr_t ra_val = get_register(ra);
       uintptr_t rb_val = get_register(rb);
       uintptr_t alu_out = ra_val + rb_val;
-      // Check overflow
+      // Set carry
       if (~ra_val < rb_val) {
         special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
       } else {
         special_reg_xer_ &= ~0xF0000000;
+      }
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
+      }
+      // todo - handle OE bit
+      break;
+    }
+    case ADDEX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      // int oe = instr->Bit(10);
+      uintptr_t ra_val = get_register(ra);
+      uintptr_t rb_val = get_register(rb);
+      uintptr_t alu_out = ra_val + rb_val;
+      if (special_reg_xer_ & 0x20000000) {
+        alu_out += 1;
       }
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
