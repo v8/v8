@@ -494,6 +494,24 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
 // kExprI64Clz:
 // kExprI64Ctz:
 // kExprI64Popcnt:
+
+TEST_F(Int64LoweringTest, Dfs) {
+  Node* common = Int64Constant(value(0));
+  LowerGraph(graph()->NewNode(machine()->Word64And(), common,
+                              graph()->NewNode(machine()->Word64And(), common,
+                                               Int64Constant(value(1)))),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsWord32And(IsInt32Constant(low_word_value(0)),
+                            IsWord32And(IsInt32Constant(low_word_value(0)),
+                                        IsInt32Constant(low_word_value(1)))),
+                IsWord32And(IsInt32Constant(high_word_value(0)),
+                            IsWord32And(IsInt32Constant(high_word_value(0)),
+                                        IsInt32Constant(high_word_value(1)))),
+                start(), start()));
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -24,7 +24,7 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       graph_(graph),
       machine_(machine),
       common_(common),
-      state_(graph, 4),
+      state_(graph, 3),
       stack_(zone),
       replacements_(zone->NewArray<Replacement>(graph->NodeCount())),
       signature_(signature) {
@@ -35,25 +35,23 @@ void Int64Lowering::LowerGraph() {
   if (!machine()->Is32()) {
     return;
   }
-  stack_.push(graph()->end());
+  stack_.push({graph()->end(), 0});
   state_.Set(graph()->end(), State::kOnStack);
 
   while (!stack_.empty()) {
-    Node* top = stack_.top();
-    if (state_.Get(top) == State::kInputsPushed) {
+    NodeState& top = stack_.top();
+    if (top.input_index == top.node->InputCount()) {
+      // All inputs of top have already been lowered, now lower top.
       stack_.pop();
-      state_.Set(top, State::kVisited);
-      // All inputs of top have already been reduced, now reduce top.
-      LowerNode(top);
+      state_.Set(top.node, State::kVisited);
+      LowerNode(top.node);
     } else {
-      // Push all children onto the stack.
-      for (Node* input : top->inputs()) {
-        if (state_.Get(input) == State::kUnvisited) {
-          stack_.push(input);
-          state_.Set(input, State::kOnStack);
-        }
+      // Push the next input onto the stack.
+      Node* input = top.node->InputAt(top.input_index++);
+      if (state_.Get(input) == State::kUnvisited) {
+        stack_.push({input, 0});
+        state_.Set(input, State::kOnStack);
       }
-      state_.Set(top, State::kInputsPushed);
     }
   }
 }

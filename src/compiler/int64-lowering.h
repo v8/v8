@@ -24,7 +24,7 @@ class Int64Lowering {
   void LowerGraph();
 
  private:
-  enum class State : uint8_t { kUnvisited, kOnStack, kInputsPushed, kVisited };
+  enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
   struct Replacement {
     Node* low;
@@ -48,12 +48,17 @@ class Int64Lowering {
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
 
+  struct NodeState {
+    Node* node;
+    int input_index;
+  };
+
   Zone* zone_;
   Graph* const graph_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   NodeMarker<State> state_;
-  ZoneStack<Node*> stack_;
+  ZoneStack<NodeState> stack_;
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;
 };
