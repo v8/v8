@@ -860,7 +860,10 @@ void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
                                    uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_high, src_low));
-  if (shift >= 32) {
+  if (shift == 32) {
+    Move(dst_high, src_low);
+    li(dst_low, Operand::Zero());
+  } else if (shift > 32) {
     shift &= 0x1f;
     slwi(dst_high, src_low, Operand(shift));
     li(dst_low, Operand::Zero());
@@ -903,7 +906,10 @@ void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_high, src_low));
-  if (shift >= 32) {
+  if (shift == 32) {
+    Move(dst_low, src_high);
+    li(dst_high, Operand::Zero());
+  } else if (shift > 32) {
     shift &= 0x1f;
     srwi(dst_low, src_high, Operand(shift));
     li(dst_high, Operand::Zero());
@@ -946,7 +952,10 @@ void MacroAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
                                        uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_high, src_low));
-  if (shift >= 32) {
+  if (shift == 32) {
+    Move(dst_low, src_high);
+    srawi(dst_high, src_high, 31);
+  } else if (shift > 32) {
     shift &= 0x1f;
     srawi(dst_low, src_high, shift);
     srawi(dst_high, src_high, 31);
