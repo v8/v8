@@ -45,7 +45,7 @@
   V(I64Return, true)            \
   V(I64Param, true)             \
   V(I64LoadStore, true)         \
-  V(I64Add, true)               \
+  V(I64Add, !MIPS_OR_X87)       \
   V(I64Sub, false)              \
   V(I64Mul, false)              \
   V(I64DivS, true)              \

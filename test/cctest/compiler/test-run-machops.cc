@@ -4201,7 +4201,8 @@ int64_t ToInt64(uint32_t low, uint32_t high) {
   return (static_cast<int64_t>(high) << 32) | static_cast<int64_t>(low);
 }
 
-#if V8_TARGET_ARCH_32_BIT
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_PPC && \
+    !V8_TARGET_ARCH_X87
 TEST(RunInt32PairAdd) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
