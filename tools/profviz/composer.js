@@ -331,7 +331,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
 
     var line;
     while (line = input()) {
-      logreader.processLogLine(line);
+      for (var s of line.split("\n")) logreader.processLogLine(s);
     }
 
     // Collect execution pauses.
