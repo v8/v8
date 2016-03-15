@@ -843,6 +843,7 @@
   'harmony/debug-stepin-default-parameters': [SKIP],
   'ignition/debug-break': [SKIP],
   'ignition/debug-break-on-stack': [SKIP],
+  'ignition/elided-instruction': [SKIP],
   'regress/debug-prepare-step-in': [SKIP],
   'regress/regress-102153': [SKIP],
   'regress/regress-109195': [SKIP],
