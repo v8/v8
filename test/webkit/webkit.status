@@ -103,6 +103,12 @@
 }],  # ignition == True
 
 ##############################################################################
+['ignition == True and msan', {
+  # TODO(rmcilroy,4680): Uninitialized memory.
+  'dfg-double-vote-fuzz': [SKIP],
+}],  # ignition == True and msan
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],
