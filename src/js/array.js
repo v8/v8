@@ -88,6 +88,7 @@ function GetSortedArrayKeys(array, indices) {
         keys.push(i);
       }
     }
+    return keys;
   }
   return InnerArraySort(indices, indices.length, KeySortCompare);
 }
