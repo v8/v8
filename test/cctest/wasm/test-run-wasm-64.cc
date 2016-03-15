@@ -82,7 +82,7 @@
   V(F32UConvertI64, true)       \
   V(F64SConvertI64, true)       \
   V(F64UConvertI64, true)       \
-  V(F64ReinterpretI64, false)   \
+  V(F64ReinterpretI64, true)    \
   V(I64ReinterpretF64, true)    \
   V(I64Ror, false)              \
   V(I64Rol, false)

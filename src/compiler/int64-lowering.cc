@@ -120,6 +120,8 @@ void Int64Lowering::LowerNode(Node* node) {
         }
         NodeProperties::ChangeOp(node, load_op);
         ReplaceNode(node, node, high_node);
+      } else {
+        DefaultLowering(node);
       }
       break;
     }
@@ -162,6 +164,8 @@ void Int64Lowering::LowerNode(Node* node) {
         node->ReplaceInput(2, GetReplacementLow(value));
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
+      } else {
+        DefaultLowering(node);
       }
       break;
     }
@@ -443,10 +447,41 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     // kExprF64ReinterpretI64:
+    case IrOpcode::kBitcastInt64ToFloat64: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      Node* stack_slot = graph()->NewNode(
+          machine()->StackSlot(MachineRepresentation::kWord64));
+
+      Node* store_high_word = graph()->NewNode(
+          machine()->Store(
+              StoreRepresentation(MachineRepresentation::kWord32,
+                                  WriteBarrierKind::kNoWriteBarrier)),
+          stack_slot, graph()->NewNode(common()->Int32Constant(4)),
+          GetReplacementHigh(input), graph()->start(), graph()->start());
+
+      Node* store_low_word = graph()->NewNode(
+          machine()->Store(
+              StoreRepresentation(MachineRepresentation::kWord32,
+                                  WriteBarrierKind::kNoWriteBarrier)),
+          stack_slot, graph()->NewNode(common()->Int32Constant(0)),
+          GetReplacementLow(input), store_high_word, graph()->start());
+
+      Node* load =
+          graph()->NewNode(machine()->Load(MachineType::Float64()), stack_slot,
+                           graph()->NewNode(common()->Int32Constant(0)),
+                           store_low_word, graph()->start());
+
+      ReplaceNode(node, load, nullptr);
+      break;
+    }
     // kExprI64ReinterpretF64:
     case IrOpcode::kBitcastFloat64ToInt64: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
+      if (HasReplacementLow(input)) {
+        input = GetReplacementLow(input);
+      }
       Node* stack_slot = graph()->NewNode(
           machine()->StackSlot(MachineRepresentation::kWord64));
       Node* store = graph()->NewNode(

@@ -491,6 +491,36 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
                         start(), start()));
 }
 // kExprF64ReinterpretI64:
+TEST_F(Int64LoweringTest, F64ReinterpretI64) {
+  LowerGraph(graph()->NewNode(machine()->BitcastInt64ToFloat64(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kFloat64);
+
+  Capture<Node*> stack_slot_capture;
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(MachineRepresentation::kWord64);
+
+  Capture<Node*> store_capture;
+  Matcher<Node*> store_matcher =
+      IsStore(StoreRepresentation(MachineRepresentation::kWord32,
+                                  WriteBarrierKind::kNoWriteBarrier),
+              AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+              IsInt32Constant(0), IsInt32Constant(low_word_value(0)),
+              IsStore(StoreRepresentation(MachineRepresentation::kWord32,
+                                          WriteBarrierKind::kNoWriteBarrier),
+                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+                      IsInt32Constant(4), IsInt32Constant(high_word_value(0)),
+                      start(), start()),
+              start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn(IsLoad(MachineType::Float64(),
+                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+                      IsInt32Constant(0),
+                      AllOf(CaptureEq(&store_capture), store_matcher), start()),
+               start(), start()));
+}
 // kExprI64ReinterpretF64:
 TEST_F(Int64LoweringTest, I64ReinterpretF64) {
   LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),

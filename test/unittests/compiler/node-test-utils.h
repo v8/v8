@@ -375,6 +375,8 @@ Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& mid_matcher,
                                const Matcher<Node*>& rhs_matcher);
 
+Matcher<Node*> IsStackSlot();
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
