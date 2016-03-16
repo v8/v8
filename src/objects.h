@@ -2541,9 +2541,6 @@ class JSObject: public JSReceiver {
 
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSObject> object);
 
-  static Handle<SeededNumberDictionary> GetNormalizedElementDictionary(
-      Handle<JSObject> object, Handle<FixedArrayBase> elements);
-
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
   template <PropertyAttributes attrs>

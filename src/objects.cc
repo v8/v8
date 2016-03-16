@@ -5696,35 +5696,6 @@ void JSObject::ResetElements(Handle<JSObject> object) {
 }
 
 
-static Handle<SeededNumberDictionary> CopyFastElementsToDictionary(
-    Handle<FixedArrayBase> array, int length,
-    Handle<SeededNumberDictionary> dictionary, bool used_as_prototype) {
-  Isolate* isolate = array->GetIsolate();
-  Factory* factory = isolate->factory();
-  bool has_double_elements = array->IsFixedDoubleArray();
-  for (int i = 0; i < length; i++) {
-    Handle<Object> value;
-    if (has_double_elements) {
-      Handle<FixedDoubleArray> double_array =
-          Handle<FixedDoubleArray>::cast(array);
-      if (double_array->is_the_hole(i)) {
-        value = factory->the_hole_value();
-      } else {
-        value = factory->NewHeapNumber(double_array->get_scalar(i));
-      }
-    } else {
-      value = handle(Handle<FixedArray>::cast(array)->get(i), isolate);
-    }
-    if (!value->IsTheHole()) {
-      PropertyDetails details = PropertyDetails::Empty();
-      dictionary = SeededNumberDictionary::AddNumberEntry(
-          dictionary, i, value, details, used_as_prototype);
-    }
-  }
-  return dictionary;
-}
-
-
 void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
   if (dictionary->requires_slow_elements()) return;
   dictionary->set_requires_slow_elements();
@@ -5735,40 +5706,23 @@ void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
 }
 
 
-Handle<SeededNumberDictionary> JSObject::GetNormalizedElementDictionary(
-    Handle<JSObject> object, Handle<FixedArrayBase> elements) {
-  DCHECK(!object->HasDictionaryElements());
-  DCHECK(!object->HasSlowArgumentsElements());
-  Isolate* isolate = object->GetIsolate();
-  // Ensure that notifications fire if the array or object prototypes are
-  // normalizing.
-  isolate->UpdateArrayProtectorOnNormalizeElements(object);
-  int length = object->IsJSArray()
-                   ? Smi::cast(Handle<JSArray>::cast(object)->length())->value()
-                   : elements->length();
-  int used = object->GetFastElementsUsage();
-  Handle<SeededNumberDictionary> dictionary =
-      SeededNumberDictionary::New(isolate, used);
-  return CopyFastElementsToDictionary(elements, length, dictionary,
-                                      object->map()->is_prototype_map());
-}
-
-
 Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     Handle<JSObject> object) {
   DCHECK(!object->HasFixedTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
-
-  // Find the backing store.
-  Handle<FixedArrayBase> elements(object->elements(), isolate);
   bool is_arguments = object->HasSloppyArgumentsElements();
-  if (is_arguments) {
-    FixedArray* parameter_map = FixedArray::cast(*elements);
-    elements = handle(FixedArrayBase::cast(parameter_map->get(1)), isolate);
-  }
+  {
+    DisallowHeapAllocation no_gc;
+    FixedArrayBase* elements = object->elements();
 
-  if (elements->IsDictionary()) {
-    return Handle<SeededNumberDictionary>::cast(elements);
+    if (is_arguments) {
+      FixedArray* parameter_map = FixedArray::cast(elements);
+      elements = FixedArrayBase::cast(parameter_map->get(1));
+    }
+
+    if (elements->IsDictionary()) {
+      return handle(SeededNumberDictionary::cast(elements), isolate);
+    }
   }
 
   DCHECK(object->HasFastSmiOrObjectElements() ||
@@ -5777,7 +5731,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
          object->HasFastStringWrapperElements());
 
   Handle<SeededNumberDictionary> dictionary =
-      GetNormalizedElementDictionary(object, elements);
+      object->GetElementsAccessor()->Normalize(object);
 
   // Switch to using the dictionary as the backing storage for elements.
   ElementsKind target_kind = is_arguments
@@ -7764,8 +7718,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
             : object->elements()->length();
     new_element_dictionary =
         length == 0 ? isolate->factory()->empty_slow_element_dictionary()
-                    : GetNormalizedElementDictionary(
-                          object, handle(object->elements()));
+                    : object->GetElementsAccessor()->Normalize(object);
   }
 
   Handle<Symbol> transition_marker;

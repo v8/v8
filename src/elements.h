@@ -149,6 +149,8 @@ class ElementsAccessor {
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
 
+  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
+
  protected:
   friend class LookupIterator;
 

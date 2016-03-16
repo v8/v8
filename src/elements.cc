@@ -845,6 +845,17 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, *to, from_kind, to_start, packed_size, copy_size);
   }
 
+  Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
+    return ElementsAccessorSubclass::NormalizeImpl(object,
+                                                   handle(object->elements()));
+  }
+
+  static Handle<SeededNumberDictionary> NormalizeImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> elements) {
+    UNREACHABLE();
+    return Handle<SeededNumberDictionary>();
+  }
+
   void CollectElementIndices(Handle<JSObject> object,
                              Handle<FixedArrayBase> backing_store,
                              KeyAccumulator* keys, uint32_t range,
@@ -1292,6 +1303,36 @@ class FastElementsAccessor
                              KindTraits>(name) {}
 
   typedef typename KindTraits::BackingStore BackingStore;
+
+  static Handle<SeededNumberDictionary> NormalizeImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> store) {
+    Isolate* isolate = store->GetIsolate();
+    ElementsKind kind = FastElementsAccessorSubclass::kind();
+
+    // Ensure that notifications fire if the array or object prototypes are
+    // normalizing.
+    if (IsFastSmiOrObjectElementsKind(kind)) {
+      isolate->UpdateArrayProtectorOnNormalizeElements(object);
+    }
+
+    int capacity = object->GetFastElementsUsage();
+    Handle<SeededNumberDictionary> dictionary =
+        SeededNumberDictionary::New(isolate, capacity);
+
+    PropertyDetails details = PropertyDetails::Empty();
+    bool used_as_prototype = object->map()->is_prototype_map();
+    int j = 0;
+    for (int i = 0; j < capacity; i++) {
+      if (IsHoleyElementsKind(kind)) {
+        if (BackingStore::cast(*store)->is_the_hole(i)) continue;
+      }
+      Handle<Object> value = FastElementsAccessorSubclass::GetImpl(*store, i);
+      dictionary = SeededNumberDictionary::AddNumberEntry(
+          dictionary, i, value, details, used_as_prototype);
+      j++;
+    }
+    return dictionary;
+  }
 
   static void DeleteAtEnd(Handle<JSObject> obj,
                           Handle<BackingStore> backing_store, uint32_t entry) {
@@ -2403,6 +2444,13 @@ class FastSloppyArgumentsElementsAccessor
             FastHoleyObjectElementsAccessor,
             ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS> >(name) {}
 
+  static Handle<SeededNumberDictionary> NormalizeImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> elements) {
+    FixedArray* parameter_map = FixedArray::cast(*elements);
+    Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
+    return FastHoleyObjectElementsAccessor::NormalizeImpl(object, arguments);
+  }
+
   static void DeleteFromArguments(Handle<JSObject> obj, uint32_t entry) {
     FixedArray* parameter_map = FixedArray::cast(obj->elements());
     Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
@@ -2625,6 +2673,11 @@ class FastStringWrapperElementsAccessor
       : StringWrapperElementsAccessor<
             FastStringWrapperElementsAccessor, FastHoleyObjectElementsAccessor,
             ElementsKindTraits<FAST_STRING_WRAPPER_ELEMENTS>>(name) {}
+
+  static Handle<SeededNumberDictionary> NormalizeImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> elements) {
+    return FastHoleyObjectElementsAccessor::NormalizeImpl(object, elements);
+  }
 };
 
 class SlowStringWrapperElementsAccessor
