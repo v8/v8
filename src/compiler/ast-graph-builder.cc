@@ -646,7 +646,7 @@ void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
   }
 
   NonLiveFrameStateSlotReplacer replacer(
-      &state_values_cache_, jsgraph()->UndefinedConstant(),
+      &state_values_cache_, jsgraph()->OptimizedOutConstant(),
       liveness_analyzer()->local_count(), local_zone());
   Variable* arguments = info()->scope()->arguments();
   if (arguments != nullptr && arguments->IsStackAllocated()) {

@@ -75,6 +75,7 @@ namespace internal {
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
   V(Oddball, termination_exception, TerminationException)                      \
+  V(Oddball, optimized_out, OptimizedOut)                                      \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
@@ -147,6 +148,7 @@ namespace internal {
   V(Map, no_interceptor_result_sentinel_map, NoInterceptorResultSentinelMap)   \
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
+  V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, neander_map, NeanderMap)                                              \

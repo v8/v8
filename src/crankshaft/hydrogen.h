@@ -334,6 +334,7 @@ class HGraph final : public ZoneObject {
   HConstant* GetConstantBool(bool value);
   HConstant* GetConstantHole();
   HConstant* GetConstantNull();
+  HConstant* GetConstantOptimizedOut();
   HConstant* GetInvalidContext();
 
   bool IsConstantUndefined(HConstant* constant);
@@ -472,6 +473,7 @@ class HGraph final : public ZoneObject {
   SetOncePointer<HConstant> constant_false_;
   SetOncePointer<HConstant> constant_the_hole_;
   SetOncePointer<HConstant> constant_null_;
+  SetOncePointer<HConstant> constant_optimized_out_;
   SetOncePointer<HConstant> constant_invalid_context_;
 
   HOsrBuilder* osr_;

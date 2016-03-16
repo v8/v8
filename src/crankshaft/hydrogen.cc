@@ -690,28 +690,32 @@ HConstant* HGraph::GetConstantBool(bool value) {
   return value ? GetConstantTrue() : GetConstantFalse();
 }
 
-#define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value,         \
-                            undetectable)                                   \
-  HConstant* HGraph::GetConstant##Name() {                                  \
-    if (!constant_##name##_.is_set()) {                                     \
-      HConstant* constant = new (zone()) HConstant(                         \
-          Unique<Object>::CreateImmovable(                                  \
-              isolate()->factory()->name##_value()),                        \
-          Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()), \
-          false, Representation::Tagged(), htype, true, boolean_value,      \
-          undetectable, ODDBALL_TYPE);                                      \
-      constant->InsertAfter(entry_block()->first());                        \
-      constant_##name##_.set(constant);                                     \
-    }                                                                       \
-    return ReinsertConstantIfNecessary(constant_##name##_.get());           \
+#define DEFINE_GET_CONSTANT(Name, name, constant, type, htype, boolean_value, \
+                            undetectable)                                     \
+  HConstant* HGraph::GetConstant##Name() {                                    \
+    if (!constant_##name##_.is_set()) {                                       \
+      HConstant* constant = new (zone()) HConstant(                           \
+          Unique<Object>::CreateImmovable(isolate()->factory()->constant()),  \
+          Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()),   \
+          false, Representation::Tagged(), htype, true, boolean_value,        \
+          undetectable, ODDBALL_TYPE);                                        \
+      constant->InsertAfter(entry_block()->first());                          \
+      constant_##name##_.set(constant);                                       \
+    }                                                                         \
+    return ReinsertConstantIfNecessary(constant_##name##_.get());             \
   }
 
-DEFINE_GET_CONSTANT(Undefined, undefined, undefined, HType::Undefined(), false,
-                    true)
-DEFINE_GET_CONSTANT(True, true, boolean, HType::Boolean(), true, false)
-DEFINE_GET_CONSTANT(False, false, boolean, HType::Boolean(), false, false)
-DEFINE_GET_CONSTANT(Hole, the_hole, the_hole, HType::None(), false, false)
-DEFINE_GET_CONSTANT(Null, null, null, HType::Null(), false, true)
+DEFINE_GET_CONSTANT(Undefined, undefined, undefined_value, undefined,
+                    HType::Undefined(), false, true)
+DEFINE_GET_CONSTANT(True, true, true_value, boolean, HType::Boolean(), true,
+                    false)
+DEFINE_GET_CONSTANT(False, false, false_value, boolean, HType::Boolean(), false,
+                    false)
+DEFINE_GET_CONSTANT(Hole, the_hole, the_hole_value, the_hole, HType::None(),
+                    false, false)
+DEFINE_GET_CONSTANT(Null, null, null_value, null, HType::Null(), false, true)
+DEFINE_GET_CONSTANT(OptimizedOut, optimized_out, optimized_out, optimized_out,
+                    HType::None(), false, false)
 
 #undef DEFINE_GET_CONSTANT
 

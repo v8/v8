@@ -191,7 +191,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
              map == heap->uninitialized_map() ||
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
-             map == heap->arguments_marker_map());
+             map == heap->arguments_marker_map() ||
+             map == heap->optimized_out_map());
       return kInternal & kTaggedPointer;
     }
     case HEAP_NUMBER_TYPE:

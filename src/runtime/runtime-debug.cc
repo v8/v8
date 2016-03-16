@@ -554,7 +554,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // Use the value from the stack.
     if (scope_info->LocalIsSynthetic(i)) continue;
     locals->set(local * 2, scope_info->LocalName(i));
-    locals->set(local * 2 + 1, *(frame_inspector.GetExpression(i)));
+    Handle<Object> value = frame_inspector.GetExpression(i);
+    // TODO(yangguo): We convert optimized out values to {undefined} when they
+    // are passed to the debugger. Eventually we should handle them somehow.
+    if (value->IsOptimizedOut()) value = isolate->factory()->undefined_value();
+    locals->set(local * 2 + 1, *value);
     local++;
   }
   if (local < local_count) {
