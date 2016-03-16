@@ -862,12 +862,15 @@ void Assembler::sub(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | SUBFX, dst, src2, src1, o, r);
 }
 
-
-void Assembler::subfc(Register dst, Register src1, Register src2, OEBit o,
-                      RCBit r) {
+void Assembler::subc(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
   xo_form(EXT2 | SUBFCX, dst, src2, src1, o, r);
 }
 
+void Assembler::sube(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
+  xo_form(EXT2 | SUBFEX, dst, src2, src1, o, r);
+}
 
 void Assembler::subfic(Register dst, Register src, const Operand& imm) {
   d_form(SUBFIC, dst, src, imm.imm_, true);
