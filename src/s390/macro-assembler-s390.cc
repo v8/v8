@@ -4006,6 +4006,39 @@ void MacroAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
 //  Add Logical Instructions
 //----------------------------------------------------------------------------
 
+// Add Logical With Carry 32-bit (Register dst = Register src1 + Register src2)
+void MacroAssembler::AddLogicalWithCarry32(Register dst, Register src1,
+                                           Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    alcr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    alcr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    alcr(dst, src1);
+  }
+}
+
+// Add Logical 32-bit (Register dst = Register src1 + Register src2)
+void MacroAssembler::AddLogical32(Register dst, Register src1, Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    alr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    alr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    alr(dst, src1);
+  }
+}
+
 // Add Logical 32-bit (Register dst = Register dst + Immediate opnd)
 void MacroAssembler::AddLogical(Register dst, const Operand& imm) {
   alfi(dst, imm);

@@ -1003,6 +1003,7 @@ class Assembler : public AssemblerBase {
   void aly(Register r1, const MemOperand& opnd);
   void alfi(Register r1, const Operand& opnd);
   void alr(Register r1, Register r2);
+  void alcr(Register r1, Register r2);
   void alrk(Register r1, Register r2, Register r3);
 
   // 64-bit Add Logical Instructions

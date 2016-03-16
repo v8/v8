@@ -1905,6 +1905,9 @@ void Assembler::alfi(Register r1, const Operand& opnd) {
 // Add Logical Register-Register (32)
 void Assembler::alr(Register r1, Register r2) { rr_form(ALR, r1, r2); }
 
+// Add Logical With Carry Register-Register (32)
+void Assembler::alcr(Register r1, Register r2) { rre_form(ALCR, r1, r2); }
+
 // Add Logical Register-Register-Register (32)
 void Assembler::alrk(Register r1, Register r2, Register r3) {
   rrf1_form(ALRK, r1, r2, r3);

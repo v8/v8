@@ -35,6 +35,7 @@ namespace compiler {
   V(S390_RotLeftAndClearRight64)   \
   V(S390_Add)                      \
   V(S390_AddWithOverflow32)        \
+  V(S390_AddPair)                  \
   V(S390_AddFloat)                 \
   V(S390_AddDouble)                \
   V(S390_Sub)                      \

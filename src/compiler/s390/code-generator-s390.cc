@@ -862,6 +862,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #endif
 #if !V8_TARGET_ARCH_S390X
+    case kS390_AddPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ AddLogical32(i.OutputRegister(0), i.InputRegister(0),
+                      i.InputRegister(2));
+      __ AddLogicalWithCarry32(i.OutputRegister(1), i.InputRegister(1),
+                               i.InputRegister(3));
+      break;
     case kS390_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
