@@ -1629,6 +1629,49 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 #endif
 }
 
+void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+
+  if (expr->is_jsruntime()) {
+    Comment cmnt(masm_, "[ CallRuntime");
+    EmitLoadJSRuntimeFunction(expr);
+
+    // Push the arguments ("left-to-right").
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+
+    PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
+    EmitCallJSRuntimeFunction(expr);
+    context()->DropAndPlug(1, result_register());
+
+  } else {
+    const Runtime::Function* function = expr->function();
+    switch (function->function_id) {
+#define CALL_INTRINSIC_GENERATOR(Name)     \
+  case Runtime::kInline##Name: {           \
+    Comment cmnt(masm_, "[ Inline" #Name); \
+    return Emit##Name(expr);               \
+  }
+      FOR_EACH_FULL_CODE_INTRINSIC(CALL_INTRINSIC_GENERATOR)
+#undef CALL_INTRINSIC_GENERATOR
+      default: {
+        Comment cmnt(masm_, "[ CallRuntime for unhandled intrinsic");
+        // Push the arguments ("left-to-right").
+        for (int i = 0; i < arg_count; i++) {
+          VisitForStackValue(args->at(i));
+        }
+
+        // Call the C runtime function.
+        PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
+        __ CallRuntime(expr->function(), arg_count);
+        OperandStackDepthDecrement(arg_count);
+        context()->Plug(result_register());
+      }
+    }
+  }
+}
 
 void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
