@@ -550,7 +550,7 @@ TEST(Run_WasmF32SConvertI64) {
   REQUIRE(F32SConvertI64);
   WasmRunner<float> r(MachineType::Int64());
   BUILD(r, WASM_F32_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), r.Call(*i)); }
+  FOR_INT64_INPUTS(i) { CHECK_FLOAT_EQ(static_cast<float>(*i), r.Call(*i)); }
 }
 // kExprF32UConvertI64:
 TEST(Run_WasmF32UConvertI64) {
@@ -645,7 +645,7 @@ TEST(Run_WasmF64SConvertI64) {
   REQUIRE(F64SConvertI64);
   WasmRunner<double> r(MachineType::Int64());
   BUILD(r, WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_EQ(static_cast<double>(*i), r.Call(*i)); }
+  FOR_INT64_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(*i), r.Call(*i)); }
 }
 // kExprF64UConvertI64:
 TEST(Run_Wasm_F64UConvertI64) {
