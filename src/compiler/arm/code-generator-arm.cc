@@ -798,6 +798,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmSubPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ sub(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
+             SBit::SetCC);
+      __ sbc(i.OutputRegister(1), i.InputRegister(1),
+             Operand(i.InputRegister(3)));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmLslPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),

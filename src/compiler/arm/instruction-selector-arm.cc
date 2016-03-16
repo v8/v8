@@ -783,6 +783,22 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
   Emit(kArmAddPair, 2, outputs, 4, inputs);
 }
 
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  ArmOperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmSubPair, 2, outputs, 4, inputs);
+}
+
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   ArmOperandGenerator g(this);
   // We use g.UseUniqueRegister here for InputAt(0) to guarantee that there is

@@ -2181,6 +2181,7 @@ Matcher<Node*> IsLoadFramePointer() {
   }
 
 IS_QUADOP_MATCHER(Int32PairAdd)
+IS_QUADOP_MATCHER(Int32PairSub)
 
 #define IS_TERNOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,               \

@@ -498,6 +498,9 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Int64Add();
       break;
     // kExprI64Sub:
+    case wasm::kExprI64Sub:
+      op = m->Int64Sub();
+      break;
     // kExprI64Mul:
     // kExprI64DivS:
     case wasm::kExprI64DivS:
@@ -570,9 +573,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
-    case wasm::kExprI64Sub:
-      op = m->Int64Sub();
-      break;
     case wasm::kExprI64Mul:
       op = m->Int64Mul();
       break;

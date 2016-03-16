@@ -2443,6 +2443,8 @@ Type* Typer::Visitor::TypeCheckedStore(Node* node) {
 
 Type* Typer::Visitor::TypeInt32PairAdd(Node* node) { return Type::Internal(); }
 
+Type* Typer::Visitor::TypeInt32PairSub(Node* node) { return Type::Internal(); }
+
 Type* Typer::Visitor::TypeWord32PairShl(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeWord32PairShr(Node* node) { return Type::Internal(); }

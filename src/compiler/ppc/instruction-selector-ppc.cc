@@ -801,6 +801,8 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
   Emit(kPPC_AddPair, 2, outputs, 4, inputs);
 }
 
+void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
+
 void VisitPairShift(InstructionSelector* selector, ArchOpcode opcode,
                     Node* node) {
   PPCOperandGenerator g(selector);
