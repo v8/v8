@@ -3925,7 +3925,7 @@ TEST(InterpreterClassLiterals) {
 
   for (size_t i = 0; i < arraysize(examples); ++i) {
     std::string source(InterpreterTester::SourceForBody(examples[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -3985,7 +3985,7 @@ TEST(InterpreterClassAndSuperClass) {
 
   for (size_t i = 0; i < arraysize(examples); ++i) {
     std::string source(InterpreterTester::SourceForBody(examples[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
     auto callable = tester.GetCallable<>();
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*examples[i].second));
