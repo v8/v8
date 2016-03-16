@@ -911,6 +911,18 @@ std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
             << argument_count();
 }
 
+std::ostream& HInvokeFunction::PrintTo(std::ostream& os) const {  // NOLINT
+  if (tail_call_mode() == TailCallMode::kAllow) os << "Tail";
+  return HBinaryCall::PrintTo(os);
+}
+
+std::ostream& HInvokeFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
+  HBinaryCall::PrintDataTo(os);
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
+  }
+  return os;
+}
 
 void HBoundsCheck::ApplyIndexChange() {
   if (skip_check()) return;
@@ -1033,7 +1045,11 @@ std::ostream& HCallWithDescriptor::PrintDataTo(
   for (int i = 0; i < OperandCount(); i++) {
     os << NameOf(OperandAt(i)) << " ";
   }
-  return os << "#" << argument_count();
+  os << "#" << argument_count();
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
+  }
+  return os;
 }
 
 

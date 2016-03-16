@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-tailcalls --stack-size=100
-// TODO(v8:4698), TODO(ishell): support these cases.
-// Flags: --nostress-opt
 
 //
 // Tail calls work only in strict mode.
