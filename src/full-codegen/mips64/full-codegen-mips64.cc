@@ -3368,11 +3368,13 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
+  // Push function.
+  __ LoadNativeContextSlot(expr->context_index(), v0);
+  PushOperand(v0);
+
   // Push undefined as the receiver.
   __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
   PushOperand(v0);
-
-  __ LoadNativeContextSlot(expr->context_index(), v0);
 }
 
 
@@ -3396,11 +3398,6 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     Comment cmnt(masm_, "[ CallRuntime");
     EmitLoadJSRuntimeFunction(expr);
-
-    // Push the target function under the receiver.
-    __ ld(at, MemOperand(sp, 0));
-    PushOperand(at);
-    __ sd(v0, MemOperand(sp, kPointerSize));
 
     // Push the arguments ("left-to-right").
     for (int i = 0; i < arg_count; i++) {
