@@ -255,9 +255,6 @@
   'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
-  # BUG(v8:3838).
-  'regress/regress-3116': [PASS, ['isolates', FLAKY]],
-
   # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
   # prermanently enabled.
   'call-counts': [SKIP],

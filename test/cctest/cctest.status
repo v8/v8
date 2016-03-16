@@ -75,10 +75,6 @@
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
-  # BUG(3525). Test crashes flakily.
-  'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
-  'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
-
   # BUG(v8:4358). Hangs flakily.
   'test-debug/ProcessDebugMessagesThreaded': [SKIP],
 
@@ -134,9 +130,6 @@
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
-
-  # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
-  'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -245,15 +238,6 @@
 }],  # 'system == windows'
 
 ##############################################################################
-['system == macos', {
-
-  # BUG(3125).
-  'test-debug/DebugGetLoadedScripts': [PASS, FLAKY],
-  'test-debug/DebugStepLinear': [PASS, FLAKY],
-  'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
-}],  # 'system == macos'
-
-##############################################################################
 ['byteorder == big', {
   # TODO(mips-team): Fix Wasm for big-endian.
   'test-run-wasm-module/Run_WasmModule_CallAdd': [SKIP],
@@ -303,10 +287,6 @@
   'test-api/Threading2': [PASS, SLOW],
   'test-api/Threading3': [PASS, SLOW],
   'test-api/Threading4': [PASS, SLOW],
-
-  # Crashes due to OOM in simulator.
-  'test-types/Distributivity1': [PASS, FLAKY],
-  'test-types/Distributivity2': [PASS, FLAKY],
 }],  # 'arch == arm'
 
 ##############################################################################
