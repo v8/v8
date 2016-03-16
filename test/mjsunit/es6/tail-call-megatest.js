@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-tailcalls
+// TODO(v8:4698), TODO(ishell): support these cases.
+// Flags: --turbo --nostress-opt
 
 
 Error.prepareStackTrace = (error,stack) => {

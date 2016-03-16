@@ -2214,17 +2214,19 @@ class HBinaryCall : public HCall<2> {
 };
 
 
+enum CallMode { NORMAL_CALL, TAIL_CALL };
+
+
 class HCallWithDescriptor final : public HInstruction {
  public:
-  static HCallWithDescriptor* New(
-      Isolate* isolate, Zone* zone, HValue* context, HValue* target,
-      int argument_count, CallInterfaceDescriptor descriptor,
-      const Vector<HValue*>& operands,
-      TailCallMode syntactic_tail_call_mode = TailCallMode::kDisallow,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow) {
-    HCallWithDescriptor* res = new (zone)
-        HCallWithDescriptor(target, argument_count, descriptor, operands,
-                            syntactic_tail_call_mode, tail_call_mode, zone);
+  static HCallWithDescriptor* New(Isolate* isolate, Zone* zone, HValue* context,
+                                  HValue* target, int argument_count,
+                                  CallInterfaceDescriptor descriptor,
+                                  const Vector<HValue*>& operands,
+                                  CallMode call_mode = NORMAL_CALL) {
+    HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
+        target, argument_count, descriptor, operands, call_mode, zone);
+    DCHECK_EQ(operands.length(), res->GetParameterCount());
     return res;
   }
 
@@ -2246,16 +2248,7 @@ class HCallWithDescriptor final : public HInstruction {
 
   HType CalculateInferredType() final { return HType::Tagged(); }
 
-  // Defines whether this instruction corresponds to a JS call at tail position.
-  TailCallMode syntactic_tail_call_mode() const {
-    return SyntacticTailCallModeField::decode(bit_field_);
-  }
-
-  // Defines whether this call should be generated as a tail call.
-  TailCallMode tail_call_mode() const {
-    return TailCallModeField::decode(bit_field_);
-  }
-  bool IsTailCall() const { return tail_call_mode() == TailCallMode::kAllow; }
+  bool IsTailCall() const { return call_mode_ == TAIL_CALL; }
 
   virtual int argument_count() const {
     return argument_count_;
@@ -2275,18 +2268,14 @@ class HCallWithDescriptor final : public HInstruction {
   // The argument count includes the receiver.
   HCallWithDescriptor(HValue* target, int argument_count,
                       CallInterfaceDescriptor descriptor,
-                      const Vector<HValue*>& operands,
-                      TailCallMode syntactic_tail_call_mode,
-                      TailCallMode tail_call_mode, Zone* zone)
+                      const Vector<HValue*>& operands, CallMode call_mode,
+                      Zone* zone)
       : descriptor_(descriptor),
         values_(GetParameterCount() + 1, zone),
         argument_count_(argument_count),
-        bit_field_(
-            TailCallModeField::encode(tail_call_mode) |
-            SyntacticTailCallModeField::encode(syntactic_tail_call_mode)) {
-    DCHECK_EQ(operands.length(), GetParameterCount());
+        call_mode_(call_mode) {
     // We can only tail call without any stack arguments.
-    DCHECK(tail_call_mode != TailCallMode::kAllow || argument_count == 0);
+    DCHECK(call_mode != TAIL_CALL || argument_count == 0);
     AddOperand(target, zone);
     for (int i = 0; i < operands.length(); i++) {
       AddOperand(operands[i], zone);
@@ -2311,18 +2300,15 @@ class HCallWithDescriptor final : public HInstruction {
   CallInterfaceDescriptor descriptor_;
   ZoneList<HValue*> values_;
   int argument_count_;
-  class TailCallModeField : public BitField<TailCallMode, 0, 1> {};
-  class SyntacticTailCallModeField
-      : public BitField<TailCallMode, TailCallModeField::kNext, 1> {};
-  uint32_t bit_field_;
+  CallMode call_mode_;
 };
 
 
 class HInvokeFunction final : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HInvokeFunction, HValue*,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HInvokeFunction, HValue*,
                                               Handle<JSFunction>, int,
-                                              TailCallMode, TailCallMode);
+                                              TailCallMode);
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
@@ -2330,21 +2316,11 @@ class HInvokeFunction final : public HBinaryCall {
   int formal_parameter_count() const { return formal_parameter_count_; }
 
   bool HasStackCheck() final { return HasStackCheckField::decode(bit_field_); }
-
-  // Defines whether this instruction corresponds to a JS call at tail position.
-  TailCallMode syntactic_tail_call_mode() const {
-    return SyntacticTailCallModeField::decode(bit_field_);
-  }
-
-  // Defines whether this call should be generated as a tail call.
   TailCallMode tail_call_mode() const {
     return TailCallModeField::decode(bit_field_);
   }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
-
-  std::ostream& PrintTo(std::ostream& os) const override;      // NOLINT
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
  private:
   void set_has_stack_check(bool has_stack_check) {
@@ -2353,15 +2329,10 @@ class HInvokeFunction final : public HBinaryCall {
 
   HInvokeFunction(HValue* context, HValue* function,
                   Handle<JSFunction> known_function, int argument_count,
-                  TailCallMode syntactic_tail_call_mode,
                   TailCallMode tail_call_mode)
       : HBinaryCall(context, function, argument_count),
         known_function_(known_function),
-        bit_field_(
-            TailCallModeField::encode(tail_call_mode) |
-            SyntacticTailCallModeField::encode(syntactic_tail_call_mode)) {
-    DCHECK(tail_call_mode != TailCallMode::kAllow ||
-           syntactic_tail_call_mode == TailCallMode::kAllow);
+        bit_field_(TailCallModeField::encode(tail_call_mode)) {
     formal_parameter_count_ =
         known_function.is_null()
             ? 0
@@ -2378,8 +2349,6 @@ class HInvokeFunction final : public HBinaryCall {
   class HasStackCheckField : public BitField<bool, 0, 1> {};
   class TailCallModeField
       : public BitField<TailCallMode, HasStackCheckField::kNext, 1> {};
-  class SyntacticTailCallModeField
-      : public BitField<TailCallMode, TailCallModeField::kNext, 1> {};
   uint32_t bit_field_;
 };
 

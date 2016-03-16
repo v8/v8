@@ -5513,8 +5513,9 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
     FastNewClosureDescriptor descriptor(isolate());
     HValue* values[] = {context(), shared_info_value};
     HConstant* stub_value = Add<HConstant>(stub.GetCode());
-    instr = New<HCallWithDescriptor>(
-        stub_value, 0, descriptor, Vector<HValue*>(values, arraysize(values)));
+    instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
+                                     Vector<HValue*>(values, arraysize(values)),
+                                     NORMAL_CALL);
   } else {
     Add<HPushArguments>(shared_info_value);
     Runtime::FunctionId function_id =
@@ -5795,9 +5796,9 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
       context(), AddThisFunction(), Add<HConstant>(expr->literal_index()),
       Add<HConstant>(expr->pattern()), Add<HConstant>(expr->flags())};
   HConstant* stub_value = Add<HConstant>(callable.code());
-  HInstruction* instr =
-      New<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
-                               Vector<HValue*>(values, arraysize(values)));
+  HInstruction* instr = New<HCallWithDescriptor>(
+      stub_value, 0, callable.descriptor(),
+      Vector<HValue*>(values, arraysize(values)), NORMAL_CALL);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -6582,7 +6583,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
         info->NeedsWrappingFor(Handle<JSFunction>::cast(info->accessor()))) {
       HValue* function = Add<HConstant>(info->accessor());
       PushArgumentsFromEnvironment(argument_count);
-      return NewCallFunction(function, argument_count, TailCallMode::kDisallow,
+      return NewCallFunction(function, argument_count,
                              ConvertReceiverMode::kNotNullOrUndefined,
                              TailCallMode::kDisallow);
     } else if (FLAG_inline_accessors && can_inline_accessor) {
@@ -6599,8 +6600,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       return nullptr;
     }
     return NewCallConstantFunction(Handle<JSFunction>::cast(info->accessor()),
-                                   argument_count, TailCallMode::kDisallow,
-                                   TailCallMode::kDisallow);
+                                   argument_count, TailCallMode::kDisallow);
   }
 
   DCHECK(info->IsDataConstant());
@@ -7999,8 +7999,8 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
 }
 
 HInstruction* HOptimizedGraphBuilder::NewCallFunction(
-    HValue* function, int argument_count, TailCallMode syntactic_tail_call_mode,
-    ConvertReceiverMode convert_mode, TailCallMode tail_call_mode) {
+    HValue* function, int argument_count, ConvertReceiverMode convert_mode,
+    TailCallMode tail_call_mode) {
   HValue* arity = Add<HConstant>(argument_count - 1);
 
   HValue* op_vals[] = {context(), function, arity};
@@ -8010,14 +8010,12 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                                  Vector<HValue*>(op_vals, arraysize(op_vals)),
-                                  syntactic_tail_call_mode);
+                                  Vector<HValue*>(op_vals, arraysize(op_vals)));
 }
 
 HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
-    HValue* function, int argument_count, TailCallMode syntactic_tail_call_mode,
-    ConvertReceiverMode convert_mode, TailCallMode tail_call_mode,
-    FeedbackVectorSlot slot) {
+    HValue* function, int argument_count, ConvertReceiverMode convert_mode,
+    TailCallMode tail_call_mode, FeedbackVectorSlot slot) {
   int arity = argument_count - 1;
   Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* index_val = Add<HConstant>(vector->GetIndex(slot));
@@ -8030,16 +8028,14 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                                  Vector<HValue*>(op_vals, arraysize(op_vals)),
-                                  syntactic_tail_call_mode);
+                                  Vector<HValue*>(op_vals, arraysize(op_vals)));
 }
 
 HInstruction* HOptimizedGraphBuilder::NewCallConstantFunction(
     Handle<JSFunction> function, int argument_count,
-    TailCallMode syntactic_tail_call_mode, TailCallMode tail_call_mode) {
+    TailCallMode tail_call_mode) {
   HValue* target = Add<HConstant>(function);
-  return New<HInvokeFunction>(target, function, argument_count,
-                              syntactic_tail_call_mode, tail_call_mode);
+  return New<HInvokeFunction>(target, function, argument_count, tail_call_mode);
 }
 
 
@@ -8190,12 +8186,10 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
       // HWrapReceiver.
       HInstruction* call =
           needs_wrapping
-              ? NewCallFunction(
-                    function, argument_count, syntactic_tail_call_mode,
-                    ConvertReceiverMode::kNotNullOrUndefined, tail_call_mode)
-              : NewCallConstantFunction(target, argument_count,
-                                        syntactic_tail_call_mode,
-                                        tail_call_mode);
+              ? NewCallFunction(function, argument_count,
+                                ConvertReceiverMode::kNotNullOrUndefined,
+                                tail_call_mode)
+              : NewCallConstantFunction(target, argument_count, tail_call_mode);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
       Drop(1);  // Drop the function.
@@ -8225,8 +8219,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
     HInstruction* call = NewCallFunction(
-        function, argument_count, syntactic_tail_call_mode,
-        ConvertReceiverMode::kNotNullOrUndefined, tail_call_mode);
+        function, argument_count, ConvertReceiverMode::kNotNullOrUndefined,
+        tail_call_mode);
 
     PushArgumentsFromEnvironment(argument_count);
 
@@ -9112,8 +9106,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           if_inline.Else();
           {
             Add<HPushArguments>(receiver);
-            result = AddInstruction(NewCallConstantFunction(
-                function, 1, TailCallMode::kDisallow, TailCallMode::kDisallow));
+            result = AddInstruction(
+                NewCallConstantFunction(function, 1, TailCallMode::kDisallow));
             if (!ast_context()->IsEffect()) Push(result);
           }
           if_inline.End();
@@ -9377,9 +9371,8 @@ void HOptimizedGraphBuilder::HandleIndirectCall(Call* expr, HValue* function,
       function_state()->ComputeTailCallMode(syntactic_tail_call_mode);
 
   PushArgumentsFromEnvironment(arguments_count);
-  HInvokeFunction* call =
-      New<HInvokeFunction>(function, known_function, arguments_count,
-                           syntactic_tail_call_mode, tail_call_mode);
+  HInvokeFunction* call = New<HInvokeFunction>(function, known_function,
+                                               arguments_count, tail_call_mode);
   Drop(1);  // Function
   ast_context()->ReturnInstruction(call, expr->id());
 }
@@ -9776,15 +9769,14 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // the receiver.
         // TODO(verwaest): Support creation of value wrappers directly in
         // HWrapReceiver.
-        call = NewCallFunction(
-            function, argument_count, syntactic_tail_call_mode,
-            ConvertReceiverMode::kNotNullOrUndefined, tail_call_mode);
+        call = NewCallFunction(function, argument_count,
+                               ConvertReceiverMode::kNotNullOrUndefined,
+                               tail_call_mode);
       } else if (TryInlineCall(expr)) {
         return;
       } else {
-        call =
-            NewCallConstantFunction(known_function, argument_count,
-                                    syntactic_tail_call_mode, tail_call_mode);
+        call = NewCallConstantFunction(known_function, argument_count,
+                                       tail_call_mode);
       }
 
     } else {
@@ -9803,7 +9795,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       Push(receiver);
 
       CHECK_ALIVE(VisitExpressions(expr->arguments(), arguments_flag));
-      call = NewCallFunction(function, argument_count, syntactic_tail_call_mode,
+      call = NewCallFunction(function, argument_count,
                              ConvertReceiverMode::kNotNullOrUndefined,
                              tail_call_mode);
     }
@@ -9853,7 +9845,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
       PushArgumentsFromEnvironment(argument_count);
       call = NewCallConstantFunction(expr->target(), argument_count,
-                                     syntactic_tail_call_mode, tail_call_mode);
+                                     tail_call_mode);
     } else {
       PushArgumentsFromEnvironment(argument_count);
       if (expr->is_uninitialized() &&
@@ -9861,13 +9853,12 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // We've never seen this call before, so let's have Crankshaft learn
         // through the type vector.
         call = NewCallFunctionViaIC(function, argument_count,
-                                    syntactic_tail_call_mode,
                                     ConvertReceiverMode::kNullOrUndefined,
                                     tail_call_mode, expr->CallFeedbackICSlot());
       } else {
-        call = NewCallFunction(
-            function, argument_count, syntactic_tail_call_mode,
-            ConvertReceiverMode::kNullOrUndefined, tail_call_mode);
+        call = NewCallFunction(function, argument_count,
+                               ConvertReceiverMode::kNullOrUndefined,
+                               tail_call_mode);
       }
     }
   }
@@ -10500,9 +10491,9 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     int argument_count = expr->arguments()->length() + 1;  // Count receiver.
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
     PushArgumentsFromEnvironment(argument_count);
-    HInstruction* call = NewCallFunction(
-        function, argument_count, TailCallMode::kDisallow,
-        ConvertReceiverMode::kNullOrUndefined, TailCallMode::kDisallow);
+    HInstruction* call = NewCallFunction(function, argument_count,
+                                         ConvertReceiverMode::kNullOrUndefined,
+                                         TailCallMode::kDisallow);
     Drop(1);  // Function
     return ast_context()->ReturnInstruction(call, expr->id());
   }

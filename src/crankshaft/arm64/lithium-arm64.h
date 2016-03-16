@@ -235,11 +235,6 @@ class LInstruction : public ZoneObject {
   void MarkAsCall() { bit_field_ = IsCallBits::update(bit_field_, true); }
   bool IsCall() const { return IsCallBits::decode(bit_field_); }
 
-  void MarkAsTailCall() {
-    bit_field_ = IsTailCallBits::update(bit_field_, true);
-  }
-  bool IsTailCall() const { return IsTailCallBits::decode(bit_field_); }
-
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
@@ -267,7 +262,6 @@ class LInstruction : public ZoneObject {
 
  private:
   class IsCallBits: public BitField<bool, 0, 1> {};
-  class IsTailCallBits : public BitField<bool, IsCallBits::kNext, 1> {};
 
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;

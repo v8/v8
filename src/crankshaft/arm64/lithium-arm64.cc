@@ -715,35 +715,27 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
   chunk_->AddInstruction(instr, current_block_);
 
   if (instr->IsCall()) {
-    HEnvironment* hydrogen_env = current_block_->last_environment();
     HValue* hydrogen_value_for_lazy_bailout = hydrogen_val;
-    DCHECK_NOT_NULL(hydrogen_env);
-    if (instr->IsTailCall()) {
-      hydrogen_env = hydrogen_env->outer();
-      if (hydrogen_env != nullptr &&
-          hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR) {
-        hydrogen_env = hydrogen_env->outer();
-      }
-    } else {
-      if (hydrogen_val->HasObservableSideEffects()) {
-        HSimulate* sim = HSimulate::cast(hydrogen_val->next());
-        sim->ReplayEnvironment(hydrogen_env);
-        hydrogen_value_for_lazy_bailout = sim;
-      }
+    if (hydrogen_val->HasObservableSideEffects()) {
+      HSimulate* sim = HSimulate::cast(hydrogen_val->next());
+      sim->ReplayEnvironment(current_block_->last_environment());
+      hydrogen_value_for_lazy_bailout = sim;
     }
-    if (hydrogen_env != nullptr) {
-      LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
-          new (zone()) LLazyBailout(), hydrogen_env);
-      bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
-      chunk_->AddInstruction(bailout, current_block_);
-    }
+    LInstruction* bailout = AssignEnvironment(new(zone()) LLazyBailout());
+    bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+    chunk_->AddInstruction(bailout, current_block_);
   }
 }
 
 
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
-  return LChunkBuilderBase::AssignEnvironment(instr, hydrogen_env);
+  int argument_index_accumulator = 0;
+  ZoneList<HValue*> objects_to_materialize(0, zone());
+  instr->set_environment(CreateEnvironment(hydrogen_env,
+                                           &argument_index_accumulator,
+                                           &objects_to_materialize));
+  return instr;
 }
 
 
@@ -1026,9 +1018,6 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
   LCallWithDescriptor* result = new(zone()) LCallWithDescriptor(descriptor,
                                                                 ops,
                                                                 zone());
-  if (instr->syntactic_tail_call_mode() == TailCallMode::kAllow) {
-    result->MarkAsTailCall();
-  }
   return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
@@ -1521,9 +1510,6 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   // The function is required (by MacroAssembler::InvokeFunction) to be in x1.
   LOperand* function = UseFixed(instr->function(), x1);
   LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
-  if (instr->syntactic_tail_call_mode() == TailCallMode::kAllow) {
-    result->MarkAsTailCall();
-  }
   return MarkAsCall(DefineFixed(result, x0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
