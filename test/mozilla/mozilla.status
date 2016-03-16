@@ -168,6 +168,8 @@
   # in the test: "This test will probably run out of memory".
   'js1_5/extensions/regress-345967': [SKIP],
 
+  # Slow with arm64 simulator in debug.
+  'ecma_3/Statements/regress-302439': [PASS, ['mode == debug', SLOW]],
 
   ##################### FLAKY TESTS #####################
 
