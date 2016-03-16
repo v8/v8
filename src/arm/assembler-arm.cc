@@ -82,7 +82,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
-  cache_line_size_ = 64;
+  dcache_line_size_ = 64;
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
@@ -137,7 +137,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.implementer() == base::CPU::ARM &&
       (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
        cpu.part() == base::CPU::ARM_CORTEX_A9)) {
-    cache_line_size_ = 32;
+    dcache_line_size_ = 32;
   }
 
   if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;

@@ -271,7 +271,8 @@ CpuFeatureScope::~CpuFeatureScope() {
 
 bool CpuFeatures::initialized_ = false;
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::cache_line_size_ = 0;
+unsigned CpuFeatures::icache_line_size_ = 0;
+unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
 // Implementation of Label

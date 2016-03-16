@@ -224,9 +224,14 @@ class CpuFeatures : public AllStatic {
 
   static inline bool SupportsCrankshaft();
 
-  static inline unsigned cache_line_size() {
-    DCHECK(cache_line_size_ != 0);
-    return cache_line_size_;
+  static inline unsigned icache_line_size() {
+    DCHECK(icache_line_size_ != 0);
+    return icache_line_size_;
+  }
+
+  static inline unsigned dcache_line_size() {
+    DCHECK(dcache_line_size_ != 0);
+    return dcache_line_size_;
   }
 
   static void PrintTarget();
@@ -242,7 +247,8 @@ class CpuFeatures : public AllStatic {
   static void ProbeImpl(bool cross_compile);
 
   static unsigned supported_;
-  static unsigned cache_line_size_;
+  static unsigned icache_line_size_;
+  static unsigned dcache_line_size_;
   static bool initialized_;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
