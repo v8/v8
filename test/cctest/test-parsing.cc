@@ -7189,6 +7189,36 @@ TEST(MiscSyntaxErrors) {
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
 }
 
+
+TEST(EscapeSequenceErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'", "'" },
+    { "\"", "\"" },
+    { "`", "`" },
+    { "`${'", "'}`" },
+    { "`${\"", "\"}`" },
+    { "`${`", "`}`" },
+    { "f(tag`", "`);" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "\\uABCG",
+    "\\u{ZZ}",
+    "\\u{FFZ}",
+    "\\u{FFFFFFFFFF }",
+    "\\u{110000}",
+    "\\u{110000",
+    "\\u{FFFD }",
+    "\\xZF",
+    NULL
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
+}
+
+
 TEST(FunctionSentErrors) {
   // clang-format off
   const char* context_data[][2] = {

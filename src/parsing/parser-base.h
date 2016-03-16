@@ -2616,6 +2616,11 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
             ParseTemplateLiteral(expression, pos, classifier, CHECK_OK);
         break;
       }
+      case Token::ILLEGAL: {
+        ReportUnexpectedTokenAt(scanner()->peek_location(), Token::ILLEGAL);
+        *ok = false;
+        return this->EmptyExpression();
+      }
       default:
         return expression;
     }
