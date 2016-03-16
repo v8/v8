@@ -214,8 +214,6 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
-  V(harmony_restrictive_declarations,                                        \
-    "harmony limitations on sloppy mode function declarations")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                           \
@@ -230,6 +228,8 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_proxies, "harmony proxies")                               \
   V(harmony_reflect, "harmony Reflect API")                           \
   V(harmony_regexp_subclass, "harmony regexp subclassing")            \
+  V(harmony_restrictive_declarations,                                 \
+    "harmony limitations on sloppy mode function declarations")       \
   V(harmony_species, "harmony Symbol.species")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
