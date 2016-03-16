@@ -3453,6 +3453,39 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
 }
 
+void MacroAssembler::FlushICache(Register address, size_t size,
+                                 Register scratch) {
+  if (CpuFeatures::IsSupported(INSTR_AND_DATA_CACHE_COHERENCY)) {
+    sync();
+    icbi(r0, address);
+    isync();
+    return;
+  }
+
+  Label done;
+
+  dcbf(r0, address);
+  sync();
+  icbi(r0, address);
+  isync();
+
+  // This code handles ranges which cross a single cacheline boundary.
+  // scratch is last cacheline which intersects range.
+  const int kCacheLineSizeLog2 = WhichPowerOf2(CpuFeatures::cache_line_size());
+
+  DCHECK(size > 0 && size <= (size_t)(1 << kCacheLineSizeLog2));
+  addi(scratch, address, Operand(size - 1));
+  ClearRightImm(scratch, scratch, Operand(kCacheLineSizeLog2));
+  cmpl(scratch, address);
+  ble(&done);
+
+  dcbf(r0, scratch);
+  sync();
+  icbi(r0, scratch);
+  isync();
+
+  bind(&done);
+}
 
 void MacroAssembler::DecodeConstantPoolOffset(Register result,
                                               Register location) {
