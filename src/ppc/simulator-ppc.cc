@@ -1733,8 +1733,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x3f);
+      uintptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t result = (rb_val > 31) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1747,8 +1747,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x7f);
+      uintptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t result = (rb_val > 63) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1761,8 +1761,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       int32_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x3f);
+      intptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t result = (rb_val > 31) ? rs_val >> 31 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1775,8 +1775,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       intptr_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x7f);
+      intptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t result = (rb_val > 63) ? rs_val >> 63 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -2153,8 +2153,8 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      uint32_t result = rs_val << (rb_val & 0x3f);
+      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uint32_t result = (rb_val > 31) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -2167,8 +2167,8 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      uintptr_t result = rs_val << (rb_val & 0x7f);
+      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t result = (rb_val > 63) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
