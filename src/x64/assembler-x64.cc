@@ -1469,17 +1469,18 @@ void Assembler::movp(Register dst, void* value, RelocInfo::Mode rmode) {
   emitp(value, rmode);
 }
 
-
-void Assembler::movq(Register dst, int64_t value) {
+void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst);
   emit(0xB8 | dst.low_bits());
+  if (!RelocInfo::IsNone(rmode)) {
+    RecordRelocInfo(rmode, value);
+  }
   emitq(value);
 }
 
-
-void Assembler::movq(Register dst, uint64_t value) {
-  movq(dst, static_cast<int64_t>(value));
+void Assembler::movq(Register dst, uint64_t value, RelocInfo::Mode rmode) {
+  movq(dst, static_cast<int64_t>(value), rmode);
 }
 
 
