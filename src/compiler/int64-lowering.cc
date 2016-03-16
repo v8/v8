@@ -542,6 +542,26 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     // kExprI64Ctz:
+    case IrOpcode::kWord64Ctz: {
+      DCHECK(node->InputCount() == 1);
+      DCHECK(machine()->Word32Ctz().IsSupported());
+      Node* input = node->InputAt(0);
+      Diamond d(
+          graph(), common(),
+          graph()->NewNode(machine()->Word32Equal(), GetReplacementLow(input),
+                           graph()->NewNode(common()->Int32Constant(0))));
+      Node* low_node =
+          d.Phi(MachineRepresentation::kWord32,
+                graph()->NewNode(machine()->Int32Add(),
+                                 graph()->NewNode(machine()->Word32Ctz().op(),
+                                                  GetReplacementHigh(input)),
+                                 graph()->NewNode(common()->Int32Constant(32))),
+                graph()->NewNode(machine()->Word32Ctz().op(),
+                                 GetReplacementLow(input)));
+      ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
+      break;
+    }
+    // kExprI64Popcnt:
     case IrOpcode::kWord64Popcnt: {
       DCHECK(node->InputCount() == 1);
       Node* input = node->InputAt(0);
@@ -557,7 +577,6 @@ void Int64Lowering::LowerNode(Node* node) {
                   graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
-    // kExprI64Popcnt:
 
     default: { DefaultLowering(node); }
   }

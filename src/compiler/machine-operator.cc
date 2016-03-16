@@ -478,6 +478,13 @@ const Operator* MachineOperatorBuilder::CheckedStore(
 const Operator* MachineOperatorBuilder::Word64PopcntPlaceholder() {
   return &cache_.kWord64Popcnt;
 }
+
+// On 32 bit platforms we need to get a reference to optional operators of
+// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
+// don't support the original 64-bit instruction.
+const Operator* MachineOperatorBuilder::Word64CtzPlaceholder() {
+  return &cache_.kWord64Ctz;
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

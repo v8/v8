@@ -178,6 +178,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Word64Ror();
   const Operator* Word64Clz();
   const OptionalOperator Word64Ctz();
+  const Operator* Word64CtzPlaceholder();
   const Operator* Word64Equal();
 
   const Operator* Int32PairAdd();

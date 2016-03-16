@@ -590,6 +590,27 @@ TEST_F(Int64LoweringTest, I64Clz) {
           IsInt32Constant(0), start(), start()));
 }
 // kExprI64Ctz:
+TEST_F(Int64LoweringTest, I64Ctz) {
+  LowerGraph(graph()->NewNode(machine()->Word64CtzPlaceholder(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+  Capture<Node*> branch_capture;
+  Matcher<Node*> branch_matcher = IsBranch(
+      IsWord32Equal(IsInt32Constant(low_word_value(0)), IsInt32Constant(0)),
+      start());
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsPhi(MachineRepresentation::kWord32,
+                IsInt32Add(IsWord32Ctz(IsInt32Constant(high_word_value(0))),
+                           IsInt32Constant(32)),
+                IsWord32Ctz(IsInt32Constant(low_word_value(0))),
+                IsMerge(
+                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
+                    IsIfFalse(
+                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
+          IsInt32Constant(0), start(), start()));
+}
 // kExprI64Popcnt:
 
 TEST_F(Int64LoweringTest, Dfs) {
