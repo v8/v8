@@ -842,8 +842,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "code age sequence";
     case GENERATOR_CONTINUATION:
       return "generator continuation";
-    case WASM_MEMORY_REFERENCE:
-      return "wasm memory reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -937,7 +935,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case GENERATOR_CONTINUATION:
-    case WASM_MEMORY_REFERENCE:
     case NONE32:
     case NONE64:
       break;

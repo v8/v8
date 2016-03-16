@@ -437,8 +437,7 @@ bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::NONE32);
 
   return RelocInfo::IsNone(mode) ||
-         (!assm_->serializer_enabled() &&
-          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE));
+         (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
 }
 
 
