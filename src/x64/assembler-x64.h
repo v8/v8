@@ -699,8 +699,10 @@ class Assembler : public AssemblerBase {
   void movp(Register dst, void* ptr, RelocInfo::Mode rmode);
 
   // Loads a 64-bit immediate into a register.
-  void movq(Register dst, int64_t value);
-  void movq(Register dst, uint64_t value);
+  void movq(Register dst, int64_t value,
+            RelocInfo::Mode rmode = RelocInfo::NONE64);
+  void movq(Register dst, uint64_t value,
+            RelocInfo::Mode rmode = RelocInfo::NONE64);
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, const Operand& src);
