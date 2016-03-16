@@ -72,6 +72,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
 
   Scope* scope() const { return scope_; }
   Register reg() const { return register_; }
+  bool ShouldPopContext() { return should_pop_context_; }
 
  private:
   const BytecodeArrayBuilder* builder() const { return generator_->builder(); }
@@ -212,9 +213,9 @@ class BytecodeGenerator::ControlScopeForTopLevel final
  protected:
   bool Execute(Command command, Statement* statement) override {
     switch (command) {
-      case CMD_BREAK:
+      case CMD_BREAK:  // We should never see break/continue in top-level.
       case CMD_CONTINUE:
-        break;
+        UNREACHABLE();
       case CMD_RETURN:
         generator()->builder()->Return();
         return true;
@@ -363,21 +364,20 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
   ContextScope* context = generator()->execution_context();
+  // Pop context to the expected depth but do not pop the outermost context.
+  if (context != current->context() && context->ShouldPopContext()) {
+    generator()->builder()->PopContext(current->context()->reg());
+  }
   do {
-    if (current->context() != context) {
-      // Pop context to the expected depth for break and continue. For return
-      // and throw it is not required to pop. Debugger expects that the
-      // context is not popped on return. So do not pop on return.
-      // TODO(rmcilroy): Only emit a single context pop.
-      if (command == CMD_BREAK || command == CMD_CONTINUE) {
-        generator()->builder()->PopContext(current->context()->reg());
-      }
-      context = current->context();
-    }
     if (current->Execute(command, statement)) {
       return;
     }
     current = current->outer();
+    if (current->context() != context) {
+      // Pop context to the expected depth.
+      // TODO(rmcilroy): Only emit a single context pop.
+      generator()->builder()->PopContext(current->context()->reg());
+    }
   } while (current != nullptr);
   UNREACHABLE();
 }

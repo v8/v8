@@ -2075,6 +2075,15 @@ TEST(InterpreterTryFinally) {
                      "  try { a = 3; throw 23; } finally { a = 4; }"
                      "} catch(e) { a = a + e; } return a;",
                      factory->NewStringFromStaticChars("R27")),
+      std::make_pair("var func_name;"
+                     "function tcf2(a) {"
+                     "  try { throw new Error('boom');} "
+                     "  catch(e) {return 153; } "
+                     "  finally {func_name = tcf2.name;}"
+                     "}"
+                     "tcf2();"
+                     "return func_name;",
+                     factory->NewStringFromStaticChars("Rtcf2")),
   };
 
   const char* try_wrapper =

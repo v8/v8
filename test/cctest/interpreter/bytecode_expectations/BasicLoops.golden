@@ -793,13 +793,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 118
+bytecode array length: 120
 bytecodes: [
   B(StackCheck),
   B(LdaZero),
   B(Star), R(1),
   B(Ldar), R(1),
-  B(JumpIfToBooleanFalse), U8(110),
+  B(JumpIfToBooleanFalse), U8(112),
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(4),
@@ -824,9 +824,10 @@ bytecodes: [
   B(LdaConstant), U8(3),
   B(Star), R(4),
   B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
-  B(JumpIfToBooleanFalse), U8(6),
+  B(JumpIfToBooleanFalse), U8(8),
   B(PopContext), R(3),
-  B(Jump), U8(-67),
+  B(PopContext), R(3),
+  B(Jump), U8(-69),
   B(LdaContextSlot), R(context), U8(4),
   B(JumpIfNotHole), U8(11),
   B(LdaConstant), U8(3),
@@ -844,7 +845,7 @@ bytecodes: [
   B(Ldar), R(5),
   B(StaContextSlot), R(context), U8(4),
   B(PopContext), R(3),
-  B(Jump), U8(-110),
+  B(Jump), U8(-112),
   B(LdaUndefined),
   B(Return),
 ]
