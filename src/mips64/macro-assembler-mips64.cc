@@ -512,6 +512,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
                                             Register scratch,
                                             Label* miss) {
   Label same_contexts;
+  Register temporary = t8;
 
   DCHECK(!holder_reg.is(scratch));
   DCHECK(!holder_reg.is(at));
@@ -524,9 +525,10 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   mov(at, fp);
   bind(&load_context);
   ld(scratch, MemOperand(at, CommonFrameConstants::kContextOrFrameTypeOffset));
-  JumpIfNotSmi(scratch, &has_context);
+  // Passing temporary register, otherwise JumpIfNotSmi modifies register at.
+  JumpIfNotSmi(scratch, &has_context, temporary);
   ld(at, MemOperand(at, CommonFrameConstants::kCallerFPOffset));
-  b(&load_context);
+  Branch(&load_context);
   bind(&has_context);
 
   // In debug mode, make sure the lexical context is set.
