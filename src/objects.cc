@@ -285,6 +285,10 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
 
 // static
 Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
+  // This is the generic version of Abstract Equality Comparison; a version in
+  // JavaScript land is available in the EqualStub and NotEqualStub. Whenever
+  // you change something functionality wise in here, remember to update the
+  // TurboFan code stubs as well.
   while (true) {
     if (x->IsNumber()) {
       if (y->IsNumber()) {

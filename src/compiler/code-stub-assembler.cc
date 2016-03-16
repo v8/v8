@@ -105,6 +105,10 @@ Node* CodeStubAssembler::Float64Constant(double value) {
   return raw_assembler_->Float64Constant(value);
 }
 
+Node* CodeStubAssembler::BooleanMapConstant() {
+  return HeapConstant(isolate()->factory()->boolean_map());
+}
+
 Node* CodeStubAssembler::HeapNumberMapConstant() {
   return HeapConstant(isolate()->factory()->heap_number_map());
 }
@@ -220,6 +224,11 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return Load(MachineType::Float64(), object,
               IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadMapBitField(Node* map) {
+  return Load(MachineType::Uint8(), map,
+              IntPtrConstant(Map::kBitFieldOffset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
@@ -429,8 +438,12 @@ Node* CodeStubAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
 }
 
+Node* CodeStubAssembler::LoadMap(Node* object) {
+  return LoadObjectField(object, HeapObject::kMapOffset);
+}
+
 Node* CodeStubAssembler::LoadInstanceType(Node* object) {
-  return LoadMapInstanceType(LoadObjectField(object, HeapObject::kMapOffset));
+  return LoadMapInstanceType(LoadMap(object));
 }
 
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
@@ -524,6 +537,16 @@ void CodeStubAssembler::BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b,
   Bind(&if_greaterthanorequal);
   Goto(if_true);
   Bind(&if_notgreaterthanorequal);
+  Goto(if_false);
+}
+
+void CodeStubAssembler::BranchIfWord32Equal(Node* a, Node* b, Label* if_true,
+                                            Label* if_false) {
+  Label if_equal(this), if_notequal(this);
+  Branch(Word32Equal(a, b), &if_equal, &if_notequal);
+  Bind(&if_equal);
+  Goto(if_true);
+  Bind(&if_notequal);
   Goto(if_false);
 }
 

@@ -103,6 +103,8 @@ namespace internal {
   V(LessThanOrEqual)                        \
   V(GreaterThan)                            \
   V(GreaterThanOrEqual)                     \
+  V(Equal)                                  \
+  V(NotEqual)                               \
   V(StrictEqual)                            \
   V(StrictNotEqual)                         \
   V(StringEqual)                            \
@@ -682,6 +684,22 @@ class GreaterThanOrEqualStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
   DEFINE_TURBOFAN_CODE_STUB(GreaterThanOrEqual, TurboFanCodeStub);
+};
+
+class EqualStub final : public TurboFanCodeStub {
+ public:
+  explicit EqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(Equal, TurboFanCodeStub);
+};
+
+class NotEqualStub final : public TurboFanCodeStub {
+ public:
+  explicit NotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(NotEqual, TurboFanCodeStub);
 };
 
 class StrictEqualStub final : public TurboFanCodeStub {

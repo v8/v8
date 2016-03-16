@@ -1176,7 +1176,7 @@ void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kEqual, assembler);
+  DoBinaryOp(CodeFactory::Equal(isolate_), assembler);
 }
 
 
@@ -1184,7 +1184,7 @@ void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kNotEqual, assembler);
+  DoBinaryOp(CodeFactory::NotEqual(isolate_), assembler);
 }
 
 

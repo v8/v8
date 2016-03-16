@@ -87,8 +87,6 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSEqual, Runtime::kEqual)
-REPLACE_RUNTIME_CALL(JSNotEqual, Runtime::kNotEqual)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
 REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
@@ -104,6 +102,8 @@ REPLACE_STUB_CALL(LessThan)
 REPLACE_STUB_CALL(LessThanOrEqual)
 REPLACE_STUB_CALL(GreaterThan)
 REPLACE_STUB_CALL(GreaterThanOrEqual)
+REPLACE_STUB_CALL(Equal)
+REPLACE_STUB_CALL(NotEqual)
 REPLACE_STUB_CALL(StrictEqual)
 REPLACE_STUB_CALL(StrictNotEqual)
 #undef REPLACE_STUB_CALL

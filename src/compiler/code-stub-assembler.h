@@ -36,6 +36,11 @@ class RawMachineLabel;
 class Schedule;
 
 #define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V) \
+  V(Float32Equal)                             \
+  V(Float32LessThan)                          \
+  V(Float32LessThanOrEqual)                   \
+  V(Float32GreaterThan)                       \
+  V(Float32GreaterThanOrEqual)                \
   V(Float64Equal)                             \
   V(Float64LessThan)                          \
   V(Float64LessThanOrEqual)                   \
@@ -141,6 +146,7 @@ class CodeStubAssembler {
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
+  Node* BooleanMapConstant();
   Node* HeapNumberMapConstant();
 
   Node* Parameter(int value);
@@ -267,6 +273,8 @@ class CodeStubAssembler {
   Node* LoadObjectField(Node* object, int offset);
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
+  // Load the bit field of a Map.
+  Node* LoadMapBitField(Node* map);
   // Load the instance type of a Map.
   Node* LoadMapInstanceType(Node* map);
 
@@ -281,6 +289,9 @@ class CodeStubAssembler {
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
                                              Node* value);
+  // Load the Map of an HeapObject.
+  Node* LoadMap(Node* object);
+  // Load the instance type of an HeapObject.
   Node* LoadInstanceType(Node* object);
 
   // Returns a node that is true if the given bit is set in |word32|.
@@ -309,6 +320,7 @@ class CodeStubAssembler {
   void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
+  void BranchIfWord32Equal(Node* a, Node* b, Label* if_true, Label* if_false);
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
