@@ -10481,7 +10481,21 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   if (expr->is_jsruntime()) {
-    return Bailout(kCallToAJavaScriptRuntimeFunction);
+    // The callee and the receiver both have to be pushed onto the operand stack
+    // before arguments are being evaluated.
+    HValue* function = AddLoadJSBuiltin(expr->context_index());
+    HValue* receiver = graph()->GetConstantUndefined();
+    Push(function);
+    Push(receiver);
+
+    int argument_count = expr->arguments()->length() + 1;  // Count receiver.
+    CHECK_ALIVE(VisitExpressions(expr->arguments()));
+    PushArgumentsFromEnvironment(argument_count);
+    HInstruction* call = NewCallFunction(function, argument_count,
+                                         ConvertReceiverMode::kNullOrUndefined,
+                                         TailCallMode::kDisallow);
+    Drop(1);  // Function
+    return ast_context()->ReturnInstruction(call, expr->id());
   }
 
   const Runtime::Function* function = expr->function();
