@@ -45,7 +45,9 @@ class Interpreter {
   // GC support.
   void IterateDispatchTable(ObjectVisitor* v);
 
-  void TraceCodegen(Handle<Code> code, const char* name);
+  // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
+  void TraceCodegen(Handle<Code> code);
+  const char* LookupNameOfBytecodeHandler(Code* code);
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);

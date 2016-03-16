@@ -34,6 +34,7 @@
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/interpreter.h"
 #include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -14815,11 +14816,16 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
       os << "compare_operation = " << Token::Name(stub.op()) << "\n";
     }
   }
-  if ((name != NULL) && (name[0] != '\0')) {
+  if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   } else if (kind() == BUILTIN) {
     name = GetIsolate()->builtins()->Lookup(instruction_start());
-    if (name != NULL) {
+    if (name != nullptr) {
+      os << "name = " << name << "\n";
+    }
+  } else if (kind() == BYTECODE_HANDLER) {
+    name = GetIsolate()->interpreter()->LookupNameOfBytecodeHandler(this);
+    if (name != nullptr) {
       os << "name = " << name << "\n";
     }
   }
