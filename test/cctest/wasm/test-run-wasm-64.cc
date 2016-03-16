@@ -69,7 +69,7 @@
   V(I64GeS, true)               \
   V(I64GtU, true)               \
   V(I64GeU, true)               \
-  V(I64Clz, false)              \
+  V(I64Clz, true)               \
   V(I64Ctz, false)              \
   V(I64Popcnt, !MIPS_OR_X87)    \
   V(I32ConvertI64, true)        \

@@ -472,12 +472,12 @@ const Operator* MachineOperatorBuilder::CheckedStore(
   return nullptr;
 }
 
-// On 32 bit platforms we need to get a reference to a Word64Popcnt operator for
-// later lowering, even though 32 bit platforms don't support Word64Popcnt.
+// On 32 bit platforms we need to get a reference to optional operators of
+// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
+// don't support the original 64-bit instruction.
 const Operator* MachineOperatorBuilder::Word64PopcntPlaceholder() {
   return &cache_.kWord64Popcnt;
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

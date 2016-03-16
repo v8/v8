@@ -838,6 +838,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       op = m->BitcastFloat64ToInt64();
       break;
     // kExprI64Clz:
+    case wasm::kExprI64Clz:
+      op = m->Word64Clz();
+      break;
     // kExprI64Ctz:
     // kExprI64Popcnt:
     case wasm::kExprI64Popcnt: {
@@ -900,9 +903,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
-    case wasm::kExprI64Clz:
-      op = m->Word64Clz();
-      break;
     case wasm::kExprI64Ctz: {
       if (m->Word64Ctz().IsSupported()) {
         op = m->Word64Ctz().op();

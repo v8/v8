@@ -4,6 +4,7 @@
 
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -522,6 +523,24 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     // kExprI64Clz:
+    case IrOpcode::kWord64Clz: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      Diamond d(
+          graph(), common(),
+          graph()->NewNode(machine()->Word32Equal(), GetReplacementHigh(input),
+                           graph()->NewNode(common()->Int32Constant(0))));
+
+      Node* low_node = d.Phi(
+          MachineRepresentation::kWord32,
+          graph()->NewNode(machine()->Int32Add(),
+                           graph()->NewNode(machine()->Word32Clz(),
+                                            GetReplacementLow(input)),
+                           graph()->NewNode(common()->Int32Constant(32))),
+          graph()->NewNode(machine()->Word32Clz(), GetReplacementHigh(input)));
+      ReplaceNode(node, low_node, graph()->NewNode(common()->Int32Constant(0)));
+      break;
+    }
     // kExprI64Ctz:
     case IrOpcode::kWord64Popcnt: {
       DCHECK(node->InputCount() == 1);
