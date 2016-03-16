@@ -10481,19 +10481,26 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   if (expr->is_jsruntime()) {
+    // Crankshaft always specializes to the native context, so we can just grab
+    // the constant function from the current native context and embed that into
+    // the code object.
+    Handle<JSFunction> known_function(
+        JSFunction::cast(
+            current_info()->native_context()->get(expr->context_index())),
+        isolate());
+
     // The callee and the receiver both have to be pushed onto the operand stack
     // before arguments are being evaluated.
-    HValue* function = AddLoadJSBuiltin(expr->context_index());
-    HValue* receiver = graph()->GetConstantUndefined();
+    HConstant* function = Add<HConstant>(known_function);
+    HValue* receiver = ImplicitReceiverFor(function, known_function);
     Push(function);
     Push(receiver);
 
     int argument_count = expr->arguments()->length() + 1;  // Count receiver.
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
     PushArgumentsFromEnvironment(argument_count);
-    HInstruction* call = NewCallFunction(function, argument_count,
-                                         ConvertReceiverMode::kNullOrUndefined,
-                                         TailCallMode::kDisallow);
+    HInstruction* call = NewCallConstantFunction(known_function, argument_count,
+                                                 TailCallMode::kDisallow);
     Drop(1);  // Function
     return ast_context()->ReturnInstruction(call, expr->id());
   }
