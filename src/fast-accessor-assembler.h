@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_FAST_ACCESSOR_ASSEMBLER_H_
-#define V8_COMPILER_FAST_ACCESSOR_ASSEMBLER_H_
+#ifndef V8_FAST_ACCESSOR_ASSEMBLER_H_
+#define V8_FAST_ACCESSOR_ASSEMBLER_H_
 
 #include <stdint.h>
 #include <vector>
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
-// Do not include anything from src/compiler here!
 #include "include/v8-experimental.h"
 #include "src/base/macros.h"
 #include "src/base/smart-pointers.h"
 #include "src/handles.h"
 
+// For CodeStubAssembler::Label. (We cannot forward-declare inner classes.)
+#include "src/compiler/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -24,11 +24,8 @@ class Isolate;
 class Zone;
 
 namespace compiler {
-
 class Node;
-class RawMachineAssembler;
-class RawMachineLabel;
-
+}
 
 // This interface "exports" an aggregated subset of RawMachineAssembler, for
 // use by the API to implement Fast Dom Accessors.
@@ -75,21 +72,24 @@ class FastAccessorAssembler {
   MaybeHandle<Code> Build();
 
  private:
-  ValueId FromRaw(Node* node);
-  LabelId FromRaw(RawMachineLabel* label);
-  Node* FromId(ValueId value) const;
-  RawMachineLabel* FromId(LabelId value) const;
+  ValueId FromRaw(compiler::Node* node);
+  LabelId FromRaw(compiler::CodeStubAssembler::Label* label);
+  compiler::Node* FromId(ValueId value) const;
+  compiler::CodeStubAssembler::Label* FromId(LabelId value) const;
 
+  void Clear();
   Zone* zone() { return &zone_; }
+  Isolate* isolate() const { return isolate_; }
 
   Zone zone_;
-  base::SmartPointer<RawMachineAssembler> assembler_;
+  Isolate* isolate_;
+  base::SmartPointer<compiler::CodeStubAssembler> assembler_;
 
   // To prevent exposing the RMA internals to the outside world, we'll map
   // Node + Label pointers integers wrapped in ValueId and LabelId instances.
   // These vectors maintain this mapping.
-  std::vector<Node*> nodes_;
-  std::vector<RawMachineLabel*> labels_;
+  std::vector<compiler::Node*> nodes_;
+  std::vector<compiler::CodeStubAssembler::Label*> labels_;
 
   // Remember the current state for easy error checking. (We prefer to be
   // strict as this class will be exposed at the API.)
@@ -98,8 +98,7 @@ class FastAccessorAssembler {
   DISALLOW_COPY_AND_ASSIGN(FastAccessorAssembler);
 };
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_FAST_ACCESSOR_ASSEMBLER_H_
+#endif  // V8_FAST_ACCESSOR_ASSEMBLER_H_

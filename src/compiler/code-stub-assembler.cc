@@ -28,24 +28,27 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const CallInterfaceDescriptor& descriptor,
                                      Code::Flags flags, const char* name,
                                      size_t result_size)
-    : raw_assembler_(new RawMachineAssembler(
-          isolate, new (zone) Graph(zone),
+    : CodeStubAssembler(
+          isolate, zone,
           Linkage::GetStubCallDescriptor(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties,
-              MachineType::AnyTagged(), result_size))),
-      flags_(flags),
-      name_(name),
-      code_generated_(false),
-      variables_(zone) {}
+              MachineType::AnyTagged(), result_size),
+          flags, name) {}
 
 CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      int parameter_count, Code::Flags flags,
                                      const char* name)
-    : raw_assembler_(new RawMachineAssembler(
-          isolate, new (zone) Graph(zone),
-          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                       CallDescriptor::kNoFlags))),
+    : CodeStubAssembler(isolate, zone, Linkage::GetJSCallDescriptor(
+                                           zone, false, parameter_count,
+                                           CallDescriptor::kNoFlags),
+                        flags, name) {}
+
+CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
+                                     CallDescriptor* call_descriptor,
+                                     Code::Flags flags, const char* name)
+    : raw_assembler_(new RawMachineAssembler(isolate, new (zone) Graph(zone),
+                                             call_descriptor)),
       flags_(flags),
       name_(name),
       code_generated_(false),
@@ -113,10 +116,17 @@ Node* CodeStubAssembler::HeapNumberMapConstant() {
   return HeapConstant(isolate()->factory()->heap_number_map());
 }
 
+Node* CodeStubAssembler::NullConstant() {
+  return LoadRoot(Heap::kNullValueRootIndex);
+}
+
+Node* CodeStubAssembler::UndefinedConstant() {
+  return LoadRoot(Heap::kUndefinedValueRootIndex);
+}
+
 Node* CodeStubAssembler::Parameter(int value) {
   return raw_assembler_->Parameter(value);
 }
-
 
 void CodeStubAssembler::Return(Node* value) {
   return raw_assembler_->Return(value);
@@ -211,13 +221,14 @@ Node* CodeStubAssembler::WordIsSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
-Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset) {
-  return raw_assembler_->Load(MachineType::AnyTagged(), buffer,
-                              IntPtrConstant(offset));
+Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
+                                          MachineType rep) {
+  return raw_assembler_->Load(rep, buffer, IntPtrConstant(offset));
 }
 
-Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
-  return raw_assembler_->Load(MachineType::AnyTagged(), object,
+Node* CodeStubAssembler::LoadObjectField(Node* object, int offset,
+                                         MachineType rep) {
+  return raw_assembler_->Load(rep, object,
                               IntPtrConstant(offset - kHeapObjectTag));
 }
 

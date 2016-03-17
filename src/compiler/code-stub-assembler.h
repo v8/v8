@@ -148,6 +148,8 @@ class CodeStubAssembler {
   Node* Float64Constant(double value);
   Node* BooleanMapConstant();
   Node* HeapNumberMapConstant();
+  Node* NullConstant();
+  Node* UndefinedConstant();
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -268,9 +270,11 @@ class CodeStubAssembler {
   Node* WordIsSmi(Node* a);
 
   // Load an object pointer from a buffer that isn't in the heap.
-  Node* LoadBufferObject(Node* buffer, int offset);
+  Node* LoadBufferObject(Node* buffer, int offset,
+                         MachineType rep = MachineType::AnyTagged());
   // Load a field from an object on the heap.
-  Node* LoadObjectField(Node* object, int offset);
+  Node* LoadObjectField(Node* object, int offset,
+                        MachineType rep = MachineType::AnyTagged());
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
   // Load the bit field of a Map.
@@ -337,6 +341,10 @@ class CodeStubAssembler {
 
  private:
   friend class CodeStubAssemblerTester;
+
+  CodeStubAssembler(Isolate* isolate, Zone* zone,
+                    CallDescriptor* call_descriptor, Code::Flags flags,
+                    const char* name);
 
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
