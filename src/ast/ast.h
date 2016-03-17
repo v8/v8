@@ -3233,12 +3233,9 @@ V8_INLINE bool Type::IsValidType() const {
 }
 
 V8_INLINE bool Type::IsValidBindingIdentifierOrPattern() const {
-  if (IsTypeReference())
-    return AsTypeReference()->IsValidBindingIdentifier();
-  if (IsTupleType())
-    return AsTupleType()->IsValidBindingPattern();
-  if (IsPredefinedType())
-    return AsPredefinedType()->IsValidBindingIdentifier();
+  if (IsTypeReference()) return AsTypeReference()->IsValidBindingIdentifier();
+  if (IsTupleType()) return AsTupleType()->IsValidBindingPattern();
+  if (IsPredefinedType()) return AsPredefinedType()->IsValidBindingIdentifier();
   return false;
 }
 
@@ -3249,8 +3246,9 @@ V8_INLINE Type* Type::Uncover(bool* ok) {
       return parameters->at(0)->type();
   } else if (IsTupleType()) {
     if (AsTupleType()->IsValidType()) return this;
-  } else
+  } else {
     return this;
+  }
   *ok = false;
   return nullptr;
 }
@@ -3845,9 +3843,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   typesystem::TupleType* NewTupleType(ZoneList<typesystem::Type*>* elements,
                                       bool valid_type, bool valid_binder,
                                       bool spread, int pos) {
-    return new (local_zone_)
-        typesystem::TupleType(local_zone_, elements, valid_type, valid_binder,
-                              spread, pos);
+    return new (local_zone_) typesystem::TupleType(
+        local_zone_, elements, valid_type, valid_binder, spread, pos);
   }
 
   typesystem::FunctionType* NewFunctionType(

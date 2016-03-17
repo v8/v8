@@ -3238,12 +3238,11 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             } else {
               type = this->EmptyType();
             }
-            parameters->Add(
-                factory()->NewFormalParameter(
-                    factory()->NewTypeReference(name, this->NullTypeList(),
-                                                name_pos),
-                    false, true, type, parameter_location.beg_pos),
-                zone());
+            parameters->Add(factory()->NewFormalParameter(
+                                factory()->NewTypeReference(
+                                    name, this->NullTypeList(), name_pos),
+                                false, true, type, parameter_location.beg_pos),
+                            zone());
             break;
           }
           type = ParseType(CHECK_OK_TYPE);
@@ -3325,8 +3324,7 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
           }
           typename TypeSystem::Type type_element = ParseType(CHECK_OK_TYPE);
           elements->Add(type_element, zone());
-          if (!type_element->IsValidType())
-            valid_type = false;
+          if (!type_element->IsValidType()) valid_type = false;
           if (!type_element->IsValidBindingIdentifierOrPattern())
             valid_binder = false;
           if (peek() != Token::RBRACK) {  // Braces required here.
