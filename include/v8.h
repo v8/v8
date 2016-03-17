@@ -6276,11 +6276,23 @@ class V8_EXPORT V8 {
   static void SetSnapshotDataBlob(StartupData* startup_blob);
 
   /**
-   * Create a new isolate and context for the purpose of capturing a snapshot
+   * Bootstrap an isolate and a context from scratch to create a startup
+   * snapshot. Include the side-effects of running the optional script.
    * Returns { NULL, 0 } on failure.
-   * The caller owns the data array in the return value.
+   * The caller acquires ownership of the data array in the return value.
    */
-  static StartupData CreateSnapshotDataBlob(const char* custom_source = NULL);
+  static StartupData CreateSnapshotDataBlob(const char* embedded_source = NULL);
+
+  /**
+   * Bootstrap an isolate and a context from the cold startup blob, run the
+   * warm-up script to trigger code compilation. The side effects are then
+   * discarded. The resulting startup snapshot will include compiled code.
+   * Returns { NULL, 0 } on failure.
+   * The caller acquires ownership of the data array in the return value.
+   * The argument startup blob is untouched.
+   */
+  static StartupData WarmUpSnapshotDataBlob(StartupData cold_startup_blob,
+                                            const char* warmup_source);
 
   /**
    * Adds a message listener.

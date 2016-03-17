@@ -10,15 +10,13 @@
 namespace v8 {
 namespace internal {
 
-StartupSerializer::StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
+StartupSerializer::StartupSerializer(
+    Isolate* isolate, SnapshotByteSink* sink,
+    FunctionCodeHandling function_code_handling)
     : Serializer(isolate, sink),
       root_index_wave_front_(0),
-      serializing_builtins_(false) {
-  // Clear the cache of objects used by the partial snapshot.  After the
-  // strong roots have been serialized we can create a partial snapshot
-  // which will repopulate the cache with objects needed by that partial
-  // snapshot.
-  isolate->partial_snapshot_cache()->Clear();
+      serializing_builtins_(false),
+      function_code_handling_(function_code_handling) {
   InitializeCodeAddressMap();
 }
 
@@ -35,8 +33,9 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // If the function code is compiled (either as native code or bytecode),
     // replace it with lazy-compile builtin. Only exception is when we are
     // serializing the canonical interpreter-entry-trampoline builtin.
-    if (code->kind() == Code::FUNCTION ||
-        (!serializing_builtins_ && code->is_interpreter_entry_trampoline())) {
+    if (function_code_handling_ == CLEAR_FUNCTION_CODE &&
+        (code->kind() == Code::FUNCTION ||
+         (!serializing_builtins_ && code->is_interpreter_entry_trampoline()))) {
       obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
     }
   } else if (obj->IsBytecodeArray()) {
@@ -75,11 +74,9 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 }
 
 void StartupSerializer::SerializeWeakReferencesAndDeferred() {
-  // This phase comes right after the serialization (of the snapshot).
-  // After we have done the partial serialization the partial snapshot cache
-  // will contain some references needed to decode the partial snapshot.  We
-  // add one entry with 'undefined' which is the sentinel that the deserializer
-  // uses to know it is done deserializing the array.
+  // This comes right after serialization of the partial snapshot, where we
+  // add entries to the partial snapshot cache of the startup snapshot. Add
+  // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = isolate()->heap()->undefined_value();
   VisitPointer(&undefined);
   isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
@@ -105,7 +102,8 @@ void StartupSerializer::SerializeStrongReferences() {
   // We don't support serializing installed extensions.
   CHECK(!isolate->has_installed_extensions());
   isolate->heap()->IterateSmiRoots(this);
-  isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  isolate->heap()->IterateStrongRoots(this,
+                                      VISIT_ONLY_STRONG_FOR_SERIALIZATION);
 }
 
 void StartupSerializer::VisitPointers(Object** start, Object** end) {

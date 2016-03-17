@@ -2228,7 +2228,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (create_heap_objects) {
-    // Terminate the cache array with the sentinel so we can iterate.
+    // Terminate the partial snapshot cache so we can iterate.
     partial_snapshot_cache_.Add(heap_.undefined_value());
   }
 

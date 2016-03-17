@@ -12,7 +12,11 @@ namespace internal {
 
 class StartupSerializer : public Serializer {
  public:
-  StartupSerializer(Isolate* isolate, SnapshotByteSink* sink);
+  enum FunctionCodeHandling { CLEAR_FUNCTION_CODE, KEEP_FUNCTION_CODE };
+
+  StartupSerializer(
+      Isolate* isolate, SnapshotByteSink* sink,
+      FunctionCodeHandling function_code_handling = CLEAR_FUNCTION_CODE);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
@@ -32,6 +36,7 @@ class StartupSerializer : public Serializer {
 
   intptr_t root_index_wave_front_;
   bool serializing_builtins_;
+  FunctionCodeHandling function_code_handling_;
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 

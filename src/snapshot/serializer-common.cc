@@ -390,23 +390,19 @@ void SerializedData::AllocateData(int size) {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
 }
 
-// This ensures that the partial snapshot cache keeps things alive during GC and
-// tracks their movement.  When it is called during serialization of the startup
-// snapshot nothing happens.  When the partial (context) snapshot is created,
-// this array is populated with the pointers that the partial snapshot will
-// need. As that happens we emit serialized objects to the startup snapshot
-// that correspond to the elements of this cache array.  On deserialization we
-// therefore need to visit the cache array.  This fills it up with pointers to
-// deserialized objects.
+// The partial snapshot cache is terminated by undefined. We visit the
+// partial snapshot...
+//  - during deserialization to populate it.
+//  - during normal GC to keep its content alive.
+//  - not during serialization. The partial serializer adds to it explicitly.
 void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
-  if (isolate->serializer_enabled()) return;
   List<Object*>* cache = isolate->partial_snapshot_cache();
   for (int i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->length() <= i) cache->Add(Smi::FromInt(0));
+    // During deserialization, the visitor populates the partial snapshot cache
+    // and eventually terminates the cache with undefined.
     visitor->VisitPointer(&cache->at(i));
-    // Sentinel is the undefined object, which is a root so it will not normally
-    // be found in the cache.
     if (cache->at(i)->IsUndefined()) break;
   }
 }

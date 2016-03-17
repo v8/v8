@@ -77,6 +77,8 @@ void Deserializer::Deserialize(Isolate* isolate) {
   DCHECK_NULL(isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
+  // Partial snapshot cache is not yet populated.
+  DCHECK(isolate_->partial_snapshot_cache()->is_empty());
 
   {
     DisallowHeapAllocation no_gc;

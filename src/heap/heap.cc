@@ -4766,6 +4766,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over global handles.
   switch (mode) {
     case VISIT_ONLY_STRONG:
+    case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
@@ -4796,15 +4797,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
-  // Iterate over the pointers the Serialization/Deserialization code is
-  // holding.
-  // During garbage collection this keeps the partial snapshot cache alive.
-  // During deserialization of the startup snapshot this creates the partial
-  // snapshot cache and deserializes the objects it refers to.  During
-  // serialization this does nothing, since the partial snapshot cache is
-  // empty.  However the next thing we do is create the partial snapshot,
-  // filling up the partial snapshot cache with objects it needs as we go.
-  SerializerDeserializer::Iterate(isolate_, v);
+  // Iterate over the partial snapshot cache unless serializing.
+  if (mode != VISIT_ONLY_STRONG_FOR_SERIALIZATION) {
+    SerializerDeserializer::Iterate(isolate_, v);
+  }
   // We don't do a v->Synchronize call here, because in debug mode that will
   // output a flag to the snapshot.  However at this point the serializer and
   // deserializer are deliberately a little unsynchronized (see above) so the

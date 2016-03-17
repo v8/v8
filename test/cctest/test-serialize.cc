@@ -783,6 +783,76 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
   isolate->Dispose();
 }
 
+bool IsCompiled(const char* name) {
+  return i::Handle<i::JSFunction>::cast(
+             v8::Utils::OpenHandle(*CompileRun(name)))
+      ->shared()
+      ->is_compiled();
+}
+
+TEST(SnapshotDataBlobWithWarmup) {
+  DisableTurbofan();
+  const char* warmup = "Math.tan(1); Math.sin = 1;";
+
+  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
+  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  delete[] cold.data;
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &warm;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] warm.data;
+    v8::Context::Scope c_scope(context);
+    // Running the warmup script has effect on whether functions are
+    // pre-compiled, but does not pollute the context.
+    CHECK(IsCompiled("Math.tan"));
+    CHECK(!IsCompiled("Math.cos"));
+    CHECK(CompileRun("Math.sin")->IsFunction());
+  }
+  isolate->Dispose();
+}
+
+TEST(CustomSnapshotDataBlobWithWarmup) {
+  DisableTurbofan();
+  const char* source =
+      "function f() { return Math.sin(1); }\n"
+      "function g() { return Math.cos(1); }\n"
+      "Math.tan(1);"
+      "var a = 5";
+  const char* warmup = "a = f()";
+
+  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob(source);
+  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  delete[] cold.data;
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &warm;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] warm.data;
+    v8::Context::Scope c_scope(context);
+    // Running the warmup script has effect on whether functions are
+    // pre-compiled, but does not pollute the context.
+    CHECK(IsCompiled("f"));
+    CHECK(IsCompiled("Math.sin"));
+    CHECK(!IsCompiled("g"));
+    CHECK(!IsCompiled("Math.cos"));
+    CHECK(!IsCompiled("Math.tan"));
+    CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
+  }
+  isolate->Dispose();
+}
 
 TEST(TestThatAlwaysSucceeds) {
 }

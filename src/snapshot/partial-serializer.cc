@@ -14,7 +14,8 @@ PartialSerializer::PartialSerializer(Isolate* isolate,
                                      SnapshotByteSink* sink)
     : Serializer(isolate, sink),
       startup_serializer_(startup_snapshot_serializer),
-      global_object_(NULL) {
+      global_object_(NULL),
+      next_partial_cache_index_(0) {
   InitializeCodeAddressMap();
 }
 
@@ -94,20 +95,14 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 }
 
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  Isolate* isolate = this->isolate();
-  List<Object*>* cache = isolate->partial_snapshot_cache();
-  int new_index = cache->length();
-
-  int index = partial_cache_index_map_.LookupOrInsert(heap_object, new_index);
+  int index = partial_cache_index_map_.LookupOrInsert(
+      heap_object, next_partial_cache_index_);
   if (index == PartialCacheIndexMap::kInvalidIndex) {
-    // We didn't find the object in the cache.  So we add it to the cache and
-    // then visit the pointer so that it becomes part of the startup snapshot
-    // and we can refer to it from the partial snapshot.
-    cache->Add(heap_object);
+    // This object is not part of the partial snapshot cache yet. Add it to the
+    // startup snapshot so we can refer to it via partial snapshot index from
+    // the partial snapshot.
     startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
-    // We don't recurse from the startup snapshot generator into the partial
-    // snapshot generator.
-    return new_index;
+    return next_partial_cache_index_++;
   }
   return index;
 }
