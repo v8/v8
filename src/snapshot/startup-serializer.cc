@@ -14,9 +14,8 @@ StartupSerializer::StartupSerializer(
     Isolate* isolate, SnapshotByteSink* sink,
     FunctionCodeHandling function_code_handling)
     : Serializer(isolate, sink),
-      root_index_wave_front_(0),
-      serializing_builtins_(false),
-      function_code_handling_(function_code_handling) {
+      function_code_handling_(function_code_handling),
+      serializing_builtins_(false) {
   InitializeCodeAddressMap();
 }
 
@@ -43,15 +42,12 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   int root_index = root_index_map_.Lookup(obj);
-  bool is_immortal_immovable_root = false;
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
   if (root_index != RootIndexMap::kInvalidRootIndex) {
-    if (root_index < root_index_wave_front_) {
+    if (root_has_been_serialized_.test(root_index)) {
       PutRoot(root_index, obj, how_to_code, where_to_point, skip);
       return;
-    } else {
-      is_immortal_immovable_root = Heap::RootIsImmortalImmovable(root_index);
     }
   }
 
@@ -64,7 +60,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      where_to_point);
   object_serializer.Serialize();
 
-  if (is_immortal_immovable_root) {
+  if (serializing_immortal_immovables_roots_ &&
+      root_index != RootIndexMap::kInvalidRootIndex) {
     // Make sure that the immortal immovable root has been included in the first
     // chunk of its reserved space , so that it is deserialized onto the first
     // page of its space and stays immortal immovable.
@@ -101,29 +98,57 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
   // We don't support serializing installed extensions.
   CHECK(!isolate->has_installed_extensions());
+  // First visit immortal immovables to make sure they end up in the first page.
+  serializing_immortal_immovables_roots_ = true;
+  isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);
+  // Check that immortal immovable roots are allocated on the first page.
+  CHECK(HasNotExceededFirstPageOfEachSpace());
+  serializing_immortal_immovables_roots_ = false;
+  // Visit the rest of the strong roots.
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->IterateStrongRoots(this,
                                       VISIT_ONLY_STRONG_FOR_SERIALIZATION);
 }
 
 void StartupSerializer::VisitPointers(Object** start, Object** end) {
-  for (Object** current = start; current < end; current++) {
-    if (start == isolate()->heap()->roots_array_start()) {
-      root_index_wave_front_ =
-          Max(root_index_wave_front_, static_cast<intptr_t>(current - start));
-    }
-    if (ShouldBeSkipped(current)) {
-      sink_->Put(kSkip, "Skip");
-      sink_->PutInt(kPointerSize, "SkipOneWord");
-    } else if ((*current)->IsSmi()) {
-      sink_->Put(kOnePointerRawData, "Smi");
-      for (int i = 0; i < kPointerSize; i++) {
-        sink_->Put(reinterpret_cast<byte*>(current)[i], "Byte");
+  if (start == isolate()->heap()->roots_array_start()) {
+    // Serializing the root list needs special handling:
+    // - The first pass over the root list only serializes immortal immovables.
+    // - The second pass over the root list serializes the rest.
+    // - Only root list elements that have been fully serialized can be
+    //   referenced via as root by using kRootArray bytecodes.
+    int skip = 0;
+    for (Object** current = start; current < end; current++) {
+      int root_index = static_cast<int>(current - start);
+      if (RootShouldBeSkipped(root_index)) {
+        skip += kPointerSize;
+        continue;
+      } else {
+        if ((*current)->IsSmi()) {
+          FlushSkip(skip);
+          PutSmi(Smi::cast(*current));
+        } else {
+          SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject,
+                          skip);
+        }
+        root_has_been_serialized_.set(root_index);
+        skip = 0;
       }
-    } else {
-      SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject, 0);
     }
+    FlushSkip(skip);
+  } else {
+    Serializer::VisitPointers(start, end);
   }
+}
+
+bool StartupSerializer::RootShouldBeSkipped(int root_index) {
+  if (root_index == Heap::kStoreBufferTopRootIndex ||
+      root_index == Heap::kStackLimitRootIndex ||
+      root_index == Heap::kRealStackLimitRootIndex) {
+    return true;
+  }
+  return Heap::RootIsImmortalImmovable(root_index) !=
+         serializing_immortal_immovables_roots_;
 }
 
 }  // namespace internal

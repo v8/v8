@@ -13491,7 +13491,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   }
 
 #ifdef DEBUG
-  {
+  if (FLAG_enable_slow_asserts) {
     WeakFixedArray::Iterator iterator(*list);
     SharedFunctionInfo* next;
     while ((next = iterator.Next<SharedFunctionInfo>())) {

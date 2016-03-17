@@ -83,6 +83,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
 
   {
     DisallowHeapAllocation no_gc;
+    isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);
     isolate_->heap()->IterateSmiRoots(this);
     isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
     isolate_->heap()->RepairFreeListsAfterDeserialization();

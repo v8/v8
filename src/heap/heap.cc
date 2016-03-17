@@ -4737,6 +4737,10 @@ void Heap::IterateSmiRoots(ObjectVisitor* v) {
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
+  // The serializer/deserializer iterates the root list twice, first to pick
+  // off immortal immovable roots to make sure they end up on the first page,
+  // and then again for the rest.
+  if (mode == VISIT_ONLY_STRONG_ROOT_LIST) return;
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);
@@ -4765,6 +4769,9 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   // Iterate over global handles.
   switch (mode) {
+    case VISIT_ONLY_STRONG_ROOT_LIST:
+      UNREACHABLE();
+      break;
     case VISIT_ONLY_STRONG:
     case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
       isolate_->global_handles()->IterateStrongRoots(v);

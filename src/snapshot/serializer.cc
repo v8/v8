@@ -96,20 +96,10 @@ void Serializer::SerializeDeferredObjects() {
   sink_->Put(kSynchronize, "Finished with deferred objects");
 }
 
-bool Serializer::ShouldBeSkipped(Object** current) {
-  Object** roots = isolate()->heap()->roots_array_start();
-  return current == &roots[Heap::kStoreBufferTopRootIndex] ||
-         current == &roots[Heap::kStackLimitRootIndex] ||
-         current == &roots[Heap::kRealStackLimitRootIndex];
-}
-
 void Serializer::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsSmi()) {
-      sink_->Put(kOnePointerRawData, "Smi");
-      for (int i = 0; i < kPointerSize; i++) {
-        sink_->Put(reinterpret_cast<byte*>(current)[i], "Byte");
-      }
+      PutSmi(Smi::cast(*current));
     } else {
       SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject, 0);
     }
@@ -240,6 +230,12 @@ void Serializer::PutRoot(int root_index, HeapObject* object,
   }
 }
 
+void Serializer::PutSmi(Smi* smi) {
+  sink_->Put(kOnePointerRawData, "Smi");
+  byte* bytes = reinterpret_cast<byte*>(&smi);
+  for (int i = 0; i < kPointerSize; i++) sink_->Put(bytes[i], "Byte");
+}
+
 void Serializer::PutBackReference(HeapObject* object, BackReference reference) {
   DCHECK(BackReferenceIsAlreadyAllocated(reference));
   sink_->PutInt(reference.reference(), "BackRefValue");
@@ -306,6 +302,13 @@ Code* Serializer::CopyCode(Code* code) {
   int size = code->CodeSize();
   code_buffer_.AddAll(Vector<byte>(code->address(), size));
   return Code::cast(HeapObject::FromAddress(&code_buffer_.first()));
+}
+
+bool Serializer::HasNotExceededFirstPageOfEachSpace() {
+  for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
+    if (!completed_chunks_[i].is_empty()) return false;
+  }
+  return true;
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,

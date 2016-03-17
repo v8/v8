@@ -272,6 +272,10 @@ namespace internal {
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
   V(NeanderMap)                         \
+  V(NanValue)                           \
+  V(InfinityValue)                      \
+  V(MinusZeroValue)                     \
+  V(MinusInfinityValue)                 \
   V(EmptyWeakCell)                      \
   V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)

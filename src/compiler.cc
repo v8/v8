@@ -1727,8 +1727,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // On the first compile, there are no existing shared function info for
     // inner functions yet, so do not try to find them. All bets are off for
     // live edit though.
-    DCHECK(script->FindSharedFunctionInfo(literal).is_null() ||
-           isolate->debug()->live_edit_enabled());
+    SLOW_DCHECK(script->FindSharedFunctionInfo(literal).is_null() ||
+                isolate->debug()->live_edit_enabled());
   } else {
     maybe_existing = script->FindSharedFunctionInfo(literal);
   }
