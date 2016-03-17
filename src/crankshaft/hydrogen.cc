@@ -12885,6 +12885,12 @@ void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
   return ast_context()->ReturnValue(value);
 }
 
+void HOptimizedGraphBuilder::GenerateGetOrdinaryHasInstance(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 0);
+  // ordinary_has_instance is immutable so we can treat it as a constant.
+  HValue* value = Add<HConstant>(isolate()->ordinary_has_instance());
+  return ast_context()->ReturnValue(value);
+}
 
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE

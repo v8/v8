@@ -3205,6 +3205,12 @@ void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
   context()->Plug(eax);
 }
 
+void FullCodeGenerator::EmitGetOrdinaryHasInstance(CallRuntime* expr) {
+  DCHECK_EQ(0, expr->arguments()->length());
+  __ mov(eax, NativeContextOperand());
+  __ mov(eax, ContextOperand(eax, Context::ORDINARY_HAS_INSTANCE_INDEX));
+  context()->Plug(eax);
+}
 
 void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   DCHECK(expr->arguments()->length() == 0);
