@@ -872,6 +872,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ AddLogicalWithCarry32(i.OutputRegister(1), i.InputRegister(1),
                                i.InputRegister(3));
       break;
+    case kS390_SubPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ SubLogical32(i.OutputRegister(0), i.InputRegister(0),
+                      i.InputRegister(2));
+      __ SubLogicalWithBorrow32(i.OutputRegister(1), i.InputRegister(1),
+                                i.InputRegister(3));
+      break;
     case kS390_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),

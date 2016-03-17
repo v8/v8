@@ -2005,6 +2005,9 @@ void Assembler::sly(Register r1, const MemOperand& opnd) {
 // Subtract Logical Register-Register (32)
 void Assembler::slr(Register r1, Register r2) { rr_form(SLR, r1, r2); }
 
+// Subtract Logical With Borrow Register-Register (32)
+void Assembler::slbr(Register r1, Register r2) { rre_form(SLBR, r1, r2); }
+
 // Subtract Logical Register-Register-Register (32)
 void Assembler::slrk(Register r1, Register r2, Register r3) {
   rrf1_form(SLRK, r1, r2, r3);

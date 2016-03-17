@@ -1032,6 +1032,7 @@ class Assembler : public AssemblerBase {
   void sly(Register r1, const MemOperand& opnd);
   void slr(Register r1, Register r2);
   void slrk(Register r1, Register r2, Register r3);
+  void slbr(Register r1, Register r2);
 
   // 64-bit Subtract Logical Instructions
   void slg(Register r1, const MemOperand& opnd);

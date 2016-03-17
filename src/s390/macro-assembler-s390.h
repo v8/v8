@@ -296,6 +296,10 @@ class MacroAssembler : public Assembler {
   void SubLogical(Register dst, const MemOperand& opnd);
   void SubLogicalP(Register dst, const MemOperand& opnd);
   void SubLogicalP_ExtendSrc(Register dst, const MemOperand& opnd);
+  // Subtract Logical 32-bit
+  void SubLogical32(Register dst, Register src1, Register src2);
+  // Subtract Logical With Borrow 32-bit
+  void SubLogicalWithBorrow32(Register dst, Register src1, Register src2);
 
   // Multiply
   void MulP(Register dst, const Operand& opnd);
