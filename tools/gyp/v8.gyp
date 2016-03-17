@@ -847,6 +847,8 @@
         '../../src/extensions/statistics-extension.h',
         '../../src/extensions/trigger-failure-extension.cc',
         '../../src/extensions/trigger-failure-extension.h',
+        '../../src/external-reference-table.cc',
+        '../../src/external-reference-table.h',
         '../../src/factory.cc',
         '../../src/factory.h',
         '../../src/fast-accessor-assembler.cc',

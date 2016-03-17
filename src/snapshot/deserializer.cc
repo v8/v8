@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/bootstrapper.h"
+#include "src/external-reference-table.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
