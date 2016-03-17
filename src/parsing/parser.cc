@@ -6103,7 +6103,8 @@ Expression* ParserTraits::RewriteYieldStar(
 //       if (!IS_CALLABLE(C)) {
 //         throw MakeTypeError(kCalledNonCallableInstanceOf);
 //       }
-//       handler_result = %ordinary_has_instance(C, O);
+//       handler_result = %_GetOrdinaryHasInstance()
+//       handler_result = %_Call(handler_result, C, O);
 //     } else {
 //       handler_result = !!(%_Call(handler_result, C, O));
 //     }
@@ -6148,7 +6149,7 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
         factory->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
     Expression* call =
         NewThrowTypeError(MessageTemplate::kNonObjectInInstanceOfCheck,
-                          avfactory->empty_string(), nopos);
+                          avfactory->empty_string(), pos);
     Statement* throw_call = factory->NewExpressionStatement(call, nopos);
 
     validate_C =
@@ -6176,7 +6177,8 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
   //   if (!IS_CALLABLE(C)) {
   //     throw MakeTypeError(kCalledNonCallableInstanceOf);
   //   }
-  //   result = %ordinary_has_instance(C, O);
+  //   handler_result = %_GetOrdinaryHasInstance()
+  //   handler_result = %_Call(handler_result, C, O);
   // } else {
   //   handler_result = !!%_Call(handler_result, C, O);
   // }
@@ -6186,17 +6188,29 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
         Token::EQ_STRICT, factory->NewVariableProxy(var_handler_result),
         factory->NewUndefinedLiteral(nopos), nopos);
 
-    Block* then_side = factory->NewBlock(nullptr, 2, false, nopos);
+    Block* then_side = factory->NewBlock(nullptr, 3, false, nopos);
     {
       Expression* throw_expr =
           NewThrowTypeError(MessageTemplate::kCalledNonCallableInstanceOf,
-                            avfactory->empty_string(), nopos);
+                            avfactory->empty_string(), pos);
       Statement* validate_C = CheckCallable(var_C, throw_expr);
-      ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(2, zone);
+
+      ZoneList<Expression*>* empty_args =
+          new (zone) ZoneList<Expression*>(0, zone);
+      Expression* ordinary_has_instance = factory->NewCallRuntime(
+          Runtime::kInlineGetOrdinaryHasInstance, empty_args, pos);
+      Expression* handler_proxy = factory->NewVariableProxy(var_handler_result);
+      Expression* assignment_handler = factory->NewAssignment(
+          Token::ASSIGN, handler_proxy, ordinary_has_instance, nopos);
+      Statement* assignment_get_handler =
+          factory->NewExpressionStatement(assignment_handler, nopos);
+
+      ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(3, zone);
+      args->Add(factory->NewVariableProxy(var_handler_result), zone);
       args->Add(factory->NewVariableProxy(var_C), zone);
       args->Add(factory->NewVariableProxy(var_O), zone);
-      CallRuntime* call = factory->NewCallRuntime(
-          Context::ORDINARY_HAS_INSTANCE_INDEX, args, pos);
+      Expression* call =
+          factory->NewCallRuntime(Runtime::kInlineCall, args, pos);
       Expression* result_proxy = factory->NewVariableProxy(var_handler_result);
       Expression* assignment =
           factory->NewAssignment(Token::ASSIGN, result_proxy, call, nopos);
@@ -6204,6 +6218,7 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
           factory->NewExpressionStatement(assignment, nopos);
 
       then_side->statements()->Add(validate_C, zone);
+      then_side->statements()->Add(assignment_get_handler, zone);
       then_side->statements()->Add(assignment_return, zone);
     }
 

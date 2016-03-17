@@ -1725,10 +1725,14 @@ TEST(NeStrict) {
 
 
 TEST(InstanceOf) {
+  const char* errorMsg = FLAG_harmony_instanceof
+                             ? "asm: line 0: do-expression encountered\n"
+                             : "asm: line 39: illegal comparison operator\n";
+
   CHECK_FUNC_ERROR(
       "function bar() { return (0 instanceof 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal comparison operator\n");
+      errorMsg);
 }
 
 

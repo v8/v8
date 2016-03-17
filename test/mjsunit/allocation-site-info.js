@@ -317,6 +317,9 @@ function instanceof_check2(type) {
 }
 
 var realmBArray = Realm.eval(realmB, "Array");
+// Two calls with Array because ES6 instanceof desugars into a load of Array,
+// and load has a premonomorphic state.
+instanceof_check(Array);
 instanceof_check(Array);
 instanceof_check(realmBArray);
 
@@ -327,6 +330,10 @@ instanceof_check(realmBArray);
 // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
 // that state "Array" implies an AllocationSite is present, and code is
 // configured to use it.
+
+// Two calls with realmBArray because ES6 instanceof desugars into a load of
+// realmBArray, and load has a premonomorphic state.
+instanceof_check2(realmBArray);
 instanceof_check2(realmBArray);
 instanceof_check2(Array);
 
