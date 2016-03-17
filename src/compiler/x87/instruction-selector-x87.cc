@@ -562,7 +562,23 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
   Emit(kX87AddPair, 2, outputs, 4, inputs, 1, temps);
 }
 
-void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  X87OperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the temp
+  // register.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister()};
+
+  Emit(kX87SubPair, 2, outputs, 4, inputs, 1, temps);
+}
 
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   X87OperandGenerator g(this);

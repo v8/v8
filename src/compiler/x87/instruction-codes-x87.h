@@ -32,6 +32,7 @@ namespace compiler {
   V(X87Shr)                        \
   V(X87Sar)                        \
   V(X87AddPair)                    \
+  V(X87SubPair)                    \
   V(X87ShlPair)                    \
   V(X87ShrPair)                    \
   V(X87SarPair)                    \
