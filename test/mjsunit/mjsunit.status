@@ -274,7 +274,7 @@
 
   # TODO(titzer): correct WASM adapter frame alignment on arm64
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
-  'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
+  'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
   'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
