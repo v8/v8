@@ -706,7 +706,7 @@ class ArrayConcatVisitor {
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
-  bool visit(uint32_t i, Handle<Object> elm) {
+  MUST_USE_RESULT bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
     if (i >= JSObject::kMaxElementCount - index_offset_) {
@@ -718,10 +718,10 @@ class ArrayConcatVisitor {
     }
 
     if (!is_fixed_array()) {
-      Handle<Object> element_value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate_, element_value,
-          Object::SetElement(isolate_, storage_, index, elm, STRICT), false);
+      LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
+      MAYBE_RETURN(
+          JSReceiver::CreateDataProperty(&it, elm, Object::THROW_ON_ERROR),
+          false);
       return true;
     }
 
@@ -823,9 +823,7 @@ class ArrayConcatVisitor {
     set_fast_elements(false);
   }
 
-  inline void clear_storage() {
-    GlobalHandles::Destroy(Handle<Object>::cast(storage_).location());
-  }
+  inline void clear_storage() { GlobalHandles::Destroy(storage_.location()); }
 
   inline void set_storage(FixedArray* storage) {
     DCHECK(is_fixed_array());
@@ -1402,7 +1400,7 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
         return isolate->heap()->exception();
       }
     } else {
-      visitor.visit(0, obj);
+      if (!visitor.visit(0, obj)) return isolate->heap()->exception();
       visitor.increase_index_offset(1);
     }
   }
