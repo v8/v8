@@ -73,10 +73,10 @@
   V(I64Clz, true)               \
   V(I64Popcnt, !MIPS_OR_X87)    \
   V(I32ConvertI64, true)        \
-  V(I64SConvertF32, false)      \
-  V(I64SConvertF64, false)      \
-  V(I64UConvertF32, false)      \
-  V(I64UConvertF64, false)      \
+  V(I64SConvertF32, true)       \
+  V(I64SConvertF64, true)       \
+  V(I64UConvertF32, true)       \
+  V(I64UConvertF64, true)       \
   V(I64SConvertI32, true)       \
   V(I64UConvertI32, true)       \
   V(F32SConvertI64, true)       \
