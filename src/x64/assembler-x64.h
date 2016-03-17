@@ -773,6 +773,10 @@ class Assembler : public AssemblerBase {
     arithmetic_op_16(0x39, src, dst);
   }
 
+  void testb(Register reg, const Operand& op) { testb(op, reg); }
+
+  void testw(Register reg, const Operand& op) { testw(op, reg); }
+
   void andb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x4, dst, src);
   }
@@ -847,6 +851,11 @@ class Assembler : public AssemblerBase {
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
   void testb(const Operand& op, Register reg);
+
+  void testw(Register dst, Register src);
+  void testw(Register reg, Immediate mask);
+  void testw(const Operand& op, Immediate mask);
+  void testw(const Operand& op, Register reg);
 
   // Bit operations.
   void bt(const Operand& dst, Register src);

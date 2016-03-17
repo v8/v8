@@ -464,6 +464,16 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
       raw_assembler_->Int32Constant(shift));
 }
 
+void CodeStubAssembler::BranchIf(Node* condition, Label* if_true,
+                                 Label* if_false) {
+  Label if_condition_true(this), if_condition_false(this);
+  Branch(condition, &if_condition_true, &if_condition_false);
+  Bind(&if_condition_true);
+  Goto(if_true);
+  Bind(&if_condition_false);
+  Goto(if_false);
+}
+
 void CodeStubAssembler::BranchIfInt32LessThan(Node* a, Node* b, Label* if_true,
                                               Label* if_false) {
   Label if_lessthan(this), if_notlessthan(this);

@@ -839,11 +839,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64And:
       ASSEMBLE_BINOP(andq);
       break;
+    case kX64Cmp8:
+      ASSEMBLE_COMPARE(cmpb);
+      break;
+    case kX64Cmp16:
+      ASSEMBLE_COMPARE(cmpw);
+      break;
     case kX64Cmp32:
       ASSEMBLE_COMPARE(cmpl);
       break;
     case kX64Cmp:
       ASSEMBLE_COMPARE(cmpq);
+      break;
+    case kX64Test8:
+      ASSEMBLE_COMPARE(testb);
+      break;
+    case kX64Test16:
+      ASSEMBLE_COMPARE(testw);
       break;
     case kX64Test32:
       ASSEMBLE_COMPARE(testl);

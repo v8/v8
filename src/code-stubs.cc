@@ -1853,8 +1853,8 @@ void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
           assembler->Goto(&loop);
 
           assembler->Bind(&if_valueisnotsame);
-          assembler->BranchIfInt32LessThan(lhs_value, rhs_value, &if_less,
-                                           &if_greater);
+          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
+                              &if_less, &if_greater);
         }
 
         assembler->Bind(&if_done);

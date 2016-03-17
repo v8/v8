@@ -55,6 +55,7 @@ class Schedule;
   V(Int32GreaterThanOrEqual)                  \
   V(Int32LessThan)                            \
   V(Int32LessThanOrEqual)                     \
+  V(Uint32LessThan)                           \
   V(WordEqual)                                \
   V(WordNotEqual)                             \
   V(WordOr)                                   \
@@ -308,6 +309,7 @@ class CodeStubAssembler {
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIf(Node* condition, Label* if_true, Label* if_false);
   void BranchIfInt32LessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
