@@ -178,6 +178,20 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   C(ExternalCaughtException, external_caught_exception) \
   C(JSEntrySP, js_entry_sp)
 
+#define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
+                              limit_check, increment, body)                \
+  do {                                                                     \
+    loop_var_type init;                                                    \
+    loop_var_type for_with_handle_limit = loop_var;                        \
+    Isolate* for_with_handle_isolate = isolate;                            \
+    while (limit_check) {                                                  \
+      for_with_handle_limit += 1024;                                       \
+      HandleScope loop_scope(for_with_handle_isolate);                     \
+      for (; limit_check && loop_var < for_with_handle_limit; increment) { \
+        body                                                               \
+      }                                                                    \
+    }                                                                      \
+  } while (false)
 
 // Platform-independent, reliable thread identifier.
 class ThreadId {

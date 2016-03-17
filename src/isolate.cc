@@ -2783,8 +2783,8 @@ void Isolate::RunMicrotasksInternal() {
     set_pending_microtask_count(0);
     heap()->set_microtask_queue(heap()->empty_fixed_array());
 
-    for (int i = 0; i < num_tasks; i++) {
-      HandleScope scope(this);
+    Isolate* isolate = this;
+    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
       Handle<Object> microtask(queue->get(i), this);
       if (microtask->IsJSFunction()) {
         Handle<JSFunction> microtask_function =
@@ -2811,7 +2811,7 @@ void Isolate::RunMicrotasksInternal() {
         void* data = v8::ToCData<void*>(callback_info->data());
         callback(data);
       }
-    }
+    });
   }
 }
 

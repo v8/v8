@@ -804,20 +804,20 @@ class ArrayConcatVisitor {
     Handle<SeededNumberDictionary> slow_storage(
         SeededNumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
-    for (uint32_t i = 0; i < current_length; i++) {
-      HandleScope loop_scope(isolate_);
-      Handle<Object> element(current_storage->get(i), isolate_);
-      if (!element->IsTheHole()) {
-        // The object holding this backing store has just been allocated, so
-        // it cannot yet be used as a prototype.
-        Handle<SeededNumberDictionary> new_storage =
-            SeededNumberDictionary::AtNumberPut(slow_storage, i, element,
-                                                false);
-        if (!new_storage.is_identical_to(slow_storage)) {
-          slow_storage = loop_scope.CloseAndEscape(new_storage);
-        }
-      }
-    }
+    FOR_WITH_HANDLE_SCOPE(
+        isolate_, uint32_t, i = 0, i, i < current_length, i++, {
+          Handle<Object> element(current_storage->get(i), isolate_);
+          if (!element->IsTheHole()) {
+            // The object holding this backing store has just been allocated, so
+            // it cannot yet be used as a prototype.
+            Handle<SeededNumberDictionary> new_storage =
+                SeededNumberDictionary::AtNumberPut(slow_storage, i, element,
+                                                    false);
+            if (!new_storage.is_identical_to(slow_storage)) {
+              slow_storage = loop_scope.CloseAndEscape(new_storage);
+            }
+          }
+        });
     clear_storage();
     set_storage(*slow_storage);
     set_fast_elements(false);
@@ -970,8 +970,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       Handle<SeededNumberDictionary> dict(
           SeededNumberDictionary::cast(object->elements()));
       uint32_t capacity = dict->Capacity();
-      for (uint32_t j = 0; j < capacity; j++) {
-        HandleScope loop_scope(isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
         Handle<Object> k(dict->KeyAt(j), isolate);
         if (dict->IsKey(*k)) {
           DCHECK(k->IsNumber());
@@ -980,7 +979,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
             indices->Add(index);
           }
         }
-      }
+      });
       break;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
@@ -1048,8 +1047,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
 
 bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
-  for (uint32_t i = 0; i < length; ++i) {
-    HandleScope loop_scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
     Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
     if (!maybe.IsJust()) return false;
     if (maybe.FromJust()) {
@@ -1059,7 +1057,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
           false);
       if (!visitor->visit(i, element_value)) return false;
     }
-  }
+  });
   visitor->increase_index_offset(length);
   return true;
 }
@@ -1112,9 +1110,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(array->elements()));
       int fast_length = static_cast<int>(length);
-      DCHECK_LE(fast_length, elements->length());
-      for (int j = 0; j < fast_length; j++) {
-        HandleScope loop_scope(isolate);
+      DCHECK(fast_length <= elements->length());
+      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
         Handle<Object> element_value(elements->get(j), isolate);
         if (!element_value->IsTheHole()) {
           if (!visitor->visit(j, element_value)) return false;
@@ -1130,7 +1127,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             if (!visitor->visit(j, element_value)) return false;
           }
         }
-      }
+      });
       break;
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
@@ -1147,8 +1144,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           FixedDoubleArray::cast(array->elements()));
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
-      for (int j = 0; j < fast_length; j++) {
-        HandleScope loop_scope(isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
         if (!elements->is_the_hole(j)) {
           double double_value = elements->get_scalar(j);
           Handle<Object> element_value =
@@ -1167,7 +1163,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             if (!visitor->visit(j, element_value)) return false;
           }
         }
-      }
+      });
       break;
     }
 
@@ -1178,10 +1174,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       // than length. This might introduce duplicates in the indices list.
       CollectElementIndices(array, length, &indices);
       indices.Sort(&compareUInt32);
-      int j = 0;
       int n = indices.length();
-      while (j < n) {
-        HandleScope loop_scope(isolate);
+      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < n, (void)0, {
         uint32_t index = indices[j];
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1192,19 +1186,19 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         do {
           j++;
         } while (j < n && indices[j] == index);
-      }
+      });
       break;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      for (uint32_t index = 0; index < length; index++) {
-        HandleScope loop_scope(isolate);
-        Handle<Object> element;
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, element, JSReceiver::GetElement(isolate, array, index),
-            false);
-        if (!visitor->visit(index, element)) return false;
-      }
+      FOR_WITH_HANDLE_SCOPE(
+          isolate, uint32_t, index = 0, index, index < length, index++, {
+            Handle<Object> element;
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                isolate, element, JSReceiver::GetElement(isolate, array, index),
+                false);
+            if (!visitor->visit(index, element)) return false;
+          });
       break;
     }
     case NO_ELEMENTS:
@@ -1259,8 +1253,7 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
 
   uint32_t estimate_result_length = 0;
   uint32_t estimate_nof_elements = 0;
-  for (int i = 0; i < argument_count; i++) {
-    HandleScope loop_scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < argument_count, i++, {
     Handle<Object> obj((*args)[i], isolate);
     uint32_t length_estimate;
     uint32_t element_estimate;
@@ -1292,7 +1285,7 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
     } else {
       estimate_nof_elements += element_estimate;
     }
-  }
+  });
 
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a

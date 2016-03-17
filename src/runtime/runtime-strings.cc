@@ -371,14 +371,13 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
   Handle<String> substring =
       isolate->factory()->NewSubString(subject, offsets.at(0), offsets.at(1));
   elements->set(0, *substring);
-  for (int i = 1; i < matches; i++) {
-    HandleScope temp_scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 1, i, i < matches, i++, {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
     Handle<String> substring =
         isolate->factory()->NewProperSubString(subject, from, to);
     elements->set(i, *substring);
-  }
+  });
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
   return *result;
