@@ -254,9 +254,6 @@ void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
-  free_list_old_space_.Reset(new FreeList(heap_->old_space()));
-  free_list_code_space_.Reset(new FreeList(heap_->code_space()));
-  free_list_map_space_.Reset(new FreeList(heap_->map_space()));
   EnsureMarkingDequeIsReserved();
   EnsureMarkingDequeIsCommitted(kMinMarkingDequeSize);
 
@@ -496,9 +493,6 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
 
 
 void MarkCompactCollector::StartSweeperThreads() {
-  DCHECK(free_list_old_space_.get()->IsEmpty());
-  DCHECK(free_list_code_space_.get()->IsEmpty());
-  DCHECK(free_list_map_space_.get()->IsEmpty());
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
       new SweeperTask(heap(), OLD_SPACE), v8::Platform::kShortRunningTask);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -3245,27 +3239,11 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
   }
 };
 
-
 enum SweepingMode { SWEEP_ONLY, SWEEP_AND_VISIT_LIVE_OBJECTS };
-
 
 enum SkipListRebuildingMode { REBUILD_SKIP_LIST, IGNORE_SKIP_LIST };
 
-
 enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
-
-
-template <MarkCompactCollector::SweepingParallelism mode>
-static intptr_t Free(PagedSpace* space, FreeList* free_list, Address start,
-                     int size) {
-  if (mode == MarkCompactCollector::SWEEP_ON_MAIN_THREAD) {
-    DCHECK(free_list == NULL);
-    return space->Free(start, size);
-  } else {
-    return size - free_list->Free(start, size);
-  }
-}
-
 
 // Sweeps a page. After sweeping the page can be iterated.
 // Slots in live objects pointing into evacuation candidates are updated
@@ -3275,8 +3253,7 @@ template <SweepingMode sweeping_mode,
           MarkCompactCollector::SweepingParallelism parallelism,
           SkipListRebuildingMode skip_list_mode,
           FreeSpaceTreatmentMode free_space_mode>
-static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
-                 ObjectVisitor* v) {
+static int Sweep(PagedSpace* space, Page* p, ObjectVisitor* v) {
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
   DCHECK(!p->IsFlagSet(Page::BLACK_PAGE));
   DCHECK_EQ(skip_list_mode == REBUILD_SKIP_LIST,
@@ -3310,7 +3287,7 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
       if (free_space_mode == ZAP_FREE_SPACE) {
         memset(free_start, 0xcc, size);
       }
-      freed_bytes = Free<parallelism>(space, free_list, free_start, size);
+      freed_bytes = space->UnaccountedFree(free_start, size);
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     }
     Map* map = object->synchronized_map();
@@ -3338,7 +3315,7 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
     if (free_space_mode == ZAP_FREE_SPACE) {
       memset(free_start, 0xcc, size);
     }
-    freed_bytes = Free<parallelism>(space, free_list, free_start, size);
+    freed_bytes = space->UnaccountedFree(free_start, size);
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
   }
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
@@ -3453,20 +3430,24 @@ void MarkCompactCollector::SweepAbortedPages() {
       switch (space->identity()) {
         case OLD_SPACE:
           Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
-                IGNORE_FREE_SPACE>(space, nullptr, p, nullptr);
+                IGNORE_FREE_SPACE>(space, p, nullptr);
           break;
         case CODE_SPACE:
           if (FLAG_zap_code_space) {
             Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                  ZAP_FREE_SPACE>(space, NULL, p, nullptr);
+                  ZAP_FREE_SPACE>(space, p, nullptr);
           } else {
             Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                  IGNORE_FREE_SPACE>(space, NULL, p, nullptr);
+                  IGNORE_FREE_SPACE>(space, p, nullptr);
           }
           break;
         default:
           UNREACHABLE();
           break;
+      }
+      {
+        base::LockGuard<base::Mutex> guard(&swept_pages_mutex_);
+        swept_pages(space->identity())->Add(p);
       }
     }
   }
@@ -3667,10 +3648,9 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   for (Page* p : evacuation_candidates_) {
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    space->Free(p->area_start(), p->area_size());
     p->ResetLiveBytes();
     CHECK(p->SweepingDone());
-    space->ReleasePage(p, true);
+    space->ReleasePage(p);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
@@ -3709,25 +3689,20 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
       return 0;
     }
     page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
-    FreeList* free_list;
-    FreeList private_free_list(space);
     if (space->identity() == OLD_SPACE) {
-      free_list = free_list_old_space_.get();
-      max_freed =
-          Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
-                IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
+      max_freed = Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
+                        IGNORE_FREE_SPACE>(space, page, NULL);
     } else if (space->identity() == CODE_SPACE) {
-      free_list = free_list_code_space_.get();
-      max_freed =
-          Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, REBUILD_SKIP_LIST,
-                IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
+      max_freed = Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, REBUILD_SKIP_LIST,
+                        IGNORE_FREE_SPACE>(space, page, NULL);
     } else {
-      free_list = free_list_map_space_.get();
-      max_freed =
-          Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
-                IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
+      max_freed = Sweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
+                        IGNORE_FREE_SPACE>(space, page, NULL);
     }
-    free_list->Concatenate(&private_free_list);
+    {
+      base::LockGuard<base::Mutex> guard(&swept_pages_mutex_);
+      swept_pages(space->identity())->Add(page);
+    }
     page->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
     page->mutex()->Unlock();
   }
@@ -3770,7 +3745,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       // testing this is fine.
       p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
       Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
-            IGNORE_FREE_SPACE>(space, nullptr, p, nullptr);
+            IGNORE_FREE_SPACE>(space, p, nullptr);
       continue;
     }
 
@@ -3780,7 +3755,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
         if (FLAG_gc_verbose) {
           PrintIsolate(isolate(), "sweeping: released page: %p", p);
         }
-        space->ReleasePage(p, false);
+        space->ReleasePage(p);
         continue;
       }
       unused_page_present = true;
