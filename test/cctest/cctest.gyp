@@ -293,7 +293,8 @@
             'test-code-stubs-x87.cc',
             'test-disasm-x87.cc',
             'test-macro-assembler-x87.cc',
-            'test-log-stack-tracer.cc'
+            'test-log-stack-tracer.cc',
+            'test-run-wasm-relocation-x87.cc'
           ],
         }],
         [ 'OS=="linux" or OS=="qnx"', {
