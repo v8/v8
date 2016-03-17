@@ -1119,14 +1119,16 @@ class MacroAssembler : public Assembler {
   // (for consistency between 32/64-bit).
 
   // Extract consecutive bits (defined by rangeStart - rangeEnd) from src
-  // and place them into the least significant bits of dst.
+  // and, if !test, shift them into the least significant bits of dst.
   inline void ExtractBitRange(Register dst, Register src, int rangeStart,
-                              int rangeEnd, RCBit rc = LeaveRC) {
+                              int rangeEnd, RCBit rc = LeaveRC,
+                              bool test = false) {
     DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
     int rotate = (rangeEnd == 0) ? 0 : kBitsPerPointer - rangeEnd;
     int width = rangeStart - rangeEnd + 1;
-    if (rc == SetRC && rangeEnd == 0 && width <= 16) {
-      andi(dst, src, Operand((1 << width) - 1));
+    if (rc == SetRC && rangeStart < 16 && (rangeEnd == 0 || test)) {
+      // Prefer faster andi when applicable.
+      andi(dst, src, Operand(((1 << width) - 1) << rangeEnd));
     } else {
 #if V8_TARGET_ARCH_PPC64
       rldicl(dst, src, rotate, kBitsPerPointer - width, rc);
@@ -1138,14 +1140,14 @@ class MacroAssembler : public Assembler {
   }
 
   inline void ExtractBit(Register dst, Register src, uint32_t bitNumber,
-                         RCBit rc = LeaveRC) {
-    ExtractBitRange(dst, src, bitNumber, bitNumber, rc);
+                         RCBit rc = LeaveRC, bool test = false) {
+    ExtractBitRange(dst, src, bitNumber, bitNumber, rc, test);
   }
 
   // Extract consecutive bits (defined by mask) from src and place them
   // into the least significant bits of dst.
   inline void ExtractBitMask(Register dst, Register src, uintptr_t mask,
-                             RCBit rc = LeaveRC) {
+                             RCBit rc = LeaveRC, bool test = false) {
     int start = kBitsPerPointer - 1;
     int end;
     uintptr_t bit = (1L << start);
@@ -1165,25 +1167,25 @@ class MacroAssembler : public Assembler {
     // 1-bits in mask must be contiguous
     DCHECK(bit == 0 || (mask & ((bit << 1) - 1)) == 0);
 
-    ExtractBitRange(dst, src, start, end, rc);
+    ExtractBitRange(dst, src, start, end, rc, test);
   }
 
   // Test single bit in value.
   inline void TestBit(Register value, int bitNumber, Register scratch = r0) {
-    ExtractBitRange(scratch, value, bitNumber, bitNumber, SetRC);
+    ExtractBitRange(scratch, value, bitNumber, bitNumber, SetRC, true);
   }
 
   // Test consecutive bit range in value.  Range is defined by
   // rangeStart - rangeEnd.
   inline void TestBitRange(Register value, int rangeStart, int rangeEnd,
                            Register scratch = r0) {
-    ExtractBitRange(scratch, value, rangeStart, rangeEnd, SetRC);
+    ExtractBitRange(scratch, value, rangeStart, rangeEnd, SetRC, true);
   }
 
   // Test consecutive bit range in value.  Range is defined by mask.
   inline void TestBitMask(Register value, uintptr_t mask,
                           Register scratch = r0) {
-    ExtractBitMask(scratch, value, mask, SetRC);
+    ExtractBitMask(scratch, value, mask, SetRC, true);
   }
 
 
