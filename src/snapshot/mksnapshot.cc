@@ -111,7 +111,6 @@ class SnapshotWriter {
 
 char* GetExtraCode(char* filename, const char* description) {
   if (filename == NULL || strlen(filename) == 0) return NULL;
-  if (strcmp(filename, "-") == 0) return NULL;
   ::printf("Loading script for %s: %s\n", description, filename);
   FILE* file = base::OS::FOpen(filename, "rb");
   if (file == NULL) {
