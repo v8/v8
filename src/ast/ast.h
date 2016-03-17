@@ -2966,6 +2966,7 @@ class PredefinedType : public Type {
   };
 
   Kind kind() const { return kind_; }
+  bool IsValidBindingIdentifier() const { return kind_ != kVoidType; }
 
  protected:
   PredefinedType(Zone* zone, Kind kind, int pos)
@@ -3157,6 +3158,11 @@ class TypeReference : public Type {
   const AstRawString* name() const { return name_; }
   ZoneList<Type*>* type_arguments() const { return type_arguments_; }
 
+  bool IsValidBindingIdentifier() const {
+    // TODO(nikolaos): This should probably exclude restricted identifiers.
+    return type_arguments() == nullptr;
+  }
+
  protected:
   TypeReference(Zone* zone, const AstRawString* name,
                 ZoneList<Type*>* type_arguments, int pos)
@@ -3228,9 +3234,11 @@ V8_INLINE bool Type::IsValidType() const {
 
 V8_INLINE bool Type::IsValidBindingIdentifierOrPattern() const {
   if (IsTypeReference())
-    return AsTypeReference()->type_arguments() == nullptr;
+    return AsTypeReference()->IsValidBindingIdentifier();
   if (IsTupleType())
     return AsTupleType()->IsValidBindingPattern();
+  if (IsPredefinedType())
+    return AsPredefinedType()->IsValidBindingIdentifier();
   return false;
 }
 

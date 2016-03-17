@@ -670,7 +670,8 @@ class PreParserFactory {
 
   typesystem::PreParserType NewPredefinedType(
       typesystem::PredefinedType::Kind kind, int pos) {
-    return typesystem::PreParserType::Default();
+    return typesystem::PreParserType::Default(
+        true, kind != typesystem::PredefinedType::kVoidType);
   }
 
   typesystem::PreParserType NewThisType(int pos) {

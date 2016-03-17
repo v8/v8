@@ -7396,6 +7396,9 @@ TEST(TypedModeSimpleTypes) {
     "var s: (a: number, b?: string, c?) => number",
     "var s: (a: number, b: string, c, ...d) => number",
     "var s: (a: number, b: string, c, ...d: string[]) => number",
+    "var s: (number) => number",
+    "var s: (number: any) => number",
+    "var s: (any: number) => number",
     NULL
   };
 
@@ -7516,6 +7519,9 @@ TEST(TypedModeTupleTypes) {
     "var f: ([x,, y]: number[]) => boolean",
     "var f: ([, x,, y,,]: number[]) => boolean",
     "var f: ([x, y, ...rest]: number[]) => boolean",
+    "var f: ([any]) => number",
+    "var f: ([number]: number[]) => number",
+    "var f: ([one, two, ...number]: number[]) => boolean",
     NULL
   };
 
