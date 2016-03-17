@@ -4103,7 +4103,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_generator) {
       // For generators, allocating variables in contexts is currently a win
       // because it minimizes the work needed to suspend and resume an
-      // activation.
+      // activation.  The machine code produced for generators (by full-codegen)
+      // relies on this forced context allocation, but not in an essential way.
       scope_->ForceContextAllocation();
 
       // Calling a generator returns a generator object.  That object is stored

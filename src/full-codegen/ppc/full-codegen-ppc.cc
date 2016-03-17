@@ -1870,7 +1870,10 @@ void FullCodeGenerator::EmitGeneratorResume(
   __ LoadP(r5, FieldMemOperand(r4, JSGeneratorObject::kReceiverOffset));
   __ push(r5);
 
-  // Push holes for the rest of the arguments to the generator function.
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
   __ LoadP(r6, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
   __ LoadWordArith(
       r6, FieldMemOperand(r6, SharedFunctionInfo::kFormalParameterCountOffset));

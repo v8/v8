@@ -1815,7 +1815,10 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // Push receiver.
   __ push(FieldOperand(ebx, JSGeneratorObject::kReceiverOffset));
 
-  // Push holes for arguments to generator function.
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(edx,
          FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));

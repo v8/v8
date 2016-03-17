@@ -1905,7 +1905,10 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ ld(a2, FieldMemOperand(a1, JSGeneratorObject::kReceiverOffset));
   __ push(a2);
 
-  // Push holes for the rest of the arguments to the generator function.
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
   __ ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
   // The argument count is stored as int32_t on 64-bit platforms.
   // TODO(plind): Smi on 32-bit platforms.
