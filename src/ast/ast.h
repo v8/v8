@@ -111,6 +111,7 @@ namespace internal {
   V(FormalParameter)            \
   V(TypeReference)              \
   V(StringLiteralType)          \
+  V(QueryType)                  \
   V(TypeOrParameters)
 
 // Forward declarations
@@ -3153,6 +3154,26 @@ class StringLiteralType : public Type {
 };
 
 
+class QueryType : public Type {
+ public:
+  DECLARE_NODE_TYPE(QueryType)
+
+  const AstRawString* name() const { return name_; }
+  ZoneList<const AstRawString*>* property_names() const {
+    return property_names_;
+  }
+
+ protected:
+  QueryType(Zone* zone, const AstRawString* name,
+            ZoneList<const AstRawString*>* property_names, int pos)
+      : Type(zone, pos), name_(name), property_names_(property_names) {}
+
+ private:
+  const AstRawString* name_;
+  ZoneList<const AstRawString*>* property_names_;
+};
+
+
 class TypeOrParameters : public Type {
  public:
   DECLARE_NODE_TYPE(TypeOrParameters)
@@ -3796,6 +3817,13 @@ class AstNodeFactory final BASE_EMBEDDED {
       const AstRawString* string, int pos) {
     return new (local_zone_)
         typesystem::StringLiteralType(local_zone_, string, pos);
+  }
+
+  typesystem::QueryType* NewQueryType(
+      const AstRawString* name, ZoneList<const AstRawString*>* property_names,
+      int pos) {
+    return new (local_zone_)
+        typesystem::QueryType(local_zone_, name, property_names, pos);
   }
 
   typesystem::FormalParameter* NewFormalParameter(const AstRawString* name,
