@@ -524,7 +524,7 @@ void GCTracer::PrintNVP() const {
           "evacuate=%.1f "
           "evacuate.candidates=%.1f "
           "evacuate.clean_up=%.1f "
-          "evacuate.new_space=%.1f "
+          "evacuate.copy=%.1f "
           "evacuate.update_pointers=%.1f "
           "evacuate.update_pointers.between_evacuated=%.1f "
           "evacuate.update_pointers.to_evacuated=%.1f "
@@ -590,7 +590,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE],
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
           current_.scopes[Scope::MC_EVACUATE_CLEAN_UP],
-          current_.scopes[Scope::MC_EVACUATE_NEW_SPACE],
+          current_.scopes[Scope::MC_EVACUATE_COPY],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],

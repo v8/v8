@@ -3053,6 +3053,14 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
     TimedScope timed_scope(&evacuation_time);
     success = collector_->VisitLiveObjects(p, visitor, kClearMarkbits);
   }
+  if (FLAG_trace_evacuation) {
+    PrintIsolate(heap()->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d executable=%d "
+                 "live_bytes=%d time=%f\n",
+                 this, p, p->InNewSpace(),
+                 p->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
+                 evacuation_time);
+  }
   if (success) {
     ReportCompactionProgress(evacuation_time, saved_live_bytes);
   }
@@ -3195,7 +3203,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   // Used for trace summary.
   intptr_t compaction_speed = 0;
-  if (FLAG_trace_fragmentation) {
+  if (FLAG_trace_evacuation) {
     compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
   }
 
@@ -3212,16 +3220,17 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
   delete[] evacuators;
 
-  if (FLAG_trace_fragmentation) {
-    PrintIsolate(isolate(),
-                 "%8.0f ms: compaction: parallel=%d pages=%d aborted=%d "
-                 "wanted_tasks=%d tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
-                 "d compaction_speed=%" V8_PTR_PREFIX "d\n",
-                 isolate()->time_millis_since_init(), FLAG_parallel_compaction,
-                 job.NumberOfPages(), abandoned_pages, wanted_num_tasks,
-                 job.NumberOfTasks(),
-                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
-                 live_bytes, compaction_speed);
+  if (FLAG_trace_evacuation) {
+    PrintIsolate(
+        isolate(),
+        "%8.0f ms: evacuation-summary: parallel=%s pages=%d aborted=%d "
+        "wanted_tasks=%d tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
+        "d compaction_speed=%" V8_PTR_PREFIX "d\n",
+        isolate()->time_millis_since_init(),
+        FLAG_parallel_compaction ? "yes" : "no", job.NumberOfPages(),
+        abandoned_pages, wanted_num_tasks, job.NumberOfTasks(),
+        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
+        live_bytes, compaction_speed);
   }
 }
 
@@ -3460,7 +3469,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_EVACUATE_NEW_SPACE);
+                             GCTracer::Scope::MC_EVACUATE_COPY);
     EvacuationScope evacuation_scope(this);
 
     EvacuateNewSpacePrologue();
