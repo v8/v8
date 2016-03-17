@@ -6666,7 +6666,7 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
   Isolate* isolate = receiver->GetIsolate();
 
   if (receiver->IsJSObject()) {
-    return JSObject::CreateDataProperty(it, value);  // Shortcut.
+    return JSObject::CreateDataProperty(it, value, should_throw);  // Shortcut.
   }
 
   PropertyDescriptor new_desc;
@@ -6679,17 +6679,26 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
                                        &new_desc, should_throw);
 }
 
-
 Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
-                                         Handle<Object> value) {
+                                         Handle<Object> value,
+                                         ShouldThrow should_throw) {
   DCHECK(it->GetReceiver()->IsJSObject());
   MAYBE_RETURN(JSReceiver::GetPropertyAttributes(it), Nothing<bool>());
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = receiver->GetIsolate();
 
   if (it->IsFound()) {
-    if (!it->IsConfigurable()) return Just(false);
+    if (!it->IsConfigurable()) {
+      RETURN_FAILURE(
+          isolate, should_throw,
+          NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
+    }
   } else {
-    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver())))
-      return Just(false);
+    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver()))) {
+      RETURN_FAILURE(
+          isolate, should_throw,
+          NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
+    }
   }
 
   RETURN_ON_EXCEPTION_VALUE(it->isolate(),
