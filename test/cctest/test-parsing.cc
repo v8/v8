@@ -7501,3 +7501,42 @@ TEST(TypedModeStringLiteralTypes) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeTupleTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var x: [number]",
+    "var x: [number, string]",
+    "var x: [number[], (a: string, b?: number) => boolean]",
+    "var f: ([]: number[]) => boolean",
+    "var f: ([x]: number[]) => boolean",
+    "var f: ([x, y]: number[]) => boolean",
+    "var f: ([x,, y]: number[]) => boolean",
+    "var f: ([, x,, y,,]: number[]) => boolean",
+    "var f: ([x, y, ...rest]: number[]) => boolean",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var z: []",
+    "var z: [()]",
+    "var z: [number,]",
+    "var x: [number[], (a: string, b?: number)]",
+    "var z: [, number]",
+    "var z: [string,, number]",
+    "var z: [string,, ...number]",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

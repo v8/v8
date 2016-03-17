@@ -106,6 +106,7 @@ namespace internal {
   V(UnionType)                  \
   V(IntersectionType)           \
   V(ArrayType)                  \
+  V(TupleType)                  \
   V(FunctionType)               \
   V(TypeParameter)              \
   V(FormalParameter)            \
@@ -2943,8 +2944,8 @@ class Type : public AstNode {
   V8_INLINE ZoneList<FormalParameter*>* AsValidParameterList(Zone* zone,
                                                              bool* ok) const;
 
-  V8_INLINE bool IsSimpleIdentifier() const;
-  V8_INLINE const AstRawString* AsSimpleIdentifier() const;
+  V8_INLINE bool IsValidType() const;
+  V8_INLINE bool IsValidBindingIdentifierOrPattern() const;
 
  protected:
   explicit Type(Zone* zone, int position) : AstNode(position) {}
@@ -3032,6 +3033,32 @@ class ArrayType : public Type {
 };
 
 
+class TupleType : public Type {
+ public:
+  DECLARE_NODE_TYPE(TupleType)
+
+  ZoneList<Type*>* elements() const { return elements_; }
+  bool IsValidType() const { return valid_type_; }
+  bool IsValidBindingPattern() const { return valid_binder_; }
+  bool spread() const { return spread_; }
+
+ protected:
+  TupleType(Zone* zone, ZoneList<Type*>* elements, bool valid_type,
+            bool valid_binder, bool spread, int pos)
+      : Type(zone, pos),
+        elements_(elements),
+        valid_type_(valid_type),
+        valid_binder_(valid_binder),
+        spread_(spread) {}
+
+ private:
+  ZoneList<Type*>* elements_;
+  bool valid_type_;
+  bool valid_binder_;
+  bool spread_;
+};
+
+
 class TypeParameter : public AstNode {
  public:
   DECLARE_NODE_TYPE(TypeParameter)
@@ -3052,34 +3079,36 @@ class FormalParameter : public AstNode {
  public:
   DECLARE_NODE_TYPE(FormalParameter)
 
-  bool IsValidType() const { return name_ == nullptr; }
+  bool IsValidType() const {
+    return binder_ == nullptr && type_->IsValidType();
+  }
 
   void MakeValidParameter(bool* ok) {
-    if (name_ != nullptr) return;
-    if (optional_ || spread_ || !type_->IsSimpleIdentifier()) {
+    if (binder_ != nullptr) return;
+    if (optional_ || spread_ || !type_->IsValidBindingIdentifierOrPattern()) {
       *ok = false;
       return;
     }
-    name_ = type_->AsSimpleIdentifier();
+    binder_ = type_;
     type_ = nullptr;
   }
 
-  const AstRawString* name() const { return name_; }
+  Type* binder() const { return binder_; }
   bool optional() const { return optional_; }
   bool spread() const { return spread_; }
   Type* type() const { return type_; }
 
  protected:
-  FormalParameter(Zone* zone, const AstRawString* name, bool optional,
-                  bool spread, Type* type, int pos)
+  FormalParameter(Zone* zone, Type* binder, bool optional, bool spread,
+                  Type* type, int pos)
       : AstNode(pos),
-        name_(name),
+        binder_(binder),
         optional_(optional),
         spread_(spread),
         type_(type) {}
   FormalParameter(Zone* zone, Type* type, int pos)
       : AstNode(pos),
-        name_(nullptr),
+        binder_(nullptr),
         optional_(false),
         spread_(false),
         type_(type) {}
@@ -3087,7 +3116,7 @@ class FormalParameter : public AstNode {
   friend class Type;
 
  private:
-  const AstRawString* name_;
+  Type* binder_;
   bool optional_;
   bool spread_;
   Type* type_;
@@ -3188,24 +3217,32 @@ class TypeOrParameters : public Type {
   ZoneList<FormalParameter*>* parameters_;
 };
 
-V8_INLINE bool Type::IsSimpleIdentifier() const {
-  const TypeReference* ref = AsTypeReference();
-  if (ref == nullptr) return false;
-  return ref->type_arguments() == nullptr;
+V8_INLINE bool Type::IsValidType() const {
+  if (IsTypeOrParameters()) {
+    ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
+    return parameters->length() == 1 && parameters->at(0)->IsValidType();
+  }
+  if (IsTupleType()) return AsTupleType()->IsValidType();
+  return true;
 }
 
-V8_INLINE const AstRawString* Type::AsSimpleIdentifier() const {
-  const TypeReference* ref = AsTypeReference();
-  DCHECK_NOT_NULL(ref);
-  DCHECK_NULL(ref->type_arguments());
-  return ref->name();
+V8_INLINE bool Type::IsValidBindingIdentifierOrPattern() const {
+  if (IsTypeReference())
+    return AsTypeReference()->type_arguments() == nullptr;
+  if (IsTupleType())
+    return AsTupleType()->IsValidBindingPattern();
+  return false;
 }
 
 V8_INLINE Type* Type::Uncover(bool* ok) {
-  if (!IsTypeOrParameters()) return this;
-  ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
-  if (parameters->length() == 1 && parameters->at(0)->IsValidType())
-    return parameters->at(0)->type();
+  if (IsTypeOrParameters()) {
+    ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
+    if (parameters->length() == 1 && parameters->at(0)->IsValidType())
+      return parameters->at(0)->type();
+  } else if (IsTupleType()) {
+    if (AsTupleType()->IsValidType()) return this;
+  } else
+    return this;
   *ok = false;
   return nullptr;
 }
@@ -3797,6 +3834,14 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (local_zone_) typesystem::ArrayType(local_zone_, base, pos);
   }
 
+  typesystem::TupleType* NewTupleType(ZoneList<typesystem::Type*>* elements,
+                                      bool valid_type, bool valid_binder,
+                                      bool spread, int pos) {
+    return new (local_zone_)
+        typesystem::TupleType(local_zone_, elements, valid_type, valid_binder,
+                              spread, pos);
+  }
+
   typesystem::FunctionType* NewFunctionType(
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
@@ -3826,12 +3871,12 @@ class AstNodeFactory final BASE_EMBEDDED {
         typesystem::QueryType(local_zone_, name, property_names, pos);
   }
 
-  typesystem::FormalParameter* NewFormalParameter(const AstRawString* name,
+  typesystem::FormalParameter* NewFormalParameter(typesystem::Type* binder,
                                                   bool optional, bool spread,
                                                   typesystem::Type* type,
                                                   int pos) {
     return new (local_zone_) typesystem::FormalParameter(
-        local_zone_, name, optional, spread, type, pos);
+        local_zone_, binder, optional, spread, type, pos);
   }
 
   typesystem::FormalParameter* NewFormalParameter(typesystem::Type* type,
