@@ -14,6 +14,8 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
+#include "src/ostreams.h"
+
 #include "src/compiler/wasm-compiler.h"
 
 namespace v8 {
@@ -401,10 +403,6 @@ class SR_WasmDecoder : public WasmDecoder {
     }
 
     if (ok()) {
-      if (FLAG_trace_wasm_ast) {
-        FunctionBody body = {module_, sig_, base_, start_, end_};
-        PrintAst(body);
-      }
       TRACE("wasm-decode ok\n");
     } else {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
@@ -1689,8 +1687,42 @@ int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
 }
 
 void PrintAst(FunctionBody& body) {
-  WasmDecoder decoder(body.module, body.sig, body.start, body.end);
-  const byte* pc = body.start;
+  Zone zone;
+  SR_WasmDecoder decoder(&zone, nullptr, body);
+
+  OFStream os(stdout);
+
+  // Print the function signature.
+  if (body.sig) {
+    os << "// signature: " << *body.sig << std::endl;
+  }
+
+  // Print the local declarations.
+  std::vector<LocalType>* decls = decoder.DecodeLocalDeclsForTesting();
+  const byte* pc = decoder.pc();
+  if (body.start != decoder.pc()) {
+    printf("// locals:");
+    size_t pos = 0;
+    while (pos < decls->size()) {
+      LocalType type = decls->at(pos++);
+      size_t count = 1;
+      while (pos < decls->size() && decls->at(pos) == type) {
+        pos++;
+        count++;
+      }
+
+      os << " " << count << " " << WasmOpcodes::TypeName(type);
+    }
+    os << std::endl;
+
+    for (const byte* locals = body.start; locals < pc; locals++) {
+      printf(" 0x%02x,", *locals);
+    }
+    printf("\n");
+  }
+  delete decls;
+
+  printf("// body: \n");
   std::vector<int> arity_stack;
   while (pc < body.end) {
     int arity = decoder.OpcodeArity(pc);
@@ -1707,6 +1739,35 @@ void PrintAst(FunctionBody& body) {
     for (size_t i = 1; i < length; i++) {
       printf(" 0x%02x,", pc[i]);
     }
+
+    if (body.module) {
+      switch (opcode) {
+        case kExprCallIndirect: {
+          SignatureIndexOperand operand(&decoder, pc);
+          if (decoder.Validate(pc, operand)) {
+            os << " // sig #" << operand.index << ": " << *operand.sig;
+          }
+          break;
+        }
+        case kExprCallImport: {
+          ImportIndexOperand operand(&decoder, pc);
+          if (decoder.Validate(pc, operand)) {
+            os << " // import #" << operand.index << ": " << *operand.sig;
+          }
+          break;
+        }
+        case kExprCallFunction: {
+          FunctionIndexOperand operand(&decoder, pc);
+          if (decoder.Validate(pc, operand)) {
+            os << " // function #" << operand.index << ": " << *operand.sig;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
     pc += length;
     printf("\n");
 

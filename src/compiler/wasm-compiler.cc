@@ -2594,6 +2594,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     return Handle<Code>::null();
   }
 
+  int index = static_cast<int>(function.func_index);
+  if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
+    PrintAst(body);
+  }
+
   if (FLAG_trace_wasm_decode_time) {
     decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
