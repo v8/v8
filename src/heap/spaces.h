@@ -417,6 +417,12 @@ class MemoryChunk {
 
   static const int kFlagsOffset = kPointerSize;
 
+  // Page size in bytes.  This must be a multiple of the OS page size.
+  static const int kPageSize = 1 << kPageSizeBits;
+  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
+
+  static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
+
   static inline void IncrementLiveBytesFromMutator(HeapObject* object, int by);
   static inline void IncrementLiveBytesFromGC(HeapObject* object, int by);
 
@@ -778,9 +784,6 @@ class Page : public MemoryChunk {
 
   // ---------------------------------------------------------------------
 
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
-
   // Maximum object size that gets allocated into regular pages. Objects larger
   // than that size are allocated in large object space and are never moved in
   // memory. This also applies to new space allocation, since objects are never
@@ -789,11 +792,6 @@ class Page : public MemoryChunk {
   // TODO(hpayer): This limit should be way smaller but we currently have
   // short living objects >256K.
   static const int kMaxRegularHeapObjectSize = 600 * KB;
-
-  static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
-
-  // Page size mask.
-  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
   inline void ClearGCFields();
 
@@ -2198,30 +2196,6 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 
 class NewSpacePage : public MemoryChunk {
  public:
-  // GC related flags copied from from-space to to-space when
-  // flipping semispaces.
-  static const intptr_t kCopyOnFlipFlagsMask =
-      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  static const int kAreaSize = Page::kAllocatableMemory;
-
-  inline NewSpacePage* next_page() {
-    return static_cast<NewSpacePage*>(next_chunk());
-  }
-
-  inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
-
-  inline NewSpacePage* prev_page() {
-    return static_cast<NewSpacePage*>(prev_chunk());
-  }
-
-  inline void set_prev_page(NewSpacePage* page) { set_prev_chunk(page); }
-
-  SemiSpace* semi_space() { return reinterpret_cast<SemiSpace*>(owner()); }
-
-  bool is_anchor() { return !this->InNewSpace(); }
-
   static bool IsAtStart(Address addr) {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) ==
            kObjectStartOffset;
@@ -2230,8 +2204,6 @@ class NewSpacePage : public MemoryChunk {
   static bool IsAtEnd(Address addr) {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) == 0;
   }
-
-  Address address() { return reinterpret_cast<Address>(this); }
 
   // Finds the NewSpacePage containing the given address.
   static inline NewSpacePage* FromAddress(Address address_in_page) {
@@ -2254,7 +2226,29 @@ class NewSpacePage : public MemoryChunk {
            NewSpacePage::FromAddress(address2);
   }
 
+  inline NewSpacePage* next_page() {
+    return static_cast<NewSpacePage*>(next_chunk());
+  }
+
+  inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
+
+  inline NewSpacePage* prev_page() {
+    return static_cast<NewSpacePage*>(prev_chunk());
+  }
+
+  inline void set_prev_page(NewSpacePage* page) { set_prev_chunk(page); }
+
+  SemiSpace* semi_space() { return reinterpret_cast<SemiSpace*>(owner()); }
+
+  bool is_anchor() { return !this->InNewSpace(); }
+
  private:
+  // GC related flags copied from from-space to to-space when
+  // flipping semispaces.
+  static const intptr_t kCopyOnFlipFlagsMask =
+      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+
   // Create a NewSpacePage object that is only used as anchor
   // for the doubly-linked list of real pages.
   explicit NewSpacePage(SemiSpace* owner) { InitializeAsAnchor(owner); }
@@ -2531,7 +2525,7 @@ class NewSpace : public Space {
 
   // Return the allocated bytes in the active semispace.
   intptr_t Size() override {
-    return pages_used_ * NewSpacePage::kAreaSize +
+    return pages_used_ * NewSpacePage::kAllocatableMemory +
            static_cast<int>(top() - to_space_.page_low());
   }
 
@@ -2544,7 +2538,7 @@ class NewSpace : public Space {
   intptr_t Capacity() {
     SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
     return (to_space_.current_capacity() / Page::kPageSize) *
-           NewSpacePage::kAreaSize;
+           NewSpacePage::kAllocatableMemory;
   }
 
   // Return the current size of a semispace, allocatable and non-allocatable
