@@ -785,16 +785,18 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
   return true;
 }
 
-
 static bool UseIgnition(CompilationInfo* info) {
-  // Cannot use Ignition when the {function_data} is already used.
-  if (info->has_shared_info() && info->shared_info()->HasBuiltinFunctionId()) {
+  // TODO(4681): Generator functions are not yet supported.
+  if ((info->has_shared_info() && info->shared_info()->is_generator()) ||
+      (info->has_literal() && IsGeneratorFunction(info->literal()->kind()))) {
     return false;
   }
 
-  // TODO(4681): Generators are not yet supported.
-  if ((info->has_shared_info() && info->shared_info()->is_generator()) ||
-      (info->has_literal() && IsGeneratorFunction(info->literal()->kind()))) {
+  // TODO(4681): Resuming a suspended frame is not supported.
+  if (info->has_shared_info() && info->shared_info()->HasBuiltinFunctionId() &&
+      (info->shared_info()->builtin_function_id() == kGeneratorObjectNext ||
+       info->shared_info()->builtin_function_id() == kGeneratorObjectReturn ||
+       info->shared_info()->builtin_function_id() == kGeneratorObjectThrow)) {
     return false;
   }
 
