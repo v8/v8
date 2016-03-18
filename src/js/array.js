@@ -272,12 +272,10 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     var length = indices.length;
     for (var k = 0; k < length; ++k) {
       var key = indices[k];
-      if (!IS_UNDEFINED(key)) {
-        if (key >= start_i) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            DefineIndexedProperty(deleted_elements, key - start_i, current);
-          }
+      if (key >= start_i) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          DefineIndexedProperty(deleted_elements, key - start_i, current);
         }
       }
     }
@@ -314,21 +312,19 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
     var length = indices.length;
     for (var k = 0; k < length; ++k) {
       var key = indices[k];
-      if (!IS_UNDEFINED(key)) {
-        if (key < start_i) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            new_array[key] = current;
-          }
-        } else if (key >= start_i + del_count) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            var new_key = key - del_count + num_additional_args;
-            new_array[new_key] = current;
-            if (new_key > 0xfffffffe) {
-              big_indices = big_indices || new InternalArray();
-              big_indices.push(new_key);
-            }
+      if (key < start_i) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          new_array[key] = current;
+        }
+      } else if (key >= start_i + del_count) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          var new_key = key - del_count + num_additional_args;
+          new_array[new_key] = current;
+          if (new_key > 0xfffffffe) {
+            big_indices = big_indices || new InternalArray();
+            big_indices.push(new_key);
           }
         }
       }
@@ -1066,8 +1062,7 @@ function InnerArraySort(array, length, comparefn) {
       } else {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
-          if (!IS_UNDEFINED(index) && !HAS_OWN_PROPERTY(obj, index)
-              && HAS_OWN_PROPERTY(proto, index)) {
+          if (!HAS_OWN_PROPERTY(obj, index) && HAS_OWN_PROPERTY(proto, index)) {
             obj[index] = proto[index];
             if (index >= max) { max = index + 1; }
           }
@@ -1094,8 +1089,7 @@ function InnerArraySort(array, length, comparefn) {
       } else {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
-          if (!IS_UNDEFINED(index) && from <= index &&
-              HAS_OWN_PROPERTY(proto, index)) {
+          if (from <= index && HAS_OWN_PROPERTY(proto, index)) {
             obj[index] = UNDEFINED;
           }
         }
@@ -1379,7 +1373,7 @@ function InnerArrayIndexOf(array, element, index, length) {
       while (i < n && sortedKeys[i] < index) i++;
       while (i < n) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && array[key] === element) return key;
+        if (array[key] === element) return key;
         i++;
       }
       return -1;
@@ -1438,7 +1432,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
       var i = sortedKeys.length - 1;
       while (i >= 0) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && array[key] === element) return key;
+        if (array[key] === element) return key;
         i--;
       }
       return -1;
