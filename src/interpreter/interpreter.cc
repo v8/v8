@@ -95,7 +95,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 #endif  // DEBUG
 
   BytecodeGenerator generator(info->isolate(), info->zone());
-  info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
 
   if (generator.HasStackOverflow()) return false;

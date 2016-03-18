@@ -30,9 +30,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.CompileFullCode");
 
-  // Ensure that the feedback vector is large enough.
-  info->EnsureFeedbackVector();
-
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();

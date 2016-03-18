@@ -790,7 +790,7 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
   if (!Compiler::Analyze(info->parse_info()) ||
-      !FullCodeGenerator::MakeCode(info)) {
+      !(info->EnsureFeedbackVector(), FullCodeGenerator::MakeCode(info))) {
     Isolate* isolate = info->isolate();
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
@@ -843,6 +843,7 @@ int CodeAndMetadataSize(CompilationInfo* info) {
 
 bool GenerateBaselineCode(CompilationInfo* info) {
   bool success;
+  info->EnsureFeedbackVector();
   if (FLAG_ignition && UseIgnition(info)) {
     success = interpreter::Interpreter::MakeBytecode(info);
   } else {
@@ -1458,6 +1459,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
         shared->code()->has_reloc_info_for_serialization()) {
       unoptimized.PrepareForSerializing();
     }
+    unoptimized.EnsureFeedbackVector();
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
     shared->EnableDeoptimizationSupport(*unoptimized.code());
