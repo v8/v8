@@ -145,7 +145,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.implementer() == base::CPU::NVIDIA &&
       cpu.variant() == base::CPU::NVIDIA_DENVER &&
       cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    supported_ |= 1u << COHERENT_CACHE;
+    // TODO(jkummerow): This is turned off as an experiment to see if it
+    // affects crash rates. Keep an eye on crash reports and either remove
+    // coherent cache support permanently, or re-enable it!
+    // supported_ |= 1u << COHERENT_CACHE;
   }
 #endif
 
