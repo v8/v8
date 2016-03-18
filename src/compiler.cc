@@ -1096,20 +1096,9 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  if (!shared->is_compiled() ||
-      shared->scope_info() == ScopeInfo::Empty(isolate)) {
-    // The function was never compiled. Compile it unoptimized first.
-    // TODO(titzer): reuse the AST and scope info from this compile.
-    CompilationInfoWithZone unoptimized(function);
-    unoptimized.EnableDeoptimizationSupport();
-    Handle<Code> unoptimized_code;
-    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&unoptimized_code)) {
-      return MaybeHandle<Code>();
-    }
-    shared->ReplaceCode(*unoptimized_code);
+  if (shared->is_compiled()) {
+    shared->code()->set_profiler_ticks(0);
   }
-
-  shared->code()->set_profiler_ticks(0);
 
   // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
   // an eval scope and hence would fail at parsing the eval source again.

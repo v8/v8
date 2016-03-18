@@ -497,10 +497,6 @@
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [FAIL],
 
-  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
-  # on nodes (behind --turbo_source_positions flag).
-  'test-cpu-profiler/TickLinesOptimized': [FAIL],
-
   # TODO(mythria,4780): Related to type feedback support for calls.
   'test-feedback-vector/VectorCallICStates': [FAIL],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
