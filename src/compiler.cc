@@ -856,6 +856,20 @@ static bool CompileBaselineCode(CompilationInfo* info) {
   return true;
 }
 
+static void InstallBaselineCompilationResult(CompilationInfo* info,
+                                             Handle<SharedFunctionInfo> shared,
+                                             Handle<ScopeInfo> scope_info) {
+  // Assert that we are not overwriting (possibly patched) debug code.
+  DCHECK(!shared->HasDebugCode());
+  DCHECK(!info->code().is_null());
+  shared->ReplaceCode(*info->code());
+  shared->set_scope_info(*scope_info);
+  shared->set_feedback_vector(*info->feedback_vector());
+  if (info->has_bytecode_array()) {
+    DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
+    shared->set_bytecode_array(*info->bytecode_array());
+  }
+}
 
 MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
     CompilationInfo* info) {
@@ -878,15 +892,9 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   // ScopeInfo object may cause a GC.
   Handle<ScopeInfo> scope_info =
       ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
-  shared->set_scope_info(*scope_info);
 
-  // Update the code and feedback vector for the shared function info.
-  shared->ReplaceCode(*info->code());
-  shared->set_feedback_vector(*info->feedback_vector());
-  if (info->has_bytecode_array()) {
-    DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
-    shared->set_bytecode_array(*info->bytecode_array());
-  }
+  // Install compilation result on the shared function info
+  InstallBaselineCompilationResult(info, shared, scope_info);
 
   return info->code();
 }
@@ -1378,6 +1386,17 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   tracker.RecordRootFunctionInfo(info.code());
 }
 
+static Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
+    Isolate* isolate, FunctionLiteral* literal, Handle<Script> script) {
+  Handle<Code> code = isolate->builtins()->CompileLazy();
+  Handle<ScopeInfo> scope_info = handle(ScopeInfo::Empty(isolate));
+  Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
+      literal->name(), literal->materialized_literal_count(), literal->kind(),
+      code, scope_info);
+  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
+  SharedFunctionInfo::SetScript(result, script);
+  return result;
+}
 
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
@@ -1447,31 +1466,24 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     HistogramTimerScope timer(rate);
     TRACE_EVENT0("v8", info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
-    // Compile the code.
-    if (!CompileBaselineCode(info)) {
-      return Handle<SharedFunctionInfo>::null();
-    }
-
-    // Allocate function.
-    DCHECK(!info->code().is_null());
-    result = isolate->factory()->NewSharedFunctionInfo(
-        lit->name(), lit->materialized_literal_count(), lit->kind(),
-        info->code(),
-        ScopeInfo::Create(info->isolate(), info->zone(), info->scope()),
-        info->feedback_vector());
-    if (info->has_bytecode_array()) {
-      DCHECK(!result->HasBytecodeArray());  // Only compiled once.
-      result->set_bytecode_array(*info->bytecode_array());
-    }
-
+    // Allocate a shared function info object.
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-    SharedFunctionInfo::InitFromFunctionLiteral(result, lit);
-    SharedFunctionInfo::SetScript(result, script);
+    result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
     result->set_is_toplevel(true);
     if (info->is_eval()) {
       // Eval scripts cannot be (re-)compiled without context.
       result->set_allows_lazy_compilation_without_context(false);
     }
+
+    // Compile the code.
+    if (!CompileBaselineCode(info)) {
+      return Handle<SharedFunctionInfo>::null();
+    }
+
+    // Install compilation result on the shared function info
+    Handle<ScopeInfo> scope_info =
+        ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
+    InstallBaselineCompilationResult(info, result, scope_info);
 
     Handle<String> script_name =
         script->name()->IsString()
@@ -1746,6 +1758,13 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     }
   }
 
+  // Allocate a shared function info object.
+  Handle<SharedFunctionInfo> result;
+  if (!maybe_existing.ToHandle(&result)) {
+    result = NewSharedFunctionInfoForLiteral(isolate, literal, script);
+    result->set_is_toplevel(false);
+  }
+
   Zone zone;
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
@@ -1781,46 +1800,25 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.CompileCode");
-  Handle<ScopeInfo> scope_info;
   if (lazy) {
-    Handle<Code> code = isolate->builtins()->CompileLazy();
-    info.SetCode(code);
-    // There's no need in theory for a lazy-compiled function to have a type
-    // feedback vector, but some parts of the system expect all
-    // SharedFunctionInfo instances to have one.  The size of the vector depends
-    // on how many feedback-needing nodes are in the tree, and when lazily
-    // parsing we might not know that, if this function was never parsed before.
-    // In that case the vector will be replaced the next time MakeCode is
-    // called.
-    info.EnsureFeedbackVector();
-    scope_info = Handle<ScopeInfo>(ScopeInfo::Empty(isolate));
+    info.SetCode(isolate->builtins()->CompileLazy());
   } else if (Renumber(info.parse_info()) && GenerateBaselineCode(&info)) {
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
-    scope_info = ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
+    Handle<ScopeInfo> scope_info =
+        ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
     if (literal->should_eager_compile() &&
         literal->should_be_used_once_hint()) {
       info.code()->MarkToBeExecutedOnce(isolate);
     }
+    // Install compilation result on the shared function info.
+    InstallBaselineCompilationResult(&info, result, scope_info);
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
 
   if (maybe_existing.is_null()) {
-    // Create a shared function info object.
-    Handle<SharedFunctionInfo> result =
-        isolate->factory()->NewSharedFunctionInfo(
-            literal->name(), literal->materialized_literal_count(),
-            literal->kind(), info.code(), scope_info, info.feedback_vector());
-    if (info.has_bytecode_array()) {
-      DCHECK(!result->HasBytecodeArray());  // Only compiled once.
-      result->set_bytecode_array(*info.bytecode_array());
-    }
-
-    SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-    SharedFunctionInfo::SetScript(result, script);
-    result->set_is_toplevel(false);
     // If the outer function has been compiled before, we cannot be sure that
     // shared function info for this function literal has been created for the
     // first time. It may have already been compiled previously.
@@ -1835,15 +1833,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     SetExpectedNofPropertiesFromEstimate(result,
                                          literal->expected_property_count());
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
-    return result;
-  } else if (!lazy) {
-    // Assert that we are not overwriting (possibly patched) debug code.
-    DCHECK(!existing->HasDebugCode());
-    existing->ReplaceCode(*info.code());
-    existing->set_scope_info(*scope_info);
-    existing->set_feedback_vector(*info.feedback_vector());
   }
-  return existing;
+
+  return result;
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
@@ -1866,9 +1858,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       name, literals, FunctionKind::kNormalFunction, code,
-      Handle<ScopeInfo>(fun->shared()->scope_info()),
-      Handle<TypeFeedbackVector>(fun->shared()->feedback_vector()));
+      Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
+  shared->set_feedback_vector(fun->shared()->feedback_vector());
 
   // Copy the function data to the shared function info.
   shared->set_function_data(fun->shared()->function_data());
