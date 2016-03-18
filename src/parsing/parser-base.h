@@ -3307,13 +3307,14 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       if (peek() != Token::RBRACK) {
         valid_type = true;
         do {
-          trailing_comma = false;
           if (Check(Token::COMMA)) {
             typename TypeSystem::Type type_element = this->HoleTypeElement();
             elements->Add(type_element, zone());
             valid_type = false;
             trailing_comma = true;
             continue;
+          } else {
+            trailing_comma = false;
           }
           if (Check(Token::ELLIPSIS)) {
             typename TypeSystem::Type type_element = ParseType(CHECK_OK_TYPE);

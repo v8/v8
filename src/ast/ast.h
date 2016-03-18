@@ -2936,6 +2936,10 @@ namespace typesystem {
 
 class FormalParameter;
 
+
+// Abstract class for all types.
+// It also covers: binding identifiers, binding (array and object) patterns
+// and formal parameter lists.
 class Type : public AstNode {
  public:
   // Uncovers the case of a single, parenthesized valid type.
@@ -2952,6 +2956,9 @@ class Type : public AstNode {
 };
 
 
+// Class for predefined types.
+// It also covers the use of "number", "any", etc. when used as binding
+// identifiers.
 class PredefinedType : public Type {
  public:
   DECLARE_NODE_TYPE(PredefinedType)
@@ -3034,6 +3041,8 @@ class ArrayType : public Type {
 };
 
 
+// Class for tuple type.
+// It also covers binding array patterns.
 class TupleType : public Type {
  public:
   DECLARE_NODE_TYPE(TupleType)
@@ -3076,6 +3085,9 @@ class TypeParameter : public AstNode {
   Type* extends_;
 };
 
+
+// Class for function parameters.
+// It also covers types when they occur inside parentheses.
 class FormalParameter : public AstNode {
  public:
   DECLARE_NODE_TYPE(FormalParameter)
@@ -3124,6 +3136,7 @@ class FormalParameter : public AstNode {
 };
 
 
+// Class for function and constructor types.
 class FunctionType : public Type {
  public:
   DECLARE_NODE_TYPE(FunctionType)
@@ -3151,6 +3164,8 @@ class FunctionType : public Type {
 };
 
 
+// Class for type references.
+// It also covers binding identifiers.
 class TypeReference : public Type {
  public:
   DECLARE_NODE_TYPE(TypeReference)
@@ -3209,6 +3224,7 @@ class QueryType : public Type {
 };
 
 
+// Class that covers parenthesized types and formal parameter lists.
 class TypeOrParameters : public Type {
  public:
   DECLARE_NODE_TYPE(TypeOrParameters)
@@ -3222,6 +3238,7 @@ class TypeOrParameters : public Type {
  private:
   ZoneList<FormalParameter*>* parameters_;
 };
+
 
 V8_INLINE bool Type::IsValidType() const {
   if (IsTypeOrParameters()) {

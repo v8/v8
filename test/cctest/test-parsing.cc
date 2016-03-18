@@ -7529,8 +7529,11 @@ TEST(TypedModeTupleTypes) {
     "var z: []",
     "var z: [()]",
     "var z: [number,]",
+    "var x: [number, (a: string)]",
     "var x: [number[], (a: string, b?: number)]",
     "var z: [, number]",
+    "var z: [,, number]",
+    "var z: [string,,,]",
     "var z: [string,, number]",
     "var z: [string,, ...number]",
     NULL
