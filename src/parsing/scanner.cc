@@ -36,10 +36,11 @@ void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache)
+Scanner::Scanner(UnicodeCache* unicode_cache, bool allow_html_comments)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
+      allow_html_comments_(allow_html_comments),
       found_html_comment_(false),
       allow_harmony_exponentiation_operator_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
@@ -484,7 +485,7 @@ void Scanner::Scan() {
           token = Select(Token::LTE);
         } else if (c0_ == '<') {
           token = Select('=', Token::ASSIGN_SHL, Token::SHL);
-        } else if (c0_ == '!') {
+        } else if (c0_ == '!' && allow_html_comments_) {
           token = ScanHtmlComment();
         } else {
           token = Token::LT;

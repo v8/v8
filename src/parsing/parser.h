@@ -121,6 +121,10 @@ class ParseInfo {
   uint32_t hash_seed() { return hash_seed_; }
   void set_hash_seed(uint32_t hash_seed) { hash_seed_ = hash_seed; }
 
+  bool allow_html_comments() const {
+    return !script_.is_null() && script_->origin_options().AllowHtmlComments();
+  }
+
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
