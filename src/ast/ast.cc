@@ -62,8 +62,7 @@ bool Expression::IsNullLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsNull();
 }
 
-
-bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
+bool Expression::IsUndefinedLiteral() const {
   if (IsLiteral() && AsLiteral()->value()->IsUndefined()) {
     return true;
   }
@@ -669,24 +668,21 @@ static bool IsVoidOfLiteral(Expression* expr) {
 static bool MatchLiteralCompareUndefined(Expression* left,
                                          Token::Value op,
                                          Expression* right,
-                                         Expression** expr,
-                                         Isolate* isolate) {
+                                         Expression** expr) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
-  if (left->IsUndefinedLiteral(isolate) && Token::IsEqualityOp(op)) {
+  if (left->IsUndefinedLiteral() && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
   return false;
 }
 
-
-bool CompareOperation::IsLiteralCompareUndefined(
-    Expression** expr, Isolate* isolate) {
-  return MatchLiteralCompareUndefined(left_, op_, right_, expr, isolate) ||
-      MatchLiteralCompareUndefined(right_, op_, left_, expr, isolate);
+bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
+  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
+         MatchLiteralCompareUndefined(right_, op_, left_, expr);
 }
 
 

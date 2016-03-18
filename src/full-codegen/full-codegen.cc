@@ -1758,7 +1758,7 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
     return true;
   }
 
-  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
     return true;
   }
