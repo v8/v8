@@ -1088,20 +1088,20 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  Handle<Code> current_code(shared->code());
   if (!shared->is_compiled() ||
       shared->scope_info() == ScopeInfo::Empty(isolate)) {
     // The function was never compiled. Compile it unoptimized first.
     // TODO(titzer): reuse the AST and scope info from this compile.
     CompilationInfoWithZone unoptimized(function);
     unoptimized.EnableDeoptimizationSupport();
-    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&current_code)) {
+    Handle<Code> unoptimized_code;
+    if (!GetUnoptimizedCodeCommon(&unoptimized).ToHandle(&unoptimized_code)) {
       return MaybeHandle<Code>();
     }
-    shared->ReplaceCode(*current_code);
+    shared->ReplaceCode(*unoptimized_code);
   }
 
-  current_code->set_profiler_ticks(0);
+  shared->code()->set_profiler_ticks(0);
 
   // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
   // an eval scope and hence would fail at parsing the eval source again.
@@ -1121,7 +1121,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 
-  info->SetOptimizingForOsr(osr_ast_id, current_code);
+  info->SetOptimizingForOsr(osr_ast_id);
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(info.get())) {
