@@ -3587,6 +3587,45 @@ void UpdatePointersInParallel(Heap* heap) {
   delete job;
 }
 
+class ToSpacePointerUpdateJobTraits {
+ public:
+  typedef std::pair<Address, Address> PerPageData;
+  typedef PointersUpdatingVisitor* PerTaskData;
+
+  static bool ProcessPageInParallel(Heap* heap, PerTaskData visitor,
+                                    MemoryChunk* chunk, PerPageData limits) {
+    for (Address cur = limits.first; cur < limits.second;) {
+      HeapObject* object = HeapObject::FromAddress(cur);
+      Map* map = object->map();
+      int size = object->SizeFromMap(map);
+      object->IterateBody(map->instance_type(), size, visitor);
+      cur += size;
+    }
+    return true;
+  }
+  static const bool NeedSequentialFinalization = false;
+  static void FinalizePageSequentially(Heap*, MemoryChunk*, bool, PerPageData) {
+  }
+};
+
+void UpdateToSpacePointersInParallel(Heap* heap) {
+  PageParallelJob<ToSpacePointerUpdateJobTraits> job(
+      heap, heap->isolate()->cancelable_task_manager());
+  Address space_start = heap->new_space()->bottom();
+  Address space_end = heap->new_space()->top();
+  NewSpacePageIterator it(space_start, space_end);
+  while (it.has_next()) {
+    NewSpacePage* page = it.next();
+    Address start =
+        page->Contains(space_start) ? space_start : page->area_start();
+    Address end = page->Contains(space_end) ? space_end : page->area_end();
+    job.AddPage(page, std::make_pair(start, end));
+  }
+  PointersUpdatingVisitor visitor(heap);
+  int num_tasks = FLAG_parallel_pointer_update ? job.NumberOfPages() : 1;
+  job.Run(num_tasks, [&visitor](int i) { return &visitor; });
+}
+
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   GCTracer::Scope gc_scope(heap()->tracer(),
                            GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
@@ -3596,17 +3635,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     GCTracer::Scope gc_scope(
         heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
-    // Update pointers in to space.
-    SemiSpaceIterator to_it(heap()->new_space());
-    for (HeapObject* object = to_it.Next(); object != NULL;
-         object = to_it.Next()) {
-      Map* map = object->map();
-      object->IterateBody(map->instance_type(), object->SizeFromMap(map),
-                          &updating_visitor);
-    }
+    UpdateToSpacePointersInParallel(heap_);
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-
     UpdatePointersInParallel<OLD_TO_NEW>(heap_);
   }
 
