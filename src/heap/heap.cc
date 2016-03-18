@@ -1158,7 +1158,9 @@ bool Heap::ReserveSpace(Reservation* reservations) {
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);
           } else {
-            allocation = paged_space(space)->AllocateRawUnaligned(size);
+            // The deserializer will update the skip list.
+            allocation = paged_space(space)->AllocateRawUnaligned(
+                size, PagedSpace::IGNORE_SKIP_LIST);
           }
           HeapObject* free_space = nullptr;
           if (allocation.To(&free_space)) {

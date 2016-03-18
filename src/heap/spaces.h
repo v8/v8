@@ -1200,7 +1200,14 @@ class SkipList {
     int start_region = RegionNumber(addr);
     int end_region = RegionNumber(addr + size - kPointerSize);
     for (int idx = start_region; idx <= end_region; idx++) {
-      if (starts_[idx] > addr) starts_[idx] = addr;
+      if (starts_[idx] > addr) {
+        starts_[idx] = addr;
+      } else {
+        // In the first region, there may already be an object closer to the
+        // start of the region. Do not change the start in that case. If this
+        // is not the first region, you probably added overlapping objects.
+        DCHECK_EQ(start_region, idx);
+      }
     }
   }
 
@@ -2038,10 +2045,13 @@ class PagedSpace : public Space {
     return allocation_info_.limit_address();
   }
 
+  enum UpdateSkipList { UPDATE_SKIP_LIST, IGNORE_SKIP_LIST };
+
   // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
+  // failure object if not. Only use IGNORE_SKIP_LIST if the skip list is going
+  // to be manually updated later.
   MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes);
+      int size_in_bytes, UpdateSkipList update_skip_list = UPDATE_SKIP_LIST);
 
   MUST_USE_RESULT inline AllocationResult AllocateRawUnalignedSynchronized(
       int size_in_bytes);

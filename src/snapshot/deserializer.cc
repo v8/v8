@@ -425,6 +425,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     int chunk_index = current_chunk_[space_index];
     CHECK_LE(high_water_[space_index], reservation[chunk_index].end);
 #endif
+    if (space_index == CODE_SPACE) SkipList::Update(address, size);
     return address;
   }
 }

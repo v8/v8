@@ -498,7 +498,8 @@ HeapObject* PagedSpace::AllocateLinearlyAligned(int* size_in_bytes,
 
 
 // Raw allocation.
-AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
+AllocationResult PagedSpace::AllocateRawUnaligned(
+    int size_in_bytes, UpdateSkipList update_skip_list) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
 
   if (object == NULL) {
@@ -509,7 +510,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes) {
   }
 
   if (object != NULL) {
-    if (identity() == CODE_SPACE) {
+    if (update_skip_list == UPDATE_SKIP_LIST && identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
     MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), size_in_bytes);
