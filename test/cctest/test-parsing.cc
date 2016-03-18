@@ -7549,3 +7549,53 @@ TEST(TypedModeTupleTypes) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeObjectTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var x: {}",
+    "var x: {a}",
+    "var x: {a, b}",
+    "var x: {a, b?, c}",
+    "var x: {a: number}",
+    "var x: {a: number, b: string}",
+    "var x: {a?: number; b: {c: any}}",
+    "var x: {f()}",
+    "var x: {f() : number}",
+    "var x: {f(a, b)}",
+    "var x: {f(a: number, b: string)}",
+    "var x: {f(a: number, b: string) : boolean}",
+    "var x: {f?(a: number, b: string) : boolean}",
+    "var x: {f<A extends number>(a: A, b: string) : boolean}",
+    "var x: {f?<A extends number>(a: A, b: string) : boolean}",
+    "var x: {()}",
+    "var x: {() : number}",
+    "var x: {(a, b)}",
+    "var x: {(a: number, b: string)}",
+    "var x: {(a: number, b: string) : boolean}",
+    "var x: {<A extends number>(a: A, b: string) : boolean}",
+    "var x: {new (a, b)}",
+    "var x: {new (a: number, b: string)}",
+    "var x: {new (a: number, b: string) : boolean}",
+    "var x: {new <A extends number>(a: A, b: string) : boolean}",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var z: {a: ()}",  // Not valid in general.
+    "var z: {a: []}",  // Valid as a binding pattern, not as a type.
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

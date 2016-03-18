@@ -749,6 +749,7 @@ class ParserBase : public Traits {
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
                                 bool* is_computed_name,
                                 ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParsePropertyNameInType(bool* ok);
   ExpressionT ParseObjectLiteral(ExpressionClassifier* classifier, bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
       ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
@@ -844,6 +845,7 @@ class ParserBase : public Traits {
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
   typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
+  typename TypeSystem::TypeMember ParseTypeMember(bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
@@ -1590,6 +1592,51 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
   return this->IsArrayIndex(*name, &index)
              ? factory()->NewNumberLiteral(index, pos)
              : factory()->NewStringLiteral(*name, pos);
+}
+
+
+// This is a simplified version of ParsePropertyName
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParsePropertyNameInType(bool* ok) {
+  Token::Value token = peek();
+  int pos = peek_position();
+  IdentifierT name = this->EmptyIdentifier();
+
+  // For non computed property names we normalize the name a bit:
+  //
+  //   "12" -> 12
+  //   12.3 -> "12.3"
+  //   12.30 -> "12.3"
+  //   identifier -> "identifier"
+  //
+  // This is important because we use the property name as a key in a hash
+  // table when we compute constant properties.
+  switch (token) {
+    case Token::STRING:
+      Consume(Token::STRING);
+      name = this->GetSymbol(scanner());
+      break;
+
+    case Token::SMI:
+      Consume(Token::SMI);
+      name = this->GetNumberAsSymbol(scanner());
+      break;
+
+    case Token::NUMBER:
+      Consume(Token::NUMBER);
+      name = this->GetNumberAsSymbol(scanner());
+      break;
+
+    default:
+      name = ParseIdentifierName(CHECK_OK);
+      break;
+  }
+
+  uint32_t index;
+  return this->IsArrayIndex(name, &index)
+             ? factory()->NewNumberLiteral(index, pos)
+             : factory()->NewStringLiteral(name, pos);
 }
 
 
@@ -3328,7 +3375,7 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
           if (!type_element->IsValidType()) valid_type = false;
           if (!type_element->IsValidBindingIdentifierOrPattern())
             valid_binder = false;
-          if (peek() != Token::RBRACK) {  // Braces required here.
+          if (peek() != Token::RBRACK) {
             Expect(Token::COMMA, CHECK_OK_TYPE);
             trailing_comma = true;
           }
@@ -3337,6 +3384,26 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       Consume(Token::RBRACK);
       type = factory()->NewTupleType(elements, valid_type && !trailing_comma,
                                      valid_binder, spread, pos);
+      break;
+    }
+    case Token::LBRACE: {
+      Consume(Token::LBRACE);
+      typename TypeSystem::TypeMembers members = this->EmptyTypeMembers();
+      bool valid_type = true, valid_binder = true;
+      while (peek() != Token::RBRACE) {
+        typename TypeSystem::TypeMember type_member =
+            ParseTypeMember(CHECK_OK_TYPE);
+        members->Add(type_member, zone());
+        if (!type_member->IsValidType()) valid_type = false;
+        if (!type_member->IsValidBindingIdentifierOrPattern())
+          valid_binder = false;
+        if (peek() != Token::RBRACE && !Check(Token::COMMA)) {
+          ExpectSemicolon(CHECK_OK_TYPE);
+          valid_binder = false;  // Semicolons not allowed in valid binders.
+        }
+      }
+      Consume(Token::RBRACE);
+      type = factory()->NewObjectType(members, valid_type, valid_binder, pos);
       break;
     }
     case Token::TYPEOF: {
@@ -3360,7 +3427,6 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       type = factory()->NewThisType(pos);
       break;
     }
-    // TODO(nikolaos): Missing object types.
     case Token::STRING: {
       Consume(Token::STRING);
       IdentifierT str = this->GetSymbol(scanner());
@@ -3398,6 +3464,89 @@ ParserBase<Traits>::ParsePropertyNameList(bool* ok) {
     property_names->Add(property_name, zone());
   } while (Check(Token::PERIOD));
   return property_names;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::TypeMember
+ParserBase<Traits>::ParseTypeMember(bool* ok) {
+  int pos = peek_position();
+  bool valid_type = true, valid_binder = false;
+  // Parse index signature.
+  if (Check(Token::LBRACK)) {
+    int property_pos = peek_position();
+    IdentifierT property_name =
+        ParseIdentifierName(CHECK_OK_CUSTOM(EmptyTypeMember));
+    ExpressionT property =
+        factory()->NewStringLiteral(property_name, property_pos);
+    Expect(Token::COLON, CHECK_OK_CUSTOM(EmptyTypeMember));
+    typesystem::TypeMember::IndexType index_type =
+        typesystem::TypeMember::kNoIndexType;
+    if (peek() == Token::IDENTIFIER) {
+      if (CheckContextualKeyword(CStrVector("number"))) {
+        index_type = typesystem::TypeMember::kNumberIndexType;
+      } else if (CheckContextualKeyword(CStrVector("string"))) {
+        index_type = typesystem::TypeMember::kStringIndexType;
+      }
+    }
+    if (index_type == typesystem::TypeMember::kNoIndexType) {
+      Scanner::Location next_location = scanner()->peek_location();
+      ReportMessageAt(next_location, MessageTemplate::kBadIndexType);
+      *ok = false;
+      return this->EmptyTypeMember();
+    }
+    Expect(Token::RBRACK, CHECK_OK_CUSTOM(EmptyTypeMember));
+    // Parse optional result type
+    typename TypeSystem::Type type = this->EmptyType();
+    if (Check(Token::COLON)) {  // Braces required here.
+      type = ParseValidType(CHECK_OK_CUSTOM(EmptyTypeMember));
+    }
+    return factory()->NewTypeMember(property, index_type, type, pos);
+  }
+  // Parse property, method, call or constructor signatures.
+  ExpressionT property = this->EmptyExpression();
+  bool has_property = false;
+  bool optional = false;
+  bool has_new = Check(Token::NEW);
+  if (!has_new && peek() != Token::LT && peek() != Token::LPAREN) {
+    // Parse property name.
+    property = ParsePropertyNameInType(CHECK_OK_CUSTOM(EmptyTypeMember));
+    has_property = true;
+    optional = Check(Token::CONDITIONAL);
+    valid_binder = !optional;
+  }
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters =
+      this->NullTypeParameters();
+  if (peek() == Token::LT) {  // Braces required here.
+    type_parameters = ParseTypeParameters(CHECK_OK_CUSTOM(EmptyTypeMember));
+    valid_binder = false;
+  }
+  // Require formal parameters if no property was specified.
+  if (!has_property && peek() != Token::LPAREN) {
+    Expect(Token::LPAREN, CHECK_OK_CUSTOM(EmptyTypeMember));
+    UNREACHABLE();
+  }
+  // Parse optional formal parameters.
+  typename TypeSystem::FormalParameters parameters =
+      this->NullFormalParameters();
+  if (peek() == Token::LPAREN) {
+    typename TypeSystem::Type type_params =
+        ParsePrimaryTypeOrParameterList(CHECK_OK_CUSTOM(EmptyTypeMember));
+    parameters = type_params->AsValidParameterList(
+        zone_, CHECK_OK_CUSTOM(EmptyTypeMember));
+    valid_binder = false;
+  }
+  // Parse optional property or result type or covered binding pattern.
+  typename TypeSystem::Type type = this->EmptyType();
+  if (Check(Token::COLON)) {
+    type = ParseType(CHECK_OK_CUSTOM(EmptyTypeMember));
+    if (!type->IsValidType()) valid_type = false;
+    if (!type->IsValidBindingIdentifierOrPattern()) valid_binder = false;
+  }
+  return factory()->NewTypeMember(property, optional, type_parameters,
+                                  parameters, type, valid_type, valid_binder,
+                                  pos, has_new);
 }
 
 

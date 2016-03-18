@@ -107,6 +107,8 @@ namespace internal {
   V(IntersectionType)           \
   V(ArrayType)                  \
   V(TupleType)                  \
+  V(ObjectType)                 \
+  V(TypeMember)                 \
   V(FunctionType)               \
   V(TypeParameter)              \
   V(FormalParameter)            \
@@ -3240,18 +3242,110 @@ class TypeOrParameters : public Type {
 };
 
 
+// Class for object type members.
+// It also covers binding properties.
+class TypeMember : public AstNode {
+ public:
+  DECLARE_NODE_TYPE(TypeMember)
+
+  enum IndexType {
+    kNoIndexType,
+    kNumberIndexType,
+    kStringIndexType
+  };
+
+  Expression* property() const { return property_; }
+  IndexType index_type() const { return index_type_; }
+  bool optional() const { return optional_; }
+  bool constructor() const { return constructor_; }
+  ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
+  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
+  Type* type() const { return type_; }
+  bool IsValidType() const { return valid_type_; }
+  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
+
+ protected:
+  TypeMember(Zone* zone, Expression* property, bool optional,
+             ZoneList<typesystem::TypeParameter*>* type_parameters,
+             ZoneList<typesystem::FormalParameter*>* parameters,
+             typesystem::Type* type, bool valid_type, bool valid_binder,
+             int pos, bool constructor = false)
+      : AstNode(pos),
+        property_(property),
+        index_type_(kNoIndexType),
+        optional_(optional),
+        constructor_(constructor),
+        valid_type_(valid_type),
+        valid_binder_(valid_binder),
+        type_parameters_(type_parameters),
+        parameters_(parameters),
+        type_(type) {}
+  TypeMember(Zone* zone, Expression* property,
+             typesystem::TypeMember::IndexType index_type,
+             typesystem::Type* type, int pos)
+      : AstNode(pos),
+        property_(property),
+        index_type_(index_type),
+        optional_(false),
+        constructor_(false),
+        valid_type_(true),
+        valid_binder_(false),
+        type_parameters_(nullptr),
+        parameters_(nullptr),
+        type_(type) {}
+
+ private:
+  Expression* property_;
+  IndexType index_type_;
+  bool optional_;
+  bool constructor_;
+  bool valid_type_;
+  bool valid_binder_;
+  ZoneList<typesystem::TypeParameter*>* type_parameters_;
+  ZoneList<typesystem::FormalParameter*>* parameters_;
+  typesystem::Type* type_;
+};
+
+
+// Class for object types.
+// It also covers binding object patterns.
+class ObjectType : public Type {
+ public:
+  DECLARE_NODE_TYPE(ObjectType)
+
+  ZoneList<TypeMember*>* members() const { return members_; }
+  bool IsValidType() const { return valid_type_; }
+  bool IsValidBindingPattern() const { return valid_binder_; }
+
+ protected:
+  ObjectType(Zone* zone, ZoneList<TypeMember*>* members, bool valid_type,
+             bool valid_binder, int pos)
+      : Type(zone, pos),
+        members_(members),
+        valid_type_(valid_type),
+        valid_binder_(valid_binder) {}
+
+ private:
+  ZoneList<TypeMember*>* members_;
+  bool valid_type_;
+  bool valid_binder_;
+};
+
+
 V8_INLINE bool Type::IsValidType() const {
   if (IsTypeOrParameters()) {
     ZoneList<FormalParameter*>* parameters = AsTypeOrParameters()->parameters();
     return parameters->length() == 1 && parameters->at(0)->IsValidType();
   }
   if (IsTupleType()) return AsTupleType()->IsValidType();
+  if (IsObjectType()) return AsObjectType()->IsValidType();
   return true;
 }
 
 V8_INLINE bool Type::IsValidBindingIdentifierOrPattern() const {
   if (IsTypeReference()) return AsTypeReference()->IsValidBindingIdentifier();
   if (IsTupleType()) return AsTupleType()->IsValidBindingPattern();
+  if (IsObjectType()) return AsObjectType()->IsValidBindingPattern();
   if (IsPredefinedType()) return AsPredefinedType()->IsValidBindingIdentifier();
   return false;
 }
@@ -3263,6 +3357,8 @@ V8_INLINE Type* Type::Uncover(bool* ok) {
       return parameters->at(0)->type();
   } else if (IsTupleType()) {
     if (AsTupleType()->IsValidType()) return this;
+  } else if (IsObjectType()) {
+    if (AsObjectType()->IsValidType()) return this;
   } else {
     return this;
   }
@@ -3864,6 +3960,13 @@ class AstNodeFactory final BASE_EMBEDDED {
         local_zone_, elements, valid_type, valid_binder, spread, pos);
   }
 
+  typesystem::ObjectType* NewObjectType(
+      ZoneList<typesystem::TypeMember*>* members, bool valid_type,
+      bool valid_binder, int pos) {
+    return new (local_zone_) typesystem::ObjectType(
+        local_zone_, members, valid_type, valid_binder, pos);
+  }
+
   typesystem::FunctionType* NewFunctionType(
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
@@ -3918,6 +4021,25 @@ class AstNodeFactory final BASE_EMBEDDED {
                                               int pos) {
     return new (local_zone_)
         typesystem::TypeParameter(local_zone_, name, extends, pos);
+  }
+
+  typesystem::TypeMember* NewTypeMember(
+      Expression* property, bool optional,
+      ZoneList<typesystem::TypeParameter*>* type_parameters,
+      ZoneList<typesystem::FormalParameter*>* parameters,
+      typesystem::Type* type, bool valid_type, bool valid_binder,
+      int pos, bool constructor = false) {
+    return new (local_zone_)
+        typesystem::TypeMember(local_zone_, property, optional, type_parameters,
+                               parameters, type, valid_type, valid_binder, pos,
+                               constructor);
+  }
+
+  typesystem::TypeMember* NewTypeMember(
+      Expression* property, typesystem::TypeMember::IndexType index_type,
+      typesystem::Type* type, int pos) {
+    return new (local_zone_)
+        typesystem::TypeMember(local_zone_, property, index_type, type, pos);
   }
 
   Zone* zone() const { return local_zone_; }

@@ -361,6 +361,8 @@ class ParserTraits {
       typedef v8::internal::typesystem::FormalParameter* FormalParameter;
       typedef ZoneList<v8::internal::typesystem::FormalParameter*>*
           FormalParameters;
+      typedef v8::internal::typesystem::TypeMember* TypeMember;
+      typedef ZoneList<v8::internal::typesystem::TypeMember*>* TypeMembers;
     };
 
     // For constructing objects returned by the traversing functions.
@@ -510,11 +512,16 @@ class ParserTraits {
     return typ_pars == nullptr;
   }
   V8_INLINE ZoneList<typesystem::TypeParameter*>* EmptyTypeParameters() const;
+  static ZoneList<typesystem::FormalParameter*>* NullFormalParameters() {
+    return nullptr;
+  }
   V8_INLINE ZoneList<typesystem::FormalParameter*>* EmptyFormalParameters()
       const;
   static ZoneList<const AstRawString*>* NullIdentifierList() { return nullptr; }
   V8_INLINE ZoneList<const AstRawString*>* EmptyIdentifierList() const;
   static typesystem::Type* HoleTypeElement() { return nullptr; }
+  V8_INLINE ZoneList<typesystem::TypeMember*>* EmptyTypeMembers() const;
+  static typesystem::TypeMember* EmptyTypeMember() { return nullptr; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1135,6 +1142,12 @@ ZoneList<typesystem::FormalParameter*>* ParserTraits::EmptyFormalParameters()
 ZoneList<const AstRawString*>* ParserTraits::EmptyIdentifierList() const {
   return new (parser_->zone())
       ZoneList<const AstRawString*>(1, parser_->zone());
+}
+
+
+ZoneList<typesystem::TypeMember*>* ParserTraits::EmptyTypeMembers() const {
+  return new (parser_->zone())
+      ZoneList<typesystem::TypeMember*>(4, parser_->zone());
 }
 
 
