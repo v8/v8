@@ -1445,6 +1445,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
   debug_name = info()->GetDebugName();
+  data_->sequence()->ValidateEdgeSplitForm();
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());
