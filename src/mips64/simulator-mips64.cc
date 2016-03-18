@@ -24,11 +24,8 @@
 namespace v8 {
 namespace internal {
 
-// Utils functions.
-bool HaveSameSign(int64_t a, int64_t b) {
-  return ((a ^ b) >= 0);
-}
-
+// Util functions.
+inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
 
 uint32_t get_fcsr_condition_bit(uint32_t cc) {
   if (cc == 0) {
@@ -4329,10 +4326,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case POP10:  // BOVC, BEQZALC, BEQC / ADDI (pre-r6)
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BOVC
-          if (HaveSameSign(rs, rt)) {
-            int64_t sum = rs + rt;
-            BranchCompactHelper(sum < INT32_MIN || sum > INT32_MAX, 16);
-          }
+          bool condition = !is_int32(rs) || !is_int32(rt) || !is_int32(rs + rt);
+          BranchCompactHelper(condition, 16);
         } else {
           if (rs_reg == 0) {  // BEQZALC
             BranchAndLinkCompactHelper(rt == 0, 16);
@@ -4358,12 +4353,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case POP30:  // BNVC, BNEZALC, BNEC / DADDI (pre-r6)
       if (kArchVariant == kMips64r6) {
         if (rs_reg >= rt_reg) {  // BNVC
-          if (!HaveSameSign(rs, rt) || rs == 0 || rt == 0) {
-            BranchCompactHelper(true, 16);
-          } else {
-            int64_t sum = rs + rt;
-            BranchCompactHelper(sum >= INT32_MIN && sum <= INT32_MAX, 16);
-          }
+          bool condition = is_int32(rs) && is_int32(rt) && is_int32(rs + rt);
+          BranchCompactHelper(condition, 16);
         } else {
           if (rs_reg == 0) {  // BNEZALC
             BranchAndLinkCompactHelper(rt != 0, 16);
