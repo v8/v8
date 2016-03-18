@@ -1,0 +1,5 @@
+*%(basename)s:30: TypeError: right-hand side is not a function
+1 instanceof {};
+  ^
+TypeError: right-hand side is not a function
+    at *%(basename)s:30:3

@@ -6152,7 +6152,7 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
     Expression* call =
         NewThrowTypeError(MessageTemplate::kNonObjectInInstanceOfCheck,
                           avfactory->empty_string(), pos);
-    Statement* throw_call = factory->NewExpressionStatement(call, nopos);
+    Statement* throw_call = factory->NewExpressionStatement(call, pos);
 
     validate_C =
         factory->NewIfStatement(is_receiver_call,
@@ -6195,7 +6195,7 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
       Expression* throw_expr =
           NewThrowTypeError(MessageTemplate::kCalledNonCallableInstanceOf,
                             avfactory->empty_string(), pos);
-      Statement* validate_C = CheckCallable(var_C, throw_expr);
+      Statement* validate_C = CheckCallable(var_C, throw_expr, pos);
 
       ZoneList<Expression*>* empty_args =
           new (zone) ZoneList<Expression*>(0, zone);
@@ -6264,7 +6264,8 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
   return instanceof;
 }
 
-Statement* ParserTraits::CheckCallable(Variable* var, Expression* error) {
+Statement* ParserTraits::CheckCallable(Variable* var, Expression* error,
+                                       int pos) {
   auto factory = parser_->factory();
   auto avfactory = parser_->ast_value_factory();
   const int nopos = RelocInfo::kNoPosition;
@@ -6277,7 +6278,7 @@ Statement* ParserTraits::CheckCallable(Variable* var, Expression* error) {
     Expression* condition = factory->NewCompareOperation(
         Token::EQ_STRICT, type_of, function_literal, nopos);
 
-    Statement* throw_call = factory->NewExpressionStatement(error, nopos);
+    Statement* throw_call = factory->NewExpressionStatement(error, pos);
 
     validate_var = factory->NewIfStatement(
         condition, factory->NewEmptyStatement(nopos), throw_call, nopos);
@@ -6556,7 +6557,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
     Expression* throw_expr = NewThrowTypeError(
         MessageTemplate::kReturnMethodNotCallable,
         avfactory->empty_string(), nopos);
-    check_return_callable = CheckCallable(var_return, throw_expr);
+    check_return_callable = CheckCallable(var_return, throw_expr, nopos);
   }
 
   // try { %_Call(iteratorReturn, iterator) } catch (_) { }

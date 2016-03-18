@@ -667,7 +667,7 @@ class ParserTraits {
   void BuildIteratorCloseForCompletion(
       ZoneList<Statement*>* statements, Variable* iterator,
       Variable* body_threw);
-  Statement* CheckCallable(Variable* var, Expression* error);
+  Statement* CheckCallable(Variable* var, Expression* error, int pos);
 };
 
 
