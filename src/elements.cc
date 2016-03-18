@@ -722,11 +722,11 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t GetIterationLength(JSObject* receiver,
                                      FixedArrayBase* elements) {
     if (receiver->IsJSArray()) {
+      DCHECK(JSArray::cast(receiver)->length()->IsSmi());
       return static_cast<uint32_t>(
           Smi::cast(JSArray::cast(receiver)->length())->value());
-    } else {
-      return ElementsAccessorSubclass::GetCapacityImpl(receiver, elements);
     }
+    return ElementsAccessorSubclass::GetCapacityImpl(receiver, elements);
   }
 
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
@@ -946,6 +946,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Object** start =
           reinterpret_cast<Object**>(combined_keys->GetFirstElementAddress());
       std::sort(start, start + nof_indices, cmp);
+      uint32_t array_length = 0;
       // Indices from dictionary elements should only be converted after
       // sorting.
       if (convert == CONVERT_TO_STRING) {
@@ -953,6 +954,18 @@ class ElementsAccessorBase : public ElementsAccessor {
           Handle<Object> index_string = isolate->factory()->Uint32ToString(
                   combined_keys->get(i)->Number());
           combined_keys->set(i, *index_string);
+        }
+      } else if (!(object->IsJSArray() &&
+                   JSArray::cast(*object)->length()->ToArrayLength(
+                       &array_length) &&
+                   array_length <= Smi::kMaxValue)) {
+        // Since we use std::sort above, the GC will no longer know where the
+        // HeapNumbers are, hence we have to write them again.
+        // For Arrays with valid Smi length, we are sure to have no HeapNumber
+        // indices and thus we can skip this step.
+        for (uint32_t i = 0; i < nof_indices; i++) {
+          Object* index = combined_keys->get(i);
+          combined_keys->set(i, index);
         }
       }
     }
@@ -1038,6 +1051,19 @@ class DictionaryElementsAccessor
   explicit DictionaryElementsAccessor(const char* name)
       : ElementsAccessorBase<DictionaryElementsAccessor,
                              ElementsKindTraits<DICTIONARY_ELEMENTS> >(name) {}
+
+  static uint32_t GetIterationLength(JSObject* receiver,
+                                     FixedArrayBase* elements) {
+    uint32_t length;
+    if (receiver->IsJSArray()) {
+      // Special-case GetIterationLength for dictionary elements since the
+      // length of the array might be a HeapNumber.
+      JSArray::cast(receiver)->length()->ToArrayLength(&length);
+    } else {
+      length = GetCapacityImpl(receiver, elements);
+    }
+    return length;
+  }
 
   static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
                             uint32_t length,
