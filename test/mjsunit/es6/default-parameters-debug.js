@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --harmony-default-parameters
+// Flags: --expose-debug-as debug
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug

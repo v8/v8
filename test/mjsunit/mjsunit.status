@@ -259,10 +259,6 @@
   # prermanently enabled.
   'call-counts': [SKIP],
 
-  # BUG(chromium:508074). Remove this once the issue is fixed.
-  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
-  'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
-
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
@@ -468,7 +464,6 @@
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
-  'harmony/symbols': [SKIP],
   'math-floor-of-div': [PASS, TIMEOUT],
   'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
   'unicodelctest': [PASS, TIMEOUT],
@@ -672,7 +667,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786
@@ -709,7 +703,6 @@
 
   # Crashes.
   'harmony/private': [SKIP],
-  'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
@@ -849,7 +842,6 @@
   'compiler/osr-nested': [SKIP],
   'debug-*': [SKIP],
   'es6/debug-*': [SKIP],
-  'harmony/debug-stepin-default-parameters': [SKIP],
   'ignition/debug-break': [SKIP],
   'ignition/debug-break-on-stack': [SKIP],
   'ignition/debug-scope-on-return': [SKIP],
