@@ -604,6 +604,7 @@ TEST(Cvt_s_uw_Trunc_uw_s) {
     CHECK_EQ(static_cast<float>(input),
              run_Cvt<uint64_t>(input, [](MacroAssembler* masm) {
                __ Cvt_s_uw(f0, a0);
+               __ mthc1(zero_reg, f2);
                __ Trunc_uw_s(f2, f0, f1);
              }));
   }
