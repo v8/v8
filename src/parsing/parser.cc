@@ -4675,6 +4675,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
+    SET_ALLOW(legacy_const);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_do_expressions);
