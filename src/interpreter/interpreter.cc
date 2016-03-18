@@ -66,6 +66,9 @@ int Interpreter::InterruptBudget() {
 }
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
+  TRACE_EVENT0("v8", "V8.CompileIgnition");
+
   if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
     OFStream os(stdout);
     base::SmartArrayPointer<char> name = info->GetDebugName();
