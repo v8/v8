@@ -236,7 +236,7 @@ class RememberedSet {
     return REMOVE_SLOT;
   }
 
-  static bool IsValidSlot(Heap* heap, Object** slot);
+  static bool IsValidSlot(Heap* heap, MemoryChunk* chunk, Object** slot);
 };
 
 // Buffer for keeping thead local migration slots during compaction.

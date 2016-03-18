@@ -561,12 +561,11 @@ class MarkCompactCollector {
 
   void InitializeMarkingDeque();
 
-  // The following four methods can just be called after marking, when the
+  // The following two methods can just be called after marking, when the
   // whole transitive closure is known. They must be called before sweeping
   // when mark bits are still intact.
-  bool IsSlotInBlackObject(Page* p, Address slot, HeapObject** out_object);
+  bool IsSlotInBlackObject(MemoryChunk* p, Address slot);
   HeapObject* FindBlackObjectBySlotSlow(Address slot);
-  bool IsSlotInLiveObject(Address slot);
 
   // Removes all the slots in the slot buffers that are within the given
   // address range.

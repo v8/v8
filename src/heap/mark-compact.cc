@@ -2811,22 +2811,10 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
   return String::cast(*p);
 }
 
-
-bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
-                                               HeapObject** out_object) {
+bool MarkCompactCollector::IsSlotInBlackObject(MemoryChunk* p, Address slot) {
   Space* owner = p->owner();
-  if (owner == heap_->lo_space() || owner == NULL) {
-    Object* large_object = heap_->lo_space()->FindObject(slot);
-    // This object has to exist, otherwise we would not have recorded a slot
-    // for it.
-    CHECK(large_object->IsHeapObject());
-    HeapObject* large_heap_object = HeapObject::cast(large_object);
-    if (IsMarked(large_heap_object)) {
-      *out_object = large_heap_object;
-      return true;
-    }
-    return false;
-  }
+  DCHECK(owner != heap_->lo_space() && owner != nullptr);
+  USE(owner);
 
   // If we are on a black page, we cannot find the actual object start
   // easiliy. We just return true but do not set the out_object.
@@ -2906,7 +2894,6 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
     // in a live object.
     // Slots pointing to the first word of an object are invalid and removed.
     // This can happen when we move the object header while left trimming.
-    *out_object = object;
     return true;
   }
   return false;
@@ -2950,27 +2937,6 @@ HeapObject* MarkCompactCollector::FindBlackObjectBySlotSlow(Address slot) {
     }
   }
   return nullptr;
-}
-
-
-bool MarkCompactCollector::IsSlotInLiveObject(Address slot) {
-  // The target object is black but we don't know if the source slot is black.
-  // The source object could have died and the slot could be part of a free
-  // space. Find out based on mark bits if the slot is part of a live object.
-  Page* page = Page::FromAddress(slot);
-  HeapObject* object = NULL;
-  if (!IsSlotInBlackObject(page, slot, &object)) {
-    return false;
-  }
-
-  // If the slot is on a black page, the object will be live.
-  DCHECK(object != NULL || page->IsFlagSet(Page::BLACK_PAGE));
-  if (page->IsFlagSet(Page::BLACK_PAGE)) {
-    return true;
-  }
-
-  int offset = static_cast<int>(slot - object->address());
-  return object->IsValidSlot(offset);
 }
 
 
