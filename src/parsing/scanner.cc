@@ -40,7 +40,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
-      found_html_comment_(false) {
+      found_html_comment_(false),
+      allow_harmony_exponentiation_operator_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
   bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
   bookmark_next_.literal_chars = &bookmark_next_literal_;
@@ -565,7 +566,14 @@ void Scanner::Scan() {
 
       case '*':
         // * *=
-        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
+        Advance();
+        if (c0_ == '*' && allow_harmony_exponentiation_operator()) {
+          token = Select('=', Token::ASSIGN_EXP, Token::EXP);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_MUL);
+        } else {
+          token = Token::MUL;
+        }
         break;
 
       case '%':

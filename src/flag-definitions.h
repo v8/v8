@@ -205,7 +205,8 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_simd, "harmony simd")                                       \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_tailcalls, "harmony tail calls")                            \
-  V(harmony_regexp_property, "harmony unicode regexp property classes")
+  V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                    \

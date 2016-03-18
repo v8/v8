@@ -636,6 +636,11 @@ class ParserTraits {
   // Rewrite all DestructuringAssignments in the current FunctionState.
   V8_INLINE void RewriteDestructuringAssignments();
 
+  V8_INLINE Expression* RewriteExponentiation(Expression* left,
+                                              Expression* right, int pos);
+  V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
+                                                    Expression* right, int pos);
+
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
   V8_INLINE void QueueNonPatternForRewriting(Expression* expr);
@@ -1042,6 +1047,11 @@ class Parser : public ParserBase<ParserTraits> {
   void RaiseLanguageMode(LanguageMode mode);
 
   V8_INLINE void RewriteDestructuringAssignments();
+
+  V8_INLINE Expression* RewriteExponentiation(Expression* left,
+                                              Expression* right, int pos);
+  V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
+                                                    Expression* right, int pos);
 
   friend class NonPatternRewriter;
   V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);

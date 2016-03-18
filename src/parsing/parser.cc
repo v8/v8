@@ -439,6 +439,14 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
         *x = factory->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
+      case Token::EXP: {
+        double value = std::pow(x_val, y_val);
+        int int_value = static_cast<int>(value);
+        *x = factory->NewNumberLiteral(
+            int_value == value && value != -0.0 ? int_value : value, pos,
+            has_dot);
+        return true;
+      }
       default:
         break;
     }
@@ -785,6 +793,8 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
+  set_allow_harmony_exponentiation_operator(
+      FLAG_harmony_exponentiation_operator);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -4681,6 +4691,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
+    SET_ALLOW(harmony_exponentiation_operator);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
@@ -5371,6 +5382,16 @@ void ParserTraits::RewriteDestructuringAssignments() {
   parser_->RewriteDestructuringAssignments();
 }
 
+Expression* ParserTraits::RewriteExponentiation(Expression* left,
+                                                Expression* right, int pos) {
+  return parser_->RewriteExponentiation(left, right, pos);
+}
+
+Expression* ParserTraits::RewriteAssignExponentiation(Expression* left,
+                                                      Expression* right,
+                                                      int pos) {
+  return parser_->RewriteAssignExponentiation(left, right, pos);
+}
 
 void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
                                      bool* ok) {
@@ -5460,6 +5481,60 @@ void Parser::RewriteDestructuringAssignments() {
   }
 }
 
+Expression* Parser::RewriteExponentiation(Expression* left, Expression* right,
+                                          int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(left, zone());
+  args->Add(right, zone());
+  return factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+}
+
+Expression* Parser::RewriteAssignExponentiation(Expression* left,
+                                                Expression* right, int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  if (left->IsVariableProxy()) {
+    VariableProxy* lhs = left->AsVariableProxy();
+
+    Expression* result;
+    DCHECK_NOT_NULL(lhs->raw_name());
+    result =
+        this->ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
+                                       lhs->end_position(), scope_, factory());
+    args->Add(left, zone());
+    args->Add(right, zone());
+    Expression* call =
+        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+    return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
+  } else if (left->IsProperty()) {
+    Property* prop = left->AsProperty();
+    auto temp_obj = scope_->NewTemporary(ast_value_factory()->empty_string());
+    auto temp_key = scope_->NewTemporary(ast_value_factory()->empty_string());
+    Expression* assign_obj = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(temp_obj), prop->obj(),
+        RelocInfo::kNoPosition);
+    Expression* assign_key = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(temp_key), prop->key(),
+        RelocInfo::kNoPosition);
+    args->Add(factory()->NewProperty(factory()->NewVariableProxy(temp_obj),
+                                     factory()->NewVariableProxy(temp_key),
+                                     left->position()),
+              zone());
+    args->Add(right, zone());
+    Expression* call =
+        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+    Expression* target = factory()->NewProperty(
+        factory()->NewVariableProxy(temp_obj),
+        factory()->NewVariableProxy(temp_key), RelocInfo::kNoPosition);
+    Expression* assign =
+        factory()->NewAssignment(Token::ASSIGN, target, call, pos);
+    return factory()->NewBinaryOperation(
+        Token::COMMA, assign_obj,
+        factory()->NewBinaryOperation(Token::COMMA, assign_key, assign, pos),
+        pos);
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   // Array literals containing spreads are rewritten using do expressions, e.g.

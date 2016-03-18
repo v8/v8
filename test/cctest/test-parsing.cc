@@ -1509,6 +1509,7 @@ enum ParserFlag {
   kNoLegacyConst,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
+  kAllowHarmonyExponentiationOperator
 };
 
 enum ParserSyncTestResult {
@@ -1529,6 +1530,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
+  parser->set_allow_harmony_exponentiation_operator(
+      flags.Contains(kAllowHarmonyExponentiationOperator));
 }
 
 
@@ -7321,4 +7324,96 @@ TEST(FunctionDeclarationError) {
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess, restrictive_flags,
                     arraysize(restrictive_flags));
+}
+
+TEST(ExponentiationOperator) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
+    { "var O = { p: 1 }, x = 10; ; (", ")" },
+    { "var O = { p: 1 }, x = 10; foo(", ")" },
+    { NULL, NULL }
+  };
+  const char* data[] = {
+    "(delete O.p) ** 10",
+    "(delete x) ** 10",
+    "(~O.p) ** 10",
+    "(~x) ** 10",
+    "(!O.p) ** 10",
+    "(!x) ** 10",
+    "(+O.p) ** 10",
+    "(+x) ** 10",
+    "(-O.p) ** 10",
+    "(-x) ** 10",
+    "(typeof O.p) ** 10",
+    "(typeof x) ** 10",
+    "(void 0) ** 10",
+    "(void O.p) ** 10",
+    "(void x) ** 10",
+    "++O.p ** 10",
+    "++x ** 10",
+    "--O.p ** 10",
+    "--x ** 10",
+    "O.p++ ** 10",
+    "x++ ** 10",
+    "O.p-- ** 10",
+    "x-- ** 10",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyExponentiationOperator};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(ExponentiationOperatorErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
+    { "var O = { p: 1 }, x = 10; ; (", ")" },
+    { "var O = { p: 1 }, x = 10; foo(", ")" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "delete O.p ** 10",
+    "delete x ** 10",
+    "~O.p ** 10",
+    "~x ** 10",
+    "!O.p ** 10",
+    "!x ** 10",
+    "+O.p ** 10",
+    "+x ** 10",
+    "-O.p ** 10",
+    "-x ** 10",
+    "typeof O.p ** 10",
+    "typeof x ** 10",
+    "void ** 10",
+    "void O.p ** 10",
+    "void x ** 10",
+    "++delete O.p ** 10",
+    "--delete O.p ** 10",
+    "++~O.p ** 10",
+    "++~x ** 10",
+    "--!O.p ** 10",
+    "--!x ** 10",
+    "++-O.p ** 10",
+    "++-x ** 10",
+    "--+O.p ** 10",
+    "--+x ** 10",
+    "[ x ] **= [ 2 ]",
+    "[ x **= 2 ] = [ 2 ]",
+    "{ x } **= { x: 2 }",
+    "{ x: x **= 2 ] = { x: 2 }",
+    // TODO(caitp): a Call expression as LHS should be an early ReferenceError!
+    // "Array() **= 10",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyExponentiationOperator};
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
