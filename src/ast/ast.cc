@@ -64,6 +64,10 @@ bool Expression::IsNullLiteral() const {
 
 
 bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
+  if (IsLiteral() && AsLiteral()->value()->IsUndefined()) {
+    return true;
+  }
+
   const VariableProxy* var_proxy = AsVariableProxy();
   if (var_proxy == NULL) return false;
   Variable* var = var_proxy->var();
