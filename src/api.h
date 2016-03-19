@@ -454,7 +454,7 @@ class HandleScopeImplementer {
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
         debug_microtasks_depth_(0),
 #endif
         microtasks_policy_(v8::MicrotasksPolicy::kAuto),
@@ -495,7 +495,7 @@ class HandleScopeImplementer {
   inline void DecrementMicrotasksSuppressions() {microtasks_suppressions_--;}
   inline bool HasMicrotasksSuppressions() { return !!microtasks_suppressions_; }
 
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   // In debug we check that calls not intended to invoke microtasks are
   // still correctly wrapped with microtask scopes.
   inline void IncrementDebugMicrotasksScopeDepth() {debug_microtasks_depth_++;}
@@ -566,7 +566,7 @@ class HandleScopeImplementer {
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   int debug_microtasks_depth_;
 #endif
   v8::MicrotasksPolicy microtasks_policy_;

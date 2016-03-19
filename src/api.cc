@@ -156,7 +156,7 @@ class InternalEscapableScope : public v8::EscapableHandleScope {
 };
 
 
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
 void CheckMicrotasksScopesConsistency(i::Isolate* isolate) {
   auto handle_scope_implementer = isolate->handle_scope_implementer();
   if (handle_scope_implementer->microtasks_policy() ==
@@ -187,7 +187,7 @@ class CallDepthScope {
     if (!context_.IsEmpty()) context_->Exit();
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback_) isolate_->FireCallCompletedCallback();
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
     if (do_callback_) CheckMicrotasksScopesConsistency(isolate_);
 #endif
   }
@@ -7804,7 +7804,7 @@ MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
       run_(type == MicrotasksScope::kRunMicrotasks) {
   auto handle_scope_implementer = isolate_->handle_scope_implementer();
   if (run_) handle_scope_implementer->IncrementMicrotasksScopeDepth();
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   if (!run_) handle_scope_implementer->IncrementDebugMicrotasksScopeDepth();
 #endif
 }
@@ -7819,7 +7819,7 @@ MicrotasksScope::~MicrotasksScope() {
       PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   if (!run_) handle_scope_implementer->DecrementDebugMicrotasksScopeDepth();
 #endif
 }
