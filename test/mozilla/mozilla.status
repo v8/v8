@@ -109,6 +109,9 @@
   'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
+  # Function declarations are no longer allowed as the body of a with statement.
+  'js1_5/Regress/regress-326453': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

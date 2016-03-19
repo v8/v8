@@ -4686,11 +4686,13 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(natives);
     SET_ALLOW(legacy_const);
     SET_ALLOW(harmony_sloppy);
+    SET_ALLOW(harmony_sloppy_function);
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_exponentiation_operator);
+    SET_ALLOW(harmony_restrictive_declarations);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
