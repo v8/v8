@@ -245,7 +245,7 @@ MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Handle<Object> fun;
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
-  if (!fun->IsJSFunction()) return object;
+  if (!fun->IsCallable()) return object;
 
   // Call toJSON function.
   if (key->IsSmi()) key = factory()->NumberToString(key);
