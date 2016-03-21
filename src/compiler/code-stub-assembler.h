@@ -35,56 +35,59 @@ class RawMachineAssembler;
 class RawMachineLabel;
 class Schedule;
 
-#define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V) \
-  V(Float32Equal)                             \
-  V(Float32LessThan)                          \
-  V(Float32LessThanOrEqual)                   \
-  V(Float32GreaterThan)                       \
-  V(Float32GreaterThanOrEqual)                \
-  V(Float64Equal)                             \
-  V(Float64LessThan)                          \
-  V(Float64LessThanOrEqual)                   \
-  V(Float64GreaterThan)                       \
-  V(Float64GreaterThanOrEqual)                \
-  V(IntPtrAdd)                                \
-  V(IntPtrSub)                                \
-  V(Int32Add)                                 \
-  V(Int32Sub)                                 \
-  V(Int32Mul)                                 \
-  V(Int32GreaterThan)                         \
-  V(Int32GreaterThanOrEqual)                  \
-  V(Int32LessThan)                            \
-  V(Int32LessThanOrEqual)                     \
-  V(Uint32LessThan)                           \
-  V(WordEqual)                                \
-  V(WordNotEqual)                             \
-  V(WordOr)                                   \
-  V(WordAnd)                                  \
-  V(WordXor)                                  \
-  V(WordShl)                                  \
-  V(WordShr)                                  \
-  V(WordSar)                                  \
-  V(WordRor)                                  \
-  V(Word32Equal)                              \
-  V(Word32NotEqual)                           \
-  V(Word32Or)                                 \
-  V(Word32And)                                \
-  V(Word32Xor)                                \
-  V(Word32Shl)                                \
-  V(Word32Shr)                                \
-  V(Word32Sar)                                \
-  V(Word32Ror)                                \
-  V(Word64Equal)                              \
-  V(Word64NotEqual)                           \
-  V(Word64Or)                                 \
-  V(Word64And)                                \
-  V(Word64Xor)                                \
-  V(Word64Shr)                                \
-  V(Word64Sar)                                \
-  V(Word64Ror)                                \
-  V(IntPtrLessThan)                           \
-  V(IntPtrLessThanOrEqual)                    \
-  V(UintPtrGreaterThanOrEqual)
+#define CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
+  V(Float32Equal)                                     \
+  V(Float32LessThan)                                  \
+  V(Float32LessThanOrEqual)                           \
+  V(Float32GreaterThan)                               \
+  V(Float32GreaterThanOrEqual)                        \
+  V(Float64Equal)                                     \
+  V(Float64LessThan)                                  \
+  V(Float64LessThanOrEqual)                           \
+  V(Float64GreaterThan)                               \
+  V(Float64GreaterThanOrEqual)                        \
+  V(Int32GreaterThan)                                 \
+  V(Int32GreaterThanOrEqual)                          \
+  V(Int32LessThan)                                    \
+  V(Int32LessThanOrEqual)                             \
+  V(IntPtrLessThan)                                   \
+  V(IntPtrLessThanOrEqual)                            \
+  V(Uint32LessThan)                                   \
+  V(UintPtrGreaterThanOrEqual)                        \
+  V(WordEqual)                                        \
+  V(WordNotEqual)                                     \
+  V(Word32Equal)                                      \
+  V(Word32NotEqual)                                   \
+  V(Word64Equal)                                      \
+  V(Word64NotEqual)
+
+#define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V)   \
+  CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
+  V(IntPtrAdd)                                  \
+  V(IntPtrSub)                                  \
+  V(Int32Add)                                   \
+  V(Int32Sub)                                   \
+  V(Int32Mul)                                   \
+  V(WordOr)                                     \
+  V(WordAnd)                                    \
+  V(WordXor)                                    \
+  V(WordShl)                                    \
+  V(WordShr)                                    \
+  V(WordSar)                                    \
+  V(WordRor)                                    \
+  V(Word32Or)                                   \
+  V(Word32And)                                  \
+  V(Word32Xor)                                  \
+  V(Word32Shl)                                  \
+  V(Word32Shr)                                  \
+  V(Word32Sar)                                  \
+  V(Word32Ror)                                  \
+  V(Word64Or)                                   \
+  V(Word64And)                                  \
+  V(Word64Xor)                                  \
+  V(Word64Shr)                                  \
+  V(Word64Sar)                                  \
+  V(Word64Ror)
 
 #define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
   V(ChangeFloat64ToUint32)                   \
@@ -310,23 +313,26 @@ class CodeStubAssembler {
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
   void BranchIf(Node* condition, Label* if_true, Label* if_false);
-  void BranchIfInt32LessThan(Node* a, Node* b, Label* if_true, Label* if_false);
-  void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
+
+#define BRANCH_HELPER(name)                                                \
+  void BranchIf##name(Node* a, Node* b, Label* if_true, Label* if_false) { \
+    BranchIf(name(a, b), if_true, if_false);                               \
+  }
+  CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(BRANCH_HELPER)
+#undef BRANCH_HELPER
+
+  void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false) {
+    BranchIf(SmiLessThan(a, b), if_true, if_false);
+  }
+
   void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
-                                  Label* if_false);
-  void BranchIfFloat64Equal(Node* a, Node* b, Label* if_true, Label* if_false);
-  void BranchIfFloat64LessThan(Node* a, Node* b, Label* if_true,
-                               Label* if_false);
-  void BranchIfFloat64LessThanOrEqual(Node* a, Node* b, Label* if_true,
-                                      Label* if_false);
-  void BranchIfFloat64GreaterThan(Node* a, Node* b, Label* if_true,
-                                  Label* if_false);
-  void BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b, Label* if_true,
-                                         Label* if_false);
+                                  Label* if_false) {
+    BranchIf(SmiLessThanOrEqual(a, b), if_true, if_false);
+  }
+
   void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
-  void BranchIfWord32Equal(Node* a, Node* b, Label* if_true, Label* if_false);
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
