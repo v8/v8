@@ -108,6 +108,7 @@ class ParserBase : public Traits {
         stack_overflow_(false),
         allow_lazy_(false),
         allow_natives_(false),
+        allow_tailcalls_(false),
         allow_harmony_sloppy_(false),
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
@@ -129,6 +130,7 @@ class ParserBase : public Traits {
 
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
+  ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
@@ -918,6 +920,7 @@ class ParserBase : public Traits {
 
   bool allow_lazy_;
   bool allow_natives_;
+  bool allow_tailcalls_;
   bool allow_harmony_sloppy_;
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
