@@ -485,9 +485,6 @@ class MarkCompactCollector {
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
 
-  void MigrateObject(HeapObject* dst, HeapObject* src, int size,
-                     AllocationSpace to_old_space);
-
   void InvalidateCode(Code* code);
 
   void ClearMarkbits();

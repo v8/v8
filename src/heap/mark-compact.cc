@@ -1508,6 +1508,39 @@ void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   }
 }
 
+class RecordMigratedSlotVisitor final : public ObjectVisitor {
+ public:
+  inline void VisitPointer(Object** p) final {
+    RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
+  }
+
+  inline void VisitPointers(Object** start, Object** end) final {
+    while (start < end) {
+      RecordMigratedSlot(*start, reinterpret_cast<Address>(start));
+      ++start;
+    }
+  }
+
+  inline void VisitCodeEntry(Address code_entry_slot) final {
+    Address code_entry = Memory::Address_at(code_entry_slot);
+    if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
+      RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
+                                             CODE_ENTRY_SLOT, code_entry_slot);
+    }
+  }
+
+ private:
+  inline void RecordMigratedSlot(Object* value, Address slot) {
+    if (value->IsHeapObject()) {
+      Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
+      if (p->InNewSpace()) {
+        RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+      } else if (p->IsEvacuationCandidate()) {
+        RememberedSet<OLD_TO_OLD>::Insert(Page::FromAddress(slot), slot);
+      }
+    }
+  }
+};
 
 class MarkCompactCollector::HeapObjectVisitor {
  public:
@@ -1515,31 +1548,61 @@ class MarkCompactCollector::HeapObjectVisitor {
   virtual bool Visit(HeapObject* object) = 0;
 };
 
-
 class MarkCompactCollector::EvacuateVisitorBase
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
   EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces)
       : heap_(heap), compaction_spaces_(compaction_spaces) {}
 
-  bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
-                         HeapObject** target_object) {
+  inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
+                                HeapObject** target_object) {
     int size = object->Size();
     AllocationAlignment alignment = object->RequiredAlignment();
     AllocationResult allocation = target_space->AllocateRaw(size, alignment);
     if (allocation.To(target_object)) {
-      heap_->mark_compact_collector()->MigrateObject(
-          *target_object, object, size, target_space->identity());
+      MigrateObject(*target_object, object, size, target_space->identity());
       return true;
     }
     return false;
+  }
+
+  inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
+                            AllocationSpace dest) {
+    Address dst_addr = dst->address();
+    Address src_addr = src->address();
+    DCHECK(heap_->AllowedToBeMigrated(src, dest));
+    DCHECK(dest != LO_SPACE);
+    if (dest == OLD_SPACE) {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(IsAligned(size, kPointerSize));
+      heap_->MoveBlock(dst_addr, src_addr, size);
+      if (FLAG_ignition && dst->IsBytecodeArray()) {
+        PROFILE(heap_->isolate(),
+                CodeMoveEvent(AbstractCode::cast(src), dst_addr));
+      }
+      RecordMigratedSlotVisitor visitor;
+      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
+    } else if (dest == CODE_SPACE) {
+      DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
+      PROFILE(heap_->isolate(),
+              CodeMoveEvent(AbstractCode::cast(src), dst_addr));
+      heap_->MoveBlock(dst_addr, src_addr, size);
+      RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(dst_addr),
+                                             RELOCATED_CODE_OBJECT, dst_addr);
+      Code::cast(dst)->Relocate(dst_addr - src_addr);
+    } else {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(dest == NEW_SPACE);
+      heap_->MoveBlock(dst_addr, src_addr, size);
+    }
+    heap_->OnMoveEvent(dst, src, size);
+    Memory::Address_at(src_addr) = dst_addr;
   }
 
  protected:
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
 };
-
 
 class MarkCompactCollector::EvacuateNewSpaceVisitor final
     : public MarkCompactCollector::EvacuateVisitorBase {
@@ -1575,8 +1638,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     }
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, &target);
-    heap_->mark_compact_collector()->MigrateObject(HeapObject::cast(target),
-                                                   object, size, space);
+    MigrateObject(HeapObject::cast(target), object, size, space);
     if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
       heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
     }
@@ -2554,95 +2616,6 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
     }
     RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, slot_type, addr);
   }
-}
-
-
-class RecordMigratedSlotVisitor final : public ObjectVisitor {
- public:
-  explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
-      : collector_(collector) {}
-
-  V8_INLINE void VisitPointer(Object** p) override {
-    RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
-  }
-
-  V8_INLINE void VisitPointers(Object** start, Object** end) override {
-    while (start < end) {
-      RecordMigratedSlot(*start, reinterpret_cast<Address>(start));
-      ++start;
-    }
-  }
-
-  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {
-    if (collector_->compacting_) {
-      Address code_entry = Memory::Address_at(code_entry_slot);
-      if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
-        RememberedSet<OLD_TO_OLD>::InsertTyped(
-            Page::FromAddress(code_entry_slot), CODE_ENTRY_SLOT,
-            code_entry_slot);
-      }
-    }
-  }
-
- private:
-  inline void RecordMigratedSlot(Object* value, Address slot) {
-    if (collector_->heap()->InNewSpace(value)) {
-      RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
-    } else if (value->IsHeapObject() &&
-               Page::FromAddress(reinterpret_cast<Address>(value))
-                   ->IsEvacuationCandidate()) {
-      RememberedSet<OLD_TO_OLD>::Insert(Page::FromAddress(slot), slot);
-    }
-  }
-
-  MarkCompactCollector* collector_;
-};
-
-
-// We scavenge new space simultaneously with sweeping. This is done in two
-// passes.
-//
-// The first pass migrates all alive objects from one semispace to another or
-// promotes them to old space.  Forwarding address is written directly into
-// first word of object without any encoding.  If object is dead we write
-// NULL as a forwarding address.
-//
-// The second pass updates pointers to new space in all spaces.  It is possible
-// to encounter pointers to dead new space objects during traversal of pointers
-// to new space.  We should clear them to avoid encountering them during next
-// pointer iteration.  This is an issue if the store buffer overflows and we
-// have to scan the entire old space, including dead objects, looking for
-// pointers to new space.
-void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
-                                         int size, AllocationSpace dest) {
-  Address dst_addr = dst->address();
-  Address src_addr = src->address();
-  DCHECK(heap()->AllowedToBeMigrated(src, dest));
-  DCHECK(dest != LO_SPACE);
-  if (dest == OLD_SPACE) {
-    DCHECK_OBJECT_SIZE(size);
-    DCHECK(IsAligned(size, kPointerSize));
-
-    heap()->MoveBlock(dst->address(), src->address(), size);
-    if (FLAG_ignition && dst->IsBytecodeArray()) {
-      PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
-    }
-    RecordMigratedSlotVisitor visitor(this);
-    dst->IterateBody(&visitor);
-  } else if (dest == CODE_SPACE) {
-    DCHECK_CODEOBJECT_SIZE(size, heap()->code_space());
-    PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
-    heap()->MoveBlock(dst_addr, src_addr, size);
-    RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(dst_addr),
-                                           RELOCATED_CODE_OBJECT, dst_addr);
-    Code::cast(dst)->Relocate(dst_addr - src_addr);
-  } else {
-    DCHECK_OBJECT_SIZE(size);
-    DCHECK(dest == NEW_SPACE);
-    heap()->MoveBlock(dst_addr, src_addr, size);
-  }
-  heap()->OnMoveEvent(dst, src, size);
-  Memory::Address_at(src_addr) = dst_addr;
 }
 
 static inline void UpdateTypedSlot(Isolate* isolate, ObjectVisitor* v,
