@@ -709,7 +709,7 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   // Like JS_OBJECT_TYPE, but requires access checks and/or has interceptors.
   JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_VALUE_TYPE,
+  JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
   JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
@@ -760,6 +760,10 @@ enum InstanceType {
   LAST_JS_OBJECT_TYPE = LAST_TYPE,
   // Boundary for testing JSReceivers that need special property lookup handling
   LAST_SPECIAL_RECEIVER_TYPE = JS_SPECIAL_API_OBJECT_TYPE,
+  // Boundary case for testing JSReceivers that may have elements while having
+  // an empty fixed array as elements backing store. This is true for string
+  // wrappers.
+  LAST_CUSTOM_ELEMENTS_RECEIVER = JS_VALUE_TYPE,
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);

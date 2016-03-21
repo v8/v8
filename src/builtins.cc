@@ -214,57 +214,38 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   return *out <= object->elements()->length();
 }
 
-
-inline bool PrototypeHasNoElements(PrototypeIterator* iter) {
+inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   DisallowHeapAllocation no_gc;
-  for (; !iter->IsAtEnd(); iter->Advance()) {
-    if (iter->GetCurrent()->IsJSProxy()) return false;
-    JSObject* current = iter->GetCurrent<JSObject>();
-    if (current->IsAccessCheckNeeded()) return false;
-    if (current->HasIndexedInterceptor()) return false;
-    if (current->HasStringWrapperElements()) return false;
-    if (current->elements()->length() != 0) return false;
+  HeapObject* prototype = HeapObject::cast(object->map()->prototype());
+  HeapObject* null = isolate->heap()->null_value();
+  HeapObject* empty = isolate->heap()->empty_fixed_array();
+  while (prototype != null) {
+    Map* map = prototype->map();
+    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (JSObject::cast(prototype)->elements() != empty) return false;
+    prototype = HeapObject::cast(map->prototype());
   }
   return true;
 }
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                               JSArray* receiver) {
-  DisallowHeapAllocation no_gc;
-  // If the array prototype chain is intact (and free of elements), and if the
-  // receiver's prototype is the array prototype, then we are done.
-  Object* prototype = receiver->map()->prototype();
-  if (prototype->IsJSArray() &&
-      isolate->is_initial_array_prototype(JSArray::cast(prototype)) &&
-      isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-    return true;
-  }
-  // Slow case.
-  PrototypeIterator iter(isolate, receiver);
-  return PrototypeHasNoElements(&iter);
+  return PrototypeHasNoElements(isolate, receiver);
 }
 
 inline bool HasSimpleElements(JSObject* current) {
-  if (current->IsAccessCheckNeeded()) return false;
-  if (current->HasIndexedInterceptor()) return false;
-  if (current->HasStringWrapperElements()) return false;
-  if (current->GetElementsAccessor()->HasAccessors(current)) return false;
-  return true;
+  return current->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+         !current->GetElementsAccessor()->HasAccessors(current);
 }
 
 inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
-                                          JSReceiver* receiver) {
+                                          JSObject* receiver) {
   // Check that we have no accessors on the receiver's elements.
-  JSObject* object = JSObject::cast(receiver);
-  if (!HasSimpleElements(object)) return false;
-  // Check that ther are not elements on the prototype.
-  DisallowHeapAllocation no_gc;
-  PrototypeIterator iter(isolate, receiver);
-  return PrototypeHasNoElements(&iter);
+  if (!HasSimpleElements(receiver)) return false;
+  return PrototypeHasNoElements(isolate, receiver);
 }
 
 inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
-  // Check that ther are not elements on the prototype.
   DisallowHeapAllocation no_gc;
   PrototypeIterator iter(isolate, receiver,
                          PrototypeIterator::START_AT_RECEIVER);
@@ -284,16 +265,15 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
                                                   int first_added_arg) {
   if (!receiver->IsJSArray()) return false;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  // If there may be elements accessors in the prototype chain, the fast path
-  // cannot be used if there arguments to add to the array.
-  if (args != nullptr && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
-    return false;
-  }
   ElementsKind origin_kind = array->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
   if (array->map()->is_observed()) return false;
   if (!array->map()->is_extensible()) return false;
   if (args == nullptr) return true;
+
+  // If there may be elements accessors in the prototype chain, the fast path
+  // cannot be used if there arguments to add to the array.
+  if (!IsJSArrayFastElementMovingAllowed(isolate, *array)) return false;
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
@@ -308,10 +288,8 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;
-    int arg_count = args_length - first_added_arg;
-    Object** arguments = args->arguments() - first_added_arg - (arg_count - 1);
-    for (int i = 0; i < arg_count; i++) {
-      Object* arg = arguments[i];
+    for (int i = first_added_arg; i < args_length; i++) {
+      Object* arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
           target_kind = FAST_DOUBLE_ELEMENTS;
