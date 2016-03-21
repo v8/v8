@@ -35,9 +35,11 @@ namespace compiler {
   V(PPC_RotLeftAndClearRight64)    \
   V(PPC_Add)                       \
   V(PPC_AddWithOverflow32)         \
+  V(PPC_AddPair)                   \
   V(PPC_AddDouble)                 \
   V(PPC_Sub)                       \
   V(PPC_SubWithOverflow32)         \
+  V(PPC_SubPair)                   \
   V(PPC_SubDouble)                 \
   V(PPC_Mul32)                     \
   V(PPC_Mul64)                     \

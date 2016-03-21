@@ -767,8 +767,65 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, TryMatchASR);
 }
 
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  ArmOperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // registers.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmAddPair, 2, outputs, 4, inputs);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  ArmOperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmSubPair, 2, outputs, 4, inputs);
+}
+
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   ArmOperandGenerator g(this);
+  // We use g.UseUniqueRegister here for InputAt(0) to guarantee that there is
+  // no register aliasing with output registers.
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmLslPair, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  ArmOperandGenerator g(this);
+  // We use g.UseUniqueRegister here for InputAt(1) and InputAt(2) to to
+  // guarantee that there is no register aliasing with output register.
   Int32Matcher m(node->InputAt(2));
   InstructionOperand shift_operand;
   if (m.HasValue()) {
@@ -778,19 +835,38 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
   }
 
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
-                                 g.UseRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
                                  shift_operand};
 
   InstructionOperand outputs[] = {
-      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(node),
       g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
 
-  Emit(kArmPairLsl, 2, outputs, 3, inputs);
+  Emit(kArmLsrPair, 2, outputs, 3, inputs);
 }
 
-void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  ArmOperandGenerator g(this);
+  // We use g.UseUniqueRegister here for InputAt(1) and InputAt(2) to to
+  // guarantee that there is no register aliasing with output register.
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
 
-void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmAsrPair, 2, outputs, 3, inputs);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, TryMatchROR);

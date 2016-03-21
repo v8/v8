@@ -35,7 +35,6 @@ namespace internal {
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 0, 1)     \
   F(TransitionElementsKind, 2, 1)    \
-  F(PushIfAbsent, 2, 1)              \
   F(RemoveArrayHoles, 2, 1)          \
   F(MoveArrayContents, 2, 1)         \
   F(EstimateNumberOfElements, 1, 1)  \
@@ -277,7 +276,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif
 
-
 #define FOR_EACH_INTRINSIC_INTERNAL(F)              \
   F(CheckIsBootstrapping, 0, 1)                     \
   F(ExportFromRuntime, 1, 1)                        \
@@ -322,8 +320,8 @@ namespace internal {
   F(ThrowCalledNonCallable, 1, 1)                   \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
+  F(GetOrdinaryHasInstance, 0, 1)                   \
   F(GetAndResetRuntimeCallStats, 0, 1)
-
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \

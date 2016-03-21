@@ -52,6 +52,7 @@ class PartialSerializer : public Serializer {
   Serializer* startup_serializer_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
+  int next_partial_cache_index_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
 };
 

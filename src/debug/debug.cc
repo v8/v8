@@ -200,7 +200,6 @@ void BreakLocation::BytecodeArrayIterator::Next() {
     }
     DCHECK(position_ >= 0);
     DCHECK(statement_position_ >= 0);
-    break_index_++;
 
     enum DebugBreakType type = GetDebugBreakType();
     if (type == NOT_DEBUG_BREAK) continue;
@@ -215,6 +214,7 @@ void BreakLocation::BytecodeArrayIterator::Next() {
       break;
     }
   }
+  break_index_++;
 }
 
 BreakLocation::DebugBreakType
@@ -1305,6 +1305,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   // Make sure we abort incremental marking.
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       "prepare for break points");
+
   bool is_interpreted = shared->HasBytecodeArray();
 
   {

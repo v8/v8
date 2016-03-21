@@ -239,7 +239,7 @@ Register ToRegister(int num);
 
 // Coprocessor register
 struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 16; }
+  bool is_valid() const { return 0 <= reg_code && reg_code < 8; }
   bool is(CRegister creg) const { return reg_code == creg.reg_code; }
   int code() const {
     DCHECK(is_valid());
@@ -264,14 +264,6 @@ const CRegister cr4 = {4};
 const CRegister cr5 = {5};
 const CRegister cr6 = {6};
 const CRegister cr7 = {7};
-const CRegister cr8 = {8};
-const CRegister cr9 = {9};
-const CRegister cr10 = {10};
-const CRegister cr11 = {11};
-const CRegister cr12 = {12};
-const CRegister cr13 = {13};
-const CRegister cr14 = {14};
-const CRegister cr15 = {15};
 
 // TODO(john.yan) Define SIMD registers.
 typedef DoubleRegister Simd128Register;
@@ -1011,6 +1003,7 @@ class Assembler : public AssemblerBase {
   void aly(Register r1, const MemOperand& opnd);
   void alfi(Register r1, const Operand& opnd);
   void alr(Register r1, Register r2);
+  void alcr(Register r1, Register r2);
   void alrk(Register r1, Register r2, Register r3);
 
   // 64-bit Add Logical Instructions
@@ -1039,6 +1032,7 @@ class Assembler : public AssemblerBase {
   void sly(Register r1, const MemOperand& opnd);
   void slr(Register r1, Register r2);
   void slrk(Register r1, Register r2, Register r3);
+  void slbr(Register r1, Register r2);
 
   // 64-bit Subtract Logical Instructions
   void slg(Register r1, const MemOperand& opnd);
@@ -1253,7 +1247,9 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+  AssemblerPositionsRecorder* positions_recorder() {
+    return &positions_recorder_;
+  }
 
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
@@ -1451,8 +1447,8 @@ class Assembler : public AssemblerBase {
 
   List<Handle<Code> > code_targets_;
 
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
+  AssemblerPositionsRecorder positions_recorder_;
+  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

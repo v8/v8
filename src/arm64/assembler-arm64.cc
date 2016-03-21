@@ -56,11 +56,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.implementer() == base::CPU::NVIDIA &&
       cpu.variant() == base::CPU::NVIDIA_DENVER &&
       cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    supported_ |= 1u << COHERENT_CACHE;
+    // TODO(jkummerow): This is turned off as an experiment to see if it
+    // affects crash rates. Keep an eye on crash reports and either remove
+    // coherent cache support permanently, or re-enable it!
+    // supported_ |= 1u << COHERENT_CACHE;
   }
-
-  icache_line_size_ = cpu.icache_line_size();
-  dcache_line_size_ = cpu.dcache_line_size();
 }
 
 
@@ -440,7 +440,8 @@ bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::NONE32);
 
   return RelocInfo::IsNone(mode) ||
-         (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
+         (!assm_->serializer_enabled() &&
+          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE));
 }
 
 

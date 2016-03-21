@@ -88,29 +88,6 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
 }
 
 
-// Push an object unto an array of objects if it is not already in the
-// array.  Returns true if the element was pushed on the stack and
-// false otherwise.
-RUNTIME_FUNCTION(Runtime_PushIfAbsent) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, element, 1);
-  RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
-  int length = Smi::cast(array->length())->value();
-  FixedArray* elements = FixedArray::cast(array->elements());
-  for (int i = 0; i < length; i++) {
-    if (elements->get(i) == *element) return isolate->heap()->false_value();
-  }
-
-  // Strict not needed. Used for cycle detection in Array join implementation.
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::AddDataElement(array, length, element, NONE));
-  JSObject::ValidateElements(array);
-  return isolate->heap()->true_value();
-}
-
-
 // Moves all own elements of an object, that are below a limit, to positions
 // starting at zero. All undefined values are placed after non-undefined values,
 // and are followed by non-existing element. Does not change the length
@@ -234,12 +211,19 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     JSObject::CollectOwnElementKeys(current, &accumulator, ALL_PROPERTIES);
   }
   // Erase any keys >= length.
-  // TODO(adamk): Remove this step when the contract of %GetArrayKeys
-  // is changed to let this happen on the JS side.
   Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
+  int j = 0;
   for (int i = 0; i < keys->length(); i++) {
-    if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
+    if (NumberToUint32(keys->get(i)) >= length) continue;
+    if (i != j) keys->set(j, keys->get(i));
+    j++;
   }
+
+  if (j != keys->length()) {
+    isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+        *keys, keys->length() - j);
+  }
+
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 

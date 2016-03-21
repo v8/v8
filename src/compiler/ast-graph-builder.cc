@@ -646,7 +646,7 @@ void AstGraphBuilder::ClearNonLiveSlotsInFrameStates() {
   }
 
   NonLiveFrameStateSlotReplacer replacer(
-      &state_values_cache_, jsgraph()->UndefinedConstant(),
+      &state_values_cache_, jsgraph()->OptimizedOutConstant(),
       liveness_analyzer()->local_count(), local_zone());
   Variable* arguments = info()->scope()->arguments();
   if (arguments != nullptr && arguments->IsStackAllocated()) {
@@ -2842,7 +2842,7 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
     return VisitLiteralCompareTypeof(expr, sub_expr, check);
   }
-  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     return VisitLiteralCompareNil(expr, sub_expr,
                                   jsgraph()->UndefinedConstant());
   }

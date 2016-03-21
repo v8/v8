@@ -459,8 +459,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
 
   // First pass: compile each function and initialize the code table.
-  index = 0;
-  for (const WasmFunction& func : functions) {
+  index = FLAG_skip_compiling_wasm_funcs;
+  while (index < functions.size()) {
+    const WasmFunction& func = functions[index];
     if (thrower.error()) break;
     DCHECK_EQ(index, func.func_index);
 

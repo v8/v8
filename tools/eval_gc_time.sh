@@ -66,7 +66,7 @@ INTERESTING_OLD_GEN_KEYS="\
   evacuate \
   evacuate.candidates \
   evacuate.clean_up \
-  evacuate.new_space \
+  evacuate.copy \
   evacuate.update_pointers \
   evacuate.update_pointers.between_evacuated \
   evacuate.update_pointers.to_evacuated \

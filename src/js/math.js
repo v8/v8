@@ -202,6 +202,10 @@ function CubeRoot(x) {
 
 // -------------------------------------------------------------------
 
+%InstallToContext([
+  "math_pow", MathPowJS,
+]);
+
 %AddNamedProperty(GlobalMath, toStringTagSymbol, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.

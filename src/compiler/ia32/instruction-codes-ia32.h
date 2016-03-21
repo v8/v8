@@ -29,6 +29,8 @@ namespace compiler {
   V(IA32Shl)                       \
   V(IA32Shr)                       \
   V(IA32Sar)                       \
+  V(IA32AddPair)                   \
+  V(IA32SubPair)                   \
   V(IA32ShlPair)                   \
   V(IA32ShrPair)                   \
   V(IA32SarPair)                   \

@@ -20,10 +20,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Xor:
     case kS390_ShiftLeft32:
     case kS390_ShiftLeft64:
+    case kS390_ShiftLeftPair:
     case kS390_ShiftRight32:
     case kS390_ShiftRight64:
-    case kS390_ShiftRightAlg32:
-    case kS390_ShiftRightAlg64:
+    case kS390_ShiftRightPair:
+    case kS390_ShiftRightArith32:
+    case kS390_ShiftRightArith64:
+    case kS390_ShiftRightArithPair:
     case kS390_RotRight32:
     case kS390_RotRight64:
     case kS390_Not:
@@ -33,10 +36,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_RotLeftAndClearRight64:
     case kS390_Add:
     case kS390_AddWithOverflow32:
+    case kS390_AddPair:
     case kS390_AddFloat:
     case kS390_AddDouble:
     case kS390_Sub:
     case kS390_SubWithOverflow32:
+    case kS390_SubPair:
     case kS390_SubFloat:
     case kS390_SubDouble:
     case kS390_Mul32:

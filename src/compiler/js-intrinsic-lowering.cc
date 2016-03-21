@@ -97,6 +97,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineGetOrdinaryHasInstance:
+      return ReduceGetOrdinaryHasInstance(node);
     default:
       break;
   }
@@ -516,6 +518,16 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                 active_function_map, effect, control);
 }
 
+Reduction JSIntrinsicLowering::ReduceGetOrdinaryHasInstance(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* native_context = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+      context, context, effect);
+  return Change(node, javascript()->LoadContext(
+                          0, Context::ORDINARY_HAS_INSTANCE_INDEX, true),
+                native_context, context, effect);
+}
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {

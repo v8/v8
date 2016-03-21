@@ -168,7 +168,9 @@ class OutOfLineLoadFloat32 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ vmov(result_, std::numeric_limits<float>::quiet_NaN());
+    // Compute sqrtf(-1.0f), which results in a quiet single-precision NaN.
+    __ vmov(result_, -1.0f);
+    __ vsqrt(result_, result_);
   }
 
  private:
@@ -182,7 +184,9 @@ class OutOfLineLoadFloat64 final : public OutOfLineCode {
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
-    __ vmov(result_, std::numeric_limits<double>::quiet_NaN(), kScratchReg);
+    // Compute sqrt(-1.0), which results in a quiet double-precision NaN.
+    __ vmov(result_, -1.0);
+    __ vsqrt(result_, result_);
   }
 
  private:
@@ -783,12 +787,52 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ teq(i.InputRegister(0), i.InputOperand2(1));
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
-    case kArmPairLsl:
+    case kArmAddPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ add(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
+             SBit::SetCC);
+      __ adc(i.OutputRegister(1), i.InputRegister(1),
+             Operand(i.InputRegister(3)));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmSubPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ sub(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
+             SBit::SetCC);
+      __ sbc(i.OutputRegister(1), i.InputRegister(1),
+             Operand(i.InputRegister(3)));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmLslPair:
       if (instr->InputAt(2)->IsImmediate()) {
-        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ PairLsl(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+      }
+      break;
+    case kArmLsrPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputInt32(2));
+      } else {
+        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+      }
+      break;
+    case kArmAsrPair:
+      if (instr->InputAt(2)->IsImmediate()) {
+        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputInt32(2));
+      } else {
+        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;

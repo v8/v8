@@ -29,12 +29,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewRestParameter)                     \
   V(FastNewSloppyArguments)                   \
   V(FastNewStrictArguments)                   \
-  V(ToNumber)                                 \
-  V(ToLength)                                 \
-  V(ToString)                                 \
-  V(ToName)                                   \
-  V(ToObject)                                 \
-  V(NumberToString)                           \
+  V(TypeConversion)                           \
   V(Typeof)                                   \
   V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
@@ -58,7 +53,6 @@ class PlatformInterfaceDescriptor;
   V(InternalArrayConstructorConstantArgCount) \
   V(InternalArrayConstructor)                 \
   V(Compare)                                  \
-  V(ToBoolean)                                \
   V(BinaryOp)                                 \
   V(BinaryOpWithAllocationSite)               \
   V(StringAdd)                                \
@@ -416,56 +410,13 @@ class FastNewStrictArgumentsDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
-
-class ToNumberDescriptor : public CallInterfaceDescriptor {
+class TypeConversionDescriptor final : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ToNumberDescriptor, CallInterfaceDescriptor)
-};
+  enum ParameterIndices { kArgumentIndex };
 
+  DECLARE_DESCRIPTOR(TypeConversionDescriptor, CallInterfaceDescriptor)
 
-class ToLengthDescriptor : public CallInterfaceDescriptor {
- public:
-  enum ParameterIndices { kReceiverIndex };
-
-  DECLARE_DESCRIPTOR(ToLengthDescriptor, CallInterfaceDescriptor)
-
-  static const Register ReceiverRegister();
-};
-
-
-class ToStringDescriptor : public CallInterfaceDescriptor {
- public:
-  enum ParameterIndices { kReceiverIndex };
-
-  DECLARE_DESCRIPTOR(ToStringDescriptor, CallInterfaceDescriptor)
-
-  static const Register ReceiverRegister();
-};
-
-
-class ToNameDescriptor : public CallInterfaceDescriptor {
- public:
-  enum ParameterIndices { kReceiverIndex };
-
-  DECLARE_DESCRIPTOR(ToNameDescriptor, CallInterfaceDescriptor)
-
-  static const Register ReceiverRegister();
-};
-
-
-class ToObjectDescriptor : public CallInterfaceDescriptor {
- public:
-  enum ParameterIndices { kReceiverIndex };
-
-  DECLARE_DESCRIPTOR(ToObjectDescriptor, CallInterfaceDescriptor)
-
-  static const Register ReceiverRegister();
-};
-
-
-class NumberToStringDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(NumberToStringDescriptor, CallInterfaceDescriptor)
+  static const Register ArgumentRegister();
 };
 
 
@@ -647,12 +598,6 @@ class InternalArrayConstructorDescriptor : public CallInterfaceDescriptor {
 class CompareDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(CompareDescriptor, CallInterfaceDescriptor)
-};
-
-
-class ToBooleanDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(ToBooleanDescriptor, CallInterfaceDescriptor)
 };
 
 

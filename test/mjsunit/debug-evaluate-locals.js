@@ -89,18 +89,17 @@ function f() {
 }
 
 function checkFrame2(frame) {
-  // Frame 2 (f) has normal variables a and b (and arguments).
+  // Frame 2 (f) has normal variables a and b.
   var count = frame.localCount();
-  assertEquals(3, count);
+  assertEquals(2, count);
   for (var i = 0; i < count; ++i) {
     var name = frame.localName(i);
     var value = frame.localValue(i).value();
     if (name == 'a') {
       assertEquals(5, value);
-    } else if (name == 'b') {
-      assertEquals(0, value);
     } else {
-      assertEquals('arguments', name);
+      assertEquals('b', name);
+      assertEquals(0, value);
     }
   }
 }

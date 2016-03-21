@@ -1288,9 +1288,9 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
   Handle<Code> null_handle;
   Handle<Map> receiver_map(receiver->map(), isolate());
+  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
-
 
   if (target_receiver_maps.length() == 0) {
     Handle<Code> handler =
@@ -1298,6 +1298,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
             receiver_map, extra_ic_state());
     ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
     return null_handle;
+  }
+
+  for (int i = 0; i < target_receiver_maps.length(); i++) {
+    if (!target_receiver_maps.at(i).is_null() &&
+        target_receiver_maps.at(i)->instance_type() == JS_VALUE_TYPE) {
+      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "JSValue");
+      return megamorphic_stub();
+    }
   }
 
   // The first time a receiver is seen that is a transitioned version of the

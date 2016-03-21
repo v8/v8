@@ -399,6 +399,7 @@ class LocalDeclEncoder {
 #define WASM_I32_CLZ(x) kExprI32Clz, x
 #define WASM_I32_CTZ(x) kExprI32Ctz, x
 #define WASM_I32_POPCNT(x) kExprI32Popcnt, x
+#define WASM_I32_EQZ(x) kExprI32Eqz, x
 
 //------------------------------------------------------------------------------
 // Int64 operations
@@ -431,6 +432,7 @@ class LocalDeclEncoder {
 #define WASM_I64_CLZ(x) kExprI64Clz, x
 #define WASM_I64_CTZ(x) kExprI64Ctz, x
 #define WASM_I64_POPCNT(x) kExprI64Popcnt, x
+#define WASM_I64_EQZ(x) kExprI64Eqz, x
 
 //------------------------------------------------------------------------------
 // Float32 operations

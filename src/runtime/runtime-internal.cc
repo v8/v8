@@ -468,6 +468,12 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetOrdinaryHasInstance) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  return isolate->native_context()->ordinary_has_instance();
+}
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);

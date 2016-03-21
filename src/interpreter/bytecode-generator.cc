@@ -72,6 +72,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
 
   Scope* scope() const { return scope_; }
   Register reg() const { return register_; }
+  bool ShouldPopContext() { return should_pop_context_; }
 
  private:
   const BytecodeArrayBuilder* builder() const { return generator_->builder(); }
@@ -212,9 +213,9 @@ class BytecodeGenerator::ControlScopeForTopLevel final
  protected:
   bool Execute(Command command, Statement* statement) override {
     switch (command) {
-      case CMD_BREAK:
+      case CMD_BREAK:  // We should never see break/continue in top-level.
       case CMD_CONTINUE:
-        break;
+        UNREACHABLE();
       case CMD_RETURN:
         generator()->builder()->Return();
         return true;
@@ -363,21 +364,20 @@ void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
   ContextScope* context = generator()->execution_context();
+  // Pop context to the expected depth but do not pop the outermost context.
+  if (context != current->context() && context->ShouldPopContext()) {
+    generator()->builder()->PopContext(current->context()->reg());
+  }
   do {
-    if (current->context() != context) {
-      // Pop context to the expected depth for break and continue. For return
-      // and throw it is not required to pop. Debugger expects that the
-      // context is not popped on return. So do not pop on return.
-      // TODO(rmcilroy): Only emit a single context pop.
-      if (command == CMD_BREAK || command == CMD_CONTINUE) {
-        generator()->builder()->PopContext(current->context()->reg());
-      }
-      context = current->context();
-    }
     if (current->Execute(command, statement)) {
       return;
     }
     current = current->outer();
+    if (current->context() != context) {
+      // Pop context to the expected depth.
+      // TODO(rmcilroy): Only emit a single context pop.
+      generator()->builder()->PopContext(current->context()->reg());
+    }
   } while (current != nullptr);
   UNREACHABLE();
 }
@@ -968,7 +968,6 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  builder()->SetStatementPosition(stmt);
   LoopBuilder loop_builder(builder());
   loop_builder.LoopHeader();
   if (stmt->cond()->ToBooleanIsFalse()) {
@@ -1010,7 +1009,6 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->init() != nullptr) {
-    builder()->SetStatementPosition(stmt->init());
     Visit(stmt->init());
   }
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
@@ -1114,7 +1112,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
 
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   if (stmt->subject()->IsNullLiteral() ||
-      stmt->subject()->IsUndefinedLiteral(isolate())) {
+      stmt->subject()->IsUndefinedLiteral()) {
     // ForIn generates lots of code, skip if it wouldn't produce any effects.
     return;
   }
@@ -1146,6 +1144,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The loop
   loop_builder.LoopHeader();
+  builder()->SetExpressionAsStatementPosition(stmt->each());
   loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
@@ -1153,7 +1152,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
   builder()->ForInNext(receiver, index, cache_type, feedback_index(slot));
   loop_builder.ContinueIfUndefined();
-  builder()->SetExpressionAsStatementPosition(stmt->each());
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   VisitIterationBody(stmt, &loop_builder);
   loop_builder.Next();

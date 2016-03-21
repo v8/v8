@@ -91,30 +91,6 @@ TEST(Run_WasmMemorySize) {
 }
 
 
-#if WASM_64
-TEST(Run_WasmInt64Const) {
-  WasmRunner<int64_t> r;
-  const int64_t kExpectedValue = 0x1122334455667788LL;
-  // return(kExpectedValue)
-  BUILD(r, WASM_I64V_9(kExpectedValue));
-  CHECK_EQ(kExpectedValue, r.Call());
-}
-
-
-TEST(Run_WasmInt64Const_many) {
-  int cntr = 0;
-  FOR_INT32_INPUTS(i) {
-    WasmRunner<int64_t> r;
-    const int64_t kExpectedValue = (static_cast<int64_t>(*i) << 32) | cntr;
-    // return(kExpectedValue)
-    BUILD(r, WASM_I64V(kExpectedValue));
-    CHECK_EQ(kExpectedValue, r.Call());
-    cntr++;
-  }
-}
-#endif
-
-
 TEST(Run_WasmInt32Param0) {
   WasmRunner<int32_t> r(MachineType::Int32());
   // return(local[0])
@@ -340,182 +316,13 @@ TEST(Run_WasmInt32Popcnt) {
   TestInt32Unop(kExprI32Popcnt, 19, 0xfedcba09);
 }
 
-
-#if WASM_64
-void TestInt64Binop(WasmOpcode opcode, int64_t expected, int64_t a, int64_t b) {
-  if (!WasmOpcodes::IsSupported(opcode)) return;
-  {
-    WasmRunner<int64_t> r;
-    // return K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I64V(a), WASM_I64V(b)));
-    CHECK_EQ(expected, r.Call());
-  }
-  {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-    // return a op b
-    BUILD(r, WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    CHECK_EQ(expected, r.Call(a, b));
-  }
+TEST(Run_WasmI32Eqz) {
+  TestInt32Unop(kExprI32Eqz, 0, 1);
+  TestInt32Unop(kExprI32Eqz, 0, -1);
+  TestInt32Unop(kExprI32Eqz, 0, -827343);
+  TestInt32Unop(kExprI32Eqz, 0, 8888888);
+  TestInt32Unop(kExprI32Eqz, 1, 0);
 }
-
-
-void TestInt64Cmp(WasmOpcode opcode, int64_t expected, int64_t a, int64_t b) {
-  if (!WasmOpcodes::IsSupported(opcode)) return;
-  {
-    WasmRunner<int32_t> r;
-    // return K op K
-    BUILD(r, WASM_BINOP(opcode, WASM_I64V(a), WASM_I64V(b)));
-    CHECK_EQ(expected, r.Call());
-  }
-  {
-    WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
-    // return a op b
-    BUILD(r, WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    CHECK_EQ(expected, r.Call(a, b));
-  }
-}
-
-
-TEST(Run_WasmInt64Binops) {
-  // TODO(titzer): real 64-bit numbers
-  TestInt64Binop(kExprI64Add, 8888888888888LL, 3333333333333LL,
-                 5555555555555LL);
-  TestInt64Binop(kExprI64Sub, -111111111111LL, 777777777777LL, 888888888888LL);
-  TestInt64Binop(kExprI64Mul, 65130756, 88734, 734);
-  TestInt64Binop(kExprI64DivS, -66, -4777344, 72384);
-  TestInt64Binop(kExprI64DivU, 805306368, 0xF0000000, 5);
-  TestInt64Binop(kExprI64RemS, -3, -3003, 1000);
-  TestInt64Binop(kExprI64RemU, 4, 4004, 1000);
-  TestInt64Binop(kExprI64And, 0xEE, 0xFFEE, 0xFF0000FF);
-  TestInt64Binop(kExprI64Ior, 0xF0FF00FF, 0xF0F000EE, 0x000F0011);
-  TestInt64Binop(kExprI64Xor, 0xABCDEF01, 0xABCDEFFF, 0xFE);
-  TestInt64Binop(kExprI64Shl, 0xA0000000, 0xA, 28);
-  TestInt64Binop(kExprI64ShrU, 0x0700001000123456LL, 0x7000010001234567LL, 4);
-  TestInt64Binop(kExprI64ShrS, 0xFF00000000000000LL, 0x8000000000000000LL, 7);
-  TestInt64Binop(kExprI64Ror, 0x0100000000000000LL, 0x8000000000000000LL, 7);
-  TestInt64Binop(kExprI64Ror, 0x0100000000000000LL, 0x8000000000000000LL, 71);
-  TestInt64Binop(kExprI64Rol, 0x0000000000000040LL, 0x8000000000000000LL, 7);
-  TestInt64Binop(kExprI64Rol, 0x0000000000000040LL, 0x8000000000000000LL, 71);
-  TestInt64Cmp(kExprI64Eq, 1, -9999, -9999);
-  TestInt64Cmp(kExprI64Ne, 1, -9199, -9999);
-  TestInt64Cmp(kExprI64LtS, 1, -4, 4);
-  TestInt64Cmp(kExprI64LeS, 0, -2, -3);
-  TestInt64Cmp(kExprI64LtU, 1, 0, -6);
-  TestInt64Cmp(kExprI64LeU, 1, 98978, 0xF0000000);
-}
-
-
-TEST(Run_WasmInt64Clz) {
-  struct {
-    int64_t expected;
-    uint64_t input;
-  } values[] = {{0, 0x8000100000000000},  {1, 0x4000050000000000},
-                {2, 0x2000030000000000},  {3, 0x1000000300000000},
-                {4, 0x0805000000000000},  {5, 0x0400600000000000},
-                {6, 0x0200000000000000},  {7, 0x010000a000000000},
-                {8, 0x00800c0000000000},  {9, 0x0040000000000000},
-                {10, 0x0020000d00000000}, {11, 0x00100f0000000000},
-                {12, 0x0008000000000000}, {13, 0x0004100000000000},
-                {14, 0x0002002000000000}, {15, 0x0001030000000000},
-                {16, 0x0000804000000000}, {17, 0x0000400500000000},
-                {18, 0x0000205000000000}, {19, 0x0000170000000000},
-                {20, 0x0000087000000000}, {21, 0x0000040500000000},
-                {22, 0x0000020300000000}, {23, 0x0000010100000000},
-                {24, 0x0000008900000000}, {25, 0x0000004100000000},
-                {26, 0x0000002200000000}, {27, 0x0000001300000000},
-                {28, 0x0000000800000000}, {29, 0x0000000400000000},
-                {30, 0x0000000200000000}, {31, 0x0000000100000000},
-                {32, 0x0000000080001000}, {33, 0x0000000040000500},
-                {34, 0x0000000020000300}, {35, 0x0000000010000003},
-                {36, 0x0000000008050000}, {37, 0x0000000004006000},
-                {38, 0x0000000002000000}, {39, 0x00000000010000a0},
-                {40, 0x0000000000800c00}, {41, 0x0000000000400000},
-                {42, 0x000000000020000d}, {43, 0x0000000000100f00},
-                {44, 0x0000000000080000}, {45, 0x0000000000041000},
-                {46, 0x0000000000020020}, {47, 0x0000000000010300},
-                {48, 0x0000000000008040}, {49, 0x0000000000004005},
-                {50, 0x0000000000002050}, {51, 0x0000000000001700},
-                {52, 0x0000000000000870}, {53, 0x0000000000000405},
-                {54, 0x0000000000000203}, {55, 0x0000000000000101},
-                {56, 0x0000000000000089}, {57, 0x0000000000000041},
-                {58, 0x0000000000000022}, {59, 0x0000000000000013},
-                {60, 0x0000000000000008}, {61, 0x0000000000000004},
-                {62, 0x0000000000000002}, {63, 0x0000000000000001},
-                {64, 0x0000000000000000}};
-
-  WasmRunner<int64_t> r(MachineType::Uint64());
-  BUILD(r, WASM_I64_CLZ(WASM_GET_LOCAL(0)));
-  for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(values[i].expected, r.Call(values[i].input));
-  }
-}
-
-
-TEST(Run_WasmInt64Ctz) {
-  struct {
-    int64_t expected;
-    uint64_t input;
-  } values[] = {{64, 0x0000000000000000}, {63, 0x8000000000000000},
-                {62, 0x4000000000000000}, {61, 0x2000000000000000},
-                {60, 0x1000000000000000}, {59, 0xa800000000000000},
-                {58, 0xf400000000000000}, {57, 0x6200000000000000},
-                {56, 0x9100000000000000}, {55, 0xcd80000000000000},
-                {54, 0x0940000000000000}, {53, 0xaf20000000000000},
-                {52, 0xac10000000000000}, {51, 0xe0b8000000000000},
-                {50, 0x9ce4000000000000}, {49, 0xc792000000000000},
-                {48, 0xb8f1000000000000}, {47, 0x3b9f800000000000},
-                {46, 0xdb4c400000000000}, {45, 0xe9a3200000000000},
-                {44, 0xfca6100000000000}, {43, 0x6c8a780000000000},
-                {42, 0x8ce5a40000000000}, {41, 0xcb7d020000000000},
-                {40, 0xcb4dc10000000000}, {39, 0xdfbec58000000000},
-                {38, 0x27a9db4000000000}, {37, 0xde3bcb2000000000},
-                {36, 0xd7e8a61000000000}, {35, 0x9afdbc8800000000},
-                {34, 0x9afdbc8400000000}, {33, 0x9afdbc8200000000},
-                {32, 0x9afdbc8100000000}, {31, 0x0000000080000000},
-                {30, 0x0000000040000000}, {29, 0x0000000020000000},
-                {28, 0x0000000010000000}, {27, 0x00000000a8000000},
-                {26, 0x00000000f4000000}, {25, 0x0000000062000000},
-                {24, 0x0000000091000000}, {23, 0x00000000cd800000},
-                {22, 0x0000000009400000}, {21, 0x00000000af200000},
-                {20, 0x00000000ac100000}, {19, 0x00000000e0b80000},
-                {18, 0x000000009ce40000}, {17, 0x00000000c7920000},
-                {16, 0x00000000b8f10000}, {15, 0x000000003b9f8000},
-                {14, 0x00000000db4c4000}, {13, 0x00000000e9a32000},
-                {12, 0x00000000fca61000}, {11, 0x000000006c8a7800},
-                {10, 0x000000008ce5a400}, {9, 0x00000000cb7d0200},
-                {8, 0x00000000cb4dc100},  {7, 0x00000000dfbec580},
-                {6, 0x0000000027a9db40},  {5, 0x00000000de3bcb20},
-                {4, 0x00000000d7e8a610},  {3, 0x000000009afdbc88},
-                {2, 0x000000009afdbc84},  {1, 0x000000009afdbc82},
-                {0, 0x000000009afdbc81}};
-
-  WasmRunner<int64_t> r(MachineType::Uint64());
-  BUILD(r, WASM_I64_CTZ(WASM_GET_LOCAL(0)));
-  for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(values[i].expected, r.Call(values[i].input));
-  }
-}
-
-
-TEST(Run_WasmInt64Popcnt) {
-  struct {
-    int64_t expected;
-    uint64_t input;
-  } values[] = {{64, 0xffffffffffffffff},
-                {0, 0x0000000000000000},
-                {2, 0x0000080000008000},
-                {26, 0x1123456782345678},
-                {38, 0xffedcba09edcba09}};
-
-  WasmRunner<int64_t> r(MachineType::Uint64());
-  BUILD(r, WASM_I64_POPCNT(WASM_GET_LOCAL(0)));
-  for (size_t i = 0; i < arraysize(values); i++) {
-    CHECK_EQ(values[i].expected, r.Call(values[i].input));
-  }
-}
-
-
-#endif
 
 TEST(Run_WASM_Int32DivS_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
@@ -611,86 +418,6 @@ TEST(Run_WASM_Int32DivS_trap_effect) {
   CHECK_TRAP(r.Call(4, 0));
   CHECK_TRAP(r.Call(0, 0));
 }
-
-
-#if WASM_64
-#define as64(x) static_cast<int64_t>(x)
-TEST(Run_WASM_Int64DivS_trap) {
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(as64(0), as64(100)));
-  CHECK_TRAP64(r.Call(as64(100), as64(0)));
-  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
-}
-
-
-TEST(Run_WASM_Int64RemS_trap) {
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(33, r.Call(as64(133), as64(100)));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP64(r.Call(as64(100), as64(0)));
-  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
-}
-
-
-TEST(Run_WASM_Int64DivU_trap) {
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(as64(0), as64(100)));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP64(r.Call(as64(100), as64(0)));
-  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
-}
-
-
-TEST(Run_WASM_Int64RemU_trap) {
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(17, r.Call(as64(217), as64(100)));
-  CHECK_TRAP64(r.Call(as64(100), as64(0)));
-  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
-  CHECK_EQ(std::numeric_limits<int64_t>::min(),
-           r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-}
-
-
-TEST(Run_WASM_Int64DivS_byzero_const) {
-  for (int8_t denom = -2; denom < 8; denom++) {
-    WasmRunner<int64_t> r(MachineType::Int64());
-    BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64V_1(denom)));
-    for (int64_t val = -7; val < 8; val++) {
-      if (denom == 0) {
-        CHECK_TRAP64(r.Call(val));
-      } else {
-        CHECK_EQ(val / denom, r.Call(val));
-      }
-    }
-  }
-}
-
-
-TEST(Run_WASM_Int64DivU_byzero_const) {
-  for (uint64_t denom = 0xfffffffffffffffe; denom < 8; denom++) {
-    WasmRunner<uint64_t> r(MachineType::Uint64());
-    BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(denom)));
-
-    for (uint64_t val = 0xfffffffffffffff0; val < 8; val++) {
-      if (denom == 0) {
-        CHECK_TRAP64(r.Call(val));
-      } else {
-        CHECK_EQ(val / denom, r.Call(val));
-      }
-    }
-  }
-}
-#endif
-
 
 void TestFloat32Binop(WasmOpcode opcode, int32_t expected, float a, float b) {
   {
@@ -902,17 +629,6 @@ TEST(Run_Wasm_Return_I32) {
 
   FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
 }
-
-
-#if WASM_64
-TEST(Run_Wasm_Return_I64) {
-  WasmRunner<int64_t> r(MachineType::Int64());
-
-  BUILD(r, RET(WASM_GET_LOCAL(0)));
-
-  FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
-}
-#endif
 
 
 TEST(Run_Wasm_Return_F32) {
@@ -1667,61 +1383,6 @@ TEST(Run_Wasm_StoreMem_offset_oob) {
 }
 
 
-#if WASM_64
-TEST(Run_Wasm_F64ReinterpretI64) {
-  TestingModule module;
-  int64_t* memory = module.AddMemoryElems<int64_t>(8);
-  WasmRunner<int64_t> r(&module);
-
-  BUILD(r, WASM_I64_REINTERPRET_F64(
-               WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)));
-
-  FOR_INT32_INPUTS(i) {
-    int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
-    memory[0] = expected;
-    CHECK_EQ(expected, r.Call());
-  }
-}
-
-
-TEST(Run_Wasm_I64ReinterpretF64) {
-  TestingModule module;
-  int64_t* memory = module.AddMemoryElems<int64_t>(8);
-  WasmRunner<int64_t> r(&module, MachineType::Int64());
-
-  BUILD(r, WASM_BLOCK(
-               2, WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
-                                 WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
-               WASM_GET_LOCAL(0)));
-
-  FOR_INT32_INPUTS(i) {
-    int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
-    CHECK_EQ(expected, r.Call(expected));
-    CHECK_EQ(expected, memory[0]);
-  }
-}
-
-
-TEST(Run_Wasm_LoadMemI64) {
-  TestingModule module;
-  int64_t* memory = module.AddMemoryElems<int64_t>(8);
-  module.RandomizeMemory(1111);
-  WasmRunner<int64_t> r(&module);
-
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_I8(0)));
-
-  memory[0] = 0xaabbccdd00112233LL;
-  CHECK_EQ(0xaabbccdd00112233LL, r.Call());
-
-  memory[0] = 0x33aabbccdd001122LL;
-  CHECK_EQ(0x33aabbccdd001122LL, r.Call());
-
-  memory[0] = 77777777;
-  CHECK_EQ(77777777, r.Call());
-}
-#endif
-
-
 TEST(Run_Wasm_LoadMemI32_P) {
   const int kNumElems = 8;
   TestingModule module;
@@ -1818,41 +1479,6 @@ TEST(Run_Wasm_MemF32_Sum) {
   CHECK_NE(-99.25, buffer[0]);
   CHECK_EQ(71256.0f, buffer[0]);
 }
-
-
-#if WASM_64
-TEST(Run_Wasm_MemI64_Sum) {
-  const int kNumElems = 20;
-  TestingModule module;
-  uint64_t* memory = module.AddMemoryElems<uint64_t>(kNumElems);
-  WasmRunner<uint64_t> r(&module, MachineType::Int32());
-  const byte kSum = r.AllocateLocal(kAstI64);
-
-  BUILD(r, WASM_BLOCK(
-               2, WASM_WHILE(
-                      WASM_GET_LOCAL(0),
-                      WASM_BLOCK(
-                          2, WASM_SET_LOCAL(
-                                 kSum, WASM_I64_ADD(
-                                           WASM_GET_LOCAL(kSum),
-                                           WASM_LOAD_MEM(MachineType::Int64(),
-                                                         WASM_GET_LOCAL(0)))),
-                          WASM_SET_LOCAL(
-                              0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
-               WASM_GET_LOCAL(1)));
-
-  // Run 4 trials.
-  for (int i = 0; i < 3; i++) {
-    module.RandomizeMemory(i * 33);
-    uint64_t expected = 0;
-    for (size_t j = kNumElems - 1; j > 0; j--) {
-      expected += memory[j];
-    }
-    uint64_t result = r.Call(8 * (kNumElems - 1));
-    CHECK_EQ(expected, result);
-  }
-}
-#endif
 
 
 template <typename T>
@@ -2142,27 +1768,6 @@ TEST(Run_WasmInt32Globals_DontAlias) {
 }
 
 
-#if WASM_64
-TEST(Run_WasmInt64Global) {
-  TestingModule module;
-  int64_t* global = module.AddGlobal<int64_t>(MachineType::Int64());
-  WasmRunner<int32_t> r(&module, MachineType::Int32());
-  // global = global + p0
-  BUILD(r, B2(WASM_STORE_GLOBAL(
-                  0, WASM_I64_ADD(WASM_LOAD_GLOBAL(0),
-                                  WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
-              WASM_ZERO));
-
-  *global = 0xFFFFFFFFFFFFFFFFLL;
-  for (int i = 9; i < 444444; i += 111111) {
-    int64_t expected = *global + i;
-    r.Call(i);
-    CHECK_EQ(expected, *global);
-  }
-}
-#endif
-
-
 TEST(Run_WasmFloat32Global) {
   TestingModule module;
   float* global = module.AddGlobal<float>(MachineType::Float32());
@@ -2254,62 +1859,6 @@ TEST(Run_WasmMixedGlobals) {
 
   USE(unused);
 }
-
-
-#if WASM_64
-// Test the WasmRunner with an Int64 return value and different numbers of
-// Int64 parameters.
-TEST(Run_TestI64WasmRunner) {
-  {
-    FOR_INT64_INPUTS(i) {
-      WasmRunner<int64_t> r;
-      BUILD(r, WASM_I64V(*i));
-      CHECK_EQ(*i, r.Call());
-    }
-  }
-  {
-    WasmRunner<int64_t> r(MachineType::Int64());
-    BUILD(r, WASM_GET_LOCAL(0));
-    FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
-  }
-  {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-    BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    FOR_INT64_INPUTS(i) {
-      FOR_INT64_INPUTS(j) { CHECK_EQ(*i + *j, r.Call(*i, *j)); }
-    }
-  }
-  {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64(),
-                          MachineType::Int64());
-    BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0),
-                          WASM_I64_ADD(WASM_GET_LOCAL(1), WASM_GET_LOCAL(2))));
-    FOR_INT64_INPUTS(i) {
-      FOR_INT64_INPUTS(j) {
-        CHECK_EQ(*i + *j + *j, r.Call(*i, *j, *j));
-        CHECK_EQ(*j + *i + *j, r.Call(*j, *i, *j));
-        CHECK_EQ(*j + *j + *i, r.Call(*j, *j, *i));
-      }
-    }
-  }
-  {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64(),
-                          MachineType::Int64(), MachineType::Int64());
-    BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0),
-                          WASM_I64_ADD(WASM_GET_LOCAL(1),
-                                       WASM_I64_ADD(WASM_GET_LOCAL(2),
-                                                    WASM_GET_LOCAL(3)))));
-    FOR_INT64_INPUTS(i) {
-      FOR_INT64_INPUTS(j) {
-        CHECK_EQ(*i + *j + *j + *j, r.Call(*i, *j, *j, *j));
-        CHECK_EQ(*j + *i + *j + *j, r.Call(*j, *i, *j, *j));
-        CHECK_EQ(*j + *j + *i + *j, r.Call(*j, *j, *i, *j));
-        CHECK_EQ(*j + *j + *j + *i, r.Call(*j, *j, *j, *i));
-      }
-    }
-  }
-}
-#endif
 
 
 TEST(Run_WasmCallEmpty) {
@@ -2424,35 +1973,6 @@ TEST(Run_WasmCall_Int32Add) {
     }
   }
 }
-
-#if WASM_64
-TEST(Run_WasmCall_Int64Sub) {
-  // Build the target function.
-  TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.l_ll(), &module);
-  BUILD(t, WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  uint32_t index = t.CompileAndAdd();
-
-  // Build the caller function.
-  WasmRunner<int64_t> r(&module, MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
-      int64_t a = static_cast<int64_t>(*i) << 32 |
-                  (static_cast<int64_t>(*j) | 0xFFFFFFFF);
-      int64_t b = static_cast<int64_t>(*j) << 32 |
-                  (static_cast<int64_t>(*i) | 0xFFFFFFFF);
-
-      int64_t expected = static_cast<int64_t>(static_cast<uint64_t>(a) -
-                                              static_cast<uint64_t>(b));
-      CHECK_EQ(expected, r.Call(a, b));
-    }
-  }
-}
-#endif
-
 
 TEST(Run_WasmCall_Float32Sub) {
   TestSignatures sigs;
@@ -2772,46 +2292,6 @@ TEST(Run_Wasm_ExprLoop_nested_ifs) {
 }
 
 
-#if WASM_64
-TEST(Run_Wasm_LoadStoreI64_sx) {
-  byte loads[] = {kExprI64LoadMem8S, kExprI64LoadMem16S, kExprI64LoadMem32S,
-                  kExprI64LoadMem};
-
-  for (size_t m = 0; m < arraysize(loads); m++) {
-    TestingModule module;
-    byte* memory = module.AddMemoryElems<byte>(16);
-    WasmRunner<int64_t> r(&module);
-
-    byte code[] = {kExprI64StoreMem, ZERO_ALIGNMENT,
-                   ZERO_OFFSET,          // --
-                   kExprI8Const,     8,  // --
-                   loads[m],         ZERO_ALIGNMENT,
-                   ZERO_OFFSET,           // --
-                   kExprI8Const,     0};  // --
-
-    r.Build(code, code + arraysize(code));
-
-    // Try a bunch of different negative values.
-    for (int i = -1; i >= -128; i -= 11) {
-      int size = 1 << m;
-      module.BlankMemory();
-      memory[size - 1] = static_cast<byte>(i);  // set the high order byte.
-
-      int64_t expected = static_cast<int64_t>(i) << ((size - 1) * 8);
-
-      CHECK_EQ(expected, r.Call());
-      CHECK_EQ(static_cast<byte>(i), memory[8 + size - 1]);
-      for (int j = size; j < 8; j++) {
-        CHECK_EQ(255, memory[8 + j]);
-      }
-    }
-  }
-}
-
-
-#endif
-
-
 TEST(Run_Wasm_SimpleCallIndirect) {
   TestSignatures sigs;
   TestingModule module;
@@ -3128,66 +2608,6 @@ TEST(Run_Wasm_F64Max_Snan) {
 }
 
 #endif
-
-#if WASM_64
-TEST(Run_Wasm_I64SConvertF32) {
-  WasmRunner<int64_t> r(MachineType::Float32());
-  BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(INT64_MAX) &&
-        *i >= static_cast<float>(INT64_MIN)) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64SConvertF64) {
-  WasmRunner<int64_t> r(MachineType::Float64());
-  BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<double>(INT64_MAX) &&
-        *i >= static_cast<double>(INT64_MIN)) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64UConvertF32) {
-  WasmRunner<uint64_t> r(MachineType::Float32());
-  BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(UINT64_MAX) && *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-
-
-TEST(Run_Wasm_I64UConvertF64) {
-  WasmRunner<uint64_t> r(MachineType::Float64());
-  BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<float>(UINT64_MAX) && *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
-    } else {
-      CHECK_TRAP64(r.Call(*i));
-    }
-  }
-}
-#endif
-
 
 // TODO(titzer): Fix and re-enable.
 #if 0

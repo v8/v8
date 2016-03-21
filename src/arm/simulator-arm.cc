@@ -1333,11 +1333,12 @@ bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
 
 
 // Calculate C flag value for subtractions.
-bool Simulator::BorrowFrom(int32_t left, int32_t right) {
+bool Simulator::BorrowFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
 
-  return (uright > uleft);
+  return (uright > uleft) ||
+         (!carry && (((uright + 1) > uleft) || (uright > (uleft - 1))));
 }
 
 
@@ -2493,8 +2494,15 @@ void Simulator::DecodeType01(Instruction* instr) {
       }
 
       case SBC: {
-        Format(instr, "sbc'cond's 'rd, 'rn, 'shift_rm");
-        Format(instr, "sbc'cond's 'rd, 'rn, 'imm");
+        //        Format(instr, "sbc'cond's 'rd, 'rn, 'shift_rm");
+        //        Format(instr, "sbc'cond's 'rd, 'rn, 'imm");
+        alu_out = (rn_val - shifter_operand) - (GetCarry() ? 0 : 1);
+        set_register(rd, alu_out);
+        if (instr->HasS()) {
+          SetNZFlags(alu_out);
+          SetCFlag(!BorrowFrom(rn_val, shifter_operand, GetCarry()));
+          SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
+        }
         break;
       }
 
@@ -3256,7 +3264,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           set_d_register_from_double(vd, instr->DoubleImmedVmov());
         } else {
-          UNREACHABLE();  // Not used by v8.
+          set_s_register_from_float(d, instr->DoubleImmedVmov());
         }
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate

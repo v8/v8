@@ -1150,6 +1150,14 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kCheckedStore:
       return VisitCheckedStore(node);
+    case IrOpcode::kInt32PairAdd:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitInt32PairAdd(node);
+    case IrOpcode::kInt32PairSub:
+      MarkAsWord32(NodeProperties::FindProjection(node, 0));
+      MarkAsWord32(NodeProperties::FindProjection(node, 1));
+      return VisitInt32PairSub(node);
     case IrOpcode::kWord32PairShl:
       MarkAsWord32(NodeProperties::FindProjection(node, 0));
       MarkAsWord32(NodeProperties::FindProjection(node, 1));
@@ -1385,8 +1393,12 @@ void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
 
 #endif  // V8_TARGET_ARCH_32_BIT
 
-// 32 bit targets do not implement the following instructions.
+// 64 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_64_BIT
+void InstructionSelector::VisitInt32PairAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
@@ -1471,6 +1483,8 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTryTruncateFloat32ToUint64:
     case IrOpcode::kTryTruncateFloat64ToUint64:
+    case IrOpcode::kInt32PairAdd:
+    case IrOpcode::kInt32PairSub:
     case IrOpcode::kWord32PairShl:
     case IrOpcode::kWord32PairShr:
     case IrOpcode::kWord32PairSar:

@@ -155,8 +155,12 @@ class Serializer : public SerializerDeserializer {
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
+  void VisitPointers(Object** start, Object** end) override;
+
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
+
+  void PutSmi(Smi* smi);
 
   void PutBackReference(HeapObject* object, BackReference reference);
 
@@ -183,12 +187,10 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_.Encode(addr);
   }
 
+  bool HasNotExceededFirstPageOfEachSpace();
+
   // GetInt reads 4 bytes at once, requiring padding at the end.
   void Pad();
-
-  // Some roots should not be serialized, because their actual value depends on
-  // absolute addresses and they are reset after deserialization, anyway.
-  bool ShouldBeSkipped(Object** current);
 
   // We may not need the code address map for logging for every instance
   // of the serializer.  Initialize it on demand.
@@ -227,8 +229,6 @@ class Serializer : public SerializerDeserializer {
   friend class SnapshotData;
 
  private:
-  void VisitPointers(Object** start, Object** end) override;
-
   CodeAddressMap* code_address_map_;
   // Objects from the same space are put into chunks for bulk-allocation
   // when deserializing. We have to make sure that each chunk fits into a

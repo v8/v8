@@ -300,7 +300,10 @@ bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
   Isolate* const isolate = shared_info->GetIsolate();
   Code* const construct_stub = shared_info->construct_stub();
-  return construct_stub != *isolate->builtins()->JSBuiltinsConstructStub();
+  return construct_stub != *isolate->builtins()->JSBuiltinsConstructStub() &&
+         construct_stub !=
+             *isolate->builtins()->JSBuiltinsConstructStubForDerived() &&
+         construct_stub != *isolate->builtins()->JSConstructStubApi();
 }
 
 bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {

@@ -1374,6 +1374,89 @@ TestForeignVariables();
 })();
 
 
+(function TestAbsInt() {
+  function Module(stdlib) {
+    "use asm";
+    var abs = stdlib.Math.abs;
+    function func(x) {
+      x = x | 0;
+      return abs(x|0)|0;
+    }
+    return {func:func};
+  }
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var values = [0, 1, -1, 0x40000000, 0x7FFFFFFF, -0x80000000];
+  for (var i = 0; i < values.length; i++) {
+    var val = values[i];
+    assertEquals(Math.abs(val) | 0, m.func(val));
+  }
+})();
+
+
+(function TestAbsFloat() {
+  function Module(stdlib) {
+    "use asm";
+    var fround = stdlib.Math.fround;
+    var abs = stdlib.Math.abs;
+    function func(x) {
+      x = fround(x);
+      x = abs(x);
+      return fround(x);
+    }
+    return {func:func};
+  }
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var values = [
+    0, -0, 1, -1, 0.9, -0.9, 1.414, 0x7F, -0x80, -0x8000, -0x80000000,
+    0x7FFF, 0x7FFFFFFF, Infinity, -Infinity, NaN
+  ];
+  for (var i = 0; i < values.length; i++) {
+    var val = values[i];
+    assertEquals(Math.fround(Math.abs(val)), m.func(val));
+  }
+})();
+
+
+(function TestAbsDouble() {
+  function Module(stdlib) {
+    "use asm";
+    var fround = stdlib.Math.fround;
+    var abs = stdlib.Math.abs;
+    function func(x) {
+      x = +x;
+      x = abs(x);
+      return +x;
+    }
+    return {func:func};
+  }
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  var values = [
+    0, -0, 1, -1, 0.9, -0.9, 1.414, 0x7F, -0x80, -0x8000, -0x80000000,
+    0x7FFF, 0x7FFFFFFF, Infinity, -Infinity, NaN
+  ];
+  for (var i = 0; i < values.length; i++) {
+    var val = values[i];
+    assertEquals(Math.abs(val), m.func(val));
+  }
+})();
+
+
+(function TestFloatAsDouble() {
+  function Module(stdlib) {
+    "use asm";
+    var fround = stdlib.Math.fround;
+    var abs = stdlib.Math.abs;
+    function func() {
+      var x = fround(1.0);
+      return +fround(x);
+    }
+    return {func:func};
+  }
+  var m = Wasm.instantiateModuleFromAsm(Module.toString());
+  assertEquals(1, m.func());
+})();
+
+
 (function TestOr() {
   function Module() {
     "use asm";

@@ -158,19 +158,20 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
       Handle<FixedArray> fixed_array_values_copy =
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
-      for (int i = 0; i < fixed_array_values->length(); i++) {
-        HandleScope scope(isolate);
-        if (fixed_array_values->get(i)->IsFixedArray()) {
-          // The value contains the constant_properties of a
-          // simple object or array literal.
-          Handle<FixedArray> fa(FixedArray::cast(fixed_array_values->get(i)));
-          Handle<Object> result;
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, result, CreateLiteralBoilerplate(isolate, literals, fa),
-              Object);
-          fixed_array_values_copy->set(i, *result);
-        }
-      }
+      FOR_WITH_HANDLE_SCOPE(
+          isolate, int, i = 0, i, i < fixed_array_values->length(), i++, {
+            if (fixed_array_values->get(i)->IsFixedArray()) {
+              // The value contains the constant_properties of a
+              // simple object or array literal.
+              Handle<FixedArray> fa(
+                  FixedArray::cast(fixed_array_values->get(i)));
+              Handle<Object> result;
+              ASSIGN_RETURN_ON_EXCEPTION(
+                  isolate, result,
+                  CreateLiteralBoilerplate(isolate, literals, fa), Object);
+              fixed_array_values_copy->set(i, *result);
+            }
+          });
     }
   }
   object->set_elements(*copied_elements_values);

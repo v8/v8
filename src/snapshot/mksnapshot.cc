@@ -109,10 +109,9 @@ class SnapshotWriter {
   FILE* startup_blob_file_;
 };
 
-
-char* GetExtraCode(char* filename) {
+char* GetExtraCode(char* filename, const char* description) {
   if (filename == NULL || strlen(filename) == 0) return NULL;
-  ::printf("Embedding extra script: %s\n", filename);
+  ::printf("Loading script for %s: %s\n", description, filename);
   FILE* file = base::OS::FOpen(filename, "rb");
   if (file == NULL) {
     fprintf(stderr, "Failed to open '%s': errno %d\n", filename, errno);
@@ -144,7 +143,7 @@ int main(int argc, char** argv) {
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || (argc != 1 && argc != 2) || i::FLAG_help) {
+  if (result > 0 || (argc > 3) || i::FLAG_help) {
     ::printf("Usage: %s --startup_src=... --startup_blob=... [extras]\n",
              argv[0]);
     i::FlagList::PrintHelp();
@@ -161,11 +160,21 @@ int main(int argc, char** argv) {
     SnapshotWriter writer;
     if (i::FLAG_startup_src) writer.SetSnapshotFile(i::FLAG_startup_src);
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
-    char* extra_code = GetExtraCode(argc == 2 ? argv[1] : NULL);
-    StartupData blob = v8::V8::CreateSnapshotDataBlob(extra_code);
+
+    char* embed_script = GetExtraCode(argc >= 2 ? argv[1] : NULL, "embedding");
+    StartupData blob = v8::V8::CreateSnapshotDataBlob(embed_script);
+    delete[] embed_script;
+
+    char* warmup_script = GetExtraCode(argc >= 3 ? argv[2] : NULL, "warm up");
+    if (warmup_script) {
+      StartupData cold = blob;
+      blob = v8::V8::WarmUpSnapshotDataBlob(cold, warmup_script);
+      delete[] cold.data;
+      delete[] warmup_script;
+    }
+
     CHECK(blob.data);
     writer.WriteSnapshot(blob);
-    delete[] extra_code;
     delete[] blob.data;
   }
 

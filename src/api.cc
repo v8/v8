@@ -81,7 +81,6 @@ namespace v8 {
   if (IsExecutionTerminatingCheck(isolate)) {                          \
     return bailout_value;                                              \
   }                                                                    \
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);                \
   HandleScopeClass handle_scope(isolate);                              \
   CallDepthScope call_depth_scope(isolate, context, do_callback);      \
   LOG_API(isolate, function_name);                                     \
@@ -157,7 +156,7 @@ class InternalEscapableScope : public v8::EscapableHandleScope {
 };
 
 
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
 void CheckMicrotasksScopesConsistency(i::Isolate* isolate) {
   auto handle_scope_implementer = isolate->handle_scope_implementer();
   if (handle_scope_implementer->microtasks_policy() ==
@@ -188,7 +187,7 @@ class CallDepthScope {
     if (!context_.IsEmpty()) context_->Exit();
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback_) isolate_->FireCallCompletedCallback();
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
     if (do_callback_) CheckMicrotasksScopesConsistency(isolate_);
 #endif
   }
@@ -214,7 +213,6 @@ class CallDepthScope {
 
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   i::Handle<i::Object> scriptName(i::Script::GetNameOrSourceURL(script));
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
   v8::Isolate* v8_isolate =
@@ -228,7 +226,8 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       v8::Integer::New(v8_isolate, script->id()),
       v8::Boolean::New(v8_isolate, options.IsEmbedderDebugScript()),
       Utils::ToLocal(source_map_url),
-      v8::Boolean::New(v8_isolate, options.IsOpaque()));
+      v8::Boolean::New(v8_isolate, options.IsOpaque()),
+      v8::Boolean::New(v8_isolate, options.AllowHtmlComments()));
   return origin;
 }
 
@@ -343,36 +342,6 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
   i::V8::SetSnapshotBlob(snapshot_blob);
 }
 
-
-bool RunExtraCode(Isolate* isolate, Local<Context> context,
-                  const char* utf8_source) {
-  // Run custom script if provided.
-  base::ElapsedTimer timer;
-  timer.Start();
-  TryCatch try_catch(isolate);
-  Local<String> source_string;
-  if (!String::NewFromUtf8(isolate, utf8_source, NewStringType::kNormal)
-           .ToLocal(&source_string)) {
-    return false;
-  }
-  Local<String> resource_name =
-      String::NewFromUtf8(isolate, "<embedded script>", NewStringType::kNormal)
-          .ToLocalChecked();
-  ScriptOrigin origin(resource_name);
-  ScriptCompiler::Source source(source_string, origin);
-  Local<Script> script;
-  if (!ScriptCompiler::Compile(context, &source).ToLocal(&script)) return false;
-  if (script->Run(context).IsEmpty()) return false;
-  if (i::FLAG_profile_deserialization) {
-    i::PrintF("Executing custom snapshot script took %0.3f ms\n",
-              timer.Elapsed().InMillisecondsF());
-  }
-  timer.Stop();
-  CHECK(!try_catch.HasCaught());
-  return true;
-}
-
-
 namespace {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
@@ -385,80 +354,176 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 };
 
+bool RunExtraCode(Isolate* isolate, Local<Context> context,
+                  const char* utf8_source, const char* name) {
+  base::ElapsedTimer timer;
+  timer.Start();
+  Context::Scope context_scope(context);
+  TryCatch try_catch(isolate);
+  Local<String> source_string;
+  if (!String::NewFromUtf8(isolate, utf8_source, NewStringType::kNormal)
+           .ToLocal(&source_string)) {
+    return false;
+  }
+  Local<String> resource_name =
+      String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+          .ToLocalChecked();
+  ScriptOrigin origin(resource_name);
+  ScriptCompiler::Source source(source_string, origin);
+  Local<Script> script;
+  if (!ScriptCompiler::Compile(context, &source).ToLocal(&script)) return false;
+  if (script->Run(context).IsEmpty()) return false;
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("Executing custom snapshot script %s took %0.3f ms\n", name,
+              timer.Elapsed().InMillisecondsF());
+  }
+  timer.Stop();
+  CHECK(!try_catch.HasCaught());
+  return true;
+}
+
+StartupData SerializeIsolateAndContext(
+    Isolate* isolate, Persistent<Context>* context,
+    i::Snapshot::Metadata metadata,
+    i::StartupSerializer::FunctionCodeHandling function_code_handling) {
+  if (context->IsEmpty()) return {NULL, 0};
+
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  // If we don't do this then we end up with a stray root pointing at the
+  // context even after we have disposed of the context.
+  internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+
+  // GC may have cleared weak cells, so compact any WeakFixedArrays
+  // found on the heap.
+  i::HeapIterator iterator(internal_isolate->heap(),
+                           i::HeapIterator::kFilterUnreachable);
+  for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
+    if (o->IsPrototypeInfo()) {
+      i::Object* prototype_users = i::PrototypeInfo::cast(o)->prototype_users();
+      if (prototype_users->IsWeakFixedArray()) {
+        i::WeakFixedArray* array = i::WeakFixedArray::cast(prototype_users);
+        array->Compact<i::JSObject::PrototypeRegistryCompactionCallback>();
+      }
+    } else if (o->IsScript()) {
+      i::Object* shared_list = i::Script::cast(o)->shared_function_infos();
+      if (shared_list->IsWeakFixedArray()) {
+        i::WeakFixedArray* array = i::WeakFixedArray::cast(shared_list);
+        array->Compact<i::WeakFixedArray::NullCallback>();
+      }
+    }
+  }
+
+  i::Object* raw_context = *v8::Utils::OpenPersistent(*context);
+  context->Reset();
+
+  i::SnapshotByteSink snapshot_sink;
+  i::StartupSerializer ser(internal_isolate, &snapshot_sink,
+                           function_code_handling);
+  ser.SerializeStrongReferences();
+
+  i::SnapshotByteSink context_sink;
+  i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
+  context_ser.Serialize(&raw_context);
+  ser.SerializeWeakReferencesAndDeferred();
+
+  return i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
+}
+
 }  // namespace
 
+StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
+  // Create a new isolate and a new context from scratch, optionally run
+  // a script to embed, and serialize to create a snapshot blob.
+  StartupData result = {NULL, 0};
 
-StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
-  i::Isolate* internal_isolate = new i::Isolate(true);
+  base::ElapsedTimer timer;
+  timer.Start();
+
   ArrayBufferAllocator allocator;
+  i::Isolate* internal_isolate = new i::Isolate(true);
   internal_isolate->set_array_buffer_allocator(&allocator);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
-  StartupData result = {NULL, 0};
+
   {
-    base::ElapsedTimer timer;
-    timer.Start();
     Isolate::Scope isolate_scope(isolate);
     internal_isolate->Init(NULL);
     Persistent<Context> context;
-    i::Snapshot::Metadata metadata;
     {
       HandleScope handle_scope(isolate);
       Local<Context> new_context = Context::New(isolate);
       context.Reset(isolate, new_context);
-      if (custom_source != NULL) {
-        metadata.set_embeds_script(true);
-        Context::Scope context_scope(new_context);
-        if (!RunExtraCode(isolate, new_context, custom_source)) context.Reset();
+      if (embedded_source != NULL &&
+          !RunExtraCode(isolate, new_context, embedded_source, "<embedded>")) {
+        context.Reset();
       }
     }
-    if (!context.IsEmpty()) {
-      // If we don't do this then we end up with a stray root pointing at the
-      // context even after we have disposed of the context.
-      internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
 
-      // GC may have cleared weak cells, so compact any WeakFixedArrays
-      // found on the heap.
-      i::HeapIterator iterator(internal_isolate->heap(),
-                               i::HeapIterator::kFilterUnreachable);
-      for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
-        if (o->IsPrototypeInfo()) {
-          i::Object* prototype_users =
-              i::PrototypeInfo::cast(o)->prototype_users();
-          if (prototype_users->IsWeakFixedArray()) {
-            i::WeakFixedArray* array = i::WeakFixedArray::cast(prototype_users);
-            array->Compact<i::JSObject::PrototypeRegistryCompactionCallback>();
-          }
-        } else if (o->IsScript()) {
-          i::Object* shared_list = i::Script::cast(o)->shared_function_infos();
-          if (shared_list->IsWeakFixedArray()) {
-            i::WeakFixedArray* array = i::WeakFixedArray::cast(shared_list);
-            array->Compact<i::WeakFixedArray::NullCallback>();
-          }
-        }
-      }
+    i::Snapshot::Metadata metadata;
+    metadata.set_embeds_script(embedded_source != NULL);
 
-      i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-      context.Reset();
-
-      i::SnapshotByteSink snapshot_sink;
-      i::StartupSerializer ser(internal_isolate, &snapshot_sink);
-      ser.SerializeStrongReferences();
-
-      i::SnapshotByteSink context_sink;
-      i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
-      context_ser.Serialize(&raw_context);
-      ser.SerializeWeakReferencesAndDeferred();
-
-      result = i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
-    }
-    if (i::FLAG_profile_deserialization) {
-      i::PrintF("Creating snapshot took %0.3f ms\n",
-                timer.Elapsed().InMillisecondsF());
-    }
-    timer.Stop();
+    result = SerializeIsolateAndContext(
+        isolate, &context, metadata, i::StartupSerializer::CLEAR_FUNCTION_CODE);
+    DCHECK(context.IsEmpty());
   }
   isolate->Dispose();
+
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("Creating snapshot took %0.3f ms\n",
+              timer.Elapsed().InMillisecondsF());
+  }
+  timer.Stop();
+  return result;
+}
+
+StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
+                                       const char* warmup_source) {
+  CHECK(cold_snapshot_blob.raw_size > 0 && cold_snapshot_blob.data != NULL);
+  CHECK(warmup_source != NULL);
+  // Use following steps to create a warmed up snapshot blob from a cold one:
+  //  - Create a new isolate from the cold snapshot.
+  //  - Create a new context to run the warmup script. This will trigger
+  //    compilation of executed functions.
+  //  - Create a new context. This context will be unpolluted.
+  //  - Serialize the isolate and the second context into a new snapshot blob.
+  StartupData result = {NULL, 0};
+
+  base::ElapsedTimer timer;
+  timer.Start();
+
+  ArrayBufferAllocator allocator;
+  i::Isolate* internal_isolate = new i::Isolate(true);
+  internal_isolate->set_array_buffer_allocator(&allocator);
+  internal_isolate->set_snapshot_blob(&cold_snapshot_blob);
+  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
+
+  {
+    Isolate::Scope isolate_scope(isolate);
+    i::Snapshot::Initialize(internal_isolate);
+    Persistent<Context> context;
+    {
+      HandleScope handle_scope(isolate);
+      Local<Context> warmup_context = Context::New(isolate);
+      if (RunExtraCode(isolate, warmup_context, warmup_source, "<warm-up>")) {
+        Local<Context> fresh_context = Context::New(isolate);
+        context.Reset(isolate, fresh_context);
+      }
+    }
+
+    i::Snapshot::Metadata metadata;
+    metadata.set_embeds_script(i::Snapshot::EmbedsScript(internal_isolate));
+
+    result = SerializeIsolateAndContext(
+        isolate, &context, metadata, i::StartupSerializer::KEEP_FUNCTION_CODE);
+    DCHECK(context.IsEmpty());
+  }
+  isolate->Dispose();
+
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("Warming up snapshot took %0.3f ms\n",
+              timer.Elapsed().InMillisecondsF());
+  }
+  timer.Stop();
   return result;
 }
 
@@ -1853,9 +1918,7 @@ Local<Script> ScriptCompiler::Compile(
 MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
                                                  Source* source,
                                                  CompileOptions options) {
-  CHECK(i::FLAG_harmony_modules);
   auto isolate = context->GetIsolate();
-  TRACE_EVENT_SCOPED_CONTEXT("V8", "Isolate", isolate);
   auto maybe = CompileUnboundInternal(isolate, source, options, true);
   Local<UnboundScript> generic;
   if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
@@ -2282,7 +2345,6 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2309,7 +2371,6 @@ v8::Local<Value> Message::GetScriptResourceName() const {
 
 v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
@@ -5539,7 +5600,6 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::Local<ObjectTemplate> global_template,
                                 v8::Local<Value> global_object) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   LOG_API(isolate, "Context::New");
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
@@ -7178,7 +7238,6 @@ Isolate* Isolate::GetCurrent() {
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   CHECK(params.array_buffer_allocator != NULL);
   isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != NULL) {
@@ -7745,7 +7804,7 @@ MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
       run_(type == MicrotasksScope::kRunMicrotasks) {
   auto handle_scope_implementer = isolate_->handle_scope_implementer();
   if (run_) handle_scope_implementer->IncrementMicrotasksScopeDepth();
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   if (!run_) handle_scope_implementer->IncrementDebugMicrotasksScopeDepth();
 #endif
 }
@@ -7760,7 +7819,7 @@ MicrotasksScope::~MicrotasksScope() {
       PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
-#ifdef V8_ENABLE_CHECKS
+#ifdef DEBUG
   if (!run_) handle_scope_implementer->DecrementDebugMicrotasksScopeDepth();
 #endif
 }

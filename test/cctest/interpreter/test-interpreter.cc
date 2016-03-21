@@ -2075,6 +2075,15 @@ TEST(InterpreterTryFinally) {
                      "  try { a = 3; throw 23; } finally { a = 4; }"
                      "} catch(e) { a = a + e; } return a;",
                      factory->NewStringFromStaticChars("R27")),
+      std::make_pair("var func_name;"
+                     "function tcf2(a) {"
+                     "  try { throw new Error('boom');} "
+                     "  catch(e) {return 153; } "
+                     "  finally {func_name = tcf2.name;}"
+                     "}"
+                     "tcf2();"
+                     "return func_name;",
+                     factory->NewStringFromStaticChars("Rtcf2")),
   };
 
   const char* try_wrapper =
@@ -3925,7 +3934,7 @@ TEST(InterpreterClassLiterals) {
 
   for (size_t i = 0; i < arraysize(examples); ++i) {
     std::string source(InterpreterTester::SourceForBody(examples[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -3985,7 +3994,7 @@ TEST(InterpreterClassAndSuperClass) {
 
   for (size_t i = 0; i < arraysize(examples); ++i) {
     std::string source(InterpreterTester::SourceForBody(examples[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
     auto callable = tester.GetCallable<>();
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*examples[i].second));

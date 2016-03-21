@@ -125,8 +125,7 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Load the function pointer off of our current stack frame.
-  __ LoadP(r3, MemOperand(fp, StandardFrameConstants::kConstantPoolOffset -
-                                  kPointerSize));
+  __ LoadP(r3, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
   // Pop return address and frame
   __ LeaveFrame(StackFrame::INTERNAL);

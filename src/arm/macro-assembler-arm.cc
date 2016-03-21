@@ -1101,15 +1101,16 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
     vmov(dst, VmovIndexLo, src);
   }
 }
-void MacroAssembler::PairLsl(Register dst_low, Register dst_high,
+void MacroAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
+  DCHECK(!AreAliased(dst_high, src_low));
+  DCHECK(!AreAliased(dst_high, shift));
+
   Label less_than_32;
   Label done;
-  cmp_raw_immediate(shift, 32);
-  b(lt, &less_than_32);
+  rsb(scratch, shift, Operand(32), SetCC);
+  b(gt, &less_than_32);
   // If shift >= 32
   and_(scratch, shift, Operand(0x1f));
   lsl(dst_high, src_low, Operand(scratch));
@@ -1117,31 +1118,125 @@ void MacroAssembler::PairLsl(Register dst_low, Register dst_high,
   jmp(&done);
   bind(&less_than_32);
   // If shift < 32
-  rsb(scratch, shift, Operand(32));
   lsl(dst_high, src_high, Operand(shift));
   orr(dst_high, dst_high, Operand(src_low, LSR, scratch));
   lsl(dst_low, src_low, Operand(shift));
   bind(&done);
 }
 
-void MacroAssembler::PairLsl(Register dst_low, Register dst_high,
+void MacroAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
-  DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_high, src_low));
   Label less_than_32;
   Label done;
-  if (shift >= 32) {
+  if (shift == 0) {
+    Move(dst_high, src_high);
+    Move(dst_low, src_low);
+  } else if (shift == 32) {
+    Move(dst_high, src_low);
+    Move(dst_low, Operand(0));
+  } else if (shift >= 32) {
     shift &= 0x1f;
     lsl(dst_high, src_low, Operand(shift));
     mov(dst_low, Operand(0));
-  } else if (shift == 0) {
-    Move(dst_low, src_low);
-    Move(dst_high, src_high);
   } else {
     lsl(dst_high, src_high, Operand(shift));
     orr(dst_high, dst_high, Operand(src_low, LSR, 32 - shift));
     lsl(dst_low, src_low, Operand(shift));
+  }
+}
+
+void MacroAssembler::LsrPair(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_low, shift));
+
+  Label less_than_32;
+  Label done;
+  rsb(scratch, shift, Operand(32), SetCC);
+  b(gt, &less_than_32);
+  // If shift >= 32
+  and_(scratch, shift, Operand(0x1f));
+  lsr(dst_low, src_high, Operand(scratch));
+  mov(dst_high, Operand(0));
+  jmp(&done);
+  bind(&less_than_32);
+  // If shift < 32
+
+  lsr(dst_low, src_low, Operand(shift));
+  orr(dst_low, dst_low, Operand(src_high, LSL, scratch));
+  lsr(dst_high, src_high, Operand(shift));
+  bind(&done);
+}
+
+void MacroAssembler::LsrPair(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  Label less_than_32;
+  Label done;
+  if (shift == 32) {
+    mov(dst_low, src_high);
+    mov(dst_high, Operand(0));
+  } else if (shift > 32) {
+    shift &= 0x1f;
+    lsr(dst_low, src_high, Operand(shift));
+    mov(dst_high, Operand(0));
+  } else if (shift == 0) {
+    Move(dst_low, src_low);
+    Move(dst_high, src_high);
+  } else {
+    lsr(dst_low, src_low, Operand(shift));
+    orr(dst_low, dst_low, Operand(src_high, LSL, 32 - shift));
+    lsr(dst_high, src_high, Operand(shift));
+  }
+}
+
+void MacroAssembler::AsrPair(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_low, shift));
+
+  Label less_than_32;
+  Label done;
+  rsb(scratch, shift, Operand(32), SetCC);
+  b(gt, &less_than_32);
+  // If shift >= 32
+  and_(scratch, shift, Operand(0x1f));
+  asr(dst_low, src_high, Operand(scratch));
+  asr(dst_high, src_high, Operand(31));
+  jmp(&done);
+  bind(&less_than_32);
+  // If shift < 32
+  lsr(dst_low, src_low, Operand(shift));
+  orr(dst_low, dst_low, Operand(src_high, LSL, scratch));
+  asr(dst_high, src_high, Operand(shift));
+  bind(&done);
+}
+
+void MacroAssembler::AsrPair(Register dst_low, Register dst_high,
+                             Register src_low, Register src_high,
+                             uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  Label less_than_32;
+  Label done;
+  if (shift == 32) {
+    mov(dst_low, src_high);
+    asr(dst_high, src_high, Operand(31));
+  } else if (shift > 32) {
+    shift &= 0x1f;
+    asr(dst_low, src_high, Operand(shift));
+    asr(dst_high, src_high, Operand(31));
+  } else if (shift == 0) {
+    Move(dst_low, src_low);
+    Move(dst_high, src_high);
+  } else {
+    lsr(dst_low, src_low, Operand(shift));
+    orr(dst_low, dst_low, Operand(src_high, LSL, 32 - shift));
+    asr(dst_high, src_high, Operand(shift));
   }
 }
 

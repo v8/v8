@@ -734,9 +734,9 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   // Create JSArray of substrings separated by separator.
   int part_count = indices.length();
 
-  Handle<JSArray> result = isolate->factory()->NewJSArray(part_count);
-  JSObject::EnsureCanContainHeapObjectElements(result);
-  result->set_length(Smi::FromInt(part_count));
+  Handle<JSArray> result =
+      isolate->factory()->NewJSArray(FAST_ELEMENTS, part_count, part_count,
+                                     INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   DCHECK(result->HasFastObjectElements());
 
@@ -746,14 +746,13 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
     elements->set(0, *subject);
   } else {
     int part_start = 0;
-    for (int i = 0; i < part_count; i++) {
-      HandleScope local_loop_handle(isolate);
+    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < part_count, i++, {
       int part_end = indices.at(i);
       Handle<String> substring =
           isolate->factory()->NewProperSubString(subject, part_start, part_end);
       elements->set(i, *substring);
       part_start = part_end + pattern_length;
-    }
+    });
   }
 
   if (limit == 0xffffffffu) {

@@ -340,7 +340,7 @@ class Scanner {
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
 
-  explicit Scanner(UnicodeCache* scanner_contants);
+  Scanner(UnicodeCache* scanner_contants, bool allow_html_comments);
 
   void Initialize(Utf16CharacterStream* source);
 
@@ -449,6 +449,12 @@ class Scanner {
   bool IdentifierIsFutureStrictReserved(const AstRawString* string) const;
 
   bool FoundHtmlComment() const { return found_html_comment_; }
+
+#define DECLARE_ACCESSORS(name)                                \
+  inline bool allow_##name() const { return allow_##name##_; } \
+  inline void set_allow_##name(bool allow) { allow_##name##_ = allow; }
+  DECLARE_ACCESSORS(harmony_exponentiation_operator)
+#undef ACCESSOR
 
  private:
   // The current and look-ahead token.
@@ -755,9 +761,14 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
+  // Whether to allow HTML comments (that is, skip over them, rather than
+  // reporting the comment marker as a sequence of tokens.)
+  bool allow_html_comments_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
+
+  bool allow_harmony_exponentiation_operator_;
 };
 
 }  // namespace internal

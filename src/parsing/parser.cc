@@ -439,6 +439,14 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
         *x = factory->NewNumberLiteral(value, pos, has_dot);
         return true;
       }
+      case Token::EXP: {
+        double value = std::pow(x_val, y_val);
+        int int_value = static_cast<int>(value);
+        *x = factory->NewNumberLiteral(
+            int_value == value && value != -0.0 ? int_value : value, pos,
+            has_dot);
+        return true;
+      }
       default:
         break;
     }
@@ -756,12 +764,11 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
                                     name_is_strict_reserved, pos, ok);
 }
 
-
 Parser::Parser(ParseInfo* info)
     : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
                                info->extension(), info->ast_value_factory(),
                                NULL, this),
-      scanner_(info->unicode_cache()),
+      scanner_(info->unicode_cache(), info->allow_html_comments()),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
@@ -785,6 +792,8 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
+  set_allow_harmony_exponentiation_operator(
+      FLAG_harmony_exponentiation_operator);
   set_allow_harmony_types(FLAG_harmony_types);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -2739,7 +2748,6 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  scope_->DeclarationScope()->RecordWithStatement();
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
   Statement* body;
   { BlockState block_state(&scope_, with_scope);
@@ -4132,7 +4140,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_generator) {
       // For generators, allocating variables in contexts is currently a win
       // because it minimizes the work needed to suspend and resume an
-      // activation.
+      // activation.  The machine code produced for generators (by full-codegen)
+      // relies on this forced context allocation, but not in an essential way.
       scope_->ForceContextAllocation();
 
       // Calling a generator returns a generator object.  That object is stored
@@ -4704,11 +4713,15 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
+    SET_ALLOW(legacy_const);
     SET_ALLOW(harmony_sloppy);
+    SET_ALLOW(harmony_sloppy_function);
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
+    SET_ALLOW(harmony_exponentiation_operator);
+    SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_types);
 #undef SET_ALLOW
   }
@@ -5400,6 +5413,16 @@ void ParserTraits::RewriteDestructuringAssignments() {
   parser_->RewriteDestructuringAssignments();
 }
 
+Expression* ParserTraits::RewriteExponentiation(Expression* left,
+                                                Expression* right, int pos) {
+  return parser_->RewriteExponentiation(left, right, pos);
+}
+
+Expression* ParserTraits::RewriteAssignExponentiation(Expression* left,
+                                                      Expression* right,
+                                                      int pos) {
+  return parser_->RewriteAssignExponentiation(left, right, pos);
+}
 
 void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
                                      bool* ok) {
@@ -5489,6 +5512,60 @@ void Parser::RewriteDestructuringAssignments() {
   }
 }
 
+Expression* Parser::RewriteExponentiation(Expression* left, Expression* right,
+                                          int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(left, zone());
+  args->Add(right, zone());
+  return factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+}
+
+Expression* Parser::RewriteAssignExponentiation(Expression* left,
+                                                Expression* right, int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  if (left->IsVariableProxy()) {
+    VariableProxy* lhs = left->AsVariableProxy();
+
+    Expression* result;
+    DCHECK_NOT_NULL(lhs->raw_name());
+    result =
+        this->ExpressionFromIdentifier(lhs->raw_name(), lhs->position(),
+                                       lhs->end_position(), scope_, factory());
+    args->Add(left, zone());
+    args->Add(right, zone());
+    Expression* call =
+        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+    return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
+  } else if (left->IsProperty()) {
+    Property* prop = left->AsProperty();
+    auto temp_obj = scope_->NewTemporary(ast_value_factory()->empty_string());
+    auto temp_key = scope_->NewTemporary(ast_value_factory()->empty_string());
+    Expression* assign_obj = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(temp_obj), prop->obj(),
+        RelocInfo::kNoPosition);
+    Expression* assign_key = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(temp_key), prop->key(),
+        RelocInfo::kNoPosition);
+    args->Add(factory()->NewProperty(factory()->NewVariableProxy(temp_obj),
+                                     factory()->NewVariableProxy(temp_key),
+                                     left->position()),
+              zone());
+    args->Add(right, zone());
+    Expression* call =
+        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+    Expression* target = factory()->NewProperty(
+        factory()->NewVariableProxy(temp_obj),
+        factory()->NewVariableProxy(temp_key), RelocInfo::kNoPosition);
+    Expression* assign =
+        factory()->NewAssignment(Token::ASSIGN, target, call, pos);
+    return factory()->NewBinaryOperation(
+        Token::COMMA, assign_obj,
+        factory()->NewBinaryOperation(Token::COMMA, assign_key, assign, pos),
+        pos);
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   // Array literals containing spreads are rewritten using do expressions, e.g.
@@ -6134,7 +6211,8 @@ Expression* ParserTraits::RewriteYieldStar(
 //       if (!IS_CALLABLE(C)) {
 //         throw MakeTypeError(kCalledNonCallableInstanceOf);
 //       }
-//       handler_result = %ordinary_has_instance(C, O);
+//       handler_result = %_GetOrdinaryHasInstance()
+//       handler_result = %_Call(handler_result, C, O);
 //     } else {
 //       handler_result = !!(%_Call(handler_result, C, O));
 //     }
@@ -6179,8 +6257,8 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
         factory->NewCallRuntime(Runtime::kInlineIsJSReceiver, args, nopos);
     Expression* call =
         NewThrowTypeError(MessageTemplate::kNonObjectInInstanceOfCheck,
-                          avfactory->empty_string(), nopos);
-    Statement* throw_call = factory->NewExpressionStatement(call, nopos);
+                          avfactory->empty_string(), pos);
+    Statement* throw_call = factory->NewExpressionStatement(call, pos);
 
     validate_C =
         factory->NewIfStatement(is_receiver_call,
@@ -6207,7 +6285,8 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
   //   if (!IS_CALLABLE(C)) {
   //     throw MakeTypeError(kCalledNonCallableInstanceOf);
   //   }
-  //   result = %ordinary_has_instance(C, O);
+  //   handler_result = %_GetOrdinaryHasInstance()
+  //   handler_result = %_Call(handler_result, C, O);
   // } else {
   //   handler_result = !!%_Call(handler_result, C, O);
   // }
@@ -6217,17 +6296,29 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
         Token::EQ_STRICT, factory->NewVariableProxy(var_handler_result),
         factory->NewUndefinedLiteral(nopos), nopos);
 
-    Block* then_side = factory->NewBlock(nullptr, 2, false, nopos);
+    Block* then_side = factory->NewBlock(nullptr, 3, false, nopos);
     {
       Expression* throw_expr =
           NewThrowTypeError(MessageTemplate::kCalledNonCallableInstanceOf,
-                            avfactory->empty_string(), nopos);
-      Statement* validate_C = CheckCallable(var_C, throw_expr);
-      ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(2, zone);
+                            avfactory->empty_string(), pos);
+      Statement* validate_C = CheckCallable(var_C, throw_expr, pos);
+
+      ZoneList<Expression*>* empty_args =
+          new (zone) ZoneList<Expression*>(0, zone);
+      Expression* ordinary_has_instance = factory->NewCallRuntime(
+          Runtime::kInlineGetOrdinaryHasInstance, empty_args, pos);
+      Expression* handler_proxy = factory->NewVariableProxy(var_handler_result);
+      Expression* assignment_handler = factory->NewAssignment(
+          Token::ASSIGN, handler_proxy, ordinary_has_instance, nopos);
+      Statement* assignment_get_handler =
+          factory->NewExpressionStatement(assignment_handler, nopos);
+
+      ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(3, zone);
+      args->Add(factory->NewVariableProxy(var_handler_result), zone);
       args->Add(factory->NewVariableProxy(var_C), zone);
       args->Add(factory->NewVariableProxy(var_O), zone);
-      CallRuntime* call = factory->NewCallRuntime(
-          Context::ORDINARY_HAS_INSTANCE_INDEX, args, pos);
+      Expression* call =
+          factory->NewCallRuntime(Runtime::kInlineCall, args, pos);
       Expression* result_proxy = factory->NewVariableProxy(var_handler_result);
       Expression* assignment =
           factory->NewAssignment(Token::ASSIGN, result_proxy, call, nopos);
@@ -6235,6 +6326,7 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
           factory->NewExpressionStatement(assignment, nopos);
 
       then_side->statements()->Add(validate_C, zone);
+      then_side->statements()->Add(assignment_get_handler, zone);
       then_side->statements()->Add(assignment_return, zone);
     }
 
@@ -6278,7 +6370,8 @@ Expression* ParserTraits::RewriteInstanceof(Expression* lhs, Expression* rhs,
   return instanceof;
 }
 
-Statement* ParserTraits::CheckCallable(Variable* var, Expression* error) {
+Statement* ParserTraits::CheckCallable(Variable* var, Expression* error,
+                                       int pos) {
   auto factory = parser_->factory();
   auto avfactory = parser_->ast_value_factory();
   const int nopos = RelocInfo::kNoPosition;
@@ -6291,7 +6384,7 @@ Statement* ParserTraits::CheckCallable(Variable* var, Expression* error) {
     Expression* condition = factory->NewCompareOperation(
         Token::EQ_STRICT, type_of, function_literal, nopos);
 
-    Statement* throw_call = factory->NewExpressionStatement(error, nopos);
+    Statement* throw_call = factory->NewExpressionStatement(error, pos);
 
     validate_var = factory->NewIfStatement(
         condition, factory->NewEmptyStatement(nopos), throw_call, nopos);
@@ -6570,7 +6663,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
     Expression* throw_expr = NewThrowTypeError(
         MessageTemplate::kReturnMethodNotCallable,
         avfactory->empty_string(), nopos);
-    check_return_callable = CheckCallable(var_return, throw_expr);
+    check_return_callable = CheckCallable(var_return, throw_expr, nopos);
   }
 
   // try { %_Call(iteratorReturn, iterator) } catch (_) { }

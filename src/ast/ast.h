@@ -360,8 +360,9 @@ class Expression : public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
-  // True if we can prove that the expression is the undefined literal.
-  bool IsUndefinedLiteral(Isolate* isolate) const;
+  // True if we can prove that the expression is the undefined literal. Note
+  // that this also checks for loads of the global "undefined" variable.
+  bool IsUndefinedLiteral() const;
 
   // True iff the expression is a valid target for an assignment.
   bool IsValidReferenceExpressionOrThis() const;
@@ -2315,7 +2316,7 @@ class CompareOperation final : public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
-  bool IsLiteralCompareUndefined(Expression** expr, Isolate* isolate);
+  bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 
  protected:

@@ -331,6 +331,201 @@ TEST(RunCallUint64ToFloat64) {
   }
 }
 
+TEST(RunCallFloat32ToInt64) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_float32_to_int64(m.isolate());
+
+  float input;
+  int64_t output;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      function, m.PointerConstant(&input), m.PointerConstant(&output)));
+  FOR_FLOAT32_INPUTS(i) {
+    input = *i;
+    if (*i >= static_cast<float>(std::numeric_limits<int64_t>::min()) &&
+        *i < static_cast<float>(std::numeric_limits<int64_t>::max())) {
+      CHECK_EQ(1, m.Call());
+      CHECK_EQ(static_cast<int64_t>(*i), output);
+    } else {
+      CHECK_EQ(0, m.Call());
+    }
+  }
+}
+
+TEST(RunCallFloat32ToUint64) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::wasm_float32_to_uint64(m.isolate());
+
+  float input;
+  uint64_t output;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      function, m.PointerConstant(&input), m.PointerConstant(&output)));
+  FOR_FLOAT32_INPUTS(i) {
+    input = *i;
+    if (*i > -1.0 &&
+        *i < static_cast<float>(std::numeric_limits<uint64_t>::max())) {
+      CHECK_EQ(1, m.Call());
+      CHECK_EQ(static_cast<uint64_t>(*i), output);
+    } else {
+      CHECK_EQ(0, m.Call());
+    }
+  }
+}
+
+TEST(RunCallFloat64ToInt64) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_float64_to_int64(m.isolate());
+
+  double input;
+  int64_t output;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      function, m.PointerConstant(&input), m.PointerConstant(&output)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    if (*i >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
+        *i < static_cast<double>(std::numeric_limits<int64_t>::max())) {
+      CHECK_EQ(1, m.Call());
+      CHECK_EQ(static_cast<int64_t>(*i), output);
+    } else {
+      CHECK_EQ(0, m.Call());
+    }
+  }
+}
+
+TEST(RunCallFloat64ToUint64) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::wasm_float64_to_uint64(m.isolate());
+
+  double input;
+  uint64_t output;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      function, m.PointerConstant(&input), m.PointerConstant(&output)));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    if (*i > -1.0 &&
+        *i < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
+      CHECK_EQ(1, m.Call());
+      CHECK_EQ(static_cast<uint64_t>(*i), output);
+    } else {
+      CHECK_EQ(0, m.Call());
+    }
+  }
+}
+
+TEST(RunCallInt64Div) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_int64_div(m.isolate());
+
+  int64_t dst;
+  int64_t src;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(MachineType::Int32(), MachineType::Pointer(),
+                            MachineType::Pointer(), function,
+                            m.PointerConstant(&dst), m.PointerConstant(&src)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      dst = *i;
+      src = *j;
+      if (src == 0) {
+        CHECK_EQ(0, m.Call());
+      } else if (src == -1 && dst == std::numeric_limits<int64_t>::min()) {
+        CHECK_EQ(-1, m.Call());
+      } else {
+        CHECK_EQ(1, m.Call());
+        CHECK_EQ(*i / *j, dst);
+      }
+    }
+  }
+}
+
+TEST(RunCallInt64Mod) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_int64_mod(m.isolate());
+
+  int64_t dst;
+  int64_t src;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(MachineType::Int32(), MachineType::Pointer(),
+                            MachineType::Pointer(), function,
+                            m.PointerConstant(&dst), m.PointerConstant(&src)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      dst = *i;
+      src = *j;
+      if (src == 0) {
+        CHECK_EQ(0, m.Call());
+      } else {
+        CHECK_EQ(1, m.Call());
+        CHECK_EQ(*i % *j, dst);
+      }
+    }
+  }
+}
+
+TEST(RunCallUint64Div) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_uint64_div(m.isolate());
+
+  uint64_t dst;
+  uint64_t src;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(MachineType::Int32(), MachineType::Pointer(),
+                            MachineType::Pointer(), function,
+                            m.PointerConstant(&dst), m.PointerConstant(&src)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      dst = *i;
+      src = *j;
+      if (src == 0) {
+        CHECK_EQ(0, m.Call());
+      } else {
+        CHECK_EQ(1, m.Call());
+        CHECK_EQ(*i / *j, dst);
+      }
+    }
+  }
+}
+
+TEST(RunCallUint64Mod) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref = ExternalReference::wasm_uint64_mod(m.isolate());
+
+  uint64_t dst;
+  uint64_t src;
+
+  Node* function = m.ExternalConstant(ref);
+  m.Return(m.CallCFunction2(MachineType::Int32(), MachineType::Pointer(),
+                            MachineType::Pointer(), function,
+                            m.PointerConstant(&dst), m.PointerConstant(&src)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      dst = *i;
+      src = *j;
+      if (src == 0) {
+        CHECK_EQ(0, m.Call());
+      } else {
+        CHECK_EQ(1, m.Call());
+        CHECK_EQ(*i % *j, dst);
+      }
+    }
+  }
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

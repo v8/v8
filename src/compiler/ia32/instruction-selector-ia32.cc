@@ -583,6 +583,42 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, kIA32Sar);
 }
 
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  IA32OperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the temp
+  // register.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister()};
+
+  Emit(kIA32AddPair, 2, outputs, 4, inputs, 1, temps);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  IA32OperandGenerator g(this);
+
+  // We use UseUniqueRegister here to avoid register sharing with the temp
+  // register.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister()};
+
+  Emit(kIA32SubPair, 2, outputs, 4, inputs, 1, temps);
+}
+
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   IA32OperandGenerator g(this);
 

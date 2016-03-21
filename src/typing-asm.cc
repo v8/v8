@@ -1158,7 +1158,9 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       // BIT_OR allows Any since it is used as a type coercion.
       VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
                                   cache_.kAsmSigned, true);
-      if (expr->left()->IsCall() && expr->op() == Token::BIT_OR) {
+      if (expr->left()->IsCall() && expr->op() == Token::BIT_OR &&
+          Type::Number()->Is(expr->left()->bounds().upper)) {
+        // Force the return types of foreign functions.
         expr->left()->set_bounds(Bounds(cache_.kAsmSigned));
       }
       return;
@@ -1252,7 +1254,9 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       } else if (expr->op() == Token::MUL && expr->right()->IsLiteral() &&
                  right_type->Is(cache_.kAsmDouble)) {
         // For unary +, expressed as x * 1.0
-        if (expr->left()->IsCall() && expr->op() == Token::MUL) {
+        if (expr->left()->IsCall() && expr->op() == Token::MUL &&
+            Type::Number()->Is(expr->left()->bounds().upper)) {
+          // Force the return types of foreign functions.
           expr->left()->set_bounds(Bounds(cache_.kAsmDouble));
         }
         IntersectResult(expr, cache_.kAsmDouble);

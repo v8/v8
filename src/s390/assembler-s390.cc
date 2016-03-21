@@ -1804,7 +1804,7 @@ void Assembler::ay(Register r1, const MemOperand& opnd) {
 
 // Add Immediate (32)
 void Assembler::afi(Register r1, const Operand& opnd) {
-  ril_form(ALFI, r1, opnd);
+  ril_form(AFI, r1, opnd);
 }
 
 // Add Halfword Register-Storage (32)
@@ -1905,6 +1905,9 @@ void Assembler::alfi(Register r1, const Operand& opnd) {
 // Add Logical Register-Register (32)
 void Assembler::alr(Register r1, Register r2) { rr_form(ALR, r1, r2); }
 
+// Add Logical With Carry Register-Register (32)
+void Assembler::alcr(Register r1, Register r2) { rre_form(ALCR, r1, r2); }
+
 // Add Logical Register-Register-Register (32)
 void Assembler::alrk(Register r1, Register r2, Register r3) {
   rrf1_form(ALRK, r1, r2, r3);
@@ -1920,7 +1923,7 @@ void Assembler::alg(Register r1, const MemOperand& opnd) {
 
 // Add Logical Immediate (64)
 void Assembler::algfi(Register r1, const Operand& opnd) {
-  ril_form(ALFI, r1, opnd);
+  ril_form(ALGFI, r1, opnd);
 }
 
 // Add Logical Register-Register (64)
@@ -2001,6 +2004,9 @@ void Assembler::sly(Register r1, const MemOperand& opnd) {
 
 // Subtract Logical Register-Register (32)
 void Assembler::slr(Register r1, Register r2) { rr_form(SLR, r1, r2); }
+
+// Subtract Logical With Borrow Register-Register (32)
+void Assembler::slbr(Register r1, Register r2) { rre_form(SLBR, r1, r2); }
 
 // Subtract Logical Register-Register-Register (32)
 void Assembler::slrk(Register r1, Register r2, Register r3) {

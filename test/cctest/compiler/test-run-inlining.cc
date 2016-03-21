@@ -268,7 +268,8 @@ TEST(InlineTwice) {
       "(function () {"
       "  var x = 42;"
       "  function bar(s) { AssertInlineCount(2); return x + s; };"
-      "  return (function (s,t) { return bar(s) + bar(t); });"
+      "  function foo(s, t) { return bar(s) + bar(t); };"
+      "  return foo;"
       "})();",
       kInlineFlags);
 

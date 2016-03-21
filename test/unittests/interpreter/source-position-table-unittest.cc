@@ -33,6 +33,26 @@ TEST_F(SourcePositionTableTest, EncodeStatement) {
   CHECK(!builder.ToSourcePositionTable().is_null());
 }
 
+TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
+  SourcePositionTableBuilder builder(isolate(), zone());
+  for (int i = 0; i < arraysize(offsets); i++) {
+    builder.AddStatementPosition(offsets[i], offsets[i]);
+    builder.AddStatementPosition(
+        offsets[i], offsets[i],
+        (i % 2 == 0) ? SourcePositionTableBuilder::OVERWRITE_DUPLICATE
+                     : SourcePositionTableBuilder::DISCARD_DUPLICATE);
+    builder.AddStatementPosition(offsets[i], offsets[i]);
+    builder.AddStatementPosition(
+        offsets[i], offsets[i],
+        (i % 2 == 0) ? SourcePositionTableBuilder::OVERWRITE_DUPLICATE
+                     : SourcePositionTableBuilder::DISCARD_DUPLICATE);
+  }
+
+  // To test correctness, we rely on the assertions in ToSourcePositionTable().
+  // (Also below.)
+  CHECK(!builder.ToSourcePositionTable().is_null());
+}
+
 TEST_F(SourcePositionTableTest, EncodeExpression) {
   SourcePositionTableBuilder builder(isolate(), zone());
   for (int i = 0; i < arraysize(offsets); i++) {
