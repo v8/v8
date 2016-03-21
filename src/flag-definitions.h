@@ -226,8 +226,6 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_sloppy, "harmony features in sloppy mode")                \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                 \
   V(harmony_sloppy_function, "harmony sloppy function block scoping") \
-  V(harmony_proxies, "harmony proxies")                               \
-  V(harmony_reflect, "harmony Reflect API")                           \
   V(harmony_regexp_subclass, "harmony regexp subclassing")            \
   V(harmony_restrictive_declarations,                                 \
     "harmony limitations on sloppy mode function declarations")       \

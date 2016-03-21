@@ -2068,6 +2068,7 @@
           '../../src/js/string-iterator.js',
           '../../src/js/templates.js',
           '../../src/js/spread.js',
+          '../../src/js/proxy.js',
           '../../src/debug/mirrors.js',
           '../../src/debug/debug.js',
           '../../src/debug/liveedit.js',
@@ -2075,7 +2076,6 @@
         'experimental_library_files': [
           '../../src/js/macros.py',
           '../../src/messages.h',
-          '../../src/js/proxy.js',
           '../../src/js/generator.js',
           '../../src/js/harmony-atomics.js',
           '../../src/js/harmony-regexp.js',

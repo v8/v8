@@ -158,6 +158,7 @@ class Genesis BASE_EMBEDDED {
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateIteratorMaps();
+  void CreateJSProxyMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
   void AddRestrictedFunctionProperties(Handle<Map> map);
@@ -217,7 +218,6 @@ class Genesis BASE_EMBEDDED {
   void InstallBuiltinFunctionIds();
   void InstallExperimentalBuiltinFunctionIds();
   void InitializeNormalizedMapCaches();
-  void InstallJSProxyMaps();
 
   enum ExtensionTraversalState {
     UNVISITED, VISITED, INSTALLED
@@ -754,6 +754,30 @@ void Genesis::CreateIteratorMaps() {
       *generator_object_prototype_map);
 }
 
+void Genesis::CreateJSProxyMaps() {
+  // Allocate the different maps for all Proxy types.
+  // Next to the default proxy, we need maps indicating callable and
+  // constructable proxies.
+  Handle<Map> proxy_function_map =
+      Map::Copy(isolate()->sloppy_function_without_prototype_map(), "Proxy");
+  proxy_function_map->set_is_constructor(true);
+  native_context()->set_proxy_function_map(*proxy_function_map);
+
+  Handle<Map> proxy_map =
+      factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize, FAST_ELEMENTS);
+  proxy_map->set_dictionary_map(true);
+  native_context()->set_proxy_map(*proxy_map);
+
+  Handle<Map> proxy_callable_map = Map::Copy(proxy_map, "callable Proxy");
+  proxy_callable_map->set_is_callable();
+  native_context()->set_proxy_callable_map(*proxy_callable_map);
+  proxy_callable_map->SetConstructor(native_context()->function_function());
+
+  Handle<Map> proxy_constructor_map =
+      Map::Copy(proxy_callable_map, "constructor Proxy");
+  proxy_constructor_map->set_is_constructor(true);
+  native_context()->set_proxy_constructor_map(*proxy_constructor_map);
+}
 
 static void ReplaceAccessors(Handle<Map> map,
                              Handle<String> name,
@@ -1586,6 +1610,74 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::JS_WEAK_SET_FUN_INDEX);
   }
 
+  {  // -- P r o x y
+    CreateJSProxyMaps();
+
+    Handle<String> name = factory->Proxy_string();
+    Handle<Code> code(isolate->builtins()->ProxyConstructor());
+
+    Handle<JSFunction> proxy_function =
+        factory->NewFunction(isolate->proxy_function_map(),
+                             factory->Proxy_string(), MaybeHandle<Code>(code));
+
+    JSFunction::SetInitialMap(
+        proxy_function, Handle<Map>(native_context()->proxy_map(), isolate),
+        factory->null_value());
+
+    proxy_function->shared()->set_construct_stub(
+        *isolate->builtins()->ProxyConstructor_ConstructStub());
+    proxy_function->shared()->set_internal_formal_parameter_count(2);
+    proxy_function->shared()->set_length(2);
+
+    native_context()->set_proxy_function(*proxy_function);
+    InstallFunction(global, name, proxy_function, factory->Object_string());
+  }
+
+  {  // -- R e f l e c t
+    Handle<String> reflect_string = factory->InternalizeUtf8String("Reflect");
+    Handle<JSObject> reflect =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
+
+    Handle<JSFunction> define_property =
+        SimpleInstallFunction(reflect, factory->defineProperty_string(),
+                              Builtins::kReflectDefineProperty, 3, true);
+    native_context()->set_reflect_define_property(*define_property);
+
+    Handle<JSFunction> delete_property =
+        SimpleInstallFunction(reflect, factory->deleteProperty_string(),
+                              Builtins::kReflectDeleteProperty, 2, true);
+    native_context()->set_reflect_delete_property(*delete_property);
+
+    Handle<JSFunction> apply = SimpleInstallFunction(
+        reflect, factory->apply_string(), Builtins::kReflectApply, 3, false);
+    native_context()->set_reflect_apply(*apply);
+
+    Handle<JSFunction> construct =
+        SimpleInstallFunction(reflect, factory->construct_string(),
+                              Builtins::kReflectConstruct, 2, false);
+    native_context()->set_reflect_construct(*construct);
+
+    SimpleInstallFunction(reflect, factory->get_string(), Builtins::kReflectGet,
+                          2, false);
+    SimpleInstallFunction(reflect, factory->getOwnPropertyDescriptor_string(),
+                          Builtins::kReflectGetOwnPropertyDescriptor, 2, true);
+    SimpleInstallFunction(reflect, factory->getPrototypeOf_string(),
+                          Builtins::kReflectGetPrototypeOf, 1, true);
+    SimpleInstallFunction(reflect, factory->has_string(), Builtins::kReflectHas,
+                          2, true);
+    SimpleInstallFunction(reflect, factory->isExtensible_string(),
+                          Builtins::kReflectIsExtensible, 1, true);
+    SimpleInstallFunction(reflect, factory->ownKeys_string(),
+                          Builtins::kReflectOwnKeys, 1, true);
+    SimpleInstallFunction(reflect, factory->preventExtensions_string(),
+                          Builtins::kReflectPreventExtensions, 1, true);
+    SimpleInstallFunction(reflect, factory->set_string(), Builtins::kReflectSet,
+                          3, false);
+    SimpleInstallFunction(reflect, factory->setPrototypeOf_string(),
+                          Builtins::kReflectSetPrototypeOf, 2, true);
+  }
+
   {  // --- B o u n d F u n c t i o n
     Handle<Map> map =
         factory->NewMap(JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kSize);
@@ -2305,66 +2397,6 @@ void Genesis::InitializeGlobal_harmony_regexp_subclass() {
 }
 
 
-void Genesis::InitializeGlobal_harmony_reflect() {
-  Factory* factory = isolate()->factory();
-
-  // We currently use some of the Reflect functions internally, even when
-  // the --harmony-reflect flag is not given.
-
-  Handle<JSFunction> define_property =
-      SimpleCreateFunction(isolate(), factory->defineProperty_string(),
-                           Builtins::kReflectDefineProperty, 3, true);
-  native_context()->set_reflect_define_property(*define_property);
-
-  Handle<JSFunction> delete_property =
-      SimpleCreateFunction(isolate(), factory->deleteProperty_string(),
-                           Builtins::kReflectDeleteProperty, 2, true);
-  native_context()->set_reflect_delete_property(*delete_property);
-
-  Handle<JSFunction> apply = SimpleCreateFunction(
-      isolate(), factory->apply_string(), Builtins::kReflectApply, 3, false);
-  native_context()->set_reflect_apply(*apply);
-
-  Handle<JSFunction> construct =
-      SimpleCreateFunction(isolate(), factory->construct_string(),
-                           Builtins::kReflectConstruct, 2, false);
-  native_context()->set_reflect_construct(*construct);
-
-  if (!FLAG_harmony_reflect) return;
-
-  Handle<JSGlobalObject> global(JSGlobalObject::cast(
-      native_context()->global_object()));
-  Handle<String> reflect_string = factory->NewStringFromStaticChars("Reflect");
-  Handle<JSObject> reflect =
-      factory->NewJSObject(isolate()->object_function(), TENURED);
-  JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
-
-  InstallFunction(reflect, define_property, factory->defineProperty_string());
-  InstallFunction(reflect, delete_property, factory->deleteProperty_string());
-  InstallFunction(reflect, apply, factory->apply_string());
-  InstallFunction(reflect, construct, factory->construct_string());
-
-  SimpleInstallFunction(reflect, factory->get_string(),
-                        Builtins::kReflectGet, 2, false);
-  SimpleInstallFunction(reflect, factory->getOwnPropertyDescriptor_string(),
-                        Builtins::kReflectGetOwnPropertyDescriptor, 2, true);
-  SimpleInstallFunction(reflect, factory->getPrototypeOf_string(),
-                        Builtins::kReflectGetPrototypeOf, 1, true);
-  SimpleInstallFunction(reflect, factory->has_string(),
-                        Builtins::kReflectHas, 2, true);
-  SimpleInstallFunction(reflect, factory->isExtensible_string(),
-                        Builtins::kReflectIsExtensible, 1, true);
-  SimpleInstallFunction(reflect, factory->ownKeys_string(),
-                        Builtins::kReflectOwnKeys, 1, true);
-  SimpleInstallFunction(reflect, factory->preventExtensions_string(),
-                        Builtins::kReflectPreventExtensions, 1, true);
-  SimpleInstallFunction(reflect, factory->set_string(),
-                        Builtins::kReflectSet, 3, false);
-  SimpleInstallFunction(reflect, factory->setPrototypeOf_string(),
-                        Builtins::kReflectSetPrototypeOf, 2, true);
-}
-
-
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
 
@@ -2433,63 +2465,6 @@ void Genesis::InitializeGlobal_harmony_object_own_property_descriptors() {
   SimpleInstallFunction(object_function,
                         factory->getOwnPropertyDescriptors_string(),
                         Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
-}
-
-void Genesis::InstallJSProxyMaps() {
-  // Allocate the different maps for all Proxy types.
-  // Next to the default proxy, we need maps indicating callable and
-  // constructable proxies.
-
-  Handle<Map> proxy_function_map =
-      Map::Copy(isolate()->sloppy_function_without_prototype_map(), "Proxy");
-  proxy_function_map->set_is_constructor(true);
-  native_context()->set_proxy_function_map(*proxy_function_map);
-
-  Handle<Map> proxy_map =
-      factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize, FAST_ELEMENTS);
-  proxy_map->set_dictionary_map(true);
-  native_context()->set_proxy_map(*proxy_map);
-
-  Handle<Map> proxy_callable_map = Map::Copy(proxy_map, "callable Proxy");
-  proxy_callable_map->set_is_callable();
-  native_context()->set_proxy_callable_map(*proxy_callable_map);
-  proxy_callable_map->SetConstructor(native_context()->function_function());
-
-  Handle<Map> proxy_constructor_map =
-      Map::Copy(proxy_callable_map, "constructor Proxy");
-  proxy_constructor_map->set_is_constructor(true);
-  native_context()->set_proxy_constructor_map(*proxy_constructor_map);
-}
-
-
-void Genesis::InitializeGlobal_harmony_proxies() {
-  if (!FLAG_harmony_proxies) return;
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  InstallJSProxyMaps();
-
-  // Create the Proxy object.
-  Handle<String> name = factory->Proxy_string();
-  Handle<Code> code(isolate->builtins()->ProxyConstructor());
-
-  Handle<JSFunction> proxy_function =
-      factory->NewFunction(isolate->proxy_function_map(),
-                           factory->Proxy_string(), MaybeHandle<Code>(code));
-
-  JSFunction::SetInitialMap(proxy_function,
-                            Handle<Map>(native_context()->proxy_map(), isolate),
-                            factory->null_value());
-
-  proxy_function->shared()->set_construct_stub(
-      *isolate->builtins()->ProxyConstructor_ConstructStub());
-  proxy_function->shared()->set_internal_formal_parameter_count(2);
-  proxy_function->shared()->set_length(2);
-
-  native_context()->set_proxy_function(*proxy_function);
-  InstallFunction(global, name, proxy_function, factory->Object_string());
 }
 
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {
@@ -2945,7 +2920,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  static const char* harmony_proxies_natives[] = {"native proxy.js", nullptr};
   static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",
                                                   nullptr};
   static const char* harmony_iterator_close_natives[] = {nullptr};
@@ -2957,8 +2931,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_tailcalls_natives[] = {nullptr};
   static const char* harmony_unicode_regexps_natives[] = {
       "native harmony-unicode-regexps.js", nullptr};
-  static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
-                                                  nullptr};
   static const char* harmony_object_observe_natives[] = {
       "native harmony-object-observe.js", nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {

@@ -2989,7 +2989,6 @@ THREADED_TEST(SymbolTemplateProperties) {
 
 
 THREADED_TEST(PrivatePropertiesOnProxies) {
-  i::FLAG_harmony_proxies = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -24836,7 +24835,6 @@ TEST(ObjectTemplateIntrinsics) {
 
 
 TEST(Proxy) {
-  i::FLAG_harmony_proxies = true;
   LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
