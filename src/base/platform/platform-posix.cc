@@ -429,9 +429,10 @@ bool OS::Remove(const char* path) {
   return (remove(path) == 0);
 }
 
+char OS::DirectorySeparator() { return '/'; }
 
 bool OS::isDirectorySeparator(const char ch) {
-  return ch == '/';
+  return ch == DirectorySeparator();
 }
 
 

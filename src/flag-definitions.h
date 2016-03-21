@@ -476,9 +476,8 @@ DEFINE_BOOL(wasm_loop_assignment_analysis, false,
 
 DEFINE_BOOL(enable_simd_asmjs, false, "enable SIMD.js in asm.js stdlib")
 
-DEFINE_BOOL(dump_asmjs_wasm, false, "dump Asm.js to WASM module bytes")
-DEFINE_STRING(asmjs_wasm_dumpfile, "asmjs.wasm",
-              "file to dump asm wasm conversion result to")
+DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")
+DEFINE_STRING(dump_wasm_module_path, NULL, "directory to dump wasm modules to")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
