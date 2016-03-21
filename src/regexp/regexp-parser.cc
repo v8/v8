@@ -380,7 +380,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           case '8':
           case '9': {
             int index = 0;
-            if (ParseBackReferenceIndex(&index)) {
+            bool is_backref = ParseBackReferenceIndex(&index CHECK_FAILED);
+            if (is_backref) {
               if (state->IsInsideCaptureGroup(index)) {
                 // The back reference is inside the capture group it refers to.
                 // Nothing can possibly have been captured yet, so we use empty
