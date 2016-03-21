@@ -25,7 +25,6 @@ class CodeFlusher;
 class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
-class LocalSlotsBuffer;
 
 class Marking : public AllStatic {
  public:
@@ -487,9 +486,7 @@ class MarkCompactCollector {
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
-                     AllocationSpace to_old_space,
-                     LocalSlotsBuffer* old_to_old_slots,
-                     LocalSlotsBuffer* old_to_new_slots);
+                     AllocationSpace to_old_space);
 
   void InvalidateCode(Code* code);
 
@@ -810,11 +807,6 @@ class MarkCompactCollector {
   // Finalizes the parallel sweeping phase. Marks all the pages that were
   // swept in parallel.
   void ParallelSweepSpacesComplete();
-
-  // Updates store buffer and slot buffer for a pointer in a migrating object.
-  void RecordMigratedSlot(Object* value, Address slot,
-                          LocalSlotsBuffer* old_to_old_slots,
-                          LocalSlotsBuffer* old_to_new_slots);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;

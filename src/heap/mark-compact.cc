@@ -1519,13 +1519,8 @@ class MarkCompactCollector::HeapObjectVisitor {
 class MarkCompactCollector::EvacuateVisitorBase
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
-                      LocalSlotsBuffer* old_to_old_slots,
-                      LocalSlotsBuffer* old_to_new_slots)
-      : heap_(heap),
-        compaction_spaces_(compaction_spaces),
-        old_to_old_slots_(old_to_old_slots),
-        old_to_new_slots_(old_to_new_slots) {}
+  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces)
+      : heap_(heap), compaction_spaces_(compaction_spaces) {}
 
   bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
                          HeapObject** target_object) {
@@ -1534,8 +1529,7 @@ class MarkCompactCollector::EvacuateVisitorBase
     AllocationResult allocation = target_space->AllocateRaw(size, alignment);
     if (allocation.To(target_object)) {
       heap_->mark_compact_collector()->MigrateObject(
-          *target_object, object, size, target_space->identity(),
-          old_to_old_slots_, old_to_new_slots_);
+          *target_object, object, size, target_space->identity());
       return true;
     }
     return false;
@@ -1544,8 +1538,6 @@ class MarkCompactCollector::EvacuateVisitorBase
  protected:
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
-  LocalSlotsBuffer* old_to_old_slots_;
-  LocalSlotsBuffer* old_to_new_slots_;
 };
 
 
@@ -1557,11 +1549,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 
   explicit EvacuateNewSpaceVisitor(Heap* heap,
                                    CompactionSpaceCollection* compaction_spaces,
-                                   LocalSlotsBuffer* old_to_old_slots,
-                                   LocalSlotsBuffer* old_to_new_slots,
                                    HashMap* local_pretenuring_feedback)
-      : EvacuateVisitorBase(heap, compaction_spaces, old_to_old_slots,
-                            old_to_new_slots),
+      : EvacuateVisitorBase(heap, compaction_spaces),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         space_to_allocate_(NEW_SPACE),
         promoted_size_(0),
@@ -1586,10 +1575,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     }
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, &target);
-    heap_->mark_compact_collector()->MigrateObject(
-        HeapObject::cast(target), object, size, space,
-        (space == NEW_SPACE) ? nullptr : old_to_old_slots_,
-        (space == NEW_SPACE) ? nullptr : old_to_new_slots_);
+    heap_->mark_compact_collector()->MigrateObject(HeapObject::cast(target),
+                                                   object, size, space);
     if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
       heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
     }
@@ -1708,11 +1695,8 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
     : public MarkCompactCollector::EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap,
-                          CompactionSpaceCollection* compaction_spaces,
-                          LocalSlotsBuffer* old_to_old_slots,
-                          LocalSlotsBuffer* old_to_new_slots)
-      : EvacuateVisitorBase(heap, compaction_spaces, old_to_old_slots,
-                            old_to_new_slots) {}
+                          CompactionSpaceCollection* compaction_spaces)
+      : EvacuateVisitorBase(heap, compaction_spaces) {}
 
   bool Visit(HeapObject* object) override {
     CompactionSpace* target_space = compaction_spaces_->Get(
@@ -2535,18 +2519,6 @@ void MarkCompactCollector::AbortTransitionArrays() {
   heap()->set_encountered_transition_arrays(Smi::FromInt(0));
 }
 
-void MarkCompactCollector::RecordMigratedSlot(
-    Object* value, Address slot, LocalSlotsBuffer* old_to_old_slots,
-    LocalSlotsBuffer* old_to_new_slots) {
-  // When parallel compaction is in progress, store and slots buffer entries
-  // require synchronization.
-  if (heap_->InNewSpace(value)) {
-    old_to_new_slots->Record(slot);
-  } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
-    old_to_old_slots->Record(slot);
-  }
-}
-
 static inline SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
   if (RelocInfo::IsCodeTarget(rmode)) {
     return CODE_TARGET_SLOT;
@@ -2587,22 +2559,16 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 
 class RecordMigratedSlotVisitor final : public ObjectVisitor {
  public:
-  RecordMigratedSlotVisitor(MarkCompactCollector* collector,
-                            LocalSlotsBuffer* old_to_old_slots,
-                            LocalSlotsBuffer* old_to_new_slots)
-      : collector_(collector),
-        old_to_old_slots_(old_to_old_slots),
-        old_to_new_slots_(old_to_new_slots) {}
+  explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
+      : collector_(collector) {}
 
   V8_INLINE void VisitPointer(Object** p) override {
-    collector_->RecordMigratedSlot(*p, reinterpret_cast<Address>(p),
-                                   old_to_old_slots_, old_to_new_slots_);
+    RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
   }
 
   V8_INLINE void VisitPointers(Object** start, Object** end) override {
     while (start < end) {
-      collector_->RecordMigratedSlot(*start, reinterpret_cast<Address>(start),
-                                     old_to_old_slots_, old_to_new_slots_);
+      RecordMigratedSlot(*start, reinterpret_cast<Address>(start));
       ++start;
     }
   }
@@ -2611,15 +2577,25 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     if (collector_->compacting_) {
       Address code_entry = Memory::Address_at(code_entry_slot);
       if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
-        old_to_old_slots_->Record(CODE_ENTRY_SLOT, code_entry_slot);
+        RememberedSet<OLD_TO_OLD>::InsertTyped(
+            Page::FromAddress(code_entry_slot), CODE_ENTRY_SLOT,
+            code_entry_slot);
       }
     }
   }
 
  private:
+  inline void RecordMigratedSlot(Object* value, Address slot) {
+    if (collector_->heap()->InNewSpace(value)) {
+      RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+    } else if (value->IsHeapObject() &&
+               Page::FromAddress(reinterpret_cast<Address>(value))
+                   ->IsEvacuationCandidate()) {
+      RememberedSet<OLD_TO_OLD>::Insert(Page::FromAddress(slot), slot);
+    }
+  }
+
   MarkCompactCollector* collector_;
-  LocalSlotsBuffer* old_to_old_slots_;
-  LocalSlotsBuffer* old_to_new_slots_;
 };
 
 
@@ -2638,9 +2614,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
 // have to scan the entire old space, including dead objects, looking for
 // pointers to new space.
 void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
-                                         int size, AllocationSpace dest,
-                                         LocalSlotsBuffer* old_to_old_slots,
-                                         LocalSlotsBuffer* old_to_new_slots) {
+                                         int size, AllocationSpace dest) {
   Address dst_addr = dst->address();
   Address src_addr = src->address();
   DCHECK(heap()->AllowedToBeMigrated(src, dest));
@@ -2653,17 +2627,17 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
     if (FLAG_ignition && dst->IsBytecodeArray()) {
       PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
     }
-    RecordMigratedSlotVisitor visitor(this, old_to_old_slots, old_to_new_slots);
+    RecordMigratedSlotVisitor visitor(this);
     dst->IterateBody(&visitor);
   } else if (dest == CODE_SPACE) {
     DCHECK_CODEOBJECT_SIZE(size, heap()->code_space());
     PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
     heap()->MoveBlock(dst_addr, src_addr, size);
-    old_to_old_slots->Record(RELOCATED_CODE_OBJECT, dst_addr);
+    RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(dst_addr),
+                                           RELOCATED_CODE_OBJECT, dst_addr);
     Code::cast(dst)->Relocate(dst_addr - src_addr);
   } else {
     DCHECK_OBJECT_SIZE(size);
-    DCHECK(old_to_old_slots == nullptr);
     DCHECK(dest == NEW_SPACE);
     heap()->MoveBlock(dst_addr, src_addr, size);
   }
@@ -2972,10 +2946,8 @@ class MarkCompactCollector::Evacuator : public Malloced {
         local_pretenuring_feedback_(HashMap::PointersMatch,
                                     kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
-                           &old_to_old_slots_, &old_to_new_slots_,
                            &local_pretenuring_feedback_),
-        old_space_visitor_(collector->heap(), &compaction_spaces_,
-                           &old_to_old_slots_, &old_to_new_slots_),
+        old_space_visitor_(collector->heap(), &compaction_spaces_),
         duration_(0.0),
         bytes_compacted_(0) {}
 
@@ -3003,11 +2975,9 @@ class MarkCompactCollector::Evacuator : public Malloced {
 
   // Locally cached collector data.
   CompactionSpaceCollection compaction_spaces_;
-  LocalSlotsBuffer old_to_old_slots_;
-  LocalSlotsBuffer old_to_new_slots_;
   HashMap local_pretenuring_feedback_;
 
-  // Vistors for the corresponding spaces.
+  // Visitors for the corresponding spaces.
   EvacuateNewSpaceVisitor new_space_visitor_;
   EvacuateOldSpaceVisitor old_space_visitor_;
 
@@ -3069,22 +3039,6 @@ void MarkCompactCollector::Evacuator::Finalize() {
       new_space_visitor_.promoted_size() +
       new_space_visitor_.semispace_copied_size());
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
-  // Move locally recorded slots to the global remembered sets.
-  old_to_new_slots_.Iterate(
-      [](Address slot) {
-        Page* page = Page::FromAddress(slot);
-        RememberedSet<OLD_TO_NEW>::Insert(page, slot);
-      },
-      [](SlotType type, Address slot) { UNREACHABLE(); });
-  old_to_old_slots_.Iterate(
-      [](Address slot) {
-        Page* page = Page::FromAddress(slot);
-        RememberedSet<OLD_TO_OLD>::Insert(page, slot);
-      },
-      [](SlotType type, Address slot) {
-        Page* page = Page::FromAddress(slot);
-        RememberedSet<OLD_TO_OLD>::InsertTyped(page, type, slot);
-      });
 }
 
 int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
