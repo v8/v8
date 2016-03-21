@@ -586,7 +586,8 @@ class ParserBase : public Traits {
   }
 
   void GetUnexpectedTokenMessage(
-      Token::Value token, MessageTemplate::Template* message, const char** arg,
+      Token::Value token, MessageTemplate::Template* message,
+      Scanner::Location* location, const char** arg,
       MessageTemplate::Template default_ = MessageTemplate::kUnexpectedToken);
 
   void ReportUnexpectedToken(Token::Value token);
@@ -687,33 +688,34 @@ class ParserBase : public Traits {
   void ExpressionUnexpectedToken(ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
-    GetUnexpectedTokenMessage(peek(), &message, &arg);
-    classifier->RecordExpressionError(scanner()->peek_location(), message, arg);
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    classifier->RecordExpressionError(location, message, arg);
   }
 
   void BindingPatternUnexpectedToken(ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
-    GetUnexpectedTokenMessage(peek(), &message, &arg);
-    classifier->RecordBindingPatternError(scanner()->peek_location(), message,
-                                          arg);
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    classifier->RecordBindingPatternError(location, message, arg);
   }
 
   void ArrowFormalParametersUnexpectedToken(ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
-    GetUnexpectedTokenMessage(peek(), &message, &arg);
-    classifier->RecordArrowFormalParametersError(scanner()->peek_location(),
-                                                 message, arg);
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    classifier->RecordArrowFormalParametersError(location, message, arg);
   }
 
   void FormalParameterInitializerUnexpectedToken(
       ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
-    GetUnexpectedTokenMessage(peek(), &message, &arg);
-    classifier->RecordFormalParameterInitializerError(
-        scanner()->peek_location(), message, arg);
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    classifier->RecordFormalParameterInitializerError(location, message, arg);
   }
 
   // Recursive descent functions:
@@ -962,10 +964,10 @@ ParserBase<Traits>::FunctionState::~FunctionState() {
   *function_state_stack_ = outer_function_state_;
 }
 
-
 template <class Traits>
 void ParserBase<Traits>::GetUnexpectedTokenMessage(
-    Token::Value token, MessageTemplate::Template* message, const char** arg,
+    Token::Value token, MessageTemplate::Template* message,
+    Scanner::Location* location, const char** arg,
     MessageTemplate::Template default_) {
   *arg = nullptr;
   switch (token) {
@@ -1002,7 +1004,12 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
       *message = MessageTemplate::kInvalidEscapedReservedWord;
       break;
     case Token::ILLEGAL:
-      *message = MessageTemplate::kInvalidOrUnexpectedToken;
+      if (scanner()->has_error()) {
+        *message = scanner()->error();
+        *location = scanner()->error_location();
+      } else {
+        *message = MessageTemplate::kInvalidOrUnexpectedToken;
+      }
       break;
     default:
       const char* name = Token::String(token);
@@ -1024,7 +1031,7 @@ void ParserBase<Traits>::ReportUnexpectedTokenAt(
     Scanner::Location source_location, Token::Value token,
     MessageTemplate::Template message) {
   const char* arg;
-  GetUnexpectedTokenMessage(token, &message, &arg);
+  GetUnexpectedTokenMessage(token, &message, &source_location, &arg);
   Traits::ReportMessageAt(source_location, message, arg);
 }
 
