@@ -1172,24 +1172,25 @@ TEST(InsertBasicChanges) {
                        MachineType::AnyTagged(), MachineType::Float64());
 
   CheckChangeInsertion(IrOpcode::kChangeInt32ToFloat64, MachineType::Int32(),
-                       MachineType::Float64());
+                       MachineType::Float64(), Type::Signed32());
   CheckChangeInsertion(IrOpcode::kChangeInt32ToTagged, MachineType::Int32(),
-                       MachineType::AnyTagged());
+                       MachineType::AnyTagged(), Type::Signed32());
 
   CheckChangeInsertion(IrOpcode::kChangeUint32ToFloat64, MachineType::Uint32(),
-                       MachineType::Float64());
+                       MachineType::Float64(), Type::Unsigned32());
   CheckChangeInsertion(IrOpcode::kChangeUint32ToTagged, MachineType::Uint32(),
-                       MachineType::AnyTagged());
+                       MachineType::AnyTagged(), Type::Unsigned32());
 }
-
 
 static void CheckChangesAroundBinop(TestingGraph* t, const Operator* op,
                                     IrOpcode::Value input_change,
-                                    IrOpcode::Value output_change) {
+                                    IrOpcode::Value output_change,
+                                    Type* type = Type::Any()) {
   Node* binop =
       op->ControlInputCount() == 0
           ? t->graph()->NewNode(op, t->p0, t->p1)
           : t->graph()->NewNode(op, t->p0, t->p1, t->graph()->start());
+  NodeProperties::SetType(binop, type);
   t->Return(binop);
   t->Lower();
   CHECK_EQ(input_change, binop->InputAt(0)->opcode());
@@ -1212,7 +1213,9 @@ TEST(InsertChangesAroundInt32Binops) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
-                            IrOpcode::kChangeInt32ToTagged);
+                            IrOpcode::kChangeInt32ToTagged, Type::Signed32());
+    CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
+                            IrOpcode::kChangeInt32ToTagged, Type::Signed32());
   }
 }
 
