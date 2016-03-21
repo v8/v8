@@ -870,6 +870,9 @@
   'regress/regress-debug-deopt-while-recompile': [SKIP],
   'regress/regress-deep-proto': [SKIP],
   'try': [SKIP],
+
+  # Too slow for interpreter and msan.
+  'es6/tail-call-megatest*': [SKIP],
 }],  # ignition == True and msan
 
 ['ignition == False', {
