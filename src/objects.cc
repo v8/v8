@@ -16117,14 +16117,16 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
 
 
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
-  Isolate* isolate = array->GetIsolate();
-  // Optimistic fast path: "length" is usually the first fast property.
-  DescriptorArray* descriptors = array->map()->instance_descriptors();
-  if (descriptors->length() >= 1 &&
-      descriptors->GetKey(0) == isolate->heap()->length_string()) {
-    return descriptors->GetDetails(0).IsReadOnly();
+  Map* map = array->map();
+  // Fast path: "length" is the first fast property of arrays. Since it's not
+  // configurable, it's guaranteed to be the first in the descriptor array.
+  if (!map->is_dictionary_map()) {
+    DCHECK(map->instance_descriptors()->GetKey(0) ==
+           array->GetHeap()->length_string());
+    return map->instance_descriptors()->GetDetails(0).IsReadOnly();
   }
 
+  Isolate* isolate = array->GetIsolate();
   LookupIterator it(array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
