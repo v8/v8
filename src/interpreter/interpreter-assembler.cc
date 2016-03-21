@@ -500,22 +500,24 @@ void InterpreterAssembler::StackCheck() {
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
   disable_stack_check_across_call_ = true;
   Node* abort_id = SmiTag(Int32Constant(bailout_reason));
-  Node* ret_value = CallRuntime(Runtime::kAbort, GetContext(), abort_id);
+  CallRuntime(Runtime::kAbort, GetContext(), abort_id);
   disable_stack_check_across_call_ = false;
-  // Unreached, but keeps turbofan happy.
-  Return(ret_value);
 }
 
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
                                                BailoutReason bailout_reason) {
   CodeStubAssembler::Label match(this);
   CodeStubAssembler::Label no_match(this);
+  CodeStubAssembler::Label end(this);
 
   Node* condition = WordEqual(lhs, rhs);
   Branch(condition, &match, &no_match);
   Bind(&no_match);
   Abort(bailout_reason);
+  Goto(&end);
   Bind(&match);
+  Goto(&end);
+  Bind(&end);
 }
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
