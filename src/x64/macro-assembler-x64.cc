@@ -3881,7 +3881,7 @@ void MacroAssembler::AssertNotNumber(Register object) {
     Check(NegateCondition(is_smi), kOperandIsANumber);
     Cmp(FieldOperand(object, HeapObject::kMapOffset),
         isolate()->factory()->heap_number_map());
-    Check(equal, kOperandIsANumber);
+    Check(not_equal, kOperandIsANumber);
   }
 }
 
