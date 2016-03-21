@@ -109,7 +109,6 @@ namespace internal {
   V(TupleType)                  \
   V(ObjectType)                 \
   V(TypeMember)                 \
-  V(FunctionType)               \
   V(TypeParameter)              \
   V(FormalParameter)            \
   V(TypeReference)              \
@@ -3138,34 +3137,6 @@ class FormalParameter : public AstNode {
 };
 
 
-// Class for function and constructor types.
-class FunctionType : public Type {
- public:
-  DECLARE_NODE_TYPE(FunctionType)
-
-  bool IsConstructorType() const { return constructor_; }
-  ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
-  ZoneList<FormalParameter*>* parameters() const { return parameters_; }
-  Type* result_type() const { return result_type_; }
-
- protected:
-  FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
-               ZoneList<FormalParameter*>* parameters, Type* result_type,
-               int pos, bool constructor = false)
-      : Type(zone, pos),
-        type_parameters_(type_parameters),
-        parameters_(parameters),
-        result_type_(result_type),
-        constructor_(constructor) {}
-
- private:
-  ZoneList<TypeParameter*>* type_parameters_;
-  ZoneList<FormalParameter*>* parameters_;
-  Type* result_type_;
-  bool constructor_;
-};
-
-
 // Class for type references.
 // It also covers binding identifiers.
 class TypeReference : public Type {
@@ -3967,13 +3938,18 @@ class AstNodeFactory final BASE_EMBEDDED {
         local_zone_, members, valid_type, valid_binder, pos);
   }
 
-  typesystem::FunctionType* NewFunctionType(
+  typesystem::ObjectType* NewFunctionType(
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
       typesystem::Type* result_type, int pos, bool constructor = false) {
-    return new (local_zone_)
-        typesystem::FunctionType(local_zone_, type_parameters, parameters,
-                                 result_type, pos, constructor);
+    ZoneList<typesystem::TypeMember*>* members = new (local_zone_)
+        ZoneList<typesystem::TypeMember*>(1, local_zone_);
+    members->Add(NewTypeMember(nullptr, false, type_parameters,
+                               parameters, result_type, true, false, pos,
+                               constructor),
+                 local_zone_);
+    return new (local_zone_) typesystem::ObjectType(local_zone_, members,
+                                                    true, false, pos);
   }
 
   typesystem::TypeReference* NewTypeReference(
