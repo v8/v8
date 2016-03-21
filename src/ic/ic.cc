@@ -1422,7 +1422,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         Handle<JSObject> holder = it->GetHolder<JSObject>();
         InterceptorInfo* info = holder->GetNamedInterceptor();
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          if (!info->setter()->IsUndefined()) return true;
+          return !info->non_masking() && receiver.is_identical_to(holder) &&
+                 !info->setter()->IsUndefined();
         } else if (!info->getter()->IsUndefined() ||
                    !info->query()->IsUndefined()) {
           return false;
@@ -2807,11 +2808,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
 
-  Handle<Object> result_internal;
-  if (result.is_null()) {
-    return isolate->heap()->no_interceptor_result_sentinel();
-  }
-  return *result;
+  if (!result.is_null()) return *result;
+  return isolate->heap()->no_interceptor_result_sentinel();
 }
 
 
@@ -2829,15 +2827,32 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
 
-  Handle<Object> result;
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *holder, Object::DONT_THROW);
+
+  v8::GenericNamedPropertyGetterCallback getter =
+      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+          interceptor->getter());
+  Handle<Object> result = arguments.Call(getter, name);
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  if (!result.is_null()) return *result;
+
   LookupIterator it(receiver, name, holder);
-  // TODO(conradw): Investigate strong mode semantics for this.
+  // Skip any lookup work until we hit the (possibly non-masking) interceptor.
+  while (it.state() != LookupIterator::INTERCEPTOR ||
+         !it.GetHolder<JSObject>().is_identical_to(holder)) {
+    DCHECK(it.state() != LookupIterator::ACCESS_CHECK || it.HasAccess());
+    it.Next();
+  }
+  // Skip past the interceptor.
+  it.Next();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
 
   if (it.IsFound()) return *result;
 
-  // Return the undefined result if the reference error should not be thrown.
-  // Note that both keyed and non-keyed loads may end up here.
   LoadICNexus nexus(isolate);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   if (!ic.ShouldThrowReferenceError(it.GetReceiver())) {
@@ -2858,26 +2873,34 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-#ifdef DEBUG
-  PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER,
-                         PrototypeIterator::END_AT_NON_HIDDEN);
-  bool found = false;
-  for (; !iter.IsAtEnd(); iter.Advance()) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (current->IsJSObject() &&
-        Handle<JSObject>::cast(current)->HasNamedInterceptor()) {
-      found = true;
-      break;
-    }
+
+  DCHECK(receiver->HasNamedInterceptor());
+  InterceptorInfo* interceptor = receiver->GetNamedInterceptor();
+  DCHECK(!interceptor->non_masking());
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *receiver, Object::DONT_THROW);
+
+  v8::GenericNamedPropertySetterCallback setter =
+      v8::ToCData<v8::GenericNamedPropertySetterCallback>(
+          interceptor->setter());
+  Handle<Object> result = arguments.Call(setter, name, value);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  if (!result.is_null()) return *value;
+
+  LookupIterator it(receiver, name, receiver);
+  // Skip past any access check on the receiver.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    DCHECK(it.HasAccess());
+    it.Next();
   }
-  DCHECK(found);
-#endif
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetProperty(receiver, name, value, ic.language_mode()));
-  return *result;
+  // Skip past the interceptor on the receiver.
+  DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+  it.Next();
+
+  MAYBE_RETURN(Object::SetProperty(&it, value, ic.language_mode(),
+                                   JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED),
+               isolate->heap()->exception());
+  return *value;
 }
 
 
