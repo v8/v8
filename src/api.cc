@@ -501,13 +501,17 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
     Isolate::Scope isolate_scope(isolate);
     i::Snapshot::Initialize(internal_isolate);
     Persistent<Context> context;
+    bool success;
     {
       HandleScope handle_scope(isolate);
-      Local<Context> warmup_context = Context::New(isolate);
-      if (RunExtraCode(isolate, warmup_context, warmup_source, "<warm-up>")) {
-        Local<Context> fresh_context = Context::New(isolate);
-        context.Reset(isolate, fresh_context);
-      }
+      Local<Context> new_context = Context::New(isolate);
+      success = RunExtraCode(isolate, new_context, warmup_source, "<warm-up>");
+    }
+    if (success) {
+      HandleScope handle_scope(isolate);
+      isolate->ContextDisposedNotification(false);
+      Local<Context> new_context = Context::New(isolate);
+      context.Reset(isolate, new_context);
     }
 
     i::Snapshot::Metadata metadata;
