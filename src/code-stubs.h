@@ -99,6 +99,16 @@ namespace internal {
   /* TurboFanCodeStubs */                   \
   V(AllocateHeapNumber)                     \
   V(AllocateMutableHeapNumber)              \
+  V(AllocateFloat32x4)                      \
+  V(AllocateInt32x4)                        \
+  V(AllocateUint32x4)                       \
+  V(AllocateBool32x4)                       \
+  V(AllocateInt16x8)                        \
+  V(AllocateUint16x8)                       \
+  V(AllocateBool16x8)                       \
+  V(AllocateInt8x16)                        \
+  V(AllocateUint8x16)                       \
+  V(AllocateBool8x16)                       \
   V(StringLength)                           \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
@@ -2558,6 +2568,22 @@ class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateMutableHeapNumber);
   DEFINE_CODE_STUB(AllocateMutableHeapNumber, TurboFanCodeStub);
 };
+
+#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)     \
+  class Allocate##Type##Stub : public TurboFanCodeStub {                \
+   public:                                                              \
+    explicit Allocate##Type##Stub(Isolate* isolate)                     \
+        : TurboFanCodeStub(isolate) {}                                  \
+                                                                        \
+    void InitializeDescriptor(CodeStubDescriptor* descriptor) override; \
+    void GenerateAssembly(                                              \
+        compiler::CodeStubAssembler* assembler) const override;         \
+                                                                        \
+    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                   \
+    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                 \
+  };
+SIMD128_TYPES(SIMD128_ALLOC_STUB)
+#undef SIMD128_ALLOC_STUB
 
 class AllocateInNewSpaceStub final : public HydrogenCodeStub {
  public:

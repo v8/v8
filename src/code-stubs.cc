@@ -489,6 +489,22 @@ void AllocateMutableHeapNumberStub::GenerateAssembly(
   assembler->Return(result);
 }
 
+#define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)            \
+  void Allocate##Type##Stub::GenerateAssembly(                              \
+      compiler::CodeStubAssembler* assembler) const {                       \
+    compiler::Node* result = assembler->Allocate(                           \
+        Simd128Value::kSize, compiler::CodeStubAssembler::kNone);           \
+    compiler::Node* map_offset =                                            \
+        assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag); \
+    compiler::Node* map = assembler->IntPtrAdd(result, map_offset);         \
+    assembler->StoreNoWriteBarrier(                                         \
+        MachineRepresentation::kTagged, map,                                \
+        assembler->HeapConstant(isolate()->factory()->type##_map()));       \
+    assembler->Return(result);                                              \
+  }
+SIMD128_TYPES(SIMD128_GEN_ASM)
+#undef SIMD128_GEN_ASM
+
 void StringLengthStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   compiler::Node* value = assembler->Parameter(0);
@@ -2551,6 +2567,14 @@ void AllocateMutableHeapNumberStub::InitializeDescriptor(
   descriptor->Initialize();
 }
 
+#define SIMD128_INIT_DESC(TYPE, Type, type, lane_count, lane_type) \
+  void Allocate##Type##Stub::InitializeDescriptor(                 \
+      CodeStubDescriptor* descriptor) {                            \
+    descriptor->Initialize(                                        \
+        Runtime::FunctionForId(Runtime::kCreate##Type)->entry);    \
+  }
+SIMD128_TYPES(SIMD128_INIT_DESC)
+#undef SIMD128_INIT_DESC
 
 void AllocateInNewSpaceStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {

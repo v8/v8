@@ -420,6 +420,13 @@ Callable CodeFactory::AllocateMutableHeapNumber(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
+#define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type)          \
+  Callable CodeFactory::Allocate##Type(Isolate* isolate) {              \
+    Allocate##Type##Stub stub(isolate);                                 \
+    return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor()); \
+  }
+SIMD128_TYPES(SIMD128_ALLOC)
+#undef SIMD128_ALLOC
 
 // static
 Callable CodeFactory::AllocateInNewSpace(Isolate* isolate) {
