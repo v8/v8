@@ -340,7 +340,7 @@ class Scanner {
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
 
-  Scanner(UnicodeCache* scanner_contants, bool allow_html_comments);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   void Initialize(Utf16CharacterStream* source);
 
@@ -761,9 +761,6 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether to allow HTML comments (that is, skip over them, rather than
-  // reporting the comment marker as a sequence of tokens.)
-  bool allow_html_comments_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;

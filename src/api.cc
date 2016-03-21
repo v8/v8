@@ -226,8 +226,7 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       v8::Integer::New(v8_isolate, script->id()),
       v8::Boolean::New(v8_isolate, options.IsEmbedderDebugScript()),
       Utils::ToLocal(source_map_url),
-      v8::Boolean::New(v8_isolate, options.IsOpaque()),
-      v8::Boolean::New(v8_isolate, options.AllowHtmlComments()));
+      v8::Boolean::New(v8_isolate, options.IsOpaque()));
   return origin;
 }
 

@@ -764,11 +764,12 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
                                     name_is_strict_reserved, pos, ok);
 }
 
+
 Parser::Parser(ParseInfo* info)
     : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
                                info->extension(), info->ast_value_factory(),
                                NULL, this),
-      scanner_(info->unicode_cache(), info->allow_html_comments()),
+      scanner_(info->unicode_cache()),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),

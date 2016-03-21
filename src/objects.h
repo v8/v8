@@ -6565,9 +6565,8 @@ class Script: public Struct {
   static const int kCompilationTypeBit = 0;
   static const int kCompilationStateBit = 1;
   static const int kHideSourceBit = 2;
-  static const int kAllowHtmlCommentsBit = 3;
-  static const int kOriginOptionsShift = 4;
-  static const int kOriginOptionsSize = 4;
+  static const int kOriginOptionsShift = 3;
+  static const int kOriginOptionsSize = 3;
   static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
                                         << kOriginOptionsShift;
 
