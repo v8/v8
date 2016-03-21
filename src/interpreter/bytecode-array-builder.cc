@@ -1433,6 +1433,7 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
     case Token::Value::GTE:
       return Bytecode::kTestGreaterThanOrEqual;
     case Token::Value::INSTANCEOF:
+      DCHECK(!FLAG_harmony_instanceof);
       return Bytecode::kTestInstanceOf;
     case Token::Value::IN:
       return Bytecode::kTestIn;

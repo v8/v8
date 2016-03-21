@@ -1306,6 +1306,7 @@ void BytecodeGraphBuilder::VisitTestIn() {
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
+  DCHECK(!FLAG_harmony_instanceof);
   BuildCompareOp(javascript()->InstanceOf());
 }
 
