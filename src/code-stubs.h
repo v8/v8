@@ -773,7 +773,7 @@ class ToBooleanStub final : public TurboFanCodeStub {
  public:
   explicit ToBooleanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(ToBoolean, TurboFanCodeStub);
 };
 
@@ -803,7 +803,7 @@ class NumberToStringStub final : public HydrogenCodeStub {
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kNumber = 0;
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(NumberToString);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
 };
 
@@ -2820,7 +2820,7 @@ class ToBooleanICStub : public HydrogenCodeStub {
 
   class TypesBits : public BitField<uint16_t, 0, NUMBER_OF_TYPES> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(ToBooleanIC, HydrogenCodeStub);
 };
 
@@ -2932,7 +2932,7 @@ class ToNumberStub final : public PlatformCodeStub {
  public:
   explicit ToNumberStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToNumber);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToNumber, PlatformCodeStub);
 };
 
@@ -2941,7 +2941,7 @@ class ToLengthStub final : public PlatformCodeStub {
  public:
   explicit ToLengthStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToLength);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToLength, PlatformCodeStub);
 };
 
@@ -2950,7 +2950,7 @@ class ToStringStub final : public PlatformCodeStub {
  public:
   explicit ToStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToString);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToString, PlatformCodeStub);
 };
 
@@ -2959,7 +2959,7 @@ class ToNameStub final : public PlatformCodeStub {
  public:
   explicit ToNameStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToName);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToName, PlatformCodeStub);
 };
 
@@ -2968,7 +2968,7 @@ class ToObjectStub final : public HydrogenCodeStub {
  public:
   explicit ToObjectStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToObject);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(ToObject, HydrogenCodeStub);
 };
 
