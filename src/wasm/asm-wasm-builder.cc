@@ -997,6 +997,22 @@ class AsmWasmBuilderImpl : public AstVisitor {
             return true;
           }
         }
+        switch (TypeIndexOf(args->at(0))) {
+          case kInt32:
+          case kFixnum:
+            current_function_builder_->Emit(kExprF32SConvertI32);
+            break;
+          case kUint32:
+            current_function_builder_->Emit(kExprF32UConvertI32);
+            break;
+          case kFloat32:
+            break;
+          case kFloat64:
+            current_function_builder_->Emit(kExprF32ConvertF64);
+            break;
+          default:
+            UNREACHABLE();
+        }
         break;
       }
       default: {

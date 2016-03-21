@@ -1605,11 +1605,13 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
 }
 
 Node* WasmGraphBuilder::BuildF32SConvertI64(Node* input) {
+  // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
       input, ExternalReference::wasm_int64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());
 }
 Node* WasmGraphBuilder::BuildF32UConvertI64(Node* input) {
+  // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
       input, ExternalReference::wasm_uint64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());

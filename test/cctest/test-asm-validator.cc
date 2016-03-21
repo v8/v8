@@ -1153,7 +1153,7 @@ TEST(TernaryMismatchIntish) {
 
 TEST(TernaryMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 1; var y = 2; return (x?fround(y):x)|0; }\n"
+      "function bar() { var x = 1; var y = 2.0; return (x?fround(y):x)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: then and else expressions in ? must have the same type\n");
 }
@@ -1173,9 +1173,16 @@ TEST(BadIntishMultiply) {
       "asm: line 1: intish not allowed in multiply\n");
 }
 
-TEST(FroundFloat32) {
-  CHECK_FUNC_TYPES_BEGIN(
+TEST(IntToFloat32) {
+  CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return fround(x); }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: illegal function argument type\n");
+}
+
+TEST(Int32ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x|0); }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
@@ -1184,7 +1191,10 @@ TEST(FroundFloat32) {
       }
       CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
         CHECK_VAR(fround, FUNC_N2F_TYPE);
-        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
       }
     }
     CHECK_SKIP();
@@ -1192,6 +1202,77 @@ TEST(FroundFloat32) {
   CHECK_FUNC_TYPES_END
 }
 
+TEST(Uint32ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x>>>0); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(Float64ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1.0; return fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(Int32ToFloat32ToInt32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return ~~fround(x|0) | 0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+              CHECK_VAR(fround, FUNC_N2F_TYPE);
+              CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+                CHECK_VAR(x, Bounds(cache.kAsmInt));
+                CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+              }
+            }
+            CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(Addition4) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1276,7 +1357,7 @@ TEST(CompareMismatchInt32Uint32) {
 
 TEST(CompareMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
+      "function bar() { var x = 1; var y = 2.0; return (x < fround(y))|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: left and right side of comparison must match\n");
 }
@@ -1754,6 +1835,12 @@ TEST(LogicalOrOperator) {
       "asm: line 1: illegal logical operator\n");
 }
 
+TEST(BitOrDouble) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; return x | 0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: intish required\n");
+}
 
 TEST(BadLiteral) {
   CHECK_FUNC_ERROR(
