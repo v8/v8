@@ -763,22 +763,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 }
 
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
-    Handle<Name> name) {
-  __ pop(scratch1());  // remove the return address
-  __ push(receiver());
-  __ push(this->name());
-  __ push(value());
-  __ push(scratch1());  // restore return address
-
-  // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
 Register NamedStoreHandlerCompiler::value() {
   return StoreDescriptor::ValueRegister();
 }

@@ -124,6 +124,7 @@ namespace internal {
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
   V(StoreField)                             \
+  V(StoreInterceptor)                       \
   V(StoreGlobal)                            \
   V(StoreTransition)
 
@@ -777,6 +778,18 @@ class ToBooleanStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(ToBoolean, TurboFanCodeStub);
+};
+
+class StoreInterceptorStub : public TurboFanCodeStub {
+ public:
+  explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assember) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
+  DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
 };
 
 enum StringAddFlags {
@@ -2548,7 +2561,6 @@ class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateMutableHeapNumber);
   DEFINE_CODE_STUB(AllocateMutableHeapNumber, TurboFanCodeStub);
 };
-
 
 class AllocateInNewSpaceStub final : public HydrogenCodeStub {
  public:

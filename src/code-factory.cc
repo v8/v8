@@ -329,6 +329,12 @@ Callable CodeFactory::SubString(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::StoreInterceptor(Isolate* isolate) {
+  StoreInterceptorStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::Typeof(Isolate* isolate) {
   TypeofStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

@@ -2332,6 +2332,17 @@ void ToBooleanStub::GenerateAssembly(
   }
 }
 
+void StoreInterceptorStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* value = assembler->Parameter(2);
+  Node* context = assembler->Parameter(3);
+  assembler->TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
+                             receiver, name, value);
+}
+
 template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a

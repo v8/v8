@@ -386,22 +386,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 }
 
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
-    Handle<Name> name) {
-  Label miss;
-
-  ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreInterceptor");
-
-  __ Push(receiver(), this->name(), value());
-
-  // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
 Register NamedStoreHandlerCompiler::value() {
   return StoreDescriptor::ValueRegister();
 }
