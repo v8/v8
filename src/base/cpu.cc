@@ -77,33 +77,6 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 \
     || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
-#if V8_HOST_ARCH_ARM64
-class CacheLineSizes {
- public:
-  CacheLineSizes() {
-#ifdef USE_SIMULATOR
-    cache_type_register_ = 0;
-#else
-    // Copy the content of the cache type register to a core register.
-    __asm__ __volatile__("mrs %[ctr], ctr_el0"  // NOLINT
-                         : [ctr] "=r"(cache_type_register_));
-#endif
-  }
-
-  uint32_t icache_line_size() const { return ExtractCacheLineSize(0); }
-  uint32_t dcache_line_size() const { return ExtractCacheLineSize(16); }
-
- private:
-  uint32_t ExtractCacheLineSize(int cache_line_size_shift) const {
-    // The cache type register holds the size of cache lines in words as a
-    // power of two.
-    return 4 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
-  }
-
-  uint32_t cache_type_register_;
-};
-#endif  // V8_HOST_ARCH_ARM64
-
 #if V8_OS_LINUX
 
 #if V8_HOST_ARCH_ARM
@@ -654,10 +627,6 @@ CPU::CPU()
     }
     delete[] part;
   }
-
-  CacheLineSizes sizes;
-  icache_line_size_ = sizes.icache_line_size();
-  dcache_line_size_ = sizes.dcache_line_size();
 
 #elif V8_HOST_ARCH_PPC
 
