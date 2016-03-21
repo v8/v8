@@ -140,6 +140,8 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   SCANNER_ACCESSORS(harmony_exponentiation_operator);
+
+#undef SCANNER_ACCESSORS
 #undef ALLOW_ACCESSORS
 
   uintptr_t stack_limit() const { return stack_limit_; }
