@@ -1403,25 +1403,34 @@ class RootMarkingVisitor : public ObjectVisitor {
 
 
 // Helper class for pruning the string table.
-template <bool finalize_external_strings>
+template <bool finalize_external_strings, bool record_slots>
 class StringTableCleaner : public ObjectVisitor {
  public:
-  explicit StringTableCleaner(Heap* heap) : heap_(heap), pointers_removed_(0) {}
+  StringTableCleaner(Heap* heap, HeapObject* table)
+      : heap_(heap), pointers_removed_(0), table_(table) {
+    DCHECK(!record_slots || table != nullptr);
+  }
 
   void VisitPointers(Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
+    MarkCompactCollector* collector = heap_->mark_compact_collector();
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
-      if (o->IsHeapObject() &&
-          Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(o)))) {
-        if (finalize_external_strings) {
-          DCHECK(o->IsExternalString());
-          heap_->FinalizeExternalString(String::cast(*p));
-        } else {
-          pointers_removed_++;
+      if (o->IsHeapObject()) {
+        if (Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(o)))) {
+          if (finalize_external_strings) {
+            DCHECK(o->IsExternalString());
+            heap_->FinalizeExternalString(String::cast(*p));
+          } else {
+            pointers_removed_++;
+          }
+          // Set the entry to the_hole_value (as deleted).
+          *p = heap_->the_hole_value();
+        } else if (record_slots) {
+          // StringTable contains only old space strings.
+          DCHECK(!heap_->InNewSpace(o));
+          collector->RecordSlot(table_, p, o);
         }
-        // Set the entry to the_hole_value (as deleted).
-        *p = heap_->the_hole_value();
       }
     }
   }
@@ -1434,12 +1443,11 @@ class StringTableCleaner : public ObjectVisitor {
  private:
   Heap* heap_;
   int pointers_removed_;
+  HeapObject* table_;
 };
 
-
-typedef StringTableCleaner<false> InternalizedStringTableCleaner;
-typedef StringTableCleaner<true> ExternalStringTableCleaner;
-
+typedef StringTableCleaner<false, true> InternalizedStringTableCleaner;
+typedef StringTableCleaner<true, false> ExternalStringTableCleaner;
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
@@ -2117,11 +2125,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // string table.  Cannot use string_table() here because the string
     // table is marked.
     StringTable* string_table = heap()->string_table();
-    InternalizedStringTableCleaner internalized_visitor(heap());
+    InternalizedStringTableCleaner internalized_visitor(heap(), string_table);
     string_table->IterateElements(&internalized_visitor);
     string_table->ElementsRemoved(internalized_visitor.PointersRemoved());
 
-    ExternalStringTableCleaner external_visitor(heap());
+    ExternalStringTableCleaner external_visitor(heap(), nullptr);
     heap()->external_string_table_.Iterate(&external_visitor);
     heap()->external_string_table_.CleanUp();
   }
@@ -3636,8 +3644,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
-    heap_->string_table()->Iterate(&updating_visitor);
-
     // Update pointers from external string table.
     heap_->UpdateReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
