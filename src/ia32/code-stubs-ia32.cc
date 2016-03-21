@@ -554,7 +554,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ fstp(1);    // 2^X
     // Bail out to runtime in case of exceptions in the status word.
     __ fnstsw_ax();
-    __ test_b(eax, 0x5F);  // We check for all but precision exception.
+    __ test_b(eax,
+              Immediate(0x5F));  // We check for all but precision exception.
     __ j(not_zero, &fast_power_failed, Label::kNear);
     __ fstp_d(Operand(esp, 0));
     __ movsd(double_result, Operand(esp, 0));
@@ -866,11 +867,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
 
   // (5a) Is subject sequential two byte?  If yes, go to (9).
-  __ test_b(ebx, kStringRepresentationMask | kStringEncodingMask);
+  __ test_b(ebx, Immediate(kStringRepresentationMask | kStringEncodingMask));
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
   __ j(zero, &seq_two_byte_string);  // Go to (9).
   // (5b) Is subject external?  If yes, go to (8).
-  __ test_b(ebx, kStringRepresentationMask);
+  __ test_b(ebx, Immediate(kStringRepresentationMask));
   // The underlying external string is never a short external string.
   STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
   STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
@@ -1119,7 +1120,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
-    __ test_b(ebx, kIsIndirectStringMask);
+    __ test_b(ebx, Immediate(kIsIndirectStringMask));
     __ Assert(zero, kExternalStringExpectedButNotFound);
   }
   __ mov(eax, FieldOperand(eax, ExternalString::kResourceDataOffset));
@@ -1128,7 +1129,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ sub(eax, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kTwoByteStringTag == 0);
   // (8a) Is the external string one byte?  If yes, go to (6).
-  __ test_b(ebx, kStringEncodingMask);
+  __ test_b(ebx, Immediate(kStringEncodingMask));
   __ j(not_zero, &seq_one_byte_string);  // Goto (6).
 
   // eax: sequential subject string (or look-alike, external string)
@@ -1253,13 +1254,13 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
       __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
       // Call runtime on identical JSObjects.  Otherwise return equal.
-      __ cmpb(ecx, static_cast<uint8_t>(FIRST_JS_RECEIVER_TYPE));
+      __ cmpb(ecx, Immediate(FIRST_JS_RECEIVER_TYPE));
       __ j(above_equal, &runtime_call, Label::kFar);
       // Call runtime on identical symbols since we need to throw a TypeError.
-      __ cmpb(ecx, static_cast<uint8_t>(SYMBOL_TYPE));
+      __ cmpb(ecx, Immediate(SYMBOL_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
       // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpb(ecx, static_cast<uint8_t>(SIMD128_VALUE_TYPE));
+      __ cmpb(ecx, Immediate(SIMD128_VALUE_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
     }
     __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
@@ -1419,10 +1420,10 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
 
     __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
+              Immediate(1 << Map::kIsUndetectable));
     __ j(not_zero, &undetectable, Label::kNear);
     __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
+              Immediate(1 << Map::kIsUndetectable));
     __ j(not_zero, &return_unequal, Label::kNear);
 
     __ CmpInstanceType(ebx, FIRST_JS_RECEIVER_TYPE);
@@ -1436,7 +1437,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     __ bind(&undetectable);
     __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
+              Immediate(1 << Map::kIsUndetectable));
     __ j(zero, &return_unequal, Label::kNear);
 
     // If both sides are JSReceivers, then the result is false according to
@@ -2139,12 +2140,12 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Go to the runtime if the function is not a constructor.
   __ test_b(FieldOperand(function_map, Map::kBitFieldOffset),
-            static_cast<uint8_t>(1 << Map::kIsConstructor));
+            Immediate(1 << Map::kIsConstructor));
   __ j(zero, &slow_case);
 
   // Ensure that {function} has an instance prototype.
   __ test_b(FieldOperand(function_map, Map::kBitFieldOffset),
-            static_cast<uint8_t>(1 << Map::kHasNonInstancePrototype));
+            Immediate(1 << Map::kHasNonInstancePrototype));
   __ j(not_zero, &slow_case);
 
   // Get the "prototype" (or initial map) of the {function}.
@@ -2178,7 +2179,7 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Check if the object needs to be access checked.
   __ test_b(FieldOperand(object_map, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
+            Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &fast_runtime_fallback, Label::kNear);
   // Check if the current object is a Proxy.
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
@@ -2525,13 +2526,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Label two_byte_sequential, runtime_drop_two, sequential_string;
   STATIC_ASSERT(kExternalStringTag != 0);
   STATIC_ASSERT(kSeqStringTag == 0);
-  __ test_b(ebx, kExternalStringTag);
+  __ test_b(ebx, Immediate(kExternalStringTag));
   __ j(zero, &sequential_string);
 
   // Handle external string.
   // Rule out short external strings.
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(ebx, kShortExternalStringMask);
+  __ test_b(ebx, Immediate(kShortExternalStringMask));
   __ j(not_zero, &runtime);
   __ mov(edi, FieldOperand(edi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
@@ -2544,7 +2545,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ push(edi);
   __ SmiUntag(ecx);
   STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
-  __ test_b(ebx, kStringEncodingMask);
+  __ test_b(ebx, Immediate(kStringEncodingMask));
   __ j(zero, &two_byte_sequential);
 
   // Sequential one byte string.  Allocate the result.
@@ -4444,7 +4445,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == 5);
 
     // is the low bit set? If so, we are holey and that is good.
-    __ test_b(edx, 1);
+    __ test_b(edx, Immediate(1));
     __ j(not_zero, &normal_sequence);
   }
 
@@ -5588,7 +5589,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   Label profiler_disabled;
   Label end_profiler_check;
   __ mov(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
-  __ cmpb(Operand(eax, 0), 0);
+  __ cmpb(Operand(eax, 0), Immediate(0));
   __ j(zero, &profiler_disabled);
 
   // Additional parameter is the address of the actual getter function.

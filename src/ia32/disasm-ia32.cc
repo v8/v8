@@ -1621,6 +1621,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           int imm = *reinterpret_cast<int16_t*>(data);
           AppendToBuffer(",0x%x", imm);
           data += 2;
+        } else if (*data == 0xF7) {
+          data++;
+          AppendToBuffer("%s ", "test_w");
+          data += PrintRightOperand(data);
+          int imm = *reinterpret_cast<int16_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 2;
         } else if (*data == 0x0F) {
           data++;
           if (*data == 0x38) {
