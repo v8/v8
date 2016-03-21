@@ -3942,14 +3942,13 @@ class AstNodeFactory final BASE_EMBEDDED {
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
       typesystem::Type* result_type, int pos, bool constructor = false) {
-    ZoneList<typesystem::TypeMember*>* members = new (local_zone_)
-        ZoneList<typesystem::TypeMember*>(1, local_zone_);
-    members->Add(NewTypeMember(nullptr, false, type_parameters,
-                               parameters, result_type, true, false, pos,
-                               constructor),
+    ZoneList<typesystem::TypeMember*>* members =
+        new (local_zone_) ZoneList<typesystem::TypeMember*>(1, local_zone_);
+    members->Add(NewTypeMember(nullptr, false, type_parameters, parameters,
+                               result_type, true, false, pos, constructor),
                  local_zone_);
-    return new (local_zone_) typesystem::ObjectType(local_zone_, members,
-                                                    true, false, pos);
+    return new (local_zone_)
+        typesystem::ObjectType(local_zone_, members, true, false, pos);
   }
 
   typesystem::TypeReference* NewTypeReference(
@@ -4003,12 +4002,11 @@ class AstNodeFactory final BASE_EMBEDDED {
       Expression* property, bool optional,
       ZoneList<typesystem::TypeParameter*>* type_parameters,
       ZoneList<typesystem::FormalParameter*>* parameters,
-      typesystem::Type* type, bool valid_type, bool valid_binder,
-      int pos, bool constructor = false) {
-    return new (local_zone_)
-        typesystem::TypeMember(local_zone_, property, optional, type_parameters,
-                               parameters, type, valid_type, valid_binder, pos,
-                               constructor);
+      typesystem::Type* type, bool valid_type, bool valid_binder, int pos,
+      bool constructor = false) {
+    return new (local_zone_) typesystem::TypeMember(
+        local_zone_, property, optional, type_parameters, parameters, type,
+        valid_type, valid_binder, pos, constructor);
   }
 
   typesystem::TypeMember* NewTypeMember(

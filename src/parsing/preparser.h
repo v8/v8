@@ -787,8 +787,8 @@ class PreParserFactory {
       const PreParserExpression& property, bool optional,
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
-      const typesystem::PreParserType& result_type,
-      bool valid_type, bool valid_binder, int pos, bool constructor = false) {
+      const typesystem::PreParserType& result_type, bool valid_type,
+      bool valid_binder, int pos, bool constructor = false) {
     return typesystem::PreParserTypeMember::Default(valid_type, valid_binder);
   }
 
