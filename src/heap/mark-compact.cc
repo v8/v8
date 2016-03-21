@@ -3541,16 +3541,14 @@ int NumberOfPointerUpdateTasks(int pages) {
 
 template <PointerDirection direction>
 void UpdatePointersInParallel(Heap* heap) {
-  PageParallelJob<PointerUpdateJobTraits<direction> >* job =
-      new PageParallelJob<PointerUpdateJobTraits<direction> >(
-          heap, heap->isolate()->cancelable_task_manager());
+  PageParallelJob<PointerUpdateJobTraits<direction> > job(
+      heap, heap->isolate()->cancelable_task_manager());
   RememberedSet<direction>::IterateMemoryChunks(
-      heap, [job](MemoryChunk* chunk) { job->AddPage(chunk, 0); });
+      heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   PointersUpdatingVisitor visitor(heap);
-  int num_pages = job->NumberOfPages();
+  int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
-  job->Run(num_tasks, [&visitor](int i) { return &visitor; });
-  delete job;
+  job.Run(num_tasks, [&visitor](int i) { return &visitor; });
 }
 
 class ToSpacePointerUpdateJobTraits {
