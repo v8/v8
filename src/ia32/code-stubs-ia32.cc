@@ -2186,7 +2186,8 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ Push(object);
   __ Push(function);
   __ PushReturnAddressFrom(scratch);
-  __ TailCallRuntime(Runtime::kInstanceOf);
+  __ TailCallRuntime(is_es6_instanceof() ? Runtime::kOrdinaryHasInstance
+                                         : Runtime::kInstanceOf);
 }
 
 

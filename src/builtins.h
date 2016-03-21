@@ -110,7 +110,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \
   V(FunctionPrototypeToString, kNone)                          \
-  V(FunctionHasInstance, kNone)                                \
                                                                \
   V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
                                                                \
@@ -272,6 +271,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(DatePrototypeGetUTCMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
   V(DatePrototypeGetUTCSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
                                                                                \
+  V(FunctionHasInstance, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(FunctionPrototypeApply, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(FunctionPrototypeCall, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
                                                                                \
@@ -554,6 +554,7 @@ class Builtins {
   // ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( )
   static void Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm);
 
+  static void Generate_FunctionHasInstance(MacroAssembler* masm);
   static void Generate_FunctionPrototypeApply(MacroAssembler* masm);
   static void Generate_FunctionPrototypeCall(MacroAssembler* masm);
 

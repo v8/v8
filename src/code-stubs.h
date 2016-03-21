@@ -1057,9 +1057,18 @@ class GrowArrayElementsStub : public HydrogenCodeStub {
 
 class InstanceOfStub final : public PlatformCodeStub {
  public:
-  explicit InstanceOfStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+  explicit InstanceOfStub(Isolate* isolate, bool es6_instanceof = false)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = IsES6InstanceOfBits::encode(es6_instanceof);
+  }
+
+  bool is_es6_instanceof() const {
+    return IsES6InstanceOfBits::decode(minor_key_);
+  }
 
  private:
+  class IsES6InstanceOfBits : public BitField<bool, 0, 1> {};
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(InstanceOf);
   DEFINE_PLATFORM_CODE_STUB(InstanceOf, PlatformCodeStub);
 };

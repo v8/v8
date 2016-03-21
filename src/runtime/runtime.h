@@ -440,6 +440,7 @@ namespace internal {
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
   F(InstanceOf, 2, 1)                                \
+  F(OrdinaryHasInstance, 2, 1)                       \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \

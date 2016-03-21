@@ -3703,46 +3703,6 @@ BUILTIN(GeneratorFunctionConstructor) {
   return *result;
 }
 
-// ES6 section 19.2.3.6 Function.prototype[@@hasInstance](V)
-BUILTIN(FunctionHasInstance) {
-  HandleScope scope(isolate);
-  Handle<Object> callable = args.receiver();
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-
-  // {callable} must have a [[Call]] internal method.
-  if (!callable->IsCallable()) {
-    return isolate->heap()->false_value();
-  }
-  // If {object} is not a receiver, return false.
-  if (!object->IsJSReceiver()) {
-    return isolate->heap()->false_value();
-  }
-  // Check if {callable} is bound, if so, get [[BoundTargetFunction]] from it
-  // and use that instead of {callable}.
-  while (callable->IsJSBoundFunction()) {
-    callable =
-        handle(Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
-               isolate);
-  }
-  DCHECK(callable->IsCallable());
-  // Get the "prototype" of {callable}; raise an error if it's not a receiver.
-  Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, prototype,
-      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
-                              isolate->factory()->prototype_string()));
-  if (!prototype->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
-  }
-  // Return whether or not {prototype} is in the prototype chain of {object}.
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-  Maybe<bool> result =
-      JSReceiver::HasInPrototypeChain(isolate, receiver, prototype);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
-}
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
