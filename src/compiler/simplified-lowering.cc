@@ -104,15 +104,6 @@ class UseInfo {
   static UseInfo None() {
     return UseInfo(MachineRepresentation::kNone, Truncation::None());
   }
-
-  // Truncation to a representation that is smaller than the preferred
-  // one.
-  static UseInfo Float64TruncatingToWord32() {
-    return UseInfo(MachineRepresentation::kFloat64, Truncation::Word32());
-  }
-  static UseInfo Word64TruncatingToWord32() {
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Word32());
-  }
   static UseInfo AnyTruncatingToBool() {
     return UseInfo(MachineRepresentation::kNone, Truncation::Bool());
   }
@@ -1305,10 +1296,6 @@ class RepresentationSelector {
       case IrOpcode::kTruncateFloat64ToInt32:
         return VisitUnop(node, UseInfo::Float64(),
                          MachineRepresentation::kWord32);
-      case IrOpcode::kTruncateInt64ToInt32:
-        // TODO(titzer): Is kTypeInt32 correct here?
-        return VisitUnop(node, UseInfo::Word64TruncatingToWord32(),
-                         MachineRepresentation::kWord32);
 
       case IrOpcode::kChangeFloat32ToFloat64:
         return VisitUnop(node, UseInfo::Float32(),
@@ -1319,13 +1306,6 @@ class RepresentationSelector {
       case IrOpcode::kChangeUint32ToFloat64:
         return VisitUnop(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kFloat64);
-      case IrOpcode::kChangeFloat64ToInt32:
-        return VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
-                         MachineRepresentation::kWord32);
-      case IrOpcode::kChangeFloat64ToUint32:
-        return VisitUnop(node, UseInfo::Float64TruncatingToWord32(),
-                         MachineRepresentation::kWord32);
-
       case IrOpcode::kFloat64Add:
       case IrOpcode::kFloat64Sub:
       case IrOpcode::kFloat64Mul:
@@ -1360,6 +1340,15 @@ class RepresentationSelector {
       case IrOpcode::kStateValues:
         VisitStateValues(node);
         break;
+
+      // The following opcodes are not produced before representation
+      // inference runs, so we do not have any real test coverage.
+      // Simply fail here.
+      case IrOpcode::kChangeFloat64ToInt32:
+      case IrOpcode::kChangeFloat64ToUint32:
+      case IrOpcode::kTruncateInt64ToInt32:
+        FATAL("Representation inference: unsupported opcodes.");
+
       default:
         VisitInputs(node);
         // Assume the output is tagged.
