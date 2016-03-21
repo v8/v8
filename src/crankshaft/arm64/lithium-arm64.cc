@@ -819,13 +819,6 @@ LInstruction* LChunkBuilder::DoArithmeticT(Token::Value op,
 }
 
 
-LInstruction* LChunkBuilder::DoBoundsCheckBaseIndexInformation(
-    HBoundsCheckBaseIndexInformation* instr) {
-  UNREACHABLE();
-  return NULL;
-}
-
-
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
   info()->MarkAsRequiresFrame();
   LOperand* args = NULL;

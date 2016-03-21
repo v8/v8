@@ -11,7 +11,6 @@
 #include "src/ast/scopeinfo.h"
 #include "src/code-factory.h"
 #include "src/crankshaft/hydrogen-bce.h"
-#include "src/crankshaft/hydrogen-bch.h"
 #include "src/crankshaft/hydrogen-canonicalize.h"
 #include "src/crankshaft/hydrogen-check-elimination.h"
 #include "src/crankshaft/hydrogen-dce.h"
@@ -4528,7 +4527,6 @@ bool HGraph::Optimize(BailoutReason* bailout_reason) {
   Run<HStackCheckEliminationPhase>();
 
   if (FLAG_array_bounds_checks_elimination) Run<HBoundsCheckEliminationPhase>();
-  if (FLAG_array_bounds_checks_hoisting) Run<HBoundsCheckHoistingPhase>();
   if (FLAG_array_index_dehoisting) Run<HDehoistIndexComputationsPhase>();
   if (FLAG_dead_code_elimination) Run<HDeadCodeEliminationPhase>();
 

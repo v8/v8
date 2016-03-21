@@ -745,8 +745,6 @@
         '../../src/crankshaft/hydrogen-alias-analysis.h',
         '../../src/crankshaft/hydrogen-bce.cc',
         '../../src/crankshaft/hydrogen-bce.h',
-        '../../src/crankshaft/hydrogen-bch.cc',
-        '../../src/crankshaft/hydrogen-bch.h',
         '../../src/crankshaft/hydrogen-canonicalize.cc',
         '../../src/crankshaft/hydrogen-canonicalize.h',
         '../../src/crankshaft/hydrogen-check-elimination.cc',

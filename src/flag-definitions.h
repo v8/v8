@@ -367,8 +367,6 @@ DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
 DEFINE_BOOL(trace_bce, false, "trace array bounds check elimination")
-DEFINE_BOOL(array_bounds_checks_hoisting, false,
-            "perform array bounds checks hoisting")
 DEFINE_BOOL(array_index_dehoisting, true, "perform array index dehoisting")
 DEFINE_BOOL(analyze_environment_liveness, true,
             "analyze liveness of environment slots and zap dead values")

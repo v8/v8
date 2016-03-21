@@ -294,8 +294,6 @@ class HLoopInformation final : public ZoneObject {
 };
 
 
-class BoundsCheckTable;
-class InductionVariableBlocksTable;
 class HGraph final : public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor);
