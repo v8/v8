@@ -7599,3 +7599,38 @@ TEST(TypedModeObjectTypes) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeBindingPatterns) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var f: (x: number, cmd?: 'two', ...rest) => string",
+    "var f: ([]: number[]) => boolean",
+    "var f: ([x, y]: number[]) => boolean",
+    "var f: ([x, ...rest]: number[]) => boolean",
+    "var f: ([,x, y]: number[]) => boolean",
+    "var f: ([x, y,]: number[]) => boolean",
+    "var f: ([x, y,,]: number[]) => boolean",
+    "var f: ([x, [a, b, c], z]: [number, any[], string]) => boolean",
+    "var f: ({x: a, y: b}: {x: number, y: string}) => boolean",
+    "var f: ({x: a, y: [b, c, ...rest]}: {x: number, y: string[]}) => boolean",
+    "var f: ({x: {a, b}, y: c}: {x: {a, b}, y: string}) => boolean",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var f: ({x: {a; b}, y: c}: {x: {a; b}, y: string}) => boolean",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
