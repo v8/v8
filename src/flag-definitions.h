@@ -205,8 +205,7 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_simd, "harmony simd")                                       \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_tailcalls, "harmony tail calls")                            \
-  V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
+  V(harmony_regexp_property, "harmony unicode regexp property classes")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                    \
@@ -215,6 +214,7 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
+  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                           \
