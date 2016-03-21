@@ -37,7 +37,6 @@ namespace internal {
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
   V(CallICTrampoline)                       \
-  V(LoadIndexedInterceptor)                 \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
@@ -121,6 +120,7 @@ namespace internal {
   V(LoadConstant)                           \
   V(LoadFastElement)                        \
   V(LoadField)                              \
+  V(LoadIndexedInterceptor)                 \
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
   V(StoreField)                             \
@@ -792,6 +792,17 @@ class StoreInterceptorStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
 };
 
+class LoadIndexedInterceptorStub : public TurboFanCodeStub {
+ public:
+  explicit LoadIndexedInterceptorStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
+};
+
 enum StringAddFlags {
   // Omit both parameter checks.
   STRING_ADD_CHECK_NONE = 0,
@@ -1170,20 +1181,6 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   }
 
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
-};
-
-
-// TODO(mvstanton): Translate to hydrogen code stub.
-class LoadIndexedInterceptorStub : public PlatformCodeStub {
- public:
-  explicit LoadIndexedInterceptorStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_PLATFORM_CODE_STUB(LoadIndexedInterceptor, PlatformCodeStub);
 };
 
 

@@ -273,6 +273,9 @@ class CodeStubAssembler {
   // Check a value for smi-ness
   Node* WordIsSmi(Node* a);
 
+  // Check that the value is a positive smi.
+  Node* WordIsPositiveSmi(Node* a);
+
   // Load an object pointer from a buffer that isn't in the heap.
   Node* LoadBufferObject(Node* buffer, int offset,
                          MachineType rep = MachineType::AnyTagged());

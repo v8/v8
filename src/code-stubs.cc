@@ -2343,6 +2343,28 @@ void StoreInterceptorStub::GenerateAssembly(
                              receiver, name, value);
 }
 
+void LoadIndexedInterceptorStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Label Label;
+  Node* receiver = assembler->Parameter(0);
+  Node* key = assembler->Parameter(1);
+  Node* slot = assembler->Parameter(2);
+  Node* vector = assembler->Parameter(3);
+  Node* context = assembler->Parameter(4);
+
+  Label if_keyispositivesmi(assembler), if_keyisinvalid(assembler);
+  assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositivesmi,
+                    &if_keyisinvalid);
+  assembler->Bind(&if_keyispositivesmi);
+  assembler->TailCallRuntime(Runtime::kLoadElementWithInterceptor, context,
+                             receiver, key);
+
+  assembler->Bind(&if_keyisinvalid);
+  assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key,
+                             slot, vector);
+}
+
 template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a

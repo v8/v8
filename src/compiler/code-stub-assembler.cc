@@ -221,6 +221,12 @@ Node* CodeStubAssembler::WordIsSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
+Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
+  return WordEqual(
+      raw_assembler_->WordAnd(a, IntPtrConstant(kSmiTagMask | kSmiSignMask)),
+      IntPtrConstant(0));
+}
+
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
                                           MachineType rep) {
   return raw_assembler_->Load(rep, buffer, IntPtrConstant(offset));
