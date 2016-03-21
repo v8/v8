@@ -599,7 +599,8 @@ void GenerateAbstractRelationalComparison(
           // dedicated ToPrimitive(rhs, hint Number) operation, as the
           // ToNumber(rhs) will by itself already invoke ToPrimitive with
           // a Number hint.
-          Callable callable = CodeFactory::ToNumber(assembler->isolate());
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
           var_rhs.Bind(assembler->CallStub(callable, context, rhs));
           assembler->Goto(&loop);
         }
@@ -642,7 +643,8 @@ void GenerateAbstractRelationalComparison(
           // dedicated ToPrimitive(lhs, hint Number) operation, as the
           // ToNumber(lhs) will by itself already invoke ToPrimitive with
           // a Number hint.
-          Callable callable = CodeFactory::ToNumber(assembler->isolate());
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
           var_lhs.Bind(assembler->CallStub(callable, context, lhs));
           assembler->Goto(&loop);
         }
@@ -681,7 +683,8 @@ void GenerateAbstractRelationalComparison(
             // dedicated ToPrimitive(rhs, hint Number) operation, as the
             // ToNumber(rhs) will by itself already invoke ToPrimitive with
             // a Number hint.
-            Callable callable = CodeFactory::ToNumber(assembler->isolate());
+            Callable callable =
+                CodeFactory::NonNumberToNumber(assembler->isolate());
             var_rhs.Bind(assembler->CallStub(callable, context, rhs));
             assembler->Goto(&loop);
           }
@@ -1072,7 +1075,8 @@ void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
             assembler->Bind(&if_rhsisstring);
             {
               // Convert the {rhs} to a Number.
-              Callable callable = CodeFactory::ToNumber(assembler->isolate());
+              Callable callable =
+                  CodeFactory::StringToNumber(assembler->isolate());
               var_rhs.Bind(assembler->CallStub(callable, context, rhs));
               assembler->Goto(&loop);
             }
@@ -1247,7 +1251,8 @@ void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
                 // The {rhs} is a String and the {lhs} is a HeapNumber; we need
                 // to convert the {rhs} to a Number and compare the output to
                 // the Number on the {lhs}.
-                Callable callable = CodeFactory::ToNumber(assembler->isolate());
+                Callable callable =
+                    CodeFactory::StringToNumber(assembler->isolate());
                 var_rhs.Bind(assembler->CallStub(callable, context, rhs));
                 assembler->Goto(&loop);
               }

@@ -2633,23 +2633,21 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_heap_number);
 
-  Label not_string, slow_string;
+  NonNumberToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+}
+
+void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
+  // The NonNumberToNumber stub takes one argument in eax.
+  __ AssertNotNumber(eax);
+
+  Label not_string;
   __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edi);
   // eax: object
   // edi: object map
   __ j(above_equal, &not_string, Label::kNear);
-  // Check if string has a cached array index.
-  __ test(FieldOperand(eax, String::kHashFieldOffset),
-          Immediate(String::kContainsCachedArrayIndexMask));
-  __ j(not_zero, &slow_string, Label::kNear);
-  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
-  __ IndexFromHash(eax, eax);
-  __ Ret();
-  __ bind(&slow_string);
-  __ pop(ecx);   // Pop return address.
-  __ push(eax);  // Push argument.
-  __ push(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kStringToNumber);
+  StringToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
   __ bind(&not_string);
 
   Label not_oddball;
@@ -2665,6 +2663,25 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kToNumber);
 }
 
+void StringToNumberStub::Generate(MacroAssembler* masm) {
+  // The StringToNumber stub takes one argument in eax.
+  __ AssertString(eax);
+
+  // Check if string has a cached array index.
+  Label runtime;
+  __ test(FieldOperand(eax, String::kHashFieldOffset),
+          Immediate(String::kContainsCachedArrayIndexMask));
+  __ j(not_zero, &runtime, Label::kNear);
+  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
+  __ IndexFromHash(eax, eax);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ PopReturnAddressTo(ecx);     // Pop return address.
+  __ Push(eax);                   // Push argument.
+  __ PushReturnAddressFrom(ecx);  // Push return address.
+  __ TailCallRuntime(Runtime::kStringToNumber);
+}
 
 void ToLengthStub::Generate(MacroAssembler* masm) {
   // The ToLength stub takes on argument in eax.

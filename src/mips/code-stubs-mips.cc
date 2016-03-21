@@ -2797,39 +2797,58 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ bind(&not_smi);
 
   Label not_heap_number;
-  __ lw(a1, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ lbu(a1, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-  // a0: object
-  // a1: instance type.
+  __ GetObjectType(a0, a1, a1);
+  // a0: receiver
+  // a1: receiver instance type
   __ Branch(&not_heap_number, ne, a1, Operand(HEAP_NUMBER_TYPE));
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
   __ bind(&not_heap_number);
 
-  Label not_string, slow_string;
+  NonNumberToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+}
+
+void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
+  // The NonNumberToNumber stub takes on argument in a0.
+  __ AssertNotNumber(a0);
+
+  Label not_string;
+  __ GetObjectType(a0, a1, a1);
+  // a0: receiver
+  // a1: receiver instance type
   __ Branch(&not_string, hs, a1, Operand(FIRST_NONSTRING_TYPE));
-  // Check if string has a cached array index.
-  __ lw(a2, FieldMemOperand(a0, String::kHashFieldOffset));
-  __ And(at, a2, Operand(String::kContainsCachedArrayIndexMask));
-  __ Branch(&slow_string, ne, at, Operand(zero_reg));
-  __ IndexFromHash(a2, a0);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&slow_string);
-  __ push(a0);  // Push argument.
-  __ TailCallRuntime(Runtime::kStringToNumber);
+  StringToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
   __ bind(&not_string);
 
   Label not_oddball;
   __ Branch(&not_oddball, ne, a1, Operand(ODDBALL_TYPE));
   __ Ret(USE_DELAY_SLOT);
-  __ lw(v0, FieldMemOperand(a0, Oddball::kToNumberOffset));
+  __ lw(v0, FieldMemOperand(a0, Oddball::kToNumberOffset));  // In delay slot.
   __ bind(&not_oddball);
 
-  __ push(a0);  // Push argument.
+  __ Push(a0);  // Push argument.
   __ TailCallRuntime(Runtime::kToNumber);
 }
 
+void StringToNumberStub::Generate(MacroAssembler* masm) {
+  // The StringToNumber stub takes on argument in a0.
+  __ AssertString(a0);
+
+  // Check if string has a cached array index.
+  Label runtime;
+  __ lw(a2, FieldMemOperand(a0, String::kHashFieldOffset));
+  __ And(at, a2, Operand(String::kContainsCachedArrayIndexMask));
+  __ Branch(&runtime, ne, at, Operand(zero_reg));
+  __ IndexFromHash(a2, v0);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a0);  // In delay slot.
+
+  __ bind(&runtime);
+  __ Push(a0);  // Push argument.
+  __ TailCallRuntime(Runtime::kStringToNumber);
+}
 
 void ToLengthStub::Generate(MacroAssembler* masm) {
   // The ToLength stub takes on argument in a0.

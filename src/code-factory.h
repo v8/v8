@@ -66,6 +66,8 @@ class CodeFactory final {
   static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
+  static Callable NonNumberToNumber(Isolate* isolate);
+  static Callable StringToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
   static Callable ToName(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);

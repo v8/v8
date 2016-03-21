@@ -1506,6 +1506,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
+  // Abort execution if argument is a number, enabled via --debug-code.
+  void AssertNotNumber(Register object);
+
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);

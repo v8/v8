@@ -48,6 +48,8 @@ namespace internal {
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
   V(ToNumber)                               \
+  V(NonNumberToNumber)                      \
+  V(StringToNumber)                         \
   V(ToLength)                               \
   V(ToString)                               \
   V(ToName)                                 \
@@ -2936,6 +2938,22 @@ class ToNumberStub final : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ToNumber, PlatformCodeStub);
 };
 
+class NonNumberToNumberStub final : public PlatformCodeStub {
+ public:
+  explicit NonNumberToNumberStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
+  DEFINE_PLATFORM_CODE_STUB(NonNumberToNumber, PlatformCodeStub);
+};
+
+class StringToNumberStub final : public PlatformCodeStub {
+ public:
+  explicit StringToNumberStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
+  DEFINE_PLATFORM_CODE_STUB(StringToNumber, PlatformCodeStub);
+};
 
 class ToLengthStub final : public PlatformCodeStub {
  public:

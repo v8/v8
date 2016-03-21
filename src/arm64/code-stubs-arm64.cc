@@ -3262,27 +3262,28 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Bind(&not_smi);
 
   Label not_heap_number;
-  __ Ldr(x1, FieldMemOperand(x0, HeapObject::kMapOffset));
-  __ Ldrb(x1, FieldMemOperand(x1, Map::kInstanceTypeOffset));
-  // x0: object
-  // x1: instance type
-  __ Cmp(x1, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(x0, x1, x1, HEAP_NUMBER_TYPE);
+  // x0: receiver
+  // x1: receiver instance type
   __ B(ne, &not_heap_number);
   __ Ret();
   __ Bind(&not_heap_number);
 
-  Label not_string, slow_string;
-  __ Cmp(x1, FIRST_NONSTRING_TYPE);
+  NonNumberToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+}
+
+void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
+  // The NonNumberToNumber stub takes one argument in x0.
+  __ AssertNotNumber(x0);
+
+  Label not_string;
+  __ CompareObjectType(x0, x1, x1, FIRST_NONSTRING_TYPE);
+  // x0: receiver
+  // x1: receiver instance type
   __ B(hs, &not_string);
-  // Check if string has a cached array index.
-  __ Ldr(x2, FieldMemOperand(x0, String::kHashFieldOffset));
-  __ Tst(x2, Operand(String::kContainsCachedArrayIndexMask));
-  __ B(ne, &slow_string);
-  __ IndexFromHash(x2, x0);
-  __ Ret();
-  __ Bind(&slow_string);
-  __ Push(x0);  // Push argument.
-  __ TailCallRuntime(Runtime::kStringToNumber);
+  StringToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
   __ Bind(&not_string);
 
   Label not_oddball;
@@ -3296,6 +3297,22 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kToNumber);
 }
 
+void StringToNumberStub::Generate(MacroAssembler* masm) {
+  // The StringToNumber stub takes one argument in x0.
+  __ AssertString(x0);
+
+  // Check if string has a cached array index.
+  Label runtime;
+  __ Ldr(x2, FieldMemOperand(x0, String::kHashFieldOffset));
+  __ Tst(x2, Operand(String::kContainsCachedArrayIndexMask));
+  __ B(ne, &runtime);
+  __ IndexFromHash(x2, x0);
+  __ Ret();
+
+  __ Bind(&runtime);
+  __ Push(x0);  // Push argument.
+  __ TailCallRuntime(Runtime::kStringToNumber);
+}
 
 void ToLengthStub::Generate(MacroAssembler* masm) {
   // The ToLength stub takes one argument in x0.

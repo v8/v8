@@ -147,6 +147,18 @@ Callable CodeFactory::ToNumber(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::NonNumberToNumber(Isolate* isolate) {
+  NonNumberToNumberStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::StringToNumber(Isolate* isolate) {
+  StringToNumberStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::ToString(Isolate* isolate) {
   ToStringStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

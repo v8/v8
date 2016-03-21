@@ -1759,6 +1759,9 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeStringToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
 
 namespace {
 

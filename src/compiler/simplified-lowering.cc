@@ -1077,6 +1077,23 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kStringToNumber: {
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        if (lower()) {
+          // StringToNumber(x) => Call(StringToNumberStub, x, no-context)
+          Operator::Properties properties = node->op()->properties();
+          Callable callable = CodeFactory::StringToNumber(jsgraph_->isolate());
+          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
+              flags, properties);
+          node->InsertInput(jsgraph_->zone(), 0,
+                            jsgraph_->HeapConstant(callable.code()));
+          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
+          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
+        }
+        break;
+      }
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         ProcessRemainingInputs(node, 1);

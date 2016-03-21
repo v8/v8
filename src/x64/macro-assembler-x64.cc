@@ -3875,6 +3875,15 @@ void MacroAssembler::AssertNumber(Register object) {
   }
 }
 
+void MacroAssembler::AssertNotNumber(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(NegateCondition(is_smi), kOperandIsANumber);
+    Cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(equal, kOperandIsANumber);
+  }
+}
 
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {

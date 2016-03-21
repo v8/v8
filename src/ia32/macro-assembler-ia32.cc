@@ -959,6 +959,15 @@ void MacroAssembler::AssertNumber(Register object) {
   }
 }
 
+void MacroAssembler::AssertNotNumber(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsANumber);
+    cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(not_equal, kOperandIsANumber);
+  }
+}
 
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {

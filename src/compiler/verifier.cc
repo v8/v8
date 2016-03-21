@@ -705,6 +705,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::String());
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringToNumber:
+      // String -> Number
+      CheckValueInputIs(node, 0, Type::String());
+      CheckUpperIs(node, Type::Number());
+      break;
     case IrOpcode::kReferenceEqual: {
       // (Unique, Any) -> Boolean  and
       // (Any, Unique) -> Boolean
