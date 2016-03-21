@@ -2838,16 +2838,19 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                              Handle<Map> receiver_map);
 
   HInstruction* NewCallFunction(HValue* function, int argument_count,
+                                TailCallMode syntactic_tail_call_mode,
                                 ConvertReceiverMode convert_mode,
                                 TailCallMode tail_call_mode);
 
   HInstruction* NewCallFunctionViaIC(HValue* function, int argument_count,
+                                     TailCallMode syntactic_tail_call_mode,
                                      ConvertReceiverMode convert_mode,
                                      TailCallMode tail_call_mode,
                                      FeedbackVectorSlot slot);
 
   HInstruction* NewCallConstantFunction(Handle<JSFunction> target,
                                         int argument_count,
+                                        TailCallMode syntactic_tail_call_mode,
                                         TailCallMode tail_call_mode);
 
   bool CanBeFunctionApplyArguments(Call* expr);

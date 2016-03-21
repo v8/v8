@@ -581,11 +581,7 @@ LInstruction* LChunkBuilder::DefineFixedDouble(
 
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
-  int argument_index_accumulator = 0;
-  ZoneList<HValue*> objects_to_materialize(0, zone());
-  instr->set_environment(CreateEnvironment(
-      hydrogen_env, &argument_index_accumulator, &objects_to_materialize));
-  return instr;
+  return LChunkBuilderBase::AssignEnvironment(instr, hydrogen_env);
 }
 
 
@@ -901,15 +897,39 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
   chunk_->AddInstruction(instr, current_block_);
 
   if (instr->IsCall()) {
+    HEnvironment* hydrogen_env = current_block_->last_environment();
     HValue* hydrogen_value_for_lazy_bailout = hydrogen_val;
-    if (hydrogen_val->HasObservableSideEffects()) {
-      HSimulate* sim = HSimulate::cast(hydrogen_val->next());
-      sim->ReplayEnvironment(current_block_->last_environment());
-      hydrogen_value_for_lazy_bailout = sim;
+    DCHECK_NOT_NULL(hydrogen_env);
+    if (instr->IsSyntacticTailCall()) {
+      // If it was a syntactic tail call we need to drop the current frame and
+      // an arguments adaptor frame on top of it (if the latter is present).
+      hydrogen_env = hydrogen_env->outer();
+      if (hydrogen_env != nullptr &&
+          hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR) {
+        hydrogen_env = hydrogen_env->outer();
+      }
+      if (hydrogen_env != nullptr) {
+        // Push return value on top of outer environment.
+        hydrogen_env = hydrogen_env->Copy();
+        hydrogen_env->Push(hydrogen_val);
+      }
+    } else {
+      if (hydrogen_val->HasObservableSideEffects()) {
+        HSimulate* sim = HSimulate::cast(hydrogen_val->next());
+        sim->ReplayEnvironment(hydrogen_env);
+        hydrogen_value_for_lazy_bailout = sim;
+      }
     }
-    LInstruction* bailout = AssignEnvironment(new(zone()) LLazyBailout());
-    bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
-    chunk_->AddInstruction(bailout, current_block_);
+    if (hydrogen_env != nullptr) {
+      // The |hydrogen_env| can be null at this point only if we are generating
+      // a syntactic tail call from the outermost function but in this case
+      // it would be a real tail call which will pop function's frame and
+      // therefore this lazy bailout can be skipped.
+      LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
+          new (zone()) LLazyBailout(), hydrogen_env);
+      bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+      chunk_->AddInstruction(bailout, current_block_);
+    }
   }
 }
 
@@ -1087,6 +1107,9 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
 
   LCallWithDescriptor* result = new(zone()) LCallWithDescriptor(
       descriptor, ops, zone());
+  if (instr->syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    result->MarkAsSyntacticTailCall();
+  }
   return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
@@ -1095,6 +1118,9 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   LOperand* context = UseFixed(instr->context(), rsi);
   LOperand* function = UseFixed(instr->function(), rdi);
   LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
+  if (instr->syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    result->MarkAsSyntacticTailCall();
+  }
   return MarkAsCall(DefineFixed(result, rax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 

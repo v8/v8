@@ -508,6 +508,14 @@ void LChunkBuilderBase::Retry(BailoutReason reason) {
   status_ = ABORTED;
 }
 
+LInstruction* LChunkBuilderBase::AssignEnvironment(LInstruction* instr,
+                                                   HEnvironment* hydrogen_env) {
+  int argument_index_accumulator = 0;
+  ZoneList<HValue*> objects_to_materialize(0, zone());
+  instr->set_environment(CreateEnvironment(
+      hydrogen_env, &argument_index_accumulator, &objects_to_materialize));
+  return instr;
+}
 
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
     HEnvironment* hydrogen_env, int* argument_index_accumulator,

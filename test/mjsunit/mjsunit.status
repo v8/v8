@@ -43,9 +43,6 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
-  # Issue 4698: not fully supported by Turbofan yet
-  'es6/tail-call': [PASS, NO_VARIANTS],
-
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
