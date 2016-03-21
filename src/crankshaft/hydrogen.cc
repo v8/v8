@@ -4773,23 +4773,24 @@ void HOptimizedGraphBuilder::VisitIfStatement(IfStatement* stmt) {
     HBasicBlock* cond_false = graph()->CreateBasicBlock();
     CHECK_BAILOUT(VisitForControl(stmt->condition(), cond_true, cond_false));
 
-    if (cond_true->HasPredecessor()) {
-      cond_true->SetJoinId(stmt->ThenId());
-      set_current_block(cond_true);
-      CHECK_BAILOUT(Visit(stmt->then_statement()));
-      cond_true = current_block();
-    } else {
-      cond_true = NULL;
-    }
+    // Technically, we should be able to handle the case when one side of
+    // the test is not connected, but this can trip up liveness analysis
+    // if we did not fully connect the test context based on some optimistic
+    // assumption. If such an assumption was violated, we would end up with
+    // an environment with optimized-out values. So we should always
+    // conservatively connect the test context.
+    CHECK(cond_true->HasPredecessor());
+    CHECK(cond_false->HasPredecessor());
 
-    if (cond_false->HasPredecessor()) {
-      cond_false->SetJoinId(stmt->ElseId());
-      set_current_block(cond_false);
-      CHECK_BAILOUT(Visit(stmt->else_statement()));
-      cond_false = current_block();
-    } else {
-      cond_false = NULL;
-    }
+    cond_true->SetJoinId(stmt->ThenId());
+    set_current_block(cond_true);
+    CHECK_BAILOUT(Visit(stmt->then_statement()));
+    cond_true = current_block();
+
+    cond_false->SetJoinId(stmt->ElseId());
+    set_current_block(cond_false);
+    CHECK_BAILOUT(Visit(stmt->else_statement()));
+    cond_false = current_block();
 
     HBasicBlock* join = CreateJoin(cond_true, cond_false, stmt->IfId());
     set_current_block(join);
@@ -11319,12 +11320,10 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
     // Translate right subexpression by visiting it in the same AST
     // context as the entire expression.
-    if (eval_right->HasPredecessor()) {
-      eval_right->SetJoinId(expr->RightId());
-      set_current_block(eval_right);
-      Visit(expr->right());
-    }
-
+    CHECK(eval_right->HasPredecessor());
+    eval_right->SetJoinId(expr->RightId());
+    set_current_block(eval_right);
+    Visit(expr->right());
   } else if (ast_context()->IsValue()) {
     CHECK_ALIVE(VisitForValue(expr->left()));
     DCHECK(current_block() != NULL);
@@ -11380,20 +11379,22 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // second one is not a merge node, and that we really have no good AST ID to
     // put on that first HSimulate.
 
-    if (empty_block->HasPredecessor()) {
-      empty_block->SetJoinId(expr->id());
-    } else {
-      empty_block = NULL;
-    }
+    // Technically, we should be able to handle the case when one side of
+    // the test is not connected, but this can trip up liveness analysis
+    // if we did not fully connect the test context based on some optimistic
+    // assumption. If such an assumption was violated, we would end up with
+    // an environment with optimized-out values. So we should always
+    // conservatively connect the test context.
 
-    if (right_block->HasPredecessor()) {
-      right_block->SetJoinId(expr->RightId());
-      set_current_block(right_block);
-      CHECK_BAILOUT(VisitForEffect(expr->right()));
-      right_block = current_block();
-    } else {
-      right_block = NULL;
-    }
+    CHECK(right_block->HasPredecessor());
+    CHECK(empty_block->HasPredecessor());
+
+    empty_block->SetJoinId(expr->id());
+
+    right_block->SetJoinId(expr->RightId());
+    set_current_block(right_block);
+    CHECK_BAILOUT(VisitForEffect(expr->right()));
+    right_block = current_block();
 
     HBasicBlock* join_block =
       CreateJoin(empty_block, right_block, expr->id());
