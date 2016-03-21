@@ -7996,9 +7996,37 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
   }
 }
 
+void HOptimizedGraphBuilder::BuildEnsureCallable(HValue* object) {
+  NoObservableSideEffectsScope scope(this);
+  const Runtime::Function* throw_called_non_callable =
+      Runtime::FunctionForId(Runtime::kThrowCalledNonCallable);
+
+  IfBuilder is_not_function(this);
+  HValue* smi_check = is_not_function.If<HIsSmiAndBranch>(object);
+  is_not_function.Or();
+  HValue* map = AddLoadMap(object, smi_check);
+  HValue* bit_field =
+      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField());
+  HValue* bit_field_masked = AddUncasted<HBitwise>(
+      Token::BIT_AND, bit_field, Add<HConstant>(1 << Map::kIsCallable));
+  is_not_function.IfNot<HCompareNumericAndBranch>(
+      bit_field_masked, Add<HConstant>(1 << Map::kIsCallable), Token::EQ);
+  is_not_function.Then();
+  {
+    Add<HPushArguments>(object);
+    Add<HCallRuntime>(throw_called_non_callable, 1);
+  }
+  is_not_function.End();
+}
+
 HInstruction* HOptimizedGraphBuilder::NewCallFunction(
     HValue* function, int argument_count, TailCallMode syntactic_tail_call_mode,
     ConvertReceiverMode convert_mode, TailCallMode tail_call_mode) {
+  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
+    BuildEnsureCallable(function);
+  } else {
+    DCHECK_EQ(TailCallMode::kDisallow, tail_call_mode);
+  }
   HValue* arity = Add<HConstant>(argument_count - 1);
 
   HValue* op_vals[] = {context(), function, arity};
@@ -8016,6 +8044,11 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
     HValue* function, int argument_count, TailCallMode syntactic_tail_call_mode,
     ConvertReceiverMode convert_mode, TailCallMode tail_call_mode,
     FeedbackVectorSlot slot) {
+  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
+    BuildEnsureCallable(function);
+  } else {
+    DCHECK_EQ(TailCallMode::kDisallow, tail_call_mode);
+  }
   int arity = argument_count - 1;
   Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* index_val = Add<HConstant>(vector->GetIndex(slot));
@@ -8024,7 +8057,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
   HValue* op_vals[] = {context(), function, index_val, vector_val};
 
   Callable callable = CodeFactory::CallICInOptimizedCode(
-      isolate(), arity, ConvertReceiverMode::kNullOrUndefined, tail_call_mode);
+      isolate(), arity, convert_mode, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),

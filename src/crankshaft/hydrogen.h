@@ -2835,6 +2835,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
 
+  void BuildEnsureCallable(HValue* object);
+
   HInstruction* NewCallFunction(HValue* function, int argument_count,
                                 TailCallMode syntactic_tail_call_mode,
                                 ConvertReceiverMode convert_mode,
