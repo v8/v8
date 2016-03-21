@@ -305,8 +305,6 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 void InterpreterAssembler::CallPrologue() {
   StoreRegister(SmiTag(BytecodeOffset()),
                 InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer);
-  StoreRegister(BytecodeArrayTaggedPointer(),
-                InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer);
 
   if (FLAG_debug_code && !disable_stack_check_across_call_) {
     DCHECK(stack_pointer_before_call_ == nullptr);
