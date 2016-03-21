@@ -229,6 +229,10 @@ void ByteArray::ByteArrayVerify() {
 
 void BytecodeArray::BytecodeArrayVerify() {
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
+  // - All bytecodes are known and well formed.
+  // - Jumps must go to new instructions starts.
+  // - No Illegal bytecodes.
+  // - No consecutive sequences of prefix Wide / ExtraWide.
   CHECK(IsBytecodeArray());
   CHECK(constant_pool()->IsFixedArray());
   VerifyHeapPointer(constant_pool());

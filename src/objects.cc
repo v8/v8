@@ -14999,6 +14999,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   const uint8_t* base_address = GetFirstBytecodeAddress();
   interpreter::SourcePositionTableIterator source_positions(
       source_position_table());
+
   interpreter::BytecodeArrayIterator iterator(handle(this));
   while (!iterator.done()) {
     if (!source_positions.done() &&

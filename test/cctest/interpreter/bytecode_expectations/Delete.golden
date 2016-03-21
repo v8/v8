@@ -68,7 +68,7 @@ bytecodes: [
   B(Star), R(1),
   B(Star), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(DeletePropertySloppy), R(1),
   B(Return),
 ]
@@ -87,7 +87,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(10),
+  B(LdaSmi), U8(10),
   B(Star), R(0),
   B(LdaFalse),
   B(Return),
@@ -117,7 +117,7 @@ bytecodes: [
   B(CreateClosure), U8(1), U8(0),
   B(LdaContextSlot), R(context), U8(4),
   B(Star), R(1),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(DeletePropertyStrict), R(1),
   B(Return),
 ]

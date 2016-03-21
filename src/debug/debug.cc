@@ -1579,7 +1579,8 @@ Object* Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     int bytecode_offset = interpreted_frame->GetBytecodeOffset();
     interpreter::Bytecode bytecode =
         interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
-    return isolate_->interpreter()->GetBytecodeHandler(bytecode);
+    return isolate_->interpreter()->GetBytecodeHandler(
+        bytecode, interpreter::OperandScale::kSingle);
   } else {
     after_break_target_ = NULL;
     if (!LiveEdit::SetAfterBreakTarget(this)) {

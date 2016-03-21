@@ -22,12 +22,14 @@ namespace interpreter {
 using compiler::Node;
 
 InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
-                                           Bytecode bytecode)
+                                           Bytecode bytecode,
+                                           OperandScale operand_scale)
     : compiler::CodeStubAssembler(isolate, zone,
                                   InterpreterDispatchDescriptor(isolate),
                                   Code::ComputeFlags(Code::BYTECODE_HANDLER),
                                   Bytecodes::ToString(bytecode), 0),
       bytecode_(bytecode),
+      operand_scale_(operand_scale),
       accumulator_(this, MachineRepresentation::kTagged),
       context_(this, MachineRepresentation::kTagged),
       bytecode_array_(this, MachineRepresentation::kTagged),
@@ -84,7 +86,7 @@ Node* InterpreterAssembler::LoadRegister(int offset) {
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return LoadRegister(reg.ToOperand() << kPointerSizeLog2);
+  return LoadRegister(IntPtrConstant(-reg.index()));
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
@@ -103,7 +105,7 @@ Node* InterpreterAssembler::StoreRegister(Node* value, int offset) {
 }
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Register reg) {
-  return StoreRegister(value, reg.ToOperand() << kPointerSizeLog2);
+  return StoreRegister(value, IntPtrConstant(-reg.index()));
 }
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
@@ -117,24 +119,28 @@ Node* InterpreterAssembler::NextRegister(Node* reg_index) {
   return IntPtrAdd(reg_index, IntPtrConstant(-1));
 }
 
-Node* InterpreterAssembler::BytecodeOperand(int operand_index) {
-  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
-  DCHECK_EQ(OperandSize::kByte,
-            Bytecodes::GetOperandSize(bytecode_, operand_index));
-  return Load(
-      MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-      IntPtrAdd(BytecodeOffset(), IntPtrConstant(Bytecodes::GetOperandOffset(
-                                      bytecode_, operand_index))));
+Node* InterpreterAssembler::OperandOffset(int operand_index) {
+  return IntPtrConstant(
+      Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale()));
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandUnsignedByte(int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
-  DCHECK_EQ(OperandSize::kByte,
-            Bytecodes::GetOperandSize(bytecode_, operand_index));
-  Node* load = Load(
-      MachineType::Int8(), BytecodeArrayTaggedPointer(),
-      IntPtrAdd(BytecodeOffset(), IntPtrConstant(Bytecodes::GetOperandOffset(
-                                      bytecode_, operand_index))));
+  DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
+                                    bytecode_, operand_index, operand_scale()));
+  Node* operand_offset = OperandOffset(operand_index);
+  return Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
+              IntPtrAdd(BytecodeOffset(), operand_offset));
+}
+
+Node* InterpreterAssembler::BytecodeOperandSignedByte(int operand_index) {
+  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
+                                    bytecode_, operand_index, operand_scale()));
+  Node* operand_offset = OperandOffset(operand_index);
+  Node* load = Load(MachineType::Int8(), BytecodeArrayTaggedPointer(),
+                    IntPtrAdd(BytecodeOffset(), operand_offset));
+
   // Ensure that we sign extend to full pointer size
   if (kPointerSize == 8) {
     load = ChangeInt32ToInt64(load);
@@ -142,59 +148,85 @@ Node* InterpreterAssembler::BytecodeOperandSignExtended(int operand_index) {
   return load;
 }
 
-Node* InterpreterAssembler::BytecodeOperandShort(int operand_index) {
-  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
-  DCHECK_EQ(OperandSize::kShort,
-            Bytecodes::GetOperandSize(bytecode_, operand_index));
-  if (TargetSupportsUnalignedAccess()) {
-    return Load(
-        MachineType::Uint16(), BytecodeArrayTaggedPointer(),
-        IntPtrAdd(BytecodeOffset(), IntPtrConstant(Bytecodes::GetOperandOffset(
-                                        bytecode_, operand_index))));
-  } else {
-    int offset = Bytecodes::GetOperandOffset(bytecode_, operand_index);
-    Node* first_byte =
-        Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-             IntPtrAdd(BytecodeOffset(), IntPtrConstant(offset)));
-    Node* second_byte =
-        Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-             IntPtrAdd(BytecodeOffset(), IntPtrConstant(offset + 1)));
+compiler::Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
+    int relative_offset, MachineType result_type) {
+  static const int kMaxCount = 4;
+  DCHECK(!TargetSupportsUnalignedAccess());
+
+  int count;
+  switch (result_type.representation()) {
+    case MachineRepresentation::kWord16:
+      count = 2;
+      break;
+    case MachineRepresentation::kWord32:
+      count = 4;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  MachineType msb_type =
+      result_type.IsSigned() ? MachineType::Int8() : MachineType::Uint8();
+
 #if V8_TARGET_LITTLE_ENDIAN
-    return WordOr(WordShl(second_byte, kBitsPerByte), first_byte);
+  const int kStep = -1;
+  int msb_offset = count - 1;
 #elif V8_TARGET_BIG_ENDIAN
-    return WordOr(WordShl(first_byte, kBitsPerByte), second_byte);
+  const int kStep = 1;
+  int msb_offset = 0;
 #else
 #error "Unknown Architecture"
 #endif
+
+  // Read the most signicant bytecode into bytes[0] and then in order
+  // down to least significant in bytes[count - 1].
+  DCHECK(count <= kMaxCount);
+  compiler::Node* bytes[kMaxCount];
+  for (int i = 0; i < count; i++) {
+    MachineType machine_type = (i == 0) ? msb_type : MachineType::Uint8();
+    Node* offset = IntPtrConstant(relative_offset + msb_offset + i * kStep);
+    Node* array_offset = IntPtrAdd(BytecodeOffset(), offset);
+    bytes[i] = Load(machine_type, BytecodeArrayTaggedPointer(), array_offset);
+  }
+
+  // Pack LSB to MSB.
+  Node* result = bytes[--count];
+  for (int i = 1; --count >= 0; i++) {
+    Node* shift = Int32Constant(i * kBitsPerByte);
+    Node* value = Word32Shl(bytes[count], shift);
+    result = Word32Or(value, result);
+  }
+  return result;
+}
+
+Node* InterpreterAssembler::BytecodeOperandUnsignedShort(int operand_index) {
+  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(
+      OperandSize::kShort,
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale()));
+  int operand_offset =
+      Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
+  if (TargetSupportsUnalignedAccess()) {
+    return Load(MachineType::Uint16(), BytecodeArrayTaggedPointer(),
+                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
+  } else {
+    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint16());
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandShortSignExtended(
-    int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandSignedShort(int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
-  DCHECK_EQ(OperandSize::kShort,
-            Bytecodes::GetOperandSize(bytecode_, operand_index));
-  int operand_offset = Bytecodes::GetOperandOffset(bytecode_, operand_index);
+  DCHECK_EQ(
+      OperandSize::kShort,
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale()));
+  int operand_offset =
+      Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
   Node* load;
   if (TargetSupportsUnalignedAccess()) {
     load = Load(MachineType::Int16(), BytecodeArrayTaggedPointer(),
                 IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-#if V8_TARGET_LITTLE_ENDIAN
-    Node* hi_byte_offset = IntPtrConstant(operand_offset + 1);
-    Node* lo_byte_offset = IntPtrConstant(operand_offset);
-#elif V8_TARGET_BIG_ENDIAN
-    Node* hi_byte_offset = IntPtrConstant(operand_offset);
-    Node* lo_byte_offset = IntPtrConstant(operand_offset + 1);
-#else
-#error "Unknown Architecture"
-#endif
-    Node* hi_byte = Load(MachineType::Int8(), BytecodeArrayTaggedPointer(),
-                         IntPtrAdd(BytecodeOffset(), hi_byte_offset));
-    Node* lo_byte = Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-                         IntPtrAdd(BytecodeOffset(), lo_byte_offset));
-    hi_byte = Word32Shl(hi_byte, Int32Constant(kBitsPerByte));
-    load = Word32Or(hi_byte, lo_byte);
+    load = BytecodeOperandReadUnaligned(operand_offset, MachineType::Int16());
   }
 
   // Ensure that we sign extend to full pointer size
@@ -204,57 +236,123 @@ Node* InterpreterAssembler::BytecodeOperandShortSignExtended(
   return load;
 }
 
-Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
-  switch (Bytecodes::GetOperandSize(bytecode_, operand_index)) {
+Node* InterpreterAssembler::BytecodeOperandUnsignedQuad(int operand_index) {
+  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
+                                    bytecode_, operand_index, operand_scale()));
+  int operand_offset =
+      Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
+  if (TargetSupportsUnalignedAccess()) {
+    return Load(MachineType::Uint32(), BytecodeArrayTaggedPointer(),
+                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
+  } else {
+    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint32());
+  }
+}
+
+Node* InterpreterAssembler::BytecodeOperandSignedQuad(int operand_index) {
+  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
+                                    bytecode_, operand_index, operand_scale()));
+  int operand_offset =
+      Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
+  Node* load;
+  if (TargetSupportsUnalignedAccess()) {
+    load = Load(MachineType::Int32(), BytecodeArrayTaggedPointer(),
+                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
+  } else {
+    load = BytecodeOperandReadUnaligned(operand_offset, MachineType::Int32());
+  }
+
+  // Ensure that we sign extend to full pointer size
+  if (kPointerSize == 8) {
+    load = ChangeInt32ToInt64(load);
+  }
+  return load;
+}
+
+Node* InterpreterAssembler::BytecodeSignedOperand(int operand_index,
+                                                  OperandSize operand_size) {
+  DCHECK(!Bytecodes::IsUnsignedOperandType(
+      Bytecodes::GetOperandType(bytecode_, operand_index)));
+  switch (operand_size) {
     case OperandSize::kByte:
-      DCHECK_EQ(OperandType::kRegCount8,
-                Bytecodes::GetOperandType(bytecode_, operand_index));
-      return BytecodeOperand(operand_index);
+      return BytecodeOperandSignedByte(operand_index);
     case OperandSize::kShort:
-      DCHECK_EQ(OperandType::kRegCount16,
-                Bytecodes::GetOperandType(bytecode_, operand_index));
-      return BytecodeOperandShort(operand_index);
+      return BytecodeOperandSignedShort(operand_index);
+    case OperandSize::kQuad:
+      return BytecodeOperandSignedQuad(operand_index);
     case OperandSize::kNone:
       UNREACHABLE();
   }
   return nullptr;
+}
+
+Node* InterpreterAssembler::BytecodeUnsignedOperand(int operand_index,
+                                                    OperandSize operand_size) {
+  DCHECK(Bytecodes::IsUnsignedOperandType(
+      Bytecodes::GetOperandType(bytecode_, operand_index)));
+  switch (operand_size) {
+    case OperandSize::kByte:
+      return BytecodeOperandUnsignedByte(operand_index);
+    case OperandSize::kShort:
+      return BytecodeOperandUnsignedShort(operand_index);
+    case OperandSize::kQuad:
+      return BytecodeOperandUnsignedQuad(operand_index);
+    case OperandSize::kNone:
+      UNREACHABLE();
+  }
+  return nullptr;
+}
+
+Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
+  DCHECK_EQ(OperandType::kRegCount,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
+Node* InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
+  DCHECK_EQ(OperandType::kFlag8,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  DCHECK_EQ(operand_size, OperandSize::kByte);
+  return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
-  DCHECK_EQ(OperandType::kImm8,
+  DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  return BytecodeOperandSignExtended(operand_index);
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeSignedOperand(operand_index, operand_size);
 }
 
 Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
-  switch (Bytecodes::GetOperandSize(bytecode_, operand_index)) {
-    case OperandSize::kByte:
-      DCHECK_EQ(OperandType::kIdx8,
-                Bytecodes::GetOperandType(bytecode_, operand_index));
-      return BytecodeOperand(operand_index);
-    case OperandSize::kShort:
-      DCHECK_EQ(OperandType::kIdx16,
-                Bytecodes::GetOperandType(bytecode_, operand_index));
-      return BytecodeOperandShort(operand_index);
-    case OperandSize::kNone:
-      UNREACHABLE();
-  }
-  return nullptr;
+  DCHECK(OperandType::kIdx ==
+         Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
-  OperandType operand_type =
-      Bytecodes::GetOperandType(bytecode_, operand_index);
-  if (Bytecodes::IsRegisterOperandType(operand_type)) {
-    OperandSize operand_size = Bytecodes::SizeOfOperand(operand_type);
-    if (operand_size == OperandSize::kByte) {
-      return BytecodeOperandSignExtended(operand_index);
-    } else if (operand_size == OperandSize::kShort) {
-      return BytecodeOperandShortSignExtended(operand_index);
-    }
-  }
-  UNREACHABLE();
-  return nullptr;
+  DCHECK(Bytecodes::IsRegisterOperandType(
+      Bytecodes::GetOperandType(bytecode_, operand_index)));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return BytecodeSignedOperand(operand_index, operand_size);
+}
+
+Node* InterpreterAssembler::BytecodeOperandRuntimeId(int operand_index) {
+  DCHECK(OperandType::kRuntimeId ==
+         Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  DCHECK_EQ(operand_size, OperandSize::kShort);
+  return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
@@ -430,7 +528,7 @@ void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
 }
 
 void InterpreterAssembler::Dispatch() {
-  DispatchTo(Advance(Bytecodes::Size(bytecode_)));
+  DispatchTo(Advance(Bytecodes::Size(bytecode_, operand_scale_)));
 }
 
 void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
@@ -460,6 +558,40 @@ void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
                   bytecode_offset,           BytecodeArrayTaggedPointer(),
                   DispatchTableRawPointer(), GetContext()};
   TailCall(descriptor, handler, args, 0);
+}
+
+void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
+  // Dispatching a wide bytecode requires treating the prefix
+  // bytecode a base pointer into the dispatch table and dispatching
+  // the bytecode that follows relative to this base.
+  //
+  //   Indices 0-255 correspond to bytecodes with operand_scale == 0
+  //   Indices 256-511 correspond to bytecodes with operand_scale == 1
+  //   Indices 512-767 correspond to bytecodes with operand_scale == 2
+  Node* next_bytecode_offset = Advance(1);
+  Node* next_bytecode = Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
+                             next_bytecode_offset);
+  if (kPointerSize == 8) {
+    next_bytecode = ChangeUint32ToUint64(next_bytecode);
+  }
+  Node* base_index;
+  switch (operand_scale) {
+    case OperandScale::kDouble:
+      base_index = IntPtrConstant(1 << kBitsPerByte);
+      break;
+    case OperandScale::kQuadruple:
+      base_index = IntPtrConstant(2 << kBitsPerByte);
+      break;
+    default:
+      UNREACHABLE();
+      base_index = nullptr;
+  }
+  Node* target_index = IntPtrAdd(base_index, next_bytecode);
+  Node* target_code_object =
+      Load(MachineType::Pointer(), DispatchTableRawPointer(),
+           WordShl(target_index, kPointerSizeLog2));
+
+  DispatchToBytecodeHandler(target_code_object, next_bytecode_offset);
 }
 
 void InterpreterAssembler::InterpreterReturn() {

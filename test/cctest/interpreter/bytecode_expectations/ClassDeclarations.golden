@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 71
+bytecode array length: 73
 bytecodes: [
   B(LdaTheHole),
   B(Star), R(1),
@@ -27,20 +27,20 @@ bytecodes: [
   B(Star), R(2),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(3),
-  B(LdaSmi8), U8(34),
+  B(LdaSmi), U8(34),
   B(Star), R(4),
-  B(LdaConstant), U8(1),
+  B(Wide), B(LdaSmi), U16(148),
   B(Star), R(5),
   B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
   B(Star), R(2),
-  B(LoadIC), R(2), U8(2), U8(1),
+  B(LoadIC), R(2), U8(1), U8(1),
   B(Star), R(3),
   B(Mov), R(3), R(4),
-  B(LdaConstant), U8(3),
+  B(LdaConstant), U8(2),
   B(Star), R(5),
-  B(CreateClosure), U8(4), U8(0),
+  B(CreateClosure), U8(3), U8(0),
   B(Star), R(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(Star), R(7),
   B(LdaZero),
   B(Star), R(8),
@@ -53,7 +53,6 @@ bytecodes: [
 ]
 constant pool: [
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  kInstanceTypeDontCare,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
@@ -70,7 +69,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 71
+bytecode array length: 73
 bytecodes: [
   B(LdaTheHole),
   B(Star), R(1),
@@ -81,20 +80,20 @@ bytecodes: [
   B(Star), R(2),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(3),
-  B(LdaSmi8), U8(34),
+  B(LdaSmi), U8(34),
   B(Star), R(4),
-  B(LdaConstant), U8(1),
+  B(Wide), B(LdaSmi), U16(148),
   B(Star), R(5),
   B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
   B(Star), R(2),
-  B(LoadIC), R(2), U8(2), U8(1),
+  B(LoadIC), R(2), U8(1), U8(1),
   B(Star), R(3),
   B(Mov), R(3), R(4),
-  B(LdaConstant), U8(3),
+  B(LdaConstant), U8(2),
   B(Star), R(5),
-  B(CreateClosure), U8(4), U8(0),
+  B(CreateClosure), U8(3), U8(0),
   B(Star), R(6),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(Star), R(7),
   B(LdaZero),
   B(Star), R(8),
@@ -107,7 +106,6 @@ bytecodes: [
 ]
 constant pool: [
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  kInstanceTypeDontCare,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
@@ -126,7 +124,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 125
+bytecode array length: 127
 bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(2),
@@ -143,36 +141,36 @@ bytecodes: [
   B(Star), R(3),
   B(CreateClosure), U8(2), U8(0),
   B(Star), R(4),
-  B(LdaSmi8), U8(62),
+  B(LdaSmi), U8(62),
   B(Star), R(5),
-  B(LdaConstant), U8(3),
+  B(Wide), B(LdaSmi), U16(128),
   B(Star), R(6),
   B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
   B(Star), R(3),
-  B(LoadIC), R(3), U8(4), U8(1),
+  B(LoadIC), R(3), U8(3), U8(1),
   B(Star), R(4),
   B(Mov), R(4), R(5),
   B(LdaContextSlot), R(context), U8(4),
   B(ToName),
   B(Star), R(6),
-  B(CreateClosure), U8(5), U8(0),
+  B(CreateClosure), U8(4), U8(0),
   B(Star), R(7),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(Star), R(8),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(9),
   B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(5),
   B(Mov), R(3), R(5),
   B(LdaContextSlot), R(context), U8(5),
   B(ToName),
   B(Star), R(6),
-  B(LdaConstant), U8(4),
+  B(LdaConstant), U8(3),
   B(TestEqualStrict), R(6),
   B(JumpIfFalse), U8(7),
   B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
-  B(CreateClosure), U8(6), U8(0),
+  B(CreateClosure), U8(5), U8(0),
   B(Star), R(7),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(9),
   B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(5),
   B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),
@@ -185,7 +183,6 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  kInstanceTypeDontCare,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
   InstanceType::SHARED_FUNCTION_INFO_TYPE,
@@ -216,9 +213,9 @@ bytecodes: [
   B(Star), R(3),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(4),
-  B(LdaSmi8), U8(49),
+  B(LdaSmi), U8(49),
   B(Star), R(5),
-  B(LdaSmi8), U8(86),
+  B(LdaSmi), U8(86),
   B(Star), R(6),
   B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
   B(Star), R(3),

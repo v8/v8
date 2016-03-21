@@ -35,7 +35,7 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(100),
+  B(LdaSmi), U8(100),
   B(Star), R(1),
   B(LdaUndefined),
   B(Star), R(0),
@@ -57,7 +57,7 @@ bytecode array length: 26
 bytecodes: [
   B(StackCheck),
   B(StackCheck),
-  B(LdaSmi8), U8(10),
+  B(LdaSmi), U8(10),
   B(Star), R(1),
   B(ToNumber),
   B(Inc),
@@ -66,7 +66,7 @@ bytecodes: [
   B(Jump), U8(12),
   B(Ldar), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(20),
+  B(LdaSmi), U8(20),
   B(Star), R(1),
   B(Jump), U8(-21),
   B(LdaUndefined),

@@ -270,7 +270,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 1034
+bytecode array length: 1035
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -785,7 +785,7 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(CreateObjectLiteralWide), U16(256), U16(0), U8(5),
+  B(Wide), B(CreateObjectLiteral), U16(256), U16(0), U8(5),
   B(Star), R(1),
   B(Return),
 ]

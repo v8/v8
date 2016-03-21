@@ -24,14 +24,14 @@ bytecodes: [
   B(Star), R(0),
   B(Ldar), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(10),
+  B(LdaSmi), U8(10),
   B(TestEqual), R(1),
   B(LogicalNot),
   B(JumpIfFalse), U8(15),
   B(StackCheck),
   B(Ldar), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(10),
+  B(LdaSmi), U8(10),
   B(Add), R(1),
   B(Star), R(0),
   B(Jump), U8(-22),
@@ -85,10 +85,10 @@ parameter count: 1
 bytecode array length: 13
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(101),
+  B(LdaSmi), U8(101),
   B(Star), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(3),
+  B(LdaSmi), U8(3),
   B(Mul), R(1),
   B(LdaUndefined),
   B(Return),
@@ -106,23 +106,22 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 23
 bytecodes: [
   B(StackCheck),
-  B(LdaConstant), U8(0),
+  B(Wide), B(LdaSmi), U16(1234),
   B(Star), R(0),
   B(Star), R(2),
   B(Ldar), R(0),
   B(Mul), R(2),
   B(Star), R(3),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Sub), R(3),
   B(LdaUndefined),
   B(Star), R(1),
   B(Return),
 ]
 constant pool: [
-  1234,
 ]
 handlers: [
 ]
@@ -137,10 +136,10 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(13),
+  B(LdaSmi), U8(13),
   B(Star), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(-1),
+  B(LdaSmi), U8(-1),
   B(BitwiseXor), R(1),
   B(Return),
 ]
@@ -159,10 +158,10 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(13),
+  B(LdaSmi), U8(13),
   B(Star), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Mul), R(1),
   B(Return),
 ]
@@ -181,10 +180,10 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(13),
+  B(LdaSmi), U8(13),
   B(Star), R(0),
   B(Star), R(1),
-  B(LdaSmi8), U8(-1),
+  B(LdaSmi), U8(-1),
   B(Mul), R(1),
   B(Return),
 ]

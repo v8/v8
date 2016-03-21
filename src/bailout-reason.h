@@ -102,6 +102,7 @@ namespace internal {
   V(kInputStringTooLong, "Input string too long")                              \
   V(kInteger32ToSmiFieldWritingToNonSmiLocation,                               \
     "Integer32ToSmiField writing to non-smi location")                         \
+  V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidCaptureReferenced, "Invalid capture referenced")                   \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \

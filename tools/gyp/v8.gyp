@@ -960,8 +960,6 @@
         '../../src/interpreter/interpreter.h',
         '../../src/interpreter/interpreter-assembler.cc',
         '../../src/interpreter/interpreter-assembler.h',
-        '../../src/interpreter/register-translator.cc',
-        '../../src/interpreter/register-translator.h',
         '../../src/interpreter/source-position-table.cc',
         '../../src/interpreter/source-position-table.h',
         '../../src/isolate-inl.h',

@@ -113,6 +113,7 @@ const int kMaxUInt16 = (1 << 16) - 1;
 const int kMinUInt16 = 0;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+const int kMinUInt32 = 0;
 
 const int kCharSize      = sizeof(char);      // NOLINT
 const int kShortSize     = sizeof(short);     // NOLINT

@@ -57,9 +57,9 @@ parameter count: 1
 bytecode array length: 15
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(Star), R(1),
   B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
   B(Return),
@@ -76,14 +76,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 15
 bytecodes: [
   B(StackCheck),
   B(LdaUndefined),
   B(Star), R(0),
   B(CreateArrayLiteral), U8(0), U8(0), U8(3),
   B(Star), R(1),
-  B(CallJSRuntime), U16(116), R(0), U8(2),
+  B(CallJSRuntime), U8(116), R(0), U8(2),
   B(Return),
 ]
 constant pool: [

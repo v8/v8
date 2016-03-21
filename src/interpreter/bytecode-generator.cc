@@ -1133,7 +1133,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Register cache_type = register_allocator()->NextConsecutiveRegister();
   Register cache_array = register_allocator()->NextConsecutiveRegister();
   Register cache_length = register_allocator()->NextConsecutiveRegister();
-  // Used as kRegTriple8 and kRegPair8 in ForInPrepare and ForInNext.
+  // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   USE(cache_array);
   builder()->ForInPrepare(cache_type);
 

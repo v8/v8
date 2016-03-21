@@ -40,7 +40,7 @@ class Interpreter {
   static bool MakeBytecode(CompilationInfo* info);
 
   // Return bytecode handler for |bytecode|.
-  Code* GetBytecodeHandler(Bytecode bytecode);
+  Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 
   // GC support.
   void IterateDispatchTable(ObjectVisitor* v);
@@ -52,6 +52,10 @@ class Interpreter {
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
   }
+
+  // Returns true if a handler is generated for a bytecode at a given
+  // operand scale.
+  static bool BytecodeHasHandler(Bytecode bytecode, OperandScale operand_scale);
 
  private:
 // Bytecode handler generator functions.
@@ -130,9 +134,14 @@ class Interpreter {
   void DoStoreLookupSlot(LanguageMode language_mode,
                          InterpreterAssembler* assembler);
 
+  // Get dispatch table index of bytecode.
+  static size_t GetDispatchTableIndex(Bytecode bytecode,
+                                      OperandScale operand_scale);
+
   bool IsDispatchTableInitialized();
 
-  static const int kDispatchTableSize = static_cast<int>(Bytecode::kLast) + 1;
+  static const int kNumberOfWideVariants = 3;
+  static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);
 
   Isolate* isolate_;
   Code* dispatch_table_[kDispatchTableSize];

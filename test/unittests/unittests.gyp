@@ -101,7 +101,6 @@
         'interpreter/constant-array-builder-unittest.cc',
         'interpreter/interpreter-assembler-unittest.cc',
         'interpreter/interpreter-assembler-unittest.h',
-        'interpreter/register-translator-unittest.cc',
         'interpreter/source-position-table-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',

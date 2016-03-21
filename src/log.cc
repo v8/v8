@@ -1607,12 +1607,23 @@ void Logger::LogCodeObjects() {
 void Logger::LogBytecodeHandlers() {
   if (!FLAG_ignition) return;
 
+  interpreter::Interpreter* interpreter = isolate_->interpreter();
   const int last_index = static_cast<int>(interpreter::Bytecode::kLast);
-  for (int index = 0; index <= last_index; ++index) {
-    interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
-    Code* code = isolate_->interpreter()->GetBytecodeHandler(bytecode);
-    CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(code),
-                    interpreter::Bytecodes::ToString(bytecode));
+  for (auto operand_scale = interpreter::OperandScale::kSingle;
+       operand_scale <= interpreter::OperandScale::kMaxValid;
+       operand_scale =
+           interpreter::Bytecodes::NextOperandScale(operand_scale)) {
+    for (int index = 0; index <= last_index; ++index) {
+      interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
+      if (interpreter::Interpreter::BytecodeHasHandler(bytecode,
+                                                       operand_scale)) {
+        Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
+        std::string bytecode_name =
+            interpreter::Bytecodes::ToString(bytecode, operand_scale);
+        CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(code),
+                        bytecode_name.c_str());
+      }
+    }
   }
 }
 
