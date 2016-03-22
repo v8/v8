@@ -394,9 +394,8 @@ void GCTracer::Print() const {
          static_cast<double>(current_.end_object_size) / MB,
          static_cast<double>(current_.end_memory_size) / MB);
 
-  int external_time = static_cast<int>(current_.scopes[Scope::EXTERNAL]);
   double duration = current_.end_time - current_.start_time;
-  Output("%.1f / %d ms", duration, external_time);
+  Output("%.1f / %.1f ms", duration, TotalExternalTime());
 
   if (current_.type == Event::SCAVENGER) {
     if (current_.incremental_marking_steps > 0) {
@@ -448,6 +447,9 @@ void GCTracer::PrintNVP() const {
                    "code=%.2f "
                    "semispace=%.2f "
                    "object_groups=%.2f "
+                   "external_prologue=$.2f "
+                   "external_epilogue=$.2f "
+                   "external_weak_global_handles=$.2f "
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "scavenge_throughput=%" V8_PTR_PREFIX
@@ -486,6 +488,9 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::SCAVENGER_CODE_FLUSH_CANDIDATES],
                    current_.scopes[Scope::SCAVENGER_SEMISPACE],
                    current_.scopes[Scope::SCAVENGER_OBJECT_GROUPS],
+                   current_.scopes[Scope::SCAVENGER_EXTERNAL_PROLOGUE],
+                   current_.scopes[Scope::SCAVENGER_EXTERNAL_EPILOGUE],
+                   current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
                    current_.incremental_marking_steps,
                    current_.incremental_marking_duration,
                    ScavengeSpeedInBytesPerMillisecond(),
@@ -509,7 +514,6 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "external=%.1f "
           "clear=%1.f "
           "clear.code_flush=%.1f "
           "clear.dependent_code=%.1f "
@@ -530,6 +534,11 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.to_evacuated=%.1f "
           "evacuate.update_pointers.to_new=%.1f "
           "evacuate.update_pointers.weak=%.1f "
+          "external.mc_prologue=%.1f "
+          "external.mc_epilogue=%.1f "
+          "external.mc_incremental_prologue=%.1f "
+          "external.mc_incremental_epilogue=%.1f "
+          "external.weak_global_handles=%.1f "
           "finish=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
@@ -576,7 +585,7 @@ void GCTracer::PrintNVP() const {
           "compaction_speed=%" V8_PTR_PREFIX "d\n",
           heap_->isolate()->time_millis_since_init(), duration,
           spent_in_mutator, current_.TypeName(true), current_.reduce_memory,
-          current_.scopes[Scope::EXTERNAL], current_.scopes[Scope::MC_CLEAR],
+          current_.scopes[Scope::MC_CLEAR],
           current_.scopes[Scope::MC_CLEAR_CODE_FLUSH],
           current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
           current_.scopes[Scope::MC_CLEAR_GLOBAL_HANDLES],
@@ -596,6 +605,11 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
+          current_.scopes[Scope::MC_EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::MC_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
+          current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],

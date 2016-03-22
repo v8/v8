@@ -97,7 +97,7 @@ class GCTracer {
   class Scope {
    public:
     enum ScopeId {
-      EXTERNAL,
+      EXTERNAL_WEAK_GLOBAL_HANDLES,
       MC_CLEAR,
       MC_CLEAR_CODE_FLUSH,
       MC_CLEAR_DEPENDENT_CODE,
@@ -118,8 +118,12 @@ class GCTracer {
       MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED,
       MC_EVACUATE_UPDATE_POINTERS_TO_NEW,
       MC_EVACUATE_UPDATE_POINTERS_WEAK,
+      MC_EXTERNAL_EPILOGUE,
+      MC_EXTERNAL_PROLOGUE,
       MC_FINISH,
       MC_INCREMENTAL_FINALIZE,
+      MC_INCREMENTAL_EXTERNAL_EPILOGUE,
+      MC_INCREMENTAL_EXTERNAL_PROLOGUE,
       MC_MARK,
       MC_MARK_FINISH_INCREMENTAL,
       MC_MARK_PREPARE_CODE_FLUSH,
@@ -130,6 +134,8 @@ class GCTracer {
       MC_SWEEP_MAP,
       MC_SWEEP_OLD,
       SCAVENGER_CODE_FLUSH_CANDIDATES,
+      SCAVENGER_EXTERNAL_EPILOGUE,
+      SCAVENGER_EXTERNAL_PROLOGUE,
       SCAVENGER_OBJECT_GROUPS,
       SCAVENGER_OLD_TO_NEW_POINTERS,
       SCAVENGER_ROOTS,
@@ -504,6 +510,16 @@ class GCTracer {
     longest_incremental_marking_finalization_step_ = 0;
     cumulative_marking_duration_ = 0;
     cumulative_sweeping_duration_ = 0;
+  }
+
+  double TotalExternalTime() const {
+    return current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES] +
+           current_.scopes[Scope::MC_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::MC_EXTERNAL_PROLOGUE] +
+           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE] +
+           current_.scopes[Scope::SCAVENGER_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::SCAVENGER_EXTERNAL_PROLOGUE];
   }
 
   // Pointer to the heap that owns this tracer.

@@ -820,7 +820,8 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(),
+                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
@@ -831,7 +832,8 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(),
+                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
@@ -1280,7 +1282,10 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(),
+                            collector == MARK_COMPACTOR
+                                ? GCTracer::Scope::MC_EXTERNAL_PROLOGUE
+                                : GCTracer::Scope::SCAVENGER_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1327,7 +1332,8 @@ bool Heap::PerformGarbageCollection(
   gc_post_processing_depth_++;
   {
     AllowHeapAllocation allow_allocation;
-    GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
+    GCTracer::Scope scope(tracer(),
+                          GCTracer::Scope::EXTERNAL_WEAK_GLOBAL_HANDLES);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
             collector, gc_callback_flags);
@@ -1358,7 +1364,10 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(),
+                            collector == MARK_COMPACTOR
+                                ? GCTracer::Scope::MC_EXTERNAL_EPILOGUE
+                                : GCTracer::Scope::SCAVENGER_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
