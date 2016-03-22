@@ -59,8 +59,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceMathClz32(node);
     case Runtime::kInlineMathFloor:
       return ReduceMathFloor(node);
-    case Runtime::kInlineMathSqrt:
-      return ReduceMathSqrt(node);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     case Runtime::kInlineFixedArrayGet:
@@ -221,15 +219,6 @@ Reduction JSIntrinsicLowering::ReduceMathClz32(Node* node) {
 Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
   if (!machine()->Float64RoundDown().IsSupported()) return NoChange();
   return Change(node, machine()->Float64RoundDown().op());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathSqrt(Node* node) {
-  // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
-                                   node->InputAt(0), graph()->start());
-  node->ReplaceInput(0, renamed);
-  return Change(node, machine()->Float64Sqrt());
 }
 
 

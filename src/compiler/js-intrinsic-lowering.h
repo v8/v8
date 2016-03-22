@@ -48,7 +48,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathFloor(Node* node);
-  Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);

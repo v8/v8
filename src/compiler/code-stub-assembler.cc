@@ -243,6 +243,12 @@ Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
               IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
 }
 
+Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
+  return StoreNoWriteBarrier(
+      MachineRepresentation::kFloat64, object,
+      IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
+}
+
 Node* CodeStubAssembler::LoadMapBitField(Node* map) {
   return Load(MachineType::Uint8(), map,
               IntPtrConstant(Map::kBitFieldOffset - kHeapObjectTag));
@@ -457,6 +463,12 @@ Node* CodeStubAssembler::Projection(int index, Node* value) {
 
 Node* CodeStubAssembler::LoadMap(Node* object) {
   return LoadObjectField(object, HeapObject::kMapOffset);
+}
+
+Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
+  return StoreNoWriteBarrier(
+      MachineRepresentation::kTagged, object,
+      IntPtrConstant(HeapNumber::kMapOffset - kHeapObjectTag), map);
 }
 
 Node* CodeStubAssembler::LoadInstanceType(Node* object) {

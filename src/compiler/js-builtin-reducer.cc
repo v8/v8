@@ -168,6 +168,17 @@ Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.32 Math.sqrt ( x )
+Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.sqrt(a:number) -> Float64Sqrt(a)
+    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -186,6 +197,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
+      break;
+    case kMathSqrt:
+      reduction = ReduceMathSqrt(node);
       break;
     default:
       break;

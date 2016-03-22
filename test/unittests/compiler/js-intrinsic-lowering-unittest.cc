@@ -260,24 +260,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineMathFloor) {
 
 
 // -----------------------------------------------------------------------------
-// %_MathSqrt
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineMathSqrt) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineMathSqrt, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFloat64Sqrt(IsGuard(Type::Number(), input, _)));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_MathClz32
 
 TEST_F(JSIntrinsicLoweringTest, InlineMathClz32) {

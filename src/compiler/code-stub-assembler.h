@@ -90,6 +90,7 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Sqrt)                             \
   V(ChangeFloat64ToUint32)                   \
   V(ChangeInt32ToFloat64)                    \
   V(ChangeInt32ToInt64)                      \
@@ -284,6 +285,8 @@ class CodeStubAssembler {
                         MachineType rep = MachineType::AnyTagged());
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
+  // Store the floating point value of a HeapNumber.
+  Node* StoreHeapNumberValue(Node* object, Node* value);
   // Load the bit field of a Map.
   Node* LoadMapBitField(Node* map);
   // Load the instance type of a Map.
@@ -302,6 +305,8 @@ class CodeStubAssembler {
                                              Node* value);
   // Load the Map of an HeapObject.
   Node* LoadMap(Node* object);
+  // Store the Map of an HeapObject.
+  Node* StoreMapNoWriteBarrier(Node* object, Node* map);
   // Load the instance type of an HeapObject.
   Node* LoadInstanceType(Node* object);
 

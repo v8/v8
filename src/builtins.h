@@ -11,6 +11,13 @@
 namespace v8 {
 namespace internal {
 
+namespace compiler {
+
+// Forward declarations.
+class CodeStubAssembler;
+
+}  // namespace compiler
+
 // Specifies extra arguments required by a C++ builtin.
 enum class BuiltinExtraArguments : uint8_t {
   kNone = 0u,
@@ -299,6 +306,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
+// Define list of builtins implemented in TurboFan (with JS linkage).
+#define BUILTIN_LIST_T(V) V(MathSqrt, 2)
+
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
   V(LoadIC_Slow,             LOAD_IC)        \
@@ -337,14 +347,16 @@ class Builtins {
   enum Name {
 #define DEF_ENUM_C(name, ignore) k##name,
 #define DEF_ENUM_A(name, kind, state, extra) k##name,
+#define DEF_ENUM_T(name, argc) k##name,
 #define DEF_ENUM_H(name, kind) k##name,
-    BUILTIN_LIST_C(DEF_ENUM_C)
-    BUILTIN_LIST_A(DEF_ENUM_A)
-    BUILTIN_LIST_H(DEF_ENUM_H)
-    BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
+    BUILTIN_LIST_C(DEF_ENUM_C) BUILTIN_LIST_A(DEF_ENUM_A)
+        BUILTIN_LIST_T(DEF_ENUM_T) BUILTIN_LIST_H(DEF_ENUM_H)
+            BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
 #undef DEF_ENUM_C
 #undef DEF_ENUM_A
-    builtin_count
+#undef DEF_ENUM_T
+#undef DEF_ENUM_H
+                builtin_count
   };
 
   enum CFunctionId {
@@ -357,13 +369,17 @@ class Builtins {
 #define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
   Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_T(name, argc) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_H(name, kind) Handle<Code> name();
   BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)
   BUILTIN_LIST_A(DECLARE_BUILTIN_ACCESSOR_A)
+  BUILTIN_LIST_T(DECLARE_BUILTIN_ACCESSOR_T)
   BUILTIN_LIST_H(DECLARE_BUILTIN_ACCESSOR_H)
   BUILTIN_LIST_DEBUG_A(DECLARE_BUILTIN_ACCESSOR_A)
 #undef DECLARE_BUILTIN_ACCESSOR_C
 #undef DECLARE_BUILTIN_ACCESSOR_A
+#undef DECLARE_BUILTIN_ACCESSOR_T
+#undef DECLARE_BUILTIN_ACCESSOR_H
 
   // Convenience wrappers.
   Handle<Code> CallFunction(
@@ -574,6 +590,8 @@ class Builtins {
   static void Generate_MathMin(MacroAssembler* masm) {
     Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
   }
+  // ES6 section 20.2.2.32 Math.sqrt ( x )
+  static void Generate_MathSqrt(compiler::CodeStubAssembler* assembler);
 
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
   static void Generate_NumberConstructor(MacroAssembler* masm);

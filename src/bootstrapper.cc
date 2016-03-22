@@ -1523,6 +1523,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "imul", Builtins::kMathImul, 2, true);
     SimpleInstallFunction(math, "max", Builtins::kMathMax, 2, false);
     SimpleInstallFunction(math, "min", Builtins::kMathMin, 2, false);
+    Handle<JSFunction> math_sqrt =
+        SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
+    native_context()->set_math_sqrt(*math_sqrt);
   }
 
   {  // -- A r r a y B u f f e r

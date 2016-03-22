@@ -9,6 +9,8 @@
 #include "src/api-natives.h"
 #include "src/base/once.h"
 #include "src/bootstrapper.h"
+#include "src/code-factory.h"
+#include "src/compiler/code-stub-assembler.h"
 #include "src/dateparser-inl.h"
 #include "src/elements.h"
 #include "src/frames-inl.h"
@@ -2029,6 +2031,81 @@ BUILTIN(MathImul) {
   return *isolate->factory()->NewNumberFromInt(product);
 }
 
+// ES6 section 20.2.2.32 Math.sqrt ( x )
+void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  // Shared entry for the floating point sqrt.
+  Label do_fsqrt(assembler);
+  Variable var_fsqrt_x(assembler, MachineRepresentation::kFloat64);
+
+  // We might need to loop once due to the ToNumber conversion.
+  Variable var_x(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_x);
+  var_x.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {x} value.
+    Node* x = var_x.value();
+
+    // Check if {x} is a Smi or a HeapObject.
+    Label if_xissmi(assembler), if_xisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+
+    assembler->Bind(&if_xissmi);
+    {
+      // Perform the floating point sqrt.
+      var_fsqrt_x.Bind(assembler->SmiToFloat64(x));
+      assembler->Goto(&do_fsqrt);
+    }
+
+    assembler->Bind(&if_xisnotsmi);
+    {
+      // Load the map of {x}.
+      Node* x_map = assembler->LoadMap(x);
+
+      // Check if {x} is a HeapNumber.
+      Label if_xisnumber(assembler),
+          if_xisnotnumber(assembler, Label::kDeferred);
+      assembler->Branch(
+          assembler->WordEqual(x_map, assembler->HeapNumberMapConstant()),
+          &if_xisnumber, &if_xisnotnumber);
+
+      assembler->Bind(&if_xisnumber);
+      {
+        // Perform the floating point sqrt.
+        var_fsqrt_x.Bind(assembler->LoadHeapNumberValue(x));
+        assembler->Goto(&do_fsqrt);
+      }
+
+      assembler->Bind(&if_xisnotnumber);
+      {
+        // Convert {x} to a Number first.
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_x.Bind(assembler->CallStub(callable, context, x));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fsqrt);
+  {
+    Node* x = var_fsqrt_x.value();
+    Node* value = assembler->Float64Sqrt(x);
+    Node* result = assembler->Allocate(HeapNumber::kSize,
+                                       compiler::CodeStubAssembler::kNone);
+    assembler->StoreMapNoWriteBarrier(result,
+                                      assembler->HeapNumberMapConstant());
+    assembler->StoreHeapNumberValue(result, value);
+    assembler->Return(result);
+  }
+}
 
 // -----------------------------------------------------------------------------
 // ES6 section 26.1 The Reflect Object
@@ -4292,12 +4369,14 @@ Address const Builtins::c_functions_[cfunction_count] = {
 
 
 struct BuiltinDesc {
+  Handle<Code> (*builder)(Isolate*, struct BuiltinDesc const*);
   byte* generator;
   byte* c_code;
   const char* s_name;  // name is only used for generating log information.
   int name;
   Code::Flags flags;
   BuiltinExtraArguments extra_args;
+  int argc;
 };
 
 #define BUILTIN_FUNCTION_TABLE_INIT { V8_ONCE_INIT, {} }
@@ -4315,8 +4394,60 @@ class BuiltinFunctionTable {
   friend class Builtins;
 };
 
-static BuiltinFunctionTable builtin_function_table =
-    BUILTIN_FUNCTION_TABLE_INIT;
+namespace {
+
+BuiltinFunctionTable builtin_function_table = BUILTIN_FUNCTION_TABLE_INIT;
+
+Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
+                                   BuiltinDesc const* builtin_desc) {
+// For now we generate builtin adaptor code into a stack-allocated
+// buffer, before copying it into individual code objects. Be careful
+// with alignment, some platforms don't like unaligned code.
+#ifdef DEBUG
+  // We can generate a lot of debug code on Arm64.
+  const size_t buffer_size = 32 * KB;
+#elif V8_TARGET_ARCH_PPC64
+  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
+  const size_t buffer_size = 10 * KB;
+#else
+  const size_t buffer_size = 8 * KB;
+#endif
+  union {
+    int force_alignment;
+    byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  } u;
+
+  MacroAssembler masm(isolate, u.buffer, sizeof(u.buffer),
+                      CodeObjectRequired::kYes);
+  // Generate the code/adaptor.
+  typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
+  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
+  // We pass all arguments to the generator, but it may not use all of
+  // them.  This works because the first arguments are on top of the
+  // stack.
+  DCHECK(!masm.has_frame());
+  g(&masm, builtin_desc->name, builtin_desc->extra_args);
+  // Move the code into the object heap.
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  Code::Flags flags = builtin_desc->flags;
+  return isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+}
+
+Handle<Code> CodeStubAssemblerBuilder(Isolate* isolate,
+                                      BuiltinDesc const* builtin_desc) {
+  Zone zone;
+  compiler::CodeStubAssembler assembler(isolate, &zone, builtin_desc->argc,
+                                        builtin_desc->flags,
+                                        builtin_desc->s_name);
+  // Generate the code/adaptor.
+  typedef void (*Generator)(compiler::CodeStubAssembler*);
+  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
+  g(&assembler);
+  return assembler.GenerateCode();
+}
+
+}  // namespace
 
 // Define array of pointers to generators and C builtin functions.
 // We do this in a sort of roundabout way so that we can do the initialization
@@ -4324,47 +4455,70 @@ static BuiltinFunctionTable builtin_function_table =
 // Code::Flags names a non-abstract type.
 void Builtins::InitBuiltinFunctionTable() {
   BuiltinDesc* functions = builtin_function_table.functions_;
-  functions[builtin_count].generator = NULL;
-  functions[builtin_count].c_code = NULL;
-  functions[builtin_count].s_name = NULL;
+  functions[builtin_count].builder = nullptr;
+  functions[builtin_count].generator = nullptr;
+  functions[builtin_count].c_code = nullptr;
+  functions[builtin_count].s_name = nullptr;
   functions[builtin_count].name = builtin_count;
   functions[builtin_count].flags = static_cast<Code::Flags>(0);
   functions[builtin_count].extra_args = BuiltinExtraArguments::kNone;
+  functions[builtin_count].argc = 0;
 
 #define DEF_FUNCTION_PTR_C(aname, aextra_args)                \
+  functions->builder = &MacroAssemblerBuilder;                \
   functions->generator = FUNCTION_ADDR(Generate_Adaptor);     \
   functions->c_code = FUNCTION_ADDR(Builtin_##aname);         \
   functions->s_name = #aname;                                 \
   functions->name = c_##aname;                                \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);       \
   functions->extra_args = BuiltinExtraArguments::aextra_args; \
+  functions->argc = 0;                                        \
   ++functions;
 
 #define DEF_FUNCTION_PTR_A(aname, kind, state, extra)              \
+  functions->builder = &MacroAssemblerBuilder;                     \
   functions->generator = FUNCTION_ADDR(Generate_##aname);          \
   functions->c_code = NULL;                                        \
   functions->s_name = #aname;                                      \
   functions->name = k##aname;                                      \
   functions->flags = Code::ComputeFlags(Code::kind, state, extra); \
   functions->extra_args = BuiltinExtraArguments::kNone;            \
+  functions->argc = 0;                                             \
+  ++functions;
+
+#define DEF_FUNCTION_PTR_T(aname, aargc)                                 \
+  functions->builder = &CodeStubAssemblerBuilder;                        \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);                \
+  functions->c_code = NULL;                                              \
+  functions->s_name = #aname;                                            \
+  functions->name = k##aname;                                            \
+  functions->flags =                                                     \
+      Code::ComputeFlags(Code::BUILTIN, UNINITIALIZED, kNoExtraICState); \
+  functions->extra_args = BuiltinExtraArguments::kNone;                  \
+  functions->argc = aargc;                                               \
   ++functions;
 
 #define DEF_FUNCTION_PTR_H(aname, kind)                     \
+  functions->builder = &MacroAssemblerBuilder;              \
   functions->generator = FUNCTION_ADDR(Generate_##aname);   \
   functions->c_code = NULL;                                 \
   functions->s_name = #aname;                               \
   functions->name = k##aname;                               \
   functions->flags = Code::ComputeHandlerFlags(Code::kind); \
   functions->extra_args = BuiltinExtraArguments::kNone;     \
+  functions->argc = 0;                                      \
   ++functions;
 
   BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
   BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
+  BUILTIN_LIST_T(DEF_FUNCTION_PTR_T)
   BUILTIN_LIST_H(DEF_FUNCTION_PTR_H)
   BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
 
 #undef DEF_FUNCTION_PTR_C
 #undef DEF_FUNCTION_PTR_A
+#undef DEF_FUNCTION_PTR_H
+#undef DEF_FUNCTION_PTR_T
 }
 
 
@@ -4376,40 +4530,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 
   const BuiltinDesc* functions = builtin_function_table.functions();
 
-  // For now we generate builtin adaptor code into a stack-allocated
-  // buffer, before copying it into individual code objects. Be careful
-  // with alignment, some platforms don't like unaligned code.
-#ifdef DEBUG
-  // We can generate a lot of debug code on Arm64.
-  const size_t buffer_size = 32*KB;
-#elif V8_TARGET_ARCH_PPC64
-  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
-  const size_t buffer_size = 10 * KB;
-#else
-  const size_t buffer_size = 8*KB;
-#endif
-  union { int force_alignment; byte buffer[buffer_size]; } u;
-
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer,
-                          CodeObjectRequired::kYes);
-      // Generate the code/adaptor.
-      typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
-      Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
-      // We pass all arguments to the generator, but it may not use all of
-      // them.  This works because the first arguments are on top of the
-      // stack.
-      DCHECK(!masm.has_frame());
-      g(&masm, functions[i].name, functions[i].extra_args);
-      // Move the code into the object heap.
-      CodeDesc desc;
-      masm.GetCode(&desc);
-      Code::Flags flags = functions[i].flags;
-      Handle<Code> code =
-          isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+      Handle<Code> code = (*functions[i].builder)(isolate, functions + i);
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG, AbstractCode::cast(*code),
@@ -4483,6 +4608,11 @@ Handle<Code> Builtins::name() {                             \
       reinterpret_cast<Code**>(builtin_address(k##name));   \
   return Handle<Code>(code_address);                        \
 }
+#define DEFINE_BUILTIN_ACCESSOR_T(name, argc)                                 \
+  Handle<Code> Builtins::name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+    return Handle<Code>(code_address);                                        \
+  }
 #define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
@@ -4491,11 +4621,13 @@ Handle<Code> Builtins::name() {                             \
 }
 BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
 BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
+BUILTIN_LIST_T(DEFINE_BUILTIN_ACCESSOR_T)
 BUILTIN_LIST_H(DEFINE_BUILTIN_ACCESSOR_H)
 BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
 #undef DEFINE_BUILTIN_ACCESSOR_C
 #undef DEFINE_BUILTIN_ACCESSOR_A
-
+#undef DEFINE_BUILTIN_ACCESSOR_T
+#undef DEFINE_BUILTIN_ACCESSOR_H
 
 }  // namespace internal
 }  // namespace v8
