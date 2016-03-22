@@ -2052,14 +2052,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
   Comment cmnt(masm, "[ PrepareForTailCall");
 
-  // Prepare for tail call only if the debugger is not active.
-  Label done;
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(masm->isolate());
-  __ Move(kScratchRegister, debug_is_active);
-  __ cmpb(Operand(kScratchRegister, 0), Immediate(0));
-  __ j(not_equal, &done);
-
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
@@ -2099,7 +2091,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
                         scratch3, ReturnAddressState::kOnStack);
-  __ bind(&done);
 }
 }  // namespace
 
