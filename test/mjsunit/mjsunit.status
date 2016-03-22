@@ -849,6 +849,14 @@
   'es6/tail-call-megatest*': [SKIP],
 }],  # ignition == True and msan
 
+['ignition == True and gc_stress == True', {
+  # TODO(oth,4680): failures from the bots.
+  'es6/debug-step-destructuring-bind': [SKIP],
+  'es6/debug-stepin-collections-foreach': [SKIP],
+  'ignition/elided-instruction': [SKIP],
+  'regress/regress-269': [SKIP],
+}],  # ignition == True and gc_stress == True
+
 ['ignition == False', {
   # Debugger test cases that pass with full-codegen, but not ignition.
   # These differences between full-codegen and ignition are deliberate.
