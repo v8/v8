@@ -156,6 +156,10 @@ namespace interpreter {
   V(CallJSRuntime, OperandType::kIdx, OperandType::kReg,                    \
     OperandType::kRegCount)                                                 \
                                                                             \
+  /* Intrinsics */                                                          \
+  V(InvokeIntrinsic, OperandType::kRuntimeId, OperandType::kMaybeReg,       \
+    OperandType::kRegCount)                                                 \
+                                                                            \
   /* New operator */                                                        \
   V(New, OperandType::kReg, OperandType::kMaybeReg, OperandType::kRegCount) \
                                                                             \

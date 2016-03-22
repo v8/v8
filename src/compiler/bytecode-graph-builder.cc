@@ -983,6 +983,20 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
   environment()->BindRegistersToProjections(first_return, return_pair, &states);
 }
 
+void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
+  FrameStateBeforeAndAfter states(this);
+  Runtime::FunctionId functionId = static_cast<Runtime::FunctionId>(
+      bytecode_iterator().GetRuntimeIdOperand(0));
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
+
+  // Create node to perform the runtime call. Turbofan will take care of the
+  // lowering.
+  const Operator* call = javascript()->CallRuntime(functionId, arg_count);
+  Node* value = ProcessCallRuntimeArguments(call, first_arg, arg_count);
+  environment()->BindAccumulator(value, &states);
+}
+
 Node* BytecodeGraphBuilder::ProcessCallNewArguments(
     const Operator* call_new_op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {

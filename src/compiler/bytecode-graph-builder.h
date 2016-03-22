@@ -128,6 +128,7 @@ class BytecodeGraphBuilder {
   void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();
+  void BuildInvokeIntrinsic();
 
   // Control flow plumbing.
   void BuildJump();

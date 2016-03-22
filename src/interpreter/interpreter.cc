@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
+#include "src/interpreter/interpreter-intrinsics.h"
 #include "src/log.h"
 #include "src/zone.h"
 
@@ -892,6 +893,23 @@ void Interpreter::DoCallRuntimeCommon(InterpreterAssembler* assembler) {
 // registers.
 void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
   DoCallRuntimeCommon(assembler);
+}
+
+// InvokeIntrinsic <function_id> <first_arg> <arg_count>
+//
+// Implements the semantic equivalent of calling the runtime function
+// |function_id| with the first argument in |first_arg| and |arg_count|
+// arguments in subsequent registers.
+void Interpreter::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
+  Node* function_id = __ BytecodeOperandRuntimeId(0);
+  Node* first_arg_reg = __ BytecodeOperandReg(1);
+  Node* arg_count = __ BytecodeOperandCount(2);
+  Node* context = __ GetContext();
+  IntrinsicsHelper helper(assembler);
+  Node* result =
+      helper.InvokeIntrinsic(function_id, context, first_arg_reg, arg_count);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 void Interpreter::DoCallRuntimeForPairCommon(InterpreterAssembler* assembler) {

@@ -659,6 +659,28 @@ TEST(BytecodeGraphBuilderCallRuntime) {
   }
 }
 
+TEST(BytecodeGraphBuilderInvokeIntrinsic) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"function f(arg0) { return %_IsJSReceiver(arg0); }\nf()",
+       {factory->false_value(), factory->NewNumberFromInt(1)}},
+      {"function f(arg0) { return %_IsArray(arg0) }\nf(undefined)",
+       {factory->true_value(), BytecodeGraphTester::NewObject("[1, 2, 3]")}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
 void TestBytecodeGraphBuilderGlobals(size_t shard) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

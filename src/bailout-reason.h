@@ -231,6 +231,8 @@ namespace internal {
   V(kUnexpectedNegativeValue, "Unexpected negative value")                     \
   V(kUnexpectedNumberOfPreAllocatedPropertyFields,                             \
     "Unexpected number of pre-allocated property fields")                      \
+  V(kUnexpectedFunctionIDForInvokeIntrinsic,                                   \
+    "Unexpected runtime function id for the InvokeIntrinsic bytecode")         \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
   V(kUnexpectedSmi, "Unexpected smi value")                                    \
   V(kUnexpectedStackDepth, "Unexpected operand stack depth in full-codegen")   \
@@ -263,6 +265,8 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \
     "Wrong address or value passed to RecordWrite")                            \
+  V(kWrongArgumentCountForInvokeIntrinsic,                                     \
+    "Wrong number of arguments for intrinsic")                                 \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
   V(kYield, "Yield")

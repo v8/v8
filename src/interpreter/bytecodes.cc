@@ -308,7 +308,8 @@ bool Bytecodes::IsCallOrNew(Bytecode bytecode) {
 // static
 bool Bytecodes::IsCallRuntime(Bytecode bytecode) {
   return bytecode == Bytecode::kCallRuntime ||
-         bytecode == Bytecode::kCallRuntimeForPair;
+         bytecode == Bytecode::kCallRuntimeForPair ||
+         bytecode == Bytecode::kInvokeIntrinsic;
 }
 
 // static

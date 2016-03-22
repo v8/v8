@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/compiler.h"
+#include "src/interpreter/interpreter-intrinsics.h"
 
 namespace v8 {
 namespace internal {
@@ -1026,11 +1027,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
+  Bytecode bytecode = IntrinsicsHelper::IsSupported(function_id)
+                          ? Bytecode::kInvokeIntrinsic
+                          : Bytecode::kCallRuntime;
   OperandScale operand_scale = OperandSizesToScale(
       SizeForRegisterOperand(first_arg), SizeForUnsignedOperand(arg_count));
-  OutputScaled(Bytecode::kCallRuntime, operand_scale,
-               static_cast<uint16_t>(function_id), RegisterOperand(first_arg),
-               UnsignedOperand(arg_count));
+  OutputScaled(bytecode, operand_scale, static_cast<uint16_t>(function_id),
+               RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
 }
 
