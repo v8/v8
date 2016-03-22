@@ -887,6 +887,11 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
         // Push return value on top of outer environment.
         hydrogen_env = hydrogen_env->Copy();
         hydrogen_env->Push(hydrogen_val);
+      } else {
+        // Although we don't need this lazy bailout for normal execution
+        // (because when we tail call from the outermost function we should pop
+        // its frame) we still need it when debugger is on.
+        hydrogen_env = current_block_->last_environment();
       }
     } else {
       if (hydrogen_val->HasObservableSideEffects()) {
@@ -895,16 +900,10 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
         hydrogen_value_for_lazy_bailout = sim;
       }
     }
-    if (hydrogen_env != nullptr) {
-      // The |hydrogen_env| can be null at this point only if we are generating
-      // a syntactic tail call from the outermost function but in this case
-      // it would be a real tail call which will pop function's frame and
-      // therefore this lazy bailout can be skipped.
-      LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
-          new (zone()) LLazyBailout(), hydrogen_env);
-      bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
-      chunk_->AddInstruction(bailout, current_block_);
-    }
+    LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
+        new (zone()) LLazyBailout(), hydrogen_env);
+    bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+    chunk_->AddInstruction(bailout, current_block_);
   }
 }
 
