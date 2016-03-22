@@ -1588,6 +1588,12 @@ class MacroAssembler : public Assembler {
     if (isSmi) {
       SmiToArrayOffset(dst, src, elementSizeLog2);
     } else {
+#if V8_TARGET_ARCH_S390X
+      // src (key) is a 32-bit integer.  Sign extension ensures
+      // upper 32-bit does not contain garbage before being used to
+      // reference memory.
+      lgfr(src, src);
+#endif
       ShiftLeftP(dst, src, Operand(elementSizeLog2));
     }
   }
