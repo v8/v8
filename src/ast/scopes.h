@@ -224,20 +224,7 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Illegal redeclaration support.
 
-  // Set an expression node that will be executed when the scope is
-  // entered. We only keep track of one illegal redeclaration node per
-  // scope - the first one - so if you try to set it multiple times
-  // the additional requests will be silently ignored.
-  void SetIllegalRedeclaration(Expression* expression);
-
-  // Retrieve the illegal redeclaration expression. Do not call if the
-  // scope doesn't have an illegal redeclaration node.
-  Expression* GetIllegalRedeclaration();
-
-  // Check if the scope has (at least) one illegal redeclaration.
-  bool HasIllegalRedeclaration() const { return illegal_redecl_ != NULL; }
-
-  // For harmony block scoping mode: Check if the scope has conflicting var
+  // Check if the scope has conflicting var
   // declarations, i.e. a var declaration that has been hoisted from a nested
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
@@ -635,9 +622,6 @@ class Scope: public ZoneObject {
 
   // Map of function names to lists of functions defined in sloppy blocks
   SloppyBlockFunctionMap sloppy_block_function_map_;
-
-  // Illegal redeclaration.
-  Expression* illegal_redecl_;
 
   // Scope-specific information computed during parsing.
   //

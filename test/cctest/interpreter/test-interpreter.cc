@@ -4008,29 +4008,6 @@ TEST(InterpreterConstInLookupContextChain) {
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*const_decl[i].second));
   }
-
-  // Tests for Legacy constant.
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  std::pair<const char*, Handle<Object>> legacy_const_decl[] = {
-      {"return outerConst = 23;", handle(Smi::FromInt(23), isolate)},
-      {"outerConst = 30; return outerConst;",
-       handle(Smi::FromInt(10), isolate)},
-  };
-
-  for (size_t i = 0; i < arraysize(legacy_const_decl); i++) {
-    std::string script = std::string(prologue) +
-                         std::string(legacy_const_decl[i].first) +
-                         std::string(epilogue);
-    InterpreterTester tester(handles.main_isolate(), script.c_str(), "*");
-    auto callable = tester.GetCallable<>();
-
-    Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*legacy_const_decl[i].second));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 TEST(InterpreterIllegalConstDeclaration) {
@@ -4074,39 +4051,6 @@ TEST(InterpreterIllegalConstDeclaration) {
         message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
             .FromJust());
   }
-}
-
-TEST(InterpreterLegacyConstDeclaration) {
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-
-  std::pair<const char*, Handle<Object>> const_decl[] = {
-      {"const x = (x = 10) + 3; return x;", handle(Smi::FromInt(13), isolate)},
-      {"const x = 10; x = 20; return x;", handle(Smi::FromInt(10), isolate)},
-      {"var a = 10;\n"
-       "for (var i = 0; i < 10; ++i) {\n"
-       " const x = i;\n"  // Legacy constants are not block scoped.
-       " a = a + x;\n"
-       "}\n"
-       "return a;\n",
-       handle(Smi::FromInt(10), isolate)},
-      {"const x = 20; eval('x = 10;'); return x;",
-       handle(Smi::FromInt(20), isolate)},
-  };
-
-  for (size_t i = 0; i < arraysize(const_decl); i++) {
-    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
-    auto callable = tester.GetCallable<>();
-
-    Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 }  // namespace interpreter

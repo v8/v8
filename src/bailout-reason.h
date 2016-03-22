@@ -82,7 +82,6 @@ namespace internal {
   V(kFrameIsExpectedToBeAligned, "Frame is expected to be aligned")            \
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \
-  V(kFunctionWithIllegalRedeclaration, "Function with illegal redeclaration")  \
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \

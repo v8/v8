@@ -624,14 +624,6 @@ void BytecodeGenerator::MakeBytecodeBody() {
     UNIMPLEMENTED();
   }
 
-  // Visit illegal re-declaration and bail out if it exists.
-  if (scope()->HasIllegalRedeclaration()) {
-    Expression* illegal = scope()->GetIllegalRedeclaration();
-    builder()->SetExpressionAsStatementPosition(illegal);
-    VisitForEffect(illegal);
-    return;
-  }
-
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
 

@@ -788,7 +788,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_sloppy_function(FLAG_harmony_sloppy_function);
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
-  set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
@@ -1826,15 +1825,6 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
     case Token::VAR:
       return ParseVariableStatement(kStatement, NULL, ok);
 
-    case Token::CONST:
-      // In ES6 CONST is not allowed as a Statement, only as a
-      // LexicalDeclaration, however we continue to allow it in sloppy mode for
-      // backwards compatibility.
-      if (is_sloppy(language_mode()) && allow_legacy_const()) {
-        return ParseVariableStatement(kStatement, NULL, ok);
-      }
-
-    // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(labels, ok);
   }
@@ -1918,13 +1908,6 @@ Variable* Parser::Declare(Declaration* declaration,
       }
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), kind, kNotAssigned);
-    } else if ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
-               !declaration_scope->is_script_scope()) {
-      // Duplicate legacy const definitions throw at runtime.
-      DCHECK(is_sloppy(language_mode()));
-      Expression* expression = NewThrowSyntaxError(
-          MessageTemplate::kVarRedeclaration, name, declaration->position());
-      declaration_scope->SetIllegalRedeclaration(expression);
     } else if ((IsLexicalVariableMode(mode) ||
                 IsLexicalVariableMode(var->mode())) &&
                // Lexical bindings may appear for some parameters in sloppy
@@ -2297,14 +2280,9 @@ Block* Parser::ParseVariableDeclarations(
     Consume(Token::VAR);
   } else if (peek() == Token::CONST && allow_const()) {
     Consume(Token::CONST);
-    if (is_sloppy(language_mode()) && allow_legacy_const()) {
-      parsing_result->descriptor.mode = CONST_LEGACY;
-      ++use_counts_[v8::Isolate::kLegacyConst];
-    } else {
-      DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
-      DCHECK(var_context != kStatement);
-      parsing_result->descriptor.mode = CONST;
-    }
+    DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
+    DCHECK(var_context != kStatement);
+    parsing_result->descriptor.mode = CONST;
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
@@ -4686,7 +4664,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
-    SET_ALLOW(legacy_const);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_function);
     SET_ALLOW(harmony_sloppy_let);

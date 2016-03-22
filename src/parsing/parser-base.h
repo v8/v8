@@ -113,7 +113,6 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
         allow_harmony_restrictive_declarations_(false),
-        allow_legacy_const_(true),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_name_(false),
         allow_harmony_function_sent_(false) {}
@@ -135,7 +134,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
-  ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
@@ -563,8 +561,7 @@ class ParserBase : public Traits {
   bool is_generator() const { return function_state_->is_generator(); }
 
   bool allow_const() {
-    return is_strict(language_mode()) || allow_harmony_sloppy() ||
-           allow_legacy_const();
+    return is_strict(language_mode()) || allow_harmony_sloppy();
   }
 
   bool allow_let() {
@@ -929,7 +926,6 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
   bool allow_harmony_restrictive_declarations_;
-  bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;

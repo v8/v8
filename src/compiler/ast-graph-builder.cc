@@ -616,12 +616,6 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
     NewNode(javascript()->CallRuntime(Runtime::kTraceEnter));
   }
 
-  // Visit illegal re-declaration and bail out if it exists.
-  if (scope->HasIllegalRedeclaration()) {
-    VisitForEffect(scope->GetIllegalRedeclaration());
-    return;
-  }
-
   // Visit declarations within the function scope.
   VisitDeclarations(scope->declarations());
 

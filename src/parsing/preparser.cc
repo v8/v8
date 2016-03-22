@@ -371,15 +371,6 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
     case Token::VAR:
       return ParseVariableStatement(kStatement, ok);
 
-    case Token::CONST:
-      // In ES6 CONST is not allowed as a Statement, only as a
-      // LexicalDeclaration, however we continue to allow it in sloppy mode for
-      // backwards compatibility.
-      if (is_sloppy(language_mode()) && allow_legacy_const()) {
-        return ParseVariableStatement(kStatement, ok);
-      }
-
-    // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(ok);
   }
@@ -493,8 +484,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // existing pages. Therefore we keep allowing const with the old
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
-    if (is_strict(language_mode()) ||
-        (allow_harmony_sloppy() && !allow_legacy_const())) {
+    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
       DCHECK(var_context != kStatement);
       require_initializer = true;
       lexical = true;

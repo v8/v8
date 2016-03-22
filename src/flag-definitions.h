@@ -184,10 +184,6 @@ DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
-DEFINE_BOOL(legacy_const, false, "legacy semantics for const in sloppy mode")
-// ES2015 const semantics are shipped
-DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, legacy_const, true)
-
 DEFINE_BOOL(promise_extra, true, "additional V8 Promise functions")
 // Removing extra Promise functions is staged
 DEFINE_NEG_IMPLICATION(harmony, promise_extra)

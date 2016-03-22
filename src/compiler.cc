@@ -512,11 +512,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kTooManyParametersLocals);
   }
 
-  if (scope->HasIllegalRedeclaration()) {
-    // Crankshaft cannot handle illegal redeclarations.
-    return AbortOptimization(kFunctionWithIllegalRedeclaration);
-  }
-
   if (FLAG_trace_opt) {
     OFStream os(stdout);
     os << "[compiling method " << Brief(*info()->closure())

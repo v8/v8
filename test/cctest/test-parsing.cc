@@ -1506,7 +1506,6 @@ enum ParserFlag {
   kAllowHarmonySloppy,
   kAllowHarmonySloppyLet,
   kAllowHarmonyNewTarget,
-  kNoLegacyConst,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
   kAllowHarmonyExponentiationOperator
@@ -1525,7 +1524,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_sloppy(flags.Contains(kAllowHarmonySloppy));
   parser->set_allow_harmony_sloppy_let(flags.Contains(kAllowHarmonySloppyLet));
-  parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
@@ -3526,27 +3524,6 @@ TEST(UseAsmUseCount) {
 }
 
 
-TEST(UseConstLegacyCount) {
-  i::FLAG_legacy_const = true;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-  CompileRun(
-      "const x = 1;\n"
-      "var foo = 1;\n"
-      "const y = 1;\n"
-      "function bar() {\n"
-      "    const z = 1; var baz = 1;\n"
-      "    function q() { const k = 42; }\n"
-      "}");
-  // Optimizing will double-count because the source is parsed twice.
-  CHECK_EQ(i::FLAG_always_opt ? 8 : 4, use_counts[v8::Isolate::kLegacyConst]);
-}
-
-
 TEST(StrictModeUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
@@ -4876,8 +4853,8 @@ TEST(StatementParsingInForIn) {
                         "for(let x in {}, {}) {}", "for(const x in {}, {}) {}",
                         NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -5066,8 +5043,8 @@ TEST(ForOfInOperator) {
       "for(x of 'foo' in {}) {}", "for(var x of 'foo' in {}) {}",
       "for(let x of 'foo' in {}) {}", "for(const x of 'foo' in {}) {}", NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -5080,8 +5057,8 @@ TEST(ForOfYieldIdentifier) {
                         "for(let x of yield) {}", "for(const x of yield) {}",
                         NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -5098,8 +5075,8 @@ TEST(ForOfYieldExpression) {
                         "function* g() { for(let x of yield) {} }",
                         "function* g() { for(const x of yield) {} }", NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -5119,8 +5096,8 @@ TEST(ForOfExpressionError) {
       "for(x of { y = 23 }) {}", "for(var x of { y = 23 }) {}",
       "for(let x of { y = 23 }) {}", "for(const x of { y = 23 }) {}", NULL};
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
+                                            kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -6821,32 +6798,6 @@ TEST(NewTarget) {
 }
 
 
-TEST(ConstLegacy) {
-  // clang-format off
-  const char* context_data[][2] = {
-    {"", ""},
-    {"{", "}"},
-    {NULL, NULL}
-  };
-
-  const char* data[] = {
-    "const x",
-    "const x = 1",
-    "for (const x = 1; x < 1; x++) {}",
-    "for (const x in {}) {}",
-    "for (const x of []) {}",
-    NULL
-  };
-  // clang-format on
-
-
-  static const ParserFlag always_flags[] = {kNoLegacyConst};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(context_data, data, kSuccess);
-}
-
-
 TEST(ConstSloppy) {
   // clang-format off
   const char* context_data[][2] = {
@@ -6863,8 +6814,7 @@ TEST(ConstSloppy) {
     NULL
   };
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonySloppy,
-                                            kNoLegacyConst};
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
 }
@@ -6964,12 +6914,6 @@ TEST(LetSloppyOnly) {
     "for (var [let] in {}) {}",
     "var let",
     "var [let] = []",
-    "for (const let = 1; let < 1; let++) {}",
-    "for (const let in {}) {}",
-    "for (const [let] = 1; let < 1; let++) {}",
-    "for (const [let] in {}) {}",
-    "const let",
-    "const [let] = []",
     NULL
   };
   // clang-format on
@@ -7011,8 +6955,8 @@ TEST(LetSloppyOnly) {
   };
   // clang-format on
 
-  static const ParserFlag fail_flags[] = {
-      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  static const ParserFlag fail_flags[] = {kAllowHarmonySloppy,
+                                          kAllowHarmonySloppyLet};
   RunParserSyncTest(context_data, fail_data, kError, NULL, 0, fail_flags,
                     arraysize(fail_flags));
 }

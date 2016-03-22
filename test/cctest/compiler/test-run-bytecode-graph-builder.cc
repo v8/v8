@@ -2857,29 +2857,6 @@ TEST(BytecodeGraphBuilderConstInLookupContextChain) {
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*const_decl[i].return_value()));
   }
-
-  // Tests for Legacy constant.
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  ExpectedSnippet<0> legacy_const_decl[] = {
-      {"return outerConst = 23;", {handle(Smi::FromInt(23), isolate)}},
-      {"outerConst = 30; return outerConst;",
-       {handle(Smi::FromInt(10), isolate)}},
-  };
-
-  for (size_t i = 0; i < arraysize(legacy_const_decl); i++) {
-    ScopedVector<char> script(1024);
-    SNPrintF(script, "%s %s %s", prologue, legacy_const_decl[i].code_snippet,
-             epilogue);
-
-    BytecodeGraphTester tester(isolate, zone, script.start(), "*");
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*legacy_const_decl[i].return_value()));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
@@ -2931,43 +2908,6 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
         message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
             .FromJust());
   }
-}
-
-TEST(BytecodeGraphBuilderLegacyConstDeclaration) {
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-  Zone* zone = scope.main_zone();
-
-  ExpectedSnippet<0> snippets[] = {
-      {"const x = (x = 10) + 3; return x;",
-       {handle(Smi::FromInt(13), isolate)}},
-      {"const x = 10; x = 20; return x;", {handle(Smi::FromInt(10), isolate)}},
-      {"var a = 10;\n"
-       "for (var i = 0; i < 10; ++i) {\n"
-       " const x = i;\n"  // Legacy constants are not block scoped.
-       " a = a + x;\n"
-       "}\n"
-       "return a;\n",
-       {handle(Smi::FromInt(10), isolate)}},
-      {"const x = 20; eval('x = 10;'); return x;",
-       {handle(Smi::FromInt(20), isolate)}},
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    ScopedVector<char> script(1024);
-    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
-             snippets[i].code_snippet, kFunctionName);
-
-    BytecodeGraphTester tester(isolate, zone, script.start());
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*snippets[i].return_value()));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 TEST(BytecodeGraphBuilderDebuggerStatement) {
