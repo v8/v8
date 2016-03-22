@@ -147,11 +147,19 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
+  // Tell the compiler to assume number input.
+  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+                                   node->InputAt(0), graph()->start());
+  node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractHighWord32());
 }
 
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
+  // Tell the compiler to assume number input.
+  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+                                   node->InputAt(0), graph()->start());
+  node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractLowWord32());
 }
 
@@ -217,6 +225,10 @@ Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceMathSqrt(Node* node) {
+  // Tell the compiler to assume number input.
+  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+                                   node->InputAt(0), graph()->start());
+  node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64Sqrt());
 }
 
@@ -377,7 +389,8 @@ Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
-  Node* vtrue = value;
+  Node* vtrue =
+      graph()->NewNode(common()->Guard(type_cache_.kSmi), value, if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
@@ -386,6 +399,9 @@ Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
     vfalse = efalse =
         graph()->NewNode(javascript()->CallRuntime(Runtime::kToInteger), value,
                          context, frame_state, efalse, if_false);
+    // TODO(jarin) Intersect the type with integers?
+    NodeProperties::SetType(vfalse, NodeProperties::GetType(node));
+
     if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
   }
 
@@ -393,6 +409,7 @@ Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                            vtrue, vfalse, control);
+
   // TODO(bmeurer, mstarzinger): Rewire IfException inputs to {vfalse}.
   ReplaceWithValue(node, value, effect, control);
   return Changed(value);
