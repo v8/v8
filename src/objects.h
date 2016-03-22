@@ -6829,6 +6829,9 @@ class SharedFunctionInfo: public HeapObject {
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
+  // Used for flags such as --hydrogen-filter.
+  bool PassesFilter(const char* raw_filter);
+
   // Position of the 'function' token in the script source.
   inline int function_token_position() const;
   inline void set_function_token_position(int function_token_position);
@@ -7607,9 +7610,6 @@ class JSFunction: public JSObject {
 
   // Returns the number of allocated literals.
   inline int NumberOfLiterals();
-
-  // Used for flags such as --hydrogen-filter.
-  bool PassesFilter(const char* raw_filter);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.

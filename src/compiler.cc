@@ -410,7 +410,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   // Check the whitelist for Crankshaft.
-  if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
+  if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
     return AbortOptimization(kHydrogenFilter);
   }
 
@@ -451,7 +451,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       !optimization_disabled;
 
   // 3. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter = info()->closure()->PassesFilter(FLAG_turbo_filter);
+  bool passes_turbo_filter =
+      info()->shared_info()->PassesFilter(FLAG_turbo_filter);
 
   // If this is OSR request, OSR must be enabled by Turbofan.
   bool passes_osr_test = FLAG_turbo_osr || !info()->is_osr();
@@ -820,7 +821,7 @@ bool UseIgnition(CompilationInfo* info) {
   }
 
   // Finally respect the filter.
-  return info->closure()->PassesFilter(FLAG_ignition_filter);
+  return info->closure()->shared()->PassesFilter(FLAG_ignition_filter);
 }
 
 int CodeAndMetadataSize(CompilationInfo* info) {
