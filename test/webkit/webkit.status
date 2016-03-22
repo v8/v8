@@ -104,8 +104,9 @@
 
 ##############################################################################
 ['ignition == True and msan', {
-  # TODO(rmcilroy,4680): Uninitialized memory.
+  # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
 }],  # ignition == True and msan
 
 ##############################################################################

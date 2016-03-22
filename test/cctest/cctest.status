@@ -523,9 +523,4 @@
   'test-api/PromiseRejectCallback': [FAIL],
 }],  # ignition == True
 
-['ignition == True and msan', {
-  # TODO(rmcilroy,4680): Uninitialized memory.
-  'test-debug/*': [SKIP],
-}],  # ignition == True and msan
-
 ]
