@@ -78,6 +78,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                             Representation representation,
                             bool transition_to_field);
 
+  HValue* BuildPushElement(HValue* object, HValue* value, ElementsKind kind);
+
   enum ArgumentClass {
     NONE,
     SINGLE,
@@ -780,6 +782,194 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object,
+                                                   HValue* value,
+                                                   ElementsKind kind) {
+  HValue* length = Add<HLoadNamedField>(object, nullptr,
+                                        HObjectAccess::ForArrayLength(kind));
+  HValue* key = length;
+  HValue* elements = Add<HLoadNamedField>(object, nullptr,
+                                          HObjectAccess::ForElementsPointer());
+  elements = BuildCheckForCapacityGrow(object, elements, kind, length, key,
+                                       true, STORE);
+  AddElementAccess(elements, key, value, object, nullptr, kind, STORE);
+  return key;
+}
+
+template <>
+HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
+  // TODO(verwaest): Fix deoptimizer messages.
+  HValue* argc = GetArgumentsLength();
+  IfBuilder arg_check(this);
+  arg_check.If<HCompareNumericAndBranch>(argc, graph()->GetConstant1(),
+                                         Token::NE);
+  arg_check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+  arg_check.End();
+
+  HInstruction* argument_elements = Add<HArgumentsElements>(false, false);
+  HInstruction* object = Add<HAccessArgumentsAt>(argument_elements, argc,
+                                                 graph()->GetConstantMinus1());
+  HInstruction* value =
+      Add<HAccessArgumentsAt>(argument_elements, argc, graph()->GetConstant0());
+
+  BuildCheckHeapObject(object);
+  HValue* map = Add<HLoadNamedField>(object, nullptr, HObjectAccess::ForMap());
+  Add<HCheckInstanceType>(object, HCheckInstanceType::IS_JS_ARRAY);
+
+  // Disallow pushing onto prototypes. It might be the JSArray prototype.
+  // Disallow pushing onto non-extensible objects.
+  {
+    HValue* bit_field2 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
+    HValue* mask =
+        Add<HConstant>(static_cast<int>(Map::IsPrototypeMapBits::kMask) |
+                       (1 << Map::kIsExtensible));
+    HValue* bits = AddUncasted<HBitwise>(Token::BIT_AND, bit_field2, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(
+        bits, Add<HConstant>(1 << Map::kIsExtensible), Token::NE);
+    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check.End();
+  }
+
+  // Disallow pushing onto observed objects.
+  {
+    HValue* bit_field =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField());
+    HValue* mask = Add<HConstant>(1 << Map::kIsObserved);
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check.End();
+  }
+
+  // Disallow pushing onto arrays in dictionary named property mode. We need to
+  // figure out whether the length property is still writable.
+  {
+    HValue* bit_field3 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField3());
+    HValue* mask = Add<HConstant>(static_cast<int>(Map::DictionaryMap::kMask));
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check.End();
+  }
+
+  // Check whether the length property is writable. The length property is the
+  // only default named property on arrays. It's nonconfigurable, hence is
+  // guaranteed to stay the first property.
+  {
+    HValue* descriptors =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapDescriptors());
+    HValue* details = Add<HLoadKeyed>(
+        descriptors, Add<HConstant>(DescriptorArray::ToDetailsIndex(0)),
+        nullptr, nullptr, FAST_SMI_ELEMENTS);
+    HValue* mask =
+        Add<HConstant>(READ_ONLY << PropertyDetails::AttributesField::kShift);
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, details, mask);
+    IfBuilder readonly(this);
+    readonly.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    readonly.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    readonly.End();
+  }
+
+  HValue* null = Add<HLoadRoot>(Heap::kNullValueRootIndex);
+  HValue* empty = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
+  environment()->Push(map);
+  LoopBuilder check_prototypes(this);
+  check_prototypes.BeginBody(1);
+  {
+    HValue* parent_map = environment()->Pop();
+    HValue* prototype = Add<HLoadNamedField>(parent_map, nullptr,
+                                             HObjectAccess::ForPrototype());
+
+    IfBuilder is_null(this);
+    is_null.If<HCompareObjectEqAndBranch>(prototype, null);
+    is_null.Then();
+    check_prototypes.Break();
+    is_null.End();
+
+    HValue* prototype_map =
+        Add<HLoadNamedField>(prototype, nullptr, HObjectAccess::ForMap());
+    HValue* instance_type = Add<HLoadNamedField>(
+        prototype_map, nullptr, HObjectAccess::ForMapInstanceType());
+    IfBuilder check_instance_type(this);
+    check_instance_type.If<HCompareNumericAndBranch>(
+        instance_type, Add<HConstant>(LAST_CUSTOM_ELEMENTS_RECEIVER),
+        Token::LTE);
+    check_instance_type.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check_instance_type.End();
+
+    HValue* elements = Add<HLoadNamedField>(
+        prototype, nullptr, HObjectAccess::ForElementsPointer());
+    IfBuilder no_elements(this);
+    no_elements.IfNot<HCompareObjectEqAndBranch>(elements, empty);
+    no_elements.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    no_elements.End();
+
+    environment()->Push(prototype_map);
+  }
+  check_prototypes.EndBody();
+
+  HValue* bit_field2 =
+      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
+  HValue* kind = BuildDecodeField<Map::ElementsKindBits>(bit_field2);
+
+  // Below we only check the upper bound of the relevant ranges to include both
+  // holey and non-holey versions. We check them in order smi, object, double
+  // since smi < object < double.
+  STATIC_ASSERT(FAST_SMI_ELEMENTS < FAST_HOLEY_SMI_ELEMENTS);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS < FAST_HOLEY_ELEMENTS);
+  STATIC_ASSERT(FAST_ELEMENTS < FAST_HOLEY_ELEMENTS);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS < FAST_HOLEY_DOUBLE_ELEMENTS);
+  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FAST_HOLEY_DOUBLE_ELEMENTS);
+  IfBuilder has_smi_elements(this);
+  has_smi_elements.If<HCompareNumericAndBranch>(
+      kind, Add<HConstant>(FAST_HOLEY_SMI_ELEMENTS), Token::LTE);
+  has_smi_elements.Then();
+  {
+    HValue* smi_value =
+        AddUncasted<HForceRepresentation>(value, Representation::Smi());
+    HValue* key = BuildPushElement(object, smi_value, FAST_HOLEY_SMI_ELEMENTS);
+    environment()->Push(key);
+  }
+  has_smi_elements.Else();
+  {
+    IfBuilder has_object_elements(this);
+    has_object_elements.If<HCompareNumericAndBranch>(
+        kind, Add<HConstant>(FAST_HOLEY_ELEMENTS), Token::LTE);
+    has_object_elements.Then();
+    {
+      HValue* key = BuildPushElement(object, value, FAST_HOLEY_ELEMENTS);
+      environment()->Push(key);
+    }
+    has_object_elements.Else();
+    {
+      IfBuilder has_double_elements(this);
+      has_double_elements.If<HCompareNumericAndBranch>(
+          kind, Add<HConstant>(FAST_HOLEY_DOUBLE_ELEMENTS), Token::LTE);
+      has_double_elements.Then();
+      {
+        HValue* double_value =
+            AddUncasted<HForceRepresentation>(value, Representation::Double());
+        HValue* key =
+            BuildPushElement(object, double_value, FAST_HOLEY_DOUBLE_ELEMENTS);
+        environment()->Push(key);
+      }
+      has_double_elements.ElseDeopt(Deoptimizer::kFastArrayPushFailed);
+      has_double_elements.End();
+    }
+    has_object_elements.End();
+  }
+  has_smi_elements.End();
+
+  HValue* key = environment()->Pop();
+  return AddUncasted<HAdd>(key, graph()->GetConstant1());
+}
+
+Handle<Code> FastArrayPushStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {

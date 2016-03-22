@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/elements.h"
 #include "src/factory.h"
@@ -29,17 +30,20 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
   return Smi::FromInt(0);
 }
 
-
-static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
-                           const char* name, Builtins::Name builtin_name) {
+static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
+                        const char* name, Handle<Code> code) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
   optimized->shared()->DontAdaptArguments();
   JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
+static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
+                           const char* name, Builtins::Name builtin_name) {
+  InstallCode(isolate, holder, name,
+              handle(isolate->builtins()->builtin(builtin_name), isolate));
+}
 
 RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   HandleScope scope(isolate);
@@ -48,7 +52,8 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
+  FastArrayPushStub stub(isolate);
+  InstallCode(isolate, holder, "push", stub.GetCode());
   InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
@@ -366,7 +371,6 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
   return ArrayConstructorCommon(isolate, constructor, constructor, site,
                                 caller_args);
 }
-
 
 RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
   HandleScope scope(isolate);

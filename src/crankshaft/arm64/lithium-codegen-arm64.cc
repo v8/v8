@@ -1566,7 +1566,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // get a pointer which will work well with LAccessArgumentsAt.
     DCHECK(masm()->StackPointer().Is(jssp));
     __ Sub(result, jssp, 2 * kPointerSize);
-  } else {
+  } else if (instr->hydrogen()->arguments_adaptor()) {
     DCHECK(instr->temp() != NULL);
     Register previous_fp = ToRegister(instr->temp());
 
@@ -1576,6 +1576,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
                               CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Cmp(result, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
     __ Csel(result, fp, previous_fp, ne);
+  } else {
+    __ Mov(result, fp);
   }
 }
 

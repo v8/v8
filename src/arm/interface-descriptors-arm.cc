@@ -291,6 +291,12 @@ void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void FastArrayPushDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // stack param count needs (arg count)
+  Register registers[] = {r0};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

@@ -42,6 +42,7 @@ namespace internal {
   F(ArrayConstructor, -1, 1)         \
   F(NewArray, -1 /* >= 3 */, 1)      \
   F(InternalArrayConstructor, -1, 1) \
+  F(ArrayPush, -1, 1)                \
   F(NormalizeElements, 1, 1)         \
   F(GrowArrayElements, 2, 1)         \
   F(HasComplexElements, 1, 1)        \
@@ -51,7 +52,6 @@ namespace internal {
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F) \
   F(AtomicsCompareExchange, 4, 1)     \

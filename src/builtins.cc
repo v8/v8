@@ -420,7 +420,10 @@ BUILTIN(ObjectHasOwnProperty) {
   return isolate->heap()->false_value();
 }
 
-BUILTIN(ArrayPush) {
+namespace {
+
+Object* DoArrayPush(Isolate* isolate,
+                    BuiltinArguments<BuiltinExtraArguments::kNone> args) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1)) {
@@ -444,6 +447,20 @@ BUILTIN(ArrayPush) {
   return Smi::FromInt(new_length);
 }
 
+}  // namespace
+
+BUILTIN(ArrayPush) { return DoArrayPush(isolate, args); }
+
+// TODO(verwaest): This is a temporary helper until the FastArrayPush stub can
+// tailcall to the builtin directly.
+RUNTIME_FUNCTION(Runtime_ArrayPush) {
+  DCHECK_EQ(2, args.length());
+  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
+  // Rewrap the arguments as builtins arguments.
+  BuiltinArguments<BuiltinExtraArguments::kNone> caller_args(
+      incoming->length() + 1, incoming->arguments() + 1);
+  return DoArrayPush(isolate, caller_args);
+}
 
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);

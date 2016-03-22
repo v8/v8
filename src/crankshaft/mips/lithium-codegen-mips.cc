@@ -2984,7 +2984,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
   if (instr->hydrogen()->from_inlined()) {
     __ Subu(result, sp, 2 * kPointerSize);
-  } else {
+  } else if (instr->hydrogen()->arguments_adaptor()) {
     // Check if the calling frame is an arguments adaptor frame.
     Label done, adapted;
     __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -2996,6 +2996,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // frame below the adaptor frame if adapted.
     __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
     __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
+  } else {
+    __ mov(result, fp);
   }
 }
 

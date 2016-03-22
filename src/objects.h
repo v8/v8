@@ -3080,6 +3080,11 @@ class DescriptorArray: public FixedArray {
     return ToKeyIndex(number_of_descriptors);
   }
 
+  static int ToDetailsIndex(int descriptor_number) {
+    return kFirstIndex + (descriptor_number * kDescriptorSize) +
+           kDescriptorDetails;
+  }
+
  private:
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
@@ -3100,12 +3105,6 @@ class DescriptorArray: public FixedArray {
     return kFirstIndex +
            (descriptor_number * kDescriptorSize) +
            kDescriptorKey;
-  }
-
-  static int ToDetailsIndex(int descriptor_number) {
-    return kFirstIndex +
-           (descriptor_number * kDescriptorSize) +
-           kDescriptorDetails;
   }
 
   static int ToValueIndex(int descriptor_number) {

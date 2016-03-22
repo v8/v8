@@ -23,6 +23,7 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreIC)                            \
   V(InstanceOf)                               \
   V(LoadWithVector)                           \
+  V(FastArrayPush)                            \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
   V(FastNewObject)                            \
@@ -773,6 +774,11 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
+class FastArrayPushDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastArrayPushDescriptor,
+                                               CallInterfaceDescriptor)
+};
 
 class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
  public:

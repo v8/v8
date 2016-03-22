@@ -5813,7 +5813,7 @@ bool Script::HasValidSource() {
 
 
 void SharedFunctionInfo::DontAdaptArguments() {
-  DCHECK(code()->kind() == Code::BUILTIN);
+  DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 

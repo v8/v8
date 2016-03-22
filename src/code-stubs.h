@@ -67,6 +67,7 @@ namespace internal {
   V(CreateAllocationSite)                   \
   V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
+  V(FastArrayPush)                          \
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
   V(FastCloneShallowObject)                 \
@@ -1054,6 +1055,14 @@ class GrowArrayElementsStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(GrowArrayElements, HydrogenCodeStub);
 };
 
+class FastArrayPushStub : public HydrogenCodeStub {
+ public:
+  explicit FastArrayPushStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastArrayPush);
+  DEFINE_HYDROGEN_CODE_STUB(FastArrayPush, HydrogenCodeStub);
+};
 
 class InstanceOfStub final : public PlatformCodeStub {
  public:

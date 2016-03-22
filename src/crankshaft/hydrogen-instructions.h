@@ -3612,6 +3612,7 @@ class HApplyArguments final : public HTemplateInstruction<4> {
 class HArgumentsElements final : public HTemplateInstruction<0> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HArgumentsElements, bool);
+  DECLARE_INSTRUCTION_FACTORY_P2(HArgumentsElements, bool, bool);
 
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsElements)
 
@@ -3620,12 +3621,14 @@ class HArgumentsElements final : public HTemplateInstruction<0> {
   }
 
   bool from_inlined() const { return from_inlined_; }
+  bool arguments_adaptor() const { return arguments_adaptor_; }
 
  protected:
   bool DataEquals(HValue* other) override { return true; }
 
  private:
-  explicit HArgumentsElements(bool from_inlined) : from_inlined_(from_inlined) {
+  explicit HArgumentsElements(bool from_inlined, bool arguments_adaptor = true)
+      : from_inlined_(from_inlined), arguments_adaptor_(arguments_adaptor) {
     // The value produced by this instruction is a pointer into the stack
     // that looks as if it was a smi because of alignment.
     set_representation(Representation::Tagged());
@@ -3635,6 +3638,7 @@ class HArgumentsElements final : public HTemplateInstruction<0> {
   bool IsDeletable() const override { return true; }
 
   bool from_inlined_;
+  bool arguments_adaptor_;
 };
 
 
@@ -5537,6 +5541,10 @@ class HObjectAccess final {
   static HObjectAccess ForMapBitField3() {
     return HObjectAccess(kInobject, Map::kBitField3Offset,
                          Representation::Integer32());
+  }
+
+  static HObjectAccess ForMapDescriptors() {
+    return HObjectAccess(kInobject, Map::kDescriptorsOffset);
   }
 
   static HObjectAccess ForNameHashField() {
