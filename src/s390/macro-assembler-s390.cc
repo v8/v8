@@ -2925,6 +2925,18 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1, Register reg2,
   JumpIfSmi(reg2, on_either_smi);
 }
 
+void MacroAssembler::AssertNotNumber(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object);
+    Check(ne, kOperandIsANumber, cr0);
+    push(object);
+    CompareObjectType(object, object, object, HEAP_NUMBER_TYPE);
+    pop(object);
+    Check(ne, kOperandIsANumber);
+  }
+}
+
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
