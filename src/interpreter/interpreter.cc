@@ -650,7 +650,7 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kAdd, assembler);
+  DoBinaryOp(CodeFactory::Add(isolate_), assembler);
 }
 
 
@@ -658,7 +658,7 @@ void Interpreter::DoAdd(InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kSubtract, assembler);
+  DoBinaryOp(CodeFactory::Subtract(isolate_), assembler);
 }
 
 

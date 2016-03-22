@@ -111,6 +111,8 @@ namespace internal {
   V(AllocateUint8x16)                       \
   V(AllocateBool8x16)                       \
   V(StringLength)                           \
+  V(Add)                                    \
+  V(Subtract)                               \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
   V(GreaterThan)                            \
@@ -665,6 +667,22 @@ class StringLengthStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StringLength, TurboFanCodeStub);
+};
+
+class AddStub final : public TurboFanCodeStub {
+ public:
+  explicit AddStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_CODE_STUB(Add, TurboFanCodeStub);
+};
+
+class SubtractStub final : public TurboFanCodeStub {
+ public:
+  explicit SubtractStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_CODE_STUB(Subtract, TurboFanCodeStub);
 };
 
 class LessThanStub final : public TurboFanCodeStub {

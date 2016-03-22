@@ -175,6 +175,16 @@ Node* CodeStubAssembler::SmiToFloat64(Node* value) {
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
 
+Node* CodeStubAssembler::SmiAddWithOverflow(Node* a, Node* b) {
+  return IntPtrAddWithOverflow(a, b);
+}
+
+Node* CodeStubAssembler::SmiSub(Node* a, Node* b) { return IntPtrSub(a, b); }
+
+Node* CodeStubAssembler::SmiSubWithOverflow(Node* a, Node* b) {
+  return IntPtrSubWithOverflow(a, b);
+}
+
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 
 Node* CodeStubAssembler::SmiLessThan(Node* a, Node* b) {

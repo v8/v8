@@ -63,8 +63,12 @@ class Schedule;
 
 #define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V)   \
   CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
+  V(Float64Add)                                 \
+  V(Float64Sub)                                 \
   V(IntPtrAdd)                                  \
+  V(IntPtrAddWithOverflow)                      \
   V(IntPtrSub)                                  \
+  V(IntPtrSubWithOverflow)                      \
   V(Int32Add)                                   \
   V(Int32Sub)                                   \
   V(Int32Mul)                                   \
@@ -263,6 +267,9 @@ class CodeStubAssembler {
 
   // Smi operations.
   Node* SmiAdd(Node* a, Node* b);
+  Node* SmiAddWithOverflow(Node* a, Node* b);
+  Node* SmiSub(Node* a, Node* b);
+  Node* SmiSubWithOverflow(Node* a, Node* b);
   Node* SmiEqual(Node* a, Node* b);
   Node* SmiLessThan(Node* a, Node* b);
   Node* SmiLessThanOrEqual(Node* a, Node* b);

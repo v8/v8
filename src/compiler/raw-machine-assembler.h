@@ -347,7 +347,9 @@ class RawMachineAssembler {
   }
 
   INTPTR_BINOP(Int, Add);
+  INTPTR_BINOP(Int, AddWithOverflow);
   INTPTR_BINOP(Int, Sub);
+  INTPTR_BINOP(Int, SubWithOverflow);
   INTPTR_BINOP(Int, LessThan);
   INTPTR_BINOP(Int, LessThanOrEqual);
   INTPTR_BINOP(Word, Equal);

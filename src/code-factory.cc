@@ -207,6 +207,18 @@ Callable CodeFactory::RegExpExec(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::Add(Isolate* isolate) {
+  AddStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::Subtract(Isolate* isolate) {
+  SubtractStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::LessThan(Isolate* isolate) {
   LessThanStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
