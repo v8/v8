@@ -21,7 +21,6 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
-var RegExpExecNoTests;
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
@@ -34,7 +33,6 @@ utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  RegExpExecNoTests = from.RegExpExecNoTests;
 });
 
 //-------------------------------------------------------------------
@@ -163,7 +161,7 @@ function StringMatchJS(pattern) {
 
   // Non-regexp argument.
   var regexp = new GlobalRegExp(pattern);
-  return RegExpExecNoTests(regexp, subject, 0);
+  return regexp[matchSymbol](subject);
 }
 
 

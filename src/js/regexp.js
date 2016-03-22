@@ -779,7 +779,6 @@ for (var i = 1; i < 10; ++i) {
 
 utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
-  to.RegExpExecNoTests = RegExpExecNoTests;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
   to.RegExpTest = RegExpTest;
   to.IsRegExp = IsRegExp;

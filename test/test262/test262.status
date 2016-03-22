@@ -109,7 +109,6 @@
   # happens to be thrown for some other reason (e.g,
   # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
   'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/String/prototype/match/invoke-builtin-match': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4343
   'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
