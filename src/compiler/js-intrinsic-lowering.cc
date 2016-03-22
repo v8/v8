@@ -45,8 +45,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleHi(node);
     case Runtime::kInlineDoubleLo:
       return ReduceDoubleLo(node);
-    case Runtime::kInlineIncrementStatsCounter:
-      return ReduceIncrementStatsCounter(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
@@ -155,31 +153,6 @@ Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
   return Change(node, machine()->Float64ExtractLowWord32());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
-  if (!FLAG_native_code_counters) return ChangeToUndefined(node);
-  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
-  if (!m.HasValue() || !m.Value()->IsString()) {
-    return ChangeToUndefined(node);
-  }
-  base::SmartArrayPointer<char> name =
-      Handle<String>::cast(m.Value())->ToCString();
-  StatsCounter counter(jsgraph()->isolate(), name.get());
-  if (!counter.Enabled()) return ChangeToUndefined(node);
-
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  FieldAccess access = AccessBuilder::ForStatsCounter();
-  Node* cnt = jsgraph()->ExternalConstant(ExternalReference(&counter));
-  Node* load =
-      graph()->NewNode(simplified()->LoadField(access), cnt, effect, control);
-  Node* inc =
-      graph()->NewNode(machine()->Int32Add(), load, jsgraph()->OneConstant());
-  Node* store = graph()->NewNode(simplified()->StoreField(access), cnt, inc,
-                                 load, control);
-  return ChangeToUndefined(node, store);
 }
 
 

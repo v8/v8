@@ -314,7 +314,6 @@ namespace internal {
   F(CallSiteIsEvalRT, 1, 1)                         \
   F(CallSiteIsConstructorRT, 1, 1)                  \
   F(IS_VAR, 1, 1)                                   \
-  F(IncrementStatsCounter, 1, 1)                    \
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
   F(ThrowCalledNonCallable, 1, 1)                   \
