@@ -1974,15 +1974,13 @@ static void SplitSearchSpace(ZoneList<int>* ranges,
 // know that the character is in the range of min_char to max_char inclusive.
 // Either label can be NULL indicating backtracking.  Either label can also be
 // equal to the fall_through label.
-static void GenerateBranches(RegExpMacroAssembler* masm,
-                             ZoneList<int>* ranges,
-                             int start_index,
-                             int end_index,
-                             uc16 min_char,
-                             uc16 max_char,
-                             Label* fall_through,
-                             Label* even_label,
-                             Label* odd_label) {
+static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
+                             int start_index, int end_index, uc32 min_char,
+                             uc32 max_char, Label* fall_through,
+                             Label* even_label, Label* odd_label) {
+  DCHECK_LE(min_char, String::kMaxUtf16CodeUnit);
+  DCHECK_LE(max_char, String::kMaxUtf16CodeUnit);
+
   int first = ranges->at(start_index);
   int last = ranges->at(end_index) - 1;
 
@@ -2492,12 +2490,14 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   } else {
     // For 2-character preloads in one-byte mode or 1-character preloads in
     // two-byte mode we also use a 16 bit load with zero extend.
+    static const uint32_t kTwoByteMask = 0xffff;
+    static const uint32_t kFourByteMask = 0xffffffff;
     if (details->characters() == 2 && compiler->one_byte()) {
-      if ((mask & 0xffff) == 0xffff) need_mask = false;
+      if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else if (details->characters() == 1 && !compiler->one_byte()) {
-      if ((mask & 0xffff) == 0xffff) need_mask = false;
+      if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else {
-      if (mask == 0xffffffff) need_mask = false;
+      if (mask == kFourByteMask) need_mask = false;
     }
   }
 
@@ -4810,7 +4810,7 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
       return false;
     }
   }
-  if (range.to() != 0xffff) {
+  if (range.to() != String::kMaxCodePoint) {
     return false;
   }
   return true;
@@ -5881,7 +5881,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
     uc32 bottom = range.from();
-    uc32 top = range.to();
+    if (bottom > String::kMaxUtf16CodeUnit) return;
+    uc32 top = Min(range.to(), String::kMaxUtf16CodeUnit);
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
@@ -6243,10 +6244,6 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
       // we're adding so we can just update it and move the start point
       // of the range we're adding just past it.
       entry->AddValue(value, zone);
-      // Bail out if the last interval ended at 0xFFFF since otherwise
-      // adding 1 will wrap around to 0.
-      if (entry->to() == String::kMaxUtf16CodeUnit)
-        break;
       DCHECK(entry->to() + 1 > current.from());
       current.set_from(entry->to() + 1);
     } else {
@@ -6537,14 +6534,14 @@ void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
     if (last < range.from())
       AddRange(CharacterRange::Range(last, range.from() - 1));
     if (range.to() >= last) {
-      if (range.to() == String::kMaxUtf16CodeUnit) {
+      if (range.to() == String::kMaxCodePoint) {
         return;
       } else {
         last = range.to() + 1;
       }
     }
   }
-  AddRange(CharacterRange::Range(last, String::kMaxUtf16CodeUnit));
+  AddRange(CharacterRange::Range(last, String::kMaxCodePoint));
 }
 
 
