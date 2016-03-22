@@ -2824,8 +2824,7 @@ void StringToNumberStub::Generate(MacroAssembler* masm) {
   __ And(at, a2, Operand(String::kContainsCachedArrayIndexMask));
   __ Branch(&runtime, ne, at, Operand(zero_reg));
   __ IndexFromHash(a2, v0);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);  // In delay slot.
+  __ Ret();
 
   __ bind(&runtime);
   __ Push(a0);  // Push argument.
