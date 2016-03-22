@@ -4114,7 +4114,7 @@ AstContext::AstContext(HOptimizedGraphBuilder* owner, Expression::Context kind)
       typeof_mode_(NOT_INSIDE_TYPEOF) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
-  DCHECK(owner->environment()->frame_type() == JS_FUNCTION);
+  DCHECK_EQ(JS_FUNCTION, owner->environment()->frame_type());
   original_length_ = owner->environment()->length();
 #endif
 }
@@ -4126,18 +4126,18 @@ AstContext::~AstContext() {
 
 
 EffectContext::~EffectContext() {
-  DCHECK(owner()->HasStackOverflow() ||
-         owner()->current_block() == NULL ||
+  DCHECK(owner()->HasStackOverflow() || owner()->current_block() == NULL ||
          (owner()->environment()->length() == original_length_ &&
-          owner()->environment()->frame_type() == JS_FUNCTION));
+          (owner()->environment()->frame_type() == JS_FUNCTION ||
+           owner()->environment()->frame_type() == TAIL_CALLER_FUNCTION)));
 }
 
 
 ValueContext::~ValueContext() {
-  DCHECK(owner()->HasStackOverflow() ||
-         owner()->current_block() == NULL ||
+  DCHECK(owner()->HasStackOverflow() || owner()->current_block() == NULL ||
          (owner()->environment()->length() == original_length_ + 1 &&
-          owner()->environment()->frame_type() == JS_FUNCTION));
+          (owner()->environment()->frame_type() == JS_FUNCTION ||
+           owner()->environment()->frame_type() == TAIL_CALLER_FUNCTION)));
 }
 
 
@@ -8368,11 +8368,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   if (nodes_added == kNotInlinable) return false;
 
   Handle<JSFunction> caller = current_info()->closure();
-  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
-    TraceInline(target, caller, "call is at tail position");
-    return false;
-  }
-
   if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
     return false;
@@ -8530,12 +8525,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   HConstant* undefined = graph()->GetConstantUndefined();
 
-  HEnvironment* inner_env =
-      environment()->CopyForInlining(target,
-                                     arguments_count,
-                                     function,
-                                     undefined,
-                                     function_state()->inlining_kind());
+  HEnvironment* inner_env = environment()->CopyForInlining(
+      target, arguments_count, function, undefined,
+      function_state()->inlining_kind(), syntactic_tail_call_mode);
 
   HConstant* context = Add<HConstant>(Handle<Context>(target->context()));
   inner_env->BindContext(context);
@@ -8565,10 +8557,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   current_block()->UpdateEnvironment(inner_env);
   Scope* saved_scope = scope();
   set_scope(target_info.scope());
-  HEnterInlined* enter_inlined =
-      Add<HEnterInlined>(return_id, target, context, arguments_count, function,
-                         function_state()->inlining_kind(),
-                         function->scope()->arguments(), arguments_object);
+  HEnterInlined* enter_inlined = Add<HEnterInlined>(
+      return_id, target, context, arguments_count, function,
+      function_state()->inlining_kind(), function->scope()->arguments(),
+      arguments_object, syntactic_tail_call_mode);
   if (top_info()->is_tracking_positions()) {
     enter_inlined->set_inlining_id(inlining_id);
   }
@@ -9254,9 +9246,6 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
           top_info()->closure()->context()->native_context()) {
     return false;
   }
-  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
-    return false;
-  }
   if (argc > CallApiCallbackStub::kArgMax) {
     return false;
   }
@@ -9364,14 +9353,16 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
-        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
+        Vector<HValue*>(op_vals, arraysize(op_vals) - 1),
+        syntactic_tail_call_mode);
   } else {
     CallApiCallbackStub stub(isolate(), argc, call_data_undefined);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(
         code_value, argc + 1, stub.GetCallInterfaceDescriptor(),
-        Vector<HValue*>(op_vals, arraysize(op_vals) - 1));
+        Vector<HValue*>(op_vals, arraysize(op_vals) - 1),
+        syntactic_tail_call_mode);
     Drop(1);  // Drop function.
   }
 
@@ -13197,14 +13188,16 @@ HEnvironment* HEnvironment::CreateStubEnvironment(HEnvironment* outer,
   return new_env;
 }
 
+void HEnvironment::MarkAsTailCaller() {
+  DCHECK_EQ(JS_FUNCTION, frame_type());
+  frame_type_ = TAIL_CALLER_FUNCTION;
+}
 
 HEnvironment* HEnvironment::CopyForInlining(
-    Handle<JSFunction> target,
-    int arguments,
-    FunctionLiteral* function,
-    HConstant* undefined,
-    InliningKind inlining_kind) const {
-  DCHECK(frame_type() == JS_FUNCTION);
+    Handle<JSFunction> target, int arguments, FunctionLiteral* function,
+    HConstant* undefined, InliningKind inlining_kind,
+    TailCallMode syntactic_tail_call_mode) const {
+  DCHECK_EQ(JS_FUNCTION, frame_type());
 
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
@@ -13212,6 +13205,11 @@ HEnvironment* HEnvironment::CopyForInlining(
   HEnvironment* outer = Copy();
   outer->Drop(arguments + 1);  // Including receiver.
   outer->ClearHistory();
+
+  if (syntactic_tail_call_mode == TailCallMode::kAllow) {
+    DCHECK_EQ(NORMAL_RETURN, inlining_kind);
+    outer->MarkAsTailCaller();
+  }
 
   if (inlining_kind == CONSTRUCT_CALL_RETURN) {
     // Create artificial constructor stub environment.  The receiver should

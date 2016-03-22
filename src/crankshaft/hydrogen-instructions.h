@@ -1939,10 +1939,12 @@ class HEnterInlined final : public HTemplateInstruction<0> {
                             HConstant* closure_context, int arguments_count,
                             FunctionLiteral* function,
                             InliningKind inlining_kind, Variable* arguments_var,
-                            HArgumentsObject* arguments_object) {
-    return new (zone) HEnterInlined(return_id, closure, closure_context,
-                                    arguments_count, function, inlining_kind,
-                                    arguments_var, arguments_object, zone);
+                            HArgumentsObject* arguments_object,
+                            TailCallMode syntactic_tail_call_mode) {
+    return new (zone)
+        HEnterInlined(return_id, closure, closure_context, arguments_count,
+                      function, inlining_kind, arguments_var, arguments_object,
+                      syntactic_tail_call_mode, zone);
   }
 
   void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
@@ -1958,6 +1960,9 @@ class HEnterInlined final : public HTemplateInstruction<0> {
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
+  TailCallMode syntactic_tail_call_mode() const {
+    return syntactic_tail_call_mode_;
+  }
   BailoutId ReturnId() const { return return_id_; }
   int inlining_id() const { return inlining_id_; }
   void set_inlining_id(int inlining_id) { inlining_id_ = inlining_id; }
@@ -1976,7 +1981,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
                 HConstant* closure_context, int arguments_count,
                 FunctionLiteral* function, InliningKind inlining_kind,
                 Variable* arguments_var, HArgumentsObject* arguments_object,
-                Zone* zone)
+                TailCallMode syntactic_tail_call_mode, Zone* zone)
       : return_id_(return_id),
         shared_(handle(closure->shared())),
         closure_(closure),
@@ -1985,6 +1990,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
         arguments_pushed_(false),
         function_(function),
         inlining_kind_(inlining_kind),
+        syntactic_tail_call_mode_(syntactic_tail_call_mode),
         inlining_id_(0),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
@@ -1998,6 +2004,7 @@ class HEnterInlined final : public HTemplateInstruction<0> {
   bool arguments_pushed_;
   FunctionLiteral* function_;
   InliningKind inlining_kind_;
+  TailCallMode syntactic_tail_call_mode_;
   int inlining_id_;
   Variable* arguments_var_;
   HArgumentsObject* arguments_object_;
