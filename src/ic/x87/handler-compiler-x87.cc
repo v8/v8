@@ -94,7 +94,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Bail out if the receiver has a named interceptor or requires access checks.
   __ test_b(FieldOperand(scratch0, Map::kBitFieldOffset),
-            kInterceptorOrAccessCheckNeededMask);
+            Immediate(kInterceptorOrAccessCheckNeededMask));
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
