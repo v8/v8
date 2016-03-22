@@ -594,10 +594,6 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
-  // Optimized version of memmove for blocks with pointer size aligned sizes and
-  // pointer size aligned addresses.
-  static inline void MoveBlock(Address dst, Address src, int byte_size);
-
   // Determines a static visitor id based on the given {map} that can then be
   // stored on the map to facilitate fast dispatch for {StaticVisitorBase}.
   static int GetStaticVisitorIdForMap(Map* map);

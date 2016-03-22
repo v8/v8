@@ -1550,9 +1550,16 @@ class MarkCompactCollector::HeapObjectVisitor {
 
 class MarkCompactCollector::EvacuateVisitorBase
     : public MarkCompactCollector::HeapObjectVisitor {
- public:
+ protected:
+  enum MigrationMode { kFast, kProfiled };
+
   EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces)
-      : heap_(heap), compaction_spaces_(compaction_spaces) {}
+      : heap_(heap),
+        compaction_spaces_(compaction_spaces),
+        profiling_(
+            heap->isolate()->cpu_profiler()->is_profiling() ||
+            heap->isolate()->logger()->is_logging_code_events() ||
+            heap->isolate()->heap_profiler()->is_tracking_object_moves()) {}
 
   inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
                                 HeapObject** target_object) {
@@ -1568,6 +1575,16 @@ class MarkCompactCollector::EvacuateVisitorBase
 
   inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                             AllocationSpace dest) {
+    if (profiling_) {
+      MigrateObject<kProfiled>(dst, src, size, dest);
+    } else {
+      MigrateObject<kFast>(dst, src, size, dest);
+    }
+  }
+
+  template <MigrationMode mode>
+  inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
+                            AllocationSpace dest) {
     Address dst_addr = dst->address();
     Address src_addr = src->address();
     DCHECK(heap_->AllowedToBeMigrated(src, dest));
@@ -1575,8 +1592,8 @@ class MarkCompactCollector::EvacuateVisitorBase
     if (dest == OLD_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kPointerSize));
-      heap_->MoveBlock(dst_addr, src_addr, size);
-      if (FLAG_ignition && dst->IsBytecodeArray()) {
+      heap_->CopyBlock(dst_addr, src_addr, size);
+      if ((mode == kProfiled) && FLAG_ignition && dst->IsBytecodeArray()) {
         PROFILE(heap_->isolate(),
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }
@@ -1584,24 +1601,28 @@ class MarkCompactCollector::EvacuateVisitorBase
       dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
-      PROFILE(heap_->isolate(),
-              CodeMoveEvent(AbstractCode::cast(src), dst_addr));
-      heap_->MoveBlock(dst_addr, src_addr, size);
+      if (mode == kProfiled) {
+        PROFILE(heap_->isolate(),
+                CodeMoveEvent(AbstractCode::cast(src), dst_addr));
+      }
+      heap_->CopyBlock(dst_addr, src_addr, size);
       RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(dst_addr),
                                              RELOCATED_CODE_OBJECT, dst_addr);
       Code::cast(dst)->Relocate(dst_addr - src_addr);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
-      heap_->MoveBlock(dst_addr, src_addr, size);
+      heap_->CopyBlock(dst_addr, src_addr, size);
     }
-    heap_->OnMoveEvent(dst, src, size);
+    if (mode == kProfiled) {
+      heap_->OnMoveEvent(dst, src, size);
+    }
     Memory::Address_at(src_addr) = dst_addr;
   }
 
- protected:
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
+  bool profiling_;
 };
 
 class MarkCompactCollector::EvacuateNewSpaceVisitor final
