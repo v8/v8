@@ -5,9 +5,10 @@
 
 """Script to transform and merge sancov files into human readable json-format.
 
-The script supports two actions:
+The script supports three actions:
 all: Writes a json file with all instrumented lines of all executables.
 merge: Merges sancov files with coverage output into an existing json file.
+split: Split json file into separate files per covered source file.
 
 The json data is structured as follows:
 {
@@ -28,6 +29,9 @@ the bitsets encoded as numbers. JS max safe int is (1 << 53) - 1.
 
 The line-number-bit_mask pairs are sorted by line number and don't contain
 duplicates.
+
+Split json data preserves the same format, but only contains one file per
+json file.
 
 The sancov tool is expected to be in the llvm compiler-rt third-party
 directory. It's not checked out by default and must be added as a custom deps:
@@ -213,7 +217,7 @@ def merge_instrumented_line_results(exe_list, results):
 def write_instrumented(options):
   """Implements the 'all' action of this tool."""
   exe_list = list(executables())
-  logging.info('Reading instrumented lines from %d executables.' %
+  logging.info('Reading instrumented lines from %d executables.',
                len(exe_list))
   pool = Pool(CPUS)
   try:
@@ -224,9 +228,9 @@ def write_instrumented(options):
   # Merge multiprocessing results and prepare output data.
   data = merge_instrumented_line_results(exe_list, results)
 
-  logging.info('Read data from %d executables, which covers %d files.' %
-               (len(data['tests']), len(data['files'])))
-  logging.info('Writing results to %s' % options.json_output)
+  logging.info('Read data from %d executables, which covers %d files.',
+               len(data['tests']), len(data['files']))
+  logging.info('Writing results to %s', options.json_output)
 
   # Write json output.
   with open(options.json_output, 'w') as f:
@@ -342,8 +346,8 @@ def merge(options):
     if match:
       inputs.append((options.coverage_dir, match.group(1), f))
 
-  logging.info('Merging %d sancov files into %s' %
-               (len(inputs), options.json_input))
+  logging.info('Merging %d sancov files into %s',
+               len(inputs), options.json_input)
 
   # Post-process covered lines in parallel.
   pool = Pool(CPUS)
@@ -359,13 +363,42 @@ def merge(options):
   # Merge muliprocessing results. Mutates data.
   merge_covered_line_results(data, results)
 
-  logging.info('Merged data from %d executables, which covers %d files.' %
-               (len(data['tests']), len(data['files'])))
-  logging.info('Writing results to %s' % options.json_output)
+  logging.info('Merged data from %d executables, which covers %d files.',
+               len(data['tests']), len(data['files']))
+  logging.info('Writing results to %s', options.json_output)
 
   # Write merged results to file.
   with open(options.json_output, 'w') as f:
     json.dump(data, f, sort_keys=True)
+
+
+def split(options):
+  """Implements the 'split' action of this tool."""
+  # Load existing json data file for splitting.
+  with open(options.json_input, 'r') as f:
+    data = json.load(f)
+
+  logging.info('Splitting off %d coverage files from %s',
+               len(data['files']), options.json_input)
+
+  for file_name, coverage in data['files'].iteritems():
+    # Preserve relative directories that are part of the file name.
+    file_path = os.path.join(options.output_dir, file_name + '.json')
+    try:
+      os.makedirs(os.path.dirname(file_path))
+    except OSError:
+      # Ignore existing directories.
+      pass
+
+    with open(file_path, 'w') as f:
+      # Flat-copy the old dict.
+      new_data = dict(data)
+
+      # Update current file.
+      new_data['files'] = {file_name: coverage}
+
+      # Write json data.
+      json.dump(new_data, f, sort_keys=True)
 
 
 def main():
@@ -374,13 +407,18 @@ def main():
                       help='Path to the sancov output files.')
   parser.add_argument('--json-input',
                       help='Path to an existing json file with coverage data.')
-  parser.add_argument('--json-output', required=True,
+  parser.add_argument('--json-output',
                       help='Path to a file to write json output to.')
-  parser.add_argument('action', choices=['all', 'merge'],
+  parser.add_argument('--output-dir',
+                      help='Directory where to put split output files to.')
+  parser.add_argument('action', choices=['all', 'merge', 'split'],
                       help='Action to perform.')
 
   options = parser.parse_args()
   if options.action.lower() == 'all':
+    if not options.json_output:
+      print '--json-output is required'
+      return 1
     write_instrumented(options)
   elif options.action.lower() == 'merge':
     if not options.coverage_dir:
@@ -389,7 +427,18 @@ def main():
     if not options.json_input:
       print '--json-input is required'
       return 1
+    if not options.json_output:
+      print '--json-output is required'
+      return 1
     merge(options)
+  elif options.action.lower() == 'split':
+    if not options.json_input:
+      print '--json-input is required'
+      return 1
+    if not options.output_dir:
+      print '--output-dir is required'
+      return 1
+    split(options)
   return 0
 
 

@@ -226,7 +226,7 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
     } else if (strncmp(argv[i], "--", 2) != 0) {  // It doesn't start with --
       options.input_filenames_.push_back(argv[i]);
     } else {
-      REPORT_ERROR("Unknonwn option " << argv[i]);
+      REPORT_ERROR("Unknown option " << argv[i]);
       options.parsing_failed_ = true;
       break;
     }

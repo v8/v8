@@ -471,7 +471,7 @@ static int FormatSlotNode(Vector<char>* buf, Expression* node,
                           const char* node_name, FeedbackVectorSlot slot) {
   int pos = SNPrintF(*buf, "%s", node_name);
   if (!slot.IsInvalid()) {
-    pos = SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());
+    pos += SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());
   }
   return pos;
 }
@@ -1563,6 +1563,7 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
     Variable* var = node->var();
     switch (var->location()) {
       case VariableLocation::UNALLOCATED:
+        SNPrintF(buf + pos, " unallocated");
         break;
       case VariableLocation::PARAMETER:
         SNPrintF(buf + pos, " parameter[%d]", var->index());

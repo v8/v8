@@ -106,35 +106,9 @@ void FastNewStrictArgumentsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ToNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 
 // static
-const Register ToLengthDescriptor::ReceiverRegister() { return r3; }
-
-
-// static
-const Register ToStringDescriptor::ReceiverRegister() { return r3; }
-
-
-// static
-const Register ToNameDescriptor::ReceiverRegister() { return r3; }
-
-
-// static
-const Register ToObjectDescriptor::ReceiverRegister() { return r3; }
-
-
-void NumberToStringDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
+const Register TypeConversionDescriptor::ArgumentRegister() { return r3; }
 
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -310,13 +284,6 @@ void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r4, r3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void ToBooleanDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

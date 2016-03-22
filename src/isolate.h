@@ -178,6 +178,20 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   C(ExternalCaughtException, external_caught_exception) \
   C(JSEntrySP, js_entry_sp)
 
+#define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
+                              limit_check, increment, body)                \
+  do {                                                                     \
+    loop_var_type init;                                                    \
+    loop_var_type for_with_handle_limit = loop_var;                        \
+    Isolate* for_with_handle_isolate = isolate;                            \
+    while (limit_check) {                                                  \
+      for_with_handle_limit += 1024;                                       \
+      HandleScope loop_scope(for_with_handle_isolate);                     \
+      for (; limit_check && loop_var < for_with_handle_limit; increment) { \
+        body                                                               \
+      }                                                                    \
+    }                                                                      \
+  } while (false)
 
 // Platform-independent, reliable thread identifier.
 class ThreadId {
@@ -1358,6 +1372,8 @@ class Isolate {
   friend class v8::Locker;
   friend class v8::Unlocker;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
+  friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
+                                                        const char*);
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };

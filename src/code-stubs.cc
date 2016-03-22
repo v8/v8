@@ -575,7 +575,7 @@ void GenerateAbstractRelationalComparison(
       assembler->Bind(&if_rhsisnotsmi);
       {
         // Load the map of {rhs}.
-        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+        Node* rhs_map = assembler->LoadMap(rhs);
 
         // Check if the {rhs} is a HeapNumber.
         Node* number_map = assembler->HeapNumberMapConstant();
@@ -612,7 +612,7 @@ void GenerateAbstractRelationalComparison(
       Node* number_map = assembler->HeapNumberMapConstant();
 
       // Load the map of {lhs}.
-      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
+      Node* lhs_map = assembler->LoadMap(lhs);
 
       // Check if {rhs} is a Smi or a HeapObject.
       Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -651,7 +651,7 @@ void GenerateAbstractRelationalComparison(
       assembler->Bind(&if_rhsisnotsmi);
       {
         // Load the map of {rhs}.
-        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+        Node* rhs_map = assembler->LoadMap(rhs);
 
         // Check if {lhs} is a HeapNumber.
         Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
@@ -848,6 +848,658 @@ void GenerateAbstractRelationalComparison(
 
 enum ResultMode { kDontNegateResult, kNegateResult };
 
+void GenerateEqual_Same(compiler::CodeStubAssembler* assembler,
+                        compiler::Node* value,
+                        compiler::CodeStubAssembler::Label* if_equal,
+                        compiler::CodeStubAssembler::Label* if_notequal) {
+  // In case of abstract or strict equality checks, we need additional checks
+  // for NaN values because they are not considered equal, even if both the
+  // left and the right hand side reference exactly the same value.
+  // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
+  // seems to be what is tested in the current SIMD.js testsuite.
+
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  // Check if {value} is a Smi or a HeapObject.
+  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
+  assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
+                    &if_valueisnotsmi);
+
+  assembler->Bind(&if_valueisnotsmi);
+  {
+    // Load the map of {value}.
+    Node* value_map = assembler->LoadMap(value);
+
+    // Check if {value} (and therefore {rhs}) is a HeapNumber.
+    Node* number_map = assembler->HeapNumberMapConstant();
+    Label if_valueisnumber(assembler), if_valueisnotnumber(assembler);
+    assembler->Branch(assembler->WordEqual(value_map, number_map),
+                      &if_valueisnumber, &if_valueisnotnumber);
+
+    assembler->Bind(&if_valueisnumber);
+    {
+      // Convert {value} (and therefore {rhs}) to floating point value.
+      Node* value_value = assembler->LoadHeapNumberValue(value);
+
+      // Check if the HeapNumber value is a NaN.
+      assembler->BranchIfFloat64IsNaN(value_value, if_notequal, if_equal);
+    }
+
+    assembler->Bind(&if_valueisnotnumber);
+    assembler->Goto(if_equal);
+  }
+
+  assembler->Bind(&if_valueissmi);
+  assembler->Goto(if_equal);
+}
+
+void GenerateEqual_Simd128Value_HeapObject(
+    compiler::CodeStubAssembler* assembler, compiler::Node* lhs,
+    compiler::Node* lhs_map, compiler::Node* rhs, compiler::Node* rhs_map,
+    compiler::CodeStubAssembler::Label* if_equal,
+    compiler::CodeStubAssembler::Label* if_notequal) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  // Check if {lhs} and {rhs} have the same map.
+  Label if_mapsame(assembler), if_mapnotsame(assembler);
+  assembler->Branch(assembler->WordEqual(lhs_map, rhs_map), &if_mapsame,
+                    &if_mapnotsame);
+
+  assembler->Bind(&if_mapsame);
+  {
+    // Both {lhs} and {rhs} are Simd128Values with the same map, need special
+    // handling for Float32x4 because of NaN comparisons.
+    Label if_float32x4(assembler), if_notfloat32x4(assembler);
+    Node* float32x4_map =
+        assembler->HeapConstant(assembler->factory()->float32x4_map());
+    assembler->Branch(assembler->WordEqual(lhs_map, float32x4_map),
+                      &if_float32x4, &if_notfloat32x4);
+
+    assembler->Bind(&if_float32x4);
+    {
+      // Both {lhs} and {rhs} are Float32x4, compare the lanes individually
+      // using a floating point comparison.
+      for (int offset = Float32x4::kValueOffset - kHeapObjectTag;
+           offset < Float32x4::kSize - kHeapObjectTag;
+           offset += sizeof(float)) {
+        // Load the floating point values for {lhs} and {rhs}.
+        Node* lhs_value = assembler->Load(MachineType::Float32(), lhs,
+                                          assembler->IntPtrConstant(offset));
+        Node* rhs_value = assembler->Load(MachineType::Float32(), rhs,
+                                          assembler->IntPtrConstant(offset));
+
+        // Perform a floating point comparison.
+        Label if_valueequal(assembler), if_valuenotequal(assembler);
+        assembler->Branch(assembler->Float32Equal(lhs_value, rhs_value),
+                          &if_valueequal, &if_valuenotequal);
+        assembler->Bind(&if_valuenotequal);
+        assembler->Goto(if_notequal);
+        assembler->Bind(&if_valueequal);
+      }
+
+      // All 4 lanes match, {lhs} and {rhs} considered equal.
+      assembler->Goto(if_equal);
+    }
+
+    assembler->Bind(&if_notfloat32x4);
+    {
+      // For other Simd128Values we just perform a bitwise comparison.
+      for (int offset = Simd128Value::kValueOffset - kHeapObjectTag;
+           offset < Simd128Value::kSize - kHeapObjectTag;
+           offset += kPointerSize) {
+        // Load the word values for {lhs} and {rhs}.
+        Node* lhs_value = assembler->Load(MachineType::Pointer(), lhs,
+                                          assembler->IntPtrConstant(offset));
+        Node* rhs_value = assembler->Load(MachineType::Pointer(), rhs,
+                                          assembler->IntPtrConstant(offset));
+
+        // Perform a bitwise word-comparison.
+        Label if_valueequal(assembler), if_valuenotequal(assembler);
+        assembler->Branch(assembler->WordEqual(lhs_value, rhs_value),
+                          &if_valueequal, &if_valuenotequal);
+        assembler->Bind(&if_valuenotequal);
+        assembler->Goto(if_notequal);
+        assembler->Bind(&if_valueequal);
+      }
+
+      // Bitwise comparison succeeded, {lhs} and {rhs} considered equal.
+      assembler->Goto(if_equal);
+    }
+  }
+
+  assembler->Bind(&if_mapnotsame);
+  assembler->Goto(if_notequal);
+}
+
+// ES6 section 7.2.12 Abstract Equality Comparison
+void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
+  // This is a slightly optimized version of Object::Equals represented as
+  // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
+  // change something functionality wise in here, remember to update the
+  // Object::Equals method as well.
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  Label if_equal(assembler), if_notequal(assembler);
+
+  // Shared entry for floating point comparison.
+  Label do_fcmp(assembler);
+  Variable var_fcmp_lhs(assembler, MachineRepresentation::kFloat64),
+      var_fcmp_rhs(assembler, MachineRepresentation::kFloat64);
+
+  // We might need to loop several times due to ToPrimitive and/or ToNumber
+  // conversions.
+  Variable var_lhs(assembler, MachineRepresentation::kTagged),
+      var_rhs(assembler, MachineRepresentation::kTagged);
+  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
+  Label loop(assembler, 2, loop_vars);
+  var_lhs.Bind(assembler->Parameter(0));
+  var_rhs.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {lhs} and {rhs} values.
+    Node* lhs = var_lhs.value();
+    Node* rhs = var_rhs.value();
+
+    // Check if {lhs} and {rhs} refer to the same object.
+    Label if_same(assembler), if_notsame(assembler);
+    assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
+
+    assembler->Bind(&if_same);
+    {
+      // The {lhs} and {rhs} reference the exact same value, yet we need special
+      // treatment for HeapNumber, as NaN is not equal to NaN.
+      GenerateEqual_Same(assembler, lhs, &if_equal, &if_notequal);
+    }
+
+    assembler->Bind(&if_notsame);
+    {
+      // Check if {lhs} is a Smi or a HeapObject.
+      Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
+      assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi,
+                        &if_lhsisnotsmi);
+
+      assembler->Bind(&if_lhsissmi);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                          &if_rhsisnotsmi);
+
+        assembler->Bind(&if_rhsissmi);
+        assembler->Goto(&if_notequal);
+
+        assembler->Bind(&if_rhsisnotsmi);
+        {
+          // Load the map of {rhs}.
+          Node* rhs_map = assembler->LoadMap(rhs);
+
+          // Check if {rhs} is a HeapNumber.
+          Node* number_map = assembler->HeapNumberMapConstant();
+          Label if_rhsisnumber(assembler),
+              if_rhsisnotnumber(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                            &if_rhsisnumber, &if_rhsisnotnumber);
+
+          assembler->Bind(&if_rhsisnumber);
+          {
+            // Convert {lhs} and {rhs} to floating point values, and
+            // perform a floating point comparison.
+            var_fcmp_lhs.Bind(assembler->SmiToFloat64(lhs));
+            var_fcmp_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
+            assembler->Goto(&do_fcmp);
+          }
+
+          assembler->Bind(&if_rhsisnotnumber);
+          {
+            // Load the instance type of the {rhs}.
+            Node* rhs_instance_type = assembler->LoadMapInstanceType(rhs_map);
+
+            // Check if the {rhs} is a String.
+            Label if_rhsisstring(assembler, Label::kDeferred),
+                if_rhsisnotstring(assembler, Label::kDeferred);
+            assembler->Branch(assembler->Int32LessThan(
+                                  rhs_instance_type, assembler->Int32Constant(
+                                                         FIRST_NONSTRING_TYPE)),
+                              &if_rhsisstring, &if_rhsisnotstring);
+
+            assembler->Bind(&if_rhsisstring);
+            {
+              // Convert the {rhs} to a Number.
+              Callable callable = CodeFactory::ToNumber(assembler->isolate());
+              var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+              assembler->Goto(&loop);
+            }
+
+            assembler->Bind(&if_rhsisnotstring);
+            {
+              // Check if the {rhs} is a Boolean.
+              Node* boolean_map = assembler->BooleanMapConstant();
+              Label if_rhsisboolean(assembler, Label::kDeferred),
+                  if_rhsisnotboolean(assembler, Label::kDeferred);
+              assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+                                &if_rhsisboolean, &if_rhsisnotboolean);
+
+              assembler->Bind(&if_rhsisboolean);
+              {
+                // The {rhs} is a Boolean, load its number value.
+                var_rhs.Bind(
+                    assembler->LoadObjectField(rhs, Oddball::kToNumberOffset));
+                assembler->Goto(&loop);
+              }
+
+              assembler->Bind(&if_rhsisnotboolean);
+              {
+                // Check if the {rhs} is a Receiver.
+                STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+                Label if_rhsisreceiver(assembler, Label::kDeferred),
+                    if_rhsisnotreceiver(assembler, Label::kDeferred);
+                assembler->Branch(
+                    assembler->Int32LessThanOrEqual(
+                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                        rhs_instance_type),
+                    &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+                assembler->Bind(&if_rhsisreceiver);
+                {
+                  // Convert {rhs} to a primitive first (passing no hint).
+                  // TODO(bmeurer): Hook up ToPrimitiveStub here once it exists.
+                  var_rhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
+                                                      context, rhs));
+                  assembler->Goto(&loop);
+                }
+
+                assembler->Bind(&if_rhsisnotreceiver);
+                assembler->Goto(&if_notequal);
+              }
+            }
+          }
+        }
+      }
+
+      assembler->Bind(&if_lhsisnotsmi);
+      {
+        // Check if {rhs} is a Smi or a HeapObject.
+        Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                          &if_rhsisnotsmi);
+
+        assembler->Bind(&if_rhsissmi);
+        {
+          // The {lhs} is a HeapObject and the {rhs} is a Smi; swapping {lhs}
+          // and {rhs} is not observable and doesn't matter for the result, so
+          // we can just swap them and use the Smi handling above (for {lhs}
+          // being a Smi).
+          var_lhs.Bind(rhs);
+          var_rhs.Bind(lhs);
+          assembler->Goto(&loop);
+        }
+
+        assembler->Bind(&if_rhsisnotsmi);
+        {
+          Label if_lhsisstring(assembler), if_lhsisnumber(assembler),
+              if_lhsissymbol(assembler), if_lhsissimd128value(assembler),
+              if_lhsisoddball(assembler), if_lhsisreceiver(assembler);
+
+          // Both {lhs} and {rhs} are HeapObjects, load their maps
+          // and their instance types.
+          Node* lhs_map = assembler->LoadMap(lhs);
+          Node* rhs_map = assembler->LoadMap(rhs);
+
+          // Load the instance types of {lhs} and {rhs}.
+          Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+          Node* rhs_instance_type = assembler->LoadMapInstanceType(rhs_map);
+
+          // Dispatch based on the instance type of {lhs}.
+          size_t const kNumCases = FIRST_NONSTRING_TYPE + 4;
+          Label* case_labels[kNumCases];
+          int32_t case_values[kNumCases];
+          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+            case_labels[i] = new Label(assembler);
+            case_values[i] = i;
+          }
+          case_labels[FIRST_NONSTRING_TYPE + 0] = &if_lhsisnumber;
+          case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 1] = &if_lhsissymbol;
+          case_values[FIRST_NONSTRING_TYPE + 1] = SYMBOL_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsissimd128value;
+          case_values[FIRST_NONSTRING_TYPE + 2] = SIMD128_VALUE_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 3] = &if_lhsisoddball;
+          case_values[FIRST_NONSTRING_TYPE + 3] = ODDBALL_TYPE;
+          assembler->Switch(lhs_instance_type, &if_lhsisreceiver, case_values,
+                            case_labels, arraysize(case_values));
+          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+            assembler->Bind(case_labels[i]);
+            assembler->Goto(&if_lhsisstring);
+            delete case_labels[i];
+          }
+
+          assembler->Bind(&if_lhsisstring);
+          {
+            // Check if {rhs} is also a String.
+            Label if_rhsisstring(assembler),
+                if_rhsisnotstring(assembler, Label::kDeferred);
+            assembler->Branch(assembler->Int32LessThan(
+                                  rhs_instance_type, assembler->Int32Constant(
+                                                         FIRST_NONSTRING_TYPE)),
+                              &if_rhsisstring, &if_rhsisnotstring);
+
+            assembler->Bind(&if_rhsisstring);
+            {
+              // Both {lhs} and {rhs} are of type String, just do the
+              // string comparison then.
+              Callable callable =
+                  (mode == kDontNegateResult)
+                      ? CodeFactory::StringEqual(assembler->isolate())
+                      : CodeFactory::StringNotEqual(assembler->isolate());
+              assembler->TailCallStub(callable, context, lhs, rhs);
+            }
+
+            assembler->Bind(&if_rhsisnotstring);
+            {
+              // The {lhs} is a String and the {rhs} is some other HeapObject.
+              // Swapping {lhs} and {rhs} is not observable and doesn't matter
+              // for the result, so we can just swap them and use the String
+              // handling below (for {rhs} being a String).
+              var_lhs.Bind(rhs);
+              var_rhs.Bind(lhs);
+              assembler->Goto(&loop);
+            }
+          }
+
+          assembler->Bind(&if_lhsisnumber);
+          {
+            // Check if {rhs} is also a HeapNumber.
+            Label if_rhsisnumber(assembler),
+                if_rhsisnotnumber(assembler, Label::kDeferred);
+            assembler->Branch(
+                assembler->Word32Equal(lhs_instance_type, rhs_instance_type),
+                &if_rhsisnumber, &if_rhsisnotnumber);
+
+            assembler->Bind(&if_rhsisnumber);
+            {
+              // Convert {lhs} and {rhs} to floating point values, and
+              // perform a floating point comparison.
+              var_fcmp_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
+              var_fcmp_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
+              assembler->Goto(&do_fcmp);
+            }
+
+            assembler->Bind(&if_rhsisnotnumber);
+            {
+              // The {lhs} is a Number, the {rhs} is some other HeapObject.
+              Label if_rhsisstring(assembler, Label::kDeferred),
+                  if_rhsisnotstring(assembler);
+              assembler->Branch(
+                  assembler->Int32LessThan(
+                      rhs_instance_type,
+                      assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                  &if_rhsisstring, &if_rhsisnotstring);
+
+              assembler->Bind(&if_rhsisstring);
+              {
+                // The {rhs} is a String and the {lhs} is a HeapNumber; we need
+                // to convert the {rhs} to a Number and compare the output to
+                // the Number on the {lhs}.
+                Callable callable = CodeFactory::ToNumber(assembler->isolate());
+                var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+                assembler->Goto(&loop);
+              }
+
+              assembler->Bind(&if_rhsisnotstring);
+              {
+                // Check if the {rhs} is a JSReceiver.
+                Label if_rhsisreceiver(assembler, Label::kDeferred),
+                    if_rhsisnotreceiver(assembler);
+                STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+                assembler->Branch(
+                    assembler->Int32LessThanOrEqual(
+                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                        rhs_instance_type),
+                    &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+                assembler->Bind(&if_rhsisreceiver);
+                {
+                  // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+                  // Swapping {lhs} and {rhs} is not observable and doesn't
+                  // matter for the result, so we can just swap them and use
+                  // the JSReceiver handling below (for {lhs} being a
+                  // JSReceiver).
+                  var_lhs.Bind(rhs);
+                  var_rhs.Bind(lhs);
+                  assembler->Goto(&loop);
+                }
+
+                assembler->Bind(&if_rhsisnotreceiver);
+                {
+                  // Check if {rhs} is a Boolean.
+                  Label if_rhsisboolean(assembler),
+                      if_rhsisnotboolean(assembler);
+                  Node* boolean_map = assembler->BooleanMapConstant();
+                  assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+                                    &if_rhsisboolean, &if_rhsisnotboolean);
+
+                  assembler->Bind(&if_rhsisboolean);
+                  {
+                    // The {rhs} is a Boolean, convert it to a Smi first.
+                    var_rhs.Bind(assembler->LoadObjectField(
+                        rhs, Oddball::kToNumberOffset));
+                    assembler->Goto(&loop);
+                  }
+
+                  assembler->Bind(&if_rhsisnotboolean);
+                  assembler->Goto(&if_notequal);
+                }
+              }
+            }
+          }
+
+          assembler->Bind(&if_lhsisoddball);
+          {
+            // The {lhs} is an Oddball and {rhs} is some other HeapObject.
+            Label if_lhsisboolean(assembler), if_lhsisnotboolean(assembler);
+            Node* boolean_map = assembler->BooleanMapConstant();
+            assembler->Branch(assembler->WordEqual(lhs_map, boolean_map),
+                              &if_lhsisboolean, &if_lhsisnotboolean);
+
+            assembler->Bind(&if_lhsisboolean);
+            {
+              // The {lhs} is a Boolean, check if {rhs} is also a Boolean.
+              Label if_rhsisboolean(assembler), if_rhsisnotboolean(assembler);
+              assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+                                &if_rhsisboolean, &if_rhsisnotboolean);
+
+              assembler->Bind(&if_rhsisboolean);
+              {
+                // Both {lhs} and {rhs} are distinct Boolean values.
+                assembler->Goto(&if_notequal);
+              }
+
+              assembler->Bind(&if_rhsisnotboolean);
+              {
+                // Convert the {lhs} to a Number first.
+                var_lhs.Bind(
+                    assembler->LoadObjectField(lhs, Oddball::kToNumberOffset));
+                assembler->Goto(&loop);
+              }
+            }
+
+            assembler->Bind(&if_lhsisnotboolean);
+            {
+              // The {lhs} is either Null or Undefined; check if the {rhs} is
+              // undetectable (i.e. either also Null or Undefined or some
+              // undetectable JSReceiver).
+              Node* rhs_bitfield = assembler->LoadMapBitField(rhs_map);
+              assembler->BranchIfWord32Equal(
+                  assembler->Word32And(
+                      rhs_bitfield,
+                      assembler->Int32Constant(1 << Map::kIsUndetectable)),
+                  assembler->Int32Constant(0), &if_notequal, &if_equal);
+            }
+          }
+
+          assembler->Bind(&if_lhsissymbol);
+          {
+            // Check if the {rhs} is a JSReceiver.
+            Label if_rhsisreceiver(assembler, Label::kDeferred),
+                if_rhsisnotreceiver(assembler);
+            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            assembler->Branch(
+                assembler->Int32LessThanOrEqual(
+                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                    rhs_instance_type),
+                &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+            assembler->Bind(&if_rhsisreceiver);
+            {
+              // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+              // Swapping {lhs} and {rhs} is not observable and doesn't
+              // matter for the result, so we can just swap them and use
+              // the JSReceiver handling below (for {lhs} being a JSReceiver).
+              var_lhs.Bind(rhs);
+              var_rhs.Bind(lhs);
+              assembler->Goto(&loop);
+            }
+
+            assembler->Bind(&if_rhsisnotreceiver);
+            {
+              // The {rhs} is not a JSReceiver and also not the same Symbol
+              // as the {lhs}, so this is equality check is considered false.
+              assembler->Goto(&if_notequal);
+            }
+          }
+
+          assembler->Bind(&if_lhsissimd128value);
+          {
+            // Check if the {rhs} is also a Simd128Value.
+            Label if_rhsissimd128value(assembler),
+                if_rhsisnotsimd128value(assembler);
+            assembler->Branch(
+                assembler->Word32Equal(lhs_instance_type, rhs_instance_type),
+                &if_rhsissimd128value, &if_rhsisnotsimd128value);
+
+            assembler->Bind(&if_rhsissimd128value);
+            {
+              // Both {lhs} and {rhs} is a Simd128Value.
+              GenerateEqual_Simd128Value_HeapObject(assembler, lhs, lhs_map,
+                                                    rhs, rhs_map, &if_equal,
+                                                    &if_notequal);
+            }
+
+            assembler->Bind(&if_rhsisnotsimd128value);
+            {
+              // Check if the {rhs} is a JSReceiver.
+              Label if_rhsisreceiver(assembler, Label::kDeferred),
+                  if_rhsisnotreceiver(assembler);
+              STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+              assembler->Branch(
+                  assembler->Int32LessThanOrEqual(
+                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                      rhs_instance_type),
+                  &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+              assembler->Bind(&if_rhsisreceiver);
+              {
+                // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+                // Swapping {lhs} and {rhs} is not observable and doesn't
+                // matter for the result, so we can just swap them and use
+                // the JSReceiver handling below (for {lhs} being a JSReceiver).
+                var_lhs.Bind(rhs);
+                var_rhs.Bind(lhs);
+                assembler->Goto(&loop);
+              }
+
+              assembler->Bind(&if_rhsisnotreceiver);
+              {
+                // The {rhs} is some other Primitive.
+                assembler->Goto(&if_notequal);
+              }
+            }
+          }
+
+          assembler->Bind(&if_lhsisreceiver);
+          {
+            // Check if the {rhs} is also a JSReceiver.
+            Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
+            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+            assembler->Branch(
+                assembler->Int32LessThanOrEqual(
+                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
+                    rhs_instance_type),
+                &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+            assembler->Bind(&if_rhsisreceiver);
+            {
+              // Both {lhs} and {rhs} are different JSReceiver references, so
+              // this cannot be considered equal.
+              assembler->Goto(&if_notequal);
+            }
+
+            assembler->Bind(&if_rhsisnotreceiver);
+            {
+              // Check if {rhs} is Null or Undefined (an undetectable check
+              // is sufficient here, since we already know that {rhs} is not
+              // a JSReceiver).
+              Label if_rhsisundetectable(assembler),
+                  if_rhsisnotundetectable(assembler, Label::kDeferred);
+              Node* rhs_bitfield = assembler->LoadMapBitField(rhs_map);
+              assembler->BranchIfWord32Equal(
+                  assembler->Word32And(
+                      rhs_bitfield,
+                      assembler->Int32Constant(1 << Map::kIsUndetectable)),
+                  assembler->Int32Constant(0), &if_rhsisnotundetectable,
+                  &if_rhsisundetectable);
+
+              assembler->Bind(&if_rhsisundetectable);
+              {
+                // Check if {lhs} is an undetectable JSReceiver.
+                Node* lhs_bitfield = assembler->LoadMapBitField(lhs_map);
+                assembler->BranchIfWord32Equal(
+                    assembler->Word32And(
+                        lhs_bitfield,
+                        assembler->Int32Constant(1 << Map::kIsUndetectable)),
+                    assembler->Int32Constant(0), &if_notequal, &if_equal);
+              }
+
+              assembler->Bind(&if_rhsisnotundetectable);
+              {
+                // The {rhs} is some Primitive different from Null and
+                // Undefined, need to convert {lhs} to Primitive first.
+                // TODO(bmeurer): Hook up ToPrimitiveStub here once it exists.
+                var_lhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
+                                                    context, lhs));
+                assembler->Goto(&loop);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  assembler->Bind(&do_fcmp);
+  {
+    // Load the {lhs} and {rhs} floating point values.
+    Node* lhs = var_fcmp_lhs.value();
+    Node* rhs = var_fcmp_rhs.value();
+
+    // Perform a fast floating point comparison.
+    assembler->BranchIfFloat64Equal(lhs, rhs, &if_equal, &if_notequal);
+  }
+
+  assembler->Bind(&if_equal);
+  assembler->Return(assembler->BooleanConstant(mode == kDontNegateResult));
+
+  assembler->Bind(&if_notequal);
+  assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
+}
+
 void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
                          ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
@@ -915,39 +1567,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   {
     // The {lhs} and {rhs} reference the exact same value, yet we need special
     // treatment for HeapNumber, as NaN is not equal to NaN.
-    // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
-    // seems to be what is tested in the current SIMD.js testsuite.
-
-    // Check if {lhs} (and therefore {rhs}) is a Smi or a HeapObject.
-    Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
-
-    assembler->Bind(&if_lhsisnotsmi);
-    {
-      // Load the map of {lhs}.
-      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
-
-      // Check if {lhs} (and therefore {rhs}) is a HeapNumber.
-      Node* number_map = assembler->HeapNumberMapConstant();
-      Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
-                        &if_lhsisnumber, &if_lhsisnotnumber);
-
-      assembler->Bind(&if_lhsisnumber);
-      {
-        // Convert {lhs} (and therefore {rhs}) to floating point value.
-        Node* lhs_value = assembler->LoadHeapNumberValue(lhs);
-
-        // Check if the HeapNumber value is a NaN.
-        assembler->BranchIfFloat64IsNaN(lhs_value, &if_notequal, &if_equal);
-      }
-
-      assembler->Bind(&if_lhsisnotnumber);
-      assembler->Goto(&if_equal);
-    }
-
-    assembler->Bind(&if_lhsissmi);
-    assembler->Goto(&if_equal);
+    GenerateEqual_Same(assembler, lhs, &if_equal, &if_notequal);
   }
 
   assembler->Bind(&if_notsame);
@@ -963,7 +1583,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
     assembler->Bind(&if_lhsisnotsmi);
     {
       // Load the map of {lhs}.
-      Node* lhs_map = assembler->LoadObjectField(lhs, HeapObject::kMapOffset);
+      Node* lhs_map = assembler->LoadMap(lhs);
 
       // Check if {lhs} is a HeapNumber.
       Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
@@ -991,8 +1611,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
         assembler->Bind(&if_rhsisnotsmi);
         {
           // Load the map of {rhs}.
-          Node* rhs_map =
-              assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+          Node* rhs_map = assembler->LoadMap(rhs);
 
           // Check if {rhs} is also a HeapNumber.
           Label if_rhsisnumber(assembler), if_rhsisnotnumber(assembler);
@@ -1074,11 +1693,13 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
 
             assembler->Bind(&if_lhsissimd128value);
             {
-              // TODO(bmeurer): Inline the Simd128Value equality check.
-              Runtime::FunctionId function_id = (mode == kDontNegateResult)
-                                                    ? Runtime::kStrictEqual
-                                                    : Runtime::kStrictNotEqual;
-              assembler->TailCallRuntime(function_id, context, lhs, rhs);
+              // Load the map of {rhs}.
+              Node* rhs_map = assembler->LoadMap(rhs);
+
+              // Check if {rhs} is also a Simd128Value that is equal to {lhs}.
+              GenerateEqual_Simd128Value_HeapObject(assembler, lhs, lhs_map,
+                                                    rhs, rhs_map, &if_equal,
+                                                    &if_notequal);
             }
 
             assembler->Bind(&if_lhsisnotsimd128value);
@@ -1105,7 +1726,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
       assembler->Bind(&if_rhsisnotsmi);
       {
         // Load the map of the {rhs}.
-        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+        Node* rhs_map = assembler->LoadMap(rhs);
 
         // The {rhs} could be a HeapNumber with the same value as {lhs}.
         Label if_rhsisnumber(assembler), if_rhsisnotnumber(assembler);
@@ -1232,8 +1853,8 @@ void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
           assembler->Goto(&loop);
 
           assembler->Bind(&if_valueisnotsame);
-          assembler->BranchIfInt32LessThan(lhs_value, rhs_value, &if_less,
-                                           &if_greater);
+          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
+                              &if_less, &if_greater);
         }
 
         assembler->Bind(&if_done);
@@ -1518,6 +2139,15 @@ void GreaterThanOrEqualStub::GenerateAssembly(
   GenerateAbstractRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
+void EqualStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
+  GenerateEqual(assembler, kDontNegateResult);
+}
+
+void NotEqualStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateEqual(assembler, kNegateResult);
+}
+
 void StrictEqualStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   GenerateStrictEqual(assembler, kDontNegateResult);
@@ -1590,10 +2220,10 @@ void ToBooleanStub::GenerateAssembly(
         if_valueisoddball(assembler), if_valueisother(assembler);
 
     // The {value} is a HeapObject, load its map.
-    Node* value_map = assembler->LoadObjectField(value, HeapObject::kMapOffset);
+    Node* value_map = assembler->LoadMap(value);
 
     // Load the {value}s instance type.
-    Node* value_instancetype = assembler->Load(
+    Node* value_instance_type = assembler->Load(
         MachineType::Uint8(), value_map,
         assembler->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag));
 
@@ -1610,7 +2240,7 @@ void ToBooleanStub::GenerateAssembly(
     case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
     case_labels[FIRST_NONSTRING_TYPE + 1] = &if_valueisoddball;
     case_values[FIRST_NONSTRING_TYPE + 1] = ODDBALL_TYPE;
-    assembler->Switch(value_instancetype, &if_valueisother, case_values,
+    assembler->Switch(value_instance_type, &if_valueisother, case_values,
                       case_labels, arraysize(case_values));
     for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
       assembler->Bind(case_labels[i]);
@@ -1823,7 +2453,6 @@ void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
 
 
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
 }

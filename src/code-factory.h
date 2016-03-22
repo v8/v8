@@ -79,6 +79,8 @@ class CodeFactory final {
   static Callable LessThanOrEqual(Isolate* isolate);
   static Callable GreaterThan(Isolate* isolate);
   static Callable GreaterThanOrEqual(Isolate* isolate);
+  static Callable Equal(Isolate* isolate);
+  static Callable NotEqual(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
   static Callable StrictNotEqual(Isolate* isolate);
 

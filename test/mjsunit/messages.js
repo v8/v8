@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
-// Flags: --harmony-simd
+// Flags: --harmony-simd --harmony-instanceof
 
 function test(f, expected, type) {
   try {
@@ -150,7 +150,7 @@ TypeError);
 // kInstanceofFunctionExpected
 test(function() {
   1 instanceof 1;
-}, "Expecting an object in instanceof check", TypeError);
+}, "right-hand side is not an object", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {

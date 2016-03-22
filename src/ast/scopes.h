@@ -245,9 +245,6 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Scope-specific info.
 
-  // Inform the scope that the corresponding code contains a with statement.
-  void RecordWithStatement() { scope_contains_with_ = true; }
-
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { scope_calls_eval_ = true; }
 
@@ -650,8 +647,6 @@ class Scope: public ZoneObject {
   //
   // This scope is inside a 'with' of some outer scope.
   bool scope_inside_with_;
-  // This scope contains a 'with' statement.
-  bool scope_contains_with_;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;

@@ -682,10 +682,6 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       representations_(zone()),
       deoptimization_entries_(zone()) {
   block_starts_.reserve(instruction_blocks_->size());
-
-#if DEBUG
-  ValidateEdgeSplitForm();
-#endif
 }
 
 

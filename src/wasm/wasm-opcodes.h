@@ -175,6 +175,7 @@ struct WasmName {
   V(I64Clz, 0x72, l_l)            \
   V(I64Ctz, 0x73, l_l)            \
   V(I64Popcnt, 0x74, l_l)         \
+  V(I64Eqz, 0xba, i_l)            \
   V(F32Add, 0x75, f_ff)           \
   V(F32Sub, 0x76, f_ff)           \
   V(F32Mul, 0x77, f_ff)           \

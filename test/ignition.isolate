@@ -11,5 +11,6 @@
     'cctest/cctest.isolate',
     'mjsunit/mjsunit.isolate',
     'message/message.isolate',
+    'webkit/webkit.isolate',
   ],
 }

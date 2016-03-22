@@ -22,6 +22,7 @@
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
@@ -35,7 +36,6 @@
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/deserializer.h"
-#include "src/snapshot/serializer-common.h"
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -900,7 +900,7 @@ Object* Isolate::StackOverflow() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
-    heap()->CollectAllAvailableGarbage("trigger compaction");
+    heap()->CollectAllGarbage(Heap::kNoGCFlags, "trigger compaction");
   }
 #endif  // VERIFY_HEAP
 
@@ -2228,7 +2228,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (create_heap_objects) {
-    // Terminate the cache array with the sentinel so we can iterate.
+    // Terminate the partial snapshot cache so we can iterate.
     partial_snapshot_cache_.Add(heap_.undefined_value());
   }
 
@@ -2783,8 +2783,8 @@ void Isolate::RunMicrotasksInternal() {
     set_pending_microtask_count(0);
     heap()->set_microtask_queue(heap()->empty_fixed_array());
 
-    for (int i = 0; i < num_tasks; i++) {
-      HandleScope scope(this);
+    Isolate* isolate = this;
+    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
       Handle<Object> microtask(queue->get(i), this);
       if (microtask->IsJSFunction()) {
         Handle<JSFunction> microtask_function =
@@ -2811,7 +2811,7 @@ void Isolate::RunMicrotasksInternal() {
         void* data = v8::ToCData<void*>(callback_info->data());
         callback(data);
       }
-    }
+    });
   }
 }
 

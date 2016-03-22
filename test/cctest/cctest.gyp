@@ -202,7 +202,8 @@
             'test-code-stubs-ia32.cc',
             'test-disasm-ia32.cc',
             'test-macro-assembler-ia32.cc',
-            'test-log-stack-tracer.cc'
+            'test-log-stack-tracer.cc',
+            'test-run-wasm-relocation-ia32.cc'
           ],
         }],
         ['v8_target_arch=="x64"', {
@@ -212,7 +213,8 @@
             'test-code-stubs-x64.cc',
             'test-disasm-x64.cc',
             'test-macro-assembler-x64.cc',
-            'test-log-stack-tracer.cc'
+            'test-log-stack-tracer.cc',
+            'test-run-wasm-relocation-x64.cc'
           ],
         }],
         ['v8_target_arch=="arm"', {
@@ -221,7 +223,8 @@
             'test-code-stubs.cc',
             'test-code-stubs-arm.cc',
             'test-disasm-arm.cc',
-            'test-macro-assembler-arm.cc'
+            'test-macro-assembler-arm.cc',
+            'test-run-wasm-relocation-arm.cc'
           ],
         }],
         ['v8_target_arch=="arm64"', {
@@ -233,7 +236,22 @@
             'test-disasm-arm64.cc',
             'test-fuzz-arm64.cc',
             'test-javascript-arm64.cc',
-            'test-js-arm64-variables.cc'
+            'test-js-arm64-variables.cc',
+            'test-run-wasm-relocation-arm64.cc'
+          ],
+        }],
+        ['v8_target_arch=="s390"', {
+          'sources': [  ### gcmole(arch:s390) ###
+            'test-assembler-s390.cc',
+            'test-code-stubs.cc',
+            'test-disasm-s390.cc'
+          ],
+        }],
+        ['v8_target_arch=="s390x"', {
+          'sources': [  ### gcmole(arch:s390x) ###
+            'test-assembler-s390.cc',
+            'test-code-stubs.cc',
+            'test-disasm-s390.cc'
           ],
         }],
         ['v8_target_arch=="ppc"', {
@@ -275,7 +293,8 @@
             'test-code-stubs-x87.cc',
             'test-disasm-x87.cc',
             'test-macro-assembler-x87.cc',
-            'test-log-stack-tracer.cc'
+            'test-log-stack-tracer.cc',
+            'test-run-wasm-relocation-x87.cc'
           ],
         }],
         [ 'OS=="linux" or OS=="qnx"', {

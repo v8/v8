@@ -83,12 +83,6 @@
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
 
-  # Modules are busted
-  'harmony/module-linking': [SKIP],
-  'harmony/module-recompile': [SKIP],
-  'harmony/module-resolution': [SKIP],
-  'harmony/regress/regress-343928': [SKIP],
-
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
@@ -261,16 +255,9 @@
   'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
-  # BUG(v8:3838).
-  'regress/regress-3116': [PASS, ['isolates', FLAKY]],
-
   # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
   # prermanently enabled.
   'call-counts': [SKIP],
-
-  # BUG(chromium:508074). Remove this once the issue is fixed.
-  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
-  'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
@@ -283,7 +270,7 @@
 
   # TODO(titzer): correct WASM adapter frame alignment on arm64
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
-  'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
+  'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
   'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
@@ -477,7 +464,6 @@
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
-  'harmony/symbols': [SKIP],
   'math-floor-of-div': [PASS, TIMEOUT],
   'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
   'unicodelctest': [PASS, TIMEOUT],
@@ -681,7 +667,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786
@@ -718,8 +703,17 @@
 
   # Crashes.
   'harmony/private': [SKIP],
-  'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+##############################################################################
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug-liveedit-check-stack': [SKIP],
+  'debug-liveedit-stack-padding': [SKIP],
+  'debug-liveedit-restart-frame': [SKIP],
+  'debug-liveedit-double-call': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['deopt_fuzzer == True', {
@@ -767,7 +761,9 @@
   'harmony/debug-stepin-proxies': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
-  'regress/regress-crbug-568477-2': [FAIL],
+
+  # TODO(yangguo,4690): flaky failures on the bots.
+  'debug-stepin-builtin-callback-opt': [SKIP],
 
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
@@ -813,7 +809,18 @@
   # TODO(mythria, 4680): possibly problem with line numbers.
   'es6/regress/regress-468661': [FAIL],
 
+  # Debugger test cases that pass with ignition, but not full-codegen.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction-no-ignition': [FAIL],
 }],  # ignition == True
+
+['ignition == True and system == windows', {
+  # TODO(rmcilroy,4680): Crash on windows nosnap shared.
+  'regress/regress-crbug-352058': [PASS, ['no_snap == True', SKIP]],
+
+  # TODO(rmcilroy,4680): Fails on win32 debug.
+  'div-mod': [PASS, ['arch == ia32', SKIP]],
+}],  # ignition == True and system == windows
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific timeouts.
@@ -828,6 +835,51 @@
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
 }],  # ignition == True and arch == arm
+
+['ignition == True and msan', {
+  # TODO(rmcilroy,4680): Uninitialized memory.
+  'compiler/osr-big': [SKIP],
+  'compiler/osr-nested': [SKIP],
+  'debug-*': [SKIP],
+  'es6/debug-*': [SKIP],
+  'ignition/debug-break': [SKIP],
+  'ignition/debug-break-on-stack': [SKIP],
+  'ignition/debug-scope-on-return': [SKIP],
+  'ignition/elided-instruction': [SKIP],
+  'regress/debug-prepare-step-in': [SKIP],
+  'regress/regress-102153': [SKIP],
+  'regress/regress-109195': [SKIP],
+  'regress/regress-147497': [SKIP],
+  'regress/regress-1523': [SKIP],
+  'regress/regress-1586': [SKIP],
+  'regress/regress-1639': [SKIP],
+  'regress/regress-1639-2': [SKIP],
+  'regress/regress-269': [SKIP],
+  'regress/regress-2825': [SKIP],
+  'regress/regress-298269': [SKIP],
+  'regress/regress-3960': [SKIP],
+  'regress/regress-4320': [SKIP],
+  'regress/regress-94873': [SKIP],
+  'regress/regress-998565': [SKIP],
+  'regress/regress-crbug-319860': [SKIP],
+  'regress/regress-crbug-387599': [SKIP],
+  'regress/regress-crbug-405922': [SKIP],
+  'regress/regress-crbug-409614': [SKIP],
+  'regress/regress-crbug-432493': [SKIP],
+  'regress/regress-crbug-467180': [SKIP],
+  'regress/regress-crbug-568477-2': [SKIP],
+  'regress/regress-crbug-481896': [SKIP],
+  'regress/regress-crbug-568477-4': [SKIP],
+  'regress/regress-debug-deopt-while-recompile': [SKIP],
+  'regress/regress-deep-proto': [SKIP],
+  'try': [SKIP],
+}],  # ignition == True and msan
+
+['ignition == False', {
+  # Debugger test cases that pass with full-codegen, but not ignition.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction': [FAIL],
+}],  # ignition == False
 
 ##############################################################################
 ['gcov_coverage', {

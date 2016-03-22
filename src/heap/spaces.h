@@ -27,6 +27,7 @@ class FreeList;
 class Isolate;
 class MemoryAllocator;
 class MemoryChunk;
+class Page;
 class PagedSpace;
 class SemiSpace;
 class SkipList;
@@ -201,6 +202,8 @@ class Bitmap {
 
   static inline void Clear(MemoryChunk* chunk);
 
+  static inline void SetAllBits(MemoryChunk* chunk);
+
   static void PrintWord(uint32_t word, uint32_t himask = 0) {
     for (uint32_t mask = 1; mask != 0; mask <<= 1) {
       if ((mask & himask) != 0) PrintF("[");
@@ -285,6 +288,113 @@ class Bitmap {
   }
 };
 
+enum FreeListCategoryType {
+  kTiniest,
+  kTiny,
+  kSmall,
+  kMedium,
+  kLarge,
+  kHuge,
+
+  kFirstCategory = kTiniest,
+  kLastCategory = kHuge,
+  kNumberOfCategories = kLastCategory + 1,
+  kInvalidCategory
+};
+
+enum FreeMode { kLinkCategory, kDoNotLinkCategory };
+
+// A free list category maintains a linked list of free memory blocks.
+class FreeListCategory {
+ public:
+  static const int kSize = kIntSize +      // FreeListCategoryType type_
+                           kIntSize +      // int available_
+                           kPointerSize +  // FreeSpace* top_
+                           kPointerSize +  // FreeListCategory* prev_
+                           kPointerSize;   // FreeListCategory* next_
+
+  FreeListCategory()
+      : type_(kInvalidCategory),
+        available_(0),
+        top_(nullptr),
+        prev_(nullptr),
+        next_(nullptr) {}
+
+  void Initialize(FreeListCategoryType type) {
+    type_ = type;
+    available_ = 0;
+    top_ = nullptr;
+    prev_ = nullptr;
+    next_ = nullptr;
+  }
+
+  void Invalidate();
+
+  void Reset();
+
+  void ResetStats() { Reset(); }
+
+  void RepairFreeList(Heap* heap);
+
+  // Relinks the category into the currently owning free list. Requires that the
+  // category is currently unlinked.
+  void Relink();
+
+  bool Free(FreeSpace* node, int size_in_bytes, FreeMode mode);
+
+  // Picks a node from the list and stores its size in |node_size|. Returns
+  // nullptr if the category is empty.
+  FreeSpace* PickNodeFromList(int* node_size);
+
+  // Performs a single try to pick a node of at least |minimum_size| from the
+  // category. Stores the actual size in |node_size|. Returns nullptr if no
+  // node is found.
+  FreeSpace* TryPickNodeFromList(int minimum_size, int* node_size);
+
+  // Picks a node of at least |minimum_size| from the category. Stores the
+  // actual size in |node_size|. Returns nullptr if no node is found.
+  FreeSpace* SearchForNodeInList(int minimum_size, int* node_size);
+
+  inline FreeList* owner();
+  inline bool is_linked();
+  bool is_empty() { return top() == nullptr; }
+  int available() const { return available_; }
+
+#ifdef DEBUG
+  intptr_t SumFreeList();
+  int FreeListLength();
+#endif
+
+ private:
+  // For debug builds we accurately compute free lists lengths up until
+  // {kVeryLongFreeList} by manually walking the list.
+  static const int kVeryLongFreeList = 500;
+
+  inline Page* page();
+
+  FreeSpace* top() { return top_; }
+  void set_top(FreeSpace* top) { top_ = top; }
+  FreeListCategory* prev() { return prev_; }
+  void set_prev(FreeListCategory* prev) { prev_ = prev; }
+  FreeListCategory* next() { return next_; }
+  void set_next(FreeListCategory* next) { next_ = next; }
+
+  // |type_|: The type of this free list category.
+  FreeListCategoryType type_;
+
+  // |available_|: Total available bytes in all blocks of this free list
+  // category.
+  int available_;
+
+  // |top_|: Points to the top FreeSpace* in the free list category.
+  FreeSpace* top_;
+
+  FreeListCategory* prev_;
+  FreeListCategory* next_;
+
+  friend class FreeList;
+  friend class PagedSpace;
+};
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -307,6 +417,11 @@ class MemoryChunk {
     // Even if the mutator writes to them they will be kept black and a white
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
+
+    // A black page has all mark bits set to 1 (black). A black page currently
+    // cannot be iterated because it is not swept. Moreover live bytes are also
+    // not updated.
+    BLACK_PAGE,
 
     // This flag is intended to be used for testing. Works only when both
     // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
@@ -390,7 +505,9 @@ class MemoryChunk {
       + kPointerSize      // base::AtomicWord concurrent_sweeping_
       + 2 * kPointerSize  // AtomicNumber free-list statistics
       + kPointerSize      // AtomicValue next_chunk_
-      + kPointerSize;     // AtomicValue prev_chunk_
+      + kPointerSize      // AtomicValue prev_chunk_
+      // FreeListCategory categories_[kNumberOfCategories]
+      + FreeListCategory::kSize * kNumberOfCategories;
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -409,6 +526,12 @@ class MemoryChunk {
       (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
 
   static const int kFlagsOffset = kPointerSize;
+
+  // Page size in bytes.  This must be a multiple of the OS page size.
+  static const int kPageSize = 1 << kPageSizeBits;
+  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
+
+  static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
   static inline void IncrementLiveBytesFromMutator(HeapObject* object, int by);
   static inline void IncrementLiveBytesFromGC(HeapObject* object, int by);
@@ -459,11 +582,13 @@ class MemoryChunk {
   inline void IncrementLiveBytes(int by);
 
   int LiveBytes() {
-    DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
+    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
+    DCHECK(!IsFlagSet(BLACK_PAGE) || live_byte_count_ == 0);
     return live_byte_count_;
   }
 
   void SetLiveBytes(int live_bytes) {
+    if (IsFlagSet(BLACK_PAGE)) return;
     DCHECK_GE(live_bytes, 0);
     DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
@@ -566,19 +691,6 @@ class MemoryChunk {
 
   bool CanAllocate() {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
-  }
-
-  void MarkEvacuationCandidate() {
-    DCHECK(!IsFlagSet(NEVER_EVACUATE));
-    DCHECK_NULL(old_to_old_slots_);
-    DCHECK_NULL(typed_old_to_old_slots_);
-    SetFlag(EVACUATION_CANDIDATE);
-  }
-
-  void ClearEvacuationCandidate() {
-    DCHECK_NULL(old_to_old_slots_);
-    DCHECK_NULL(typed_old_to_old_slots_);
-    ClearFlag(EVACUATION_CANDIDATE);
   }
 
   bool ShouldSkipEvacuationSlotRecording() {
@@ -690,24 +802,13 @@ class MemoryChunk {
   // prev_chunk_ holds a pointer of type MemoryChunk
   AtomicValue<MemoryChunk*> prev_chunk_;
 
+  FreeListCategory categories_[kNumberOfCategories];
+
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
 
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
-};
-
-enum FreeListCategoryType {
-  kTiniest,
-  kTiny,
-  kSmall,
-  kMedium,
-  kLarge,
-  kHuge,
-
-  kFirstCategory = kTiniest,
-  kLastCategory = kHuge,
-  kNumberOfCategories = kLastCategory + 1
 };
 
 // -----------------------------------------------------------------------------
@@ -769,9 +870,6 @@ class Page : public MemoryChunk {
 
   // ---------------------------------------------------------------------
 
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = 1 << kPageSizeBits;
-
   // Maximum object size that gets allocated into regular pages. Objects larger
   // than that size are allocated in large object space and are never moved in
   // memory. This also applies to new space allocation, since objects are never
@@ -780,11 +878,6 @@ class Page : public MemoryChunk {
   // TODO(hpayer): This limit should be way smaller but we currently have
   // short living objects >256K.
   static const int kMaxRegularHeapObjectSize = 600 * KB;
-
-  static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
-
-  // Page size mask.
-  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
   inline void ClearGCFields();
 
@@ -813,6 +906,17 @@ class Page : public MemoryChunk {
                             available_in_free_list());
   }
 
+  template <typename Callback>
+  inline void ForAllFreeListCategories(Callback callback) {
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+      callback(&categories_[i]);
+    }
+  }
+
+  FreeListCategory* free_list_category(FreeListCategoryType type) {
+    return &categories_[type];
+  }
+
 #define FRAGMENTATION_STATS_ACCESSORS(type, name)        \
   type name() { return name##_.Value(); }                \
   void set_##name(type name) { name##_.SetValue(name); } \
@@ -826,6 +930,13 @@ class Page : public MemoryChunk {
 #ifdef DEBUG
   void Print();
 #endif  // DEBUG
+
+  inline void MarkNeverAllocateForTesting();
+  inline void MarkEvacuationCandidate();
+  inline void ClearEvacuationCandidate();
+
+ private:
+  inline void InitializeFreeListCategories();
 
   friend class MemoryAllocator;
 };
@@ -1089,7 +1200,14 @@ class SkipList {
     int start_region = RegionNumber(addr);
     int end_region = RegionNumber(addr + size - kPointerSize);
     for (int idx = start_region; idx <= end_region; idx++) {
-      if (starts_[idx] > addr) starts_[idx] = addr;
+      if (starts_[idx] > addr) {
+        starts_[idx] = addr;
+      } else {
+        // In the first region, there may already be an object closer to the
+        // start of the region. Do not change the start in that case. If this
+        // is not the first region, you probably added overlapping objects.
+        DCHECK_EQ(start_region, idx);
+      }
     }
   }
 
@@ -1466,12 +1584,6 @@ class AllocationStats BASE_EMBEDDED {
 
   void ClearSize() { size_ = capacity_; }
 
-  // Reset the allocation statistics (i.e., available = capacity with no wasted
-  // or allocated bytes).
-  void Reset() {
-    size_ = 0;
-  }
-
   // Accessors for the allocation statistics.
   intptr_t Capacity() { return capacity_; }
   intptr_t MaxCapacity() { return max_capacity_; }
@@ -1498,13 +1610,13 @@ class AllocationStats BASE_EMBEDDED {
   void ShrinkSpace(int size_in_bytes) {
     capacity_ -= size_in_bytes;
     size_ -= size_in_bytes;
-    CHECK(size_ >= 0);
+    CHECK_GE(size_, 0);
   }
 
   // Allocate from available bytes (available -> size).
   void AllocateBytes(intptr_t size_in_bytes) {
     size_ += size_in_bytes;
-    CHECK(size_ >= 0);
+    CHECK_GE(size_, 0);
   }
 
   // Free allocated bytes, making them available (size -> available).
@@ -1541,80 +1653,6 @@ class AllocationStats BASE_EMBEDDED {
 
   // |size_|: The number of allocated bytes.
   intptr_t size_;
-};
-
-
-// A free list category maintains a linked list of free memory blocks.
-class FreeListCategory {
- public:
-  FreeListCategory() : top_(nullptr), end_(nullptr), available_(0) {}
-
-  void Initialize(FreeList* owner, FreeListCategoryType type) {
-    owner_ = owner;
-    type_ = type;
-  }
-
-  // Concatenates {category} into {this}.
-  //
-  // Note: Thread-safe.
-  intptr_t Concatenate(FreeListCategory* category);
-
-  void Reset();
-
-  void Free(FreeSpace* node, int size_in_bytes);
-
-  // Pick a node from the list.
-  FreeSpace* PickNodeFromList(int* node_size);
-
-  // Pick a node from the list and compare it against {size_in_bytes}. If the
-  // node's size is greater or equal return the node and null otherwise.
-  FreeSpace* PickNodeFromList(int size_in_bytes, int* node_size);
-
-  // Search for a node of size {size_in_bytes}.
-  FreeSpace* SearchForNodeInList(int size_in_bytes, int* node_size);
-
-  intptr_t EvictFreeListItemsInList(Page* p);
-  bool ContainsPageFreeListItemsInList(Page* p);
-
-  void RepairFreeList(Heap* heap);
-
-  bool IsEmpty() { return top() == nullptr; }
-
-  FreeList* owner() { return owner_; }
-  int available() const { return available_; }
-
-#ifdef DEBUG
-  intptr_t SumFreeList();
-  int FreeListLength();
-  bool IsVeryLong();
-#endif
-
- private:
-  // For debug builds we accurately compute free lists lengths up until
-  // {kVeryLongFreeList} by manually walking the list.
-  static const int kVeryLongFreeList = 500;
-
-  FreeSpace* top() { return top_.Value(); }
-  void set_top(FreeSpace* top) { top_.SetValue(top); }
-
-  FreeSpace* end() const { return end_; }
-  void set_end(FreeSpace* end) { end_ = end; }
-
-  // |type_|: The type of this free list category.
-  FreeListCategoryType type_;
-
-  // |top_|: Points to the top FreeSpace* in the free list category.
-  AtomicValue<FreeSpace*> top_;
-
-  // |end_|: Points to the end FreeSpace* in the free list category.
-  FreeSpace* end_;
-
-  // |available_|: Total available bytes in all blocks of this free list
-  //   category.
-  int available_;
-
-  // |owner_|: The owning free list of this category.
-  FreeList* owner_;
 };
 
 // A free list maintaining free blocks of memory. The free list is organized in
@@ -1661,19 +1699,13 @@ class FreeList {
 
   explicit FreeList(PagedSpace* owner);
 
-  // The method concatenates {other} into {this} and returns the added bytes,
-  // including waste.
-  //
-  // Note: Thread-safe.
-  intptr_t Concatenate(FreeList* other);
-
   // Adds a node on the free list. The block of size {size_in_bytes} starting
   // at {start} is placed on the free list. The return value is the number of
   // bytes that were not added to the free list, because they freed memory block
   // was too small. Bookkeeping information will be written to the block, i.e.,
   // its contents will be destroyed. The start address should be word aligned,
   // and the size should be a non-zero multiple of the word size.
-  int Free(Address start, int size_in_bytes);
+  int Free(Address start, int size_in_bytes, FreeMode mode);
 
   // Allocate a block of size {size_in_bytes} from the free list. The block is
   // unitialized. A failure is returned if no block is available. The size
@@ -1683,49 +1715,83 @@ class FreeList {
   // Clear the free list.
   void Reset();
 
-  void ResetStats() { wasted_bytes_ = 0; }
+  void ResetStats() {
+    wasted_bytes_.SetValue(0);
+    ForAllFreeListCategories(
+        [](FreeListCategory* category) { category->ResetStats(); });
+  }
 
   // Return the number of bytes available on the free list.
   intptr_t Available() {
     intptr_t available = 0;
-    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-      available += category_[i].available();
-    }
+    ForAllFreeListCategories([&available](FreeListCategory* category) {
+      available += category->available();
+    });
     return available;
   }
 
-  // The method tries to find a {FreeSpace} node of at least {size_in_bytes}
-  // size in the free list category exactly matching the size. If no suitable
-  // node could be found, the method falls back to retrieving a {FreeSpace}
-  // from the large or huge free list category.
-  //
-  // Can be used concurrently.
-  MUST_USE_RESULT FreeSpace* TryRemoveMemory(intptr_t hint_size_in_bytes);
-
   bool IsEmpty() {
-    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-      if (!category_[i].IsEmpty()) return false;
-    }
-    return true;
+    bool empty = true;
+    ForAllFreeListCategories([&empty](FreeListCategory* category) {
+      if (!category->is_empty()) empty = false;
+    });
+    return empty;
   }
 
   // Used after booting the VM.
   void RepairLists(Heap* heap);
 
-  intptr_t EvictFreeListItems(Page* p);
-  bool ContainsPageFreeListItems(Page* p);
+  intptr_t EvictFreeListItems(Page* page);
+  bool ContainsPageFreeListItems(Page* page);
 
   PagedSpace* owner() { return owner_; }
-  intptr_t wasted_bytes() { return wasted_bytes_; }
-  base::Mutex* mutex() { return &mutex_; }
+  intptr_t wasted_bytes() { return wasted_bytes_.Value(); }
+
+  template <typename Callback>
+  void ForAllFreeListCategories(FreeListCategoryType type, Callback callback) {
+    FreeListCategory* current = categories_[type];
+    while (current != nullptr) {
+      FreeListCategory* next = current->next();
+      callback(current);
+      current = next;
+    }
+  }
+
+  template <typename Callback>
+  void ForAllFreeListCategories(Callback callback) {
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+      ForAllFreeListCategories(static_cast<FreeListCategoryType>(i), callback);
+    }
+  }
+
+  bool AddCategory(FreeListCategory* category);
+  void RemoveCategory(FreeListCategory* category);
+  void PrintCategories(FreeListCategoryType type);
 
 #ifdef DEBUG
-  void Zap();
   intptr_t SumFreeLists();
   bool IsVeryLong();
 #endif
 
  private:
+  class FreeListCategoryIterator {
+   public:
+    FreeListCategoryIterator(FreeList* free_list, FreeListCategoryType type)
+        : current_(free_list->categories_[type]) {}
+
+    bool HasNext() { return current_ != nullptr; }
+
+    FreeListCategory* Next() {
+      DCHECK(HasNext());
+      FreeListCategory* tmp = current_;
+      current_ = current_->next();
+      return tmp;
+    }
+
+   private:
+    FreeListCategory* current_;
+  };
+
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kAllocatableMemory;
@@ -1741,11 +1807,19 @@ class FreeList {
   static const int kLargeAllocationMax = kMediumListMax;
 
   FreeSpace* FindNodeFor(int size_in_bytes, int* node_size);
-  FreeSpace* FindNodeIn(FreeListCategoryType category, int* node_size);
 
-  FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
-    return &category_[category];
-  }
+  // Walks all available categories for a given |type| and tries to retrieve
+  // a node. Returns nullptr if the category is empty.
+  FreeSpace* FindNodeIn(FreeListCategoryType type, int* node_size);
+
+  // Tries to retrieve a node from the first category in a given |type|.
+  // Returns nullptr if the category is empty.
+  FreeSpace* TryFindNodeIn(FreeListCategoryType type, int* node_size,
+                           int minimum_size);
+
+  // Searches a given |type| for a node of at least |minimum_size|.
+  FreeSpace* SearchForNodeInList(FreeListCategoryType type, int* node_size,
+                                 int minimum_size);
 
   FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
     if (size_in_bytes <= kTiniestListMax) {
@@ -1775,10 +1849,13 @@ class FreeList {
     return kHuge;
   }
 
+  FreeListCategory* top(FreeListCategoryType type) { return categories_[type]; }
+
   PagedSpace* owner_;
-  base::Mutex mutex_;
-  intptr_t wasted_bytes_;
-  FreeListCategory category_[kNumberOfCategories];
+  AtomicNumber<intptr_t> wasted_bytes_;
+  FreeListCategory* categories_[kNumberOfCategories];
+
+  friend class FreeListCategory;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
@@ -1880,7 +1957,6 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
-
 class PagedSpace : public Space {
  public:
   static const intptr_t kCompactionMemoryWanted = 500 * KB;
@@ -1937,11 +2013,6 @@ class PagedSpace : public Space {
     ResetFreeListStatistics();
   }
 
-  // Increases the number of available bytes of that space.
-  void AddToAccountingStats(intptr_t bytes) {
-    accounting_stats_.DeallocateBytes(bytes);
-  }
-
   // Available bytes without growing.  These are the bytes on the free list.
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
@@ -1974,10 +2045,13 @@ class PagedSpace : public Space {
     return allocation_info_.limit_address();
   }
 
+  enum UpdateSkipList { UPDATE_SKIP_LIST, IGNORE_SKIP_LIST };
+
   // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
+  // failure object if not. Only use IGNORE_SKIP_LIST if the skip list is going
+  // to be manually updated later.
   MUST_USE_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes);
+      int size_in_bytes, UpdateSkipList update_skip_list = UPDATE_SKIP_LIST);
 
   MUST_USE_RESULT inline AllocationResult AllocateRawUnalignedSynchronized(
       int size_in_bytes);
@@ -1997,8 +2071,13 @@ class PagedSpace : public Space {
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
   int Free(Address start, int size_in_bytes) {
-    int wasted = free_list_.Free(start, size_in_bytes);
+    int wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
     accounting_stats_.DeallocateBytes(size_in_bytes);
+    return size_in_bytes - wasted;
+  }
+
+  int UnaccountedFree(Address start, int size_in_bytes) {
+    int wasted = free_list_.Free(start, size_in_bytes, kDoNotLinkCategory);
     return size_in_bytes - wasted;
   }
 
@@ -2026,7 +2105,7 @@ class PagedSpace : public Space {
   void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page, bool evict_free_list_items);
+  void ReleasePage(Page* page);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -2082,16 +2161,17 @@ class PagedSpace : public Space {
   // sweeper.
   virtual void RefillFreeList();
 
+  FreeList* free_list() { return &free_list_; }
+
+  base::Mutex* mutex() { return &space_mutex_; }
+
+  inline void UnlinkFreeListCategories(Page* page);
+  inline intptr_t RelinkFreeListCategories(Page* page);
+
  protected:
-  void AddMemory(Address start, intptr_t size);
-
-  void MoveOverFreeMemory(PagedSpace* other);
-
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
   virtual bool snapshotable() { return true; }
-
-  FreeList* free_list() { return &free_list_; }
 
   bool HasPages() { return anchor_.next_page() != &anchor_; }
 
@@ -2140,6 +2220,7 @@ class PagedSpace : public Space {
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
+  friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class PageIterator;
 
@@ -2188,30 +2269,6 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 
 class NewSpacePage : public MemoryChunk {
  public:
-  // GC related flags copied from from-space to to-space when
-  // flipping semispaces.
-  static const intptr_t kCopyOnFlipFlagsMask =
-      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  static const int kAreaSize = Page::kAllocatableMemory;
-
-  inline NewSpacePage* next_page() {
-    return static_cast<NewSpacePage*>(next_chunk());
-  }
-
-  inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
-
-  inline NewSpacePage* prev_page() {
-    return static_cast<NewSpacePage*>(prev_chunk());
-  }
-
-  inline void set_prev_page(NewSpacePage* page) { set_prev_chunk(page); }
-
-  SemiSpace* semi_space() { return reinterpret_cast<SemiSpace*>(owner()); }
-
-  bool is_anchor() { return !this->InNewSpace(); }
-
   static bool IsAtStart(Address addr) {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) ==
            kObjectStartOffset;
@@ -2220,8 +2277,6 @@ class NewSpacePage : public MemoryChunk {
   static bool IsAtEnd(Address addr) {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) == 0;
   }
-
-  Address address() { return reinterpret_cast<Address>(this); }
 
   // Finds the NewSpacePage containing the given address.
   static inline NewSpacePage* FromAddress(Address address_in_page) {
@@ -2244,7 +2299,29 @@ class NewSpacePage : public MemoryChunk {
            NewSpacePage::FromAddress(address2);
   }
 
+  inline NewSpacePage* next_page() {
+    return static_cast<NewSpacePage*>(next_chunk());
+  }
+
+  inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
+
+  inline NewSpacePage* prev_page() {
+    return static_cast<NewSpacePage*>(prev_chunk());
+  }
+
+  inline void set_prev_page(NewSpacePage* page) { set_prev_chunk(page); }
+
+  SemiSpace* semi_space() { return reinterpret_cast<SemiSpace*>(owner()); }
+
+  bool is_anchor() { return !this->InNewSpace(); }
+
  private:
+  // GC related flags copied from from-space to to-space when
+  // flipping semispaces.
+  static const intptr_t kCopyOnFlipFlagsMask =
+      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+
   // Create a NewSpacePage object that is only used as anchor
   // for the doubly-linked list of real pages.
   explicit NewSpacePage(SemiSpace* owner) { InitializeAsAnchor(owner); }
@@ -2521,7 +2598,7 @@ class NewSpace : public Space {
 
   // Return the allocated bytes in the active semispace.
   intptr_t Size() override {
-    return pages_used_ * NewSpacePage::kAreaSize +
+    return pages_used_ * NewSpacePage::kAllocatableMemory +
            static_cast<int>(top() - to_space_.page_low());
   }
 
@@ -2534,7 +2611,7 @@ class NewSpace : public Space {
   intptr_t Capacity() {
     SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
     return (to_space_.current_capacity() / Page::kPageSize) *
-           NewSpacePage::kAreaSize;
+           NewSpacePage::kAllocatableMemory;
   }
 
   // Return the current size of a semispace, allocatable and non-allocatable
@@ -2788,8 +2865,6 @@ class CompactionSpace : public PagedSpace {
       : PagedSpace(heap, id, executable) {}
 
   bool is_local() override { return true; }
-
-  void RefillFreeList() override;
 
  protected:
   // The space is temporary and not included in any snapshots.

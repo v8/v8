@@ -36,11 +36,13 @@ void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache)
+Scanner::Scanner(UnicodeCache* unicode_cache, bool allow_html_comments)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
-      found_html_comment_(false) {
+      allow_html_comments_(allow_html_comments),
+      found_html_comment_(false),
+      allow_harmony_exponentiation_operator_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
   bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
   bookmark_next_.literal_chars = &bookmark_next_literal_;
@@ -483,7 +485,7 @@ void Scanner::Scan() {
           token = Select(Token::LTE);
         } else if (c0_ == '<') {
           token = Select('=', Token::ASSIGN_SHL, Token::SHL);
-        } else if (c0_ == '!') {
+        } else if (c0_ == '!' && allow_html_comments_) {
           token = ScanHtmlComment();
         } else {
           token = Token::LT;
@@ -565,7 +567,14 @@ void Scanner::Scan() {
 
       case '*':
         // * *=
-        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
+        Advance();
+        if (c0_ == '*' && allow_harmony_exponentiation_operator()) {
+          token = Select('=', Token::ASSIGN_EXP, Token::EXP);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_MUL);
+        } else {
+          token = Token::MUL;
+        }
         break;
 
       case '%':

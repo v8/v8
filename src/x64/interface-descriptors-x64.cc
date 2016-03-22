@@ -114,36 +114,8 @@ void TypeofDescriptor::InitializePlatformSpecific(
 }
 
 
-void ToNumberDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // ToNumberStub invokes a function, and therefore needs a context.
-  Register registers[] = {rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 // static
-const Register ToLengthDescriptor::ReceiverRegister() { return rax; }
-
-
-// static
-const Register ToStringDescriptor::ReceiverRegister() { return rax; }
-
-
-// static
-const Register ToNameDescriptor::ReceiverRegister() { return rax; }
-
-
-// static
-const Register ToObjectDescriptor::ReceiverRegister() { return rax; }
-
-
-void NumberToStringDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
+const Register TypeConversionDescriptor::ArgumentRegister() { return rax; }
 
 void FastCloneRegExpDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -311,13 +283,6 @@ void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
 void CompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdx, rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void ToBooleanDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

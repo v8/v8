@@ -690,28 +690,32 @@ HConstant* HGraph::GetConstantBool(bool value) {
   return value ? GetConstantTrue() : GetConstantFalse();
 }
 
-#define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value,         \
-                            undetectable)                                   \
-  HConstant* HGraph::GetConstant##Name() {                                  \
-    if (!constant_##name##_.is_set()) {                                     \
-      HConstant* constant = new (zone()) HConstant(                         \
-          Unique<Object>::CreateImmovable(                                  \
-              isolate()->factory()->name##_value()),                        \
-          Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()), \
-          false, Representation::Tagged(), htype, true, boolean_value,      \
-          undetectable, ODDBALL_TYPE);                                      \
-      constant->InsertAfter(entry_block()->first());                        \
-      constant_##name##_.set(constant);                                     \
-    }                                                                       \
-    return ReinsertConstantIfNecessary(constant_##name##_.get());           \
+#define DEFINE_GET_CONSTANT(Name, name, constant, type, htype, boolean_value, \
+                            undetectable)                                     \
+  HConstant* HGraph::GetConstant##Name() {                                    \
+    if (!constant_##name##_.is_set()) {                                       \
+      HConstant* constant = new (zone()) HConstant(                           \
+          Unique<Object>::CreateImmovable(isolate()->factory()->constant()),  \
+          Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()),   \
+          false, Representation::Tagged(), htype, true, boolean_value,        \
+          undetectable, ODDBALL_TYPE);                                        \
+      constant->InsertAfter(entry_block()->first());                          \
+      constant_##name##_.set(constant);                                       \
+    }                                                                         \
+    return ReinsertConstantIfNecessary(constant_##name##_.get());             \
   }
 
-DEFINE_GET_CONSTANT(Undefined, undefined, undefined, HType::Undefined(), false,
-                    true)
-DEFINE_GET_CONSTANT(True, true, boolean, HType::Boolean(), true, false)
-DEFINE_GET_CONSTANT(False, false, boolean, HType::Boolean(), false, false)
-DEFINE_GET_CONSTANT(Hole, the_hole, the_hole, HType::None(), false, false)
-DEFINE_GET_CONSTANT(Null, null, null, HType::Null(), false, true)
+DEFINE_GET_CONSTANT(Undefined, undefined, undefined_value, undefined,
+                    HType::Undefined(), false, true)
+DEFINE_GET_CONSTANT(True, true, true_value, boolean, HType::Boolean(), true,
+                    false)
+DEFINE_GET_CONSTANT(False, false, false_value, boolean, HType::Boolean(), false,
+                    false)
+DEFINE_GET_CONSTANT(Hole, the_hole, the_hole_value, the_hole, HType::None(),
+                    false, false)
+DEFINE_GET_CONSTANT(Null, null, null_value, null, HType::Null(), false, true)
+DEFINE_GET_CONSTANT(OptimizedOut, optimized_out, optimized_out, optimized_out,
+                    HType::None(), false, false)
 
 #undef DEFINE_GET_CONSTANT
 
@@ -4769,23 +4773,24 @@ void HOptimizedGraphBuilder::VisitIfStatement(IfStatement* stmt) {
     HBasicBlock* cond_false = graph()->CreateBasicBlock();
     CHECK_BAILOUT(VisitForControl(stmt->condition(), cond_true, cond_false));
 
-    if (cond_true->HasPredecessor()) {
-      cond_true->SetJoinId(stmt->ThenId());
-      set_current_block(cond_true);
-      CHECK_BAILOUT(Visit(stmt->then_statement()));
-      cond_true = current_block();
-    } else {
-      cond_true = NULL;
-    }
+    // Technically, we should be able to handle the case when one side of
+    // the test is not connected, but this can trip up liveness analysis
+    // if we did not fully connect the test context based on some optimistic
+    // assumption. If such an assumption was violated, we would end up with
+    // an environment with optimized-out values. So we should always
+    // conservatively connect the test context.
+    CHECK(cond_true->HasPredecessor());
+    CHECK(cond_false->HasPredecessor());
 
-    if (cond_false->HasPredecessor()) {
-      cond_false->SetJoinId(stmt->ElseId());
-      set_current_block(cond_false);
-      CHECK_BAILOUT(Visit(stmt->else_statement()));
-      cond_false = current_block();
-    } else {
-      cond_false = NULL;
-    }
+    cond_true->SetJoinId(stmt->ThenId());
+    set_current_block(cond_true);
+    CHECK_BAILOUT(Visit(stmt->then_statement()));
+    cond_true = current_block();
+
+    cond_false->SetJoinId(stmt->ElseId());
+    set_current_block(cond_false);
+    CHECK_BAILOUT(Visit(stmt->else_statement()));
+    cond_false = current_block();
 
     HBasicBlock* join = CreateJoin(cond_true, cond_false, stmt->IfId());
     set_current_block(join);
@@ -4924,9 +4929,8 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     // will always evaluate to true, in a value context the return value needs
     // to be a JSObject.
     if (context->IsTest()) {
-      TestContext* test = TestContext::cast(context);
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      Goto(test->if_true(), state);
+      context->ReturnValue(graph()->GetConstantTrue());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
       Goto(function_return(), state);
@@ -8564,7 +8568,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       // return value will always evaluate to true, in a value context the
       // return value is the newly allocated receiver.
       if (call_context()->IsTest()) {
-        Goto(inlined_test_context()->if_true(), state);
+        inlined_test_context()->ReturnValue(graph()->GetConstantTrue());
       } else if (call_context()->IsEffect()) {
         Goto(function_return(), state);
       } else {
@@ -8587,7 +8591,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
       // Falling off the end of a normal inlined function. This basically means
       // returning undefined.
       if (call_context()->IsTest()) {
-        Goto(inlined_test_context()->if_false(), state);
+        inlined_test_context()->ReturnValue(graph()->GetConstantFalse());
       } else if (call_context()->IsEffect()) {
         Goto(function_return(), state);
       } else {
@@ -10477,7 +10481,28 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   if (expr->is_jsruntime()) {
-    return Bailout(kCallToAJavaScriptRuntimeFunction);
+    // Crankshaft always specializes to the native context, so we can just grab
+    // the constant function from the current native context and embed that into
+    // the code object.
+    Handle<JSFunction> known_function(
+        JSFunction::cast(
+            current_info()->native_context()->get(expr->context_index())),
+        isolate());
+
+    // The callee and the receiver both have to be pushed onto the operand stack
+    // before arguments are being evaluated.
+    HConstant* function = Add<HConstant>(known_function);
+    HValue* receiver = ImplicitReceiverFor(function, known_function);
+    Push(function);
+    Push(receiver);
+
+    int argument_count = expr->arguments()->length() + 1;  // Count receiver.
+    CHECK_ALIVE(VisitExpressions(expr->arguments()));
+    PushArgumentsFromEnvironment(argument_count);
+    HInstruction* call = NewCallConstantFunction(known_function, argument_count,
+                                                 TailCallMode::kDisallow);
+    Drop(1);  // Function
+    return ast_context()->ReturnInstruction(call, expr->id());
   }
 
   const Runtime::Function* function = expr->function();
@@ -11295,12 +11320,10 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
     // Translate right subexpression by visiting it in the same AST
     // context as the entire expression.
-    if (eval_right->HasPredecessor()) {
-      eval_right->SetJoinId(expr->RightId());
-      set_current_block(eval_right);
-      Visit(expr->right());
-    }
-
+    CHECK(eval_right->HasPredecessor());
+    eval_right->SetJoinId(expr->RightId());
+    set_current_block(eval_right);
+    Visit(expr->right());
   } else if (ast_context()->IsValue()) {
     CHECK_ALIVE(VisitForValue(expr->left()));
     DCHECK(current_block() != NULL);
@@ -11356,20 +11379,22 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // second one is not a merge node, and that we really have no good AST ID to
     // put on that first HSimulate.
 
-    if (empty_block->HasPredecessor()) {
-      empty_block->SetJoinId(expr->id());
-    } else {
-      empty_block = NULL;
-    }
+    // Technically, we should be able to handle the case when one side of
+    // the test is not connected, but this can trip up liveness analysis
+    // if we did not fully connect the test context based on some optimistic
+    // assumption. If such an assumption was violated, we would end up with
+    // an environment with optimized-out values. So we should always
+    // conservatively connect the test context.
 
-    if (right_block->HasPredecessor()) {
-      right_block->SetJoinId(expr->RightId());
-      set_current_block(right_block);
-      CHECK_BAILOUT(VisitForEffect(expr->right()));
-      right_block = current_block();
-    } else {
-      right_block = NULL;
-    }
+    CHECK(right_block->HasPredecessor());
+    CHECK(empty_block->HasPredecessor());
+
+    empty_block->SetJoinId(expr->id());
+
+    right_block->SetJoinId(expr->RightId());
+    set_current_block(right_block);
+    CHECK_BAILOUT(VisitForEffect(expr->right()));
+    right_block = current_block();
 
     HBasicBlock* join_block =
       CreateJoin(empty_block, right_block, expr->id());
@@ -11438,7 +11463,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
     return HandleLiteralCompareTypeof(expr, sub_expr, check);
   }
-  if (expr->IsLiteralCompareUndefined(&sub_expr, isolate())) {
+  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     return HandleLiteralCompareNil(expr, sub_expr, kUndefinedValue);
   }
   if (expr->IsLiteralCompareNull(&sub_expr)) {
@@ -12861,6 +12886,12 @@ void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
   return ast_context()->ReturnValue(value);
 }
 
+void HOptimizedGraphBuilder::GenerateGetOrdinaryHasInstance(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 0);
+  // ordinary_has_instance is immutable so we can treat it as a constant.
+  HValue* value = Add<HConstant>(isolate()->ordinary_has_instance());
+  return ast_context()->ReturnValue(value);
+}
 
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE

@@ -29,7 +29,9 @@ namespace compiler {
 class Int64LoweringTest : public GraphTest {
  public:
   Int64LoweringTest()
-      : GraphTest(), machine_(zone(), MachineRepresentation::kWord32) {
+      : GraphTest(),
+        machine_(zone(), MachineRepresentation::kWord32,
+                 MachineOperatorBuilder::Flag::kAllOptionalOps) {
     value_[0] = 0x1234567890abcdef;
     value_[1] = 0x1edcba098765432f;
     value_[2] = 0x1133557799886644;
@@ -302,7 +304,38 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 // todo(ahaas): I added a list of missing instructions here to make merging
 // easier when I do them one by one.
 // kExprI64Add:
+TEST_F(Int64LoweringTest, Int64Add) {
+  LowerGraph(graph()->NewNode(machine()->Int64Add(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> add;
+  Matcher<Node*> add_matcher = IsInt32PairAdd(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)), IsInt32Constant(high_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&add), add_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&add), add_matcher)),
+                        start(), start()));
+}
 // kExprI64Sub:
+TEST_F(Int64LoweringTest, Int64Sub) {
+  LowerGraph(graph()->NewNode(machine()->Int64Sub(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> sub;
+  Matcher<Node*> sub_matcher = IsInt32PairSub(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)), IsInt32Constant(high_word_value(1)));
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsProjection(0, AllOf(CaptureEq(&sub), sub_matcher)),
+                        IsProjection(1, AllOf(CaptureEq(&sub), sub_matcher)),
+                        start(), start()));
+}
+
 // kExprI64Mul:
 // kExprI64DivS:
 // kExprI64DivU:
@@ -474,11 +507,141 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
                         start(), start()));
 }
 // kExprF64ReinterpretI64:
-// kExprI64ReinterpretF64:
+TEST_F(Int64LoweringTest, F64ReinterpretI64) {
+  LowerGraph(graph()->NewNode(machine()->BitcastInt64ToFloat64(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kFloat64);
 
+  Capture<Node*> stack_slot_capture;
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(MachineRepresentation::kWord64);
+
+  Capture<Node*> store_capture;
+  Matcher<Node*> store_matcher =
+      IsStore(StoreRepresentation(MachineRepresentation::kWord32,
+                                  WriteBarrierKind::kNoWriteBarrier),
+              AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+              IsInt32Constant(0), IsInt32Constant(low_word_value(0)),
+              IsStore(StoreRepresentation(MachineRepresentation::kWord32,
+                                          WriteBarrierKind::kNoWriteBarrier),
+                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+                      IsInt32Constant(4), IsInt32Constant(high_word_value(0)),
+                      start(), start()),
+              start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn(IsLoad(MachineType::Float64(),
+                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
+                      IsInt32Constant(0),
+                      AllOf(CaptureEq(&store_capture), store_matcher), start()),
+               start(), start()));
+}
+// kExprI64ReinterpretF64:
+TEST_F(Int64LoweringTest, I64ReinterpretF64) {
+  LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),
+                              Float64Constant(bit_cast<double>(value(0)))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> stack_slot;
+  Matcher<Node*> stack_slot_matcher =
+      IsStackSlot(MachineRepresentation::kWord64);
+
+  Capture<Node*> store;
+  Matcher<Node*> store_matcher = IsStore(
+      StoreRepresentation(MachineRepresentation::kFloat64,
+                          WriteBarrierKind::kNoWriteBarrier),
+      AllOf(CaptureEq(&stack_slot), stack_slot_matcher), IsInt32Constant(0),
+      IsFloat64Constant(bit_cast<double>(value(0))), start(), start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsLoad(MachineType::Int32(),
+                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
+                       IsInt32Constant(0),
+                       AllOf(CaptureEq(&store), store_matcher), start()),
+                IsLoad(MachineType::Int32(),
+                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
+                       IsInt32Constant(0x4),
+                       AllOf(CaptureEq(&store), store_matcher), start()),
+                start(), start()));
+}
 // kExprI64Clz:
+TEST_F(Int64LoweringTest, I64Clz) {
+  LowerGraph(graph()->NewNode(machine()->Word64Clz(), Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> branch_capture;
+  Matcher<Node*> branch_matcher = IsBranch(
+      IsWord32Equal(IsInt32Constant(high_word_value(0)), IsInt32Constant(0)),
+      start());
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsPhi(MachineRepresentation::kWord32,
+                IsInt32Add(IsWord32Clz(IsInt32Constant(low_word_value(0))),
+                           IsInt32Constant(32)),
+                IsWord32Clz(IsInt32Constant(high_word_value(0))),
+                IsMerge(
+                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
+                    IsIfFalse(
+                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
+          IsInt32Constant(0), start(), start()));
+}
 // kExprI64Ctz:
+TEST_F(Int64LoweringTest, I64Ctz) {
+  LowerGraph(graph()->NewNode(machine()->Word64CtzPlaceholder(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+  Capture<Node*> branch_capture;
+  Matcher<Node*> branch_matcher = IsBranch(
+      IsWord32Equal(IsInt32Constant(low_word_value(0)), IsInt32Constant(0)),
+      start());
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(
+          IsPhi(MachineRepresentation::kWord32,
+                IsInt32Add(IsWord32Ctz(IsInt32Constant(high_word_value(0))),
+                           IsInt32Constant(32)),
+                IsWord32Ctz(IsInt32Constant(low_word_value(0))),
+                IsMerge(
+                    IsIfTrue(AllOf(CaptureEq(&branch_capture), branch_matcher)),
+                    IsIfFalse(
+                        AllOf(CaptureEq(&branch_capture), branch_matcher)))),
+          IsInt32Constant(0), start(), start()));
+}
 // kExprI64Popcnt:
+
+TEST_F(Int64LoweringTest, Dfs) {
+  Node* common = Int64Constant(value(0));
+  LowerGraph(graph()->NewNode(machine()->Word64And(), common,
+                              graph()->NewNode(machine()->Word64And(), common,
+                                               Int64Constant(value(1)))),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsWord32And(IsInt32Constant(low_word_value(0)),
+                            IsWord32And(IsInt32Constant(low_word_value(0)),
+                                        IsInt32Constant(low_word_value(1)))),
+                IsWord32And(IsInt32Constant(high_word_value(0)),
+                            IsWord32And(IsInt32Constant(high_word_value(0)),
+                                        IsInt32Constant(high_word_value(1)))),
+                start(), start()));
+}
+
+TEST_F(Int64LoweringTest, I64Popcnt) {
+  LowerGraph(graph()->NewNode(machine()->Word64PopcntPlaceholder(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsInt32Add(IsWord32Popcnt(IsInt32Constant(low_word_value(0))),
+                           IsWord32Popcnt(IsInt32Constant(high_word_value(0)))),
+                IsInt32Constant(0), start(), start()));
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

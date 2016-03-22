@@ -27,12 +27,6 @@
 
 [
 [ALWAYS, {
-  ############################### BUGS ###################################
-
-  # BUG(v8:3455)
-  'intl402/11.2.3_b': [FAIL],
-  'intl402/12.2.3_b': [FAIL],
-
   ###################### NEEDS INVESTIGATION #######################
 
   # This is an incompatibility between ES5 and V8 on enumerating
@@ -109,10 +103,6 @@
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4504
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4305
   # SKIP rather than FAIL some tests, as they may check for an exception which
@@ -252,12 +242,10 @@
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
-  'intl402/DateTimeFormat/prototype/12.3.3': [FAIL],
   'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.1_a': [FAIL],
-  'intl402/NumberFormat/11.1.1': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
   'intl402/NumberFormat/11.1.2.1_4': [FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],
@@ -333,9 +321,6 @@
 }],  # system == linux
 
 ['system == macos', {
-  'intl402/11.3.2_TRP': [FAIL],
-  'intl402/9.2.5_11_g_ii_2': [FAIL],
-
   # BUG(v8:4437).
   'intl402/Collator/10.1.1_19_c': [SKIP],
   'intl402/Collator/9.2.5_11_g_ii_2': [SKIP],

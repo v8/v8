@@ -232,6 +232,8 @@ TEST(4) {
     double j;
     double m;
     double n;
+    float o;
+    float p;
     float x;
     float y;
   } T;
@@ -314,6 +316,12 @@ TEST(4) {
     __ vneg(d0, d1);
     __ vstr(d0, r4, offsetof(T, n));
 
+    // Test vmov for single-precision immediates.
+    __ vmov(s0, 0.25f);
+    __ vstr(s0, r4, offsetof(T, o));
+    __ vmov(s0, -16.0f);
+    __ vstr(s0, r4, offsetof(T, p));
+
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
@@ -341,6 +349,8 @@ TEST(4) {
     t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
+    CHECK_EQ(-16.0f, t.p);
+    CHECK_EQ(0.25f, t.o);
     CHECK_EQ(-123.456, t.n);
     CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);

@@ -277,7 +277,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineMathSqrt) {
 // -----------------------------------------------------------------------------
 // %_MathClz32
 
-
 TEST_F(JSIntrinsicLoweringTest, InlineMathClz32) {
   Node* const input = Parameter(0);
   Node* const context = Parameter(1);
@@ -332,6 +331,23 @@ TEST_F(JSIntrinsicLoweringTest, InlineValueOf) {
               IsIfTrue(AllOf(CaptureEq(&branch0),
                              IsBranch(IsObjectIsSmi(input), control))),
               AllOf(CaptureEq(&if_false0), IsIfFalse(CaptureEq(&branch0))))));
+}
+
+// -----------------------------------------------------------------------------
+// %_GetOrdinaryHasInstance
+
+TEST_F(JSIntrinsicLoweringTest, InlineGetOrdinaryHasInstance) {
+  Node* const context = Parameter(0);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kInlineGetOrdinaryHasInstance, 0),
+      context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsLoadContext(
+          ContextAccess(0, Context::ORDINARY_HAS_INSTANCE_INDEX, true), _));
 }
 
 }  // namespace compiler

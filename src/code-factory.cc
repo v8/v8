@@ -219,6 +219,18 @@ Callable CodeFactory::GreaterThanOrEqual(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::Equal(Isolate* isolate) {
+  EqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::NotEqual(Isolate* isolate) {
+  NotEqualStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::StrictEqual(Isolate* isolate) {
   StrictEqualStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

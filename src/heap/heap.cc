@@ -1158,7 +1158,9 @@ bool Heap::ReserveSpace(Reservation* reservations) {
           if (space == NEW_SPACE) {
             allocation = new_space()->AllocateRawUnaligned(size);
           } else {
-            allocation = paged_space(space)->AllocateRawUnaligned(size);
+            // The deserializer will update the skip list.
+            allocation = paged_space(space)->AllocateRawUnaligned(
+                size, PagedSpace::IGNORE_SKIP_LIST);
           }
           HeapObject* free_space = nullptr;
           if (allocation.To(&free_space)) {
@@ -1577,7 +1579,7 @@ void PromotionQueue::RelocateQueueHead() {
       Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
 
   int entries_count =
-      static_cast<int>(head_end - head_start) / kEntrySizeInWords;
+      static_cast<int>(head_end - head_start) / sizeof(struct Entry);
 
   emergency_stack_ = new List<Entry>(2 * entries_count);
 
@@ -1944,8 +1946,9 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     {
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
-        intptr_t size;
-        promotion_queue()->remove(&target, &size);
+        int32_t size;
+        bool was_marked_black;
+        promotion_queue()->remove(&target, &size, &was_marked_black);
 
         // Promoted object might be already partially visited
         // during old space pointer iteration. Thus we search specifically
@@ -1953,8 +1956,8 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
         // to new space.
         DCHECK(!target->IsMap());
 
-        IteratePointersToFromSpace(target, static_cast<int>(size),
-                                   &Scavenger::ScavengeObject);
+        IteratePromotedObject(target, static_cast<int>(size), was_marked_black,
+                              &Scavenger::ScavengeObject);
       }
     }
 
@@ -2328,6 +2331,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
@@ -2552,6 +2556,15 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
   TransitionArray* array = TransitionArray::cast(raw_array);
   array->set_length(capacity);
   MemsetPointer(array->data_start(), undefined_value(), capacity);
+  // Transition arrays are tenured. When black allocation is on we have to
+  // add the transition array to the list of encountered_transition_arrays.
+  if (incremental_marking()->black_allocation()) {
+    array->set_next_link(encountered_transition_arrays(),
+                         UPDATE_WEAK_WRITE_BARRIER);
+    set_encountered_transition_arrays(array);
+  } else {
+    array->set_next_link(undefined_value(), SKIP_WRITE_BARRIER);
+  }
   return array;
 }
 
@@ -2689,6 +2702,11 @@ void Heap::CreateInitialObjects() {
   set_exception(*factory->NewOddball(factory->exception_map(), "exception",
                                      handle(Smi::FromInt(-5), isolate()), false,
                                      "undefined", Oddball::kException));
+
+  set_optimized_out(
+      *factory->NewOddball(factory->optimized_out_map(), "optimized_out",
+                           handle(Smi::FromInt(-6), isolate()), false,
+                           "undefined", Oddball::kOptimizedOut));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
@@ -3332,7 +3350,6 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
 
   HeapObject* result = nullptr;
   if (!allocation.To(&result)) return allocation;
-
   if (immovable) {
     Address address = result->address();
     // Code objects which should stay at a fixed address are allocated either
@@ -3383,6 +3400,9 @@ AllocationResult Heap::CopyCode(Code* code) {
          isolate_->code_range()->contains(code->address()) ||
          obj_size <= code_space()->AreaSize());
   new_code->Relocate(new_addr - old_addr);
+  // We have to iterate over the object and process its pointers when black
+  // allocation is on.
+  incremental_marking()->IterateBlackObject(new_code);
   return new_code;
 }
 
@@ -3449,7 +3469,9 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
          new_obj_size <= code_space()->AreaSize());
 
   new_code->Relocate(new_addr - old_addr);
-
+  // We have to iterate over over the object and process its pointers when
+  // black allocation is on.
+  incremental_marking()->IterateBlackObject(new_code);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) code->ObjectVerify();
 #endif
@@ -4232,6 +4254,24 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   return false;
 }
 
+void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
+  // TODO(hpayer): We do not have to iterate reservations on black objects
+  // for marking. We just have to execute the special visiting side effect
+  // code that adds objects to global data structures, e.g. for array buffers.
+  if (incremental_marking()->black_allocation()) {
+    for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+      const Heap::Reservation& res = reservations[i];
+      for (auto& chunk : res) {
+        Address addr = chunk.start;
+        while (addr < chunk.end) {
+          HeapObject* obj = HeapObject::FromAddress(addr);
+          incremental_marking()->IterateBlackObject(obj);
+          addr += obj->Size();
+        }
+      }
+    }
+  }
+}
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
   GCIdleTimeHeapState heap_state;
@@ -4578,10 +4618,9 @@ void Heap::ZapFromSpace() {
   }
 }
 
-
-void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
-                                             Address end, bool record_slots,
-                                             ObjectSlotCallback callback) {
+void Heap::IteratePromotedObjectPointers(HeapObject* object, Address start,
+                                         Address end, bool record_slots,
+                                         ObjectSlotCallback callback) {
   Address slot_address = start;
   Page* page = Page::FromAddress(start);
 
@@ -4608,24 +4647,29 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
   }
 }
 
-
-class IteratePointersToFromSpaceVisitor final : public ObjectVisitor {
+class IteratePromotedObjectsVisitor final : public ObjectVisitor {
  public:
-  IteratePointersToFromSpaceVisitor(Heap* heap, HeapObject* target,
-                                    bool record_slots,
-                                    ObjectSlotCallback callback)
+  IteratePromotedObjectsVisitor(Heap* heap, HeapObject* target,
+                                bool record_slots, ObjectSlotCallback callback)
       : heap_(heap),
         target_(target),
         record_slots_(record_slots),
         callback_(callback) {}
 
   V8_INLINE void VisitPointers(Object** start, Object** end) override {
-    heap_->IterateAndMarkPointersToFromSpace(
+    heap_->IteratePromotedObjectPointers(
         target_, reinterpret_cast<Address>(start),
         reinterpret_cast<Address>(end), record_slots_, callback_);
   }
 
-  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {}
+  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {
+    // Black allocation requires us to process objects referenced by
+    // promoted objects.
+    if (heap_->incremental_marking()->black_allocation()) {
+      Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
+      IncrementalMarking::MarkObject(heap_, code);
+    }
+  }
 
  private:
   Heap* heap_;
@@ -4634,9 +4678,9 @@ class IteratePointersToFromSpaceVisitor final : public ObjectVisitor {
   ObjectSlotCallback callback_;
 };
 
-
-void Heap::IteratePointersToFromSpace(HeapObject* target, int size,
-                                      ObjectSlotCallback callback) {
+void Heap::IteratePromotedObject(HeapObject* target, int size,
+                                 bool was_marked_black,
+                                 ObjectSlotCallback callback) {
   // We are not collecting slots on new space objects during mutation
   // thus we have to scan for pointers to evacuation candidates when we
   // promote objects. But we should not record any slots in non-black
@@ -4649,9 +4693,21 @@ void Heap::IteratePointersToFromSpace(HeapObject* target, int size,
     record_slots = Marking::IsBlack(mark_bit);
   }
 
-  IteratePointersToFromSpaceVisitor visitor(this, target, record_slots,
-                                            callback);
+  IteratePromotedObjectsVisitor visitor(this, target, record_slots, callback);
   target->IterateBody(target->map()->instance_type(), size, &visitor);
+
+  // When black allocations is on, we have to visit not already marked black
+  // objects (in new space) promoted to black pages to keep their references
+  // alive.
+  // TODO(hpayer): Implement a special promotion visitor that incorporates
+  // regular visiting and IteratePromotedObjectPointers.
+  if (!was_marked_black) {
+    if (incremental_marking()->black_allocation()) {
+      Map* map = target->map();
+      IncrementalMarking::MarkObject(this, map);
+    }
+    incremental_marking()->IterateBlackObject(target);
+  }
 }
 
 
@@ -4683,6 +4739,10 @@ void Heap::IterateSmiRoots(ObjectVisitor* v) {
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
+  // The serializer/deserializer iterates the root list twice, first to pick
+  // off immortal immovable roots to make sure they end up on the first page,
+  // and then again for the rest.
+  if (mode == VISIT_ONLY_STRONG_ROOT_LIST) return;
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);
@@ -4711,7 +4771,11 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   // Iterate over global handles.
   switch (mode) {
+    case VISIT_ONLY_STRONG_ROOT_LIST:
+      UNREACHABLE();
+      break;
     case VISIT_ONLY_STRONG:
+    case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
@@ -4742,15 +4806,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
-  // Iterate over the pointers the Serialization/Deserialization code is
-  // holding.
-  // During garbage collection this keeps the partial snapshot cache alive.
-  // During deserialization of the startup snapshot this creates the partial
-  // snapshot cache and deserializes the objects it refers to.  During
-  // serialization this does nothing, since the partial snapshot cache is
-  // empty.  However the next thing we do is create the partial snapshot,
-  // filling up the partial snapshot cache with objects it needs as we go.
-  SerializerDeserializer::Iterate(isolate_, v);
+  // Iterate over the partial snapshot cache unless serializing.
+  if (mode != VISIT_ONLY_STRONG_FOR_SERIALIZATION) {
+    SerializerDeserializer::Iterate(isolate_, v);
+  }
   // We don't do a v->Synchronize call here, because in debug mode that will
   // output a flag to the snapshot.  However at this point the serializer and
   // deserializer are deliberately a little unsynchronized (see above) so the

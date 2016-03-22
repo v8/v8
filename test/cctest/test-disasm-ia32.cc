@@ -96,6 +96,7 @@ TEST(DisasmIa320) {
   __ nop();
   __ add(ebx, Immediate(12));
   __ nop();
+  __ adc(edx, Operand(ebx));
   __ adc(ecx, 12);
   __ adc(ecx, 1000);
   __ nop();

@@ -785,6 +785,31 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 }
 
 #if !V8_TARGET_ARCH_PPC64
+void VisitPairBinop(InstructionSelector* selector, ArchOpcode opcode,
+                    Node* node) {
+  PPCOperandGenerator g(selector);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // registers.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 4, inputs);
+}
+
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  VisitPairBinop(this, kPPC_AddPair, node);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  VisitPairBinop(this, kPPC_SubPair, node);
+}
+
 void VisitPairShift(InstructionSelector* selector, ArchOpcode opcode,
                     Node* node) {
   PPCOperandGenerator g(selector);
@@ -897,7 +922,6 @@ void InstructionSelector::VisitInt64Add(Node* node) {
   VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
 }
 #endif
-
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   PPCOperandGenerator g(this);

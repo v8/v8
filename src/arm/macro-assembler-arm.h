@@ -549,9 +549,17 @@ class MacroAssembler: public Assembler {
   void VmovLow(Register dst, DwVfpRegister src);
   void VmovLow(DwVfpRegister dst, Register src);
 
-  void PairLsl(Register dst_low, Register dst_high, Register src_low,
+  void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register scratch, Register shift);
-  void PairLsl(Register dst_low, Register dst_high, Register src_low,
+  void LslPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, uint32_t shift);
+  void LsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, Register scratch, Register shift);
+  void LsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, uint32_t shift);
+  void AsrPair(Register dst_low, Register dst_high, Register src_low,
+               Register src_high, Register scratch, Register shift);
+  void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
 
   // Loads the number from object into dst register.

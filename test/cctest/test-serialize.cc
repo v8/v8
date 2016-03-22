@@ -783,6 +783,106 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
   isolate->Dispose();
 }
 
+bool IsCompiled(const char* name) {
+  return i::Handle<i::JSFunction>::cast(
+             v8::Utils::OpenHandle(*CompileRun(name)))
+      ->shared()
+      ->is_compiled();
+}
+
+TEST(SnapshotDataBlobWithWarmup) {
+  DisableTurbofan();
+  const char* warmup = "Math.tan(1); Math.sin = 1;";
+
+  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
+  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  delete[] cold.data;
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &warm;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] warm.data;
+    v8::Context::Scope c_scope(context);
+    // Running the warmup script has effect on whether functions are
+    // pre-compiled, but does not pollute the context.
+    CHECK(IsCompiled("Math.tan"));
+    CHECK(!IsCompiled("Math.cos"));
+    CHECK(CompileRun("Math.sin")->IsFunction());
+  }
+  isolate->Dispose();
+}
+
+TEST(CustomSnapshotDataBlobWithWarmup) {
+  DisableTurbofan();
+  const char* source =
+      "function f() { return Math.sin(1); }\n"
+      "function g() { return Math.cos(1); }\n"
+      "Math.tan(1);"
+      "var a = 5";
+  const char* warmup = "a = f()";
+
+  v8::StartupData cold = v8::V8::CreateSnapshotDataBlob(source);
+  v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
+  delete[] cold.data;
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &warm;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] warm.data;
+    v8::Context::Scope c_scope(context);
+    // Running the warmup script has effect on whether functions are
+    // pre-compiled, but does not pollute the context.
+    CHECK(IsCompiled("f"));
+    CHECK(IsCompiled("Math.sin"));
+    CHECK(!IsCompiled("g"));
+    CHECK(!IsCompiled("Math.cos"));
+    CHECK(!IsCompiled("Math.tan"));
+    CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
+  }
+  isolate->Dispose();
+}
+
+TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
+  DisableTurbofan();
+  // Flood the startup snapshot with shared function infos. If they are
+  // serialized before the immortal immovable root, the root will no longer end
+  // up on the first page.
+  Vector<const uint8_t> source =
+      ConstructSource(STATIC_CHAR_VECTOR("var a = [];"),
+                      STATIC_CHAR_VECTOR("a.push(function() {return 7});"),
+                      STATIC_CHAR_VECTOR("\0"), 10000);
+
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(
+      reinterpret_cast<const char*>(source.start()));
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &data;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    delete[] data.data;  // We can dispose of the snapshot blob now.
+    v8::Context::Scope c_scope(context);
+    CHECK_EQ(7, CompileRun("a[0]()")->Int32Value(context).FromJust());
+  }
+  isolate->Dispose();
+  source.Dispose();
+}
 
 TEST(TestThatAlwaysSucceeds) {
 }
@@ -1654,6 +1754,61 @@ TEST(CodeSerializerInternalReference) {
   isolate->Dispose();
 }
 
+TEST(CodeSerializerEagerCompilationAndPreAge) {
+  if (FLAG_ignition) return;
+
+  FLAG_lazy = true;
+  FLAG_serialize_toplevel = true;
+  FLAG_serialize_age_code = true;
+  FLAG_serialize_eager = true;
+  FLAG_min_preparse_length = 1;
+
+  static const char* source =
+      "function f() {"
+      "  function g() {"
+      "    return 1;"
+      "  }"
+      "  return g();"
+      "}"
+      "'abcdef';";
+
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_str = v8_str(source);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> unbound =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+
+    CHECK(!cache->rejected);
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate2);
+    HandleScope i_scope(i_isolate);
+    Handle<SharedFunctionInfo> toplevel = v8::Utils::OpenHandle(*unbound);
+    Handle<Script> script(Script::cast(toplevel->script()));
+    WeakFixedArray::Iterator iterator(script->shared_function_infos());
+    // Every function has been pre-compiled from the code cache.
+    int count = 0;
+    while (SharedFunctionInfo* shared = iterator.Next<SharedFunctionInfo>()) {
+      CHECK(shared->is_compiled());
+      CHECK_EQ(Code::kPreAgedCodeAge, shared->code()->GetAge());
+      count++;
+    }
+    CHECK_EQ(3, count);
+  }
+  isolate2->Dispose();
+}
 
 TEST(Regress503552) {
   // Test that the code serializer can deal with weak cells that form a linked

@@ -560,6 +560,11 @@ TEST(CallRuntime) {
 }
 
 TEST(IfConditions) {
+  if (FLAG_harmony_instanceof) {
+    // TODO(mvstanton): when ES6 instanceof ships, regenerate the bytecode
+    // expectations and remove this flag check.
+    return;
+  }
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kNumber);
@@ -2100,8 +2105,6 @@ TEST(DoDebugger) {
   CHECK_EQ(BuildActual(printer, snippets), LoadGolden("DoDebugger.golden"));
 }
 
-// TODO(rmcilroy): Update expectations after switch to
-// Runtime::kDefineDataPropertyInLiteral.
 TEST(ClassDeclarations) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
@@ -2133,7 +2136,64 @@ TEST(ClassDeclarations) {
            LoadGolden("ClassDeclarations.golden"));
 }
 
-// TODO(oth): Add tests for super keyword.
+TEST(ClassAndSuperClass) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate(),
+                                      ConstantPoolType::kMixed);
+  printer.set_wrap(false);
+  printer.set_test_function_name("test");
+  const char* snippets[] = {
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    method() { return 2; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    method() { return super.method() + 1; }\n"
+      "  }\n"
+      "  test = new B().method;\n"
+      "  test();\n"
+      "})();\n",
+
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    get x() { return 1; }\n"
+      "    set x(val) { return; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    method() { super.x = 2; return super.x; }\n"
+      "  }\n"
+      "  test = new B().method;\n"
+      "  test();\n"
+      "})();\n",
+
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    constructor(x) { this.x_ = x; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    constructor() { super(1); this.y_ = 2; }\n"
+      "  }\n"
+      "  test = new B().constructor;\n"
+      "})();\n",
+
+      "var test;\n"
+      "(function() {\n"
+      "  class A {\n"
+      "    constructor() { this.x_ = 1; }\n"
+      "  }\n"
+      "  class B extends A {\n"
+      "    constructor() { super(); this.y_ = 2; }\n"
+      "  }\n"
+      "  test = new B().constructor;\n"
+      "})();\n",
+  };
+
+  CHECK_EQ(BuildActual(printer, snippets),
+           LoadGolden("ClassAndSuperClass.golden"));
+}
 
 }  // namespace interpreter
 }  // namespace internal

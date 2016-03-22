@@ -37,11 +37,11 @@ void Interpreter::Initialize() {
     InterpreterAssembler assembler(isolate_, &zone, Bytecode::k##Name); \
     Do##Name(&assembler);                                               \
     Handle<Code> code = assembler.GenerateCode();                       \
-    TraceCodegen(code, #Name);                                          \
+    dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] = *code;      \
+    TraceCodegen(code);                                                 \
     LOG_CODE_EVENT(isolate_,                                            \
                    CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG,        \
                                    AbstractCode::cast(*code), #Name));  \
-    dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] = *code;      \
   }
   BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
@@ -66,6 +66,9 @@ int Interpreter::InterruptBudget() {
 }
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
+  TRACE_EVENT0("v8", "V8.CompileIgnition");
+
   if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
     OFStream os(stdout);
     base::SmartArrayPointer<char> name = info->GetDebugName();
@@ -92,7 +95,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 #endif  // DEBUG
 
   BytecodeGenerator generator(info->isolate(), info->zone());
-  info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
 
   if (generator.HasStackOverflow()) return false;
@@ -116,14 +118,26 @@ bool Interpreter::IsDispatchTableInitialized() {
   return dispatch_table_[0] != nullptr;
 }
 
-void Interpreter::TraceCodegen(Handle<Code> code, const char* name) {
+void Interpreter::TraceCodegen(Handle<Code> code) {
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {
     OFStream os(stdout);
-    code->Disassemble(name, os);
+    code->Disassemble(nullptr, os);
     os << std::flush;
   }
 #endif  // ENABLE_DISASSEMBLER
+}
+
+const char* Interpreter::LookupNameOfBytecodeHandler(Code* code) {
+#ifdef ENABLE_DISASSEMBLER
+#define RETURN_NAME(Name, ...)                                         \
+  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code) { \
+    return #Name;                                                      \
+  }
+  BYTECODE_LIST(RETURN_NAME)
+#undef RETURN_NAME
+#endif  // ENABLE_DISASSEMBLER
+  return nullptr;
 }
 
 // LdaZero
@@ -1176,7 +1190,7 @@ void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kEqual, assembler);
+  DoBinaryOp(CodeFactory::Equal(isolate_), assembler);
 }
 
 
@@ -1184,7 +1198,7 @@ void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kNotEqual, assembler);
+  DoBinaryOp(CodeFactory::NotEqual(isolate_), assembler);
 }
 
 

@@ -124,6 +124,12 @@ class ParserBase : public Traits {
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
+#define SCANNER_ACCESSORS(name)                                  \
+  bool allow_##name() const { return scanner_->allow_##name(); } \
+  void set_allow_##name(bool allow) {                            \
+    return scanner_->set_allow_##name(allow);                    \
+  }
+
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_sloppy);
@@ -135,6 +141,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_types);
+  SCANNER_ACCESSORS(harmony_exponentiation_operator);
 #undef ALLOW_ACCESSORS
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -366,7 +373,6 @@ class ParserBase : public Traits {
 
   Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
     DCHECK(ast_value_factory());
-    DCHECK(scope_type != MODULE_SCOPE || FLAG_harmony_modules);
     Scope* result = new (zone())
         Scope(zone(), parent, scope_type, ast_value_factory(), kind);
     result->Initialize();
@@ -2098,6 +2104,11 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     Traits::SetFunctionNameFromIdentifierRef(right, expression);
   }
 
+  if (op == Token::ASSIGN_EXP) {
+    DCHECK(!is_destructuring_assignment);
+    return Traits::RewriteAssignExponentiation(expression, right, pos);
+  }
+
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {
@@ -2207,8 +2218,11 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
       ArrowFormalParametersUnexpectedToken(classifier);
       Token::Value op = Next();
       int pos = position();
+
+      const bool is_right_associative = op == Token::EXP;
+      const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y =
-          ParseBinaryExpression(prec1 + 1, accept_IN, classifier, CHECK_OK);
+          ParseBinaryExpression(next_prec, accept_IN, classifier, CHECK_OK);
       Traits::RewriteNonPattern(classifier, CHECK_OK);
 
       if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
@@ -2236,6 +2250,9 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
             x = factory()->NewUnaryOperation(Token::NOT, x, pos);
           }
         }
+
+      } else if (op == Token::EXP) {
+        x = Traits::RewriteExponentiation(x, y, pos);
       } else {
         // We have a "normal" binary operation.
         x = factory()->NewBinaryOperation(op, x, y, pos);
@@ -2279,6 +2296,12 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
         *ok = false;
         return this->EmptyExpression();
       }
+    }
+
+    if (peek() == Token::EXP) {
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return this->EmptyExpression();
     }
 
     // Allow Traits do rewrite the expression.
@@ -2704,6 +2727,11 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
         expression =
             ParseTemplateLiteral(expression, pos, classifier, CHECK_OK);
         break;
+      }
+      case Token::ILLEGAL: {
+        ReportUnexpectedTokenAt(scanner()->peek_location(), Token::ILLEGAL);
+        *ok = false;
+        return this->EmptyExpression();
       }
       default:
         return expression;

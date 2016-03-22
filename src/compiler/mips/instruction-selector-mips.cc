@@ -395,6 +395,10 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitRRO(this, kMipsSar, node);
 }
 
+void InstructionSelector::VisitInt32PairAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }

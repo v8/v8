@@ -750,12 +750,73 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
       return;
     }
   }
-  VisitRRO(this, kS390_ShiftRightAlg32, node, kShift32Imm);
+  VisitRRO(this, kS390_ShiftRightArith32, node, kShift32Imm);
 }
+
+#if !V8_TARGET_ARCH_S390X
+void VisitPairBinop(InstructionSelector* selector, ArchOpcode opcode,
+                    Node* node) {
+  S390OperandGenerator g(selector);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // registers.
+  InstructionOperand inputs[] = {
+      g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
+      g.UseRegister(node->InputAt(2)), g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 4, inputs);
+}
+
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  VisitPairBinop(this, kS390_AddPair, node);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  VisitPairBinop(this, kS390_SubPair, node);
+}
+
+void VisitPairShift(InstructionSelector* selector, ArchOpcode opcode,
+                    Node* node) {
+  S390OperandGenerator g(selector);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
+                                 g.UseRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineSameAsFirst(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitPairShift(this, kS390_ShiftLeftPair, node);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  VisitPairShift(this, kS390_ShiftRightPair, node);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  VisitPairShift(this, kS390_ShiftRightArithPair, node);
+}
+#endif
 
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64Sar(Node* node) {
-  VisitRRO(this, kS390_ShiftRightAlg64, node, kShift64Imm);
+  VisitRRO(this, kS390_ShiftRightArith64, node, kShift64Imm);
 }
 #endif
 
@@ -1626,6 +1687,8 @@ void InstructionSelector::EmitPrepareArguments(
 }
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
+
+int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
 void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
   S390OperandGenerator g(this);

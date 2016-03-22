@@ -36,28 +36,40 @@ struct PositionTableEntry {
 
 class SourcePositionTableBuilder : public PositionsRecorder {
  public:
+  enum OnDuplicateCodeOffset {
+    DISCARD_DUPLICATE,
+    OVERWRITE_DUPLICATE,
+  };
+
   explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
         bytes_(zone),
 #ifdef ENABLE_SLOW_DCHECKS
         raw_entries_(zone),
 #endif
-        previous_() {
+        candidate_(kUninitializedCandidateOffset, 0, false) {
   }
 
-  void AddStatementPosition(size_t bytecode_offset, int source_position);
+  void AddStatementPosition(
+      size_t bytecode_offset, int source_position,
+      OnDuplicateCodeOffset on_duplicate = DISCARD_DUPLICATE);
   void AddExpressionPosition(size_t bytecode_offset, int source_position);
   Handle<ByteArray> ToSourcePositionTable();
 
  private:
-  void AddEntry(const PositionTableEntry& entry);
+  static const int kUninitializedCandidateOffset = -1;
+
+  void AddEntry(const PositionTableEntry& entry,
+                OnDuplicateCodeOffset on_duplicate = DISCARD_DUPLICATE);
+  void CommitEntry();
 
   Isolate* isolate_;
   ZoneVector<byte> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
-  PositionTableEntry previous_;
+  PositionTableEntry candidate_;  // Next entry to be written, if initialized.
+  PositionTableEntry previous_;   // Previously written entry, to compute delta.
 };
 
 class SourcePositionTableIterator {

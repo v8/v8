@@ -135,11 +135,6 @@ MUST_USE_RESULT MaybeHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
   Handle<JSFunction> js_function = HasContext()
                                        ? handle(CurrentContext()->closure())
                                        : Handle<JSFunction>::null();
-  if (!js_function.is_null()) {
-    Handle<String> closure_name = JSFunction::GetDebugName(js_function);
-    if (!closure_name.is_null() && (closure_name->length() != 0))
-      details->set(kScopeDetailsNameIndex, *closure_name);
-  }
   if (Type() == ScopeTypeGlobal || Type() == ScopeTypeScript) {
     return isolate_->factory()->NewJSArrayWithElements(details);
   }
@@ -156,6 +151,10 @@ MUST_USE_RESULT MaybeHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
   }
 
   if (!js_function.is_null()) {
+    Handle<String> closure_name = JSFunction::GetDebugName(js_function);
+    if (!closure_name.is_null() && closure_name->length() != 0) {
+      details->set(kScopeDetailsNameIndex, *closure_name);
+    }
     details->set(kScopeDetailsStartPositionIndex, Smi::FromInt(start_position));
     details->set(kScopeDetailsEndPositionIndex, Smi::FromInt(end_position));
     details->set(kScopeDetailsFunctionIndex, *js_function);

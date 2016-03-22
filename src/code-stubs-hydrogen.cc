@@ -1533,11 +1533,10 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
-      ToStringDescriptor descriptor(isolate());
       ToStringStub stub(isolate());
       HValue* values[] = {context(), Pop()};
       Push(AddUncasted<HCallWithDescriptor>(
-          Add<HConstant>(stub.GetCode()), 0, descriptor,
+          Add<HConstant>(stub.GetCode()), 0, stub.GetCallInterfaceDescriptor(),
           Vector<HValue*>(values, arraysize(values))));
     }
     if_inputisstring.End();
@@ -1795,7 +1794,7 @@ Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(ToObjectDescriptor::kReceiverIndex);
+  HValue* receiver = GetParameter(TypeConversionDescriptor::kArgumentIndex);
   return BuildToObject(receiver);
 }
 

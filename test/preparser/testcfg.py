@@ -27,15 +27,9 @@
 
 
 import os
-import re
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
-
-
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-INVALID_FLAGS = ["--enable-slow-asserts"]
 
 
 class PreparserTestSuite(testsuite.TestSuite):
@@ -70,14 +64,6 @@ class PreparserTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     result = []
 
-    # Find all .js files in this directory.
-    filenames = [f[:-3] for f in os.listdir(self.root) if f.endswith(".js")]
-    filenames.sort()
-    for f in filenames:
-      flags = [f + ".js"]
-      test = testcase.TestCase(self, f, flags=flags)
-      result.append(test)
-
     # Find all .pyt files in this directory.
     filenames = [f[:-4] for f in os.listdir(self.root) if f.endswith(".pyt")]
     filenames.sort()
@@ -86,25 +72,11 @@ class PreparserTestSuite(testsuite.TestSuite):
     return result
 
   def GetFlagsForTestCase(self, testcase, context):
-    first = testcase.flags[0]
-    if first != "-e":
-      testcase.flags[0] = os.path.join(self.root, first)
-      source = self.GetSourceForTest(testcase)
-      result = []
-      flags_match = re.findall(FLAGS_PATTERN, source)
-      for match in flags_match:
-        result += match.strip().split()
-      result += context.mode_flags
-      result = [x for x in result if x not in INVALID_FLAGS]
-      result.append(os.path.join(self.root, testcase.path + ".js"))
-      return testcase.flags + result
     return testcase.flags
 
   def GetSourceForTest(self, testcase):
-    if testcase.flags[0] == "-e":
-      return testcase.flags[1]
-    with open(testcase.flags[0]) as f:
-      return f.read()
+    assert testcase.flags[0] == "-e"
+    return testcase.flags[1]
 
   def _VariantGeneratorFactory(self):
     return testsuite.StandardVariantGenerator

@@ -271,6 +271,7 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
   inline explicit Immediate(Address addr);
+  inline explicit Immediate(Address x, RelocInfo::Mode rmode);
 
   static Immediate CodeRelativeOffset(Label* label) {
     return Immediate(label);

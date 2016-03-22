@@ -720,8 +720,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
                                                  BytecodeLabel* label) {
   DCHECK(!label->is_bound());
   DCHECK(target.is_bound());
-  PatchJump(bytecodes()->begin() + target.offset(),
-            bytecodes()->begin() + label->offset());
+  if (label->is_forward_target()) {
+    // An earlier jump instruction refers to this label. Update it's location.
+    PatchJump(bytecodes()->begin() + target.offset(),
+              bytecodes()->begin() + label->offset());
+    // Now treat as if the label will only be back referred to.
+  }
   label->bind_to(target.offset());
   LeaveBasicBlock();
   return *this;
@@ -1193,8 +1197,9 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 void BytecodeArrayBuilder::SetReturnPosition() {
   if (return_position_ == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
-                                                      return_position_);
+  source_position_table_builder_.AddStatementPosition(
+      bytecodes_.size(), return_position_,
+      SourcePositionTableBuilder::OVERWRITE_DUPLICATE);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {

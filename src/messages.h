@@ -463,7 +463,7 @@ class CallSite {
   T(UnterminatedTemplate, "Unterminated template literal")                     \
   T(UnterminatedTemplateExpr, "Missing } in template expression")              \
   T(FoundNonCallableHasInstance, "Found non-callable @@hasInstance")           \
-  T(NonObjectInInstanceOfCheck, "Expecting an object in instanceof check")     \
+  T(NonObjectInInstanceOfCheck, "right-hand side is not an object")            \
   /* SyntaxError for the optional type system */                               \
   T(InvalidType, "Invalid type.")                                              \
   T(BadFunctionOrConstructorType,                                              \

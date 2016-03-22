@@ -115,10 +115,11 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 
 }  // namespace
 
-void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
-                                                      int source_position) {
+void SourcePositionTableBuilder::AddStatementPosition(
+    size_t bytecode_offset, int source_position,
+    SourcePositionTableBuilder::OnDuplicateCodeOffset on_duplicate) {
   int offset = static_cast<int>(bytecode_offset);
-  AddEntry({offset, source_position, true});
+  AddEntry({offset, source_position, true}, on_duplicate);
   LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
                                jit_handler_data_, offset, source_position));
   LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
@@ -133,24 +134,34 @@ void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
                                jit_handler_data_, offset, source_position));
 }
 
-void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
+void SourcePositionTableBuilder::AddEntry(
+    const PositionTableEntry& entry,
+    SourcePositionTableBuilder::OnDuplicateCodeOffset on_duplicate) {
   // Don't encode a new entry if this bytecode already has a source position
   // assigned.
-  if (bytes_.size() > 0 && previous_.bytecode_offset == entry.bytecode_offset) {
+  if (candidate_.bytecode_offset == entry.bytecode_offset) {
+    if (on_duplicate == OVERWRITE_DUPLICATE) candidate_ = entry;
     return;
   }
 
-  PositionTableEntry tmp(entry);
+  CommitEntry();
+  candidate_ = entry;
+}
+
+void SourcePositionTableBuilder::CommitEntry() {
+  if (candidate_.bytecode_offset == kUninitializedCandidateOffset) return;
+  PositionTableEntry tmp(candidate_);
   SubtractFromEntry(tmp, previous_);
   EncodeEntry(bytes_, tmp);
-  previous_ = entry;
+  previous_ = candidate_;
 
 #ifdef ENABLE_SLOW_DCHECKS
-  raw_entries_.push_back(entry);
+  raw_entries_.push_back(candidate_);
 #endif
 }
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
+  CommitEntry();
   if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
 
   Handle<ByteArray> table = isolate_->factory()->NewByteArray(

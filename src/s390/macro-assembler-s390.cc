@@ -558,21 +558,38 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   }
 }
 
-void MacroAssembler::PushFixedFrame(Register marker_reg) {
+void MacroAssembler::PushCommonFrame(Register marker_reg) {
+  int fp_delta = 0;
   CleanseP(r14);
   if (marker_reg.is_valid()) {
-    Push(r14, fp, cp, marker_reg);
+    Push(r14, fp, marker_reg);
+    fp_delta = 1;
   } else {
-    Push(r14, fp, cp);
+    Push(r14, fp);
+    fp_delta = 0;
+  }
+  la(fp, MemOperand(sp, fp_delta * kPointerSize));
+}
+
+void MacroAssembler::PopCommonFrame(Register marker_reg) {
+  if (marker_reg.is_valid()) {
+    Pop(r14, fp, marker_reg);
+  } else {
+    Pop(r14, fp);
   }
 }
 
-void MacroAssembler::PopFixedFrame(Register marker_reg) {
-  if (marker_reg.is_valid()) {
-    Pop(r14, fp, cp, marker_reg);
+void MacroAssembler::PushStandardFrame(Register function_reg) {
+  int fp_delta = 0;
+  CleanseP(r14);
+  if (function_reg.is_valid()) {
+    Push(r14, fp, cp, function_reg);
+    fp_delta = 2;
   } else {
-    Pop(r14, fp, cp);
+    Push(r14, fp, cp);
+    fp_delta = 1;
   }
+  la(fp, MemOperand(sp, fp_delta * kPointerSize));
 }
 
 void MacroAssembler::RestoreFrameStateForTailCall() {
@@ -868,6 +885,59 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
   clgdbr(m, Condition(0), dst, double_input);
   ldgr(double_dst, dst);
 }
+
+#endif
+
+#if !V8_TARGET_ARCH_S390X
+void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
+                                   Register src_low, Register src_high,
+                                   Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high, shift));
+  DCHECK(!AreAliased(dst_high, src_low, shift));
+  UNIMPLEMENTED();
+}
+
+void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
+                                   Register src_low, Register src_high,
+                                   uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  UNIMPLEMENTED();
+  Label less_than_32;
+  Label done;
+}
+
+void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
+                                    Register src_low, Register src_high,
+                                    Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high, shift));
+  DCHECK(!AreAliased(dst_high, src_low, shift));
+  UNIMPLEMENTED();
+}
+
+void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
+                                    Register src_low, Register src_high,
+                                    uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  UNIMPLEMENTED();
+}
+
+void MacroAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
+                                         Register src_low, Register src_high,
+                                         Register scratch, Register shift) {
+  DCHECK(!AreAliased(dst_low, src_high, shift));
+  DCHECK(!AreAliased(dst_high, src_low, shift));
+  UNIMPLEMENTED();
+}
+
+void MacroAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
+                                         Register src_low, Register src_high,
+                                         uint32_t shift) {
+  DCHECK(!AreAliased(dst_low, src_high));
+  DCHECK(!AreAliased(dst_high, src_low));
+  UNIMPLEMENTED();
+}
 #endif
 
 void MacroAssembler::MovDoubleToInt64(Register dst, DoubleRegister src) {
@@ -878,11 +948,10 @@ void MacroAssembler::MovInt64ToDouble(DoubleRegister dst, Register src) {
   ldgr(dst, src);
 }
 
-void MacroAssembler::StubPrologue(Register base, int prologue_offset) {
-  PushFixedFrame();
-  Push(Smi::FromInt(StackFrame::STUB));
-  // Adjust FP to point to saved FP.
-  la(fp, MemOperand(sp, StandardFrameConstants::kFixedFrameSizeFromFp));
+void MacroAssembler::StubPrologue(StackFrame::Type type, Register base,
+                                  int prologue_offset) {
+  LoadSmiLiteral(r1, Smi::FromInt(type));
+  PushCommonFrame(r1);
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging, Register base,
@@ -911,9 +980,7 @@ void MacroAssembler::Prologue(bool code_pre_aging, Register base,
       }
     } else {
       // This matches the code found in GetNoCodeAgeSequence()
-      PushFixedFrame(r3);
-      // Adjust fp to point to saved fp.
-      la(fp, MemOperand(sp, StandardFrameConstants::kFixedFrameSizeFromFp));
+      PushStandardFrame(r3);
     }
   }
 }
@@ -935,13 +1002,12 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
   //    CodeObject  <-- new sp
 
   LoadSmiLiteral(ip, Smi::FromInt(type));
-  PushFixedFrame(ip);
+  PushCommonFrame(ip);
 
-  mov(r0, Operand(CodeObject()));
-  push(r0);
-  // Adjust FP to point to saved FP
-  la(fp, MemOperand(
-             sp, StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
+  if (type == StackFrame::INTERNAL) {
+    mov(r0, Operand(CodeObject()));
+    push(r0);
+  }
 }
 
 int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
@@ -991,10 +1057,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // all of the pushes that have happened inside of V8
   // since we were called from C code
   CleanseP(r14);
-  Push(r14, fp);
-  LoadRR(fp, sp);
+  LoadSmiLiteral(r1, Smi::FromInt(StackFrame::EXIT));
+  PushCommonFrame(r1);
   // Reserve room for saved entry sp and code object.
-  lay(sp, MemOperand(sp, -ExitFrameConstants::kFrameSize));
+  lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
   if (emit_debug_code()) {
     StoreP(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(), r1);
@@ -1070,7 +1136,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
     const int kNumRegs = kNumCallerSavedDoubles;
-    lay(r5, MemOperand(fp, -(ExitFrameConstants::kFrameSize +
+    lay(r5, MemOperand(fp, -(ExitFrameConstants::kFixedFrameSizeFromFp +
                              kNumRegs * kDoubleSize)));
     MultiPopDoubles(kCallerSavedDoubles, r5);
   }
@@ -1106,6 +1172,71 @@ void MacroAssembler::MovFromFloatResult(const DoubleRegister dst) {
 
 void MacroAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, d0);
+}
+
+void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
+                                        Register caller_args_count_reg,
+                                        Register scratch0, Register scratch1) {
+#if DEBUG
+  if (callee_args_count.is_reg()) {
+    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
+                       scratch1));
+  } else {
+    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
+  }
+#endif
+
+  // Calculate the end of destination area where we will put the arguments
+  // after we drop current frame. We AddP kPointerSize to count the receiver
+  // argument which is not included into formal parameters count.
+  Register dst_reg = scratch0;
+  ShiftLeftP(dst_reg, caller_args_count_reg, Operand(kPointerSizeLog2));
+  AddP(dst_reg, fp, dst_reg);
+  AddP(dst_reg, dst_reg,
+       Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+
+  Register src_reg = caller_args_count_reg;
+  // Calculate the end of source area. +kPointerSize is for the receiver.
+  if (callee_args_count.is_reg()) {
+    ShiftLeftP(src_reg, callee_args_count.reg(), Operand(kPointerSizeLog2));
+    AddP(src_reg, sp, src_reg);
+    AddP(src_reg, src_reg, Operand(kPointerSize));
+  } else {
+    mov(src_reg, Operand((callee_args_count.immediate() + 1) * kPointerSize));
+    AddP(src_reg, src_reg, sp);
+  }
+
+  if (FLAG_debug_code) {
+    CmpLogicalP(src_reg, dst_reg);
+    Check(lt, kStackAccessBelowStackPointer);
+  }
+
+  // Restore caller's frame pointer and return address now as they will be
+  // overwritten by the copying loop.
+  RestoreFrameStateForTailCall();
+
+  // Now copy callee arguments to the caller frame going backwards to avoid
+  // callee arguments corruption (source and destination areas could overlap).
+
+  // Both src_reg and dst_reg are pointing to the word after the one to copy,
+  // so they must be pre-decremented in the loop.
+  Register tmp_reg = scratch1;
+  Label loop;
+  if (callee_args_count.is_reg()) {
+    AddP(tmp_reg, callee_args_count.reg(), Operand(1));  // +1 for receiver
+  } else {
+    mov(tmp_reg, Operand(callee_args_count.immediate() + 1));
+  }
+  LoadRR(r1, tmp_reg);
+  bind(&loop);
+  LoadP(tmp_reg, MemOperand(src_reg, -kPointerSize));
+  StoreP(tmp_reg, MemOperand(dst_reg, -kPointerSize));
+  lay(src_reg, MemOperand(src_reg, -kPointerSize));
+  lay(dst_reg, MemOperand(dst_reg, -kPointerSize));
+  BranchOnCount(r1, &loop);
+
+  // Leave current frame.
+  LoadRR(sp, dst_reg);
 }
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
@@ -1379,8 +1510,20 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   DCHECK(!holder_reg.is(ip));
   DCHECK(!scratch.is(ip));
 
-  // Load current lexical context from the stack frame.
-  LoadP(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  DCHECK(!ip.is(scratch));
+  LoadRR(ip, fp);
+  bind(&load_context);
+  LoadP(scratch,
+        MemOperand(ip, CommonFrameConstants::kContextOrFrameTypeOffset));
+  JumpIfNotSmi(scratch, &has_context);
+  LoadP(ip, MemOperand(ip, CommonFrameConstants::kCallerFPOffset));
+  b(&load_context);
+  bind(&has_context);
+
 // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
   CmpP(scratch, Operand::Zero());
@@ -3863,6 +4006,39 @@ void MacroAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
 //  Add Logical Instructions
 //----------------------------------------------------------------------------
 
+// Add Logical With Carry 32-bit (Register dst = Register src1 + Register src2)
+void MacroAssembler::AddLogicalWithCarry32(Register dst, Register src1,
+                                           Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    alcr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    alcr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    alcr(dst, src1);
+  }
+}
+
+// Add Logical 32-bit (Register dst = Register src1 + Register src2)
+void MacroAssembler::AddLogical32(Register dst, Register src1, Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    alr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    alr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    alr(dst, src1);
+  }
+}
+
 // Add Logical 32-bit (Register dst = Register dst + Immediate opnd)
 void MacroAssembler::AddLogical(Register dst, const Operand& imm) {
   alfi(dst, imm);
@@ -3899,6 +4075,42 @@ void MacroAssembler::AddLogicalP(Register dst, const MemOperand& opnd) {
 //----------------------------------------------------------------------------
 //  Subtract Instructions
 //----------------------------------------------------------------------------
+
+// Subtract Logical With Carry 32-bit (Register dst = Register src1 - Register
+// src2)
+void MacroAssembler::SubLogicalWithBorrow32(Register dst, Register src1,
+                                            Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    slbr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    slbr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    lr(r0, dst);
+    SubLogicalWithBorrow32(dst, src1, r0);
+  }
+}
+
+// Subtract Logical 32-bit (Register dst = Register src1 - Register src2)
+void MacroAssembler::SubLogical32(Register dst, Register src1, Register src2) {
+  if (!dst.is(src2) && !dst.is(src1)) {
+    lr(dst, src1);
+    slr(dst, src2);
+  } else if (!dst.is(src2)) {
+    // dst == src1
+    DCHECK(dst.is(src1));
+    slr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst.is(src2));
+    lr(r0, dst);
+    SubLogical32(dst, src1, r0);
+  }
+}
 
 // Subtract 32-bit (Register dst = Register dst - Immediate opnd)
 void MacroAssembler::Sub32(Register dst, const Operand& imm) {

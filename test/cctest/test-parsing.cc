@@ -70,7 +70,7 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       i::Utf8ToUtf16CharacterStream stream(keyword, length);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, false);
       scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -78,7 +78,7 @@ TEST(ScanKeywords) {
     // Removing characters will make keyword matching fail.
     {
       i::Utf8ToUtf16CharacterStream stream(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, false);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -89,7 +89,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       i::Utf8ToUtf16CharacterStream stream(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, false);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -99,7 +99,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       i::Utf8ToUtf16CharacterStream stream(buffer, length);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, false);
       scanner.Initialize(&stream);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -151,7 +151,7 @@ TEST(ScanHTMLEndComments) {
         reinterpret_cast<const i::byte*>(tests[i]);
     i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(tests[i]));
     i::CompleteParserRecorder log;
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
     scanner.Initialize(&stream);
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
@@ -169,7 +169,7 @@ TEST(ScanHTMLEndComments) {
         reinterpret_cast<const i::byte*>(fail_tests[i]);
     i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(fail_tests[i]));
     i::CompleteParserRecorder log;
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
     scanner.Initialize(&stream);
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
@@ -184,6 +184,32 @@ TEST(ScanHTMLEndComments) {
   }
 }
 
+TEST(ScanHtmlComments) {
+  const char* src = "a <!-- b --> c";
+  i::UnicodeCache unicode_cache;
+
+  // Skip HTML comments:
+  {
+    i::Utf8ToUtf16CharacterStream stream(reinterpret_cast<const i::byte*>(src),
+                                         i::StrLength(src));
+    i::Scanner scanner(&unicode_cache, true);
+    scanner.Initialize(&stream);
+    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+    CHECK_EQ(i::Token::EOS, scanner.Next());
+  }
+
+  // Parse (don't skip) HTML comments:
+  {
+    i::Utf8ToUtf16CharacterStream stream(reinterpret_cast<const i::byte*>(src),
+                                         i::StrLength(src));
+    i::Scanner scanner(&unicode_cache, false);
+    scanner.Initialize(&stream);
+    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
+    CHECK_EQ(i::Token::LT, scanner.Next());
+    CHECK_EQ(i::Token::NOT, scanner.Next());
+    CHECK_EQ(i::Token::DEC, scanner.Next());
+  }
+}
 
 class ScriptResource : public v8::String::ExternalOneByteStringResource {
  public:
@@ -323,7 +349,7 @@ TEST(StandAlonePreParser) {
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
     scanner.Initialize(&stream);
 
     i::Zone zone;
@@ -359,7 +385,7 @@ TEST(StandAlonePreParserNoNatives) {
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
     scanner.Initialize(&stream);
 
     // Preparser defaults to disallowing natives syntax.
@@ -430,7 +456,7 @@ TEST(RegressChromium62639) {
       reinterpret_cast<const i::byte*>(program),
       static_cast<unsigned>(strlen(program)));
   i::CompleteParserRecorder log;
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
   scanner.Initialize(&stream);
   i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
@@ -465,7 +491,7 @@ TEST(Regress928) {
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(program);
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
   i::CompleteParserRecorder log;
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
   scanner.Initialize(&stream);
   i::Zone zone;
   i::AstValueFactory ast_value_factory(&zone,
@@ -517,7 +543,7 @@ TEST(PreParseOverflow) {
       reinterpret_cast<const i::byte*>(program.get()),
       static_cast<unsigned>(kProgramSize));
   i::CompleteParserRecorder log;
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
   scanner.Initialize(&stream);
 
   i::Zone zone;
@@ -747,7 +773,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
   scanner.Initialize(stream);
 
   int i = 0;
@@ -830,7 +856,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), false);
   scanner.Initialize(&stream);
 
   i::Token::Value start = scanner.peek();
@@ -1509,7 +1535,8 @@ enum ParserFlag {
   kNoLegacyConst,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
-  kAllowTypes,
+  kAllowHarmonyExponentiationOperator,
+  kAllowTypes
 };
 
 enum ParserSyncTestResult {
@@ -1530,6 +1557,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
+  parser->set_allow_harmony_exponentiation_operator(
+      flags.Contains(kAllowHarmonyExponentiationOperator));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
 
@@ -1549,7 +1578,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Preparse the data.
   i::CompleteParserRecorder log;
   if (test_preparser) {
-    i::Scanner scanner(isolate->unicode_cache());
+    i::Scanner scanner(isolate->unicode_cache(), false);
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
     i::Zone zone;
     i::AstValueFactory ast_value_factory(
@@ -1904,12 +1933,9 @@ void RunModuleParserSyncTest(const char* context_data[][2],
                              int always_true_len = 0,
                              const ParserFlag* always_false_flags = NULL,
                              int always_false_len = 0) {
-  bool flag = i::FLAG_harmony_modules;
-  i::FLAG_harmony_modules = true;
   RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
                     always_true_flags, always_true_len, always_false_flags,
                     always_false_len, true);
-  i::FLAG_harmony_modules = flag;
 }
 
 
@@ -5581,8 +5607,6 @@ TEST(ComputedPropertyNameShorthandError) {
 
 
 TEST(BasicImportExportParsing) {
-  i::FLAG_harmony_modules = true;
-
   // clang-format off
   const char* kSources[] = {
       "export let x = 0;",
@@ -5681,8 +5705,6 @@ TEST(BasicImportExportParsing) {
 
 
 TEST(ImportExportParsingErrors) {
-  i::FLAG_harmony_modules = true;
-
   // clang-format off
   const char* kErrorSources[] = {
       "export {",
@@ -5772,8 +5794,6 @@ TEST(ImportExportParsingErrors) {
 
 
 TEST(ModuleParsingInternals) {
-  i::FLAG_harmony_modules = true;
-
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   v8::HandleScope handles(CcTest::isolate());
@@ -7200,6 +7220,36 @@ TEST(MiscSyntaxErrors) {
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
 }
 
+
+TEST(EscapeSequenceErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'", "'" },
+    { "\"", "\"" },
+    { "`", "`" },
+    { "`${'", "'}`" },
+    { "`${\"", "\"}`" },
+    { "`${`", "`}`" },
+    { "f(tag`", "`);" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "\\uABCG",
+    "\\u{ZZ}",
+    "\\u{FFZ}",
+    "\\u{FFFFFFFFFF }",
+    "\\u{110000}",
+    "\\u{110000",
+    "\\u{FFFD }",
+    "\\xZF",
+    NULL
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
+}
+
+
 TEST(FunctionSentErrors) {
   // clang-format off
   const char* context_data[][2] = {
@@ -7302,6 +7352,98 @@ TEST(FunctionDeclarationError) {
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess, restrictive_flags,
                     arraysize(restrictive_flags));
+}
+
+TEST(ExponentiationOperator) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
+    { "var O = { p: 1 }, x = 10; ; (", ")" },
+    { "var O = { p: 1 }, x = 10; foo(", ")" },
+    { NULL, NULL }
+  };
+  const char* data[] = {
+    "(delete O.p) ** 10",
+    "(delete x) ** 10",
+    "(~O.p) ** 10",
+    "(~x) ** 10",
+    "(!O.p) ** 10",
+    "(!x) ** 10",
+    "(+O.p) ** 10",
+    "(+x) ** 10",
+    "(-O.p) ** 10",
+    "(-x) ** 10",
+    "(typeof O.p) ** 10",
+    "(typeof x) ** 10",
+    "(void 0) ** 10",
+    "(void O.p) ** 10",
+    "(void x) ** 10",
+    "++O.p ** 10",
+    "++x ** 10",
+    "--O.p ** 10",
+    "--x ** 10",
+    "O.p++ ** 10",
+    "x++ ** 10",
+    "O.p-- ** 10",
+    "x-- ** 10",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyExponentiationOperator};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(ExponentiationOperatorErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
+    { "var O = { p: 1 }, x = 10; ; (", ")" },
+    { "var O = { p: 1 }, x = 10; foo(", ")" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "delete O.p ** 10",
+    "delete x ** 10",
+    "~O.p ** 10",
+    "~x ** 10",
+    "!O.p ** 10",
+    "!x ** 10",
+    "+O.p ** 10",
+    "+x ** 10",
+    "-O.p ** 10",
+    "-x ** 10",
+    "typeof O.p ** 10",
+    "typeof x ** 10",
+    "void ** 10",
+    "void O.p ** 10",
+    "void x ** 10",
+    "++delete O.p ** 10",
+    "--delete O.p ** 10",
+    "++~O.p ** 10",
+    "++~x ** 10",
+    "--!O.p ** 10",
+    "--!x ** 10",
+    "++-O.p ** 10",
+    "++-x ** 10",
+    "--+O.p ** 10",
+    "--+x ** 10",
+    "[ x ] **= [ 2 ]",
+    "[ x **= 2 ] = [ 2 ]",
+    "{ x } **= { x: 2 }",
+    "{ x: x **= 2 ] = { x: 2 }",
+    // TODO(caitp): a Call expression as LHS should be an early ReferenceError!
+    // "Array() **= 10",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonyExponentiationOperator};
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 TEST(TypedVariableDeclarations) {

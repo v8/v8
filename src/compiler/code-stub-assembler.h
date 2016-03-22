@@ -36,6 +36,11 @@ class RawMachineLabel;
 class Schedule;
 
 #define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V) \
+  V(Float32Equal)                             \
+  V(Float32LessThan)                          \
+  V(Float32LessThanOrEqual)                   \
+  V(Float32GreaterThan)                       \
+  V(Float32GreaterThanOrEqual)                \
   V(Float64Equal)                             \
   V(Float64LessThan)                          \
   V(Float64LessThanOrEqual)                   \
@@ -50,6 +55,7 @@ class Schedule;
   V(Int32GreaterThanOrEqual)                  \
   V(Int32LessThan)                            \
   V(Int32LessThanOrEqual)                     \
+  V(Uint32LessThan)                           \
   V(WordEqual)                                \
   V(WordNotEqual)                             \
   V(WordOr)                                   \
@@ -141,7 +147,10 @@ class CodeStubAssembler {
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
+  Node* BooleanMapConstant();
   Node* HeapNumberMapConstant();
+  Node* NullConstant();
+  Node* UndefinedConstant();
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -262,11 +271,15 @@ class CodeStubAssembler {
   Node* WordIsSmi(Node* a);
 
   // Load an object pointer from a buffer that isn't in the heap.
-  Node* LoadBufferObject(Node* buffer, int offset);
+  Node* LoadBufferObject(Node* buffer, int offset,
+                         MachineType rep = MachineType::AnyTagged());
   // Load a field from an object on the heap.
-  Node* LoadObjectField(Node* object, int offset);
+  Node* LoadObjectField(Node* object, int offset,
+                        MachineType rep = MachineType::AnyTagged());
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
+  // Load the bit field of a Map.
+  Node* LoadMapBitField(Node* map);
   // Load the instance type of a Map.
   Node* LoadMapInstanceType(Node* map);
 
@@ -281,6 +294,9 @@ class CodeStubAssembler {
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
                                              Node* value);
+  // Load the Map of an HeapObject.
+  Node* LoadMap(Node* object);
+  // Load the instance type of an HeapObject.
   Node* LoadInstanceType(Node* object);
 
   // Returns a node that is true if the given bit is set in |word32|.
@@ -293,6 +309,7 @@ class CodeStubAssembler {
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
+  void BranchIf(Node* condition, Label* if_true, Label* if_false);
   void BranchIfInt32LessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThan(Node* a, Node* b, Label* if_true, Label* if_false);
   void BranchIfSmiLessThanOrEqual(Node* a, Node* b, Label* if_true,
@@ -309,6 +326,7 @@ class CodeStubAssembler {
   void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
+  void BranchIfWord32Equal(Node* a, Node* b, Label* if_true, Label* if_false);
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
@@ -325,6 +343,10 @@ class CodeStubAssembler {
 
  private:
   friend class CodeStubAssemblerTester;
+
+  CodeStubAssembler(Isolate* isolate, Zone* zone,
+                    CallDescriptor* call_descriptor, Code::Flags flags,
+                    const char* name);
 
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);

@@ -36,8 +36,6 @@ namespace internal {
   V(kBailoutWasNotPrepared, "Bailout was not prepared")                        \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
-  V(kCallToAJavaScriptRuntimeFunction,                                         \
-    "Call to a JavaScript runtime function")                                   \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \

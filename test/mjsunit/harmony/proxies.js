@@ -1018,7 +1018,19 @@ TestHasOwnThrow({
   var o4 = Object.create(o2)
   var o5 = Object.create(o3)
 
-  function handler(o) { return {get: function() { return o } } }
+  function handler(o) {
+    return {
+      get: function(r, p) {
+        // We want to test prototype lookup, so ensure the proxy
+        // offers OrdinaryHasInstance behavior.
+        if (p === Symbol.hasInstance) {
+          return undefined;
+        }
+        return o;
+      }
+    }
+  }
+
   var f0 = new Proxy(function() {}, handler(o0))
   var f1 = new Proxy(function() {}, handler(o1))
   var f2 = new Proxy(function() {}, handler(o2))

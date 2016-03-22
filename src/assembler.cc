@@ -842,6 +842,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "code age sequence";
     case GENERATOR_CONTINUATION:
       return "generator continuation";
+    case WASM_MEMORY_REFERENCE:
+      return "wasm memory reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -935,6 +937,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case GENERATOR_CONTINUATION:
+    case WASM_MEMORY_REFERENCE:
     case NONE32:
     case NONE64:
       break;
@@ -1207,6 +1210,46 @@ ExternalReference ExternalReference::wasm_int64_to_float64(Isolate* isolate) {
 ExternalReference ExternalReference::wasm_uint64_to_float64(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float32_to_int64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_int64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float32_to_uint64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_uint64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float64_to_int64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_int64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float64_to_uint64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_uint64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_div(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_div_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_mod(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_mod_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_div(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_div_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_mod(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
 }
 
 static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }

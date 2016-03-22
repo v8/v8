@@ -677,6 +677,56 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sar_cl(i.OutputOperand());
       }
       break;
+    case kIA32AddPair: {
+      // i.OutputRegister(0) == i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      bool use_temp = false;
+      if (i.OutputRegister(0).code() == i.InputRegister(1).code() ||
+          i.OutputRegister(0).code() == i.InputRegister(3).code()) {
+        // We cannot write to the output register directly, because it would
+        // overwrite an input for adc. We have to use the temp register.
+        use_temp = true;
+        __ Move(i.TempRegister(0), i.InputRegister(0));
+        __ add(i.TempRegister(0), i.InputRegister(2));
+      } else {
+        __ add(i.OutputRegister(0), i.InputRegister(2));
+      }
+      __ adc(i.InputRegister(1), Operand(i.InputRegister(3)));
+      if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
+        __ Move(i.OutputRegister(1), i.InputRegister(1));
+      }
+      if (use_temp) {
+        __ Move(i.OutputRegister(0), i.TempRegister(0));
+      }
+      break;
+    }
+    case kIA32SubPair: {
+      // i.OutputRegister(0) == i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      bool use_temp = false;
+      if (i.OutputRegister(0).code() == i.InputRegister(1).code() ||
+          i.OutputRegister(0).code() == i.InputRegister(3).code()) {
+        // We cannot write to the output register directly, because it would
+        // overwrite an input for adc. We have to use the temp register.
+        use_temp = true;
+        __ Move(i.TempRegister(0), i.InputRegister(0));
+        __ sub(i.TempRegister(0), i.InputRegister(2));
+      } else {
+        __ sub(i.OutputRegister(0), i.InputRegister(2));
+      }
+      __ sbb(i.InputRegister(1), Operand(i.InputRegister(3)));
+      if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
+        __ Move(i.OutputRegister(1), i.InputRegister(1));
+      }
+      if (use_temp) {
+        __ Move(i.OutputRegister(0), i.TempRegister(0));
+      }
+      break;
+    }
     case kIA32ShlPair:
       if (HasImmediateInput(instr, 2)) {
         __ ShlPair(i.InputRegister(1), i.InputRegister(0), i.InputInt6(2));

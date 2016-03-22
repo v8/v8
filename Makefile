@@ -162,6 +162,9 @@ endif
 ifdef embedscript
   GYPFLAGS += -Dembed_script=$(embedscript)
 endif
+ifdef warmupscript
+  GYPFLAGS += -Dwarmup_script=$(warmupscript)
+endif
 ifeq ($(goma), on)
   GYPFLAGS += -Duse_goma=1
 endif

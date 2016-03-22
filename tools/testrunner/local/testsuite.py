@@ -153,10 +153,6 @@ class TestSuite(object):
     self.tests = self.ListTests(context)
 
   @staticmethod
-  def _FilterFlaky(flaky, mode):
-    return (mode == "run" and not flaky) or (mode == "skip" and flaky)
-
-  @staticmethod
   def _FilterSlow(slow, mode):
     return (mode == "run" and not slow) or (mode == "skip" and slow)
 
@@ -165,13 +161,11 @@ class TestSuite(object):
     return (mode == "run" and not pass_fail) or (mode == "skip" and pass_fail)
 
   def FilterTestCasesByStatus(self, warn_unused_rules,
-                              flaky_tests="dontcare",
                               slow_tests="dontcare",
                               pass_fail_tests="dontcare"):
     filtered = []
     used_rules = set()
     for t in self.tests:
-      flaky = False
       slow = False
       pass_fail = False
       testname = self.CommonTestName(t)
@@ -185,7 +179,6 @@ class TestSuite(object):
         for outcome in t.outcomes:
           if outcome.startswith('Flags: '):
             t.flags += outcome[7:].split()
-        flaky = statusfile.IsFlaky(t.outcomes)
         slow = statusfile.IsSlow(t.outcomes)
         pass_fail = statusfile.IsPassOrFail(t.outcomes)
       skip = False
@@ -197,10 +190,9 @@ class TestSuite(object):
           if statusfile.DoSkip(t.outcomes):
             skip = True
             break  # "for rule in self.wildcards"
-          flaky = flaky or statusfile.IsFlaky(t.outcomes)
           slow = slow or statusfile.IsSlow(t.outcomes)
           pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
-      if (skip or self._FilterFlaky(flaky, flaky_tests)
+      if (skip
           or self._FilterSlow(slow, slow_tests)
           or self._FilterPassFail(pass_fail, pass_fail_tests)):
         continue  # "for t in self.tests"
@@ -256,14 +248,14 @@ class TestSuite(object):
   def GetSourceForTest(self, testcase):
     return "(no source available)"
 
-  def IsFailureOutput(self, output, testpath):
-    return output.exit_code != 0
+  def IsFailureOutput(self, testcase):
+    return testcase.output.exit_code != 0
 
   def IsNegativeTest(self, testcase):
     return False
 
   def HasFailed(self, testcase):
-    execution_failed = self.IsFailureOutput(testcase.output, testcase.path)
+    execution_failed = self.IsFailureOutput(testcase)
     if self.IsNegativeTest(testcase):
       return not execution_failed
     else:

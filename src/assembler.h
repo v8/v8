@@ -385,6 +385,8 @@ class RelocInfo {
     DEBUGGER_STATEMENT,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     CELL,
+    // To relocate pointers into the wasm memory embedded in wasm code
+    WASM_MEMORY_REFERENCE,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
@@ -427,7 +429,8 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_CODE_ENUM = DEBUGGER_STATEMENT,
-    LAST_GCED_ENUM = CELL,
+    LAST_GCED_ENUM = WASM_MEMORY_REFERENCE,
+    FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
 
   STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
@@ -511,6 +514,9 @@ class RelocInfo {
   static inline bool IsGeneratorContinuation(Mode mode) {
     return mode == GENERATOR_CONTINUATION;
   }
+  static inline bool IsWasmMemoryReference(Mode mode) {
+    return mode == WASM_MEMORY_REFERENCE;
+  }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -571,6 +577,10 @@ class RelocInfo {
                                 ICacheFlushMode icache_flush_mode =
                                     FLUSH_ICACHE_IF_NEEDED));
 
+  INLINE(Address wasm_memory_reference());
+  INLINE(void update_wasm_memory_reference(
+      Address old_base, Address new_base, size_t old_size, size_t new_size,
+      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH));
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
   INLINE(Address constant_pool_entry_address());
@@ -926,6 +936,14 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_uint64_to_float32(Isolate* isolate);
   static ExternalReference wasm_int64_to_float64(Isolate* isolate);
   static ExternalReference wasm_uint64_to_float64(Isolate* isolate);
+  static ExternalReference wasm_float32_to_int64(Isolate* isolate);
+  static ExternalReference wasm_float32_to_uint64(Isolate* isolate);
+  static ExternalReference wasm_float64_to_int64(Isolate* isolate);
+  static ExternalReference wasm_float64_to_uint64(Isolate* isolate);
+  static ExternalReference wasm_int64_div(Isolate* isolate);
+  static ExternalReference wasm_int64_mod(Isolate* isolate);
+  static ExternalReference wasm_uint64_div(Isolate* isolate);
+  static ExternalReference wasm_uint64_mod(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);

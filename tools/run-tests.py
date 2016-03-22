@@ -85,6 +85,7 @@ TEST_MAP = {
   "ignition": [
     "mjsunit",
     "cctest",
+    "webkit",
     "message",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
@@ -174,6 +175,8 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mips64el",
                    "nacl_ia32",
                    "nacl_x64",
+                   "s390",
+                   "s390x",
                    "ppc",
                    "ppc64",
                    "x64",
@@ -225,9 +228,6 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
                     default=False, action="store_true")
-  result.add_option("--flaky-tests",
-                    help="Regard tests marked as flaky (run|skip|dontcare)",
-                    default="dontcare")
   result.add_option("--slow-tests",
                     help="Regard slow tests (run|skip|dontcare)",
                     default="dontcare")
@@ -301,7 +301,7 @@ def BuildOptions():
                           " (verbose, dots, color, mono)"),
                     choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
   result.add_option("--quickcheck", default=False, action="store_true",
-                    help=("Quick check mode (skip slow/flaky tests)"))
+                    help=("Quick check mode (skip slow tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
   result.add_option("--json-test-results",
@@ -501,7 +501,6 @@ def ProcessOptions(options):
     return False
   if options.quickcheck:
     VARIANTS = ["default", "stress"]
-    options.flaky_tests = "skip"
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
   if options.no_stress:
@@ -535,8 +534,6 @@ def ProcessOptions(options):
       print "Unknown %s mode %s" % (name, option)
       return False
     return True
-  if not CheckTestMode("flaky test", options.flaky_tests):
-    return False
   if not CheckTestMode("slow test", options.slow_tests):
     return False
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
@@ -736,8 +733,8 @@ def Execute(arch, mode, args, options, suites):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests,
-                              options.slow_tests, options.pass_fail_tests)
+    s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
+                              options.pass_fail_tests)
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue

@@ -969,6 +969,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #endif
 #if !V8_TARGET_ARCH_PPC64
+    case kPPC_AddPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ addc(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2));
+      __ adde(i.OutputRegister(1), i.InputRegister(1), i.InputRegister(3));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
+    case kPPC_SubPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ subc(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2));
+      __ sube(i.OutputRegister(1), i.InputRegister(1), i.InputRegister(3));
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),

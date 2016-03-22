@@ -1222,6 +1222,16 @@ class PreParserTraits {
 
   inline void RewriteDestructuringAssignments() {}
 
+  inline PreParserExpression RewriteExponentiation(PreParserExpression left,
+                                                   PreParserExpression right,
+                                                   int pos) {
+    return left;
+  }
+  inline PreParserExpression RewriteAssignExponentiation(
+      PreParserExpression left, PreParserExpression right, int pos) {
+    return left;
+  }
+
   inline void QueueDestructuringAssignmentForRewriting(PreParserExpression) {}
   inline void QueueNonPatternForRewriting(PreParserExpression) {}
 

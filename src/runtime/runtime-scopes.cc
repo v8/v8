@@ -103,8 +103,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
-  for (int i = 0; i < length; i += 2) {
-    HandleScope scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 2, {
     Handle<String> name(String::cast(pairs->get(i)));
     Handle<Object> initial_value(pairs->get(i + 1), isolate);
 
@@ -143,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
                                     static_cast<PropertyAttributes>(attr),
                                     is_var, is_const, is_function);
     if (isolate->has_pending_exception()) return result;
-  }
+  });
 
   return isolate->heap()->undefined_value();
 }

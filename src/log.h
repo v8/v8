@@ -409,6 +409,7 @@ class Logger {
 #define TIMER_EVENTS_LIST(V)    \
   V(RecompileSynchronous, true) \
   V(RecompileConcurrent, true)  \
+  V(CompileIgnition, true)      \
   V(CompileFullCode, true)      \
   V(OptimizeCode, true)         \
   V(CompileCode, true)          \

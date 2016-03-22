@@ -129,7 +129,8 @@ class Test262TestSuite(testsuite.TestSuite):
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
-            [os.path.join(self.testroot, testcase.path + ".js")])
+            [os.path.join(self.testroot, testcase.path + ".js")] +
+            (["--throws"] if "negative" in self.GetTestRecord(testcase) else []))
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -144,7 +145,7 @@ class Test262TestSuite(testsuite.TestSuite):
         self.ParseTestRecord = module.parseTestRecord
       except:
         raise ImportError("Cannot load parseTestRecord; you may need to "
-                          "--download-data for test262")
+                          "gclient sync for test262")
       finally:
         if f:
           f.close()
@@ -171,13 +172,20 @@ class Test262TestSuite(testsuite.TestSuite):
     with open(filename) as f:
       return f.read()
 
-  def IsNegativeTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    return "negative" in test_record
+  def _ParseException(self, str):
+    for line in str.split("\n")[::-1]:
+      if line and not line[0].isspace() and ":" in line:
+        return line.split(":")[0]
 
-  def IsFailureOutput(self, output, testpath):
+
+  def IsFailureOutput(self, testcase):
+    output = testcase.output
+    test_record = self.GetTestRecord(testcase)
     if output.exit_code != 0:
       return True
+    if "negative" in test_record:
+      if self._ParseException(output.stdout) != test_record["negative"]:
+        return True
     return "FAILED!" in output.stdout
 
   def HasUnexpectedOutput(self, testcase):

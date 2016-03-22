@@ -55,6 +55,7 @@ class ElementsAccessor {
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
   virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+  virtual bool HasAccessors(JSObject* holder) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
@@ -147,6 +148,8 @@ class ElementsAccessor {
   virtual Handle<Object> Pop(Handle<JSArray> receiver) = 0;
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
+
+  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
  protected:
   friend class LookupIterator;

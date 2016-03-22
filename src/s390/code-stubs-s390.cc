@@ -477,7 +477,9 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm, Register lhs,
   __ b(both_loaded_as_doubles);
 }
 
-// Fast negative check for internalized-to-internalized equality.
+// Fast negative check for internalized-to-internalized equality or receiver
+// equality. Also handles the undetectable receiver to null/undefined
+// comparison.
 static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
                                                      Register lhs, Register rhs,
                                                      Label* possible_strings,
@@ -485,7 +487,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   DCHECK((lhs.is(r2) && rhs.is(r3)) || (lhs.is(r3) && rhs.is(r2)));
 
   // r4 is object type of rhs.
-  Label object_test, return_unequal, undetectable;
+  Label object_test, return_equal, return_unequal, undetectable;
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   __ mov(r0, Operand(kIsNotStringMask));
   __ AndP(r0, r4);
@@ -526,6 +528,16 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ bind(&undetectable);
   __ AndP(r0, r7, Operand(1 << Map::kIsUndetectable));
   __ beq(&return_unequal);
+
+  // If both sides are JSReceivers, then the result is false according to
+  // the HTML specification, which says that only comparisons with null or
+  // undefined are affected by special casing for document.all.
+  __ CompareInstanceType(r4, r4, ODDBALL_TYPE);
+  __ beq(&return_equal);
+  __ CompareInstanceType(r5, r5, ODDBALL_TYPE);
+  __ bne(&return_unequal);
+
+  __ bind(&return_equal);
   __ LoadImmP(r2, Operand(EQUAL));
   __ Ret();
 }
@@ -676,12 +688,12 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(lhs, rhs);
-      __ CallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals);
+      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
     }
     // Turn true into 0 and false into some non-zero value.
     STATIC_ASSERT(EQUAL == 0);
-    __ LoadRoot(r4, Heap::kTrueValueRootIndex);
-    __ sub(r3, r3, r4);
+    __ LoadRoot(r3, Heap::kTrueValueRootIndex);
+    __ SubP(r2, r2, r3);
     __ Ret();
   } else {
     __ Push(lhs, rhs);
@@ -1402,8 +1414,12 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ CompareObjectType(function, function_map, scratch, JS_FUNCTION_TYPE);
   __ bne(&slow_case);
 
-  // Ensure that {function} has an instance prototype.
+  // Go to the runtime if the function is not a constructor.
   __ LoadlB(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
+  __ TestBit(scratch, Map::kIsConstructor, r0);
+  __ beq(&slow_case);
+
+  // Ensure that {function} has an instance prototype.
   __ TestBit(scratch, Map::kHasNonInstancePrototype, r0);
   __ bne(&slow_case);
 
@@ -2918,41 +2934,6 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
   __ bne(&loop);
 }
 
-void StringCompareStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3    : left
-  //  -- r2    : right
-  //  -- r14   : return address
-  // -----------------------------------
-  __ AssertString(r3);
-  __ AssertString(r2);
-
-  Label not_same;
-  __ CmpP(r2, r3);
-  __ bne(&not_same);
-  __ LoadSmiLiteral(r2, Smi::FromInt(EQUAL));
-  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, r3,
-                      r4);
-  __ Ret();
-
-  __ bind(&not_same);
-
-  // Check that both objects are sequential one-byte strings.
-  Label runtime;
-  __ JumpIfNotBothSequentialOneByteStrings(r3, r2, r4, r5, &runtime);
-
-  // Compare flat one-byte strings natively.
-  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, r4,
-                      r5);
-  StringHelper::GenerateCompareFlatOneByteStrings(masm, r3, r2, r4, r5, r6);
-
-  // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  __ bind(&runtime);
-  __ Push(r3, r2);
-  __ TailCallRuntime(Runtime::kStringCompare);
-}
-
 void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3    : left
@@ -3255,10 +3236,17 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
-  __ Push(left, right);
   if (equality) {
-    __ TailCallRuntime(Runtime::kStringEquals);
+    {
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      __ Push(left, right);
+      __ CallRuntime(Runtime::kStringEqual);
+    }
+    __ LoadRoot(r3, Heap::kTrueValueRootIndex);
+    __ SubP(r2, r2, r3);
+    __ Ret();
   } else {
+    __ Push(left, right);
     __ TailCallRuntime(Runtime::kStringCompare);
   }
 
@@ -3782,7 +3770,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
-      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+      StubFailureTrampolineFrameConstants::kArgumentsLengthOffset;
   __ LoadP(r3, MemOperand(fp, parameter_count_offset));
   if (function_mode() == JS_FUNCTION_STUB_MODE) {
     __ AddP(r3, Operand(1));
@@ -4774,7 +4762,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
     __ bne(&loop);
   }
@@ -4783,7 +4771,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // arguments adaptor frame below the function frame).
   Label no_rest_parameters;
   __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kContextOffset));
+  __ LoadP(ip, MemOperand(r4, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&no_rest_parameters);
 
@@ -4931,7 +4919,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
   __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r2, MemOperand(r6, StandardFrameConstants::kContextOffset));
+  __ LoadP(r2, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(r2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
 
@@ -5158,7 +5146,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ bind(&loop);
     __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
-    __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kMarkerOffset));
+    __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
     __ bne(&loop);
   }
@@ -5166,7 +5154,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ LoadP(r5, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(ip, MemOperand(r5, StandardFrameConstants::kContextOffset));
+  __ LoadP(ip, MemOperand(r5, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&arguments_adaptor);
   {
@@ -5577,7 +5565,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // context save
   __ push(context);
-  if (!is_lazy) {
+  if (!is_lazy()) {
     // load context from callee
     __ LoadP(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }

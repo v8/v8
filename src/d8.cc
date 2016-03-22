@@ -1983,8 +1983,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-  bool enable_harmony_modules = false;
-
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
   SourceGroup* current = options.isolate_sources;
@@ -1997,7 +1995,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->Begin(argv, i + 1);
     } else if (strcmp(str, "--module") == 0) {
       // Pass on to SourceGroup, which understands this option.
-      enable_harmony_modules = true;
     } else if (strncmp(argv[i], "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
@@ -2011,10 +2008,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   if (!logfile_per_isolate && options.num_isolates) {
     SetFlagsFromString("--nologfile_per_isolate");
-  }
-
-  if (enable_harmony_modules) {
-    SetFlagsFromString("--harmony-modules");
   }
 
   return true;
