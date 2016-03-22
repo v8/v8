@@ -267,30 +267,22 @@ function testConcatTypedArray(type, elems, modulo) {
 }
 
 (function testConcatSmallTypedArray() {
-  var max = [Math.pow(2, 8), Math.pow(2, 16), Math.pow(2, 32), false, false];
-  [
-    Uint8Array,
-    Uint16Array,
-    Uint32Array,
-    Float32Array,
-    Float64Array
-  ].forEach(function(ctor, i) {
-    testConcatTypedArray(ctor, 1, max[i]);
-  });
+  var length = 1;
+  testConcatTypedArray(Uint8Array, length, Math.pow(2, 8));
+  testConcatTypedArray(Uint16Array, length, Math.pow(2, 16));
+  testConcatTypedArray(Uint32Array, length,  Math.pow(2, 32));
+  testConcatTypedArray(Float32Array, length, false);
+  testConcatTypedArray(Float64Array, length, false);
 })();
 
 
 (function testConcatLargeTypedArray() {
-  var max = [Math.pow(2, 8), Math.pow(2, 16), Math.pow(2, 32), false, false];
-  [
-    Uint8Array,
-    Uint16Array,
-    Uint32Array,
-    Float32Array,
-    Float64Array
-  ].forEach(function(ctor, i) {
-    testConcatTypedArray(ctor, 4000, max[i]);
-  });
+  var length = 4000;
+  testConcatTypedArray(Uint8Array, length, Math.pow(2, 8));
+  testConcatTypedArray(Uint16Array, length, Math.pow(2, 16));
+  testConcatTypedArray(Uint32Array, length,  Math.pow(2, 32));
+  testConcatTypedArray(Float32Array, length, false);
+  testConcatTypedArray(Float64Array, length, false);
 })();
 
 
