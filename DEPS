@@ -35,7 +35,7 @@ deps = {
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "f4c36ad89b2696b37d9cd7ca7d984b691888b188",
+      Var("git_url") + "/android_tools.git" + "@" + "19728471dd63a968668288488403286b68e4ae9e",
   },
   "win": {
     "v8/third_party/cygwin":
