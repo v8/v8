@@ -16,33 +16,33 @@ let test_size = 1000;
 
 (function TestPrimaryTypes(size) {
   Test(size, [
-    new TestGen(4, ValidPrimaryTypes, [CheckValid], true),
-    new TestGen(1, InvalidPrimaryTypes, [CheckInvalid], true)
+    new TestGen(4, ValidPrimaryTypes, [CheckValidType], true),
+    new TestGen(1, InvalidPrimaryTypes, [CheckInvalidType], true)
   ]);
 })(test_size);
 
 
 (function TestIntersectionTypes(size) {
   Test(size, [
-    new TestGen(4, ValidIntersectionTypes, [CheckValid], true),
-    new TestGen(1, InvalidIntersectionTypes, [CheckInvalid], true)
+    new TestGen(4, ValidIntersectionTypes, [CheckValidType], true),
+    new TestGen(1, InvalidIntersectionTypes, [CheckInvalidType], true)
   ]);
 })(test_size);
 
 
 (function TestUnionTypes(size) {
   Test(size, [
-    new TestGen(4, ValidUnionTypes, [CheckValid], true),
-    new TestGen(1, InvalidUnionTypes, [CheckInvalid], true)
+    new TestGen(4, ValidUnionTypes, [CheckValidType], true),
+    new TestGen(1, InvalidUnionTypes, [CheckInvalidType], true)
   ]);
 })(test_size);
 
 
 (function TestFunctionAndConstructorTypes(size) {
   Test(size, [
-    new TestGen(4, ValidFunctionTypes, [CheckValid], false),
-    new TestGen(1, InvalidFunctionTypes, [CheckInvalid], false),
-    new TestGen(4, ValidFunctionTypes, [CheckValid], true),
-    new TestGen(1, InvalidFunctionTypes, [CheckInvalid], true)
+    new TestGen(4, ValidFunctionTypes, [CheckValidType], false),
+    new TestGen(1, InvalidFunctionTypes, [CheckInvalidType], false),
+    new TestGen(4, ValidFunctionTypes, [CheckValidType], true),
+    new TestGen(1, InvalidFunctionTypes, [CheckInvalidType], true)
   ]);
 })(test_size);

@@ -4,32 +4,26 @@
 
 // Flags: --harmony-types
 
-function CheckValid(type) {
-  // print("V:", type);
-  assertDoesNotThrow("'use types'; var x: " + type + ";");
-}
 
-function CheckInvalid(type) {
-  // print("I:", type);
-  assertThrows("'use types'; var x: " + type + ";", SyntaxError);
-}
+load("test/mjsunit/harmony/typesystem/testgen.js");
+
 
 function valid(type) {
-  CheckValid(type);
-  CheckValid(type + "[]");
-  CheckValid(type + " & any");
-  CheckValid(type + " | any");
-  CheckValid("(" + type + ")[]");
-  CheckValid("(a: " + type + ") => any");
+  CheckValidType(type);
+  CheckValidType(type + "[]");
+  CheckValidType(type + " & any");
+  CheckValidType(type + " | any");
+  CheckValidType("(" + type + ")[]");
+  CheckValidType("(a: " + type + ") => any");
 }
 
 function invalid(type) {
-  CheckInvalid(type);
-  CheckInvalid(type + "[]");
-  CheckInvalid(type + " & any");
-  CheckInvalid(type + " | any");
-  CheckInvalid("(" + type + ")[]");
-  CheckInvalid("(a: " + type + ") => any");
+  CheckInvalidType(type);
+  CheckInvalidType(type + "[]");
+  CheckInvalidType(type + " & any");
+  CheckInvalidType(type + " | any");
+  CheckInvalidType("(" + type + ")[]");
+  CheckInvalidType("(a: " + type + ") => any");
 }
 
 (function TestTypeQueries() {
