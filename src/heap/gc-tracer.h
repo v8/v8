@@ -6,6 +6,7 @@
 #define V8_HEAP_GC_TRACER_H_
 
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -88,7 +89,6 @@ class RingBuffer {
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
-
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 // TODO(ernstm): Unit tests.
@@ -152,6 +152,7 @@ class GCTracer {
     GCTracer* tracer_;
     ScopeId scope_;
     double start_time_;
+    RuntimeCallTimer timer_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
@@ -612,6 +613,9 @@ class GCTracer {
 
   // Counts how many tracers were started without stopping.
   int start_counter_;
+
+  // Separate timer used for --runtime_call_stats
+  RuntimeCallTimer timer_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
