@@ -1446,6 +1446,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
 #ifdef DEBUG
   debug_name = info()->GetDebugName();
   data_->sequence()->ValidateEdgeSplitForm();
+  data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());

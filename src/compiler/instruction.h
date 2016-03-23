@@ -1355,6 +1355,7 @@ class InstructionSequence final : public ZoneObject {
   void PrintBlock(int block_id) const;
 
   void ValidateEdgeSplitForm();
+  void ValidateDeferredBlockExitPaths();
   void ValidateSSA();
 
  private:
