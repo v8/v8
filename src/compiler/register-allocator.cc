@@ -25,7 +25,6 @@ void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
   v->erase(it);
 }
 
-
 int GetRegisterCount(const RegisterConfiguration* cfg, RegisterKind kind) {
   return kind == DOUBLE_REGISTERS ? cfg->num_double_registers()
                                   : cfg->num_general_registers();
