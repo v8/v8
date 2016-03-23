@@ -176,10 +176,6 @@ class IncrementalMarking {
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
 
-  void RecordWrites(HeapObject* obj);
-
-  void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
-
   void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {

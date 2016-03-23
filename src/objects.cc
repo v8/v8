@@ -3199,7 +3199,7 @@ void Map::ReplaceDescriptors(DescriptorArray* new_descriptors,
   }
 
   DescriptorArray* to_replace = instance_descriptors();
-  GetHeap()->incremental_marking()->RecordWrites(to_replace);
+  GetHeap()->incremental_marking()->IterateBlackObject(to_replace);
   Map* current = this;
   while (current->instance_descriptors() == to_replace) {
     Object* next = current->GetBackPointer();
@@ -4573,7 +4573,7 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   }
 
   // Replace descriptors by new_descriptors in all maps that share it.
-  map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
+  map->GetHeap()->incremental_marking()->IterateBlackObject(*descriptors);
 
   Map* current = *map;
   while (current->instance_descriptors() == *descriptors) {

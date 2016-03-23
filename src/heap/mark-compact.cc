@@ -1010,7 +1010,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
-  isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
+  isolate_->heap()->incremental_marking()->IterateBlackObject(shared_info);
 
   if (FLAG_trace_code_flushing) {
     PrintF("[code-flushing abandons function-info: ");
@@ -1046,8 +1046,9 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   Object* undefined = isolate_->heap()->undefined_value();
 
   // Make sure previous flushing decisions are revisited.
-  isolate_->heap()->incremental_marking()->RecordWrites(function);
-  isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
+  isolate_->heap()->incremental_marking()->IterateBlackObject(function);
+  isolate_->heap()->incremental_marking()->IterateBlackObject(
+      function->shared());
 
   if (FLAG_trace_code_flushing) {
     PrintF("[code-flushing abandons closure: ");
@@ -1493,11 +1494,9 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
   }
 }
 
-template <LiveObjectIterationMode T>
 void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   DCHECK(!marking_deque()->IsFull());
-  DCHECK(T == kGreyObjects || T == kGreyObjectsOnBlackPage);
-  LiveObjectIterator<T> it(p);
+  LiveObjectIterator<kGreyObjects> it(p);
   HeapObject* object = NULL;
   while ((object = it.Next()) != NULL) {
     MarkBit markbit = Marking::MarkBitFrom(object);
@@ -1798,10 +1797,8 @@ void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
-    if (p->IsFlagSet(Page::BLACK_PAGE)) {
-      DiscoverGreyObjectsOnPage<kGreyObjectsOnBlackPage>(p);
-    } else {
-      DiscoverGreyObjectsOnPage<kGreyObjects>(p);
+    if (!p->IsFlagSet(Page::BLACK_PAGE)) {
+      DiscoverGreyObjectsOnPage(p);
     }
     if (marking_deque()->IsFull()) return;
   }
@@ -1813,7 +1810,7 @@ void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
   NewSpacePageIterator it(space->bottom(), space->top());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
-    DiscoverGreyObjectsOnPage<kGreyObjects>(page);
+    DiscoverGreyObjectsOnPage(page);
     if (marking_deque()->IsFull()) return;
   }
 }

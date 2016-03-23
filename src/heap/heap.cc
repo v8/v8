@@ -1108,7 +1108,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
                   dst_objects[i]);
     }
   }
-  incremental_marking()->RecordWrites(array);
+  incremental_marking()->IterateBlackObject(array);
 }
 
 
@@ -4709,10 +4709,9 @@ void Heap::IteratePromotedObject(HeapObject* target, int size,
   // regular visiting and IteratePromotedObjectPointers.
   if (!was_marked_black) {
     if (incremental_marking()->black_allocation()) {
-      Map* map = target->map();
-      IncrementalMarking::MarkObject(this, map);
+      IncrementalMarking::MarkObject(this, target->map());
+      incremental_marking()->IterateBlackObject(target);
     }
-    incremental_marking()->IterateBlackObject(target);
   }
 }
 

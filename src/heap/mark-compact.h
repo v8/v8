@@ -370,7 +370,6 @@ class MarkBitCellIterator BASE_EMBEDDED {
 enum LiveObjectIterationMode {
   kBlackObjects,
   kGreyObjects,
-  kGreyObjectsOnBlackPage,
   kAllLiveObjects
 };
 
@@ -382,10 +381,8 @@ class LiveObjectIterator BASE_EMBEDDED {
         it_(chunk_),
         cell_base_(it_.CurrentCellBase()),
         current_cell_(*it_.CurrentCell()) {
-    // Black pages can only be iterated with kGreyObjectsOnBlackPage mode.
-    if (T != kGreyObjectsOnBlackPage) {
-      DCHECK(!chunk->IsFlagSet(Page::BLACK_PAGE));
-    }
+    // Black pages can not be iterated.
+    DCHECK(!chunk->IsFlagSet(Page::BLACK_PAGE));
   }
 
   HeapObject* Next();
@@ -709,7 +706,6 @@ class MarkCompactCollector {
   // on various pages of the heap. Used by {RefillMarkingDeque} only.
   template <class T>
   void DiscoverGreyObjectsWithIterator(T* it);
-  template <LiveObjectIterationMode T>
   void DiscoverGreyObjectsOnPage(MemoryChunk* p);
   void DiscoverGreyObjectsInSpace(PagedSpace* space);
   void DiscoverGreyObjectsInNewSpace();
