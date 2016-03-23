@@ -491,6 +491,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
   OperandScale operand_scale = OperandScale::kSingle;
   if (IsPrefixScalingBytecode(bytecode)) {
     prefix_offset = 1;
+    operand_scale = Bytecodes::PrefixBytecodeToOperandScale(bytecode);
     bytecode = Bytecodes::FromByte(bytecode_start[1]);
   }
   int bytecode_size = Bytecodes::Size(bytecode, operand_scale);
