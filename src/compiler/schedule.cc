@@ -392,7 +392,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   for (BasicBlock* block :
        ((s.RpoBlockCount() == 0) ? *s.all_blocks() : *s.rpo_order())) {
     if (block->rpo_number() == -1) {
-      os << "--- BLOCK B" << block->id().ToInt() << " (block id)";
+      os << "--- BLOCK id:" << block->id().ToInt();
     } else {
       os << "--- BLOCK B" << block->rpo_number();
     }
@@ -403,7 +403,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
       if (comma) os << ", ";
       comma = true;
       if (predecessor->rpo_number() == -1) {
-        os << "B" << predecessor->id().ToInt();
+        os << "id:" << predecessor->id().ToInt();
       } else {
         os << "B" << predecessor->rpo_number();
       }
@@ -432,7 +432,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
         if (comma) os << ", ";
         comma = true;
         if (successor->rpo_number() == -1) {
-          os << "B" << successor->id().ToInt();
+          os << "id:" << successor->id().ToInt();
         } else {
           os << "B" << successor->rpo_number();
         }
