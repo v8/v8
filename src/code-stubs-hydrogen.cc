@@ -78,7 +78,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                             Representation representation,
                             bool transition_to_field);
 
-  HValue* BuildPushElement(HValue* object, HValue* value, ElementsKind kind);
+  HValue* BuildPushElement(HValue* object, HValue* argc,
+                           HValue* argument_elements, ElementsKind kind);
 
   enum ArgumentClass {
     NONE,
@@ -782,36 +783,53 @@ Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object,
-                                                   HValue* value,
+HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
+                                                   HValue* argument_elements,
                                                    ElementsKind kind) {
+  // Precheck whether all elements fit into the array.
+  if (!IsFastObjectElementsKind(kind)) {
+    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+    HValue* start = graph()->GetConstant0();
+    HValue* key = builder.BeginBody(start, argc, Token::LT);
+    {
+      HInstruction* argument =
+          Add<HAccessArgumentsAt>(argument_elements, argc, key);
+      Representation r = IsFastSmiElementsKind(kind) ? Representation::Smi()
+                                                     : Representation::Double();
+      AddUncasted<HForceRepresentation>(argument, r);
+    }
+    builder.EndBody();
+  }
+
   HValue* length = Add<HLoadNamedField>(object, nullptr,
                                         HObjectAccess::ForArrayLength(kind));
-  HValue* key = length;
+  HValue* new_length = AddUncasted<HAdd>(length, argc);
+  HValue* max_key = AddUncasted<HSub>(new_length, graph()->GetConstant1());
+
   HValue* elements = Add<HLoadNamedField>(object, nullptr,
                                           HObjectAccess::ForElementsPointer());
-  elements = BuildCheckForCapacityGrow(object, elements, kind, length, key,
+  elements = BuildCheckForCapacityGrow(object, elements, kind, length, max_key,
                                        true, STORE);
-  AddElementAccess(elements, key, value, object, nullptr, kind, STORE);
-  return key;
+
+  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+  HValue* start = graph()->GetConstant0();
+  HValue* key = builder.BeginBody(start, argc, Token::LT);
+  {
+    HValue* argument = Add<HAccessArgumentsAt>(argument_elements, argc, key);
+    HValue* index = AddUncasted<HAdd>(key, length);
+    AddElementAccess(elements, index, argument, object, nullptr, kind, STORE);
+  }
+  builder.EndBody();
+  return new_length;
 }
 
 template <>
 HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
   // TODO(verwaest): Fix deoptimizer messages.
   HValue* argc = GetArgumentsLength();
-  IfBuilder arg_check(this);
-  arg_check.If<HCompareNumericAndBranch>(argc, graph()->GetConstant1(),
-                                         Token::NE);
-  arg_check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
-  arg_check.End();
-
   HInstruction* argument_elements = Add<HArgumentsElements>(false, false);
   HInstruction* object = Add<HAccessArgumentsAt>(argument_elements, argc,
                                                  graph()->GetConstantMinus1());
-  HInstruction* value =
-      Add<HAccessArgumentsAt>(argument_elements, argc, graph()->GetConstant0());
-
   BuildCheckHeapObject(object);
   HValue* map = Add<HLoadNamedField>(object, nullptr, HObjectAccess::ForMap());
   Add<HCheckInstanceType>(object, HCheckInstanceType::IS_JS_ARRAY);
@@ -930,10 +948,9 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
       kind, Add<HConstant>(FAST_HOLEY_SMI_ELEMENTS), Token::LTE);
   has_smi_elements.Then();
   {
-    HValue* smi_value =
-        AddUncasted<HForceRepresentation>(value, Representation::Smi());
-    HValue* key = BuildPushElement(object, smi_value, FAST_HOLEY_SMI_ELEMENTS);
-    environment()->Push(key);
+    HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                          FAST_HOLEY_SMI_ELEMENTS);
+    environment()->Push(new_length);
   }
   has_smi_elements.Else();
   {
@@ -942,8 +959,9 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
         kind, Add<HConstant>(FAST_HOLEY_ELEMENTS), Token::LTE);
     has_object_elements.Then();
     {
-      HValue* key = BuildPushElement(object, value, FAST_HOLEY_ELEMENTS);
-      environment()->Push(key);
+      HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                            FAST_HOLEY_ELEMENTS);
+      environment()->Push(new_length);
     }
     has_object_elements.Else();
     {
@@ -952,11 +970,9 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
           kind, Add<HConstant>(FAST_HOLEY_DOUBLE_ELEMENTS), Token::LTE);
       has_double_elements.Then();
       {
-        HValue* double_value =
-            AddUncasted<HForceRepresentation>(value, Representation::Double());
-        HValue* key =
-            BuildPushElement(object, double_value, FAST_HOLEY_DOUBLE_ELEMENTS);
-        environment()->Push(key);
+        HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                              FAST_HOLEY_DOUBLE_ELEMENTS);
+        environment()->Push(new_length);
       }
       has_double_elements.ElseDeopt(Deoptimizer::kFastArrayPushFailed);
       has_double_elements.End();
@@ -965,8 +981,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
   }
   has_smi_elements.End();
 
-  HValue* key = environment()->Pop();
-  return AddUncasted<HAdd>(key, graph()->GetConstant1());
+  return environment()->Pop();
 }
 
 Handle<Code> FastArrayPushStub::GenerateCode() { return DoGenerateCode(this); }
