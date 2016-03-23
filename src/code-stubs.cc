@@ -555,11 +555,11 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
 
       assembler->Bind(&if_rhsissmi);
       {
-        // TODO(bmeurer): Properly fuse Int64AddWithOverflow on x64
+        // Try fast Smi addition first.
         Node* pair = assembler->SmiAddWithOverflow(lhs, rhs);
-        Node* result = assembler->Projection(0, pair);
         Node* overflow = assembler->Projection(1, pair);
 
+        // Check if the Smi additon overflowed.
         Label if_overflow(assembler), if_notoverflow(assembler);
         assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
@@ -571,7 +571,7 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
         }
 
         assembler->Bind(&if_notoverflow);
-        assembler->Return(result);
+        assembler->Return(assembler->Projection(0, pair));
       }
 
       assembler->Bind(&if_rhsisnotsmi);
@@ -919,7 +919,6 @@ void SubtractStub::GenerateAssembly(
       {
         // Try a fast Smi subtraction first.
         Node* pair = assembler->SmiSubWithOverflow(lhs, rhs);
-        Node* result = assembler->Projection(0, pair);
         Node* overflow = assembler->Projection(1, pair);
 
         // Check if the Smi subtraction overflowed.
@@ -935,7 +934,7 @@ void SubtractStub::GenerateAssembly(
         }
 
         assembler->Bind(&if_notoverflow);
-        assembler->Return(result);
+        assembler->Return(assembler->Projection(0, pair));
       }
 
       assembler->Bind(&if_rhsisnotsmi);
