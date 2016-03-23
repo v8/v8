@@ -24,6 +24,7 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   Isolate* const isolate = receiver->GetIsolate();
   FastKeyAccumulator accumulator(isolate, receiver, INCLUDE_PROTOS,
                                  ENUMERABLE_STRINGS);
+  accumulator.set_filter_proxy_keys(false);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
@@ -35,26 +36,68 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   return handle(receiver->map(), isolate);
 }
 
+// This is a slight modifcation of JSReceiver::HasProperty, dealing with
+// the oddities of JSProxy in for-in filter.
+MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
+                                          Handle<JSReceiver> receiver,
+                                          Handle<Object> key) {
+  bool success = false;
+  Maybe<PropertyAttributes> result = Just(ABSENT);
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, receiver, key, &success);
+  if (!success) return isolate->factory()->undefined_value();
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY: {
+        // For proxies we have to invoke the [[GetOwnProperty]] trap.
+        result = JSProxy::GetPropertyAttributes(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() == ABSENT) {
+          // Continue lookup on the proxy's prototype.
+          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          Handle<Object> prototype;
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
+                                     JSProxy::GetPrototype(proxy), Object);
+          if (prototype->IsNull()) break;
+          // We already have a stack-check in JSProxy::GetPrototype.
+          return HasEnumerableProperty(
+              isolate, Handle<JSReceiver>::cast(prototype), key);
+        } else if (result.FromJust() & DONT_ENUM) {
+          return isolate->factory()->undefined_value();
+        } else {
+          return it.GetName();
+        }
+      }
+      case LookupIterator::INTERCEPTOR: {
+        result = JSObject::GetPropertyAttributesWithInterceptor(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() != ABSENT) return it.GetName();
+        continue;
+      }
+      case LookupIterator::ACCESS_CHECK: {
+        if (it.HasAccess()) continue;
+        result = JSObject::GetPropertyAttributesWithFailedAccessCheck(&it);
+        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.FromJust() != ABSENT) return it.GetName();
+        return isolate->factory()->undefined_value();
+      }
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        // TypedArray out-of-bounds access.
+        return isolate->factory()->undefined_value();
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::DATA:
+        return it.GetName();
+    }
+  }
+  return isolate->factory()->undefined_value();
+}
 
 MaybeHandle<Object> Filter(Handle<JSReceiver> receiver, Handle<Object> key) {
   Isolate* const isolate = receiver->GetIsolate();
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-  // Directly check for elements if the key is a smi and avoid a conversion
-  // roundtrip (Number -> Name -> Number).
-  if (key->IsNumber() && receiver->map()->OnlyHasSimpleProperties()) {
-    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
-    ElementsAccessor* accessor = object->GetElementsAccessor();
-    DCHECK_LT(key->Number(), kMaxUInt32);
-    if (accessor->HasElement(object, key->Number(), ONLY_ENUMERABLE)) {
-      return name;
-    }
-  }
-  Maybe<bool> result = JSReceiver::HasProperty(receiver, name);
-  MAYBE_RETURN_NULL(result);
-  if (result.FromJust()) return name;
-  return isolate->factory()->undefined_value();
+  return HasEnumerableProperty(isolate, receiver, key);
 }
 
 }  // namespace

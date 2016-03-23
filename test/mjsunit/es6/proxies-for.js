@@ -123,16 +123,96 @@ TestForInThrow(new Proxy({}, {
   }
 }));
 
-(function() {
-  var p = new Proxy({}, {ownKeys:function() { return ["0"]; }});
+
+function keys(object) {
+  var keys = [];
+  for (var k in object) {
+    keys.push(k);
+  }
+  return keys;
+}
+
+(function testKeysProxyOnProtoEmpty() {
+  var p = new Proxy({}, {
+    ownKeys() { return []; },
+  });
   var o = [0];
   o.__proto__ = p;
-  var keys = [];
-  for (var k in o) { keys.push(k); };
-  assertEquals(["0"], keys);
+  assertEquals(["0"], keys(o));
+
+  delete o[0];
+  assertEquals([], keys(o));
 })();
 
+(function testKeysProxyOnProto() {
+  var handler = {ownKeys() { return ["0"]; }};
+  var proxy = new Proxy({}, handler);
+  var object = [0];
+  object.__proto__ = proxy;
+  assertEquals(["0"], keys(object));
+
+  // The Proxy doesn't set his ownKeys enumerable.
+  delete object[0];
+  assertEquals([], keys(object));
+
+  // The [[Has]] trap has no influence on which are enumerable properties are
+  // shown in for-in.
+  handler.has = function() { return true };
+  assertEquals([], keys(object));
+
+  handler.getOwnPropertyDescriptor = function() {
+    return {enumerable: true, configurable: true}
+  }
+  assertEquals(["0"], keys(object));
+})();
+
+(function testKeysProxyProto() {
+  var target = {t1:true, t2:true};
+  var handler = {};
+  var proxy = new Proxy(target, handler);
+
+  assertEquals(["t1", "t2"], keys(proxy));
+
+  target.__proto__ = {p1:true, p2:true};
+  assertEquals(["t1", "t2", "p1", "p2"], keys(proxy));
+
+  handler.getPrototypeOf = function(target) {
+    return {p3:true, p4:true};
+  };
+  // for-in walks the prototype chain for the [[Has]] / Enumerable check.
+  assertEquals(["t1", "t2", "p3", "p4"], keys(proxy));
+
+  // [[Has]] is not used in for-in.
+  handler.has = function() { return false };
+  assertEquals(["t1", "t2", "p3", "p4"], keys(proxy));
+
+  // Proxy intercepts enumerability check.
+  handler.getOwnPropertyDescriptor = function() {
+    return {enumerable: false, configurable: true}
+  }
+  assertEquals([], keys(proxy));
+
+  handler.getOwnPropertyDescriptor = function() {
+    return {enumerable: true, configurable: true}
+  }
+  assertEquals(["t1", "t2", "p3", "p4"], keys(proxy));
+
+  handler.getOwnPropertyDescriptor = function(target, key) {
+    return {
+      enumerable: key in target,
+      configurable: true
+    }
+  }
+  assertEquals(["t1", "t2"], keys(proxy));
+
+  handler.getPrototypeOf = function() { throw "error" };
+  assertThrowsEquals(() => {keys(proxy)}, "error");
+})();
+
+
 (function () {
-  var p = new Proxy({}, {ownKeys: function() { return ["1", Symbol(), "2"] }});
+  var symbol = Symbol();
+  var p = new Proxy({}, {ownKeys() { return ["1", symbol, "2"] }});
   assertEquals(["1","2"], Object.getOwnPropertyNames(p));
+  assertEquals([symbol], Object.getOwnPropertySymbols(p));
 })();

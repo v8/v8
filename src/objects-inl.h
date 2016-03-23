@@ -7083,7 +7083,6 @@ NameDictionary* JSReceiver::property_dictionary() {
   return NameDictionary::cast(properties());
 }
 
-
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(object->GetIsolate(),

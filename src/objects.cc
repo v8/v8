@@ -684,13 +684,12 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        // Call the "has" trap on proxies.
         return JSProxy::HasProperty(it->isolate(), it->GetHolder<JSProxy>(),
                                     it->GetName());
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
-        if (!result.IsJust()) return Nothing<bool>();
+        if (result.IsNothing()) return Nothing<bool>();
         if (result.FromJust() != ABSENT) return Just(true);
         break;
       }
@@ -698,7 +697,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
         if (it->HasAccess()) break;
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
-        if (!result.IsJust()) return Nothing<bool>();
+        if (result.IsNothing()) return Nothing<bool>();
         return Just(result.FromJust() != ABSENT);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -5144,11 +5143,9 @@ MaybeHandle<Context> JSReceiver::GetFunctionRealm(Handle<JSReceiver> receiver) {
 
 
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
-  Isolate* isolate = it->isolate();
-  HandleScope scope(isolate);
   PropertyDescriptor desc;
   Maybe<bool> found = JSProxy::GetOwnPropertyDescriptor(
-      isolate, it->GetHolder<JSProxy>(), it->GetName(), &desc);
+      it->isolate(), it->GetHolder<JSProxy>(), it->GetName(), &desc);
   MAYBE_RETURN(found, Nothing<PropertyAttributes>());
   if (!found.FromJust()) return Just(ABSENT);
   return Just(desc.ToAttributes());
@@ -8515,12 +8512,23 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
                                     KeyCollectionType type,
                                     PropertyFilter filter,
                                     KeyAccumulator* accumulator) {
+  // Proxies have no hidden prototype and we should not trigger the
+  // [[GetPrototypeOf]] trap on the last iteration when using
+  // AdvanceFollowingProxies.
+  if (type == OWN_ONLY && object->IsJSProxy()) {
+    MAYBE_RETURN(JSProxy::OwnPropertyKeys(isolate, receiver,
+                                          Handle<JSProxy>::cast(object), filter,
+                                          accumulator),
+                 Nothing<bool>());
+    return Just(true);
+  }
+
   PrototypeIterator::WhereToEnd end = type == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER, end);
-       !iter.IsAtEnd(); iter.Advance()) {
+       !iter.IsAtEnd();) {
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
@@ -8536,6 +8544,11 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
     }
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
+    // Iterate through proxies but ignore access checks for the ALL_CAN_READ
+    // case on API objects for OWN_ONLY keys handlede in GgetKeysFromJSObject.
+    if (!iter.AdvanceFollowingProxiesIgnoringAccessChecks()) {
+      return Nothing<bool>();
+    }
   }
   return Just(true);
 }
@@ -8694,14 +8707,15 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
   return accumulator->AddKeysFromProxy(proxy, trap_result);
 }
 
-
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
                                             PropertyFilter filter,
-                                            GetKeysConversion keys_conversion) {
+                                            GetKeysConversion keys_conversion,
+                                            bool filter_proxy_keys) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate, type, filter);
+  accumulator.set_filter_proxy_keys(filter_proxy_keys);
   MAYBE_RETURN(
       GetKeys_Internal(isolate, object, object, type, filter, &accumulator),
       MaybeHandle<FixedArray>());

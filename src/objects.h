@@ -1962,7 +1962,8 @@ class JSReceiver: public HeapObject {
   // "for (n in object) { }".
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
-      GetKeysConversion keys_conversion = KEEP_NUMBERS);
+      GetKeysConversion keys_conversion = KEEP_NUMBERS,
+      bool filter_proxy_keys_ = true);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
       Handle<JSReceiver> object, PropertyFilter filter);
