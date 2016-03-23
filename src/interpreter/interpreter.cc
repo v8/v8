@@ -690,7 +690,7 @@ void Interpreter::DoMod(InterpreterAssembler* assembler) {
 //
 // BitwiseOr register <src> to accumulator.
 void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kBitwiseOr, assembler);
+  DoBinaryOp(CodeFactory::BitwiseOr(isolate_), assembler);
 }
 
 
@@ -698,7 +698,7 @@ void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
 //
 // BitwiseXor register <src> to accumulator.
 void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kBitwiseXor, assembler);
+  DoBinaryOp(CodeFactory::BitwiseXor(isolate_), assembler);
 }
 
 
@@ -706,7 +706,7 @@ void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
 //
 // BitwiseAnd register <src> to accumulator.
 void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kBitwiseAnd, assembler);
+  DoBinaryOp(CodeFactory::BitwiseAnd(isolate_), assembler);
 }
 
 

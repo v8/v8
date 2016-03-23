@@ -70,9 +70,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
     ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token),    \
                         CallDescriptor::kPatchableCallSiteWithNop | flags); \
   }
-REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
-REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
-REPLACE_BINARY_OP_IC_CALL(JSBitwiseAnd, Token::BIT_AND)
 REPLACE_BINARY_OP_IC_CALL(JSShiftLeft, Token::SHL)
 REPLACE_BINARY_OP_IC_CALL(JSShiftRight, Token::SAR)
 REPLACE_BINARY_OP_IC_CALL(JSShiftRightLogical, Token::SHR)
@@ -98,6 +95,9 @@ REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
   }
 REPLACE_STUB_CALL(Add)
 REPLACE_STUB_CALL(Subtract)
+REPLACE_STUB_CALL(BitwiseAnd)
+REPLACE_STUB_CALL(BitwiseOr)
+REPLACE_STUB_CALL(BitwiseXor)
 REPLACE_STUB_CALL(LessThan)
 REPLACE_STUB_CALL(LessThanOrEqual)
 REPLACE_STUB_CALL(GreaterThan)

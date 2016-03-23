@@ -70,6 +70,7 @@ class Schedule;
   V(IntPtrSub)                                  \
   V(IntPtrSubWithOverflow)                      \
   V(Int32Add)                                   \
+  V(Int32AddWithOverflow)                       \
   V(Int32Sub)                                   \
   V(Int32Mul)                                   \
   V(WordOr)                                     \
@@ -294,6 +295,8 @@ class CodeStubAssembler {
   Node* LoadHeapNumberValue(Node* object);
   // Store the floating point value of a HeapNumber.
   Node* StoreHeapNumberValue(Node* object, Node* value);
+  // Truncate the floating point value of a HeapNumber to an Int32.
+  Node* TruncateHeapNumberValueToInt32(Node* object);
   // Load the bit field of a Map.
   Node* LoadMapBitField(Node* map);
   // Load the instance type of a Map.
@@ -328,6 +331,9 @@ class CodeStubAssembler {
   }
 
   Node* BitFieldDecode(Node* word32, uint32_t shift, uint32_t mask);
+
+  // Conversions.
+  Node* ChangeInt32ToTagged(Node* value);
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?

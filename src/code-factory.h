@@ -81,6 +81,9 @@ class CodeFactory final {
 
   static Callable Add(Isolate* isolate);
   static Callable Subtract(Isolate* isolate);
+  static Callable BitwiseAnd(Isolate* isolate);
+  static Callable BitwiseOr(Isolate* isolate);
+  static Callable BitwiseXor(Isolate* isolate);
   static Callable LessThan(Isolate* isolate);
   static Callable LessThanOrEqual(Isolate* isolate);
   static Callable GreaterThan(Isolate* isolate);

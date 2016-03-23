@@ -219,6 +219,24 @@ Callable CodeFactory::Subtract(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::BitwiseAnd(Isolate* isolate) {
+  BitwiseAndStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::BitwiseOr(Isolate* isolate) {
+  BitwiseOrStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::BitwiseXor(Isolate* isolate) {
+  BitwiseXorStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::LessThan(Isolate* isolate) {
   LessThanStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

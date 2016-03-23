@@ -259,6 +259,12 @@ Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
       IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
 }
 
+Node* CodeStubAssembler::TruncateHeapNumberValueToInt32(Node* object) {
+  Node* value = LoadHeapNumberValue(object);
+  return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                                value);
+}
+
 Node* CodeStubAssembler::LoadMapBitField(Node* map) {
   return Load(MachineType::Uint8(), map,
               IntPtrConstant(Map::kBitFieldOffset - kHeapObjectTag));
@@ -502,6 +508,33 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
   return raw_assembler_->Word32Shr(
       raw_assembler_->Word32And(word32, raw_assembler_->Int32Constant(mask)),
       raw_assembler_->Int32Constant(shift));
+}
+
+Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    return SmiTag(ChangeInt32ToInt64(value));
+  }
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Node* pair = Int32AddWithOverflow(value, value);
+  Node* overflow = Projection(1, pair);
+  Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
+      if_join(this);
+  Branch(overflow, &if_overflow, &if_notoverflow);
+  Bind(&if_overflow);
+  {
+    Node* value64 = ChangeInt32ToFloat64(value);
+    Node* result = AllocateHeapNumberWithValue(value64);
+    var_result.Bind(result);
+  }
+  Goto(&if_join);
+  Bind(&if_notoverflow);
+  {
+    Node* result = Projection(0, pair);
+    var_result.Bind(result);
+  }
+  Goto(&if_join);
+  Bind(&if_join);
+  return var_result.value();
 }
 
 void CodeStubAssembler::BranchIf(Node* condition, Label* if_true,

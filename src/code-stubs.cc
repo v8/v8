@@ -1035,6 +1035,182 @@ void SubtractStub::GenerateAssembly(
 
 namespace {
 
+void GenerateBitwiseOperation(
+    compiler::CodeStubAssembler* assembler,
+    compiler::Node* (compiler::CodeStubAssembler::*bitop)(compiler::Node*,
+                                                          compiler::Node*)) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry for word32 bitwise operation.
+  Label do_bitop(assembler);
+  Variable var_bitop_lhs(assembler, MachineRepresentation::kWord32),
+      var_bitop_rhs(assembler, MachineRepresentation::kWord32);
+
+  // We might need to loop several times due to ToNumber conversions.
+  Variable var_lhs(assembler, MachineRepresentation::kTagged),
+      var_rhs(assembler, MachineRepresentation::kTagged);
+  Variable* loop_vars[2] = {&var_lhs, &var_rhs};
+  Label loop(assembler, 2, loop_vars);
+  var_lhs.Bind(assembler->Parameter(0));
+  var_rhs.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {lhs} and {rhs} values.
+    Node* lhs = var_lhs.value();
+    Node* rhs = var_rhs.value();
+
+    // Check if the {lhs} is a Smi or a HeapObject.
+    Label if_lhsissmi(assembler), if_lhsisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &if_lhsissmi, &if_lhsisnotsmi);
+
+    assembler->Bind(&if_lhsissmi);
+    {
+      // Check if the {rhs} is also a Smi.
+      Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                        &if_rhsisnotsmi);
+
+      assembler->Bind(&if_rhsissmi);
+      {
+        // Perform the word32 bitwise operation.
+        var_bitop_lhs.Bind(assembler->SmiToInt32(lhs));
+        var_bitop_rhs.Bind(assembler->SmiToInt32(rhs));
+        assembler->Goto(&do_bitop);
+      }
+
+      assembler->Bind(&if_rhsisnotsmi);
+      {
+        // Load the map of the {rhs}.
+        Node* rhs_map = assembler->LoadMap(rhs);
+
+        // Check if {rhs} is a HeapNumber.
+        Label if_rhsisnumber(assembler),
+            if_rhsisnotnumber(assembler, Label::kDeferred);
+        Node* number_map = assembler->HeapNumberMapConstant();
+        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                          &if_rhsisnumber, &if_rhsisnotnumber);
+
+        assembler->Bind(&if_rhsisnumber);
+        {
+          // Perform the word32 bitwise operation.
+          var_bitop_lhs.Bind(assembler->SmiToInt32(lhs));
+          var_bitop_rhs.Bind(assembler->TruncateHeapNumberValueToInt32(rhs));
+          assembler->Goto(&do_bitop);
+        }
+
+        assembler->Bind(&if_rhsisnotnumber);
+        {
+          // Convert the {rhs} to a Number first.
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
+          var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&if_lhsisnotsmi);
+    {
+      // Load the map of the {lhs}.
+      Node* lhs_map = assembler->LoadMap(lhs);
+
+      // Check if the {lhs} is a HeapNumber.
+      Label if_lhsisnumber(assembler),
+          if_lhsisnotnumber(assembler, Label::kDeferred);
+      Node* number_map = assembler->HeapNumberMapConstant();
+      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                        &if_lhsisnumber, &if_lhsisnotnumber);
+
+      assembler->Bind(&if_lhsisnumber);
+      {
+        // Check if the {rhs} is a Smi.
+        Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &if_rhsissmi,
+                          &if_rhsisnotsmi);
+
+        assembler->Bind(&if_rhsissmi);
+        {
+          // Perform the word32 bitwise operation.
+          var_bitop_lhs.Bind(assembler->TruncateHeapNumberValueToInt32(lhs));
+          var_bitop_rhs.Bind(assembler->SmiToInt32(rhs));
+          assembler->Goto(&do_bitop);
+        }
+
+        assembler->Bind(&if_rhsisnotsmi);
+        {
+          // Load the map of the {rhs}.
+          Node* rhs_map = assembler->LoadMap(rhs);
+
+          // Check if the {rhs} is a HeapNumber.
+          Label if_rhsisnumber(assembler),
+              if_rhsisnotnumber(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                            &if_rhsisnumber, &if_rhsisnotnumber);
+
+          assembler->Bind(&if_rhsisnumber);
+          {
+            // Perform the word32 bitwise operation.
+            var_bitop_lhs.Bind(assembler->TruncateHeapNumberValueToInt32(lhs));
+            var_bitop_rhs.Bind(assembler->TruncateHeapNumberValueToInt32(rhs));
+            assembler->Goto(&do_bitop);
+          }
+
+          assembler->Bind(&if_rhsisnotnumber);
+          {
+            // Convert the {rhs} to a Number first.
+            Callable callable =
+                CodeFactory::NonNumberToNumber(assembler->isolate());
+            var_rhs.Bind(assembler->CallStub(callable, context, rhs));
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&if_lhsisnotnumber);
+      {
+        // Convert the {lhs} to a Number first.
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_bitop);
+  {
+    Node* lhs_value = var_bitop_lhs.value();
+    Node* rhs_value = var_bitop_rhs.value();
+    Node* value = (assembler->*bitop)(lhs_value, rhs_value);
+    Node* result = assembler->ChangeInt32ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
+}  // namespace
+
+void BitwiseAndStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateBitwiseOperation(assembler, &compiler::CodeStubAssembler::Word32And);
+}
+
+void BitwiseOrStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateBitwiseOperation(assembler, &compiler::CodeStubAssembler::Word32Or);
+}
+
+void BitwiseXorStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  GenerateBitwiseOperation(assembler, &compiler::CodeStubAssembler::Word32Xor);
+}
+
+namespace {
+
 enum RelationalComparisonMode {
   kLessThan,
   kLessThanOrEqual,
