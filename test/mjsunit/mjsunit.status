@@ -271,12 +271,12 @@
   'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
   # TODO(branelson): Figure out why ignition + asm-wasm-stdlib fails.
   'wasm/asm-wasm-stdlib': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el] or ignition == True', SKIP]],
+  'wasm/asm-wasm-copy': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
   'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
 
   # TODO(bradnelson) Fix and re-enable.
-  'wasm/embenchen/copy': [FAIL],  # wrong answer
   'wasm/embenchen/box2d': [SKIP],   # hang
   'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
   'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
