@@ -331,6 +331,36 @@ TEST(JSFunction) {
   CHECK_EQ(57, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
+TEST(SplitEdgeBranchMerge) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Label l1(&m), merge(&m);
+  m.Branch(m.Int32Constant(1), &l1, &merge);
+  m.Bind(&l1);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  USE(m.GenerateCode());
+}
+
+TEST(SplitEdgeSwitchMerge) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
+  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  int32_t values[] = {1, 2};
+  m.Branch(m.Int32Constant(1), &l3, &l1);
+  m.Bind(&l3);
+  m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
+  m.Bind(&l1);
+  m.Goto(&l2);
+  m.Bind(&l2);
+  m.Goto(&default_label);
+  m.Bind(&default_label);
+  USE(m.GenerateCode());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

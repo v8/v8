@@ -39,6 +39,17 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
+  OFStream os(stdout);
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- RAW SCHEDULE -------------------------------------------\n");
+    os << *schedule_;
+  }
+  schedule_->EnsureSplitEdgeForm();
+  schedule_->PropagateDeferredMark();
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
+    os << *schedule_;
+  }
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
@@ -79,15 +90,17 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
   for (size_t index = 0; index < case_count; ++index) {
     int32_t case_value = case_values[index];
-    BasicBlock* case_block = Use(case_labels[index]);
+    BasicBlock* case_block = schedule()->NewBasicBlock();
     Node* case_node =
         graph()->NewNode(common()->IfValue(case_value), switch_node);
     schedule()->AddNode(case_block, case_node);
+    schedule()->AddGoto(case_block, Use(case_labels[index]));
     succ_blocks[index] = case_block;
   }
-  BasicBlock* default_block = Use(default_label);
+  BasicBlock* default_block = schedule()->NewBasicBlock();
   Node* default_node = graph()->NewNode(common()->IfDefault(), switch_node);
   schedule()->AddNode(default_block, default_node);
+  schedule()->AddGoto(default_block, Use(default_label));
   succ_blocks[case_count] = default_block;
   schedule()->AddSwitch(CurrentBlock(), switch_node, succ_blocks, succ_count);
   current_block_ = nullptr;
