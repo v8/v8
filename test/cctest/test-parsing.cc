@@ -7520,8 +7520,8 @@ TEST(TypedVariableDeclarations) {
                           always_flags, arraysize(always_flags));
   RunModuleParserSyncTest(typed_context_data, typed_data, kSuccess, NULL, 0,
                           always_flags, arraysize(always_flags));
-  RunModuleParserSyncTest(untyped_context_data, typed_error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(untyped_context_data, typed_error_data, kError, NULL,
+                          0, always_flags, arraysize(always_flags));
   RunModuleParserSyncTest(typed_context_data, typed_error_data, kError, NULL, 0,
                           always_flags, arraysize(always_flags));
 }
@@ -7554,8 +7554,8 @@ TEST(TypedModeChecks) {
                     always_flags, arraysize(always_flags));
   RunModuleParserSyncTest(strict_context_data, typed_data, kSuccess, NULL, 0,
                           always_flags, arraysize(always_flags));
-  RunModuleParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(strict_context_data, strict_error_data, kError, NULL,
+                          0, always_flags, arraysize(always_flags));
 }
 
 TEST(TypedModeIllegalInFunctionScope) {
