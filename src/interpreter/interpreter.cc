@@ -1564,16 +1564,27 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
 //
 // Returns true if the end of the enumerable properties has been reached.
 void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
-  // TODO(oth): Implement directly rather than making a runtime call.
   Node* index_reg = __ BytecodeOperandReg(0);
   Node* index = __ LoadRegister(index_reg);
   Node* cache_length_reg = __ BytecodeOperandReg(1);
   Node* cache_length = __ LoadRegister(cache_length_reg);
-  Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kForInDone, context, index, cache_length);
-  __ SetAccumulator(result);
-  __ Dispatch();
+
+  // Check if {index} is at {cache_length} already.
+  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
+  Node* condition = __ WordEqual(index, cache_length);
+  __ Branch(condition, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    Node* result = __ BooleanConstant(true);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
+  __ Bind(&if_false);
+  {
+    Node* result = __ BooleanConstant(false);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 // ForInStep <index>
