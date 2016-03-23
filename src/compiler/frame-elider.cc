@@ -33,7 +33,7 @@ void FrameElider::MarkBlocks() {
 
 
 void FrameElider::PropagateMarks() {
-  while (PropagateInOrder() && PropagateReversed()) {
+  while (PropagateInOrder() || PropagateReversed()) {
   }
 }
 
