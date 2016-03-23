@@ -1356,6 +1356,13 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
           // incremented after parsing is done.
           ++use_counts_[v8::Isolate::kUseAsm];
           scope_->SetAsmModule();
+        // Check "use types".
+        } else if (allow_harmony_types() &&
+                   literal->raw_value()->AsString() ==
+                       ast_value_factory()->use_types_string() &&
+                   token_loc.end_pos - token_loc.beg_pos ==
+                       ast_value_factory()->use_types_string()->length() + 2) {
+          scope_->SetTyped();
         }
       } else {
         // End of the directive prologue.
