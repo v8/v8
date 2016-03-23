@@ -528,7 +528,6 @@ struct RuntimeCallStats {
       RuntimeCallCounter("UnexpectedStubMiss");
   // Counter for runtime callbacks into JavaScript.
   RuntimeCallCounter ExternalCallback = RuntimeCallCounter("ExternalCallback");
-  RuntimeCallCounter GC = RuntimeCallCounter("GC");
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
   RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
