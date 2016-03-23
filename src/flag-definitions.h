@@ -204,7 +204,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                    \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
-  V(harmony_instanceof, "harmony instanceof support")                        \
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
@@ -215,6 +214,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #define HARMONY_SHIPPING(V)                                           \
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_function_name, "harmony Function name inference")         \
+  V(harmony_instanceof, "harmony instanceof support")                 \
   V(harmony_iterator_close, "harmony iterator finalization")          \
   V(harmony_regexps, "harmony regular expression extensions")         \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
