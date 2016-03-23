@@ -109,23 +109,23 @@ function LargeUnsignedLiterals() {
   "use asm";
   function a() {
     var x = 2147483648;
-    return +x;
+    return +(x >>> 0);
   }
   function b() {
     var x = 2147483649;
-    return +x;
+    return +(x >>> 0);
   }
   function c() {
     var x = 0x80000000;
-    return +x;
+    return +(x >>> 0);
   }
   function d() {
     var x = 0x80000001;
-    return +x;
+    return +(x >>> 0);
   }
   function e() {
     var x = 0xffffffff;
-    return +x;
+    return +(x >>> 0);
   }
   return {a: a, b: b, c: c, d: d, e: e};
 }
