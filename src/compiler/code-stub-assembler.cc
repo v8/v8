@@ -438,6 +438,18 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
                               limit_address);
 }
 
+Node* CodeStubAssembler::AllocateHeapNumber() {
+  Node* result = Allocate(HeapNumber::kSize, kNone);
+  StoreMapNoWriteBarrier(result, HeapNumberMapConstant());
+  return result;
+}
+
+Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value) {
+  Node* result = AllocateHeapNumber();
+  StoreHeapNumberValue(result, value);
+  return result;
+}
+
 Node* CodeStubAssembler::Load(MachineType rep, Node* base) {
   return raw_assembler_->Load(rep, base);
 }

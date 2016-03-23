@@ -465,26 +465,19 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
 
 void AllocateHeapNumberStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
-  compiler::Node* result = assembler->Allocate(
-      HeapNumber::kSize, compiler::CodeStubAssembler::kNone);
-  compiler::Node* map_offset =
-      assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag);
-  compiler::Node* map = assembler->IntPtrAdd(result, map_offset);
-  assembler->StoreNoWriteBarrier(
-      MachineRepresentation::kTagged, map,
-      assembler->HeapConstant(isolate()->factory()->heap_number_map()));
+  typedef compiler::Node Node;
+
+  Node* result = assembler->AllocateHeapNumber();
   assembler->Return(result);
 }
 
 void AllocateMutableHeapNumberStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
-  compiler::Node* result = assembler->Allocate(
-      HeapNumber::kSize, compiler::CodeStubAssembler::kNone);
-  compiler::Node* map_offset =
-      assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag);
-  compiler::Node* map = assembler->IntPtrAdd(result, map_offset);
-  assembler->StoreNoWriteBarrier(
-      MachineRepresentation::kTagged, map,
+  typedef compiler::Node Node;
+
+  Node* result = assembler->Allocate(HeapNumber::kSize);
+  assembler->StoreMapNoWriteBarrier(
+      result,
       assembler->HeapConstant(isolate()->factory()->mutable_heap_number_map()));
   assembler->Return(result);
 }
@@ -867,11 +860,7 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
     Node* rhs_value = var_fadd_rhs.value();
     Node* value = assembler->Float64Add(lhs_value, rhs_value);
     // TODO(bmeurer): Introduce a ChangeFloat64ToTagged.
-    Node* result = assembler->Allocate(HeapNumber::kSize,
-                                       compiler::CodeStubAssembler::kNone);
-    assembler->StoreMapNoWriteBarrier(result,
-                                      assembler->HeapNumberMapConstant());
-    assembler->StoreHeapNumberValue(result, value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     assembler->Return(result);
   }
 }
@@ -1039,11 +1028,7 @@ void SubtractStub::GenerateAssembly(
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
     // TODO(bmeurer): Introduce a ChangeFloat64ToTagged.
-    Node* result = assembler->Allocate(HeapNumber::kSize,
-                                       compiler::CodeStubAssembler::kNone);
-    assembler->StoreMapNoWriteBarrier(result,
-                                      assembler->HeapNumberMapConstant());
-    assembler->StoreHeapNumberValue(result, value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     assembler->Return(result);
   }
 }

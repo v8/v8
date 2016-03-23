@@ -305,7 +305,11 @@ class CodeStubAssembler {
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
 
   // Allocate an object of the given size.
-  Node* Allocate(int size, AllocationFlags flags);
+  Node* Allocate(int size, AllocationFlags flags = kNone);
+  // Allocate a HeapNumber without initializing its value.
+  Node* AllocateHeapNumber();
+  // Allocate a HeapNumber with a specific value.
+  Node* AllocateHeapNumberWithValue(Node* value);
 
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,

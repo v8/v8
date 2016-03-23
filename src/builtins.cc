@@ -2098,11 +2098,7 @@ void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
   {
     Node* x = var_fsqrt_x.value();
     Node* value = assembler->Float64Sqrt(x);
-    Node* result = assembler->Allocate(HeapNumber::kSize,
-                                       compiler::CodeStubAssembler::kNone);
-    assembler->StoreMapNoWriteBarrier(result,
-                                      assembler->HeapNumberMapConstant());
-    assembler->StoreHeapNumberValue(result, value);
+    Node* result = assembler->AllocateHeapNumberWithValue(value);
     assembler->Return(result);
   }
 }
