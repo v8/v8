@@ -697,46 +697,6 @@ double GCTracer::MaxDuration(const EventBuffer& events) const {
 }
 
 
-double GCTracer::MeanIncrementalMarkingDuration() const {
-  if (cumulative_incremental_marking_steps_ == 0) return 0.0;
-
-  // We haven't completed an entire round of incremental marking, yet.
-  // Use data from GCTracer instead of data from event buffers.
-  if (incremental_mark_compactor_events_.empty()) {
-    return cumulative_incremental_marking_duration_ /
-           cumulative_incremental_marking_steps_;
-  }
-
-  int steps = 0;
-  double durations = 0.0;
-  EventBuffer::const_iterator iter = incremental_mark_compactor_events_.begin();
-  while (iter != incremental_mark_compactor_events_.end()) {
-    steps += iter->incremental_marking_steps;
-    durations += iter->incremental_marking_duration;
-    ++iter;
-  }
-
-  if (steps == 0) return 0.0;
-
-  return durations / steps;
-}
-
-
-double GCTracer::MaxIncrementalMarkingDuration() const {
-  // We haven't completed an entire round of incremental marking, yet.
-  // Use data from GCTracer instead of data from event buffers.
-  if (incremental_mark_compactor_events_.empty())
-    return longest_incremental_marking_step_;
-
-  double max_duration = 0.0;
-  EventBuffer::const_iterator iter = incremental_mark_compactor_events_.begin();
-  while (iter != incremental_mark_compactor_events_.end())
-    max_duration = Max(iter->longest_incremental_marking_step, max_duration);
-
-  return max_duration;
-}
-
-
 intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   if (cumulative_incremental_marking_duration_ == 0.0) return 0;
 
