@@ -1746,7 +1746,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
       Scanner::Location(next_beg_pos, scanner()->location().end_pos),
       MessageTemplate::kInvalidDestructuringTarget);
 
-  if (is_generator || peek() == Token::LPAREN) {
+  if (is_generator || peek() == Token::LPAREN ||
+      (scope_->typed() && peek() == Token::LT)) {
     // MethodDefinition
     //    PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
     //    '*' PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
@@ -1768,7 +1769,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), false, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -1808,7 +1809,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), false, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
     // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
@@ -2593,7 +2594,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, language_mode(), CHECK_OK);
+        function_token_position, function_type, language_mode(), false,
+        CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, classifier, CHECK_OK);

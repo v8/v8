@@ -1200,7 +1200,7 @@ class PreParserTraits {
       PreParserIdentifier name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      LanguageMode language_mode, bool* ok);
+      LanguageMode language_mode, bool just_signature, bool* ok);
 
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
@@ -1382,7 +1382,7 @@ class PreParser : public ParserBase<PreParserTraits> {
       Identifier name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_pos, FunctionLiteral::FunctionType function_type,
-      LanguageMode language_mode, bool* ok);
+      LanguageMode language_mode, bool just_signature, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
 
