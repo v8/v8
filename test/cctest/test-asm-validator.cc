@@ -1985,6 +1985,20 @@ TEST(BadFunctionCallOutside) {
       "asm: line 2: illegal variable reference in module body\n");
 }
 
+TEST(UnaryPlusOnIntForbidden) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return +x; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: "
+      "unary + only allowed on signed, unsigned, float?, or double?\n");
+}
+
+TEST(MultiplyNon1ConvertForbidden) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 0.0; return x * 2.0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: invalid type annotation on binary op\n");
+}
 
 TEST(NestedVariableAssignment) {
   CHECK_FUNC_TYPES_BEGIN(

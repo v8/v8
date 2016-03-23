@@ -1281,12 +1281,27 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           return;
         }
       } else if (expr->op() == Token::MUL && expr->right()->IsLiteral() &&
-                 right_type->Is(cache_.kAsmDouble)) {
+                 right_type->Is(cache_.kAsmDouble) &&
+                 expr->right()->AsLiteral()->raw_value()->ContainsDot() &&
+                 expr->right()->AsLiteral()->raw_value()->AsNumber() == 1.0) {
         // For unary +, expressed as x * 1.0
-        if (expr->left()->IsCall() && expr->op() == Token::MUL &&
+        if (expr->left()->IsCall() &&
             Type::Number()->Is(expr->left()->bounds().upper)) {
           // Force the return types of foreign functions.
           expr->left()->set_bounds(Bounds(cache_.kAsmDouble));
+          left_type = expr->left()->bounds().upper;
+        }
+        if (!(expr->left()->IsProperty() &&
+              Type::Number()->Is(expr->left()->bounds().upper))) {
+          if (!left_type->Is(cache_.kAsmSigned) &&
+              !left_type->Is(cache_.kAsmUnsigned) &&
+              !left_type->Is(cache_.kAsmFixnum) &&
+              !left_type->Is(cache_.kAsmFloatQ) &&
+              !left_type->Is(cache_.kAsmDoubleQ)) {
+            FAIL(
+                expr->left(),
+                "unary + only allowed on signed, unsigned, float?, or double?");
+          }
         }
         IntersectResult(expr, cache_.kAsmDouble);
         return;

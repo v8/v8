@@ -508,7 +508,7 @@ function TestConvertF64FromInt() {
 
   function caller() {
     var a = 1;
-    if ((+(a + a)) > 1.5) {
+    if ((+((a + a)|0)) > 1.5) {
       return 25;
     }
     return 0;
@@ -526,7 +526,7 @@ function TestConvertF64FromUnsigned() {
   function caller() {
     var a = 0xffffffff;
     if ((+(a>>>0)) > 0.0) {
-      if((+a) < 0.0) {
+      if((+(a|0)) < 0.0) {
         return 26;
       }
     }
@@ -1376,6 +1376,21 @@ assertWasm(1, TestXor);
 })();
 
 
+(function TestBadCastFromInt() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    function func() {
+      var a = 1;
+      return +a;
+    }
+    return {func: func};
+  }
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm(Module.toString());
+  });
+})();
+
+
 (function TestAndNegative() {
   function Module() {
     "use asm";
@@ -1456,4 +1471,31 @@ assertWasm(1, TestXor);
   }
   var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
   assertEquals(1321347704, wasm.main());
+})();
+
+(function TestUnsignedLiterals() {
+  function asmModule() {
+    "use asm";
+    function u0xffffffff() {
+      var f = 0xffffffff;
+      return +(f >>> 0);
+    }
+    function u0x80000000() {
+      var f = 0x80000000;
+      return +(f >>> 0);
+    }
+    function u0x87654321() {
+      var f = 0x87654321;
+      return +(f >>> 0);
+    }
+    return {
+      u0xffffffff: u0xffffffff,
+      u0x80000000: u0x80000000,
+      u0x87654321: u0x87654321,
+    };
+  }
+  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  assertEquals(0xffffffff, wasm.u0xffffffff());
+  assertEquals(0x80000000, wasm.u0x80000000());
+  assertEquals(0x87654321, wasm.u0x87654321());
 })();
