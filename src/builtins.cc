@@ -2033,74 +2033,14 @@ BUILTIN(MathImul) {
 
 // ES6 section 20.2.2.32 Math.sqrt ( x )
 void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
-  typedef compiler::CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  using compiler::Node;
 
+  Node* x = assembler->Parameter(1);
   Node* context = assembler->Parameter(4);
-
-  // Shared entry for the floating point sqrt.
-  Label do_fsqrt(assembler);
-  Variable var_fsqrt_x(assembler, MachineRepresentation::kFloat64);
-
-  // We might need to loop once due to the ToNumber conversion.
-  Variable var_x(assembler, MachineRepresentation::kTagged);
-  Label loop(assembler, &var_x);
-  var_x.Bind(assembler->Parameter(1));
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    // Load the current {x} value.
-    Node* x = var_x.value();
-
-    // Check if {x} is a Smi or a HeapObject.
-    Label if_xissmi(assembler), if_xisnotsmi(assembler);
-    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
-
-    assembler->Bind(&if_xissmi);
-    {
-      // Perform the floating point sqrt.
-      var_fsqrt_x.Bind(assembler->SmiToFloat64(x));
-      assembler->Goto(&do_fsqrt);
-    }
-
-    assembler->Bind(&if_xisnotsmi);
-    {
-      // Load the map of {x}.
-      Node* x_map = assembler->LoadMap(x);
-
-      // Check if {x} is a HeapNumber.
-      Label if_xisnumber(assembler),
-          if_xisnotnumber(assembler, Label::kDeferred);
-      assembler->Branch(
-          assembler->WordEqual(x_map, assembler->HeapNumberMapConstant()),
-          &if_xisnumber, &if_xisnotnumber);
-
-      assembler->Bind(&if_xisnumber);
-      {
-        // Perform the floating point sqrt.
-        var_fsqrt_x.Bind(assembler->LoadHeapNumberValue(x));
-        assembler->Goto(&do_fsqrt);
-      }
-
-      assembler->Bind(&if_xisnotnumber);
-      {
-        // Convert {x} to a Number first.
-        Callable callable =
-            CodeFactory::NonNumberToNumber(assembler->isolate());
-        var_x.Bind(assembler->CallStub(callable, context, x));
-        assembler->Goto(&loop);
-      }
-    }
-  }
-
-  assembler->Bind(&do_fsqrt);
-  {
-    Node* x = var_fsqrt_x.value();
-    Node* value = assembler->Float64Sqrt(x);
-    Node* result = assembler->AllocateHeapNumberWithValue(value);
-    assembler->Return(result);
-  }
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Sqrt(x_value);
+  Node* result = assembler->AllocateHeapNumberWithValue(value);
+  assembler->Return(result);
 }
 
 // -----------------------------------------------------------------------------

@@ -161,7 +161,7 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
 
-Node* CodeStubAssembler::SmiToInt32(Node* value) {
+Node* CodeStubAssembler::SmiToWord32(Node* value) {
   Node* result = raw_assembler_->WordSar(value, SmiShiftBitsConstant());
   if (raw_assembler_->machine()->Is64()) {
     result = raw_assembler_->TruncateInt64ToInt32(result);
@@ -259,7 +259,7 @@ Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
       IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
 }
 
-Node* CodeStubAssembler::TruncateHeapNumberValueToInt32(Node* object) {
+Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
   Node* value = LoadHeapNumberValue(object);
   return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript,
                                                 value);
@@ -534,6 +534,108 @@ Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
   }
   Goto(&if_join);
   Bind(&if_join);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
+  // We might need to loop once due to ToNumber conversion.
+  Variable var_value(this, MachineRepresentation::kTagged),
+      var_result(this, MachineRepresentation::kFloat64);
+  Label loop(this, &var_value), done_loop(this, &var_result);
+  var_value.Bind(value);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {value}.
+    value = var_value.value();
+
+    // Check if the {value} is a Smi or a HeapObject.
+    Label if_valueissmi(this), if_valueisnotsmi(this);
+    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+    Bind(&if_valueissmi);
+    {
+      // Convert the Smi {value}.
+      var_result.Bind(SmiToFloat64(value));
+      Goto(&done_loop);
+    }
+
+    Bind(&if_valueisnotsmi);
+    {
+      // Check if {value} is a HeapNumber.
+      Label if_valueisheapnumber(this),
+          if_valueisnotheapnumber(this, Label::kDeferred);
+      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+             &if_valueisheapnumber, &if_valueisnotheapnumber);
+
+      Bind(&if_valueisheapnumber);
+      {
+        // Load the floating point value.
+        var_result.Bind(LoadHeapNumberValue(value));
+        Goto(&done_loop);
+      }
+
+      Bind(&if_valueisnotheapnumber);
+      {
+        // Convert the {value} to a Number first.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_value.Bind(CallStub(callable, context, value));
+        Goto(&loop);
+      }
+    }
+  }
+  Bind(&done_loop);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
+  // We might need to loop once due to ToNumber conversion.
+  Variable var_value(this, MachineRepresentation::kTagged),
+      var_result(this, MachineRepresentation::kWord32);
+  Label loop(this, &var_value), done_loop(this, &var_result);
+  var_value.Bind(value);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {value}.
+    value = var_value.value();
+
+    // Check if the {value} is a Smi or a HeapObject.
+    Label if_valueissmi(this), if_valueisnotsmi(this);
+    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+    Bind(&if_valueissmi);
+    {
+      // Convert the Smi {value}.
+      var_result.Bind(SmiToWord32(value));
+      Goto(&done_loop);
+    }
+
+    Bind(&if_valueisnotsmi);
+    {
+      // Check if {value} is a HeapNumber.
+      Label if_valueisheapnumber(this),
+          if_valueisnotheapnumber(this, Label::kDeferred);
+      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+             &if_valueisheapnumber, &if_valueisnotheapnumber);
+
+      Bind(&if_valueisheapnumber);
+      {
+        // Truncate the floating point value.
+        var_result.Bind(TruncateHeapNumberValueToWord32(value));
+        Goto(&done_loop);
+      }
+
+      Bind(&if_valueisnotheapnumber);
+      {
+        // Convert the {value} to a Number first.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_value.Bind(CallStub(callable, context, value));
+        Goto(&loop);
+      }
+    }
+  }
+  Bind(&done_loop);
   return var_result.value();
 }
 

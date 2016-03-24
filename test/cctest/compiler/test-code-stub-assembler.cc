@@ -319,8 +319,8 @@ TEST(JSFunction) {
   const int kNumParams = 3;  // Receiver, left, right.
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeStubAssemblerTester m(isolate, kNumParams);
-  m.Return(m.SmiTag(
-      m.Int32Add(m.SmiToInt32(m.Parameter(1)), m.SmiToInt32(m.Parameter(2)))));
+  m.Return(m.SmiTag(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
+                               m.SmiToWord32(m.Parameter(2)))));
   Handle<Code> code = m.GenerateCode();
   Handle<JSFunction> function = CreateFunctionFromCode(kNumParams, code);
   Handle<Object> args[] = {Handle<Smi>(Smi::FromInt(23), isolate),

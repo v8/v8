@@ -264,7 +264,7 @@ class CodeStubAssembler {
 
   // Smi conversions.
   Node* SmiToFloat64(Node* value);
-  Node* SmiToInt32(Node* value);
+  Node* SmiToWord32(Node* value);
 
   // Smi operations.
   Node* SmiAdd(Node* a, Node* b);
@@ -296,7 +296,7 @@ class CodeStubAssembler {
   // Store the floating point value of a HeapNumber.
   Node* StoreHeapNumberValue(Node* object, Node* value);
   // Truncate the floating point value of a HeapNumber to an Int32.
-  Node* TruncateHeapNumberValueToInt32(Node* object);
+  Node* TruncateHeapNumberValueToWord32(Node* object);
   // Load the bit field of a Map.
   Node* LoadMapBitField(Node* map);
   // Load the instance type of a Map.
@@ -334,6 +334,8 @@ class CodeStubAssembler {
 
   // Conversions.
   Node* ChangeInt32ToTagged(Node* value);
+  Node* TruncateTaggedToFloat64(Node* context, Node* value);
+  Node* TruncateTaggedToWord32(Node* context, Node* value);
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?
