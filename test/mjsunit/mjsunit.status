@@ -784,12 +784,6 @@
   'es6/debug-liveedit-new-target-3': [FAIL],
   'es6/generators-debug-liveedit': [FAIL],
 
-  # TODO(yangguo/rmcilroy,4690): Related to Debugger. Goes into a loop
-  # in function: Debug::FindSharedFunctionInfoInScript and times out.
-  'regress/regress-crbug-517592': [SKIP],
-  'regress/regress-1853': [SKIP],
-  'regress/regress-crbug-424142': [SKIP],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
@@ -804,12 +798,22 @@
   # objects.
   'es6/mirror-collections': [FAIL],
 
-  # TODO(mythria, 4680): line numbers in eval test. Coloumn number is
+  # TODO(mythria, 4680): line numbers in eval test. Column number is
   # incorrect.
   'regress/regress-crbug-109362': [FAIL],
 
   # TODO(mythria, 4680): possibly problem with line numbers.
   'es6/regress/regress-468661': [FAIL],
+
+  # TODO(mythria, 4680): Fails with context_register_count_ > 0 (0 vs. 0) when
+  # trying to get a context register in BytecodeGenerator.
+  'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
+
+  # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
+  # eager compile of the whole script instead of during lazy compile of the function
+  # f(), so we can't catch the exception in the try/catch. Skip because on some
+  # platforms the stack limit is different and the exception doesn't fire.
+  'regress/regress-crbug-589472': [SKIP],
 
   # Debugger test cases that pass with ignition, but not full-codegen.
   # These differences between full-codegen and ignition are deliberate.

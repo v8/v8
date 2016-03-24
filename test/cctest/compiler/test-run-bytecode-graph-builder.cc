@@ -79,12 +79,6 @@ class BytecodeGraphTester {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_loop_assignment_analysis = false;
-    // Set ignition filter flag via SetFlagsFromString to avoid double-free
-    // (or potential leak with StrDup() based on ownership confusion).
-    ScopedVector<char> ignition_filter(64);
-    SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
-    FlagList::SetFlagsFromString(ignition_filter.start(),
-                                 ignition_filter.length());
     // Ensure handler table is generated.
     isolate->interpreter()->Initialize();
   }

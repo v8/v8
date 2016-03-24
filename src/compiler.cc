@@ -1271,6 +1271,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       // Consider parsing eagerly when targeting the code cache.
       parse_allow_lazy &= !(FLAG_serialize_eager && info->will_serialize());
 
+      // Consider parsing eagerly when targeting Ignition.
+      parse_allow_lazy &= !(FLAG_ignition && FLAG_ignition_eager &&
+                            !isolate->serializer_enabled());
+
       parse_info->set_allow_lazy_parsing(parse_allow_lazy);
       if (!parse_allow_lazy &&
           (options == ScriptCompiler::kProduceParserCache ||
@@ -1785,6 +1789,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // Consider compiling eagerly when targeting the code cache.
   lazy &= !(FLAG_serialize_eager && info.will_serialize());
+
+  // Consider compiling eagerly when compiling bytecode for Ignition.
+  lazy &=
+      !(FLAG_ignition && FLAG_ignition_eager && !isolate->serializer_enabled());
 
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);

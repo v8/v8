@@ -14516,12 +14516,17 @@ static int move_events = 0;
 static bool FunctionNameIs(const char* expected,
                            const v8::JitCodeEvent* event) {
   // Log lines for functions are of the general form:
-  // "LazyCompile:<type><function_name>", where the type is one of
-  // "*", "~" or "".
-  static const char kPreamble[] = "LazyCompile:";
-  static size_t kPreambleLen = sizeof(kPreamble) - 1;
+  // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
+  // where the type is one of "*", "~" or "".
+  static const char* kPreamble;
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) {
+    kPreamble = "Function:";
+  } else {
+    kPreamble = "LazyCompile:";
+  }
+  static size_t kPreambleLen = strlen(kPreamble);
 
-  if (event->name.len < sizeof(kPreamble) - 1 ||
+  if (event->name.len < kPreambleLen ||
       strncmp(kPreamble, event->name.str, kPreambleLen) != 0) {
     return false;
   }
@@ -14689,7 +14694,8 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
       i::AlwaysAllocateScope always_allocate(i_isolate);
-      SimulateFullSpace(heap->code_space());
+      SimulateFullSpace(i::FLAG_ignition ? heap->old_space()
+                                         : heap->code_space());
       CompileRun(script);
 
       // Keep a strong reference to the code object in the handle scope.
@@ -15130,6 +15136,9 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
+  // Producing cached parser data while parsing eagerly is not supported.
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+
   v8::V8::Initialize();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -24061,12 +24070,18 @@ TEST(InvalidCacheData) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
-  TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
+  if (i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager)) {
+    // Cached parser data is not consumed while parsing eagerly.
+    TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
+  }
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
 }
 
 
 TEST(ParserCacheRejectedGracefully) {
+  // Producing cached parser data while parsing eagerly is not supported.
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+
   i::FLAG_min_preparse_length = 0;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());

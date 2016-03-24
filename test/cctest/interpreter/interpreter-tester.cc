@@ -23,12 +23,6 @@ InterpreterTester::InterpreterTester(
       feedback_vector_(feedback_vector) {
   i::FLAG_ignition = true;
   i::FLAG_always_opt = false;
-  // Set ignition filter flag via SetFlagsFromString to avoid double-free
-  // (or potential leak with StrDup() based on ownership confusion).
-  ScopedVector<char> ignition_filter(64);
-  SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
-  FlagList::SetFlagsFromString(ignition_filter.start(),
-                               ignition_filter.length());
   // Ensure handler table is generated.
   isolate->interpreter()->Initialize();
 }
