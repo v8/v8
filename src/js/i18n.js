@@ -36,6 +36,7 @@ var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
+var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var RegExpTest;
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
@@ -69,17 +70,6 @@ utils.Import(function(from) {
 });
 
 // Utilities for definitions
-
-function OverrideFunction(object, name, f) {
-  %CheckIsBootstrapping();
-  ObjectDefineProperty(object, name, { value: f,
-                                       writeable: true,
-                                       configurable: true,
-                                       enumerable: false });
-  %FunctionSetName(f, name);
-  %FunctionRemovePrototype(f);
-  %SetNativeFlag(f);
-}
 
 function InstallFunction(object, name, func) {
   InstallFunctions(object, DONT_ENUM, [name, func]);

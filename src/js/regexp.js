@@ -11,21 +11,30 @@
 // -------------------------------------------------------------------
 // Imports
 
+var AddIndexedProperty;
 var ExpandReplacement;
+var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var MaxSimple;
+var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
+var SpeciesConstructor;
 
 utils.Import(function(from) {
+  AddIndexedProperty = from.AddIndexedProperty;
   ExpandReplacement = from.ExpandReplacement;
   MakeTypeError = from.MakeTypeError;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
@@ -46,6 +55,7 @@ var RegExpLastMatchInfo = new InternalPackedArray(
 
 // -------------------------------------------------------------------
 
+// ES#sec-isregexp IsRegExp ( argument )
 function IsRegExp(o) {
   if (!IS_RECEIVER(o)) return false;
   var is_regexp = o[matchSymbol];
@@ -54,7 +64,8 @@ function IsRegExp(o) {
 }
 
 
-// ES6 section 21.2.3.2.2
+// ES#sec-regexpinitialize
+// Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
 function RegExpInitialize(object, pattern, flags) {
   pattern = IS_UNDEFINED(pattern) ? '' : TO_STRING(pattern);
   flags = IS_UNDEFINED(flags) ? '' : TO_STRING(flags);
@@ -72,6 +83,8 @@ function PatternFlags(pattern) {
 }
 
 
+// ES#sec-regexp-pattern-flags
+// RegExp ( pattern, flags )
 function RegExpConstructor(pattern, flags) {
   var newtarget = new.target;
   var pattern_is_regexp = IsRegExp(pattern);
@@ -101,6 +114,7 @@ function RegExpConstructor(pattern, flags) {
 }
 
 
+// ES#sec-regexp.prototype.compile RegExp.prototype.compile (pattern, flags)
 function RegExpCompileJS(pattern, flags) {
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
@@ -165,6 +179,54 @@ function RegExpExecNoTests(regexp, string, start) {
 }
 
 
+// ES#sec-regexp.prototype.exec
+// RegExp.prototype.exec ( string )
+function RegExpSubclassExecJS(string) {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.exec', this);
+  }
+
+  string = TO_STRING(string);
+  var lastIndex = this.lastIndex;
+
+  // Conversion is required by the ES2015 specification (RegExpBuiltinExec
+  // algorithm, step 4) even if the value is discarded for non-global RegExps.
+  var i = TO_LENGTH(lastIndex);
+
+  var global = TO_BOOLEAN(this.global);
+  var sticky = TO_BOOLEAN(this.sticky);
+  var updateLastIndex = global || sticky;
+  if (updateLastIndex) {
+    if (i > string.length) {
+      this.lastIndex = 0;
+      return null;
+    }
+  } else {
+    i = 0;
+  }
+
+  // matchIndices is either null or the RegExpLastMatchInfo array.
+  // TODO(littledan): Whether a RegExp is sticky is compiled into the RegExp
+  // itself, but ES2015 allows monkey-patching this property to differ from
+  // the internal flags. If it differs, recompile a different RegExp?
+  var matchIndices = %_RegExpExec(this, string, i, RegExpLastMatchInfo);
+
+  if (IS_NULL(matchIndices)) {
+    this.lastIndex = 0;
+    return null;
+  }
+
+  // Successful match.
+  if (updateLastIndex) {
+    this.lastIndex = RegExpLastMatchInfo[CAPTURE1];
+  }
+  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
+}
+%FunctionRemovePrototype(RegExpSubclassExecJS);
+
+
+// Legacy implementation of RegExp.prototype.exec
 function RegExpExecJS(string) {
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
@@ -204,10 +266,25 @@ function RegExpExecJS(string) {
 }
 
 
+// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
+function RegExpSubclassExec(regexp, string) {
+  var exec = regexp.exec;
+  if (IS_CALLABLE(exec)) {
+    var result = %_Call(exec, regexp, string);
+    if (!IS_OBJECT(result) && !IS_NULL(result)) {
+      throw MakeTypeError(kInvalidRegExpExecResult);
+    }
+    return result;
+  }
+  return %_Call(RegExpExecJS, regexp, string);
+}
+
+
 // One-element cache for the simplified test regexp.
 var regexp_key;
 var regexp_val;
 
+// Legacy implementation of RegExp.prototype.test
 // Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
 // that test is defined in terms of String.prototype.exec. However, it probably
 // means the original value of String.prototype.exec, which is what everybody
@@ -261,6 +338,19 @@ function RegExpTest(string) {
   }
 }
 
+
+// ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
+function RegExpSubclassTest(string) {
+  if (!IS_OBJECT(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'RegExp.prototype.test', this);
+  }
+  string = TO_STRING(string);
+  var match = RegExpSubclassExec(this, string);
+  return !IS_NULL(match);
+}
+%FunctionRemovePrototype(RegExpSubclassTest);
+
 function TrimRegExp(regexp) {
   if (regexp_key !== regexp) {
     regexp_key = regexp;
@@ -308,7 +398,8 @@ function AtSurrogatePair(subject, index) {
 }
 
 
-// ES6 21.2.5.11.
+// Legacy implementation of RegExp.prototype[Symbol.split] which
+// doesn't properly call the underlying exec, @@species methods
 function RegExpSplit(string, limit) {
   // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
@@ -382,9 +473,69 @@ function RegExpSplit(string, limit) {
 }
 
 
-// ES6 21.2.5.6.
+// ES#sec-regexp.prototype-@@split
+// RegExp.prototype [ @@split ] ( string, limit )
+function RegExpSubclassSplit(string, limit) {
+  if (!IS_RECEIVER(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@split", this);
+  }
+  string = TO_STRING(string);
+  var constructor = SpeciesConstructor(this, GlobalRegExp);
+  var flags = TO_STRING(this.flags);
+  var unicode = %StringIndexOf(flags, 'u', 0) >= 0;
+  var sticky = %StringIndexOf(flags, 'y', 0) >= 0;
+  var newFlags = sticky ? flags : flags + "y";
+  var splitter = new constructor(this, newFlags);
+  var array = new GlobalArray();
+  var arrayIndex = 0;
+  var lim = (IS_UNDEFINED(limit)) ? kMaxUint32 : TO_UINT32(limit);
+  var size = string.length;
+  var prevStringIndex = 0;
+  if (lim === 0) return array;
+  var result;
+  if (size === 0) {
+    result = RegExpSubclassExec(splitter, string);
+    if (IS_NULL(result)) AddIndexedProperty(array, 0, string);
+    return array;
+  }
+  var stringIndex = prevStringIndex;
+  while (stringIndex < size) {
+    splitter.lastIndex = stringIndex;
+    result = RegExpSubclassExec(splitter, string);
+    if (IS_NULL(result)) {
+      stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
+    } else {
+      var end = MinSimple(TO_LENGTH(splitter.lastIndex), size);
+      if (end === stringIndex) {
+        stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
+      } else {
+        AddIndexedProperty(
+            array, arrayIndex,
+            %_SubString(string, prevStringIndex, stringIndex));
+        arrayIndex++;
+        if (arrayIndex === lim) return array;
+        prevStringIndex = end;
+        var numberOfCaptures = MaxSimple(TO_LENGTH(result.length), 0);
+        for (var i = 1; i < numberOfCaptures; i++) {
+          AddIndexedProperty(array, arrayIndex, result[i]);
+          arrayIndex++;
+          if (arrayIndex === lim) return array;
+        }
+        stringIndex = prevStringIndex;
+      }
+    }
+  }
+  AddIndexedProperty(array, arrayIndex,
+                     %_SubString(string, prevStringIndex, size));
+  return array;
+}
+%FunctionRemovePrototype(RegExpSubclassSplit);
+
+
+// Legacy implementation of RegExp.prototype[Symbol.match] which
+// doesn't properly call the underlying exec method
 function RegExpMatch(string) {
-  // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@match", this);
@@ -398,7 +549,38 @@ function RegExpMatch(string) {
 }
 
 
-// ES6 21.2.5.8.
+// ES#sec-regexp.prototype-@@match
+// RegExp.prototype [ @@match ] ( string )
+function RegExpSubclassMatch(string) {
+  if (!IS_OBJECT(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@match", this);
+  }
+  string = TO_STRING(string);
+  var global = this.global;
+  if (!global) return RegExpSubclassExec(this, string);
+  var unicode = this.unicode;
+  this.lastIndex = 0;
+  var array = [];
+  var n = 0;
+  var result;
+  while (true) {
+    result = RegExpSubclassExec(this, string);
+    if (IS_NULL(result)) {
+      if (n === 0) return null;
+      return array;
+    }
+    var matchStr = TO_STRING(result[0]);
+    %AddElement(array, n, matchStr);
+    if (matchStr === "") SetAdvancedStringIndex(this, string, unicode);
+    n++;
+  }
+}
+%FunctionRemovePrototype(RegExpSubclassMatch);
+
+
+// Legacy implementation of RegExp.prototype[Symbol.replace] which
+// doesn't properly call the underlying exec method.
 
 // TODO(lrn): This array will survive indefinitely if replace is never
 // called again. However, it will be empty, since the contents are cleared
@@ -525,7 +707,6 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
 
 
 function RegExpReplace(string, replace) {
-  // TODO(littledan): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
@@ -567,9 +748,189 @@ function RegExpReplace(string, replace) {
 }
 
 
-// ES6 21.2.5.9.
+// ES#sec-getsubstitution
+// GetSubstitution(matched, str, position, captures, replacement)
+// Expand the $-expressions in the string and return a new string with
+// the result.
+// TODO(littledan): Call this function from String.prototype.replace instead
+// of the very similar ExpandReplacement in src/js/string.js
+function GetSubstitution(matched, string, position, captures, replacement) {
+  var matchLength = matched.length;
+  var stringLength = string.length;
+  var capturesLength = captures.length;
+  var tailPos = position + matchLength;
+  var result = "";
+  var pos, expansion, peek, next, scaledIndex, advance, newScaledIndex;
+
+  var next = %StringIndexOf(replacement, '$', 0);
+  if (next < 0) {
+    result += replacement;
+    return result;
+  }
+
+  if (next > 0) result += %_SubString(replacement, 0, next);
+
+  while (true) {
+    expansion = '$';
+    pos = next + 1;
+    if (pos < replacement.length) {
+      peek = %_StringCharCodeAt(replacement, pos);
+      if (peek == 36) {         // $$
+        ++pos;
+        result += '$';
+      } else if (peek == 38) {  // $& - match
+        ++pos;
+        result += matched;
+      } else if (peek == 96) {  // $` - prefix
+        ++pos;
+        result += %_SubString(string, 0, position);
+      } else if (peek == 39) {  // $' - suffix
+        ++pos;
+        result += %_SubString(string, tailPos, stringLength);
+      } else if (peek >= 48 && peek <= 57) {
+        // Valid indices are $1 .. $9, $01 .. $09 and $10 .. $99
+        scaledIndex = (peek - 48);
+        advance = 1;
+        if (pos + 1 < replacement.length) {
+          next = %_StringCharCodeAt(replacement, pos + 1);
+          if (next >= 48 && next <= 57) {
+            newScaledIndex = scaledIndex * 10 + ((next - 48));
+            if (newScaledIndex < capturesLength) {
+              scaledIndex = newScaledIndex;
+              advance = 2;
+            }
+          }
+        }
+        if (scaledIndex != 0 && scaledIndex < capturesLength) {
+          var capture = captures[scaledIndex];
+          if (!IS_UNDEFINED(capture)) result += capture;
+          pos += advance;
+        } else {
+          result += '$';
+        }
+      } else {
+        result += '$';
+      }
+    } else {
+      result += '$';
+    }
+
+    // Go the the next $ in the replacement.
+    next = %StringIndexOf(replacement, '$', pos);
+
+    // Return if there are no more $ characters in the replacement. If we
+    // haven't reached the end, we need to append the suffix.
+    if (next < 0) {
+      if (pos < replacement.length) {
+        result += %_SubString(replacement, pos, replacement.length);
+      }
+      return result;
+    }
+
+    // Append substring between the previous and the next $ character.
+    if (next > pos) {
+      result += %_SubString(replacement, pos, next);
+    }
+  }
+  return result;
+}
+
+
+// ES#sec-advancestringindex
+// AdvanceStringIndex ( S, index, unicode )
+function AdvanceStringIndex(string, index, unicode) {
+  var increment = 1;
+  if (unicode) {
+    var first = %_StringCharCodeAt(string, index);
+    if (first >= 0xD800 && first <= 0xDBFF && string.length > index + 1) {
+      var second = %_StringCharCodeAt(string, index + 1);
+      if (second >= 0xDC00 && second <= 0xDFFF) {
+        increment = 2;
+      }
+    }
+  }
+  return increment;
+}
+
+
+function SetAdvancedStringIndex(regexp, string, unicode) {
+  var lastIndex = regexp.lastIndex;
+  regexp.lastIndex = lastIndex +
+                     AdvanceStringIndex(string, lastIndex, unicode);
+}
+
+
+// ES#sec-regexp.prototype-@@replace
+// RegExp.prototype [ @@replace ] ( string, replaceValue )
+function RegExpSubclassReplace(string, replace) {
+  if (!IS_OBJECT(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@replace", this);
+  }
+  string = TO_STRING(string);
+  var length = string.length;
+  var functionalReplace = IS_CALLABLE(replace);
+  if (!functionalReplace) replace = TO_STRING(replace);
+  var global = this.global;
+  if (global) {
+    var unicode = this.unicode;
+    this.lastIndex = 0;
+  }
+  var results = new InternalArray();
+  var result, replacement;
+  while (true) {
+    result = RegExpSubclassExec(this, string);
+    if (IS_NULL(result)) {
+      break;
+    } else {
+      results.push(result);
+      if (!global) break;
+      var matchStr = TO_STRING(result[0]);
+      if (matchStr === "") SetAdvancedStringIndex(this, string, unicode);
+    }
+  }
+  var accumulatedResult = "";
+  var nextSourcePosition = 0;
+  for (var i = 0; i < results.length; i++) {
+    result = results[i];
+    var capturesLength = MaxSimple(TO_LENGTH(result.length), 0);
+    var matched = TO_STRING(result[0]);
+    var matchedLength = matched.length;
+    var position = MaxSimple(MinSimple(TO_INTEGER(result.index), length), 0);
+    var captures = new InternalArray();
+    for (var n = 0; n < capturesLength; n++) {
+      var capture = result[n];
+      if (!IS_UNDEFINED(capture)) capture = TO_STRING(capture);
+      captures[n] = capture;
+    }
+    if (functionalReplace) {
+      var parameters = new InternalArray(capturesLength + 2);
+      for (var j = 0; j < capturesLength; j++) {
+        parameters[j] = captures[j];
+      }
+      parameters[j] = position;
+      parameters[j + 1] = string;
+      replacement = %reflect_apply(replace, UNDEFINED, parameters, 0,
+                                   parameters.length);
+    } else {
+      replacement = GetSubstitution(matched, string, position, captures,
+                                    replace);
+    }
+    if (position >= nextSourcePosition) {
+      accumulatedResult +=
+        %_SubString(string, nextSourcePosition, position) + replacement;
+      nextSourcePosition = position + matchedLength;
+    }
+  }
+  if (nextSourcePosition >= length) return accumulatedResult;
+  return accumulatedResult + %_SubString(string, nextSourcePosition, length);
+}
+%FunctionRemovePrototype(RegExpSubclassReplace);
+
+
+// Legacy implementation of RegExp.prototype[Symbol.search] which
+// doesn't properly use the overridden exec method
 function RegExpSearch(string) {
-  // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@search", this);
@@ -578,6 +939,24 @@ function RegExpSearch(string) {
   if (match) return match[CAPTURE0];
   return -1;
 }
+
+
+// ES#sec-regexp.prototype-@@search
+// RegExp.prototype [ @@search ] ( string )
+function RegExpSubclassSearch(string) {
+  if (!IS_OBJECT(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@search", this);
+  }
+  string = TO_STRING(string);
+  var previousLastIndex = this.lastIndex;
+  this.lastIndex = 0;
+  var result = RegExpSubclassExec(this, string);
+  this.lastIndex = previousLastIndex;
+  if (IS_NULL(result)) return -1;
+  return result.index;
+}
+%FunctionRemovePrototype(RegExpSubclassSearch);
 
 
 // Getters for the static properties lastMatch, lastParen, leftContext, and
@@ -780,6 +1159,12 @@ for (var i = 1; i < 10; ++i) {
 utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
+  to.RegExpSubclassExecJS = RegExpSubclassExecJS;
+  to.RegExpSubclassMatch = RegExpSubclassMatch;
+  to.RegExpSubclassReplace = RegExpSubclassReplace;
+  to.RegExpSubclassSearch = RegExpSubclassSearch;
+  to.RegExpSubclassSplit = RegExpSubclassSplit;
+  to.RegExpSubclassTest = RegExpSubclassTest;
   to.RegExpTest = RegExpTest;
   to.IsRegExp = IsRegExp;
 });
