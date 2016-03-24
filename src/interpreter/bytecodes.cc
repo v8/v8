@@ -4,6 +4,8 @@
 
 #include "src/interpreter/bytecodes.h"
 
+#include <iomanip>
+
 #include "src/frames.h"
 #include "src/interpreter/bytecode-traits.h"
 
@@ -484,8 +486,6 @@ uint32_t Bytecodes::DecodeUnsignedOperand(const uint8_t* operand_start,
 // static
 std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
                                 int parameter_count) {
-  Vector<char> buf = Vector<char>::New(50);
-
   Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
   int prefix_offset = 0;
   OperandScale operand_scale = OperandScale::kSingle;
@@ -494,11 +494,19 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
     operand_scale = Bytecodes::PrefixBytecodeToOperandScale(bytecode);
     bytecode = Bytecodes::FromByte(bytecode_start[1]);
   }
+
+  // Prepare to print bytecode and operands as hex digits.
+  std::ios saved_format(nullptr);
+  saved_format.copyfmt(saved_format);
+  os.fill('0');
+  os.flags(std::ios::hex);
+
   int bytecode_size = Bytecodes::Size(bytecode, operand_scale);
   for (int i = 0; i < prefix_offset + bytecode_size; i++) {
-    SNPrintF(buf, "%02x ", bytecode_start[i]);
-    os << buf.start();
+    os << std::setw(2) << static_cast<uint32_t>(bytecode_start[i]) << ' ';
   }
+  os.copyfmt(saved_format);
+
   const int kBytecodeColumnSize = 6;
   for (int i = prefix_offset + bytecode_size; i < kBytecodeColumnSize; i++) {
     os << "   ";

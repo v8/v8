@@ -12,10 +12,4 @@
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
 }],  # 'byteorder == big'
-
-['asan', {
-  # TODO(oth@chromium.org).
-  'Bytecodes.DecodeBytecodeAndOperands': [SKIP],
-}],  # 'asan'
-
 ]
