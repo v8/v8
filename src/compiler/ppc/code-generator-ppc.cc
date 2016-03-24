@@ -297,19 +297,23 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 
 }  // namespace
 
-#define ASSEMBLE_FLOAT_UNOP_RC(asm_instr)                            \
+#define ASSEMBLE_FLOAT_UNOP_RC(asm_instr, round)                     \
   do {                                                               \
     __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
                  i.OutputRCBit());                                   \
+    if (round) {                                                     \
+      __ frsp(i.OutputDoubleRegister(), i.OutputDoubleRegister());   \
+    }                                                                \
   } while (0)
 
-
-#define ASSEMBLE_FLOAT_BINOP_RC(asm_instr)                           \
+#define ASSEMBLE_FLOAT_BINOP_RC(asm_instr, round)                    \
   do {                                                               \
     __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
                  i.InputDoubleRegister(1), i.OutputRCBit());         \
+    if (round) {                                                     \
+      __ frsp(i.OutputDoubleRegister(), i.OutputDoubleRegister());   \
+    }                                                                \
   } while (0)
-
 
 #define ASSEMBLE_BINOP(asm_instr_reg, asm_instr_imm)           \
   do {                                                         \
@@ -1085,7 +1089,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_ADD_WITH_OVERFLOW32();
       break;
     case kPPC_AddDouble:
-      ASSEMBLE_FLOAT_BINOP_RC(fadd);
+      ASSEMBLE_FLOAT_BINOP_RC(fadd, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Sub:
 #if V8_TARGET_ARCH_PPC64
@@ -1108,7 +1112,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_SUB_WITH_OVERFLOW32();
       break;
     case kPPC_SubDouble:
-      ASSEMBLE_FLOAT_BINOP_RC(fsub);
+      ASSEMBLE_FLOAT_BINOP_RC(fsub, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mul32:
       __ mullw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -1129,7 +1133,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                 i.OutputRCBit());
       break;
     case kPPC_MulDouble:
-      ASSEMBLE_FLOAT_BINOP_RC(fmul);
+      ASSEMBLE_FLOAT_BINOP_RC(fmul, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Div32:
       __ divw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
@@ -1152,7 +1156,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #endif
     case kPPC_DivDouble:
-      ASSEMBLE_FLOAT_BINOP_RC(fdiv);
+      ASSEMBLE_FLOAT_BINOP_RC(fdiv, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mod32:
       ASSEMBLE_MODULO(divw, mullw);
@@ -1185,25 +1189,25 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_FLOAT_MIN(kScratchDoubleReg);
       break;
     case kPPC_AbsDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(fabs);
+      ASSEMBLE_FLOAT_UNOP_RC(fabs, 0);
       break;
     case kPPC_SqrtDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(fsqrt);
+      ASSEMBLE_FLOAT_UNOP_RC(fsqrt, MiscField::decode(instr->opcode()));
       break;
     case kPPC_FloorDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(frim);
+      ASSEMBLE_FLOAT_UNOP_RC(frim, MiscField::decode(instr->opcode()));
       break;
     case kPPC_CeilDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(frip);
+      ASSEMBLE_FLOAT_UNOP_RC(frip, MiscField::decode(instr->opcode()));
       break;
     case kPPC_TruncateDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(friz);
+      ASSEMBLE_FLOAT_UNOP_RC(friz, MiscField::decode(instr->opcode()));
       break;
     case kPPC_RoundDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(frin);
+      ASSEMBLE_FLOAT_UNOP_RC(frin, MiscField::decode(instr->opcode()));
       break;
     case kPPC_NegDouble:
-      ASSEMBLE_FLOAT_UNOP_RC(fneg);
+      ASSEMBLE_FLOAT_UNOP_RC(fneg, 0);
       break;
     case kPPC_Cntlz32:
       __ cntlzw_(i.OutputRegister(), i.InputRegister(0));
@@ -1409,7 +1413,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
 #endif
     case kPPC_DoubleToFloat32:
-      ASSEMBLE_FLOAT_UNOP_RC(frsp);
+      ASSEMBLE_FLOAT_UNOP_RC(frsp, 0);
       break;
     case kPPC_Float32ToDouble:
       // Nothing to do.
