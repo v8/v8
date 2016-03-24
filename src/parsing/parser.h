@@ -757,8 +757,12 @@ class Parser : public ParserBase<ParserTraits> {
                           ZoneList<const AstRawString*>* local_names,
                           Scanner::Location* reserved_loc, bool* ok);
   ZoneList<ImportDeclaration*>* ParseNamedImports(int pos, bool* ok);
-  Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
-  Statement* ParseSubStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  Statement* ParseStatement(ZoneList<const AstRawString*>* labels,
+                            AllowLabelledFunctionStatement allow_function,
+                            bool* ok);
+  Statement* ParseSubStatement(ZoneList<const AstRawString*>* labels,
+                               AllowLabelledFunctionStatement allow_function,
+                               bool* ok);
   Statement* ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
                                    bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
@@ -900,7 +904,8 @@ class Parser : public ParserBase<ParserTraits> {
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
-      ZoneList<const AstRawString*>* labels, bool* ok);
+      ZoneList<const AstRawString*>* labels,
+      AllowLabelledFunctionStatement allow_function, bool* ok);
   IfStatement* ParseIfStatement(ZoneList<const AstRawString*>* labels,
                                 bool* ok);
   Statement* ParseContinueStatement(bool* ok);

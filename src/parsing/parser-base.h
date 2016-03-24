@@ -24,6 +24,10 @@ enum FunctionNameValidity {
   kFunctionNameValidityUnknown
 };
 
+enum AllowLabelledFunctionStatement {
+  kAllowLabelledFunctionStatement,
+  kDisallowLabelledFunctionStatement,
+};
 
 struct FormalParametersBase {
   explicit FormalParametersBase(Scope* scope) : scope(scope) {}

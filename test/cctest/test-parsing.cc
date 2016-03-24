@@ -7217,10 +7217,13 @@ TEST(FunctionDeclarationError) {
     {"(function() { {", "} })()"},
     { NULL, NULL }
   };
+  // Invalid in all contexts
   const char* error_data[] = {
     "try function foo() {} catch (e) {}",
     NULL
   };
+  // Valid in sloppy mode only, and only when the
+  // --harmony-restrictive-declarations flag is off
   const char* unrestricted_data[] = {
     "do function foo() {} while (0);",
     "for (;false;) function foo() {}",
@@ -7232,16 +7235,28 @@ TEST(FunctionDeclarationError) {
     "for (x in {}) function f() { };",
     "var x; for (x in {}) function foo() {}",
     "with ({}) function f() { };",
+    "do label: function foo() {} while (0);",
+    "for (;false;) label: function foo() {}",
+    "for (var i = 0; i < 1; i++) label: function f() { };",
+    "for (var x in {a: 1}) label: function f() { };",
+    "for (var x in {}) label: function f() { };",
+    "for (var x in {}) label: function foo() {}",
+    "for (x in {a: 1}) label: function f() { };",
+    "for (x in {}) label: function f() { };",
+    "var x; for (x in {}) label: function foo() {}",
+    "with ({}) label: function f() { };",
+    "if (true) label: function f() {}",
+    "if (true) {} else label: function f() {}",
     NULL
   };
+  // Valid only in sloppy mode, with or without
+  // --harmony-restrictive-declarations
   const char* sloppy_data[] = {
     "if (true) function foo() {}",
     "if (false) {} else function f() { };",
     "label: function f() { }",
     "label: if (true) function f() { }",
     "label: if (true) {} else function f() { }",
-    "if (true) label: function f() {}",
-    "if (true) {} else label: function f() {}",
     NULL
   };
   // clang-format on
@@ -7249,6 +7264,7 @@ TEST(FunctionDeclarationError) {
   static const ParserFlag restrictive_flags[] = {
       kAllowHarmonyRestrictiveDeclarations};
 
+  // Nothing parses in strict mode without a SyntaxError
   RunParserSyncTest(strict_context, error_data, kError);
   RunParserSyncTest(strict_context, error_data, kError, NULL, 0,
                     restrictive_flags, arraysize(restrictive_flags));
@@ -7259,6 +7275,7 @@ TEST(FunctionDeclarationError) {
   RunParserSyncTest(strict_context, sloppy_data, kError, NULL, 0,
                     restrictive_flags, arraysize(restrictive_flags));
 
+  // In sloppy mode, some things are successful, depending on the flag
   RunParserSyncTest(sloppy_context, error_data, kError);
   RunParserSyncTest(sloppy_context, error_data, kError, NULL, 0,
                     restrictive_flags, arraysize(restrictive_flags));

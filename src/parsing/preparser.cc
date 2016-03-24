@@ -194,7 +194,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
     default:
       break;
   }
-  return ParseStatement(ok);
+  return ParseStatement(kAllowLabelledFunctionStatement, ok);
 }
 
 
@@ -263,8 +263,8 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-
-PreParser::Statement PreParser::ParseStatement(bool* ok) {
+PreParser::Statement PreParser::ParseStatement(
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // Statement ::
   //   EmptyStatement
   //   ...
@@ -273,19 +273,20 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     Next();
     return Statement::Default();
   }
-  return ParseSubStatement(ok);
+  return ParseSubStatement(allow_function, ok);
 }
 
 PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
       (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseSubStatement(ok);
+    return ParseSubStatement(kDisallowLabelledFunctionStatement, ok);
   } else {
     return ParseFunctionDeclaration(CHECK_OK);
   }
 }
 
-PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
+PreParser::Statement PreParser::ParseSubStatement(
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // Statement ::
   //   Block
   //   VariableStatement
@@ -372,7 +373,7 @@ PreParser::Statement PreParser::ParseSubStatement(bool* ok) {
       return ParseVariableStatement(kStatement, ok);
 
     default:
-      return ParseExpressionOrLabelledStatement(ok);
+      return ParseExpressionOrLabelledStatement(allow_function, ok);
   }
 }
 
@@ -555,8 +556,8 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   return Statement::Default();
 }
 
-
-PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
+PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
@@ -591,9 +592,14 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
     Consume(Token::COLON);
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
-      return ParseFunctionDeclaration(ok);
+      if (allow_function == kAllowLabelledFunctionStatement) {
+        return ParseFunctionDeclaration(ok);
+      } else {
+        return ParseScopedStatement(true, ok);
+      }
     }
-    Statement statement = ParseStatement(ok);
+    Statement statement =
+        ParseStatement(kDisallowLabelledFunctionStatement, ok);
     return statement.IsJumpStatement() ? Statement::Default() : statement;
     // Preparsing is disabled for extensions (because the extension details
     // aren't passed to lazily compiled functions), so we don't

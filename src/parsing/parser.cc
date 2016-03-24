@@ -1271,7 +1271,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
     default:
       break;
   }
-  return ParseStatement(NULL, ok);
+  return ParseStatement(NULL, kAllowLabelledFunctionStatement, ok);
 }
 
 
@@ -1721,8 +1721,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   return result;
 }
 
-
 Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
+                                  AllowLabelledFunctionStatement allow_function,
                                   bool* ok) {
   // Statement ::
   //   EmptyStatement
@@ -1732,12 +1732,12 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
     Next();
     return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   }
-  return ParseSubStatement(labels, ok);
+  return ParseSubStatement(labels, allow_function, ok);
 }
 
-
-Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
-                                     bool* ok) {
+Statement* Parser::ParseSubStatement(
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // Statement ::
   //   Block
   //   VariableStatement
@@ -1826,7 +1826,7 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
       return ParseVariableStatement(kStatement, NULL, ok);
 
     default:
-      return ParseExpressionOrLabelledStatement(labels, ok);
+      return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
   }
 }
 
@@ -2415,9 +2415,9 @@ static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
   return false;
 }
 
-
 Statement* Parser::ParseExpressionOrLabelledStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
@@ -2470,9 +2470,13 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     Expect(Token::COLON, CHECK_OK);
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
-      return ParseFunctionDeclaration(labels, ok);
+      if (allow_function == kAllowLabelledFunctionStatement) {
+        return ParseFunctionDeclaration(labels, ok);
+      } else {
+        return ParseScopedStatement(labels, true, ok);
+      }
     }
-    return ParseStatement(labels, ok);
+    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
   }
 
   // If we have an extension, we allow a native function declaration.
@@ -3460,7 +3464,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
                                         bool legacy, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
       (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseSubStatement(labels, ok);
+    return ParseSubStatement(labels, kDisallowLabelledFunctionStatement, ok);
   } else {
     if (legacy) {
       ++use_counts_[v8::Isolate::kLegacyFunctionDeclaration];
