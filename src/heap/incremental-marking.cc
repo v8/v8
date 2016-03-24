@@ -45,7 +45,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       black_allocation_(false),
       finalize_marking_completed_(false),
       incremental_marking_finalization_rounds_(0),
-      request_type_(COMPLETE_MARKING) {}
+      request_type_(NONE) {}
 
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);

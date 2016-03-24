@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+const double IncrementalMarkingJob::kLongDelayInSeconds = 5;
+const double IncrementalMarkingJob::kShortDelayInSeconds = 0.5;
 
 void IncrementalMarkingJob::Start(Heap* heap) {
   DCHECK(!heap->incremental_marking()->IsStopped());
@@ -58,8 +60,10 @@ void IncrementalMarkingJob::ScheduleDelayedTask(Heap* heap) {
     delayed_task_pending_ = true;
     made_progress_since_last_delayed_task_ = false;
     auto task = new DelayedTask(heap->isolate(), this);
+    double delay =
+        heap->HighMemoryPressure() ? kShortDelayInSeconds : kLongDelayInSeconds;
     V8::GetCurrentPlatform()->CallDelayedOnForegroundThread(isolate, task,
-                                                            kDelayInSeconds);
+                                                            delay);
   }
 }
 

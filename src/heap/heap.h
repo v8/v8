@@ -10,6 +10,7 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+#include "include/v8.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/atomic-utils.h"
@@ -22,6 +23,8 @@
 
 namespace v8 {
 namespace internal {
+
+using v8::MemoryPressureLevel;
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
@@ -736,6 +739,10 @@ class Heap {
   bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
 
+  void MemoryPressureNotification(MemoryPressureLevel level,
+                                  bool is_isolate_locked);
+  void CheckMemoryPressure();
+
   double MonotonicallyIncreasingTimeInMs();
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
@@ -749,6 +756,8 @@ class Heap {
     intptr_t adjusted_allocation_limit = limit - new_space_.Capacity();
 
     if (PromotedTotalSize() >= adjusted_allocation_limit) return true;
+
+    if (HighMemoryPressure()) return true;
 
     return false;
   }
@@ -833,7 +842,12 @@ class Heap {
 
   void SetOptimizeForLatency() { optimize_for_memory_usage_ = false; }
   void SetOptimizeForMemoryUsage();
-  bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
+  bool ShouldOptimizeForMemoryUsage() {
+    return optimize_for_memory_usage_ || HighMemoryPressure();
+  }
+  bool HighMemoryPressure() {
+    return memory_pressure_level_.Value() != MemoryPressureLevel::kNone;
+  }
 
   // ===========================================================================
   // Initialization. ===========================================================
@@ -1630,6 +1644,8 @@ class Heap {
 
   void CompactRetainedMaps(ArrayList* retained_maps);
 
+  void CollectGarbageOnMemoryPressure(const char* source);
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
@@ -1995,6 +2011,10 @@ class Heap {
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
   AtomicNumber<size_t> always_allocate_scope_count_;
+
+  // Stores the memory pressure level that set by MemoryPressureNotification
+  // and reset by a mark-compact garbage collection.
+  AtomicValue<MemoryPressureLevel> memory_pressure_level_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;

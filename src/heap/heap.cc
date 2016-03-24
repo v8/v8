@@ -68,7 +68,6 @@ class IdleScavengeObserver : public AllocationObserver {
   Heap& heap_;
 };
 
-
 Heap::Heap()
     : amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
@@ -92,6 +91,7 @@ Heap::Heap()
       survived_since_last_expansion_(0),
       survived_last_scavenge_(0),
       always_allocate_scope_count_(0),
+      memory_pressure_level_(MemoryPressureLevel::kNone),
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
       global_ic_age_(0),
@@ -790,12 +790,19 @@ class GCCallbacksScope {
 
 
 void Heap::HandleGCRequest() {
-  if (incremental_marking()->request_type() ==
-      IncrementalMarking::COMPLETE_MARKING) {
+  if (HighMemoryPressure()) {
+    incremental_marking()->reset_request_type();
+    CheckMemoryPressure();
+  } else if (incremental_marking()->request_type() ==
+             IncrementalMarking::COMPLETE_MARKING) {
+    incremental_marking()->reset_request_type();
     CollectAllGarbage(current_gc_flags_, "GC interrupt",
                       current_gc_callback_flags_);
-  } else if (incremental_marking()->IsMarking() &&
+  } else if (incremental_marking()->request_type() ==
+                 IncrementalMarking::FINALIZATION &&
+             incremental_marking()->IsMarking() &&
              !incremental_marking()->finalize_marking_completed()) {
+    incremental_marking()->reset_request_type();
     FinalizeIncrementalMarking("GC interrupt: finalize incremental marking");
   }
 }
@@ -1036,6 +1043,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
+      memory_pressure_level_.SetValue(MemoryPressureLevel::kNone);
     }
 
     tracer()->Stop(collector);
@@ -1455,7 +1463,6 @@ void Heap::MarkCompactEpilogue() {
   incremental_marking()->Epilogue();
 
   PreprocessStackTraces();
-
   DCHECK(incremental_marking()->IsStopped());
 
   // We finished a marking cycle. We can uncommit the marking deque until
@@ -4424,6 +4431,59 @@ bool Heap::RecentIdleNotificationHappened() {
          MonotonicallyIncreasingTimeInMs();
 }
 
+class MemoryPressureInterruptTask : public CancelableTask {
+ public:
+  explicit MemoryPressureInterruptTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
+
+  virtual ~MemoryPressureInterruptTask() {}
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override { heap_->CheckMemoryPressure(); }
+
+  Heap* heap_;
+  DISALLOW_COPY_AND_ASSIGN(MemoryPressureInterruptTask);
+};
+
+void Heap::CheckMemoryPressure() {
+  if (memory_pressure_level_.Value() == MemoryPressureLevel::kCritical) {
+    CollectGarbageOnMemoryPressure("memory pressure");
+  } else if (memory_pressure_level_.Value() == MemoryPressureLevel::kModerate) {
+    if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
+      StartIdleIncrementalMarking();
+    }
+  }
+  MemoryReducer::Event event;
+  event.type = MemoryReducer::kPossibleGarbage;
+  event.time_ms = MonotonicallyIncreasingTimeInMs();
+  memory_reducer_->NotifyPossibleGarbage(event);
+}
+
+void Heap::CollectGarbageOnMemoryPressure(const char* source) {
+  CollectAllGarbage(kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
+                    source);
+}
+
+void Heap::MemoryPressureNotification(MemoryPressureLevel level,
+                                      bool is_isolate_locked) {
+  MemoryPressureLevel previous = memory_pressure_level_.Value();
+  memory_pressure_level_.SetValue(level);
+  if ((previous != MemoryPressureLevel::kCritical &&
+       level == MemoryPressureLevel::kCritical) ||
+      (previous == MemoryPressureLevel::kNone &&
+       level == MemoryPressureLevel::kModerate)) {
+    if (is_isolate_locked) {
+      CheckMemoryPressure();
+    } else {
+      ExecutionAccess access(isolate());
+      isolate()->stack_guard()->RequestGC();
+      V8::GetCurrentPlatform()->CallOnForegroundThread(
+          reinterpret_cast<v8::Isolate*>(isolate()),
+          new MemoryPressureInterruptTask(this));
+    }
+  }
+}
 
 #ifdef DEBUG
 

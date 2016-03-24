@@ -24856,3 +24856,71 @@ TEST(Proxy) {
   CHECK(proxy->GetTarget()->SameValue(target));
   CHECK(proxy->GetHandler()->IsNull());
 }
+
+WeakCallCounterAndPersistent<Value>* CreateGarbageWithWeakCallCounter(
+    v8::Isolate* isolate, WeakCallCounter* counter) {
+  v8::Locker locker(isolate);
+  LocalContext env;
+  HandleScope scope(isolate);
+  WeakCallCounterAndPersistent<Value>* val =
+      new WeakCallCounterAndPersistent<Value>(counter);
+  val->handle.Reset(isolate, Object::New(isolate));
+  val->handle.SetWeak(val, &WeakPointerCallback,
+                      v8::WeakCallbackType::kParameter);
+  return val;
+}
+
+class MemoryPressureThread : public v8::base::Thread {
+ public:
+  explicit MemoryPressureThread(v8::Isolate* isolate,
+                                v8::MemoryPressureLevel level)
+      : Thread(Options("MemoryPressureThread")),
+        isolate_(isolate),
+        level_(level) {}
+
+  virtual void Run() { isolate_->MemoryPressureNotification(level_); }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::MemoryPressureLevel level_;
+};
+
+TEST(MemoryPressure) {
+  v8::Isolate* isolate = CcTest::isolate();
+  WeakCallCounter counter(1234);
+
+  // Check that critical memory pressure notification sets GC interrupt.
+  auto garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
+  CHECK(!v8::Locker::IsLocked(isolate));
+  {
+    v8::Locker locker(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext env;
+    MemoryPressureThread memory_pressure_thread(
+        isolate, v8::MemoryPressureLevel::kCritical);
+    memory_pressure_thread.Start();
+    memory_pressure_thread.Join();
+    // This should trigger GC.
+    CHECK_EQ(0, counter.NumberOfWeakCalls());
+    CompileRun("(function noop() { return 0; })()");
+    CHECK_EQ(1, counter.NumberOfWeakCalls());
+  }
+  delete garbage;
+  // Check that critical memory pressure notification triggers GC.
+  garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
+  {
+    v8::Locker locker(isolate);
+    // If isolate is locked, memory pressure notification should trigger GC.
+    CHECK_EQ(1, counter.NumberOfWeakCalls());
+    isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical);
+    CHECK_EQ(2, counter.NumberOfWeakCalls());
+  }
+  delete garbage;
+  // Check that moderate memory pressure notification sets GC into memory
+  // optimizing mode.
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kModerate);
+  CHECK(CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
+  // Check that disabling memory pressure returns GC into normal mode.
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kNone);
+  CHECK(!CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
+}
