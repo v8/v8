@@ -85,8 +85,6 @@ class BytecodeGraphTester {
     SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
     FlagList::SetFlagsFromString(ignition_filter.start(),
                                  ignition_filter.length());
-    // Ensure handler table is generated.
-    isolate->interpreter()->Initialize();
   }
   virtual ~BytecodeGraphTester() {}
 

@@ -28,7 +28,6 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
 }
 
 void Interpreter::Initialize() {
-  DCHECK(FLAG_ignition);
   if (IsDispatchTableInitialized()) return;
   Zone zone;
   HandleScope scope(isolate_);

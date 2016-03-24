@@ -2256,10 +2256,7 @@ bool Isolate::Init(Deserializer* des) {
     des->Deserialize(this);
   }
   stub_cache_->Initialize();
-
-  if (FLAG_ignition) {
-    interpreter_->Initialize();
-  }
+  interpreter_->Initialize();
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();
