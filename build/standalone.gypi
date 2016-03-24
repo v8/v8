@@ -194,6 +194,9 @@
     # their own default value.
     'v8_use_external_startup_data%': 1,
 
+    # Use a separate ignition snapshot file in standalone builds.
+    'v8_separate_ignition_snapshot': 1,
+
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
 
