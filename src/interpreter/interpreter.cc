@@ -37,20 +37,22 @@ void Interpreter::Initialize() {
   for (OperandScale operand_scale = OperandScale::kSingle;
        operand_scale <= OperandScale::kMaxValid;
        operand_scale = Bytecodes::NextOperandScale(operand_scale)) {
-#define GENERATE_CODE(Name, ...)                                              \
-  {                                                                           \
-    if (BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {               \
-      InterpreterAssembler assembler(isolate_, &zone, Bytecode::k##Name,      \
-                                     operand_scale);                          \
-      Do##Name(&assembler);                                                   \
-      Handle<Code> code = assembler.GenerateCode();                           \
-      size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale); \
-      dispatch_table_[index] = *code;                                         \
-      TraceCodegen(code);                                                     \
-      LOG_CODE_EVENT(isolate_,                                                \
-                     CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG,            \
-                                     AbstractCode::cast(*code), #Name));      \
-    }                                                                         \
+#define GENERATE_CODE(Name, ...)                                               \
+  {                                                                            \
+    if (BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {                \
+      InterpreterAssembler assembler(isolate_, &zone, Bytecode::k##Name,       \
+                                     operand_scale);                           \
+      Do##Name(&assembler);                                                    \
+      Handle<Code> code = assembler.GenerateCode();                            \
+      size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
+      dispatch_table_[index] = *code;                                          \
+      TraceCodegen(code);                                                      \
+      LOG_CODE_EVENT(                                                          \
+          isolate_,                                                            \
+          CodeCreateEvent(                                                     \
+              Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(*code),         \
+              Bytecodes::ToString(Bytecode::k##Name, operand_scale).c_str())); \
+    }                                                                          \
   }
     BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
