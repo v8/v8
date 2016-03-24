@@ -427,8 +427,8 @@ class Debug {
 
   // Internal logic
   bool Load();
-  void Break(JavaScriptFrame* frame);
-  void SetAfterBreakTarget(JavaScriptFrame* frame);
+  void Break(Arguments args, JavaScriptFrame*);
+  Object* SetAfterBreakTarget(JavaScriptFrame* frame);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
@@ -523,11 +523,6 @@ class Debug {
 
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
-
-  Handle<Object> return_value() { return thread_local_.return_value_; }
-  void set_return_value(Handle<Object> value) {
-    thread_local_.return_value_ = value;
-  }
 
   // Support for embedding into generated code.
   Address is_active_address() {
@@ -683,10 +678,6 @@ class Debug {
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.
     LiveEdit::FrameDropMode frame_drop_mode_;
-
-    // Value of accumulator in interpreter frames. In non-interpreter frames
-    // this value will be the hole.
-    Handle<Object> return_value_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -728,7 +719,6 @@ class DebugScope BASE_EMBEDDED {
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;                   // Previous break id.
-  Handle<Object> return_value_;    // Previous result.
   bool failed_;                    // Did the debug context fail to load?
   SaveContext save_;               // Saves previous context.
   PostponeInterruptsScope no_termination_exceptons_;

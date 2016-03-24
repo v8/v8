@@ -1485,13 +1485,11 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
 // DebugBreak
 //
 // Call runtime to handle a debug break.
-#define DEBUG_BREAK(Name, ...)                                                \
-  void Interpreter::Do##Name(InterpreterAssembler* assembler) {               \
-    Node* context = __ GetContext();                                          \
-    Node* accumulator = __ GetAccumulator();                                  \
-    Node* original_handler =                                                  \
-        __ CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator); \
-    __ DispatchToBytecodeHandler(original_handler);                           \
+#define DEBUG_BREAK(Name, ...)                                              \
+  void Interpreter::Do##Name(InterpreterAssembler* assembler) {             \
+    Node* context = __ GetContext();                                        \
+    Node* original_handler = __ CallRuntime(Runtime::kDebugBreak, context); \
+    __ DispatchToBytecodeHandler(original_handler);                         \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK

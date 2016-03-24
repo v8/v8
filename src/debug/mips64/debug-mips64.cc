@@ -79,15 +79,9 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(at);
 
-    // Push arguments for DebugBreak call.
-    if (mode == SAVE_RESULT_REGISTER) {
-      // Break on return.
-      __ push(v0);
-    } else {
-      // Non-return breaks.
-      __ Push(masm->isolate()->factory()->the_hole_value());
-    }
-    __ PrepareCEntryArgs(1);
+    if (mode == SAVE_RESULT_REGISTER) __ push(v0);
+
+    __ PrepareCEntryArgs(0);  // No arguments.
     __ PrepareCEntryFunction(ExternalReference(
         Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate()));
 
@@ -97,13 +91,11 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         Register reg = {JSCallerSavedCode(i)};
-        // Do not clobber v0 if SAVE_RESULT_REGISTER is set. It will
-        // contain return value of the function returned by DebugBreak.
-        if (!(reg.is(v0) && SAVE_RESULT_REGISTER)) {
-          __ li(reg, kDebugZapValue);
-        }
+        __ li(reg, kDebugZapValue);
       }
     }
+
+    if (mode == SAVE_RESULT_REGISTER) __ pop(v0);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.

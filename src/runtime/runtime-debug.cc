@@ -5,13 +5,11 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/debug/debug.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
-#include "src/debug/debug.h"
 #include "src/frames-inl.h"
-#include "src/interpreter/bytecodes.h"
-#include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
 
@@ -20,39 +18,11 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
-
+  DCHECK(args.length() == 0);
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
-  isolate->debug()->Break(it.frame());
-
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return *isolate->debug()->return_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
-
-  // Get the top-most JavaScript frame.
-  JavaScriptFrameIterator it(isolate);
-  isolate->debug()->Break(it.frame());
-
-  // Return the handler from the original bytecode array.
-  DCHECK(it.frame()->is_interpreted());
-  InterpretedFrame* interpreted_frame =
-      reinterpret_cast<InterpretedFrame*>(it.frame());
-  SharedFunctionInfo* shared = interpreted_frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->bytecode_array();
-  int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
-  return isolate->interpreter()->GetBytecodeHandler(
-      bytecode, interpreter::OperandScale::kSingle);
+  isolate->debug()->Break(args, it.frame());
+  return isolate->debug()->SetAfterBreakTarget(it.frame());
 }
 
 
@@ -621,7 +591,31 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // to the frame information.
   Handle<Object> return_value = isolate->factory()->undefined_value();
   if (at_return) {
-    return_value = isolate->debug()->return_value();
+    StackFrameIterator it2(isolate);
+    Address internal_frame_sp = NULL;
+    while (!it2.done()) {
+      if (it2.frame()->is_internal()) {
+        internal_frame_sp = it2.frame()->sp();
+      } else {
+        if (it2.frame()->is_java_script()) {
+          if (it2.frame()->id() == it.frame()->id()) {
+            // The internal frame just before the JavaScript frame contains the
+            // value to return on top. A debug break at return will create an
+            // internal frame to store the return value (eax/rax/r0) before
+            // entering the debug break exit frame.
+            if (internal_frame_sp != NULL) {
+              return_value =
+                  Handle<Object>(Memory::Object_at(internal_frame_sp), isolate);
+              break;
+            }
+          }
+        }
+
+        // Indicate that the previous frame was not an internal frame.
+        internal_frame_sp = NULL;
+      }
+      it2.Advance();
+    }
   }
 
   // Now advance to the arguments adapter frame (if any). It contains all

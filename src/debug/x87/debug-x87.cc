@@ -68,15 +68,9 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
 
-    // Push arguments for DebugBreak call.
-    if (mode == SAVE_RESULT_REGISTER) {
-      // Break on return.
-      __ push(eax);
-    } else {
-      // Non-return breaks.
-      __ Push(masm->isolate()->factory()->the_hole_value());
-    }
-    __ Move(eax, Immediate(1));
+    if (mode == SAVE_RESULT_REGISTER) __ push(eax);
+
+    __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx,
            Immediate(ExternalReference(
                Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
@@ -87,13 +81,11 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        // Do not clobber eax if SAVE_RESULT_REGISTER is set. It will
-        // contain return value of the function.
-        if (!(reg.is(eax) && SAVE_RESULT_REGISTER)) {
-          __ Move(reg, Immediate(kDebugZapValue));
-        }
+        __ Move(reg, Immediate(kDebugZapValue));
       }
     }
+
+    if (mode == SAVE_RESULT_REGISTER) __ pop(eax);
 
     __ pop(ebx);
     // We divide stored value by 2 (untagging) and multiply it by word's size.
