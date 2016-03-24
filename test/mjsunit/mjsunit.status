@@ -280,7 +280,7 @@
   # TODO(bradnelson) Fix and re-enable.
   'wasm/embenchen/box2d': [SKIP],   # hang
   'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
-  'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
+  #'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
