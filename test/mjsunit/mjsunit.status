@@ -755,7 +755,6 @@
 ['ignition == True', {
   # TODO(yangguo,4690): assertion failures in debugger tests.
   'debug-allscopes-on-debugger': [FAIL],
-  'debug-return-value': [FAIL],
   'es6/debug-stepnext-for': [FAIL],
   'es6/debug-stepin-string-template': [FAIL],
   'es6/debug-promises/stepin-constructor': [FAIL],

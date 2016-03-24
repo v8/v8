@@ -69,9 +69,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ Push(Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
 
-    if (mode == SAVE_RESULT_REGISTER) __ Push(rax);
-
-    __ Set(rax, 0);  // No arguments (argc == 0).
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ Push(rax);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ Set(rax, 1);
     __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
                                    masm->isolate()));
 
@@ -81,11 +87,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Set(reg, kDebugZapValue);
+        // Do not clobber rax if SAVE_RESULT_REGISTER is set. It will
+        // contain return value of the function.
+        if (!(reg.is(rax) && SAVE_RESULT_REGISTER)) {
+          __ Set(reg, kDebugZapValue);
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ Pop(rax);
 
     // Read current padding counter and skip corresponding number of words.
     __ Pop(kScratchRegister);

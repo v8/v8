@@ -137,10 +137,10 @@ namespace internal {
   F(DateCurrentTime, 0, 1)         \
   F(ThrowNotDateError, 0, 1)
 
-
 #define FOR_EACH_INTRINSIC_DEBUG(F)            \
   F(HandleDebuggerStatement, 0, 1)             \
-  F(DebugBreak, 0, 1)                          \
+  F(DebugBreak, 1, 1)                          \
+  F(DebugBreakOnBytecode, 1, 1)                \
   F(SetDebugEventListener, 2, 1)               \
   F(ScheduleBreak, 0, 1)                       \
   F(DebugGetInternalProperties, 1, 1)          \
@@ -194,7 +194,6 @@ namespace internal {
   F(DebugAsyncTaskEvent, 1, 1)                 \
   F(DebugIsActive, 0, 1)                       \
   F(DebugBreakInOptimizedCode, 0, 1)
-
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInDone, 2, 1)                \
