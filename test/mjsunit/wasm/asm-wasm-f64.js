@@ -228,6 +228,9 @@ function f64_atan2(a) {
 
 var inputs = [
   0, 1, 2, 3, 4,
+  NaN,
+  Infinity,
+  -Infinity,
   10, 20, 30, 31, 32, 33, 100, 2000,
   30000, 400000, 5000000,
   100000000, 2000000000,
@@ -236,10 +239,9 @@ var inputs = [
   2147483648,
   2147483649,
   0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-  0x0000009e, 0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
+  0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
   0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
   0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-  0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff,
   -0,
   -1, -2, -3, -4,
   -10, -20, -30, -31, -32, -33, -100, -2000,
@@ -269,10 +271,10 @@ var funcs = [
   f64_lteq,
   f64_gt,
   f64_gteq,
-// TODO(bradnelson) f64_ceil,
-// TODO(bradnelson) f64_floor,
+  f64_ceil,
+  f64_floor,
 // TODO(bradnelson) f64_sqrt,
-// TODO(bradnelson) f64_abs,
+  f64_abs,
 // TODO(bradnelson) f64_min is wrong for -0
 // TODO(bradnelson) f64_max is wrong for -0
 // TODO(bradnelson) f64_acos,

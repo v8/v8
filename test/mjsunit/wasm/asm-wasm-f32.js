@@ -165,6 +165,9 @@ function f32_gteq(a, b) {
 
 var inputs = [
   0, 1, 2, 3, 4,
+  NaN,
+  Infinity,
+  -Infinity,
   10, 20, 30, 31, 32, 33, 100, 2000,
   30000, 400000, 5000000,
   100000000, 2000000000,
@@ -173,10 +176,9 @@ var inputs = [
   2147483648,
   2147483649,
   0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-  0x0000009e, 0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
+  0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
   0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
   0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-  0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff,
   -0,
   -1, -2, -3, -4,
   -10, -20, -30, -31, -32, -33, -100, -2000,
@@ -200,8 +202,8 @@ var funcs = [
   f32_sub,
   f32_mul,
   f32_div,
-// TODO(bradnelson) f32_ceil,
-// TODO(bradnelson) f32_floor,
+  f32_ceil,
+  f32_floor,
 // TODO(bradnelson) f32_sqrt,
 // TODO(bradnelson) f32_abs,
 // TODO(bradnelson) f32_min is wrong for -0
@@ -217,12 +219,21 @@ var funcs = [
 (function () {
   for (func of funcs) {
     RunThreeWayTest(WrapInAsmModule(func), function (module) {
-      for (a of inputs) {
-        for (b of inputs) {
-          assertEquals(func(a, b), module.main(a, b));
-          assertEquals(func(a / 10,  b), module.main(a / 10, b));
-          assertEquals(func(a, b / 440.9), module.main(a, b / 440.9));
-          assertEquals(func(a / -33.1, b), module.main(a / -33.1, b));
+      if (func.length == 1) {
+        for (a of inputs) {
+          assertEquals(func(a), module.main(a));
+          assertEquals(func(a / 11), module.main(a / 11));
+          assertEquals(func(a / 430.9), module.main(a / 430.9));
+          assertEquals(func(a / -31.1), module.main(a / -31.1));
+        }
+      } else {
+        for (a of inputs) {
+          for (b of inputs) {
+            assertEquals(func(a, b), module.main(a, b));
+            assertEquals(func(a / 11,  b), module.main(a / 11, b));
+            assertEquals(func(a, b / 420.9), module.main(a, b / 420.9));
+            assertEquals(func(a / -31.1, b), module.main(a / -31.1, b));
+          }
         }
       }
     });

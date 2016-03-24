@@ -8,6 +8,9 @@ function WrapInAsmModule(func) {
   function MODULE_NAME(stdlib) {
     "use asm";
     var imul = stdlib.Math.imul;
+    var Math_max = stdlib.Math.max;
+    var Math_min = stdlib.Math.min;
+    var Math_abs = stdlib.Math.abs;
 
     FUNC_BODY
     return {main: FUNC_NAME};
@@ -39,6 +42,9 @@ function RunThreeWayTest(asmfunc, expect) {
 }
 
 const imul = Math.imul;
+const Math_max = Math.max;
+const Math_min = Math.min;
+const Math_abs = Math.abs;
 
 function i32_add(a, b) {
   a = a | 0;
@@ -160,6 +166,23 @@ function i32_gteq(a, b) {
   return 0;
 }
 
+function i32_min(a, b) {
+  a = a | 0;
+  b = b | 0;
+  return Math_min(a | 0, b | 0) | 0;
+}
+
+function i32_max(a, b) {
+  a = a | 0;
+  b = b | 0;
+  return Math_max(a | 0, b | 0) | 0;
+}
+
+function i32_abs(a) {
+  a = a | 0;
+  return Math_abs(a | 0) | 0;
+}
+
 var inputs = [
   0, 1, 2, 3, 4,
   10, 20, 30, 31, 32, 33, 100, 2000,
@@ -205,18 +228,23 @@ var funcs = [
   i32_lteq,
   i32_gt,
   i32_gteq,
-  // TODO(titzer): i32_min
-  // TODO(titzer): i32_max
-  // TODO(titzer): i32_abs
+  i32_min,
+  i32_max,
+  i32_abs
 ];
 
 (function () {
   for (func of funcs) {
     RunThreeWayTest(WrapInAsmModule(func), function (module) {
-      for (a of inputs) {
-        for (b of inputs) {
-          var expected = func(a, b);
-          assertEquals(expected, module.main(a, b));
+      if (func.length == 1) {
+        for (a of inputs) {
+          assertEquals(func(a), module.main(a));
+        }
+      } else {
+        for (a of inputs) {
+          for (b of inputs) {
+            assertEquals(func(a, b), module.main(a, b));
+          }
         }
       }
     });

@@ -131,7 +131,6 @@ function LargeUnsignedLiterals() {
 }
 
 RunThreeWayTest(LargeUnsignedLiterals, function(module) {
-  return; // TODO(bradnelson): unsigned literals are broken!
   assertEquals(2147483648, module.a());
   assertEquals(2147483649, module.b());
   assertEquals(0x80000000, module.c());
