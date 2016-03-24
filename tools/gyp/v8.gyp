@@ -2086,6 +2086,7 @@
           '../../src/js/harmony-simd.js',
           '../../src/js/harmony-species.js',
           '../../src/js/harmony-unicode-regexps.js',
+          '../../src/js/harmony-string-padding.js',
           '../../src/js/promise-extra.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',

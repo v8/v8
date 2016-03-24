@@ -2372,6 +2372,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_exponentiation_operator)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -2955,6 +2956,8 @@ bool Genesis::InstallExperimentalNatives() {
       nullptr};
   static const char* harmony_array_prototype_values_natives[] = {nullptr};
   static const char* harmony_exponentiation_operator_natives[] = {nullptr};
+  static const char* harmony_string_padding_natives[] = {
+      "native harmony-string-padding.js", nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
