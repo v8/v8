@@ -271,7 +271,7 @@ function RegExpSubclassExec(regexp, string) {
   var exec = regexp.exec;
   if (IS_CALLABLE(exec)) {
     var result = %_Call(exec, regexp, string);
-    if (!IS_OBJECT(result) && !IS_NULL(result)) {
+    if (!IS_RECEIVER(result) && !IS_NULL(result)) {
       throw MakeTypeError(kInvalidRegExpExecResult);
     }
     return result;
@@ -341,7 +341,7 @@ function RegExpTest(string) {
 
 // ES#sec-regexp.prototype.test RegExp.prototype.test ( S )
 function RegExpSubclassTest(string) {
-  if (!IS_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'RegExp.prototype.test', this);
   }
@@ -552,7 +552,7 @@ function RegExpMatch(string) {
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 function RegExpSubclassMatch(string) {
-  if (!IS_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@match", this);
   }
@@ -863,7 +863,7 @@ function SetAdvancedStringIndex(regexp, string, unicode) {
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 function RegExpSubclassReplace(string, replace) {
-  if (!IS_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@replace", this);
   }
@@ -944,7 +944,7 @@ function RegExpSearch(string) {
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 function RegExpSubclassSearch(string) {
-  if (!IS_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@search", this);
   }
