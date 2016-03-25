@@ -1480,9 +1480,9 @@ void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ lw(InstanceOfDescriptor::LeftRegister(),
+    __ ld(InstanceOfDescriptor::LeftRegister(),
           MemOperand(fp, 2 * kPointerSize));  // Load left-hand side.
-    __ lw(InstanceOfDescriptor::RightRegister(),
+    __ ld(InstanceOfDescriptor::RightRegister(),
           MemOperand(fp, 3 * kPointerSize));  // Load right-hand side.
     InstanceOfStub stub(masm->isolate(), true);
     __ CallStub(&stub);
