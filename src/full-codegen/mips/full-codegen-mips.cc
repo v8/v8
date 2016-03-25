@@ -4058,7 +4058,9 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             BackEdgeState target_state,
                             Code* replacement_code) {
   static const int kInstrSize = Assembler::kInstrSize;
-  Address branch_address = pc - 6 * kInstrSize;
+  Address pc_immediate_load_address =
+      Assembler::target_address_from_return_address(pc);
+  Address branch_address = pc_immediate_load_address - 2 * kInstrSize;
   Isolate* isolate = unoptimized_code->GetIsolate();
   CodePatcher patcher(isolate, branch_address, 1);
 
@@ -4084,7 +4086,6 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       patcher.masm()->addiu(at, zero_reg, 1);
       break;
   }
-  Address pc_immediate_load_address = pc - 4 * kInstrSize;
   // Replace the stack check address in the load-immediate (lui/ori pair)
   // with the entry address of the replacement code.
   Assembler::set_target_address_at(isolate, pc_immediate_load_address,
@@ -4100,12 +4101,11 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Code* unoptimized_code,
     Address pc) {
   static const int kInstrSize = Assembler::kInstrSize;
-  Address branch_address = pc - 6 * kInstrSize;
-#ifdef DEBUG
-  Address pc_immediate_load_address = pc - 4 * kInstrSize;
-#endif
+  Address pc_immediate_load_address =
+      Assembler::target_address_from_return_address(pc);
+  Address branch_address = pc_immediate_load_address - 2 * kInstrSize;
 
-  DCHECK(Assembler::IsBeq(Assembler::instr_at(pc - 5 * kInstrSize)));
+  DCHECK(Assembler::IsBeq(Assembler::instr_at(branch_address + kInstrSize)));
   if (!Assembler::IsAddImmediate(Assembler::instr_at(branch_address))) {
     DCHECK(reinterpret_cast<uint32_t>(
         Assembler::target_address_at(pc_immediate_load_address)) ==

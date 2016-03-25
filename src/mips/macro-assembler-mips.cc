@@ -3052,16 +3052,25 @@ void MacroAssembler::Jump(Register target,
                           const Operand& rt,
                           BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (cond == cc_always) {
-    jr(target);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
+    if (cond == cc_always) {
+      jic(target, 0);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jic(target, 0);
+    }
   } else {
-    BRANCH_ARGS_CHECK(cond, rs, rt);
-    Branch(2, NegateCondition(cond), rs, rt);
-    jr(target);
+    if (cond == cc_always) {
+      jr(target);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jr(target);
+    }
+    // Emit a nop in the branch delay slot if required.
+    if (bd == PROTECT) nop();
   }
-  // Emit a nop in the branch delay slot if required.
-  if (bd == PROTECT)
-    nop();
 }
 
 
@@ -3119,8 +3128,7 @@ int MacroAssembler::CallSize(Register target,
     size += 3;
   }
 
-  if (bd == PROTECT)
-    size += 1;
+  if (bd == PROTECT && !IsMipsArchVariant(kMips32r6)) size += 1;
 
   return size * kInstrSize;
 }
@@ -3139,16 +3147,25 @@ void MacroAssembler::Call(Register target,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Label start;
   bind(&start);
-  if (cond == cc_always) {
-    jalr(target);
+  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
+    if (cond == cc_always) {
+      jialc(target, 0);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jialc(target, 0);
+    }
   } else {
-    BRANCH_ARGS_CHECK(cond, rs, rt);
-    Branch(2, NegateCondition(cond), rs, rt);
-    jalr(target);
+    if (cond == cc_always) {
+      jalr(target);
+    } else {
+      BRANCH_ARGS_CHECK(cond, rs, rt);
+      Branch(2, NegateCondition(cond), rs, rt);
+      jalr(target);
+    }
+    // Emit a nop in the branch delay slot if required.
+    if (bd == PROTECT) nop();
   }
-  // Emit a nop in the branch delay slot if required.
-  if (bd == PROTECT)
-    nop();
 
 #ifdef DEBUG
   CHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
@@ -3239,7 +3256,7 @@ void MacroAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     uint32_t imm32;
     imm32 = jump_address(L);
-    if (IsMipsArchVariant(kMips32r6) && bdslot != USE_DELAY_SLOT) {
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
       uint32_t lui_offset, jic_offset;
       UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
       {
@@ -3280,7 +3297,7 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     uint32_t imm32;
     imm32 = jump_address(L);
-    if (IsMipsArchVariant(kMips32r6) && bdslot != USE_DELAY_SLOT) {
+    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
       uint32_t lui_offset, jic_offset;
       UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
       {
@@ -3304,6 +3321,7 @@ void MacroAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
         lui(at, (imm32 & kHiMask) >> kLuiShift);
         ori(at, at, (imm32 & kImm16Mask));
       }
+      CheckBuffer();
       jalr(at);
       // Emit a nop in the branch delay slot if required.
       if (bdslot == PROTECT) nop();
