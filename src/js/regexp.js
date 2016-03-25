@@ -1020,6 +1020,22 @@ function RegExpMakeCaptureGetter(n) {
 }
 
 
+// ES6 21.2.5.3.
+function RegExpGetFlags() {
+  if (!IS_RECEIVER(this)) {
+    throw MakeTypeError(
+        kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
+  }
+  var result = '';
+  if (this.global) result += 'g';
+  if (this.ignoreCase) result += 'i';
+  if (this.multiline) result += 'm';
+  if (this.unicode) result += 'u';
+  if (this.sticky) result += 'y';
+  return result;
+}
+
+
 // ES6 21.2.5.4.
 function RegExpGetGlobal() {
   if (!IS_REGEXP(this)) {
@@ -1032,8 +1048,6 @@ function RegExpGetGlobal() {
   }
   return !!REGEXP_GLOBAL(this);
 }
-%FunctionSetName(RegExpGetGlobal, "RegExp.prototype.global");
-%SetNativeFlag(RegExpGetGlobal);
 
 
 // ES6 21.2.5.5.
@@ -1048,8 +1062,6 @@ function RegExpGetIgnoreCase() {
   }
   return !!REGEXP_IGNORE_CASE(this);
 }
-%FunctionSetName(RegExpGetIgnoreCase, "RegExp.prototype.ignoreCase");
-%SetNativeFlag(RegExpGetIgnoreCase);
 
 
 // ES6 21.2.5.7.
@@ -1064,8 +1076,6 @@ function RegExpGetMultiline() {
   }
   return !!REGEXP_MULTILINE(this);
 }
-%FunctionSetName(RegExpGetMultiline, "RegExp.prototype.multiline");
-%SetNativeFlag(RegExpGetMultiline);
 
 
 // ES6 21.2.5.10.
@@ -1080,8 +1090,21 @@ function RegExpGetSource() {
   }
   return REGEXP_SOURCE(this);
 }
-%FunctionSetName(RegExpGetSource, "RegExp.prototype.source");
-%SetNativeFlag(RegExpGetSource);
+
+
+// ES6 21.2.5.12.
+function RegExpGetSticky() {
+  if (!IS_REGEXP(this)) {
+    // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
+    // TODO(littledan): Remove this workaround or standardize it
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeStickyGetter);
+      return UNDEFINED;
+    }
+    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
+  }
+  return !!REGEXP_STICKY(this);
+}
 
 // -------------------------------------------------------------------
 
@@ -1103,10 +1126,12 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   splitSymbol, RegExpSplit,
 ]);
 
+utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
 utils.InstallGetter(GlobalRegExp.prototype, 'global', RegExpGetGlobal);
 utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
 utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
 utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
+utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
 
 // The properties `input` and `$_` are aliases for each other.  When this
 // value is set the value it is set to is coerced to a string.

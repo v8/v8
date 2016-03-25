@@ -218,7 +218,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_function_name, "harmony Function name inference")         \
   V(harmony_instanceof, "harmony instanceof support")                 \
   V(harmony_iterator_close, "harmony iterator finalization")          \
-  V(harmony_regexps, "harmony regular expression extensions")         \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
   V(harmony_sloppy, "harmony features in sloppy mode")                \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                 \

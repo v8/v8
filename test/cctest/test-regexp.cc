@@ -1911,7 +1911,6 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 // Test that ES2015 RegExp compatibility fixes are in place, that they
 // are not overly broad, and the appropriate UseCounters are incremented
 TEST(UseCountRegExp) {
-  i::FLAG_harmony_regexps = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;

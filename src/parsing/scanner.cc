@@ -1437,7 +1437,6 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
         flag = RegExp::kUnicode;
         break;
       case 'y':
-        if (!FLAG_harmony_regexps) return Nothing<RegExp::Flags>();
         flag = RegExp::kSticky;
         break;
       default:

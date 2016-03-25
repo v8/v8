@@ -2080,7 +2080,6 @@
           '../../src/messages.h',
           '../../src/js/generator.js',
           '../../src/js/harmony-atomics.js',
-          '../../src/js/harmony-regexp.js',
           '../../src/js/harmony-regexp-exec.js',
           '../../src/js/harmony-object-observe.js',
           '../../src/js/harmony-sharedarraybuffer.js',
