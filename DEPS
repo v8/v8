@@ -12,7 +12,7 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "0d572d65aae621e13d6863fe470c9c8cee71043d",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "7274f1c726640bce4cd4c4198e1ee62a0b29bb89",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "80b5126f91be4eb359248d28696746ef09d5be67",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "e40c41030f44cbd5b6f54081436620f43c3bb08a",
   "v8/tools/swarming_client":
