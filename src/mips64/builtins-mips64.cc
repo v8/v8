@@ -148,17 +148,15 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- sp[(argc + 1) * 8] : receiver
   // -----------------------------------
-  Condition const cc = (kind == MathMaxMinKind::kMin) ? ge : le;
   Heap::RootListIndex const root_index =
       (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
                                      : Heap::kMinusInfinityValueRootIndex;
-  DoubleRegister const reg = (kind == MathMaxMinKind::kMin) ? f2 : f0;
 
   // Load the accumulator with the default return value (either -Infinity or
   // +Infinity), with the tagged value in a1 and the double value in f0.
   __ LoadRoot(a1, root_index);
   __ ldc1(f0, FieldMemOperand(a1, HeapNumber::kValueOffset));
-  __ mov(a3, a0);
+  __ Addu(a3, a0, 1);
 
   Label done_loop, loop;
   __ bind(&loop);
@@ -181,8 +179,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumberStub to convert it.
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(a0);
-      __ SmiTag(a3);
       __ Push(a0, a1, a3);
       __ mov(a0, a2);
       ToNumberStub stub(masm->isolate());
@@ -199,8 +195,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ SmiToDoubleFPURegister(a1, f0, a4);
         __ bind(&done_restore);
       }
-      __ SmiUntag(a3);
-      __ SmiUntag(a0);
     }
     __ jmp(&convert);
     __ bind(&convert_number);
@@ -210,23 +204,21 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ SmiToDoubleFPURegister(a2, f2, a4);
     __ bind(&done_convert);
 
-    // Perform the actual comparison with the accumulator value on the left hand
-    // side (f0) and the next parameter value on the right hand side (f2).
-    Label compare_equal, compare_nan, compare_swap;
-    __ BranchF(&compare_equal, &compare_nan, eq, f0, f2);
-    __ BranchF(&compare_swap, nullptr, cc, f0, f2);
-    __ Branch(&loop);
-
-    // Left and right hand side are equal, check for -0 vs. +0.
-    __ bind(&compare_equal);
-    __ FmoveHigh(a4, reg);
-    // Make a4 unsigned.
-    __ dsll32(a4, a4, 0);
-    __ Branch(&loop, ne, a4, Operand(0x8000000000000000));
-
-    // Result is on the right hand side.
-    __ bind(&compare_swap);
-    __ mov_d(f0, f2);
+    // Perform the actual comparison with using Min/Max macro instructions the
+    // accumulator value on the left hand side (f0) and the next parameter value
+    // on the right hand side (f2).
+    // We need to work out which HeapNumber (or smi) the result came from.
+    Label compare_nan;
+    __ BranchF(nullptr, &compare_nan, eq, f0, f2);
+    __ Move(a4, f0);
+    if (kind == MathMaxMinKind::kMin) {
+      __ MinNaNCheck_d(f0, f0, f2);
+    } else {
+      DCHECK(kind == MathMaxMinKind::kMax);
+      __ MaxNaNCheck_d(f0, f0, f2);
+    }
+    __ Move(at, f0);
+    __ Branch(&loop, eq, a4, Operand(at));
     __ mov(a1, a2);
     __ jmp(&loop);
 
@@ -239,8 +231,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
 
   __ bind(&done_loop);
   __ Dlsa(sp, sp, a3, kPointerSizeLog2);
-  __ mov(v0, a1);
-  __ DropAndRet(1);
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, a1);  // In delay slot.
 }
 
 // static
