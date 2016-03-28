@@ -2336,10 +2336,28 @@ void Assembler::sllg(Register r1, Register r3, const Operand& opnd) {
   rsy_form(SLLG, r1, r3, r0, opnd.immediate());
 }
 
+// Shift Left Double Logical (64)
+void Assembler::sldl(Register r1, Register b2, const Operand& opnd) {
+  DCHECK(r1.code() % 2 == 0);
+  rs_form(SLDL, r1, r0, b2, opnd.immediate());
+}
+
 // Shift Right Single Logical (32)
 void Assembler::srl(Register r1, Register opnd) {
   DCHECK(!opnd.is(r0));
   rs_form(SRL, r1, r0, opnd, 0);
+}
+
+// Shift Right Double Arith (64)
+void Assembler::srda(Register r1, Register b2, const Operand& opnd) {
+  DCHECK(r1.code() % 2 == 0);
+  rs_form(SRDA, r1, r0, b2, opnd.immediate());
+}
+
+// Shift Right Double Logical (64)
+void Assembler::srdl(Register r1, Register b2, const Operand& opnd) {
+  DCHECK(r1.code() % 2 == 0);
+  rs_form(SRDL, r1, r0, b2, opnd.immediate());
 }
 
 // Shift Right Single Logical (32)

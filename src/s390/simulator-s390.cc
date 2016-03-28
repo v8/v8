@@ -2191,6 +2191,25 @@ bool Simulator::DecodeFourByte(Instruction* instr) {
       set_low_register(r1, alu_out);
       break;
     }
+    case SLDL: {
+      RSInstruction* rsInstr = reinterpret_cast<RSInstruction*>(instr);
+      int r1 = rsInstr->R1Value();
+      int b2 = rsInstr->B2Value();
+      intptr_t d2 = rsInstr->D2Value();
+      // only takes rightmost 6bits
+      int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+      int shiftBits = (b2_val + d2) & 0x3F;
+
+      DCHECK(r1 % 2 == 0);
+      uint32_t r1_val = get_low_register<uint32_t>(r1);
+      uint32_t r1_next_val = get_low_register<uint32_t>(r1 + 1);
+      uint64_t alu_out = (static_cast<uint64_t>(r1_val) << 32) |
+                         (static_cast<uint64_t>(r1_next_val));
+      alu_out <<= shiftBits;
+      set_low_register(r1 + 1, static_cast<uint32_t>(alu_out));
+      set_low_register(r1, static_cast<uint32_t>(alu_out >> 32));
+      break;
+    }
     case SLA:
     case SRA: {
       RSInstruction* rsInstr = reinterpret_cast<RSInstruction*>(instr);

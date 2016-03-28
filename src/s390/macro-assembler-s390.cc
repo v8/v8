@@ -892,51 +892,61 @@ void MacroAssembler::ConvertDoubleToUnsignedInt64(
 void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
                                    Register src_low, Register src_high,
                                    Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
-  UNIMPLEMENTED();
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  sldl(r0, shift, Operand::Zero());
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 
 void MacroAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
                                    Register src_low, Register src_high,
                                    uint32_t shift) {
-  DCHECK(!AreAliased(dst_low, src_high));
-  DCHECK(!AreAliased(dst_high, src_low));
-  UNIMPLEMENTED();
-  Label less_than_32;
-  Label done;
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  sldl(r0, r0, Operand(shift));
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 
 void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     Register src_low, Register src_high,
                                     Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
-  UNIMPLEMENTED();
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  srdl(r0, shift, Operand::Zero());
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 
 void MacroAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     Register src_low, Register src_high,
                                     uint32_t shift) {
-  DCHECK(!AreAliased(dst_low, src_high));
-  DCHECK(!AreAliased(dst_high, src_low));
-  UNIMPLEMENTED();
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  srdl(r0, r0, Operand(shift));
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 
 void MacroAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
                                          Register src_low, Register src_high,
                                          Register scratch, Register shift) {
-  DCHECK(!AreAliased(dst_low, src_high, shift));
-  DCHECK(!AreAliased(dst_high, src_low, shift));
-  UNIMPLEMENTED();
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  srda(r0, shift, Operand::Zero());
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 
 void MacroAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
                                          Register src_low, Register src_high,
                                          uint32_t shift) {
-  DCHECK(!AreAliased(dst_low, src_high));
-  DCHECK(!AreAliased(dst_high, src_low));
-  UNIMPLEMENTED();
+  LoadRR(r0, src_high);
+  LoadRR(r1, src_low);
+  srdl(r0, r0, Operand(shift));
+  LoadRR(dst_high, r0);
+  LoadRR(dst_low, r1);
 }
 #endif
 
