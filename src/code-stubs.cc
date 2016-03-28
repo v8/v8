@@ -859,8 +859,7 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
     Node* lhs_value = var_fadd_lhs.value();
     Node* rhs_value = var_fadd_rhs.value();
     Node* value = assembler->Float64Add(lhs_value, rhs_value);
-    // TODO(bmeurer): Introduce a ChangeFloat64ToTagged.
-    Node* result = assembler->AllocateHeapNumberWithValue(value);
+    Node* result = assembler->ChangeFloat64ToTagged(value);
     assembler->Return(result);
   }
 }
@@ -1027,8 +1026,7 @@ void SubtractStub::GenerateAssembly(
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    // TODO(bmeurer): Introduce a ChangeFloat64ToTagged.
-    Node* result = assembler->AllocateHeapNumberWithValue(value);
+    Node* result = assembler->ChangeFloat64ToTagged(value);
     assembler->Return(result);
   }
 }

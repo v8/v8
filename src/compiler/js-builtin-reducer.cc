@@ -129,6 +129,18 @@ Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
   return NoChange();
 }
 
+// ES6 draft 08-24-14, section 20.2.2.16.
+Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number()) &&
+      machine()->Float64RoundDown().IsSupported()) {
+    // Math.floor(a:number) -> Float64RoundDown(a)
+    Node* value =
+        graph()->NewNode(machine()->Float64RoundDown().op(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
 
 // ES6 draft 08-24-14, section 20.2.2.17.
 Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
@@ -191,6 +203,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathImul:
       reduction = ReduceMathImul(node);
+      break;
+    case kMathFloor:
+      reduction = ReduceMathFloor(node);
       break;
     case kMathFround:
       reduction = ReduceMathFround(node);

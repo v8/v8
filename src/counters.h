@@ -759,7 +759,6 @@ class RuntimeCallTimerScope {
   SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
   SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
-  SC(math_floor_runtime, V8.MathFloorRuntime)                                  \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \
   SC(math_round_runtime, V8.MathRoundRuntime)                                  \

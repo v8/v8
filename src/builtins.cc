@@ -2007,6 +2007,63 @@ BUILTIN(MathAtan) {
   return *isolate->factory()->NewHeapNumber(std::atan(x->Number()));
 }
 
+// ES6 section 20.2.2.16 Math.floor ( x )
+void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_x(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_x);
+  var_x.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {x} value.
+    Node* x = var_x.value();
+
+    // Check if {x} is a Smi or a HeapObject.
+    Label if_xissmi(assembler), if_xisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+
+    assembler->Bind(&if_xissmi);
+    {
+      // Nothing to do when {x} is a Smi.
+      assembler->Return(x);
+    }
+
+    assembler->Bind(&if_xisnotsmi);
+    {
+      // Check if {x} is a HeapNumber.
+      Label if_xisheapnumber(assembler),
+          if_xisnotheapnumber(assembler, Label::kDeferred);
+      assembler->Branch(
+          assembler->WordEqual(assembler->LoadMap(x),
+                               assembler->HeapNumberMapConstant()),
+          &if_xisheapnumber, &if_xisnotheapnumber);
+
+      assembler->Bind(&if_xisheapnumber);
+      {
+        Node* x_value = assembler->LoadHeapNumberValue(x);
+        Node* value = assembler->Float64Floor(x_value);
+        Node* result = assembler->ChangeFloat64ToTagged(value);
+        assembler->Return(result);
+      }
+
+      assembler->Bind(&if_xisnotheapnumber);
+      {
+        // Need to convert {x} to a Number first.
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_x.Bind(assembler->CallStub(callable, context, x));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+}
 
 // ES6 section 20.2.2.17 Math.fround ( x )
 BUILTIN(MathFround) {
@@ -2017,7 +2074,6 @@ BUILTIN(MathFround) {
   float x32 = DoubleToFloat32(x->Number());
   return *isolate->factory()->NewNumber(x32);
 }
-
 
 // ES6 section 20.2.2.19 Math.imul ( x, y )
 BUILTIN(MathImul) {
@@ -2039,7 +2095,7 @@ void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(4);
   Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
   Node* value = assembler->Float64Sqrt(x_value);
-  Node* result = assembler->AllocateHeapNumberWithValue(value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
 }
 

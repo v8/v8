@@ -76,7 +76,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = m.SmiTag(m.Int32Constant(256));
-  m.Return(m.CallRuntime(Runtime::kMathFloor, context, b));
+  m.Return(m.CallRuntime(Runtime::kRoundNumber, context, b));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
@@ -90,7 +90,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = m.SmiTag(m.Int32Constant(256));
-  m.TailCallRuntime(Runtime::kMathFloor, context, b);
+  m.TailCallRuntime(Runtime::kRoundNumber, context, b);
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();

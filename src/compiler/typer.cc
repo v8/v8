@@ -1585,7 +1585,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleHi:
       return Type::Signed32();
     case Runtime::kInlineConstructDouble:
-    case Runtime::kInlineMathFloor:
     case Runtime::kInlineMathAtan2:
       return Type::Number();
     case Runtime::kInlineMathClz32:

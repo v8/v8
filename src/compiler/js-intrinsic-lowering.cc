@@ -57,8 +57,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsSmi(node);
     case Runtime::kInlineMathClz32:
       return ReduceMathClz32(node);
-    case Runtime::kInlineMathFloor:
-      return ReduceMathFloor(node);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     case Runtime::kInlineFixedArrayGet:
@@ -213,12 +211,6 @@ Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceMathClz32(Node* node) {
   return Change(node, machine()->Word32Clz());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
-  if (!machine()->Float64RoundDown().IsSupported()) return NoChange();
-  return Change(node, machine()->Float64RoundDown().op());
 }
 
 

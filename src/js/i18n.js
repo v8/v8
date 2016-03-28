@@ -32,7 +32,6 @@ var GlobalString = global.String;
 var MakeError;
 var MakeRangeError;
 var MakeTypeError;
-var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
@@ -58,7 +57,6 @@ utils.Import(function(from) {
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  MathFloor = from.MathFloor;
   RegExpTest = from.RegExpTest;
   StringIndexOf = from.StringIndexOf;
   StringLastIndexOf = from.StringLastIndexOf;
@@ -1102,7 +1100,7 @@ function getNumberOption(options, property, min, max, fallback) {
     if (IsNaN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
-    return MathFloor(value);
+    return %math_floor(value);
   }
 
   return fallback;

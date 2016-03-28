@@ -242,24 +242,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
 
 
 // -----------------------------------------------------------------------------
-// %_MathFloor
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineMathFloor) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineMathFloor, 1),
-                       input, context, effect, control),
-      MachineOperatorBuilder::kFloat64RoundDown);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64RoundDown(input));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_MathClz32
 
 TEST_F(JSIntrinsicLoweringTest, InlineMathClz32) {

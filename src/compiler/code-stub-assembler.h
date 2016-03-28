@@ -65,6 +65,8 @@ class Schedule;
   CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float64Add)                                 \
   V(Float64Sub)                                 \
+  V(Float64InsertLowWord32)                     \
+  V(Float64InsertHighWord32)                    \
   V(IntPtrAdd)                                  \
   V(IntPtrAddWithOverflow)                      \
   V(IntPtrSub)                                  \
@@ -257,6 +259,9 @@ class CodeStubAssembler {
   // Macros
   // ===========================================================================
 
+  // Float64 operations.
+  Node* Float64Floor(Node* x);
+
   // Tag a Word as a Smi value.
   Node* SmiTag(Node* value);
   // Untag a Smi value as a Word.
@@ -333,6 +338,7 @@ class CodeStubAssembler {
   Node* BitFieldDecode(Node* word32, uint32_t shift, uint32_t mask);
 
   // Conversions.
+  Node* ChangeFloat64ToTagged(Node* value);
   Node* ChangeInt32ToTagged(Node* value);
   Node* TruncateTaggedToFloat64(Node* context, Node* value);
   Node* TruncateTaggedToWord32(Node* context, Node* value);

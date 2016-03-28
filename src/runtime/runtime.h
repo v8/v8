@@ -358,7 +358,6 @@ namespace internal {
   F(MathAtan2, 2, 1)                \
   F(MathExpRT, 1, 1)                \
   F(MathClz32, 1, 1)                \
-  F(MathFloor, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
   F(RoundNumber, 1, 1)              \
