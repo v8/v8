@@ -52,7 +52,11 @@ assertEquals(4, get_count);
 function testName(name) {
   // TODO(littledan): For web compatibility, we don't throw an exception,
   // but ES2015 expects an exception to be thrown from this getter.
-  assertEquals(undefined, RegExp.prototype[name]);
+  if (name === "source") {
+    assertThrows(() => RegExp.prototype[name], TypeError);
+  } else {
+    assertEquals(undefined, RegExp.prototype[name]);
+  }
   assertEquals(
       "get " + name,
       Object.getOwnPropertyDescriptor(RegExp.prototype, name).get.name);
