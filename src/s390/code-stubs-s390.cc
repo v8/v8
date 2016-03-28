@@ -1104,9 +1104,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     Label okay;
     ExternalReference pending_exception_address(
         Isolate::kPendingExceptionAddress, isolate());
-    __ mov(r4, Operand(pending_exception_address));
-    __ LoadP(r4, MemOperand(r4));
-    __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
+    __ mov(r1, Operand(pending_exception_address));
+    __ LoadP(r1, MemOperand(r1));
+    __ CompareRoot(r1, Heap::kTheHoleValueRootIndex);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay, Label::kNear);
     __ stop("Unexpected pending exception");
