@@ -95,6 +95,11 @@ class ElementsAccessor {
                           filter, offset);
   }
 
+  virtual Maybe<bool> CollectValuesOrEntries(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter = ALL_PROPERTIES) = 0;
+
   //
   virtual Handle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
@@ -151,6 +156,9 @@ class ElementsAccessor {
 
   virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
+  virtual uint32_t GetCapacity(JSObject* holder,
+                               FixedArrayBase* backing_store) = 0;
+
  protected:
   friend class LookupIterator;
 
@@ -176,8 +184,6 @@ class ElementsAccessor {
                             uint32_t destination_start, int copy_size) = 0;
 
  private:
-  virtual uint32_t GetCapacity(JSObject* holder,
-                               FixedArrayBase* backing_store) = 0;
   static ElementsAccessor** elements_accessors_;
   const char* name_;
 

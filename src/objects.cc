@@ -8733,17 +8733,23 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
   Handle<JSObject> object(JSObject::cast(*receiver));
-  if (object->elements() != isolate->heap()->empty_fixed_array()) {
-    return Just(false);
-  }
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<FixedArray> values_or_entries =
-      isolate->factory()->NewFixedArray(number_of_own_descriptors);
+  int number_of_own_elements =
+      object->GetElementsAccessor()->GetCapacity(*object, object->elements());
+  Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
+      number_of_own_descriptors + number_of_own_elements);
   int count = 0;
 
-  bool stable = true;
+  if (object->elements() != isolate->heap()->empty_fixed_array()) {
+    MAYBE_RETURN(object->GetElementsAccessor()->CollectValuesOrEntries(
+                     isolate, object, values_or_entries, get_entries, &count,
+                     ENUMERABLE_STRINGS),
+                 Nothing<bool>());
+  }
+
+  bool stable = object->map() == *map;
 
   for (int index = 0; index < number_of_own_descriptors; index++) {
     Handle<Name> next_key(descriptors->GetKey(index), isolate);
@@ -8782,12 +8788,7 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     }
 
     if (get_entries) {
-      Handle<FixedArray> entry_storage =
-          isolate->factory()->NewUninitializedFixedArray(2);
-      entry_storage->set(0, *next_key);
-      entry_storage->set(1, *prop_value);
-      prop_value = isolate->factory()->NewJSArrayWithElements(entry_storage,
-                                                              FAST_ELEMENTS, 2);
+      prop_value = MakeEntryPair(isolate, next_key, prop_value);
     }
 
     values_or_entries->set(count, *prop_value);
