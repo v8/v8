@@ -1183,6 +1183,7 @@ for (var i = 1; i < 10; ++i) {
 
 utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
+  to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
   to.RegExpSubclassExecJS = RegExpSubclassExecJS;
   to.RegExpSubclassMatch = RegExpSubclassMatch;
