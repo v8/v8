@@ -267,8 +267,12 @@ function RegExpExecJS(string) {
 
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-function RegExpSubclassExec(regexp, string) {
-  var exec = regexp.exec;
+// Also takes an optional exec method in case our caller
+// has already fetched exec.
+function RegExpSubclassExec(regexp, string, exec) {
+  if (IS_UNDEFINED(exec)) {
+    exec = regexp.exec;
+  }
   if (IS_CALLABLE(exec)) {
     var result = %_Call(exec, regexp, string);
     if (!IS_RECEIVER(result) && !IS_NULL(result)) {
@@ -278,6 +282,7 @@ function RegExpSubclassExec(regexp, string) {
   }
   return %_Call(RegExpExecJS, regexp, string);
 }
+%SetForceInlineFlag(RegExpSubclassExec);
 
 
 // One-element cache for the simplified test regexp.
@@ -483,6 +488,20 @@ function RegExpSubclassSplit(string, limit) {
   string = TO_STRING(string);
   var constructor = SpeciesConstructor(this, GlobalRegExp);
   var flags = TO_STRING(this.flags);
+
+  // TODO(adamk): this fast path is wrong with respect to this.global
+  // and this.sticky, but hopefully the spec will remove those gets
+  // and thus make the assumption of 'exec' having no side-effects
+  // more correct. Also, we doesn't ensure that 'exec' is actually
+  // a data property on RegExp.prototype.
+  var exec;
+  if (IS_REGEXP(this) && constructor === GlobalRegExp) {
+    exec = this.exec;
+    if (exec === RegExpSubclassExecJS) {
+      return %_Call(RegExpSplit, this, string, limit);
+    }
+  }
+
   var unicode = %StringIndexOf(flags, 'u', 0) >= 0;
   var sticky = %StringIndexOf(flags, 'y', 0) >= 0;
   var newFlags = sticky ? flags : flags + "y";
@@ -502,7 +521,9 @@ function RegExpSubclassSplit(string, limit) {
   var stringIndex = prevStringIndex;
   while (stringIndex < size) {
     splitter.lastIndex = stringIndex;
-    result = RegExpSubclassExec(splitter, string);
+    result = RegExpSubclassExec(splitter, string, exec);
+    // Ensure exec will be read again on the next loop through.
+    exec = UNDEFINED;
     if (IS_NULL(result)) {
       stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
     } else {
@@ -561,20 +582,23 @@ function RegExpSubclassMatch(string) {
   if (!global) return RegExpSubclassExec(this, string);
   var unicode = this.unicode;
   this.lastIndex = 0;
-  var array = [];
+  var array = new InternalArray();
   var n = 0;
   var result;
   while (true) {
     result = RegExpSubclassExec(this, string);
     if (IS_NULL(result)) {
       if (n === 0) return null;
-      return array;
+      break;
     }
     var matchStr = TO_STRING(result[0]);
-    %AddElement(array, n, matchStr);
+    array[n] = matchStr;
     if (matchStr === "") SetAdvancedStringIndex(this, string, unicode);
     n++;
   }
+  var resultArray = [];
+  %MoveArrayContents(array, resultArray);
+  return resultArray;
 }
 %FunctionRemovePrototype(RegExpSubclassMatch);
 
@@ -871,15 +895,32 @@ function RegExpSubclassReplace(string, replace) {
   var length = string.length;
   var functionalReplace = IS_CALLABLE(replace);
   if (!functionalReplace) replace = TO_STRING(replace);
-  var global = this.global;
+  var global = TO_BOOLEAN(this.global);
   if (global) {
-    var unicode = this.unicode;
+    var unicode = TO_BOOLEAN(this.unicode);
     this.lastIndex = 0;
   }
+
+  // TODO(adamk): this fast path is wrong with respect to this.global
+  // and this.sticky, but hopefully the spec will remove those gets
+  // and thus make the assumption of 'exec' having no side-effects
+  // more correct. Also, we doesn't ensure that 'exec' is actually
+  // a data property on RegExp.prototype, nor does the fast path
+  // correctly handle lastIndex setting.
+  var exec;
+  if (IS_REGEXP(this)) {
+    exec = this.exec;
+    if (exec === RegExpSubclassExecJS) {
+      return %_Call(RegExpReplace, this, string, replace);
+    }
+  }
+
   var results = new InternalArray();
   var result, replacement;
   while (true) {
-    result = RegExpSubclassExec(this, string);
+    result = RegExpSubclassExec(this, string, exec);
+    // Ensure exec will be read again on the next loop through.
+    exec = UNDEFINED;
     if (IS_NULL(result)) {
       break;
     } else {
@@ -1046,8 +1087,9 @@ function RegExpGetGlobal() {
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.global");
   }
-  return !!REGEXP_GLOBAL(this);
+  return TO_BOOLEAN(REGEXP_GLOBAL(this));
 }
+%SetForceInlineFlag(RegExpGetGlobal);
 
 
 // ES6 21.2.5.5.
@@ -1060,7 +1102,7 @@ function RegExpGetIgnoreCase() {
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
   }
-  return !!REGEXP_IGNORE_CASE(this);
+  return TO_BOOLEAN(REGEXP_IGNORE_CASE(this));
 }
 
 
@@ -1074,7 +1116,7 @@ function RegExpGetMultiline() {
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.multiline");
   }
-  return !!REGEXP_MULTILINE(this);
+  return TO_BOOLEAN(REGEXP_MULTILINE(this));
 }
 
 
@@ -1098,8 +1140,9 @@ function RegExpGetSticky() {
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
   }
-  return !!REGEXP_STICKY(this);
+  return TO_BOOLEAN(REGEXP_STICKY(this));
 }
+%SetForceInlineFlag(RegExpGetSticky);
 
 // -------------------------------------------------------------------
 

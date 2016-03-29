@@ -99,25 +99,43 @@
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
 
-   # https://code.google.com/p/v8/issues/detail?id=4602
+  ###### BEGIN REGEXP SUBCLASSING SECTION ######
+  # https://code.google.com/p/v8/issues/detail?id=4602
+  # Fails due to mismatching [[OriginalFlags]] and getters
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
-  'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
-  'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/coerce-sticky': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/get-sticky-coerce': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/get-sticky-coerce': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4305
-  # SKIP rather than FAIL some tests, as they may check for an exception which
-  # happens to be thrown for some other reason (e.g,
-  # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
+  # Missing lastIndex support
+  'built-ins/RegExp/prototype/Symbol.split/str-result-coerce-length-err': [FAIL],
+
+  # Times out
+  'built-ins/RegExp/prototype/Symbol.split/str-coerce-lastindex': [SKIP],
+
+  # Sticky support busted
+  'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
+
+  # SKIP rather than FAIL, as the test checks for an exception which
+  # happens to be thrown for some other reason.
+  'built-ins/RegExp/prototype/Symbol.split/str-result-get-length-err': [SKIP],
+
+  # Spec change in progress: https://github.com/tc39/ecma262/issues/489
+  'built-ins/RegExp/prototype/Symbol.replace/get-sticky-err': [SKIP],
+
+  # Skip everything that will fail without the --harmony-regexp-exec flag.
+  # These lines should be removed when that flag is staged.
   'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-
-  # https://code.google.com/p/v8/issues/detail?id=4343
   'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
-
-  # https://code.google.com/p/v8/issues/detail?id=4344
   'built-ins/RegExp/prototype/Symbol.search/*': [SKIP],
-
-  # https://code.google.com/p/v8/issues/detail?id=4345
   'built-ins/RegExp/prototype/Symbol.split/*': [SKIP],
+  'built-ins/RegExp/prototype/exec/get-sticky-err': [SKIP],
+  'built-ins/RegExp/prototype/test/get-sticky-err': [SKIP],
+  #
+  ###### END REGEXP SUBCLASSING SECTION ######
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
