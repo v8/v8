@@ -644,15 +644,15 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
     *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
     *max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
   } else {
-    const intptr_t estimated_compaction_speed =
+    const double estimated_compaction_speed =
         heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
     if (estimated_compaction_speed != 0) {
       // Estimate the target fragmentation based on traced compaction speed
       // and a goal for a single page.
-      const intptr_t estimated_ms_per_area =
-          1 + static_cast<intptr_t>(area_size) / estimated_compaction_speed;
-      *target_fragmentation_percent =
-          100 - 100 * kTargetMsPerArea / estimated_ms_per_area;
+      const double estimated_ms_per_area =
+          1 + area_size / estimated_compaction_speed;
+      *target_fragmentation_percent = static_cast<int>(
+          100 - 100 * kTargetMsPerArea / estimated_ms_per_area);
       if (*target_fragmentation_percent <
           kTargetFragmentationPercentForReduceMemory) {
         *target_fragmentation_percent =
@@ -3058,7 +3058,7 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
   const double kTargetCompactionTimeInMs = 1;
   const int kNumSweepingTasks = 3;
 
-  intptr_t compaction_speed =
+  double compaction_speed =
       heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
 
   const int available_cores = Max(
@@ -3067,8 +3067,8 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
              kNumSweepingTasks - 1);
   int tasks;
   if (compaction_speed > 0) {
-    tasks = 1 + static_cast<int>(static_cast<double>(live_bytes) /
-                                 compaction_speed / kTargetCompactionTimeInMs);
+    tasks = 1 + static_cast<int>(live_bytes / compaction_speed /
+                                 kTargetCompactionTimeInMs);
   } else {
     tasks = pages;
   }
@@ -3135,7 +3135,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   DCHECK_GE(job.NumberOfPages(), 1);
 
   // Used for trace summary.
-  intptr_t compaction_speed = 0;
+  double compaction_speed = 0;
   if (FLAG_trace_evacuation) {
     compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
   }
@@ -3158,7 +3158,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         isolate(),
         "%8.0f ms: evacuation-summary: parallel=%s pages=%d aborted=%d "
         "wanted_tasks=%d tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
-        "d compaction_speed=%" V8_PTR_PREFIX "d\n",
+        "d compaction_speed=%.f\n",
         isolate()->time_millis_since_init(),
         FLAG_parallel_compaction ? "yes" : "no", job.NumberOfPages(),
         abandoned_pages, wanted_num_tasks, job.NumberOfTasks(),

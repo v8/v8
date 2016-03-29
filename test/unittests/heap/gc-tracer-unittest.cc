@@ -37,11 +37,11 @@ TEST(GCTracer, AverageSpeed) {
     buffer.Push(MakeBytesAndDuration(i + 1, 1));
   }
   EXPECT_EQ(
-      static_cast<int>(sum * 1.0 / buffer.kSize + 0.5),
+      sum * 1.0 / buffer.kSize,
       GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), buffer.kSize));
   buffer.Push(MakeBytesAndDuration(100, 1));
   EXPECT_EQ(
-      static_cast<int>((sum * 1.0 - 1 + 100) / buffer.kSize + 0.5),
+      (sum * 1.0 - 1 + 100) / buffer.kSize,
       GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), buffer.kSize));
 }
 

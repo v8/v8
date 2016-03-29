@@ -6325,14 +6325,14 @@ TEST(OldGenerationAllocationThroughput) {
   int time2 = 200;
   size_t counter2 = 2000;
   tracer->SampleAllocation(time2, 0, counter2);
-  size_t throughput =
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100);
+  size_t throughput = static_cast<size_t>(
+      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
   int time3 = 1000;
   size_t counter3 = 30000;
   tracer->SampleAllocation(time3, 0, counter3);
-  throughput =
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100);
+  throughput = static_cast<size_t>(
+      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
 }
 
@@ -6349,7 +6349,8 @@ TEST(AllocationThroughput) {
   int time2 = 200;
   size_t counter2 = 2000;
   tracer->SampleAllocation(time2, counter2, counter2);
-  size_t throughput = tracer->AllocationThroughputInBytesPerMillisecond(100);
+  size_t throughput = static_cast<size_t>(
+      tracer->AllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ(2 * (counter2 - counter1) / (time2 - time1), throughput);
   int time3 = 1000;
   size_t counter3 = 30000;

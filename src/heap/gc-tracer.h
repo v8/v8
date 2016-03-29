@@ -286,25 +286,25 @@ class GCTracer {
 
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t IncrementalMarkingSpeedInBytesPerMillisecond() const;
+  double IncrementalMarkingSpeedInBytesPerMillisecond() const;
 
   // Compute the average scavenge speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t ScavengeSpeedInBytesPerMillisecond(
+  double ScavengeSpeedInBytesPerMillisecond(
       ScavengeSpeedMode mode = kForAllObjects) const;
 
   // Compute the average compaction speed in bytes/millisecond.
   // Returns 0 if not enough events have been recorded.
-  intptr_t CompactionSpeedInBytesPerMillisecond() const;
+  double CompactionSpeedInBytesPerMillisecond() const;
 
   // Compute the average mark-sweep speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
+  double MarkCompactSpeedInBytesPerMillisecond() const;
 
   // Compute the average incremental mark-sweep finalize speed in
   // bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
+  double FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
   // Compute the overall mark compact speed including incremental steps
   // and the final mark-compact step.
@@ -329,12 +329,12 @@ class GCTracer {
   // Allocation throughput in heap in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
+  double CurrentAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in old generation in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
+  double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -356,9 +356,9 @@ class GCTracer {
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
   // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
-  static int AverageSpeed(const RingBuffer<BytesAndDuration>& buffer);
-  static int AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
-                          const BytesAndDuration& initial, double time_ms);
+  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer);
+  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+                             const BytesAndDuration& initial, double time_ms);
 
  private:
   // Print one detailed trace line in name=value format.

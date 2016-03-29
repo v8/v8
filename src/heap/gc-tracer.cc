@@ -467,8 +467,7 @@ void GCTracer::PrintNVP() const {
                    "external_weak_global_handles=%.2f "
                    "steps_count=%d "
                    "steps_took=%.1f "
-                   "scavenge_throughput=%" V8_PTR_PREFIX
-                   "d "
+                   "scavenge_throughput=%.f "
                    "total_size_before=%" V8_PTR_PREFIX
                    "d "
                    "total_size_after=%" V8_PTR_PREFIX
@@ -574,8 +573,7 @@ void GCTracer::PrintNVP() const {
           "finalization_steps_count=%d "
           "finalization_steps_took=%.1f "
           "finalization_longest_step=%.1f "
-          "incremental_marking_throughput=%" V8_PTR_PREFIX
-          "d "
+          "incremental_marking_throughput=%.f "
           "total_size_before=%" V8_PTR_PREFIX
           "d "
           "total_size_after=%" V8_PTR_PREFIX
@@ -599,7 +597,7 @@ void GCTracer::PrintNVP() const {
           "semi_space_copy_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "context_disposal_rate=%.1f "
-          "compaction_speed=%" V8_PTR_PREFIX "d\n",
+          "compaction_speed=%.f\n",
           heap_->isolate()->time_millis_since_init(), duration,
           spent_in_mutator, current_.TypeName(true), current_.reduce_memory,
           current_.scopes[Scope::MC_CLEAR],
@@ -667,8 +665,8 @@ void GCTracer::PrintNVP() const {
   }
 }
 
-int GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
-                           const BytesAndDuration& initial, double time_ms) {
+double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+                              const BytesAndDuration& initial, double time_ms) {
   BytesAndDuration sum = buffer.Sum(
       [time_ms](BytesAndDuration a, BytesAndDuration b) {
         if (time_ms != 0 && a.second >= time_ms) return a;
@@ -678,30 +676,30 @@ int GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
   uint64_t bytes = sum.first;
   double durations = sum.second;
   if (durations == 0.0) return 0;
-  double speed = bytes / durations + 0.5;
+  double speed = bytes / durations;
   const int max_speed = 1024 * MB;
   const int min_speed = 1;
   if (speed >= max_speed) return max_speed;
   if (speed <= min_speed) return min_speed;
-  return static_cast<int>(speed);
+  return speed;
 }
 
-int GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
+double GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
   return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
 }
 
-intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
+double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   if (cumulative_incremental_marking_duration_ == 0.0) return 0;
   // We haven't completed an entire round of incremental marking, yet.
   // Use data from GCTracer instead of data from event buffers.
   if (recorded_incremental_marking_steps_.Count() == 0) {
-    return static_cast<intptr_t>(cumulative_incremental_marking_bytes_ /
-                                 cumulative_pure_incremental_marking_duration_);
+    return cumulative_incremental_marking_bytes_ /
+           cumulative_pure_incremental_marking_duration_;
   }
   return AverageSpeed(recorded_incremental_marking_steps_);
 }
 
-intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
+double GCTracer::ScavengeSpeedInBytesPerMillisecond(
     ScavengeSpeedMode mode) const {
   if (mode == kForAllObjects) {
     return AverageSpeed(recorded_scavenges_total_);
@@ -710,16 +708,15 @@ intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
   }
 }
 
-intptr_t GCTracer::CompactionSpeedInBytesPerMillisecond() const {
+double GCTracer::CompactionSpeedInBytesPerMillisecond() const {
   return AverageSpeed(recorded_compactions_);
 }
 
-intptr_t GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
+double GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
   return AverageSpeed(recorded_mark_compacts_);
 }
 
-intptr_t GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()
-    const {
+double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
   return AverageSpeed(recorded_incremental_mark_compacts_);
 }
 
@@ -727,15 +724,13 @@ double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
   const double kMinimumMarkingSpeed = 0.5;
-  double speed1 =
-      static_cast<double>(IncrementalMarkingSpeedInBytesPerMillisecond());
-  double speed2 = static_cast<double>(
-      FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+  double speed1 = IncrementalMarkingSpeedInBytesPerMillisecond();
+  double speed2 = FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (speed1 < kMinimumMarkingSpeed || speed2 < kMinimumMarkingSpeed) {
     // No data for the incremental marking speed.
     // Return the non-incremental mark-compact speed.
     combined_mark_compact_speed_cache_ =
-        static_cast<double>(MarkCompactSpeedInBytesPerMillisecond());
+        MarkCompactSpeedInBytesPerMillisecond();
   } else {
     // Combine the speed of incremental step and the speed of the final step.
     // 1 / (1 / speed1 + 1 / speed2) = speed1 * speed2 / (speed1 + speed2).
@@ -766,13 +761,11 @@ double GCTracer::AllocationThroughputInBytesPerMillisecond(
          OldGenerationAllocationThroughputInBytesPerMillisecond(time_ms);
 }
 
-
-size_t GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
+double GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
   return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrameMs);
 }
 
-
-size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
+double GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
     const {
   return OldGenerationAllocationThroughputInBytesPerMillisecond(
       kThroughputTimeFrameMs);

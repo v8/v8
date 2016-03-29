@@ -1354,9 +1354,8 @@ bool Heap::PerformGarbageCollection(
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
   double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
-  double mutator_speed = static_cast<double>(
-      tracer()
-          ->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond());
+  double mutator_speed =
+      tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   intptr_t old_gen_size = PromotedSpaceSizeOfObjects();
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
@@ -4135,8 +4134,8 @@ static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
 double Heap::YoungGenerationMutatorUtilization() {
   double mutator_speed = static_cast<double>(
       tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
-  double gc_speed = static_cast<double>(
-      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
+  double gc_speed =
+      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects);
   double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
     PrintIsolate(isolate(),
@@ -4215,7 +4214,7 @@ void Heap::ReduceNewSpaceSize() {
   // TODO(ulan): Unify this constant with the similar constant in
   // GCIdleTimeHandler once the change is merged to 4.5.
   static const size_t kLowAllocationThroughput = 1000;
-  const size_t allocation_throughput =
+  const double allocation_throughput =
       tracer()->CurrentAllocationThroughputInBytesPerMillisecond();
 
   if (FLAG_predictable) return;
@@ -4244,21 +4243,20 @@ void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
 
 bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   size_t size_of_objects = static_cast<size_t>(SizeOfObjects());
-  size_t final_incremental_mark_compact_speed_in_bytes_per_ms =
-      static_cast<size_t>(
-          tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
+  double final_incremental_mark_compact_speed_in_bytes_per_ms =
+      tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
       (!incremental_marking()->finalize_marking_completed() &&
        mark_compact_collector()->marking_deque()->IsEmpty() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
-           static_cast<size_t>(idle_time_in_ms)))) {
+           idle_time_in_ms))) {
     FinalizeIncrementalMarking(
         "Idle notification: finalize incremental marking");
     return true;
   } else if (incremental_marking()->IsComplete() ||
              (mark_compact_collector()->marking_deque()->IsEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
-                  static_cast<size_t>(idle_time_in_ms), size_of_objects,
+                  idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
     CollectAllGarbage(current_gc_flags_,
                       "idle notification: finalize incremental marking");

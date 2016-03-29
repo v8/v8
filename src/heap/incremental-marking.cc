@@ -1024,11 +1024,10 @@ double IncrementalMarking::AdvanceIncrementalMarking(
 
   if (step_size_in_bytes == 0) {
     step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
-        static_cast<size_t>(GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs),
-        static_cast<size_t>(
-            heap()
-                ->tracer()
-                ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()));
+        GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
+        heap()
+            ->tracer()
+            ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
   }
 
   double remaining_time_in_ms = 0.0;
