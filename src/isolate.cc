@@ -429,13 +429,17 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       } break;
 
       case StackFrame::WASM: {
+        WasmFrame* wasm_frame = WasmFrame::cast(frame);
+        Code* code = wasm_frame->unchecked_code();
+        Handle<AbstractCode> abstract_code =
+            Handle<AbstractCode>(AbstractCode::cast(code));
         Handle<JSFunction> fun = factory()->NewFunction(
             factory()->NewStringFromAsciiChecked("<WASM>"));
         elements = MaybeGrow(this, elements, cursor, cursor + 4);
         // TODO(jfb) Pass module object.
         elements->set(cursor++, *factory()->undefined_value());
         elements->set(cursor++, *fun);
-        elements->set(cursor++, Internals::IntToSmi(0));
+        elements->set(cursor++, *abstract_code);
         elements->set(cursor++, Internals::IntToSmi(0));
         frames_seen++;
       } break;
