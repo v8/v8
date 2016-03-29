@@ -1886,6 +1886,16 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
   Comment cmnt(masm, "[ PrepareForTailCall");
 
+  // Prepare for tail call only if ES2015 tail call elimination is enabled.
+  Label done;
+  ExternalReference is_tail_call_elimination_enabled =
+      ExternalReference::is_tail_call_elimination_enabled_address(
+          masm->isolate());
+  __ movzx_b(scratch1,
+             Operand::StaticVariable(is_tail_call_elimination_enabled));
+  __ cmp(scratch1, Immediate(0));
+  __ j(equal, &done, Label::kNear);
+
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
@@ -1926,6 +1936,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
                         scratch3, ReturnAddressState::kOnStack, 0);
+  __ bind(&done);
 }
 }  // namespace
 

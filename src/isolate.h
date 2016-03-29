@@ -1089,6 +1089,16 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
+  // Support for dynamically disabling tail call elimination.
+  Address is_tail_call_elimination_enabled_address() {
+    return reinterpret_cast<Address>(&is_tail_call_elimination_enabled_);
+  }
+  bool is_tail_call_elimination_enabled() const {
+    return is_tail_call_elimination_enabled_;
+  }
+  void set_tail_call_elimination_enabled(bool enabled) {
+    is_tail_call_elimination_enabled_ = enabled;
+  }
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
@@ -1276,6 +1286,9 @@ class Isolate {
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
+
+  // True if ES2015 tail call elimination feature is enabled.
+  bool is_tail_call_elimination_enabled_;
 
   // Time stamp at initialization.
   double time_millis_at_init_;

@@ -1826,6 +1826,7 @@ Isolate::Isolate(bool enable_serializer)
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
+      is_tail_call_elimination_enabled_(true),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
       function_entry_hook_(NULL),

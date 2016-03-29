@@ -172,6 +172,9 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Isolate::virtual_slot_register()");
   Add(ExternalReference::runtime_function_table_address(isolate).address(),
       "Runtime::runtime_function_table_address()");
+  Add(ExternalReference::is_tail_call_elimination_enabled_address(isolate)
+          .address(),
+      "Isolate::is_tail_call_elimination_enabled_address()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
