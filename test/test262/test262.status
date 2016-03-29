@@ -125,15 +125,6 @@
 
   # Spec change in progress: https://github.com/tc39/ecma262/issues/489
   'built-ins/RegExp/prototype/Symbol.replace/get-sticky-err': [SKIP],
-
-  # Skip everything that will fail without the --harmony-regexp-exec flag.
-  # These lines should be removed when that flag is staged.
-  'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.search/*': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.split/*': [SKIP],
-  'built-ins/RegExp/prototype/exec/get-sticky-err': [SKIP],
-  'built-ins/RegExp/prototype/test/get-sticky-err': [SKIP],
   #
   ###### END REGEXP SUBCLASSING SECTION ######
 
