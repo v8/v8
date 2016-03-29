@@ -18,6 +18,7 @@
 #include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
+#include "src/perf-jit.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
@@ -730,19 +731,18 @@ void Profiler::Run() {
 //
 
 Logger::Logger(Isolate* isolate)
-  : isolate_(isolate),
-    ticker_(NULL),
-    profiler_(NULL),
-    log_events_(NULL),
-    is_logging_(false),
-    log_(new Log(this)),
-    perf_basic_logger_(NULL),
-    ll_logger_(NULL),
-    jit_logger_(NULL),
-    listeners_(5),
-    is_initialized_(false) {
-}
-
+    : isolate_(isolate),
+      ticker_(NULL),
+      profiler_(NULL),
+      log_events_(NULL),
+      is_logging_(false),
+      log_(new Log(this)),
+      perf_basic_logger_(NULL),
+      perf_jit_logger_(NULL),
+      ll_logger_(NULL),
+      jit_logger_(NULL),
+      listeners_(5),
+      is_initialized_(false) {}
 
 Logger::~Logger() {
   delete log_;
@@ -1797,6 +1797,11 @@ bool Logger::SetUp(Isolate* isolate) {
     addCodeEventListener(perf_basic_logger_);
   }
 
+  if (FLAG_perf_prof) {
+    perf_jit_logger_ = new PerfJitLogger();
+    addCodeEventListener(perf_jit_logger_);
+  }
+
   if (FLAG_ll_prof) {
     ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
     addCodeEventListener(ll_logger_);
@@ -1863,6 +1868,12 @@ FILE* Logger::TearDown() {
     removeCodeEventListener(perf_basic_logger_);
     delete perf_basic_logger_;
     perf_basic_logger_ = NULL;
+  }
+
+  if (perf_jit_logger_) {
+    removeCodeEventListener(perf_jit_logger_);
+    delete perf_jit_logger_;
+    perf_jit_logger_ = NULL;
   }
 
   if (ll_logger_) {

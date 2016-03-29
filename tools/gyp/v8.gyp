@@ -1026,6 +1026,8 @@
         '../../src/parsing/token.h',
         '../../src/pending-compilation-error-handler.cc',
         '../../src/pending-compilation-error-handler.h',
+        '../../src/perf-jit.cc',
+        '../../src/perf-jit.h',
         '../../src/profiler/allocation-tracker.cc',
         '../../src/profiler/allocation-tracker.h',
         '../../src/profiler/circular-queue-inl.h',
