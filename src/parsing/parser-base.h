@@ -1771,16 +1771,17 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
+    typesystem::TypeFlags type_flags = (is_get || is_set)
+        ? typesystem::kDisallowTypeParameters
+        : typesystem::kNormalTypes;
 
     if (in_class && !is_static && this->IsConstructor(*name)) {
       *has_seen_constructor = true;
       kind = has_extends ? FunctionKind::kSubclassConstructor
                          : FunctionKind::kBaseConstructor;
+      type_flags = typesystem::kConstructorTypes;
     }
 
-    typesystem::TypeFlags type_flags = (is_get || is_set)
-        ? typesystem::kDisallowTypeParameters
-        : typesystem::kNormalTypes;
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,

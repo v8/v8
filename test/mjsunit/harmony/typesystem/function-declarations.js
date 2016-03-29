@@ -55,7 +55,9 @@ function InvalidFormalParameters(size) {
       t => "(x?, y : " + t + ")"
     ]),
     "(x? = 42)",
-    "(x? : number = 42)"
+    "(x? : number = 42)",
+    "(...rest?)",
+    "(...rest? : number)"
   ]);
 }
 
