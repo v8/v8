@@ -1335,12 +1335,6 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   // If code flushing is disabled, there is no need to prepare for it.
   if (!is_code_flushing_enabled()) return;
 
-  // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
-  // relies on it being marked before any other descriptor array.
-  HeapObject* descriptor_array = heap()->empty_descriptor_array();
-  MarkBit descriptor_array_mark = Marking::MarkBitFrom(descriptor_array);
-  MarkObject(descriptor_array, descriptor_array_mark);
-
   // Make sure we are not referencing the code from the stack.
   DCHECK(this == heap()->mark_compact_collector());
   PrepareThreadForCodeFlushing(heap()->isolate(),
