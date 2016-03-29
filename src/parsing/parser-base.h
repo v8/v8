@@ -2769,8 +2769,20 @@ void ParserBase<Traits>::ParseFormalParameter(
     classifier->RecordNonSimpleParameter();
   }
 
+  // Parse optional question mark.
+  bool optional = false;
+  if (scope_->typed()) optional = Check(Token::CONDITIONAL);
+
+  // Parse optional type annotation.
+  typename TypeSystem::Type type = this->EmptyType();
+  if (scope_->typed() && Check(Token::COLON)) {
+    type = ParseValidType(ok);
+    if (!*ok) return;
+  }
+  USE(type);  // TODO(nikolaos): really use it!
+
   ExpressionT initializer = Traits::EmptyExpression();
-  if (!is_rest && Check(Token::ASSIGN)) {
+  if (!is_rest && !optional && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, &init_classifier, ok);
     if (!*ok) return;
