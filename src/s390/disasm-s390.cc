@@ -967,6 +967,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case SQDBR:
       Format(instr, "sqdbr\t'f5,'f6");
       break;
+    case SQEBR:
+      Format(instr, "sqebr\t'f5,'f6");
+      break;
     case LCDBR:
       Format(instr, "lcdbr\t'f5,'f6");
       break;

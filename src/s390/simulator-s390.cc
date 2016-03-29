@@ -3437,8 +3437,8 @@ bool Simulator::DecodeFourByteFloatingPoint(Instruction* instr) {
         r1_val = std::sqrt(r2_val);
         set_d_register_from_double(r1, r1_val);
       } else if (op == SQEBR) {
-        r1_val = std::sqrt(r2_val);
-        set_d_register_from_float32(r1, r1_val);
+        fr1_val = std::sqrt(fr2_val);
+        set_d_register_from_float32(r1, fr1_val);
       } else if (op == CFEBR) {
         DecodeFourByteFloatingPointRound(instr);
       } else if (op == LCDBR) {
