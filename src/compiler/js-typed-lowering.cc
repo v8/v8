@@ -695,7 +695,10 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(x:boolean) => BooleanToNumber(x)
     return Replace(graph()->NewNode(simplified()->BooleanToNumber(), input));
   }
-  // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
+  if (input_type->Is(Type::String())) {
+    // JSToNumber(x:string) => StringToNumber(x)
+    return Replace(graph()->NewNode(simplified()->StringToNumber(), input));
+  }
   return NoChange();
 }
 

@@ -157,9 +157,9 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
       DeserializeDeferredObjects();
       FlushICacheForNewCodeObjects();
       result = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root));
+      isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
     }
     CommitPostProcessedObjects(isolate);
-    isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
     return scope.CloseAndEscape(result);
   }
 }

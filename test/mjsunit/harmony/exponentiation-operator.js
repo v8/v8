@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-exponentiation-operator --harmony-proxies
+// Flags: --harmony-exponentiation-operator
 
 function TestBasic() {
   assertEquals(-(8 ** 2), -64);

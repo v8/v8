@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/conversions.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
@@ -856,6 +857,56 @@ class ElementsAccessorBase : public ElementsAccessor {
     return Handle<SeededNumberDictionary>();
   }
 
+  Maybe<bool> CollectValuesOrEntries(Isolate* isolate, Handle<JSObject> object,
+                                     Handle<FixedArray> values_or_entries,
+                                     bool get_entries, int* nof_items,
+                                     PropertyFilter filter) {
+    return ElementsAccessorSubclass::CollectValuesOrEntriesImpl(
+        isolate, object, values_or_entries, get_entries, nof_items, filter);
+  }
+
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    int count = 0;
+    KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
+    accumulator.NextPrototype();
+    ElementsAccessorSubclass::CollectElementIndicesImpl(
+        object, handle(object->elements(), isolate), &accumulator, kMaxUInt32,
+        ALL_PROPERTIES, 0);
+    Handle<FixedArray> keys = accumulator.GetKeys();
+
+    for (int i = 0; i < keys->length(); ++i) {
+      Handle<Object> key(keys->get(i), isolate);
+      Handle<Object> value;
+      uint32_t index;
+      if (!key->ToUint32(&index)) continue;
+
+      uint32_t entry = ElementsAccessorSubclass::GetEntryForIndexImpl(
+          *object, object->elements(), index, filter);
+      if (entry == kMaxUInt32) continue;
+
+      PropertyDetails details =
+          ElementsAccessorSubclass::GetDetailsImpl(*object, entry);
+
+      if (details.kind() == kData) {
+        value = ElementsAccessorSubclass::GetImpl(object, entry);
+      } else {
+        LookupIterator it(isolate, object, index, LookupIterator::OWN);
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, value, Object::GetProperty(&it), Nothing<bool>());
+      }
+      if (get_entries) {
+        value = MakeEntryPair(isolate, index, value);
+      }
+      values_or_entries->set(count++, *value);
+    }
+
+    *nof_items = count;
+    return Just(true);
+  }
+
   void CollectElementIndices(Handle<JSObject> object,
                              Handle<FixedArrayBase> backing_store,
                              KeyAccumulator* keys, uint32_t range,
@@ -1630,6 +1681,25 @@ class FastElementsAccessor
     return deleted_elements;
   }
 
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    int count = 0;
+    uint32_t length = object->elements()->length();
+    for (uint32_t index = 0; index < length; ++index) {
+      if (!HasEntryImpl(object->elements(), index)) continue;
+      Handle<Object> value =
+          FastElementsAccessorSubclass::GetImpl(object->elements(), index);
+      if (get_entries) {
+        value = MakeEntryPair(isolate, index, value);
+      }
+      values_or_entries->set(count++, *value);
+    }
+    *nof_items = count;
+    return Just(true);
+  }
+
  private:
   // SpliceShrinkStep might modify the backing_store.
   static void SpliceShrinkStep(Isolate* isolate, Handle<JSArray> receiver,
@@ -2129,6 +2199,26 @@ class TypedElementsAccessor
       Handle<Object> value = AccessorClass::GetImpl(*elements, i);
       accumulator->AddKey(value, convert);
     }
+  }
+
+  static Maybe<bool> CollectValuesOrEntriesImpl(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter) {
+    int count = 0;
+    if ((filter & ONLY_CONFIGURABLE) == 0) {
+      Handle<FixedArrayBase> elements(object->elements());
+      uint32_t length = AccessorClass::GetCapacityImpl(*object, *elements);
+      for (uint32_t index = 0; index < length; ++index) {
+        Handle<Object> value = AccessorClass::GetImpl(*elements, index);
+        if (get_entries) {
+          value = MakeEntryPair(isolate, index, value);
+        }
+        values_or_entries->set(count++, *value);
+      }
+    }
+    *nof_items = count;
+    return Just(true);
   }
 };
 
@@ -2880,17 +2970,18 @@ void ElementsAccessor::TearDown() {
 
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
                                          uint32_t concat_size) {
-  int result_len = 0;
-  ElementsKind elements_kind = GetInitialFastElementsKind();
-  bool has_double = false;
+  uint32_t result_len = 0;
+  bool has_raw_doubles = false;
+  ElementsKind result_elements_kind = GetInitialFastElementsKind();
   {
     DisallowHeapAllocation no_gc;
+    bool is_holey = false;
     // Iterate through all the arguments performing checks
     // and calculating total length.
-    bool is_holey = false;
     for (uint32_t i = 0; i < concat_size; i++) {
-      Object* arg = (*args)[i];
-      int len = Smi::cast(JSArray::cast(arg)->length())->value();
+      JSArray* array = JSArray::cast((*args)[i]);
+      uint32_t len = 0;
+      array->length()->ToArrayLength(&len);
 
       // We shouldn't overflow when adding another len.
       const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
@@ -2900,42 +2991,45 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
       DCHECK(0 <= result_len);
       DCHECK(result_len <= FixedDoubleArray::kMaxLength);
 
-      ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
-      has_double = has_double || IsFastDoubleElementsKind(arg_kind);
+      ElementsKind arg_kind = array->GetElementsKind();
+      has_raw_doubles = has_raw_doubles || IsFastDoubleElementsKind(arg_kind);
       is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
-      elements_kind = GetMoreGeneralElementsKind(elements_kind, arg_kind);
+      result_elements_kind =
+          GetMoreGeneralElementsKind(result_elements_kind, arg_kind);
     }
     if (is_holey) {
-      elements_kind = GetHoleyElementsKind(elements_kind);
+      result_elements_kind = GetHoleyElementsKind(result_elements_kind);
     }
   }
 
   // If a double array is concatted into a fast elements array, the fast
   // elements array needs to be initialized to contain proper holes, since
   // boxing doubles may cause incremental marking.
-  ArrayStorageAllocationMode mode =
-      has_double && IsFastObjectElementsKind(elements_kind)
-          ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
-          : DONT_INITIALIZE_ARRAY_ELEMENTS;
+  bool requires_double_boxing =
+      has_raw_doubles && !IsFastDoubleElementsKind(result_elements_kind);
+  ArrayStorageAllocationMode mode = requires_double_boxing
+                                        ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+                                        : DONT_INITIALIZE_ARRAY_ELEMENTS;
   Handle<JSArray> result_array = isolate->factory()->NewJSArray(
-      elements_kind, result_len, result_len, mode);
+      result_elements_kind, result_len, result_len, mode);
   if (result_len == 0) return result_array;
-  int j = 0;
+
+  uint32_t insertion_index = 0;
   Handle<FixedArrayBase> storage(result_array->elements(), isolate);
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(result_elements_kind);
   for (uint32_t i = 0; i < concat_size; i++) {
     // It is crucial to keep |array| in a raw pointer form to avoid
     // performance degradation.
     JSArray* array = JSArray::cast((*args)[i]);
-    int len = Smi::cast(array->length())->value();
-    if (len > 0) {
-      ElementsKind from_kind = array->GetElementsKind();
-      accessor->CopyElements(array, 0, from_kind, storage, j, len);
-      j += len;
-    }
+    uint32_t len = 0;
+    array->length()->ToArrayLength(&len);
+    if (len == 0) continue;
+    ElementsKind from_kind = array->GetElementsKind();
+    accessor->CopyElements(array, 0, from_kind, storage, insertion_index, len);
+    insertion_index += len;
   }
 
-  DCHECK(j == result_len);
+  DCHECK_EQ(insertion_index, result_len);
   return result_array;
 }
 

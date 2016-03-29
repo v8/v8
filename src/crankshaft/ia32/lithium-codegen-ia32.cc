@@ -1905,7 +1905,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         if (expected.CanBeUndetectable()) {
           // Undetectable -> false.
           __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-                    1 << Map::kIsUndetectable);
+                    Immediate(1 << Map::kIsUndetectable));
           __ j(not_zero, instr->FalseLabel(chunk_));
         }
       }
@@ -2131,7 +2131,7 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
   }
   __ mov(temp, FieldOperand(input, HeapObject::kMapOffset));
   __ test_b(FieldOperand(temp, Map::kBitFieldOffset),
-            1 << Map::kIsUndetectable);
+            Immediate(1 << Map::kIsUndetectable));
   EmitBranch(instr, not_zero);
 }
 
@@ -2322,7 +2322,7 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
 
   // Deoptimize if the object needs to be access checked.
   __ test_b(FieldOperand(object_map, Map::kBitFieldOffset),
-            1 << Map::kIsAccessCheckNeeded);
+            Immediate(1 << Map::kIsAccessCheckNeeded));
   DeoptimizeIf(not_zero, instr, Deoptimizer::kAccessCheck);
   // Deoptimize for proxies.
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
@@ -2803,7 +2803,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
   if (instr->hydrogen()->from_inlined()) {
     __ lea(result, Operand(esp, -2 * kPointerSize));
-  } else {
+  } else if (instr->hydrogen()->arguments_adaptor()) {
     // Check for arguments adapter frame.
     Label done, adapted;
     __ mov(result, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
@@ -2824,6 +2824,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
     __ bind(&done);
+  } else {
+    __ mov(result, Operand(ebp));
   }
 }
 
@@ -2867,12 +2869,12 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
     __ mov(scratch,
            FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
     __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
-              1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
     __ j(not_equal, &receiver_ok, dist);
 
     // Do not transform the receiver to object for builtins.
     __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
-              1 << SharedFunctionInfo::kNativeBitWithinByte);
+              Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
     __ j(not_equal, &receiver_ok, dist);
   }
 
@@ -4368,7 +4370,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       __ ucomisd(result_reg, xmm_scratch);
       __ j(not_zero, &done, Label::kNear);
       __ movmskpd(temp_reg, result_reg);
-      __ test_b(temp_reg, 1);
+      __ test_b(temp_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
     }
     __ jmp(&done, Label::kNear);
@@ -4590,7 +4592,7 @@ void LCodeGen::DoCheckArrayBufferNotNeutered(
 
   __ mov(scratch, FieldOperand(view, JSArrayBufferView::kBufferOffset));
   __ test_b(FieldOperand(scratch, JSArrayBuffer::kBitFieldOffset),
-            1 << JSArrayBuffer::WasNeutered::kShift);
+            Immediate(1 << JSArrayBuffer::WasNeutered::kShift));
   DeoptimizeIf(not_zero, instr, Deoptimizer::kOutOfBounds);
 }
 
@@ -4606,8 +4608,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
     InstanceType last;
     instr->hydrogen()->GetCheckInterval(&first, &last);
 
-    __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
-            static_cast<int8_t>(first));
+    __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset), Immediate(first));
 
     // If there is only one type in the interval check for equality.
     if (first == last) {
@@ -4616,8 +4617,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
       DeoptimizeIf(below, instr, Deoptimizer::kWrongInstanceType);
       // Omit check for the last type.
       if (last != LAST_TYPE) {
-        __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset),
-                static_cast<int8_t>(last));
+        __ cmpb(FieldOperand(temp, Map::kInstanceTypeOffset), Immediate(last));
         DeoptimizeIf(above, instr, Deoptimizer::kWrongInstanceType);
       }
     }
@@ -4628,7 +4628,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
     if (base::bits::IsPowerOfTwo32(mask)) {
       DCHECK(tag == 0 || base::bits::IsPowerOfTwo32(tag));
-      __ test_b(FieldOperand(temp, Map::kInstanceTypeOffset), mask);
+      __ test_b(FieldOperand(temp, Map::kInstanceTypeOffset), Immediate(mask));
       DeoptimizeIf(tag == 0 ? not_zero : zero, instr,
                    Deoptimizer::kWrongInstanceType);
     } else {
@@ -4978,7 +4978,7 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     // Check for undetectable objects => true.
     __ mov(input, FieldOperand(input, HeapObject::kMapOffset));
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
+              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = not_zero;
 
   } else if (String::Equals(type_name, factory()->function_string())) {
@@ -4999,7 +4999,7 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ j(below, false_label, false_distance);
     // Check for callable or undetectable objects => false.
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
-              (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+              Immediate((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     final_branch_condition = zero;
 
 // clang-format off

@@ -14,6 +14,7 @@
 #include "src/globals.h"
 #include "src/hashmap.h"
 #include "src/list.h"
+#include "src/messages.h"
 #include "src/parsing/token.h"
 #include "src/unicode.h"
 #include "src/unicode-decoder.h"
@@ -340,7 +341,7 @@ class Scanner {
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
 
-  Scanner(UnicodeCache* scanner_contants, bool allow_html_comments);
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   void Initialize(Utf16CharacterStream* source);
 
@@ -353,6 +354,10 @@ class Scanner {
   // Returns the location information for the current token
   // (the token last returned by Next()).
   Location location() const { return current_.location; }
+
+  bool has_error() const { return scanner_error_ != MessageTemplate::kNone; }
+  MessageTemplate::Template error() const { return scanner_error_; }
+  Location error_location() const { return scanner_error_location_; }
 
   // Similar functions for the upcoming token.
 
@@ -482,6 +487,7 @@ class Scanner {
     current_.raw_literal_chars = NULL;
     next_next_.token = Token::UNINITIALIZED;
     found_html_comment_ = false;
+    scanner_error_ = MessageTemplate::kNone;
   }
 
   // Support BookmarkScope functionality.
@@ -491,6 +497,19 @@ class Scanner {
   bool BookmarkHasBeenReset();
   void DropBookmark();
   static void CopyTokenDesc(TokenDesc* to, TokenDesc* from);
+
+  void ReportScannerError(const Location& location,
+                          MessageTemplate::Template error) {
+    if (has_error()) return;
+    scanner_error_ = error;
+    scanner_error_location_ = location;
+  }
+
+  void ReportScannerError(int pos, MessageTemplate::Template error) {
+    if (has_error()) return;
+    scanner_error_ = error;
+    scanner_error_location_ = Location(pos, pos + 1);
+  }
 
   // Literal buffer support
   inline void StartLiteral() {
@@ -637,13 +656,13 @@ class Scanner {
     return current_.raw_literal_chars->is_one_byte();
   }
 
-  template <bool capture_raw>
+  template <bool capture_raw, bool unicode = false>
   uc32 ScanHexNumber(int expected_length);
   // Scan a number of any length but not bigger than max_value. For example, the
   // number can be 000000001, so it's very long in characters but its value is
   // small.
   template <bool capture_raw>
-  uc32 ScanUnlimitedLengthHexNumber(int max_value);
+  uc32 ScanUnlimitedLengthHexNumber(int max_value, int beg_pos);
 
   // Scans a single JavaScript token.
   void Scan();
@@ -761,14 +780,14 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether to allow HTML comments (that is, skip over them, rather than
-  // reporting the comment marker as a sequence of tokens.)
-  bool allow_html_comments_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
 
   bool allow_harmony_exponentiation_operator_;
+
+  MessageTemplate::Template scanner_error_;
+  Location scanner_error_location_;
 };
 
 }  // namespace internal

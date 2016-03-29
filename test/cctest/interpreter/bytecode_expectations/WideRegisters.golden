@@ -169,13 +169,12 @@ snippet: "
   x0 = x127;
   return x0;
 "
-frame size: 161
+frame size: 157
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 6
 bytecodes: [
   B(StackCheck),
-  B(MovWide), R16(131), R16(125),
-  B(Ldar), R(125),
+  B(Ldar), R(127),
   B(Star), R(0),
   B(Return),
 ]
@@ -346,17 +345,13 @@ snippet: "
   x127 = x126;
   return x127;
 "
-frame size: 161
+frame size: 157
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 6
 bytecodes: [
   B(StackCheck),
-  B(MovWide), R16(130), R16(125),
-  B(Ldar), R(125),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(131),
-  B(MovWide), R16(131), R16(125),
-  B(Ldar), R(125),
+  B(Ldar), R(126),
+  B(Star), R(127),
   B(Return),
 ]
 constant pool: [
@@ -526,23 +521,19 @@ snippet: "
   if (x2 > 3) { return x129; }
   return x128;
 "
-frame size: 162
+frame size: 158
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 23
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(2),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(LdaSmi8), U8(3),
-  B(MovWide), R16(161), R16(125),
-  B(TestGreaterThan), R(125),
-  B(JumpIfFalse), U8(10),
-  B(MovWide), R16(133), R16(125),
-  B(Ldar), R(125),
+  B(Wide), B(Star), R16(157),
+  B(LdaSmi), U8(3),
+  B(Wide), B(TestGreaterThan), R16(157),
+  B(JumpIfFalse), U8(7),
+  B(Wide), B(Ldar), R16(129),
   B(Return),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
+  B(Ldar), R(128),
   B(Return),
 ]
 constant pool: [
@@ -714,35 +705,28 @@ snippet: "
   if (x2 > 3) { return x0; }
   return x129;
 "
-frame size: 162
+frame size: 158
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 48
 bytecodes: [
   B(StackCheck),
   B(LdaZero),
   B(Star), R(0),
-  B(MovWide), R16(133), R16(125),
-  B(Ldar), R(125),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(LdaSmi8), U8(3),
-  B(MovWide), R16(161), R16(125),
-  B(TestEqual), R(125),
-  B(JumpIfFalse), U8(11),
+  B(Wide), B(Ldar), R16(129),
+  B(Wide), B(Star), R16(157),
+  B(LdaSmi), U8(3),
+  B(Wide), B(TestEqual), R16(157),
+  B(JumpIfFalse), U8(8),
   B(Ldar), R(0),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(133),
+  B(Wide), B(Star), R16(129),
   B(Ldar), R(2),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(LdaSmi8), U8(3),
-  B(MovWide), R16(161), R16(125),
-  B(TestGreaterThan), R(125),
+  B(Wide), B(Star), R16(157),
+  B(LdaSmi), U8(3),
+  B(Wide), B(TestGreaterThan), R16(157),
   B(JumpIfFalse), U8(5),
   B(Ldar), R(0),
   B(Return),
-  B(MovWide), R16(133), R16(125),
-  B(Ldar), R(125),
+  B(Wide), B(Ldar), R16(129),
   B(Return),
 ]
 constant pool: [
@@ -913,9 +897,9 @@ snippet: "
   var x1 = 0;
   for (x128 = 0; x128 < 64; x128++) {  x1 += x128;}return x128;
 "
-frame size: 162
+frame size: 158
 parameter count: 1
-bytecode array length: 99
+bytecode array length: 54
 bytecodes: [
   B(StackCheck),
   B(LdaZero),
@@ -923,36 +907,25 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(1),
   B(LdaZero),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(132),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(LdaSmi8), U8(64),
-  B(MovWide), R16(161), R16(125),
-  B(TestLessThan), R(125),
-  B(JumpIfFalse), U8(53),
+  B(Star), R(128),
+  B(Ldar), R(128),
+  B(Wide), B(Star), R16(157),
+  B(LdaSmi), U8(64),
+  B(Wide), B(TestLessThan), R16(157),
+  B(JumpIfFalse), U8(29),
   B(StackCheck),
   B(Ldar), R(1),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
-  B(MovWide), R16(161), R16(125),
-  B(Add), R(125),
+  B(Wide), B(Star), R16(157),
+  B(Ldar), R(128),
+  B(Wide), B(Add), R16(157),
   B(Star), R(1),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
+  B(Ldar), R(128),
   B(ToNumber),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
+  B(Wide), B(Star), R16(157),
   B(Inc),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(132),
-  B(Jump), U8(-74),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
+  B(Star), R(128),
+  B(Jump), U8(-39),
+  B(Ldar), R(128),
   B(Return),
 ]
 constant pool: [
@@ -1123,52 +1096,41 @@ snippet: "
   var x1 = 0;
   for (x128 in x0) {  x1 += x128;}return x1;
 "
-frame size: 167
+frame size: 163
 parameter count: 1
-bytecode array length: 111
+bytecode array length: 80
 bytecodes: [
   B(StackCheck),
-  B(LdaConstant), U8(0),
+  B(Wide), B(LdaSmi), U16(1234),
   B(Star), R(0),
   B(LdaZero),
   B(Star), R(1),
   B(Ldar), R(0),
-  B(JumpIfUndefined), U8(98),
-  B(JumpIfNull), U8(96),
+  B(JumpIfUndefined), U8(65),
+  B(JumpIfNull), U8(63),
   B(ToObject),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(ForInPrepareWide), R16(162),
+  B(Wide), B(Star), R16(157),
+  B(Wide), B(ForInPrepare), R16(158),
   B(LdaZero),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(165),
-  B(MovWide), R16(165), R16(125),
-  B(MovWide), R16(164), R16(126),
-  B(ForInDone), R(125), R(126),
-  B(JumpIfTrue), U8(62),
-  B(ForInNextWide), R16(161), R16(165), R16(162), U16(1),
-  B(JumpIfUndefined), U8(35),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(132),
+  B(Wide), B(Star), R16(161),
+  B(Wide), B(ForInDone), R16(161), R16(160),
+  B(JumpIfTrue), U8(41),
+  B(Wide), B(ForInNext), R16(157), R16(161), R16(158), U16(1),
+  B(JumpIfUndefined), U8(19),
+  B(Star), R(128),
   B(StackCheck),
   B(Ldar), R(1),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(166),
-  B(MovWide), R16(132), R16(125),
-  B(Ldar), R(125),
-  B(MovWide), R16(166), R16(125),
-  B(Add), R(125),
+  B(Wide), B(Star), R16(162),
+  B(Ldar), R(128),
+  B(Wide), B(Add), R16(162),
   B(Star), R(1),
-  B(MovWide), R16(165), R16(125),
-  B(ForInStep), R(125),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(165),
-  B(Jump), U8(-73),
+  B(Wide), B(ForInStep), R16(161),
+  B(Wide), B(Star), R16(161),
+  B(Jump), U8(-45),
   B(Ldar), R(1),
   B(Return),
 ]
 constant pool: [
-  1234,
 ]
 handlers: [
 ]
@@ -1337,27 +1299,22 @@ snippet: "
   %TheHole();
   return x1;
 "
-frame size: 163
+frame size: 159
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 55
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(64),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
+  B(Wide), B(Star), R16(157),
   B(Ldar), R(63),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(162),
-  B(CallRuntimeWide), U16(Runtime::kAdd), R16(161), U8(2),
+  B(Wide), B(Star), R16(158),
+  B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
   B(Star), R(0),
   B(Ldar), R(27),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(161),
-  B(MovWide), R16(147), R16(125),
-  B(Ldar), R(125),
-  B(Star), R(125),
-  B(MovWide), R16(125), R16(162),
-  B(CallRuntimeWide), U16(Runtime::kAdd), R16(161), U8(2),
+  B(Wide), B(Star), R16(157),
+  B(Wide), B(Ldar), R16(143),
+  B(Wide), B(Star), R16(158),
+  B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
   B(Star), R(1),
   B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
   B(Ldar), R(1),

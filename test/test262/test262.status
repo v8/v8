@@ -109,7 +109,6 @@
   # happens to be thrown for some other reason (e.g,
   # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
   'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/String/prototype/match/invoke-builtin-match': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4343
   'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
@@ -180,40 +179,9 @@
   'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
 
   # https://code.google.com/p/chromium/issues/detail?id=581577
-  'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4698
-  'language/expressions/call/tco-call-args': [FAIL],
-  'language/expressions/call/tco-member-args': [FAIL],
-  'language/expressions/comma/tco-final': [FAIL],
-  'language/expressions/conditional/tco-cond': [FAIL],
-  'language/expressions/conditional/tco-pos': [FAIL],
-  'language/expressions/logical-and/tco-right': [FAIL],
-  'language/expressions/logical-or/tco-right': [FAIL],
-  'language/expressions/tagged-template/tco-call': [FAIL],
-  'language/expressions/tagged-template/tco-member': [FAIL],
-  'language/expressions/tco-pos': [FAIL],
-  'language/statements/block/tco-stmt': [FAIL],
-  'language/statements/block/tco-stmt-list': [FAIL],
-  'language/statements/do-while/tco-body': [FAIL],
-  'language/statements/for/tco-const-body': [FAIL],
-  'language/statements/for/tco-let-body': [FAIL],
-  'language/statements/for/tco-lhs-body': [FAIL],
-  'language/statements/for/tco-var-body': [FAIL],
-  'language/statements/if/tco-else-body': [FAIL],
-  'language/statements/if/tco-if-body': [FAIL],
-  'language/statements/labeled/tco': [FAIL],
-  'language/statements/return/tco': [FAIL],
-  'language/statements/switch/tco-case-body': [FAIL],
-  'language/statements/switch/tco-case-body-dflt': [FAIL],
-  'language/statements/switch/tco-dftl-body': [FAIL],
-  'language/statements/try/tco-catch': [FAIL],
-  'language/statements/try/tco-catch-finally': [FAIL],
-  'language/statements/try/tco-finally': [FAIL],
-  'language/statements/while/tco-body': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4727
   'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],

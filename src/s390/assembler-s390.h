@@ -951,6 +951,9 @@ class Assembler : public AssemblerBase {
   void srdl(Register r1, const Operand& opnd);
   void slag(Register r1, Register r3, const Operand& opnd);
   void slag(Register r1, Register r3, const Register opnd);
+  void sldl(Register r1, Register b2, const Operand& opnd);
+  void srdl(Register r1, Register b2, const Operand& opnd);
+  void srda(Register r1, Register b2, const Operand& opnd);
 
   // Rotate and Insert Selected Bits
   void risbg(Register dst, Register src, const Operand& startBit,

@@ -18,6 +18,7 @@
 #include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
+#include "src/perf-jit.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
@@ -730,19 +731,18 @@ void Profiler::Run() {
 //
 
 Logger::Logger(Isolate* isolate)
-  : isolate_(isolate),
-    ticker_(NULL),
-    profiler_(NULL),
-    log_events_(NULL),
-    is_logging_(false),
-    log_(new Log(this)),
-    perf_basic_logger_(NULL),
-    ll_logger_(NULL),
-    jit_logger_(NULL),
-    listeners_(5),
-    is_initialized_(false) {
-}
-
+    : isolate_(isolate),
+      ticker_(NULL),
+      profiler_(NULL),
+      log_events_(NULL),
+      is_logging_(false),
+      log_(new Log(this)),
+      perf_basic_logger_(NULL),
+      perf_jit_logger_(NULL),
+      ll_logger_(NULL),
+      jit_logger_(NULL),
+      listeners_(5),
+      is_initialized_(false) {}
 
 Logger::~Logger() {
   delete log_;
@@ -1607,12 +1607,23 @@ void Logger::LogCodeObjects() {
 void Logger::LogBytecodeHandlers() {
   if (!FLAG_ignition) return;
 
+  interpreter::Interpreter* interpreter = isolate_->interpreter();
   const int last_index = static_cast<int>(interpreter::Bytecode::kLast);
-  for (int index = 0; index <= last_index; ++index) {
-    interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
-    Code* code = isolate_->interpreter()->GetBytecodeHandler(bytecode);
-    CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(code),
-                    interpreter::Bytecodes::ToString(bytecode));
+  for (auto operand_scale = interpreter::OperandScale::kSingle;
+       operand_scale <= interpreter::OperandScale::kMaxValid;
+       operand_scale =
+           interpreter::Bytecodes::NextOperandScale(operand_scale)) {
+    for (int index = 0; index <= last_index; ++index) {
+      interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
+      if (interpreter::Interpreter::BytecodeHasHandler(bytecode,
+                                                       operand_scale)) {
+        Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
+        std::string bytecode_name =
+            interpreter::Bytecodes::ToString(bytecode, operand_scale);
+        CodeCreateEvent(Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(code),
+                        bytecode_name.c_str());
+      }
+    }
   }
 }
 
@@ -1786,6 +1797,11 @@ bool Logger::SetUp(Isolate* isolate) {
     addCodeEventListener(perf_basic_logger_);
   }
 
+  if (FLAG_perf_prof) {
+    perf_jit_logger_ = new PerfJitLogger();
+    addCodeEventListener(perf_jit_logger_);
+  }
+
   if (FLAG_ll_prof) {
     ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
     addCodeEventListener(ll_logger_);
@@ -1852,6 +1868,12 @@ FILE* Logger::TearDown() {
     removeCodeEventListener(perf_basic_logger_);
     delete perf_basic_logger_;
     perf_basic_logger_ = NULL;
+  }
+
+  if (perf_jit_logger_) {
+    removeCodeEventListener(perf_jit_logger_);
+    delete perf_jit_logger_;
+    perf_jit_logger_ = NULL;
   }
 
   if (ll_logger_) {

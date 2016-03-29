@@ -16,17 +16,35 @@ namespace interpreter {
 // Template helpers to deduce the number of operands each bytecode has.
 #define OPERAND_TERM OperandType::kNone, OperandType::kNone, OperandType::kNone
 
-template <OperandType>
-struct OperandTraits {};
+template <OperandTypeInfo>
+struct OperandTypeInfoTraits {
+  static const bool kIsScalable = false;
+  static const bool kIsUnsigned = false;
+  static const OperandSize kUnscaledSize = OperandSize::kNone;
+};
 
-#define DECLARE_OPERAND_SIZE(Name, Size)             \
-  template <>                                        \
-  struct OperandTraits<OperandType::k##Name> {       \
-    static const OperandSize kSizeType = Size;       \
-    static const int kSize = static_cast<int>(Size); \
+#define DECLARE_OPERAND_TYPE_INFO(Name, Scalable, Unsigned, BaseSize) \
+  template <>                                                         \
+  struct OperandTypeInfoTraits<OperandTypeInfo::k##Name> {            \
+    static const bool kIsScalable = Scalable;                         \
+    static const bool kIsUnsigned = Unsigned;                         \
+    static const OperandSize kUnscaledSize = BaseSize;                \
   };
-OPERAND_TYPE_LIST(DECLARE_OPERAND_SIZE)
-#undef DECLARE_OPERAND_SIZE
+OPERAND_TYPE_INFO_LIST(DECLARE_OPERAND_TYPE_INFO)
+#undef DECLARE_OPERAND_TYPE_INFO
+
+template <OperandType>
+struct OperandTraits {
+  typedef OperandTypeInfoTraits<OperandTypeInfo::kNone> TypeInfo;
+};
+
+#define DECLARE_OPERAND_TYPE_TRAITS(Name, InfoType)   \
+  template <>                                         \
+  struct OperandTraits<OperandType::k##Name> {        \
+    typedef OperandTypeInfoTraits<InfoType> TypeInfo; \
+  };
+OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE_TRAITS)
+#undef DECLARE_OPERAND_TYPE_TRAITS
 
 template <OperandType>
 struct RegisterOperandTraits {
@@ -55,30 +73,17 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
     return kOperands[i];
   }
 
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType,
-         OperandTraits<operand_2>::kSizeType,
-         OperandTraits<operand_3>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOffset2 = kOffset1 + OperandTraits<operand_1>::kSize;
-    const int kOffset3 = kOffset2 + OperandTraits<operand_2>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1, kOffset2, kOffset3};
-    return kOperandOffsets[i];
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot || operand_2 == ot ||
            operand_3 == ot;
+  }
+
+  static inline bool IsScalable() {
+    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
+            OperandTraits<operand_1>::TypeInfo::kIsScalable |
+            OperandTraits<operand_2>::TypeInfo::kIsScalable |
+            OperandTraits<operand_3>::TypeInfo::kIsScalable);
   }
 
   static const int kOperandCount = 4;
@@ -92,9 +97,6 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
       (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
       (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2) +
       (RegisterOperandTraits<operand_3>::kIsRegisterOperand << 3);
-  static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
-      OperandTraits<operand_2>::kSize + OperandTraits<operand_3>::kSize;
 };
 
 template <OperandType operand_0, OperandType operand_1, OperandType operand_2>
@@ -105,27 +107,15 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
     return kOperands[i];
   }
 
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType,
-         OperandTraits<operand_2>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOffset2 = kOffset1 + OperandTraits<operand_1>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1, kOffset2};
-    return kOperandOffsets[i];
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot || operand_2 == ot;
+  }
+
+  static inline bool IsScalable() {
+    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
+            OperandTraits<operand_1>::TypeInfo::kIsScalable |
+            OperandTraits<operand_2>::TypeInfo::kIsScalable);
   }
 
   static const int kOperandCount = 3;
@@ -137,9 +127,6 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
       (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
       (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2);
-  static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
-      OperandTraits<operand_2>::kSize;
 };
 
 template <OperandType operand_0, OperandType operand_1>
@@ -150,25 +137,14 @@ struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
     return kOperands[i];
   }
 
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1};
-    return kOperandOffsets[i];
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot;
+  }
+
+  static inline bool IsScalable() {
+    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
+            OperandTraits<operand_1>::TypeInfo::kIsScalable);
   }
 
   static const int kOperandCount = 2;
@@ -178,8 +154,6 @@ struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
   static const int kRegisterOperandBitmap =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
       (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1);
-  static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize;
 };
 
 template <OperandType operand_0>
@@ -189,19 +163,13 @@ struct BytecodeTraits<operand_0, OPERAND_TERM> {
     return operand_0;
   }
 
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(i == 0);
-    return OperandTraits<operand_0>::kSizeType;
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(i == 0);
-    return 1;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot;
+  }
+
+  static inline bool IsScalable() {
+    return OperandTraits<operand_0>::TypeInfo::kIsScalable;
   }
 
   static const int kOperandCount = 1;
@@ -209,7 +177,6 @@ struct BytecodeTraits<operand_0, OPERAND_TERM> {
       RegisterOperandTraits<operand_0>::kIsRegisterOperand;
   static const int kRegisterOperandBitmap =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand;
-  static const int kSize = 1 + OperandTraits<operand_0>::kSize;
 };
 
 template <>
@@ -219,26 +186,56 @@ struct BytecodeTraits<OperandType::kNone, OPERAND_TERM> {
     return OperandType::kNone;
   }
 
-  static inline OperandSize GetOperandSize(int i) {
-    UNREACHABLE();
-    return OperandSize::kNone;
-  }
-
-  static inline int GetOperandOffset(int i) {
-    UNREACHABLE();
-    return 1;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return false;
   }
 
+  static inline bool IsScalable() { return false; }
+
   static const int kOperandCount = 0;
   static const int kRegisterOperandCount = 0;
   static const int kRegisterOperandBitmap = 0;
-  static const int kSize = 1 + OperandTraits<OperandType::kNone>::kSize;
 };
+
+template <bool>
+struct OperandScaler {
+  static int Multiply(int size, int operand_scale) { return 0; }
+};
+
+template <>
+struct OperandScaler<false> {
+  static int Multiply(int size, int operand_scale) { return size; }
+};
+
+template <>
+struct OperandScaler<true> {
+  static int Multiply(int size, int operand_scale) {
+    return size * operand_scale;
+  }
+};
+
+static OperandSize ScaledOperandSize(OperandType operand_type,
+                                     OperandScale operand_scale) {
+  switch (operand_type) {
+#define CASE(Name, TypeInfo)                                                   \
+  case OperandType::k##Name: {                                                 \
+    OperandSize base_size = OperandTypeInfoTraits<TypeInfo>::kUnscaledSize;    \
+    int size =                                                                 \
+        OperandScaler<OperandTypeInfoTraits<TypeInfo>::kIsScalable>::Multiply( \
+            static_cast<int>(base_size), static_cast<int>(operand_scale));     \
+    OperandSize operand_size = static_cast<OperandSize>(size);                 \
+    DCHECK(operand_size == OperandSize::kByte ||                               \
+           operand_size == OperandSize::kShort ||                              \
+           operand_size == OperandSize::kQuad);                                \
+    return operand_size;                                                       \
+  }
+    OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return OperandSize::kNone;
+}
 
 }  // namespace interpreter
 }  // namespace internal

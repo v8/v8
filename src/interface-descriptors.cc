@@ -330,6 +330,15 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+FunctionType* FastArrayPushDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), AnyTagged(zone), 1, zone)->AsFunction();
+  function->InitParameter(0, UntaggedIntegral32(zone));  // actual #arguments
+  return function;
+}
+
 FunctionType*
 FastCloneRegExpDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {

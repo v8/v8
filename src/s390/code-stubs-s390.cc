@@ -71,6 +71,11 @@ void InternalArrayNoArgumentConstructorStub::InitializeDescriptor(
   InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 0);
 }
 
+void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  Address deopt_handler = Runtime::FunctionForId(Runtime::kArrayPush)->entry;
+  descriptor->Initialize(r2, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
+}
+
 void InternalArraySingleArgumentConstructorStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 1);
@@ -1099,9 +1104,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     Label okay;
     ExternalReference pending_exception_address(
         Isolate::kPendingExceptionAddress, isolate());
-    __ mov(r4, Operand(pending_exception_address));
-    __ LoadP(r4, MemOperand(r4));
-    __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
+    __ mov(r1, Operand(pending_exception_address));
+    __ LoadP(r1, MemOperand(r1));
+    __ CompareRoot(r1, Heap::kTheHoleValueRootIndex);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay, Label::kNear);
     __ stop("Unexpected pending exception");
@@ -1487,7 +1492,8 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   // Slow-case: Call the %InstanceOf runtime function.
   __ bind(&slow_case);
   __ Push(object, function);
-  __ TailCallRuntime(Runtime::kInstanceOf);
+  __ TailCallRuntime(is_es6_instanceof() ? Runtime::kOrdinaryHasInstance
+                                         : Runtime::kInstanceOf);
 }
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
@@ -1533,28 +1539,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
 
   __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-
-  // Check that the key is an array index, that is Uint32.
-  __ TestIfPositiveSmi(key, r0);
-  __ bne(&slow);
-
-  // Everything is fine, call runtime.
-  __ Push(receiver, key);  // Receiver, key.
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kLoadElementWithInterceptor);
-
-  __ bind(&slow);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
 }
@@ -2712,10 +2696,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // The ToNumber stub takes one argument in r2.
-  Label not_smi;
-  __ JumpIfNotSmi(r2, &not_smi);
-  __ b(r14);
-  __ bind(&not_smi);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ TestIfSmi(r2);
+  __ Ret(eq);
 
   __ CompareObjectType(r2, r3, r3, HEAP_NUMBER_TYPE);
   // r2: receiver
@@ -2725,19 +2708,19 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Ret();
   __ bind(&not_heap_number);
 
-  Label not_string, slow_string;
-  __ CmpLogicalP(r3, Operand(FIRST_NONSTRING_TYPE));
-  __ bge(&not_string, Label::kNear);
-  // Check if string has a cached array index.
-  __ LoadlW(r4, FieldMemOperand(r2, String::kHashFieldOffset));
-  __ AndP(r0, r4, Operand(String::kContainsCachedArrayIndexMask));
-  __ bne(&slow_string, Label::kNear);
-  __ IndexFromHash(r4, r2);
-  __ b(r14);
-  __ bind(&slow_string);
-  __ push(r2);  // Push argument.
-  __ TailCallRuntime(Runtime::kStringToNumber);
-  __ bind(&not_string);
+  NonNumberToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+}
+
+void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
+  // The NonNumberToNumber stub takes one argument in r2.
+  __ AssertNotNumber(r2);
+
+  __ CompareObjectType(r2, r3, r3, FIRST_NONSTRING_TYPE);
+  // r2: receiver
+  // r3: receiver instance type
+  StringToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub, lt);
 
   Label not_oddball;
   __ CmpP(r3, Operand(ODDBALL_TYPE));
@@ -2748,6 +2731,23 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 
   __ push(r2);  // Push argument.
   __ TailCallRuntime(Runtime::kToNumber);
+}
+
+void StringToNumberStub::Generate(MacroAssembler* masm) {
+  // The StringToNumber stub takes one argument in r2.
+  __ AssertString(r2);
+
+  // Check if string has a cached array index.
+  Label runtime;
+  __ LoadlW(r4, FieldMemOperand(r2, String::kHashFieldOffset));
+  __ And(r0, r4, Operand(String::kContainsCachedArrayIndexMask));
+  __ bne(&runtime);
+  __ IndexFromHash(r4, r2);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ push(r2);  // Push argument.
+  __ TailCallRuntime(Runtime::kStringToNumber);
 }
 
 void ToLengthStub::Generate(MacroAssembler* masm) {

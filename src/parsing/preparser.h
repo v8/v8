@@ -1272,8 +1272,10 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseStatementListItem(bool* ok);
   void ParseStatementList(int end_token, bool* ok,
                           Scanner::BookmarkScope* bookmark = nullptr);
-  Statement ParseStatement(bool* ok);
-  Statement ParseSubStatement(bool* ok);
+  Statement ParseStatement(AllowLabelledFunctionStatement allow_function,
+                           bool* ok);
+  Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
+                              bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
@@ -1286,7 +1288,8 @@ class PreParser : public ParserBase<PreParserTraits> {
                                       Scanner::Location* first_initializer_loc,
                                       Scanner::Location* bindings_loc,
                                       bool* ok);
-  Statement ParseExpressionOrLabelledStatement(bool* ok);
+  Statement ParseExpressionOrLabelledStatement(
+      AllowLabelledFunctionStatement allow_function, bool* ok);
   Statement ParseIfStatement(bool* ok);
   Statement ParseContinueStatement(bool* ok);
   Statement ParseBreakStatement(bool* ok);

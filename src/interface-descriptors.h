@@ -23,6 +23,7 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreIC)                            \
   V(InstanceOf)                               \
   V(LoadWithVector)                           \
+  V(FastArrayPush)                            \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
   V(FastNewObject)                            \
@@ -47,6 +48,16 @@ class PlatformInterfaceDescriptor;
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
   V(AllocateMutableHeapNumber)                \
+  V(AllocateFloat32x4)                        \
+  V(AllocateInt32x4)                          \
+  V(AllocateUint32x4)                         \
+  V(AllocateBool32x4)                         \
+  V(AllocateInt16x8)                          \
+  V(AllocateUint16x8)                         \
+  V(AllocateBool16x8)                         \
+  V(AllocateInt8x16)                          \
+  V(AllocateUint8x16)                         \
+  V(AllocateBool8x16)                         \
   V(AllocateInNewSpace)                       \
   V(ArrayConstructorConstantArgCount)         \
   V(ArrayConstructor)                         \
@@ -551,6 +562,13 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
 
+#define SIMD128_ALLOC_DESC(TYPE, Type, type, lane_count, lane_type)         \
+  class Allocate##Type##Descriptor : public CallInterfaceDescriptor {       \
+   public:                                                                  \
+    DECLARE_DESCRIPTOR(Allocate##Type##Descriptor, CallInterfaceDescriptor) \
+  };
+SIMD128_TYPES(SIMD128_ALLOC_DESC)
+#undef SIMD128_ALLOC_DESC
 
 class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
@@ -756,6 +774,11 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
+class FastArrayPushDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastArrayPushDescriptor,
+                                               CallInterfaceDescriptor)
+};
 
 class GrowArrayElementsDescriptor : public CallInterfaceDescriptor {
  public:

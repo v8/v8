@@ -43,13 +43,10 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);
-  Reduction ReduceIncrementStatsCounter(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceMathClz32(Node* node);
-  Reduction ReduceMathFloor(Node* node);
-  Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);

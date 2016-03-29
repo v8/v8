@@ -50,7 +50,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaGlobal), U8(0), U8(1),
   B(Star), R(0),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(DeletePropertyStrict), R(0),
   B(Return),
 ]

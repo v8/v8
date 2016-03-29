@@ -2503,7 +2503,6 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
 
 
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
   if (is_int16(src.offset_)) {
     GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.

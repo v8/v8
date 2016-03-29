@@ -33,7 +33,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(LdaUndefined),
   B(Return),
@@ -52,7 +52,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Return),
 ]
 constant pool: [
@@ -69,12 +69,12 @@ parameter count: 1
 bytecode array length: 13
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(JumpIfToBooleanFalse), U8(5),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Return),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(Return),
 ]
 constant pool: [

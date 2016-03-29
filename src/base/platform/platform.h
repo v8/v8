@@ -142,6 +142,7 @@ class OS {
   static FILE* FOpen(const char* path, const char* mode);
   static bool Remove(const char* path);
 
+  static char DirectorySeparator();
   static bool isDirectorySeparator(const char ch);
 
   // Opens a temporary file, the file is auto removed on close.

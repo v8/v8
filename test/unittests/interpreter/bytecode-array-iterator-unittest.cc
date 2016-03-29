@@ -33,7 +33,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_1(1);
   Register reg_2 = Register::FromParameterIndex(2, builder.parameter_count());
   Handle<String> name = factory->NewStringFromStaticChars("abc");
-  int name_index = 3;
+  int name_index = 2;
   int feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -46,40 +46,48 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .StoreAccumulatorInRegister(reg_2)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Debugger()
+      .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
   // Test iterator sees the expected output from the builder.
   BytecodeArrayIterator iterator(builder.ToBytecodeArray());
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK(iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_0));
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK(iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_1));
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaZero);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK(!iterator.done());
   iterator.Advance();
 
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaSmi8);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaSmi);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(Smi::FromInt(iterator.GetImmediateOperand(0)), smi_0);
   CHECK(!iterator.done());
   iterator.Advance();
 
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
-  CHECK_EQ(*iterator.GetConstantForIndexOperand(0), smi_1);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaSmi);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kQuadruple);
+  CHECK_EQ(Smi::FromInt(iterator.GetImmediateOperand(0)), smi_1);
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdar);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadIC);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_1.index());
   CHECK_EQ(iterator.GetIndexOperand(1), name_index);
   CHECK_EQ(iterator.GetIndexOperand(2), feedback_slot);
@@ -87,12 +95,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_2.index());
   CHECK(!iterator.done());
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kCallRuntime);
-  CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetIndexOperand(0)),
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
+  CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetRuntimeIdOperand(0)),
            Runtime::kLoadIC_Miss);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
   CHECK_EQ(iterator.GetRegisterCountOperand(2), 1);
@@ -100,10 +110,18 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kDebugger);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK(!iterator.done());
   iterator.Advance();
 
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaGlobal);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kQuadruple);
+  CHECK_EQ(iterator.current_bytecode_size(), 10);
+  CHECK_EQ(iterator.GetIndexOperand(1), 0x10000000);
+  iterator.Advance();
+
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK(!iterator.done());
   iterator.Advance();
   CHECK(iterator.done());

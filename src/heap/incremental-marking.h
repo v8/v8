@@ -29,7 +29,7 @@ class IncrementalMarking {
 
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
-  enum GCRequestType { COMPLETE_MARKING, FINALIZATION };
+  enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
   struct StepActions {
     StepActions(CompletionAction complete_action_,
@@ -79,6 +79,8 @@ class IncrementalMarking {
   }
 
   GCRequestType request_type() const { return request_type_; }
+
+  void reset_request_type() { request_type_ = NONE; }
 
   bool CanBeActivated();
 
@@ -175,10 +177,6 @@ class IncrementalMarking {
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
-
-  void RecordWrites(HeapObject* obj);
-
-  void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
 
   void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 

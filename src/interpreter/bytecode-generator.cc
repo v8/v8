@@ -624,14 +624,6 @@ void BytecodeGenerator::MakeBytecodeBody() {
     UNIMPLEMENTED();
   }
 
-  // Visit illegal re-declaration and bail out if it exists.
-  if (scope()->HasIllegalRedeclaration()) {
-    Expression* illegal = scope()->GetIllegalRedeclaration();
-    builder()->SetExpressionAsStatementPosition(illegal);
-    VisitForEffect(illegal);
-    return;
-  }
-
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
 
@@ -1133,7 +1125,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Register cache_type = register_allocator()->NextConsecutiveRegister();
   Register cache_array = register_allocator()->NextConsecutiveRegister();
   Register cache_length = register_allocator()->NextConsecutiveRegister();
-  // Used as kRegTriple8 and kRegPair8 in ForInPrepare and ForInNext.
+  // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   USE(cache_array);
   builder()->ForInPrepare(cache_type);
 

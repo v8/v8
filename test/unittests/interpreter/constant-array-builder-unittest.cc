@@ -109,8 +109,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
   }
 }
 
-
-TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx16Reservations) {
+TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(isolate(), zone());
     for (size_t i = 0; i < k8BitCapacity; i++) {
@@ -161,6 +160,20 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
   }
 }
 
+TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
+  ConstantArrayBuilder builder(isolate(), zone());
+  static const size_t kNumberOfElements = 37373;
+  for (size_t i = 0; i < kNumberOfElements; i++) {
+    Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
+    builder.Insert(object);
+    CHECK(builder.At(i)->SameValue(*object));
+  }
+  Handle<FixedArray> constant_array = builder.ToFixedArray();
+  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  for (size_t i = 0; i < kNumberOfElements; i++) {
+    CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
+  }
+}
 
 TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   ConstantArrayBuilder builder(isolate(), zone());

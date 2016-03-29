@@ -9,6 +9,8 @@
 #include "src/api-natives.h"
 #include "src/base/once.h"
 #include "src/bootstrapper.h"
+#include "src/code-factory.h"
+#include "src/compiler/code-stub-assembler.h"
 #include "src/dateparser-inl.h"
 #include "src/elements.h"
 #include "src/frames-inl.h"
@@ -214,57 +216,38 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   return *out <= object->elements()->length();
 }
 
-
-inline bool PrototypeHasNoElements(PrototypeIterator* iter) {
+inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   DisallowHeapAllocation no_gc;
-  for (; !iter->IsAtEnd(); iter->Advance()) {
-    if (iter->GetCurrent()->IsJSProxy()) return false;
-    JSObject* current = iter->GetCurrent<JSObject>();
-    if (current->IsAccessCheckNeeded()) return false;
-    if (current->HasIndexedInterceptor()) return false;
-    if (current->HasStringWrapperElements()) return false;
-    if (current->elements()->length() != 0) return false;
+  HeapObject* prototype = HeapObject::cast(object->map()->prototype());
+  HeapObject* null = isolate->heap()->null_value();
+  HeapObject* empty = isolate->heap()->empty_fixed_array();
+  while (prototype != null) {
+    Map* map = prototype->map();
+    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (JSObject::cast(prototype)->elements() != empty) return false;
+    prototype = HeapObject::cast(map->prototype());
   }
   return true;
 }
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                               JSArray* receiver) {
-  DisallowHeapAllocation no_gc;
-  // If the array prototype chain is intact (and free of elements), and if the
-  // receiver's prototype is the array prototype, then we are done.
-  Object* prototype = receiver->map()->prototype();
-  if (prototype->IsJSArray() &&
-      isolate->is_initial_array_prototype(JSArray::cast(prototype)) &&
-      isolate->IsFastArrayConstructorPrototypeChainIntact()) {
-    return true;
-  }
-  // Slow case.
-  PrototypeIterator iter(isolate, receiver);
-  return PrototypeHasNoElements(&iter);
+  return PrototypeHasNoElements(isolate, receiver);
 }
 
 inline bool HasSimpleElements(JSObject* current) {
-  if (current->IsAccessCheckNeeded()) return false;
-  if (current->HasIndexedInterceptor()) return false;
-  if (current->HasStringWrapperElements()) return false;
-  if (current->GetElementsAccessor()->HasAccessors(current)) return false;
-  return true;
+  return current->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+         !current->GetElementsAccessor()->HasAccessors(current);
 }
 
 inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
-                                          JSReceiver* receiver) {
+                                          JSObject* receiver) {
   // Check that we have no accessors on the receiver's elements.
-  JSObject* object = JSObject::cast(receiver);
-  if (!HasSimpleElements(object)) return false;
-  // Check that ther are not elements on the prototype.
-  DisallowHeapAllocation no_gc;
-  PrototypeIterator iter(isolate, receiver);
-  return PrototypeHasNoElements(&iter);
+  if (!HasSimpleElements(receiver)) return false;
+  return PrototypeHasNoElements(isolate, receiver);
 }
 
 inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
-  // Check that ther are not elements on the prototype.
   DisallowHeapAllocation no_gc;
   PrototypeIterator iter(isolate, receiver,
                          PrototypeIterator::START_AT_RECEIVER);
@@ -284,16 +267,15 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
                                                   int first_added_arg) {
   if (!receiver->IsJSArray()) return false;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  // If there may be elements accessors in the prototype chain, the fast path
-  // cannot be used if there arguments to add to the array.
-  if (args != nullptr && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
-    return false;
-  }
   ElementsKind origin_kind = array->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
   if (array->map()->is_observed()) return false;
   if (!array->map()->is_extensible()) return false;
   if (args == nullptr) return true;
+
+  // If there may be elements accessors in the prototype chain, the fast path
+  // cannot be used if there arguments to add to the array.
+  if (!IsJSArrayFastElementMovingAllowed(isolate, *array)) return false;
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
@@ -308,10 +290,8 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;
-    int arg_count = args_length - first_added_arg;
-    Object** arguments = args->arguments() - first_added_arg - (arg_count - 1);
-    for (int i = 0; i < arg_count; i++) {
-      Object* arg = arguments[i];
+    for (int i = first_added_arg; i < args_length; i++) {
+      Object* arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
           target_kind = FAST_DOUBLE_ELEMENTS;
@@ -442,7 +422,10 @@ BUILTIN(ObjectHasOwnProperty) {
   return isolate->heap()->false_value();
 }
 
-BUILTIN(ArrayPush) {
+namespace {
+
+Object* DoArrayPush(Isolate* isolate,
+                    BuiltinArguments<BuiltinExtraArguments::kNone> args) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1)) {
@@ -466,6 +449,20 @@ BUILTIN(ArrayPush) {
   return Smi::FromInt(new_length);
 }
 
+}  // namespace
+
+BUILTIN(ArrayPush) { return DoArrayPush(isolate, args); }
+
+// TODO(verwaest): This is a temporary helper until the FastArrayPush stub can
+// tailcall to the builtin directly.
+RUNTIME_FUNCTION(Runtime_ArrayPush) {
+  DCHECK_EQ(2, args.length());
+  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
+  // Rewrap the arguments as builtins arguments.
+  BuiltinArguments<BuiltinExtraArguments::kNone> caller_args(
+      incoming->length() + 1, incoming->arguments() + 1);
+  return DoArrayPush(isolate, caller_args);
+}
 
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
@@ -2010,6 +2007,63 @@ BUILTIN(MathAtan) {
   return *isolate->factory()->NewHeapNumber(std::atan(x->Number()));
 }
 
+// ES6 section 20.2.2.16 Math.floor ( x )
+void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_x(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_x);
+  var_x.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {x} value.
+    Node* x = var_x.value();
+
+    // Check if {x} is a Smi or a HeapObject.
+    Label if_xissmi(assembler), if_xisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+
+    assembler->Bind(&if_xissmi);
+    {
+      // Nothing to do when {x} is a Smi.
+      assembler->Return(x);
+    }
+
+    assembler->Bind(&if_xisnotsmi);
+    {
+      // Check if {x} is a HeapNumber.
+      Label if_xisheapnumber(assembler),
+          if_xisnotheapnumber(assembler, Label::kDeferred);
+      assembler->Branch(
+          assembler->WordEqual(assembler->LoadMap(x),
+                               assembler->HeapNumberMapConstant()),
+          &if_xisheapnumber, &if_xisnotheapnumber);
+
+      assembler->Bind(&if_xisheapnumber);
+      {
+        Node* x_value = assembler->LoadHeapNumberValue(x);
+        Node* value = assembler->Float64Floor(x_value);
+        Node* result = assembler->ChangeFloat64ToTagged(value);
+        assembler->Return(result);
+      }
+
+      assembler->Bind(&if_xisnotheapnumber);
+      {
+        // Need to convert {x} to a Number first.
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_x.Bind(assembler->CallStub(callable, context, x));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+}
 
 // ES6 section 20.2.2.17 Math.fround ( x )
 BUILTIN(MathFround) {
@@ -2020,7 +2074,6 @@ BUILTIN(MathFround) {
   float x32 = DoubleToFloat32(x->Number());
   return *isolate->factory()->NewNumber(x32);
 }
-
 
 // ES6 section 20.2.2.19 Math.imul ( x, y )
 BUILTIN(MathImul) {
@@ -2034,6 +2087,17 @@ BUILTIN(MathImul) {
   return *isolate->factory()->NewNumberFromInt(product);
 }
 
+// ES6 section 20.2.2.32 Math.sqrt ( x )
+void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Sqrt(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
 
 // -----------------------------------------------------------------------------
 // ES6 section 26.1 The Reflect Object
@@ -2686,7 +2750,11 @@ BUILTIN(DateConstructor) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(time_val, str, isolate->date_cache());
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3266,7 +3334,11 @@ BUILTIN(DatePrototypeToDateString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache(), kDateOnly);
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3306,7 +3378,11 @@ BUILTIN(DatePrototypeToString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache());
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3317,7 +3393,11 @@ BUILTIN(DatePrototypeToTimeString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache(), kTimeOnly);
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3725,46 +3805,6 @@ BUILTIN(GeneratorFunctionConstructor) {
   return *result;
 }
 
-// ES6 section 19.2.3.6 Function.prototype[@@hasInstance](V)
-BUILTIN(FunctionHasInstance) {
-  HandleScope scope(isolate);
-  Handle<Object> callable = args.receiver();
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-
-  // {callable} must have a [[Call]] internal method.
-  if (!callable->IsCallable()) {
-    return isolate->heap()->false_value();
-  }
-  // If {object} is not a receiver, return false.
-  if (!object->IsJSReceiver()) {
-    return isolate->heap()->false_value();
-  }
-  // Check if {callable} is bound, if so, get [[BoundTargetFunction]] from it
-  // and use that instead of {callable}.
-  while (callable->IsJSBoundFunction()) {
-    callable =
-        handle(Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
-               isolate);
-  }
-  DCHECK(callable->IsCallable());
-  // Get the "prototype" of {callable}; raise an error if it's not a receiver.
-  Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, prototype,
-      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
-                              isolate->factory()->prototype_string()));
-  if (!prototype->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
-  }
-  // Return whether or not {prototype} is in the prototype chain of {object}.
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-  Maybe<bool> result =
-      JSReceiver::HasInPrototypeChain(isolate, receiver, prototype);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
-}
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
@@ -4337,12 +4377,14 @@ Address const Builtins::c_functions_[cfunction_count] = {
 
 
 struct BuiltinDesc {
+  Handle<Code> (*builder)(Isolate*, struct BuiltinDesc const*);
   byte* generator;
   byte* c_code;
   const char* s_name;  // name is only used for generating log information.
   int name;
   Code::Flags flags;
   BuiltinExtraArguments extra_args;
+  int argc;
 };
 
 #define BUILTIN_FUNCTION_TABLE_INIT { V8_ONCE_INIT, {} }
@@ -4360,8 +4402,60 @@ class BuiltinFunctionTable {
   friend class Builtins;
 };
 
-static BuiltinFunctionTable builtin_function_table =
-    BUILTIN_FUNCTION_TABLE_INIT;
+namespace {
+
+BuiltinFunctionTable builtin_function_table = BUILTIN_FUNCTION_TABLE_INIT;
+
+Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
+                                   BuiltinDesc const* builtin_desc) {
+// For now we generate builtin adaptor code into a stack-allocated
+// buffer, before copying it into individual code objects. Be careful
+// with alignment, some platforms don't like unaligned code.
+#ifdef DEBUG
+  // We can generate a lot of debug code on Arm64.
+  const size_t buffer_size = 32 * KB;
+#elif V8_TARGET_ARCH_PPC64
+  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
+  const size_t buffer_size = 10 * KB;
+#else
+  const size_t buffer_size = 8 * KB;
+#endif
+  union {
+    int force_alignment;
+    byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  } u;
+
+  MacroAssembler masm(isolate, u.buffer, sizeof(u.buffer),
+                      CodeObjectRequired::kYes);
+  // Generate the code/adaptor.
+  typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
+  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
+  // We pass all arguments to the generator, but it may not use all of
+  // them.  This works because the first arguments are on top of the
+  // stack.
+  DCHECK(!masm.has_frame());
+  g(&masm, builtin_desc->name, builtin_desc->extra_args);
+  // Move the code into the object heap.
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  Code::Flags flags = builtin_desc->flags;
+  return isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+}
+
+Handle<Code> CodeStubAssemblerBuilder(Isolate* isolate,
+                                      BuiltinDesc const* builtin_desc) {
+  Zone zone;
+  compiler::CodeStubAssembler assembler(isolate, &zone, builtin_desc->argc,
+                                        builtin_desc->flags,
+                                        builtin_desc->s_name);
+  // Generate the code/adaptor.
+  typedef void (*Generator)(compiler::CodeStubAssembler*);
+  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
+  g(&assembler);
+  return assembler.GenerateCode();
+}
+
+}  // namespace
 
 // Define array of pointers to generators and C builtin functions.
 // We do this in a sort of roundabout way so that we can do the initialization
@@ -4369,47 +4463,70 @@ static BuiltinFunctionTable builtin_function_table =
 // Code::Flags names a non-abstract type.
 void Builtins::InitBuiltinFunctionTable() {
   BuiltinDesc* functions = builtin_function_table.functions_;
-  functions[builtin_count].generator = NULL;
-  functions[builtin_count].c_code = NULL;
-  functions[builtin_count].s_name = NULL;
+  functions[builtin_count].builder = nullptr;
+  functions[builtin_count].generator = nullptr;
+  functions[builtin_count].c_code = nullptr;
+  functions[builtin_count].s_name = nullptr;
   functions[builtin_count].name = builtin_count;
   functions[builtin_count].flags = static_cast<Code::Flags>(0);
   functions[builtin_count].extra_args = BuiltinExtraArguments::kNone;
+  functions[builtin_count].argc = 0;
 
 #define DEF_FUNCTION_PTR_C(aname, aextra_args)                \
+  functions->builder = &MacroAssemblerBuilder;                \
   functions->generator = FUNCTION_ADDR(Generate_Adaptor);     \
   functions->c_code = FUNCTION_ADDR(Builtin_##aname);         \
   functions->s_name = #aname;                                 \
   functions->name = c_##aname;                                \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);       \
   functions->extra_args = BuiltinExtraArguments::aextra_args; \
+  functions->argc = 0;                                        \
   ++functions;
 
 #define DEF_FUNCTION_PTR_A(aname, kind, state, extra)              \
+  functions->builder = &MacroAssemblerBuilder;                     \
   functions->generator = FUNCTION_ADDR(Generate_##aname);          \
   functions->c_code = NULL;                                        \
   functions->s_name = #aname;                                      \
   functions->name = k##aname;                                      \
   functions->flags = Code::ComputeFlags(Code::kind, state, extra); \
   functions->extra_args = BuiltinExtraArguments::kNone;            \
+  functions->argc = 0;                                             \
+  ++functions;
+
+#define DEF_FUNCTION_PTR_T(aname, aargc)                                 \
+  functions->builder = &CodeStubAssemblerBuilder;                        \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);                \
+  functions->c_code = NULL;                                              \
+  functions->s_name = #aname;                                            \
+  functions->name = k##aname;                                            \
+  functions->flags =                                                     \
+      Code::ComputeFlags(Code::BUILTIN, UNINITIALIZED, kNoExtraICState); \
+  functions->extra_args = BuiltinExtraArguments::kNone;                  \
+  functions->argc = aargc;                                               \
   ++functions;
 
 #define DEF_FUNCTION_PTR_H(aname, kind)                     \
+  functions->builder = &MacroAssemblerBuilder;              \
   functions->generator = FUNCTION_ADDR(Generate_##aname);   \
   functions->c_code = NULL;                                 \
   functions->s_name = #aname;                               \
   functions->name = k##aname;                               \
   functions->flags = Code::ComputeHandlerFlags(Code::kind); \
   functions->extra_args = BuiltinExtraArguments::kNone;     \
+  functions->argc = 0;                                      \
   ++functions;
 
   BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
   BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
+  BUILTIN_LIST_T(DEF_FUNCTION_PTR_T)
   BUILTIN_LIST_H(DEF_FUNCTION_PTR_H)
   BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
 
 #undef DEF_FUNCTION_PTR_C
 #undef DEF_FUNCTION_PTR_A
+#undef DEF_FUNCTION_PTR_H
+#undef DEF_FUNCTION_PTR_T
 }
 
 
@@ -4421,40 +4538,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 
   const BuiltinDesc* functions = builtin_function_table.functions();
 
-  // For now we generate builtin adaptor code into a stack-allocated
-  // buffer, before copying it into individual code objects. Be careful
-  // with alignment, some platforms don't like unaligned code.
-#ifdef DEBUG
-  // We can generate a lot of debug code on Arm64.
-  const size_t buffer_size = 32*KB;
-#elif V8_TARGET_ARCH_PPC64
-  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
-  const size_t buffer_size = 10 * KB;
-#else
-  const size_t buffer_size = 8*KB;
-#endif
-  union { int force_alignment; byte buffer[buffer_size]; } u;
-
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer,
-                          CodeObjectRequired::kYes);
-      // Generate the code/adaptor.
-      typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
-      Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
-      // We pass all arguments to the generator, but it may not use all of
-      // them.  This works because the first arguments are on top of the
-      // stack.
-      DCHECK(!masm.has_frame());
-      g(&masm, functions[i].name, functions[i].extra_args);
-      // Move the code into the object heap.
-      CodeDesc desc;
-      masm.GetCode(&desc);
-      Code::Flags flags = functions[i].flags;
-      Handle<Code> code =
-          isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+      Handle<Code> code = (*functions[i].builder)(isolate, functions + i);
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG, AbstractCode::cast(*code),
@@ -4528,6 +4616,11 @@ Handle<Code> Builtins::name() {                             \
       reinterpret_cast<Code**>(builtin_address(k##name));   \
   return Handle<Code>(code_address);                        \
 }
+#define DEFINE_BUILTIN_ACCESSOR_T(name, argc)                                 \
+  Handle<Code> Builtins::name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+    return Handle<Code>(code_address);                                        \
+  }
 #define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
@@ -4536,11 +4629,13 @@ Handle<Code> Builtins::name() {                             \
 }
 BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
 BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
+BUILTIN_LIST_T(DEFINE_BUILTIN_ACCESSOR_T)
 BUILTIN_LIST_H(DEFINE_BUILTIN_ACCESSOR_H)
 BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
 #undef DEFINE_BUILTIN_ACCESSOR_C
 #undef DEFINE_BUILTIN_ACCESSOR_A
-
+#undef DEFINE_BUILTIN_ACCESSOR_T
+#undef DEFINE_BUILTIN_ACCESSOR_H
 
 }  // namespace internal
 }  // namespace v8

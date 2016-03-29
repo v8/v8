@@ -327,7 +327,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
 
 TEST(FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_opt || !i::FLAG_lazy) return;
+  if (i::FLAG_always_opt || !i::FLAG_lazy ||
+      (FLAG_ignition && FLAG_ignition_eager)) {
+    return;
+  }
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
@@ -349,7 +352,8 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
                                          ->Get(context, v8_str("morphing_call"))
                                          .ToLocalChecked())));
 
-  // Not compiled, and so no feedback vector allocated yet.
+  // If we are compiling lazily then it should not be compiled, and so no
+  // feedback vector allocated yet.
   CHECK(!f->shared()->is_compiled());
   CHECK(f->shared()->feedback_vector()->is_empty());
 

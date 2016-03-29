@@ -672,10 +672,13 @@ TEST(LineNumber) {
 
   profiler->processor()->StopSynchronously();
 
+  bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
   CHECK_EQ(1, GetFunctionLineNumber(&env, "foo_at_the_first_line"));
-  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
+  CHECK_EQ(is_lazy ? 0 : 4,
+           GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
   CHECK_EQ(2, GetFunctionLineNumber(&env, "bar_at_the_second_line"));
-  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
+  CHECK_EQ(is_lazy ? 0 : 6,
+           GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
 
   profiler->StopProfiling("LineNumber");
 }

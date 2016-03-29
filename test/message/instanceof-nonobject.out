@@ -1,5 +1,5 @@
-*%(basename)s:30: TypeError: right-hand side is not an object
+*%(basename)s:30: TypeError: Right-hand side of 'instanceof' is not an object
 1 instanceof 2;
   ^
-TypeError: right-hand side is not an object
+TypeError: Right-hand side of 'instanceof' is not an object
     at *%(basename)s:30:3

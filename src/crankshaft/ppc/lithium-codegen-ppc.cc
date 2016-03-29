@@ -3206,7 +3206,7 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
   if (instr->hydrogen()->from_inlined()) {
     __ subi(result, sp, Operand(2 * kPointerSize));
-  } else {
+  } else if (instr->hydrogen()->arguments_adaptor()) {
     // Check if the calling frame is an arguments adaptor frame.
     __ LoadP(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ LoadP(
@@ -3228,6 +3228,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
       __ mr(result, scratch);
       __ bind(&done);
     }
+  } else {
+    __ mr(result, fp);
   }
 }
 

@@ -1690,6 +1690,18 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
+void MacroAssembler::AssertNotNumber(Register value) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    Tst(value, kSmiTagMask);
+    Check(ne, kOperandIsANumber);
+    Label done;
+    JumpIfNotHeapNumber(value, &done);
+    Abort(kOperandIsANumber);
+    Bind(&done);
+  }
+}
+
 void MacroAssembler::AssertNumber(Register value) {
   if (emit_debug_code()) {
     Label done;

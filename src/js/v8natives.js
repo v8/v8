@@ -1095,6 +1095,7 @@ utils.Export(function(to) {
   to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
   to.NumberIsNaN = NumberIsNaN;
+  to.NumberIsInteger = NumberIsInteger;
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
   to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;

@@ -77,7 +77,7 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
 }
 
 Matcher<Node*>
-InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperand(
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedByteOperand(
     int offset) {
   return IsLoad(
       MachineType::Uint8(),
@@ -87,8 +87,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperand(
           IsIntPtrConstant(offset)));
 }
 
-Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
-    IsBytecodeOperandSignExtended(int offset) {
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedByteOperand(
+    int offset) {
   Matcher<Node*> load_matcher = IsLoad(
       MachineType::Int8(),
       IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
@@ -102,7 +103,7 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
 }
 
 Matcher<Node*>
-InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperandShort(
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedShortOperand(
     int offset) {
   if (TargetSupportsUnalignedAccess()) {
     return IsLoad(
@@ -113,34 +114,33 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperandShort(
                 InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
             IsIntPtrConstant(offset)));
   } else {
-    Matcher<Node*> first_byte = IsLoad(
-        MachineType::Uint8(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset)));
-    Matcher<Node*> second_byte = IsLoad(
-        MachineType::Uint8(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset + 1)));
 #if V8_TARGET_LITTLE_ENDIAN
-    return IsWordOr(IsWordShl(second_byte, IsIntPtrConstant(kBitsPerByte)),
-                    first_byte);
+    const int kStep = -1;
+    const int kMsbOffset = 1;
 #elif V8_TARGET_BIG_ENDIAN
-    return IsWordOr(IsWordShl(first_byte, IsIntPtrConstant(kBitsPerByte)),
-                    second_byte);
+    const int kStep = 1;
+    const int kMsbOffset = 0;
 #else
 #error "Unknown Architecture"
 #endif
+    Matcher<Node*> bytes[2];
+    for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
+      bytes[i] = IsLoad(
+          MachineType::Uint8(),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsIntPtrAdd(
+              IsParameter(
+                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
+    }
+    return IsWord32Or(IsWord32Shl(bytes[0], IsInt32Constant(kBitsPerByte)),
+                      bytes[1]);
   }
 }
 
-Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
-    IsBytecodeOperandShortSignExtended(int offset) {
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedShortOperand(
+    int offset) {
   Matcher<Node*> load_matcher;
   if (TargetSupportsUnalignedAccess()) {
     load_matcher = IsLoad(
@@ -152,37 +152,150 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
             IsIntPtrConstant(offset)));
   } else {
 #if V8_TARGET_LITTLE_ENDIAN
-    int hi_byte_offset = offset + 1;
-    int lo_byte_offset = offset;
-
+    const int kStep = -1;
+    const int kMsbOffset = 1;
 #elif V8_TARGET_BIG_ENDIAN
-    int hi_byte_offset = offset;
-    int lo_byte_offset = offset + 1;
+    const int kStep = 1;
+    const int kMsbOffset = 0;
 #else
 #error "Unknown Architecture"
 #endif
-    Matcher<Node*> hi_byte = IsLoad(
-        MachineType::Int8(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(hi_byte_offset)));
-    hi_byte = IsWord32Shl(hi_byte, IsInt32Constant(kBitsPerByte));
-    Matcher<Node*> lo_byte = IsLoad(
-        MachineType::Uint8(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(lo_byte_offset)));
-    load_matcher = IsWord32Or(hi_byte, lo_byte);
+    Matcher<Node*> bytes[2];
+    for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
+      bytes[i] = IsLoad(
+          (i == 0) ? MachineType::Int8() : MachineType::Uint8(),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsIntPtrAdd(
+              IsParameter(
+                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
+    }
+    load_matcher = IsWord32Or(
+        IsWord32Shl(bytes[0], IsInt32Constant(kBitsPerByte)), bytes[1]);
   }
 
   if (kPointerSize == 8) {
     load_matcher = IsChangeInt32ToInt64(load_matcher);
   }
   return load_matcher;
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedQuadOperand(
+    int offset) {
+  if (TargetSupportsUnalignedAccess()) {
+    return IsLoad(
+        MachineType::Uint32(),
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+        IsIntPtrAdd(
+            IsParameter(
+                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+            IsIntPtrConstant(offset)));
+  } else {
+#if V8_TARGET_LITTLE_ENDIAN
+    const int kStep = -1;
+    const int kMsbOffset = 3;
+#elif V8_TARGET_BIG_ENDIAN
+    const int kStep = 1;
+    const int kMsbOffset = 0;
+#else
+#error "Unknown Architecture"
+#endif
+    Matcher<Node*> bytes[4];
+    for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
+      bytes[i] = IsLoad(
+          MachineType::Uint8(),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsIntPtrAdd(
+              IsParameter(
+                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
+    }
+    return IsWord32Or(
+        IsWord32Shl(bytes[0], IsInt32Constant(3 * kBitsPerByte)),
+        IsWord32Or(
+            IsWord32Shl(bytes[1], IsInt32Constant(2 * kBitsPerByte)),
+            IsWord32Or(IsWord32Shl(bytes[2], IsInt32Constant(1 * kBitsPerByte)),
+                       bytes[3])));
+  }
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedQuadOperand(
+    int offset) {
+  Matcher<Node*> load_matcher;
+  if (TargetSupportsUnalignedAccess()) {
+    load_matcher = IsLoad(
+        MachineType::Int32(),
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+        IsIntPtrAdd(
+            IsParameter(
+                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+            IsIntPtrConstant(offset)));
+  } else {
+#if V8_TARGET_LITTLE_ENDIAN
+    const int kStep = -1;
+    int kMsbOffset = 3;
+#elif V8_TARGET_BIG_ENDIAN
+    const int kStep = 1;
+    int kMsbOffset = 0;
+#else
+#error "Unknown Architecture"
+#endif
+    Matcher<Node*> bytes[4];
+    for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
+      bytes[i] = IsLoad(
+          (i == 0) ? MachineType::Int8() : MachineType::Uint8(),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsIntPtrAdd(
+              IsParameter(
+                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
+    }
+    load_matcher = IsWord32Or(
+        IsWord32Shl(bytes[0], IsInt32Constant(3 * kBitsPerByte)),
+        IsWord32Or(
+            IsWord32Shl(bytes[1], IsInt32Constant(2 * kBitsPerByte)),
+            IsWord32Or(IsWord32Shl(bytes[2], IsInt32Constant(1 * kBitsPerByte)),
+                       bytes[3])));
+  }
+
+  if (kPointerSize == 8) {
+    load_matcher = IsChangeInt32ToInt64(load_matcher);
+  }
+  return load_matcher;
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedOperand(
+    int offset, OperandSize operand_size) {
+  switch (operand_size) {
+    case OperandSize::kByte:
+      return IsSignedByteOperand(offset);
+    case OperandSize::kShort:
+      return IsSignedShortOperand(offset);
+    case OperandSize::kQuad:
+      return IsSignedQuadOperand(offset);
+    case OperandSize::kNone:
+      UNREACHABLE();
+  }
+  return nullptr;
+}
+
+Matcher<Node*>
+InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
+    int offset, OperandSize operand_size) {
+  switch (operand_size) {
+    case OperandSize::kByte:
+      return IsUnsignedByteOperand(offset);
+    case OperandSize::kShort:
+      return IsUnsignedShortOperand(offset);
+    case OperandSize::kQuad:
+      return IsUnsignedQuadOperand(offset);
+    case OperandSize::kNone:
+      UNREACHABLE();
+  }
+  return nullptr;
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
@@ -195,9 +308,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
     EXPECT_EQ(1, end->InputCount());
     Node* tail_call_node = end->InputAt(0);
 
+    OperandScale operand_scale = OperandScale::kSingle;
     Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
         IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-        IsIntPtrConstant(interpreter::Bytecodes::Size(bytecode)));
+        IsIntPtrConstant(
+            interpreter::Bytecodes::Size(bytecode, operand_scale)));
     Matcher<Node*> target_bytecode_matcher = m.IsLoad(
         MachineType::Uint8(),
         IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
@@ -286,8 +401,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
     Node* end = graph->end();
     EXPECT_EQ(2, end->InputCount());
 
-    int jump_offsets[] = {kJumpIfTrueOffset,
-                          interpreter::Bytecodes::Size(bytecode)};
+    OperandScale operand_scale = OperandScale::kSingle;
+    int jump_offsets[] = {kJumpIfTrueOffset, interpreter::Bytecodes::Size(
+                                                 bytecode, operand_scale)};
     for (int i = 0; i < static_cast<int>(arraysize(jump_offsets)); i++) {
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
           IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
@@ -352,51 +468,55 @@ TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
+  static const OperandScale kOperandScales[] = {
+      OperandScale::kSingle, OperandScale::kDouble, OperandScale::kQuadruple};
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    int number_of_operands = interpreter::Bytecodes::NumberOfOperands(bytecode);
-    for (int i = 0; i < number_of_operands; i++) {
-      int offset = interpreter::Bytecodes::GetOperandOffset(bytecode, i);
-      switch (interpreter::Bytecodes::GetOperandType(bytecode, i)) {
-        case interpreter::OperandType::kRegCount8:
-          EXPECT_THAT(m.BytecodeOperandCount(i), m.IsBytecodeOperand(offset));
-          break;
-        case interpreter::OperandType::kIdx8:
-          EXPECT_THAT(m.BytecodeOperandIdx(i), m.IsBytecodeOperand(offset));
-          break;
-        case interpreter::OperandType::kImm8:
-          EXPECT_THAT(m.BytecodeOperandImm(i),
-                      m.IsBytecodeOperandSignExtended(offset));
-          break;
-        case interpreter::OperandType::kMaybeReg8:
-        case interpreter::OperandType::kReg8:
-        case interpreter::OperandType::kRegOut8:
-        case interpreter::OperandType::kRegOutPair8:
-        case interpreter::OperandType::kRegOutTriple8:
-        case interpreter::OperandType::kRegPair8:
-          EXPECT_THAT(m.BytecodeOperandReg(i),
-                      m.IsBytecodeOperandSignExtended(offset));
-          break;
-        case interpreter::OperandType::kRegCount16:
-          EXPECT_THAT(m.BytecodeOperandCount(i),
-                      m.IsBytecodeOperandShort(offset));
-          break;
-        case interpreter::OperandType::kIdx16:
-          EXPECT_THAT(m.BytecodeOperandIdx(i),
-                      m.IsBytecodeOperandShort(offset));
-          break;
-        case interpreter::OperandType::kMaybeReg16:
-        case interpreter::OperandType::kReg16:
-        case interpreter::OperandType::kRegOut16:
-        case interpreter::OperandType::kRegOutPair16:
-        case interpreter::OperandType::kRegOutTriple16:
-        case interpreter::OperandType::kRegPair16:
-          EXPECT_THAT(m.BytecodeOperandReg(i),
-                      m.IsBytecodeOperandShortSignExtended(offset));
-          break;
-        case interpreter::OperandType::kNone:
-          UNREACHABLE();
-          break;
+    TRACED_FOREACH(interpreter::OperandScale, operand_scale, kOperandScales) {
+      InterpreterAssemblerForTest m(this, bytecode, operand_scale);
+      int number_of_operands =
+          interpreter::Bytecodes::NumberOfOperands(bytecode);
+      for (int i = 0; i < number_of_operands; i++) {
+        int offset = interpreter::Bytecodes::GetOperandOffset(bytecode, i,
+                                                              operand_scale);
+        OperandType operand_type =
+            interpreter::Bytecodes::GetOperandType(bytecode, i);
+        OperandSize operand_size =
+            Bytecodes::SizeOfOperand(operand_type, operand_scale);
+        switch (interpreter::Bytecodes::GetOperandType(bytecode, i)) {
+          case interpreter::OperandType::kRegCount:
+            EXPECT_THAT(m.BytecodeOperandCount(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kFlag8:
+            EXPECT_THAT(m.BytecodeOperandFlag(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kIdx:
+            EXPECT_THAT(m.BytecodeOperandIdx(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kImm: {
+            EXPECT_THAT(m.BytecodeOperandImm(i),
+                        m.IsSignedOperand(offset, operand_size));
+            break;
+          }
+          case interpreter::OperandType::kMaybeReg:
+          case interpreter::OperandType::kReg:
+          case interpreter::OperandType::kRegOut:
+          case interpreter::OperandType::kRegOutPair:
+          case interpreter::OperandType::kRegOutTriple:
+          case interpreter::OperandType::kRegPair:
+            EXPECT_THAT(m.BytecodeOperandReg(i),
+                        m.IsSignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kRuntimeId:
+            EXPECT_THAT(m.BytecodeOperandRuntimeId(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
+          case interpreter::OperandType::kNone:
+            UNREACHABLE();
+            break;
+        }
       }
     }
   }

@@ -152,14 +152,6 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
                                          info->literal(), foreign, &typer)
           .Run();
 
-  if (i::FLAG_dump_asmjs_wasm) {
-    FILE* wasm_file = fopen(i::FLAG_asmjs_wasm_dumpfile, "wb");
-    if (wasm_file) {
-      fwrite(module->Begin(), module->End() - module->Begin(), 1, wasm_file);
-      fclose(wasm_file);
-    }
-  }
-
   return module;
 }
 

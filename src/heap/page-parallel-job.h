@@ -38,7 +38,8 @@ class PageParallelJob {
         cancelable_task_manager_(cancelable_task_manager),
         items_(nullptr),
         num_items_(0),
-        pending_tasks_(0) {}
+        num_tasks_(0),
+        pending_tasks_(new base::Semaphore(0)) {}
 
   ~PageParallelJob() {
     Item* item = items_;
@@ -47,6 +48,7 @@ class PageParallelJob {
       delete item;
       item = next;
     }
+    delete pending_tasks_;
   }
 
   void AddPage(MemoryChunk* chunk, typename JobTraits::PerPageData data) {
@@ -81,7 +83,7 @@ class PageParallelJob {
         start_index -= num_items_;
       }
       Task* task = new Task(heap_, items_, num_items_, start_index,
-                            &pending_tasks_, per_task_data_callback(i));
+                            pending_tasks_, per_task_data_callback(i));
       task_ids[i] = task->id();
       if (i > 0) {
         V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -96,7 +98,7 @@ class PageParallelJob {
     // Wait for background tasks.
     for (int i = 0; i < num_tasks_; i++) {
       if (!cancelable_task_manager_->TryAbort(task_ids[i])) {
-        pending_tasks_.Wait();
+        pending_tasks_->Wait();
       }
     }
     if (JobTraits::NeedSequentialFinalization) {
@@ -176,7 +178,7 @@ class PageParallelJob {
   Item* items_;
   int num_items_;
   int num_tasks_;
-  base::Semaphore pending_tasks_;
+  base::Semaphore* pending_tasks_;
   DISALLOW_COPY_AND_ASSIGN(PageParallelJob);
 };
 

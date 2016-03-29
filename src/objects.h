@@ -709,7 +709,7 @@ enum InstanceType {
   JS_GLOBAL_PROXY_TYPE,
   // Like JS_OBJECT_TYPE, but requires access checks and/or has interceptors.
   JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_VALUE_TYPE,
+  JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
   JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
@@ -760,6 +760,10 @@ enum InstanceType {
   LAST_JS_OBJECT_TYPE = LAST_TYPE,
   // Boundary for testing JSReceivers that need special property lookup handling
   LAST_SPECIAL_RECEIVER_TYPE = JS_SPECIAL_API_OBJECT_TYPE,
+  // Boundary case for testing JSReceivers that may have elements while having
+  // an empty fixed array as elements backing store. This is true for string
+  // wrappers.
+  LAST_CUSTOM_ELEMENTS_RECEIVER = JS_VALUE_TYPE,
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
@@ -1958,7 +1962,8 @@ class JSReceiver: public HeapObject {
   // "for (n in object) { }".
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
-      GetKeysConversion keys_conversion = KEEP_NUMBERS);
+      GetKeysConversion keys_conversion = KEEP_NUMBERS,
+      bool filter_proxy_keys_ = true);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
       Handle<JSReceiver> object, PropertyFilter filter);
@@ -3076,6 +3081,11 @@ class DescriptorArray: public FixedArray {
     return ToKeyIndex(number_of_descriptors);
   }
 
+  static int ToDetailsIndex(int descriptor_number) {
+    return kFirstIndex + (descriptor_number * kDescriptorSize) +
+           kDescriptorDetails;
+  }
+
  private:
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
@@ -3096,12 +3106,6 @@ class DescriptorArray: public FixedArray {
     return kFirstIndex +
            (descriptor_number * kDescriptorSize) +
            kDescriptorKey;
-  }
-
-  static int ToDetailsIndex(int descriptor_number) {
-    return kFirstIndex +
-           (descriptor_number * kDescriptorSize) +
-           kDescriptorDetails;
   }
 
   static int ToValueIndex(int descriptor_number) {
@@ -5319,8 +5323,9 @@ class Code: public HeapObject {
   // Note: We might be able to squeeze this into the flags above.
   static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
   static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
-  static const int kHeaderPaddingStart =
+  static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
+  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -5348,7 +5353,7 @@ class Code: public HeapObject {
       : public BitField<ExtraICState, 11, PlatformSmiTagging::kSmiValueSize -
                                               11 + 1> {};  // NOLINT
 
-  // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
+  // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
   static const int kStackSlotsBitCount = 24;
   static const int kMarkedForDeoptimizationBit =
@@ -6565,9 +6570,8 @@ class Script: public Struct {
   static const int kCompilationTypeBit = 0;
   static const int kCompilationStateBit = 1;
   static const int kHideSourceBit = 2;
-  static const int kAllowHtmlCommentsBit = 3;
-  static const int kOriginOptionsShift = 4;
-  static const int kOriginOptionsSize = 4;
+  static const int kOriginOptionsShift = 3;
+  static const int kOriginOptionsSize = 3;
   static const int kOriginOptionsMask = ((1 << kOriginOptionsSize) - 1)
                                         << kOriginOptionsShift;
 
@@ -6829,6 +6833,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
+
+  // Used for flags such as --hydrogen-filter.
+  bool PassesFilter(const char* raw_filter);
 
   // Position of the 'function' token in the script source.
   inline int function_token_position() const;
@@ -7608,9 +7615,6 @@ class JSFunction: public JSObject {
 
   // Returns the number of allocated literals.
   inline int NumberOfLiterals();
-
-  // Used for flags such as --hydrogen-filter.
-  bool PassesFilter(const char* raw_filter);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.

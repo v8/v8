@@ -282,6 +282,9 @@ class Immediate BASE_EMBEDDED {
   bool is_int8() const {
     return -128 <= x_ && x_ < 128 && RelocInfo::IsNone(rmode_);
   }
+  bool is_uint8() const {
+    return v8::internal::is_uint8(x_) && RelocInfo::IsNone(rmode_);
+  }
   bool is_int16() const {
     return -32768 <= x_ && x_ < 32768 && RelocInfo::IsNone(rmode_);
   }
@@ -660,13 +663,18 @@ class Assembler : public AssemblerBase {
   void and_(const Operand& dst, Register src);
   void and_(const Operand& dst, const Immediate& x);
 
-  void cmpb(Register reg, int8_t imm8) { cmpb(Operand(reg), imm8); }
-  void cmpb(const Operand& op, int8_t imm8);
+  void cmpb(Register reg, Immediate imm8) { cmpb(Operand(reg), imm8); }
+  void cmpb(const Operand& op, Immediate imm8);
   void cmpb(Register reg, const Operand& op);
   void cmpb(const Operand& op, Register reg);
+  void cmpb(Register dst, Register src) { cmpb(Operand(dst), src); }
   void cmpb_al(const Operand& op);
   void cmpw_ax(const Operand& op);
-  void cmpw(const Operand& op, Immediate imm16);
+  void cmpw(const Operand& dst, Immediate src);
+  void cmpw(Register dst, Immediate src) { cmpw(Operand(dst), src); }
+  void cmpw(Register dst, const Operand& src);
+  void cmpw(Register dst, Register src) { cmpw(Operand(dst), src); }
+  void cmpw(const Operand& dst, Register src);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg0, Register reg1) { cmp(reg0, Operand(reg1)); }
@@ -758,8 +766,8 @@ class Assembler : public AssemblerBase {
   void test(Register reg, const Operand& op);
   void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
-  void test_b(Register reg, uint8_t imm8);
-  void test_b(const Operand& op, uint8_t imm8);
+  void test_b(Register reg, Immediate imm8);
+  void test_b(const Operand& op, Immediate imm8);
 
   void xor_(Register dst, int32_t imm32);
   void xor_(Register dst, Register src) { xor_(dst, Operand(src)); }
@@ -1005,6 +1013,7 @@ class Assembler : public AssemblerBase {
                    RelocInfo::Mode rmode,
                    TypeFeedbackId id = TypeFeedbackId::None());
   inline void emit(const Immediate& x);
+  inline void emit_b(Immediate x);
   inline void emit_w(const Immediate& x);
   inline void emit_q(uint64_t x);
 

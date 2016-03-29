@@ -64,7 +64,4 @@ assertFalse(/\p{L}/u.test("\uA6EE"));
 assertTrue(/\P{L}/u.test("\uA6EE"));
 
 assertTrue(/\p{Lowercase_Letter}/u.test("a"));
-assertTrue(/\p{LowercaseLetter}/u.test("a"));
-assertTrue(/\p{Lowercaseletter}/u.test("a"));
-assertTrue(/\p{lowercase letter}/u.test("a"));
-assertTrue(/\p{lowercase    letter}/u.test("a"));
+assertTrue(/\p{Math_Symbol}/u.test("+"));

@@ -89,8 +89,10 @@
         'cctest.cc',
         'expression-type-collector.cc',
         'expression-type-collector.h',
+        'interpreter/interpreter-tester.cc',
         'interpreter/test-bytecode-generator.cc',
         'interpreter/test-interpreter.cc',
+        'interpreter/test-interpreter-intrinsics.cc',
         'interpreter/bytecode-expectations-printer.cc',
         'interpreter/bytecode-expectations-printer.h',
         'gay-fixed.cc',
@@ -314,7 +316,8 @@
           },
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64" \
-          or v8_target_arch=="arm" or v8_target_arch=="arm64"', {
+          or v8_target_arch=="arm" or v8_target_arch=="arm64" \
+          or v8_target_arch=="s390" or v8_target_arch=="s390x"', {
           # disable fmadd/fmsub so that expected results match generated code in
           # RunFloat64MulAndFloat64Add1 and friends.
           'cflags': ['-ffp-contract=off'],

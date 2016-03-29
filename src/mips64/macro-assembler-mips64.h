@@ -265,8 +265,8 @@ class MacroAssembler: public Assembler {
 
   void Call(Label* target);
 
-  void Move(Register dst, Handle<Object> handle) { li(dst, handle); }
-  void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
+  inline void Move(Register dst, Handle<Object> handle) { li(dst, handle); }
+  inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
     if (!dst.is(src)) {
@@ -274,16 +274,28 @@ class MacroAssembler: public Assembler {
     }
   }
 
-  inline void Move(FPURegister dst, FPURegister src) {
+  inline void Move_d(FPURegister dst, FPURegister src) {
     if (!dst.is(src)) {
       mov_d(dst, src);
     }
   }
 
+  inline void Move_s(FPURegister dst, FPURegister src) {
+    if (!dst.is(src)) {
+      mov_s(dst, src);
+    }
+  }
+
+  inline void Move(FPURegister dst, FPURegister src) { Move_d(dst, src); }
+
   inline void Move(Register dst_low, Register dst_high, FPURegister src) {
     mfc1(dst_low, src);
     mfhc1(dst_high, src);
   }
+
+  inline void Move(Register dst, FPURegister src) { dmfc1(dst, src); }
+
+  inline void Move(FPURegister dst, Register src) { dmtc1(src, dst); }
 
   inline void FmoveHigh(Register dst_high, FPURegister src) {
     mfhc1(dst_high, src);
@@ -312,6 +324,17 @@ class MacroAssembler: public Assembler {
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);
   void Movf(Register rd, Register rs, uint16_t cc = 0);
+
+  // Min, Max macros.
+  // On pre-r6 these functions may modify at and t8 registers.
+  void MinNaNCheck_d(FPURegister dst, FPURegister src1, FPURegister src2,
+                     Label* nan = nullptr);
+  void MaxNaNCheck_d(FPURegister dst, FPURegister src1, FPURegister src2,
+                     Label* nan = nullptr);
+  void MinNaNCheck_s(FPURegister dst, FPURegister src1, FPURegister src2,
+                     Label* nan = nullptr);
+  void MaxNaNCheck_s(FPURegister dst, FPURegister src1, FPURegister src2,
+                     Label* nan = nullptr);
 
   void Clz(Register rd, Register rs);
 
@@ -1670,6 +1693,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+
+  // Abort execution if argument is a number, enabled via --debug-code.
+  void AssertNotNumber(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

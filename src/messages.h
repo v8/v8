@@ -94,11 +94,13 @@ class CallSite {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
-  T(CalledNonCallableInstanceOf, "right-hand side is not a function")          \
+  T(CalledNonCallableInstanceOf,                                               \
+    "Right-hand side of 'instanceof' is not callable")                         \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
     "CallSite expects function as second argument, got %")                     \
+  T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
   T(CannotFreezeArrayBufferView,                                               \
@@ -135,6 +137,8 @@ class CallSite {
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidArgument, "invalid_argument")                                       \
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
+  T(InvalidRegExpExecResult,                                                   \
+    "RegExp exec method returned something other than an Object or null")      \
   T(InvalidSimdOperation, "% is not a valid type for this SIMD operation.")    \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
@@ -147,6 +151,8 @@ class CallSite {
   T(NoAccess, "no access")                                                     \
   T(NonCoercible, "Cannot match against 'undefined' or 'null'.")               \
   T(NonExtensibleProto, "% is not extensible")                                 \
+  T(NonObjectInInstanceOfCheck,                                                \
+    "Right-hand side of 'instanceof' is not an object")                        \
   T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
   T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \
   T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
@@ -330,6 +336,7 @@ class CallSite {
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
   T(InvalidArrayLength, "Invalid array length")                                \
+  T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value")                                  \
   T(InvalidCurrencyCode, "Invalid currency code: %")                           \
@@ -397,6 +404,9 @@ class CallSite {
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
   T(JsonParseUnexpectedTokenString, "Unexpected string in JSON at position %") \
   T(LabelRedeclaration, "Label '%' has already been declared")                 \
+  T(LabelledFunctionDeclaration,                                               \
+    "Labelled function declaration not allowed as the body of a control flow " \
+    "structure")                                                               \
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
@@ -463,7 +473,9 @@ class CallSite {
   T(UnterminatedTemplate, "Unterminated template literal")                     \
   T(UnterminatedTemplateExpr, "Missing } in template expression")              \
   T(FoundNonCallableHasInstance, "Found non-callable @@hasInstance")           \
-  T(NonObjectInInstanceOfCheck, "right-hand side is not an object")            \
+  T(InvalidHexEscapeSequence, "Invalid hexadecimal escape sequence")           \
+  T(InvalidUnicodeEscapeSequence, "Invalid Unicode escape sequence")           \
+  T(UndefinedUnicodeCodePoint, "Undefined Unicode code-point")                 \
   /* SyntaxError for the optional type system */                               \
   T(InvalidType, "Invalid type.")                                              \
   T(BadFunctionOrConstructorType,                                              \

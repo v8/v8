@@ -137,7 +137,7 @@ def SetupProblem(exception, test):
     # Extra debuging information when files are claimed missing.
     f = match.group(1)
     stderr += ">>> File %s exists? -> %s\n" % (f, os.path.exists(f))
-  return test.id, output.Output(1, False, "", stderr), 0
+  return test.id, output.Output(1, False, "", stderr, None), 0
 
 
 class TestJob(Job):
@@ -152,7 +152,7 @@ class TestJob(Job):
     d8.1234.sancov -> d8.test.1.sancov, where 1234 was the process' PID
     and 1 is the test ID.
     """
-    if context.sancov_dir:
+    if context.sancov_dir and output.pid is not None:
       sancov_file = os.path.join(
           context.sancov_dir, "%s.%d.sancov" % (self.test.shell(), output.pid))
 

@@ -129,6 +129,16 @@ Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
   return NoChange();
 }
 
+// ES6 draft 08-24-14, section 20.2.2.16.
+Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.floor(a:number) -> NumberFloor(a)
+    Node* value = graph()->NewNode(simplified()->NumberFloor(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
 
 // ES6 draft 08-24-14, section 20.2.2.17.
 Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
@@ -168,6 +178,17 @@ Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.32 Math.sqrt ( x )
+Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.sqrt(a:number) -> Float64Sqrt(a)
+    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -181,11 +202,17 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathImul:
       reduction = ReduceMathImul(node);
       break;
+    case kMathFloor:
+      reduction = ReduceMathFloor(node);
+      break;
     case kMathFround:
       reduction = ReduceMathFround(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
+      break;
+    case kMathSqrt:
+      reduction = ReduceMathSqrt(node);
       break;
     default:
       break;

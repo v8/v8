@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --no-legacy-const --harmony-sloppy
+// Flags: --harmony-sloppy
 
 function f() {
   const a;

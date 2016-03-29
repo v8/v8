@@ -12,5 +12,4 @@
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
 }],  # 'byteorder == big'
-
 ]

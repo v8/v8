@@ -41,17 +41,12 @@ function MathAtan2JS(y, x) {
 
 // ECMA 262 - 15.8.2.6
 function MathCeil(x) {
-  return -%_MathFloor(-x);
+  return -%math_floor(-x);
 }
 
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
   return %MathExpRT(TO_NUMBER(x));
-}
-
-// ECMA 262 - 15.8.2.9
-function MathFloorJS(x) {
-  return %_MathFloor(+x);
 }
 
 // ECMA 262 - 15.8.2.10
@@ -91,11 +86,6 @@ function MathRound(x) {
   return %RoundNumber(TO_NUMBER(x));
 }
 
-// ECMA 262 - 15.8.2.17
-function MathSqrtJS(x) {
-  return %_MathSqrt(+x);
-}
-
 // ES6 draft 09-27-13, section 20.2.2.28.
 function MathSign(x) {
   x = +x;
@@ -108,8 +98,8 @@ function MathSign(x) {
 // ES6 draft 09-27-13, section 20.2.2.34.
 function MathTrunc(x) {
   x = +x;
-  if (x > 0) return %_MathFloor(x);
-  if (x < 0) return -%_MathFloor(-x);
+  if (x > 0) return %math_floor(x);
+  if (x < 0) return -%math_floor(-x);
   // -0, 0 or NaN.
   return x;
 }
@@ -119,9 +109,9 @@ function MathAsinh(x) {
   x = TO_NUMBER(x);
   // Idempotent for NaN, +/-0 and +/-Infinity.
   if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  if (x > 0) return MathLog(x + %_MathSqrt(x * x + 1));
+  if (x > 0) return MathLog(x + %math_sqrt(x * x + 1));
   // This is to prevent numerical errors caused by large negative x.
-  return -MathLog(-x + %_MathSqrt(x * x + 1));
+  return -MathLog(-x + %math_sqrt(x * x + 1));
 }
 
 // ES6 draft 09-27-13, section 20.2.2.3.
@@ -130,7 +120,7 @@ function MathAcosh(x) {
   if (x < 1) return NaN;
   // Idempotent for NaN and +Infinity.
   if (!NUMBER_IS_FINITE(x)) return x;
-  return MathLog(x + %_MathSqrt(x + 1) * %_MathSqrt(x - 1));
+  return MathLog(x + %math_sqrt(x + 1) * %math_sqrt(x - 1));
 }
 
 // ES6 draft 09-27-13, section 20.2.2.7.
@@ -169,7 +159,7 @@ function MathHypot(x, y) {  // Function length is 2.
     compensation = (preliminary - sum) - summand;
     sum = preliminary;
   }
-  return %_MathSqrt(sum) * max;
+  return %math_sqrt(sum) * max;
 }
 
 // ES6 draft 07-18-14, section 20.2.2.11
@@ -192,7 +182,7 @@ macro NEWTON_ITERATION_CBRT(x, approx)
 endmacro
 
 function CubeRoot(x) {
-  var approx_hi = MathFloorJS(%_DoubleHi(x) / 3) + 0x2A9F7893;
+  var approx_hi = %math_floor(%_DoubleHi(x) / 3) + 0x2A9F7893;
   var approx = %_ConstructDouble(approx_hi | 0, 0);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);
@@ -231,10 +221,8 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "abs", MathAbs,
   "ceil", MathCeil,
   "exp", MathExp,
-  "floor", MathFloorJS,
   "log", MathLog,
   "round", MathRound,
-  "sqrt", MathSqrtJS,
   "atan2", MathAtan2JS,
   "pow", MathPowJS,
   "sign", MathSign,
@@ -251,10 +239,8 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 %SetForceInlineFlag(MathAtan2JS);
 %SetForceInlineFlag(MathCeil);
 %SetForceInlineFlag(MathClz32JS);
-%SetForceInlineFlag(MathFloorJS);
 %SetForceInlineFlag(MathRandom);
 %SetForceInlineFlag(MathSign);
-%SetForceInlineFlag(MathSqrtJS);
 %SetForceInlineFlag(MathTrunc);
 
 // -------------------------------------------------------------------
@@ -263,7 +249,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 utils.Export(function(to) {
   to.MathAbs = MathAbs;
   to.MathExp = MathExp;
-  to.MathFloor = MathFloorJS;
   to.IntRandom = MathRandomRaw;
 });
 

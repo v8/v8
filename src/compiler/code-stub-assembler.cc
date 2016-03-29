@@ -152,6 +152,113 @@ Node* CodeStubAssembler::SmiShiftBitsConstant() {
   return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
+Node* CodeStubAssembler::Float64Floor(Node* x) {
+  if (raw_assembler_->machine()->Float64RoundDown().IsSupported()) {
+    return raw_assembler_->Float64RoundDown(x);
+  }
+
+  Node* two_52 = Float64Constant(4503599627370496.0E0);
+  Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
+
+  Variable var_x(this, MachineRepresentation::kFloat64);
+  var_x.Bind(x);
+
+  Label return_x(this);
+
+  // Check if {x} is a large positive integer.
+  Label if_xlargeposint(this), if_xnotlargeposint(this);
+  Branch(Float64GreaterThanOrEqual(x, two_52), &if_xlargeposint,
+         &if_xnotlargeposint);
+
+  Bind(&if_xlargeposint);
+  {
+    // The {x} is already an even integer.
+    Goto(&return_x);
+  }
+
+  Bind(&if_xnotlargeposint);
+  {
+    // Check if {x} is negative.
+    Label if_xnegative(this), if_xpositive(this);
+    Branch(Float64LessThan(x, Float64Constant(0.0)), &if_xnegative,
+           &if_xpositive);
+
+    Bind(&if_xnegative);
+    {
+      // Check if {x} is a large negative integer.
+      Label if_xlargenegint(this), if_xnotlargenegint(this);
+      Branch(Float64LessThanOrEqual(x, minus_two_52), &if_xlargenegint,
+             &if_xnotlargenegint);
+
+      Bind(&if_xlargenegint);
+      {
+        // The {x} is already an even integer.
+        Goto(&return_x);
+      }
+
+      Bind(&if_xnotlargenegint);
+      {
+        // Round negative {x} towards -Infinity.
+        Node* z = Float64Sub(Float64Constant(-0.0), x);
+        Node* y = Float64Sub(Float64Add(two_52, z), two_52);
+
+        // Check if we need to adjust {y}.
+        Label if_adjust(this), if_notadjust(this);
+        Branch(Float64GreaterThan(z, y), &if_adjust, &if_notadjust);
+
+        Bind(&if_adjust);
+        {
+          var_x.Bind(Float64Sub(Float64Constant(-1.0), y));
+          Goto(&return_x);
+        }
+
+        Bind(&if_notadjust);
+        {
+          var_x.Bind(Float64Sub(Float64Constant(-0.0), y));
+          Goto(&return_x);
+        }
+      }
+    }
+
+    Bind(&if_xpositive);
+    {
+      // Check if {x} is zero (either positive or negative).
+      Label if_xzero(this), if_xnotzero(this);
+      Branch(Float64Equal(x, Float64Constant(0.0)), &if_xzero, &if_xnotzero);
+
+      Bind(&if_xzero);
+      {
+        // We have to return both 0.0 and -0.0 as is.
+        Goto(&return_x);
+      }
+
+      Bind(&if_xnotzero);
+      {
+        // Round positive {x} towards -Infinity.
+        Node* y = Float64Sub(Float64Add(two_52, x), two_52);
+
+        // Check if we need to adjust {y}.
+        Label if_adjust(this), if_notadjust(this);
+        Branch(Float64LessThan(x, y), &if_adjust, &if_notadjust);
+
+        Bind(&if_adjust);
+        {
+          var_x.Bind(Float64Sub(y, Float64Constant(1.0)));
+          Goto(&return_x);
+        }
+
+        Bind(&if_notadjust);
+        {
+          var_x.Bind(y);
+          Goto(&return_x);
+        }
+      }
+    }
+  }
+
+  Bind(&return_x);
+  return var_x.value();
+}
 
 Node* CodeStubAssembler::SmiTag(Node* value) {
   return raw_assembler_->WordShl(value, SmiShiftBitsConstant());
@@ -161,7 +268,7 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
 
-Node* CodeStubAssembler::SmiToInt32(Node* value) {
+Node* CodeStubAssembler::SmiToWord32(Node* value) {
   Node* result = raw_assembler_->WordSar(value, SmiShiftBitsConstant());
   if (raw_assembler_->machine()->Is64()) {
     result = raw_assembler_->TruncateInt64ToInt32(result);
@@ -174,6 +281,16 @@ Node* CodeStubAssembler::SmiToFloat64(Node* value) {
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
+
+Node* CodeStubAssembler::SmiAddWithOverflow(Node* a, Node* b) {
+  return IntPtrAddWithOverflow(a, b);
+}
+
+Node* CodeStubAssembler::SmiSub(Node* a, Node* b) { return IntPtrSub(a, b); }
+
+Node* CodeStubAssembler::SmiSubWithOverflow(Node* a, Node* b) {
+  return IntPtrSubWithOverflow(a, b);
+}
 
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 
@@ -221,6 +338,12 @@ Node* CodeStubAssembler::WordIsSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
+Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
+  return WordEqual(
+      raw_assembler_->WordAnd(a, IntPtrConstant(kSmiTagMask | kSmiSignMask)),
+      IntPtrConstant(0));
+}
+
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
                                           MachineType rep) {
   return raw_assembler_->Load(rep, buffer, IntPtrConstant(offset));
@@ -235,6 +358,18 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset,
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return Load(MachineType::Float64(), object,
               IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
+  return StoreNoWriteBarrier(
+      MachineRepresentation::kFloat64, object,
+      IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
+}
+
+Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
+  Node* value = LoadHeapNumberValue(object);
+  return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                                value);
 }
 
 Node* CodeStubAssembler::LoadMapBitField(Node* map) {
@@ -416,6 +551,18 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
                               limit_address);
 }
 
+Node* CodeStubAssembler::AllocateHeapNumber() {
+  Node* result = Allocate(HeapNumber::kSize, kNone);
+  StoreMapNoWriteBarrier(result, HeapNumberMapConstant());
+  return result;
+}
+
+Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value) {
+  Node* result = AllocateHeapNumber();
+  StoreHeapNumberValue(result, value);
+  return result;
+}
+
 Node* CodeStubAssembler::Load(MachineType rep, Node* base) {
   return raw_assembler_->Load(rep, base);
 }
@@ -453,6 +600,12 @@ Node* CodeStubAssembler::LoadMap(Node* object) {
   return LoadObjectField(object, HeapObject::kMapOffset);
 }
 
+Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
+  return StoreNoWriteBarrier(
+      MachineRepresentation::kTagged, object,
+      IntPtrConstant(HeapNumber::kMapOffset - kHeapObjectTag), map);
+}
+
 Node* CodeStubAssembler::LoadInstanceType(Node* object) {
   return LoadMapInstanceType(LoadMap(object));
 }
@@ -464,110 +617,201 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
       raw_assembler_->Int32Constant(shift));
 }
 
+Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
+  Node* value32 = raw_assembler_->TruncateFloat64ToInt32(
+      TruncationMode::kRoundToZero, value);
+  Node* value64 = ChangeInt32ToFloat64(value32);
+
+  Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
+
+  Label if_valueisequal(this), if_valueisnotequal(this);
+  Branch(Float64Equal(value, value64), &if_valueisequal, &if_valueisnotequal);
+  Bind(&if_valueisequal);
+  {
+    Label if_valueiszero(this), if_valueisnotzero(this);
+    Branch(Float64Equal(value, Float64Constant(0.0)), &if_valueiszero,
+           &if_valueisnotzero);
+
+    Bind(&if_valueiszero);
+    BranchIfInt32LessThan(raw_assembler_->Float64ExtractHighWord32(value),
+                          Int32Constant(0), &if_valueisheapnumber,
+                          &if_valueisint32);
+
+    Bind(&if_valueisnotzero);
+    Goto(&if_valueisint32);
+  }
+  Bind(&if_valueisnotequal);
+  Goto(&if_valueisheapnumber);
+
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Bind(&if_valueisint32);
+  {
+    if (raw_assembler_->machine()->Is64()) {
+      Node* result = SmiTag(ChangeInt32ToInt64(value32));
+      var_result.Bind(result);
+      Goto(&if_join);
+    } else {
+      Node* pair = Int32AddWithOverflow(value32, value32);
+      Node* overflow = Projection(1, pair);
+      Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
+          if_join(this);
+      Branch(overflow, &if_overflow, &if_notoverflow);
+      Bind(&if_overflow);
+      Goto(&if_valueisheapnumber);
+      Bind(&if_notoverflow);
+      {
+        Node* result = Projection(0, pair);
+        var_result.Bind(result);
+        Goto(&if_join);
+      }
+    }
+  }
+  Bind(&if_valueisheapnumber);
+  {
+    Node* result = AllocateHeapNumberWithValue(value);
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+  Bind(&if_join);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    return SmiTag(ChangeInt32ToInt64(value));
+  }
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Node* pair = Int32AddWithOverflow(value, value);
+  Node* overflow = Projection(1, pair);
+  Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
+      if_join(this);
+  Branch(overflow, &if_overflow, &if_notoverflow);
+  Bind(&if_overflow);
+  {
+    Node* value64 = ChangeInt32ToFloat64(value);
+    Node* result = AllocateHeapNumberWithValue(value64);
+    var_result.Bind(result);
+  }
+  Goto(&if_join);
+  Bind(&if_notoverflow);
+  {
+    Node* result = Projection(0, pair);
+    var_result.Bind(result);
+  }
+  Goto(&if_join);
+  Bind(&if_join);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
+  // We might need to loop once due to ToNumber conversion.
+  Variable var_value(this, MachineRepresentation::kTagged),
+      var_result(this, MachineRepresentation::kFloat64);
+  Label loop(this, &var_value), done_loop(this, &var_result);
+  var_value.Bind(value);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {value}.
+    value = var_value.value();
+
+    // Check if the {value} is a Smi or a HeapObject.
+    Label if_valueissmi(this), if_valueisnotsmi(this);
+    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+    Bind(&if_valueissmi);
+    {
+      // Convert the Smi {value}.
+      var_result.Bind(SmiToFloat64(value));
+      Goto(&done_loop);
+    }
+
+    Bind(&if_valueisnotsmi);
+    {
+      // Check if {value} is a HeapNumber.
+      Label if_valueisheapnumber(this),
+          if_valueisnotheapnumber(this, Label::kDeferred);
+      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+             &if_valueisheapnumber, &if_valueisnotheapnumber);
+
+      Bind(&if_valueisheapnumber);
+      {
+        // Load the floating point value.
+        var_result.Bind(LoadHeapNumberValue(value));
+        Goto(&done_loop);
+      }
+
+      Bind(&if_valueisnotheapnumber);
+      {
+        // Convert the {value} to a Number first.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_value.Bind(CallStub(callable, context, value));
+        Goto(&loop);
+      }
+    }
+  }
+  Bind(&done_loop);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
+  // We might need to loop once due to ToNumber conversion.
+  Variable var_value(this, MachineRepresentation::kTagged),
+      var_result(this, MachineRepresentation::kWord32);
+  Label loop(this, &var_value), done_loop(this, &var_result);
+  var_value.Bind(value);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    // Load the current {value}.
+    value = var_value.value();
+
+    // Check if the {value} is a Smi or a HeapObject.
+    Label if_valueissmi(this), if_valueisnotsmi(this);
+    Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+    Bind(&if_valueissmi);
+    {
+      // Convert the Smi {value}.
+      var_result.Bind(SmiToWord32(value));
+      Goto(&done_loop);
+    }
+
+    Bind(&if_valueisnotsmi);
+    {
+      // Check if {value} is a HeapNumber.
+      Label if_valueisheapnumber(this),
+          if_valueisnotheapnumber(this, Label::kDeferred);
+      Branch(WordEqual(LoadMap(value), HeapNumberMapConstant()),
+             &if_valueisheapnumber, &if_valueisnotheapnumber);
+
+      Bind(&if_valueisheapnumber);
+      {
+        // Truncate the floating point value.
+        var_result.Bind(TruncateHeapNumberValueToWord32(value));
+        Goto(&done_loop);
+      }
+
+      Bind(&if_valueisnotheapnumber);
+      {
+        // Convert the {value} to a Number first.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_value.Bind(CallStub(callable, context, value));
+        Goto(&loop);
+      }
+    }
+  }
+  Bind(&done_loop);
+  return var_result.value();
+}
+
 void CodeStubAssembler::BranchIf(Node* condition, Label* if_true,
                                  Label* if_false) {
-  Label if_condition_true(this), if_condition_false(this);
-  Branch(condition, &if_condition_true, &if_condition_false);
-  Bind(&if_condition_true);
+  Label if_condition_is_true(this), if_condition_is_false(this);
+  Branch(condition, &if_condition_is_true, &if_condition_is_false);
+  Bind(&if_condition_is_true);
   Goto(if_true);
-  Bind(&if_condition_false);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfInt32LessThan(Node* a, Node* b, Label* if_true,
-                                              Label* if_false) {
-  Label if_lessthan(this), if_notlessthan(this);
-  Branch(Int32LessThan(a, b), &if_lessthan, &if_notlessthan);
-  Bind(&if_lessthan);
-  Goto(if_true);
-  Bind(&if_notlessthan);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfSmiLessThan(Node* a, Node* b, Label* if_true,
-                                            Label* if_false) {
-  Label if_lessthan(this), if_notlessthan(this);
-  Branch(SmiLessThan(a, b), &if_lessthan, &if_notlessthan);
-  Bind(&if_lessthan);
-  Goto(if_true);
-  Bind(&if_notlessthan);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfSmiLessThanOrEqual(Node* a, Node* b,
-                                                   Label* if_true,
-                                                   Label* if_false) {
-  Label if_lessthanorequal(this), if_notlessthanorequal(this);
-  Branch(SmiLessThanOrEqual(a, b), &if_lessthanorequal, &if_notlessthanorequal);
-  Bind(&if_lessthanorequal);
-  Goto(if_true);
-  Bind(&if_notlessthanorequal);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfFloat64Equal(Node* a, Node* b, Label* if_true,
-                                             Label* if_false) {
-  Label if_equal(this), if_notequal(this);
-  Branch(Float64Equal(a, b), &if_equal, &if_notequal);
-  Bind(&if_equal);
-  Goto(if_true);
-  Bind(&if_notequal);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfFloat64LessThan(Node* a, Node* b,
-                                                Label* if_true,
-                                                Label* if_false) {
-  Label if_lessthan(this), if_notlessthan(this);
-  Branch(Float64LessThan(a, b), &if_lessthan, &if_notlessthan);
-  Bind(&if_lessthan);
-  Goto(if_true);
-  Bind(&if_notlessthan);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfFloat64LessThanOrEqual(Node* a, Node* b,
-                                                       Label* if_true,
-                                                       Label* if_false) {
-  Label if_lessthanorequal(this), if_notlessthanorequal(this);
-  Branch(Float64LessThanOrEqual(a, b), &if_lessthanorequal,
-         &if_notlessthanorequal);
-  Bind(&if_lessthanorequal);
-  Goto(if_true);
-  Bind(&if_notlessthanorequal);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfFloat64GreaterThan(Node* a, Node* b,
-                                                   Label* if_true,
-                                                   Label* if_false) {
-  Label if_greaterthan(this), if_notgreaterthan(this);
-  Branch(Float64GreaterThan(a, b), &if_greaterthan, &if_notgreaterthan);
-  Bind(&if_greaterthan);
-  Goto(if_true);
-  Bind(&if_notgreaterthan);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfFloat64GreaterThanOrEqual(Node* a, Node* b,
-                                                          Label* if_true,
-                                                          Label* if_false) {
-  Label if_greaterthanorequal(this), if_notgreaterthanorequal(this);
-  Branch(Float64GreaterThanOrEqual(a, b), &if_greaterthanorequal,
-         &if_notgreaterthanorequal);
-  Bind(&if_greaterthanorequal);
-  Goto(if_true);
-  Bind(&if_notgreaterthanorequal);
-  Goto(if_false);
-}
-
-void CodeStubAssembler::BranchIfWord32Equal(Node* a, Node* b, Label* if_true,
-                                            Label* if_false) {
-  Label if_equal(this), if_notequal(this);
-  Branch(Word32Equal(a, b), &if_equal, &if_notequal);
-  Bind(&if_equal);
-  Goto(if_true);
-  Bind(&if_notequal);
+  Bind(&if_condition_is_false);
   Goto(if_false);
 }
 

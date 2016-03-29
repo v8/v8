@@ -764,11 +764,12 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
                                     name_is_strict_reserved, pos, ok);
 }
 
+
 Parser::Parser(ParseInfo* info)
     : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
                                info->extension(), info->ast_value_factory(),
                                NULL, this),
-      scanner_(info->unicode_cache(), info->allow_html_comments()),
+      scanner_(info->unicode_cache()),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
@@ -783,10 +784,10 @@ Parser::Parser(ParseInfo* info)
   DCHECK(!info->script().is_null() || info->source_stream() != NULL);
   set_allow_lazy(info->allow_lazy_parsing());
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
+  set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native());
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_sloppy_function(FLAG_harmony_sloppy_function);
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
-  set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
@@ -1292,7 +1293,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
     default:
       break;
   }
-  return ParseStatement(NULL, ok);
+  return ParseStatement(NULL, kAllowLabelledFunctionStatement, ok);
 }
 
 
@@ -1742,8 +1743,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   return result;
 }
 
-
 Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
+                                  AllowLabelledFunctionStatement allow_function,
                                   bool* ok) {
   // Statement ::
   //   EmptyStatement
@@ -1753,12 +1754,12 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
     Next();
     return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   }
-  return ParseSubStatement(labels, ok);
+  return ParseSubStatement(labels, allow_function, ok);
 }
 
-
-Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
-                                     bool* ok) {
+Statement* Parser::ParseSubStatement(
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // Statement ::
   //   Block
   //   VariableStatement
@@ -1846,17 +1847,8 @@ Statement* Parser::ParseSubStatement(ZoneList<const AstRawString*>* labels,
     case Token::VAR:
       return ParseVariableStatement(kStatement, NULL, ok);
 
-    case Token::CONST:
-      // In ES6 CONST is not allowed as a Statement, only as a
-      // LexicalDeclaration, however we continue to allow it in sloppy mode for
-      // backwards compatibility.
-      if (is_sloppy(language_mode()) && allow_legacy_const()) {
-        return ParseVariableStatement(kStatement, NULL, ok);
-      }
-
-    // Fall through.
     default:
-      return ParseExpressionOrLabelledStatement(labels, ok);
+      return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
   }
 }
 
@@ -1938,13 +1930,6 @@ Variable* Parser::Declare(Declaration* declaration,
       }
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), kind, kNotAssigned);
-    } else if ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
-               !declaration_scope->is_script_scope()) {
-      // Duplicate legacy const definitions throw at runtime.
-      DCHECK(is_sloppy(language_mode()));
-      Expression* expression = NewThrowSyntaxError(
-          MessageTemplate::kVarRedeclaration, name, declaration->position());
-      declaration_scope->SetIllegalRedeclaration(expression);
     } else if ((IsLexicalVariableMode(mode) ||
                 IsLexicalVariableMode(var->mode())) &&
                // Lexical bindings may appear for some parameters in sloppy
@@ -2317,14 +2302,9 @@ Block* Parser::ParseVariableDeclarations(
     Consume(Token::VAR);
   } else if (peek() == Token::CONST && allow_const()) {
     Consume(Token::CONST);
-    if (is_sloppy(language_mode()) && allow_legacy_const()) {
-      parsing_result->descriptor.mode = CONST_LEGACY;
-      ++use_counts_[v8::Isolate::kLegacyConst];
-    } else {
-      DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
-      DCHECK(var_context != kStatement);
-      parsing_result->descriptor.mode = CONST;
-    }
+    DCHECK(is_strict(language_mode()) || allow_harmony_sloppy());
+    DCHECK(var_context != kStatement);
+    parsing_result->descriptor.mode = CONST;
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
@@ -2463,9 +2443,9 @@ static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
   return false;
 }
 
-
 Statement* Parser::ParseExpressionOrLabelledStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZoneList<const AstRawString*>* labels,
+    AllowLabelledFunctionStatement allow_function, bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
   //   Identifier ':' Statement
@@ -2518,9 +2498,13 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     Expect(Token::COLON, CHECK_OK);
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
-      return ParseFunctionDeclaration(labels, ok);
+      if (allow_function == kAllowLabelledFunctionStatement) {
+        return ParseFunctionDeclaration(labels, ok);
+      } else {
+        return ParseScopedStatement(labels, true, ok);
+      }
     }
-    return ParseStatement(labels, ok);
+    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
   }
 
   // If we have an extension, we allow a native function declaration.
@@ -2708,7 +2692,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     }
 
     // ES6 14.6.1 Static Semantics: IsInTailPosition
-    if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
+    if (allow_tailcalls() && !is_sloppy(language_mode())) {
       function_state_->AddExpressionInTailPosition(return_value);
     }
   }
@@ -3508,7 +3492,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
                                         bool legacy, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION ||
       (legacy && allow_harmony_restrictive_declarations())) {
-    return ParseSubStatement(labels, ok);
+    return ParseSubStatement(labels, kDisallowLabelledFunctionStatement, ok);
   } else {
     if (legacy) {
       ++use_counts_[v8::Isolate::kLegacyFunctionDeclaration];
@@ -4713,7 +4697,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
-    SET_ALLOW(legacy_const);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_function);
     SET_ALLOW(harmony_sloppy_let);

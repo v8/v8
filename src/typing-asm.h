@@ -135,6 +135,9 @@ class AsmTyper : public AstVisitor {
 
   void VisitHeapAccess(Property* expr, bool assigning, Type* assignment_type);
 
+  void CheckPolymorphicStdlibArguments(enum StandardMember standard_member,
+                                       ZoneList<Expression*>* args);
+
   Expression* GetReceiverOfPropertyAccess(Expression* expr, const char* name);
   bool IsMathObject(Expression* expr);
   bool IsSIMDObject(Expression* expr);

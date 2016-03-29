@@ -252,9 +252,11 @@ MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
 // Returns "nothing" in case of exception, "true" on success.
 Maybe<bool> KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
                                              Handle<FixedArray> keys) {
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, keys, FilterProxyKeys(isolate_, proxy, keys, filter_),
-      Nothing<bool>());
+  if (filter_proxy_keys_) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, keys, FilterProxyKeys(isolate_, proxy, keys, filter_),
+        Nothing<bool>());
+  }
   // Proxies define a complete list of keys with no distinction of
   // elements and properties, which breaks the normal assumption for the
   // KeyAccumulator.
@@ -438,7 +440,8 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
     GetKeysConversion convert) {
-  return JSReceiver::GetKeys(receiver_, type_, ENUMERABLE_STRINGS);
+  return JSReceiver::GetKeys(receiver_, type_, ENUMERABLE_STRINGS, KEEP_NUMBERS,
+                             filter_proxy_keys_);
 }
 
 }  // namespace internal

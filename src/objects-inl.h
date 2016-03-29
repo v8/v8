@@ -4925,14 +4925,10 @@ void Code::set_profiler_ticks(int ticks) {
   }
 }
 
-
-int Code::builtin_index() {
-  return READ_INT32_FIELD(this, kKindSpecificFlags1Offset);
-}
-
+int Code::builtin_index() { return READ_INT_FIELD(this, kBuiltinIndexOffset); }
 
 void Code::set_builtin_index(int index) {
-  WRITE_INT32_FIELD(this, kKindSpecificFlags1Offset, index);
+  WRITE_INT_FIELD(this, kBuiltinIndexOffset, index);
 }
 
 
@@ -5813,7 +5809,7 @@ bool Script::HasValidSource() {
 
 
 void SharedFunctionInfo::DontAdaptArguments() {
-  DCHECK(code()->kind() == Code::BUILTIN);
+  DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -7087,7 +7083,6 @@ NameDictionary* JSReceiver::property_dictionary() {
   return NameDictionary::cast(properties());
 }
 
-
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(object->GetIsolate(),
@@ -7764,6 +7759,30 @@ static inline uint32_t ObjectAddressForHashing(void* object) {
   return value & MemoryChunk::kAlignmentMask;
 }
 
+static inline Handle<Object> MakeEntryPair(Isolate* isolate, uint32_t index,
+                                           Handle<Object> value) {
+  Handle<Object> key = isolate->factory()->Uint32ToString(index);
+  Handle<FixedArray> entry_storage =
+      isolate->factory()->NewUninitializedFixedArray(2);
+  {
+    entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
+    entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
+  }
+  return isolate->factory()->NewJSArrayWithElements(entry_storage,
+                                                    FAST_ELEMENTS, 2);
+}
+
+static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
+                                           Handle<Object> value) {
+  Handle<FixedArray> entry_storage =
+      isolate->factory()->NewUninitializedFixedArray(2);
+  {
+    entry_storage->set(0, *key, SKIP_WRITE_BARRIER);
+    entry_storage->set(1, *value, SKIP_WRITE_BARRIER);
+  }
+  return isolate->factory()->NewJSArrayWithElements(entry_storage,
+                                                    FAST_ELEMENTS, 2);
+}
 
 #undef TYPE_CHECKER
 #undef CAST_ACCESSOR

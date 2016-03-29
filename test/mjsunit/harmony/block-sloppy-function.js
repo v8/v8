@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
+// Flags: --harmony-sloppy --harmony-sloppy-let
 // Flags: --harmony-sloppy-function
 
 // Test Annex B 3.3 semantics for functions declared in blocks in sloppy mode.
