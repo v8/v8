@@ -132,11 +132,9 @@ Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
 // ES6 draft 08-24-14, section 20.2.2.16.
 Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number()) &&
-      machine()->Float64RoundDown().IsSupported()) {
-    // Math.floor(a:number) -> Float64RoundDown(a)
-    Node* value =
-        graph()->NewNode(machine()->Float64RoundDown().op(), r.left());
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.floor(a:number) -> NumberFloor(a)
+    Node* value = graph()->NewNode(simplified()->NumberFloor(), r.left());
     return Replace(value);
   }
   return NoChange();

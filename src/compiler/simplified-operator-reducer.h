@@ -9,6 +9,10 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class TypeCache;
+
 namespace compiler {
 
 // Forward declarations.
@@ -25,6 +29,7 @@ class SimplifiedOperatorReducer final : public Reducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceNumberFloor(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
 
   Reduction Change(Node* node, const Operator* op, Node* a);
@@ -42,6 +47,7 @@ class SimplifiedOperatorReducer final : public Reducer {
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
+  TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

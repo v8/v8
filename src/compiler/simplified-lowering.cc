@@ -962,6 +962,11 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kNumberFloor: {
+        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+        if (lower()) DeferReplacement(node, lowering->Float64Floor(node));
+        break;
+      }
       case IrOpcode::kNumberToInt32: {
         // Just change representation if necessary.
         VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -1517,6 +1522,132 @@ void SimplifiedLowering::DoStoreBuffer(Node* node) {
   MachineRepresentation const rep =
       BufferAccessOf(node->op()).machine_type().representation();
   NodeProperties::ChangeOp(node, machine()->CheckedStore(rep));
+}
+
+Node* SimplifiedLowering::Float64Floor(Node* const node) {
+  Node* const one = jsgraph()->Float64Constant(1.0);
+  Node* const zero = jsgraph()->Float64Constant(0.0);
+  Node* const minus_one = jsgraph()->Float64Constant(-1.0);
+  Node* const minus_zero = jsgraph()->Float64Constant(-0.0);
+  Node* const two_52 = jsgraph()->Float64Constant(4503599627370496.0E0);
+  Node* const minus_two_52 = jsgraph()->Float64Constant(-4503599627370496.0E0);
+  Node* const input = node->InputAt(0);
+
+  // Use fast hardware instruction if available.
+  if (machine()->Float64RoundDown().IsSupported()) {
+    return graph()->NewNode(machine()->Float64RoundDown().op(), input);
+  }
+
+  // General case for floor.
+  //
+  //   if 0.0 < input then
+  //     if 2^52 <= input then
+  //       input
+  //     else
+  //       let temp1 = (2^52 + input) - 2^52 in
+  //       if input < temp1 then
+  //         temp1 - 1
+  //       else
+  //         temp1
+  //   else
+  //     if input == 0 then
+  //       input
+  //     else
+  //       if input <= -2^52 then
+  //         input
+  //       else
+  //         let temp1 = -0 - input in
+  //         let temp2 = (2^52 + temp1) - 2^52 in
+  //         if temp2 < temp1 then
+  //           -1 - temp2
+  //         else
+  //           -0 - temp2
+  //
+  // Note: We do not use the Diamond helper class here, because it really hurts
+  // readability with nested diamonds.
+
+  Node* check0 = graph()->NewNode(machine()->Float64LessThan(), zero, input);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), check0,
+                                   graph()->start());
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* vtrue0;
+  {
+    Node* check1 =
+        graph()->NewNode(machine()->Float64LessThanOrEqual(), two_52, input);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* vtrue1 = input;
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* vfalse1;
+    {
+      Node* temp1 = graph()->NewNode(
+          machine()->Float64Sub(),
+          graph()->NewNode(machine()->Float64Add(), two_52, input), two_52);
+      vfalse1 = graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), input, temp1),
+          graph()->NewNode(machine()->Float64Sub(), temp1, one), temp1);
+    }
+
+    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                              vtrue1, vfalse1, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* vfalse0;
+  {
+    Node* check1 = graph()->NewNode(machine()->Float64Equal(), input, zero);
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* vtrue1 = input;
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* vfalse1;
+    {
+      Node* check2 = graph()->NewNode(machine()->Float64LessThanOrEqual(),
+                                      input, minus_two_52);
+      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check2, if_false1);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* vtrue2 = input;
+
+      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+      Node* vfalse2;
+      {
+        Node* temp1 =
+            graph()->NewNode(machine()->Float64Sub(), minus_zero, input);
+        Node* temp2 = graph()->NewNode(
+            machine()->Float64Sub(),
+            graph()->NewNode(machine()->Float64Add(), two_52, temp1), two_52);
+        vfalse2 = graph()->NewNode(
+            common()->Select(MachineRepresentation::kFloat64),
+            graph()->NewNode(machine()->Float64LessThan(), temp2, temp1),
+            graph()->NewNode(machine()->Float64Sub(), minus_one, temp2),
+            graph()->NewNode(machine()->Float64Sub(), minus_zero, temp2));
+      }
+
+      if_false1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+      vfalse1 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue2, vfalse2, if_false1);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    vfalse0 =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                         vtrue1, vfalse1, if_false0);
+  }
+
+  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  return graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                          vtrue0, vfalse0, merge0);
 }
 
 Node* SimplifiedLowering::Int32Div(Node* const node) {

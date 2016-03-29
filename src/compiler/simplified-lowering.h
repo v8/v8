@@ -55,6 +55,7 @@ class SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
 
+  Node* Float64Floor(Node* const node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
   Node* Uint32Div(Node* const node);
