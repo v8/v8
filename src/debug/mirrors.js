@@ -1037,6 +1037,15 @@ FunctionMirror.prototype.toText = function() {
 };
 
 
+FunctionMirror.prototype.context = function() {
+  if (this.resolved()) {
+    if (!this._context)
+      this._context = new ContextMirror(%FunctionGetContextData(this.value_));
+    return this._context;
+  }
+};
+
+
 /**
  * Mirror object for unresolved functions.
  * @param {string} value The name for the unresolved function reflected by this
