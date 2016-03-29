@@ -404,19 +404,19 @@ class GCTracer {
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
-  size_t NewSpaceAllocationThroughputInBytesPerMillisecond(
+  double NewSpaceAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t OldGenerationAllocationThroughputInBytesPerMillisecond(
+  double OldGenerationAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
+  double AllocationThroughputInBytesPerMillisecond(double time_ms) const;
 
   // Allocation throughput in heap in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.

@@ -335,11 +335,14 @@ void GCTracer::SampleAllocation(double current_ms,
 
 void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
-  new_space_allocation_events_.push_front(AllocationEvent(
-      allocation_duration_since_gc_, new_space_allocation_in_bytes_since_gc_));
-  old_generation_allocation_events_.push_front(
-      AllocationEvent(allocation_duration_since_gc_,
-                      old_generation_allocation_in_bytes_since_gc_));
+  if (allocation_duration_since_gc_ > 0) {
+    new_space_allocation_events_.push_front(
+        AllocationEvent(allocation_duration_since_gc_,
+                        new_space_allocation_in_bytes_since_gc_));
+    old_generation_allocation_events_.push_front(
+        AllocationEvent(allocation_duration_since_gc_,
+                        old_generation_allocation_in_bytes_since_gc_));
+  }
   allocation_duration_since_gc_ = 0;
   new_space_allocation_in_bytes_since_gc_ = 0;
   old_generation_allocation_in_bytes_since_gc_ = 0;
@@ -469,9 +472,9 @@ void GCTracer::PrintNVP() const {
                    "code=%.2f "
                    "semispace=%.2f "
                    "object_groups=%.2f "
-                   "external_prologue=$.2f "
-                   "external_epilogue=$.2f "
-                   "external_weak_global_handles=$.2f "
+                   "external_prologue=%.2f "
+                   "external_epilogue=%.2f "
+                   "external_weak_global_handles=%.2f "
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "scavenge_throughput=%" V8_PTR_PREFIX
@@ -497,8 +500,7 @@ void GCTracer::PrintNVP() const {
                    "average_survival_ratio=%.1f%% "
                    "promotion_rate=%.1f%% "
                    "semi_space_copy_rate=%.1f%% "
-                   "new_space_allocation_throughput=%" V8_PTR_PREFIX
-                   "d "
+                   "new_space_allocation_throughput=%.1f "
                    "context_disposal_rate=%.1f\n",
                    heap_->isolate()->time_millis_since_init(), duration,
                    spent_in_mutator, current_.TypeName(true),
@@ -601,8 +603,7 @@ void GCTracer::PrintNVP() const {
           "average_survival_ratio=%.1f%% "
           "promotion_rate=%.1f%% "
           "semi_space_copy_rate=%.1f%% "
-          "new_space_allocation_throughput=%" V8_PTR_PREFIX
-          "d "
+          "new_space_allocation_throughput=%.1f "
           "context_disposal_rate=%.1f "
           "compaction_speed=%" V8_PTR_PREFIX "d\n",
           heap_->isolate()->time_millis_since_init(), duration,
@@ -811,8 +812,7 @@ double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   return combined_mark_compact_speed_cache_;
 }
 
-
-size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
+double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   size_t bytes = new_space_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
@@ -827,12 +827,12 @@ size_t GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
   }
 
   if (durations == 0.0) return 0;
+
   // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+  return Max<double>(bytes / durations, 1);
 }
 
-
-size_t GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
+double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   size_t bytes = old_generation_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
@@ -848,11 +848,10 @@ size_t GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
 
   if (durations == 0.0) return 0;
   // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+  return Max<double>(bytes / durations, 1);
 }
 
-
-size_t GCTracer::AllocationThroughputInBytesPerMillisecond(
+double GCTracer::AllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   return NewSpaceAllocationThroughputInBytesPerMillisecond(time_ms) +
          OldGenerationAllocationThroughputInBytesPerMillisecond(time_ms);
