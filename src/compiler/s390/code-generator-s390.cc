@@ -1107,6 +1107,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_Div64:
+      __ LoadRR(r1, i.InputRegister(0));
+      __ dsgr(r0, i.InputRegister(1));  // R1: Dividend
+      __ ltgr(i.OutputRegister(), r1);  // Copy R1: Quotient to output
+      break;
 #endif
     case kS390_Div32:
       __ LoadRR(r0, i.InputRegister(0));
@@ -1118,15 +1122,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kS390_DivU64:
       __ LoadRR(r1, i.InputRegister(0));
       __ LoadImmP(r0, Operand::Zero());
-      __ dlgr(r0, i.InputRegister(1));  // R0:R1 = R1 / divisor -
-      __ ltgr(i.OutputRegister(), r1);  // Copy remainder to output reg
+      __ dlgr(r0, i.InputRegister(1));  // R0:R1: Dividend
+      __ ltgr(i.OutputRegister(), r1);  // Copy R1: Quotient to output
       break;
 #endif
     case kS390_DivU32:
       __ LoadRR(r0, i.InputRegister(0));
       __ srdl(r0, Operand(32));
-      __ dlr(r0, i.InputRegister(1));  // R0:R1 = R1 / divisor -
-      __ ltr(i.OutputRegister(), r1);  // Copy remainder to output reg
+      __ dlr(r0, i.InputRegister(1));  // R0:R1: Dividend
+      __ ltr(i.OutputRegister(), r1);  // Copy R1: Quotient to output
       break;
 
     case kS390_DivFloat:
