@@ -1434,14 +1434,6 @@ GeneratorMirror.prototype.func = function() {
 };
 
 
-GeneratorMirror.prototype.context = function() {
-  if (!this.context_) {
-    this.context_ = new ContextMirror(%GeneratorGetContext(this.value_));
-  }
-  return this.context_;
-};
-
-
 GeneratorMirror.prototype.receiver = function() {
   if (!this.receiver_) {
     this.receiver_ = MakeMirror(%GeneratorGetReceiver(this.value_));

@@ -148,16 +148,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
 }
 
 
-// Returns context of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->context();
-}
-
-
 // Returns receiver of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   HandleScope scope(isolate);
