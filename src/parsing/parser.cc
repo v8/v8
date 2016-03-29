@@ -4223,7 +4223,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Parse optional type annotation.
     typename TypeSystem::Type result_type = this->EmptyType();
-    if (scope_->typed() && Check(Token::COLON)) {  // Braces required here.
+    if (scope_->typed()
+        && !(type_flags & typesystem::kDisallowTypeAnnotation)
+        && Check(Token::COLON)) {  // Braces required here.
       result_type = ParseValidType(CHECK_OK);
     }
     USE(result_type);  // TODO(nikolaos): really use it!
