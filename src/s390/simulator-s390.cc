@@ -3406,10 +3406,10 @@ bool Simulator::DecodeFourByteFloatingPoint(Instruction* instr) {
           SetS390ConditionCode<double>(r1_val, r2_val);
         }
       } else if (op == CEBR) {
-        if (isNaN(r1_val) || isNaN(r2_val)) {
+        if (isNaN(fr1_val) || isNaN(fr2_val)) {
           condition_reg_ = CC_OF;
         } else {
-          SetS390ConditionCode<float>(r1_val, r2_val);
+          SetS390ConditionCode<float>(fr1_val, fr2_val);
         }
       } else if (op == CDGBR) {
         int64_t r2_val = get_register(r2);
