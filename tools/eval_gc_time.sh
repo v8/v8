@@ -59,7 +59,6 @@ INTERESTING_NEW_GEN_KEYS="\
 
 INTERESTING_OLD_GEN_KEYS="\
   ${GENERAL_INTERESTING_KEYS} \
-  external \
   clear \
   clear.code_flush \
   clear.dependent_code \
@@ -81,6 +80,11 @@ INTERESTING_OLD_GEN_KEYS="\
   evacuate.update_pointers.to_evacuated \
   evacuate.update_pointers.to_new \
   evacuate.update_pointers.weak \
+  external.mc_prologue \
+  external.mc_epilogue \
+  external.mc_incremental_prologue \
+  external.mc_incremental_epilogue \
+  external.weak_global_handles \
   mark \
   mark.finish_incremental \
   mark.prepare_code_flush \
