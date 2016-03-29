@@ -2327,7 +2327,6 @@ FreeSpace* FreeList::SearchForNodeInList(FreeListCategoryType type,
 
 FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeSpace* node = nullptr;
-  Page* page = nullptr;
 
   // First try the allocation fast path: try to allocate the minimum element
   // size of a free list category. This operation is constant time.
@@ -2354,11 +2353,6 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   // requested size.
   type = SelectFreeListCategoryType(size_in_bytes);
   node = TryFindNodeIn(type, node_size, size_in_bytes);
-  if (node != nullptr) {
-    DCHECK(size_in_bytes <= *node_size);
-    page = Page::FromAddress(node->address());
-    page->add_available_in_free_list(-(*node_size));
-  }
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return node;
