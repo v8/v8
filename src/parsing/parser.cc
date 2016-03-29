@@ -1136,11 +1136,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           shared_info->start_position(), shared_info->end_position(),
           shared_info->language_mode());
     } else {
-      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    kSkipFunctionNameCheck, shared_info->kind(),
-                                    RelocInfo::kNoPosition, function_type,
-                                    shared_info->language_mode(),
-                                    typesystem::kNormalTypes, &ok);
+      result = ParseFunctionLiteral(
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
+          shared_info->kind(), RelocInfo::kNoPosition, function_type,
+          shared_info->language_mode(), typesystem::kNormalTypes, &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != NULL));
@@ -2154,14 +2153,14 @@ Statement* Parser::ParseFunctionDeclaration(
 
   FuncNameInferrer::State fni_state(fni_);
   if (fni_ != NULL) fni_->PushEnclosingName(name);
-  FunctionLiteral* fun = ParseFunctionLiteral(
-      name, scanner()->location(),
-      is_strict_reserved ? kFunctionNameIsStrictReserved
-                         : kFunctionNameValidityUnknown,
-      is_generator ? FunctionKind::kGeneratorFunction
-                   : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::kDeclaration, language_mode(),
-      typesystem::kAllowSignature, CHECK_OK);
+  FunctionLiteral* fun =
+      ParseFunctionLiteral(name, scanner()->location(),
+                           is_strict_reserved ? kFunctionNameIsStrictReserved
+                                              : kFunctionNameValidityUnknown,
+                           is_generator ? FunctionKind::kGeneratorFunction
+                                        : FunctionKind::kNormalFunction,
+                           pos, FunctionLiteral::kDeclaration, language_mode(),
+                           typesystem::kAllowSignature, CHECK_OK);
   // Return no function declaration if just the signature was given.
   EmptyStatement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   if (fun == nullptr) return empty;
@@ -4186,9 +4185,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // Parse optional type parameters.
     typename TypeSystem::TypeParameters type_parameters =
         this->NullTypeParameters();
-    if (scope_->typed()
-        && !(type_flags & typesystem::kDisallowTypeParameters)
-        && peek() == Token::LT) {  // Braces required here.
+    if (scope_->typed() &&
+        !(type_flags & typesystem::kDisallowTypeParameters) &&
+        peek() == Token::LT) {  // Braces required here.
       type_parameters = ParseTypeParameters(CHECK_OK);
     }
     USE(type_parameters);  // TODO(nikolaos): really use them!
@@ -4207,9 +4206,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
     // Parse optional type annotation.
     typename TypeSystem::Type result_type = this->EmptyType();
-    if (scope_->typed()
-        && !(type_flags & typesystem::kDisallowTypeAnnotation)
-        && Check(Token::COLON)) {  // Braces required here.
+    if (scope_->typed() &&
+        !(type_flags & typesystem::kDisallowTypeAnnotation) &&
+        Check(Token::COLON)) {  // Braces required here.
       result_type = ParseValidType(CHECK_OK);
     }
     USE(result_type);  // TODO(nikolaos): really use it!

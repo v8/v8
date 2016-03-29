@@ -1772,8 +1772,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
     typesystem::TypeFlags type_flags = (is_get || is_set)
-        ? typesystem::kDisallowTypeParameters
-        : typesystem::kNormalTypes;
+                                           ? typesystem::kDisallowTypeParameters
+                                           : typesystem::kNormalTypes;
 
     if (in_class && !is_static && this->IsConstructor(*name)) {
       *has_seen_constructor = true;
