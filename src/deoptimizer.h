@@ -317,7 +317,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   virtual void LeaveContext(Context* context) = 0;
 };
 
-
 #define DEOPT_MESSAGES_LIST(V)                                                 \
   V(kAccessCheck, "Access check needed")                                       \
   V(kNoReason, "no reason")                                                    \
@@ -335,6 +334,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kInstanceMigrationFailed, "instance migration failed")                     \
   V(kInsufficientTypeFeedbackForCallWithArguments,                             \
     "Insufficient type feedback for call with arguments")                      \
+  V(kFastArrayPushFailed, "Falling off the fast path for FastArrayPush")       \
   V(kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                 \
     "Insufficient type feedback for combined type of binary operation")        \
   V(kInsufficientTypeFeedbackForGenericNamedAccess,                            \
@@ -397,7 +397,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kWrongMap, "wrong map")                                                    \
   V(kUndefinedOrNullInForIn, "null or undefined in for-in")                    \
   V(kUndefinedOrNullInToObject, "null or undefined in ToObject")
-
 
 class Deoptimizer : public Malloced {
  public:

@@ -258,8 +258,8 @@ class Simulator {
   // Helper functions to set the conditional flags in the architecture state.
   bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
   bool BorrowFrom(int32_t left, int32_t right);
-  bool OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
-                    bool addition);
+  template <typename T1>
+  inline bool OverflowFromSigned(T1 alu_out, T1 left, T1 right, bool addition);
 
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instruction* instr, bool* carry_out);

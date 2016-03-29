@@ -43,9 +43,6 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
-  # Issue 4698: not fully supported by Turbofan yet
-  'es6/tail-call': [PASS, NO_VARIANTS],
-
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
@@ -267,19 +264,24 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'es6/tail-call-megatest*': [PASS, FAST_VARIANTS],
 
   # TODO(titzer): correct WASM adapter frame alignment on arm64
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
   'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
+  # TODO(branelson): Figure out why ignition + asm-wasm-stdlib fails.
+  'wasm/asm-wasm-stdlib': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el] or ignition == True', SKIP]],
+  'wasm/asm-wasm-literals': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el] or ignition == True', SKIP]],
+  'wasm/asm-wasm-copy': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
+  'wasm/asm-wasm-deopt': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
   'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
 
   # TODO(bradnelson) Fix and re-enable.
-  'wasm/embenchen/copy': [FAIL],  # wrong answer
   'wasm/embenchen/box2d': [SKIP],   # hang
   'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
-  'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
+  #'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -733,6 +735,9 @@
 
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
+
+  # Too slow.
+  'es6/tail-call-megatest*': [SKIP],
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -758,7 +763,7 @@
   'es6/debug-stepnext-for': [FAIL],
   'es6/debug-stepin-string-template': [FAIL],
   'es6/debug-promises/stepin-constructor': [FAIL],
-  'harmony/debug-stepin-proxies': [FAIL],
+  'es6/debug-stepin-proxies': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
 
@@ -782,12 +787,6 @@
   'es6/debug-liveedit-new-target-3': [FAIL],
   'es6/generators-debug-liveedit': [FAIL],
 
-  # TODO(yangguo/rmcilroy,4690): Related to Debugger. Goes into a loop
-  # in function: Debug::FindSharedFunctionInfoInScript and times out.
-  'regress/regress-crbug-517592': [SKIP],
-  'regress/regress-1853': [SKIP],
-  'regress/regress-crbug-424142': [SKIP],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
@@ -802,12 +801,22 @@
   # objects.
   'es6/mirror-collections': [FAIL],
 
-  # TODO(mythria, 4680): line numbers in eval test. Coloumn number is
+  # TODO(mythria, 4680): line numbers in eval test. Column number is
   # incorrect.
   'regress/regress-crbug-109362': [FAIL],
 
   # TODO(mythria, 4680): possibly problem with line numbers.
   'es6/regress/regress-468661': [FAIL],
+
+  # TODO(mythria, 4680): Fails with context_register_count_ > 0 (0 vs. 0) when
+  # trying to get a context register in BytecodeGenerator.
+  'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
+
+  # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
+  # eager compile of the whole script instead of during lazy compile of the function
+  # f(), so we can't catch the exception in the try/catch. Skip because on some
+  # platforms the stack limit is different and the exception doesn't fire.
+  'regress/regress-crbug-589472': [SKIP],
 
   # Debugger test cases that pass with ignition, but not full-codegen.
   # These differences between full-codegen and ignition are deliberate.
@@ -837,49 +846,65 @@
 }],  # ignition == True and arch == arm
 
 ['ignition == True and msan', {
-  # TODO(rmcilroy,4680): Uninitialized memory.
+  # TODO(mythria,4680): All of these tests have large loops and hence slow
+  # and timeout.
   'compiler/osr-big': [SKIP],
   'compiler/osr-nested': [SKIP],
-  'debug-*': [SKIP],
-  'es6/debug-*': [SKIP],
-  'ignition/debug-break': [SKIP],
-  'ignition/debug-break-on-stack': [SKIP],
-  'ignition/debug-scope-on-return': [SKIP],
-  'ignition/elided-instruction': [SKIP],
-  'regress/debug-prepare-step-in': [SKIP],
-  'regress/regress-102153': [SKIP],
-  'regress/regress-109195': [SKIP],
-  'regress/regress-147497': [SKIP],
-  'regress/regress-1523': [SKIP],
-  'regress/regress-1586': [SKIP],
-  'regress/regress-1639': [SKIP],
-  'regress/regress-1639-2': [SKIP],
-  'regress/regress-269': [SKIP],
-  'regress/regress-2825': [SKIP],
   'regress/regress-298269': [SKIP],
-  'regress/regress-3960': [SKIP],
-  'regress/regress-4320': [SKIP],
-  'regress/regress-94873': [SKIP],
-  'regress/regress-998565': [SKIP],
   'regress/regress-crbug-319860': [SKIP],
-  'regress/regress-crbug-387599': [SKIP],
-  'regress/regress-crbug-405922': [SKIP],
-  'regress/regress-crbug-409614': [SKIP],
-  'regress/regress-crbug-432493': [SKIP],
-  'regress/regress-crbug-467180': [SKIP],
-  'regress/regress-crbug-568477-2': [SKIP],
-  'regress/regress-crbug-481896': [SKIP],
-  'regress/regress-crbug-568477-4': [SKIP],
-  'regress/regress-debug-deopt-while-recompile': [SKIP],
   'regress/regress-deep-proto': [SKIP],
   'try': [SKIP],
+  # Too slow for interpreter and msan.
+  'es6/tail-call-megatest*': [SKIP],
 }],  # ignition == True and msan
+
+['ignition == True and gc_stress == True', {
+  # TODO(oth,4680): failures from the bots.
+  'es6/debug-step-destructuring-bind': [SKIP],
+  'es6/debug-stepin-collections-foreach': [SKIP],
+  'ignition/elided-instruction': [SKIP],
+  'regress/regress-269': [SKIP],
+}],  # ignition == True and gc_stress == True
 
 ['ignition == False', {
   # Debugger test cases that pass with full-codegen, but not ignition.
   # These differences between full-codegen and ignition are deliberate.
   'ignition/elided-instruction': [FAIL],
 }],  # ignition == False
+
+['ignition == True and system == windows and no_snap', {
+  # TODO(rmcilroy): Fail with nosnap and shared libraries.
+  'es6/array-from': [FAIL],
+  'es6/classes-subclass-builtins': [FAIL],
+  'es6/computed-property-names-classes': [FAIL],
+  'es6/computed-property-names-object-literals-methods': [FAIL],
+  'es6/debug-stepin-generators': [FAIL],
+  'es6/destructuring': [FAIL],
+  'es6/destructuring-assignment': [FAIL],
+  'es6/generators-iteration': [FAIL],
+  'es6/generators-mirror': [FAIL],
+  'es6/generators-parsing': [FAIL],
+  'es6/generators-poisoned-properties': [FAIL],
+  'es6/generators-relocation': [FAIL],
+  'es6/generators-states': [FAIL],
+  'es6/iteration-semantics': [FAIL],
+  'es6/object-literals-method': [FAIL],
+  'es6/object-literals-super': [FAIL],
+  'es6/promises': [FAIL],
+  'es6/regress/regress-2681': [FAIL],
+  'es6/regress/regress-2691': [FAIL],
+  'es6/regress/regress-3280': [FAIL],
+  'es6/spread-array': [FAIL],
+  'es6/spread-call': [FAIL],
+  'es6/typedarray': [FAIL],
+  'es6/typedarray-from': [FAIL],
+  'harmony/function-sent': [FAIL],
+  'harmony/generators': [FAIL],
+  'harmony/iterator-close': [FAIL],
+  'harmony/regress/regress-4482': [FAIL],
+  'messages': [FAIL],
+  'regress-3225': [FAIL],
+}],  # ignition == True and system == windows and no_snap
 
 ##############################################################################
 ['gcov_coverage', {

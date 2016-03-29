@@ -40,6 +40,7 @@ using namespace v8::internal;
 
 typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
+typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 #define __ masm->
 
@@ -463,6 +464,116 @@ TEST(cvt_d_w_Trunc_w_d) {
                __ cvt_d_w(f0, f4);
                __ Trunc_w_d(f2, f0);
              }));
+  }
+}
+
+TEST(min_max_nan) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, nullptr, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct TestFloat {
+    double a;
+    double b;
+    double c;
+    double d;
+    float e;
+    float f;
+    float g;
+    float h;
+  };
+
+  TestFloat test;
+  const double dnan = std::numeric_limits<double>::quiet_NaN();
+  const double dinf = std::numeric_limits<double>::infinity();
+  const double dminf = -std::numeric_limits<double>::infinity();
+  const float fnan = std::numeric_limits<float>::quiet_NaN();
+  const float finf = std::numeric_limits<float>::infinity();
+  const float fminf = std::numeric_limits<float>::infinity();
+  const int kTableLength = 13;
+
+  double inputsa[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, dinf, dminf,
+                                  dinf, dnan, 3.0,  dinf, dnan, dnan};
+  double inputsb[kTableLength] = {3.0,   2.0, 0.0,  -0.0, dinf, 42.0, dinf,
+                                  dminf, 3.0, dnan, dnan, dinf, dnan};
+  double outputsdmin[kTableLength] = {2.0,  2.0,   -0.0,  -0.0, 42.0,
+                                      42.0, dminf, dminf, dnan, dnan,
+                                      dnan, dnan,  dnan};
+  double outputsdmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  dinf, dinf, dinf,
+                                      dinf, dnan, dnan, dnan, dnan, dnan};
+
+  float inputse[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, finf, fminf,
+                                 finf, fnan, 3.0,  finf, fnan, fnan};
+  float inputsf[kTableLength] = {3.0,   2.0, 0.0,  -0.0, finf, 42.0, finf,
+                                 fminf, 3.0, fnan, fnan, finf, fnan};
+  float outputsfmin[kTableLength] = {2.0,   2.0,  -0.0, -0.0, 42.0, 42.0, fminf,
+                                     fminf, fnan, fnan, fnan, fnan, fnan};
+  float outputsfmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  finf, finf, finf,
+                                     finf, fnan, fnan, fnan, fnan, fnan};
+
+  auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
+    __ bind(nan);
+    __ LoadRoot(at, Heap::kNanValueRootIndex);
+    __ ldc1(dst, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ Branch(back);
+  };
+
+  auto handle_snan = [masm, fnan](FPURegister dst, Label* nan, Label* back) {
+    __ bind(nan);
+    __ Move(dst, fnan);
+    __ Branch(back);
+  };
+
+  Label handle_mind_nan, handle_maxd_nan, handle_mins_nan, handle_maxs_nan;
+  Label back_mind_nan, back_maxd_nan, back_mins_nan, back_maxs_nan;
+
+  __ push(s6);
+  __ InitializeRootRegister();
+  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
+  __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
+  __ MinNaNCheck_d(f10, f4, f8, &handle_mind_nan);
+  __ bind(&back_mind_nan);
+  __ MaxNaNCheck_d(f12, f4, f8, &handle_maxd_nan);
+  __ bind(&back_maxd_nan);
+  __ MinNaNCheck_s(f14, f2, f6, &handle_mins_nan);
+  __ bind(&back_mins_nan);
+  __ MaxNaNCheck_s(f16, f2, f6, &handle_maxs_nan);
+  __ bind(&back_maxs_nan);
+  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+  __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
+  __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
+  __ pop(s6);
+  __ jr(ra);
+  __ nop();
+
+  handle_dnan(f10, &handle_mind_nan, &back_mind_nan);
+  handle_dnan(f12, &handle_maxd_nan, &back_maxd_nan);
+  handle_snan(f14, &handle_mins_nan, &back_mins_nan);
+  handle_snan(f16, &handle_maxs_nan, &back_maxs_nan);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  for (int i = 0; i < kTableLength; i++) {
+    test.a = inputsa[i];
+    test.b = inputsb[i];
+    test.e = inputse[i];
+    test.f = inputsf[i];
+
+    CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0);
+
+    CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
+    CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
+    CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
+    CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
   }
 }
 

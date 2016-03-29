@@ -305,6 +305,7 @@ void RuntimeCallStats::Print(std::ostream& os) {
 #undef PRINT_COUNTER
 
   entries.Add(&this->ExternalCallback);
+  entries.Add(&this->GC);
   entries.Add(&this->UnexpectedStubMiss);
 
   entries.Print(os);
@@ -319,6 +320,7 @@ void RuntimeCallStats::Reset() {
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
   this->ExternalCallback.Reset();
+  this->GC.Reset();
   this->UnexpectedStubMiss.Reset();
 }
 

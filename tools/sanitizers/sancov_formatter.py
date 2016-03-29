@@ -401,7 +401,7 @@ def split(options):
       json.dump(new_data, f, sort_keys=True)
 
 
-def main():
+def main(args=None):
   parser = argparse.ArgumentParser()
   parser.add_argument('--coverage-dir',
                       help='Path to the sancov output files.')
@@ -414,7 +414,7 @@ def main():
   parser.add_argument('action', choices=['all', 'merge', 'split'],
                       help='Action to perform.')
 
-  options = parser.parse_args()
+  options = parser.parse_args(args)
   if options.action.lower() == 'all':
     if not options.json_output:
       print '--json-output is required'

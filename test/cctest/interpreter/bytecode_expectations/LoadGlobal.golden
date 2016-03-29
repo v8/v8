@@ -206,7 +206,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 1031
+bytecode array length: 1032
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
@@ -593,7 +593,7 @@ bytecodes: [
   B(Ldar), R(arg0),
   B(Star), R(0),
   B(LoadIC), R(0), U8(0), U8(255),
-  B(LdaGlobalWide), U16(1), U16(257),
+  B(Wide), B(LdaGlobal), U16(1), U16(257),
   B(Return),
 ]
 constant pool: [

@@ -60,7 +60,7 @@ bytecodes: [
   B(Star), R(1),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(0),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(2),
   B(Call), R(0), R(1), U8(2), U8(1),
   B(Return),

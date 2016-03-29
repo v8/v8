@@ -684,13 +684,12 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        // Call the "has" trap on proxies.
         return JSProxy::HasProperty(it->isolate(), it->GetHolder<JSProxy>(),
                                     it->GetName());
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
-        if (!result.IsJust()) return Nothing<bool>();
+        if (result.IsNothing()) return Nothing<bool>();
         if (result.FromJust() != ABSENT) return Just(true);
         break;
       }
@@ -698,7 +697,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
         if (it->HasAccess()) break;
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
-        if (!result.IsJust()) return Nothing<bool>();
+        if (result.IsNothing()) return Nothing<bool>();
         return Just(result.FromJust() != ABSENT);
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -3200,7 +3199,7 @@ void Map::ReplaceDescriptors(DescriptorArray* new_descriptors,
   }
 
   DescriptorArray* to_replace = instance_descriptors();
-  GetHeap()->incremental_marking()->RecordWrites(to_replace);
+  GetHeap()->incremental_marking()->IterateBlackObject(to_replace);
   Map* current = this;
   while (current->instance_descriptors() == to_replace) {
     Object* next = current->GetBackPointer();
@@ -4574,7 +4573,7 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   }
 
   // Replace descriptors by new_descriptors in all maps that share it.
-  map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
+  map->GetHeap()->incremental_marking()->IterateBlackObject(*descriptors);
 
   Map* current = *map;
   while (current->instance_descriptors() == *descriptors) {
@@ -5144,11 +5143,9 @@ MaybeHandle<Context> JSReceiver::GetFunctionRealm(Handle<JSReceiver> receiver) {
 
 
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
-  Isolate* isolate = it->isolate();
-  HandleScope scope(isolate);
   PropertyDescriptor desc;
   Maybe<bool> found = JSProxy::GetOwnPropertyDescriptor(
-      isolate, it->GetHolder<JSProxy>(), it->GetName(), &desc);
+      it->isolate(), it->GetHolder<JSProxy>(), it->GetName(), &desc);
   MAYBE_RETURN(found, Nothing<PropertyAttributes>());
   if (!found.FromJust()) return Just(ABSENT);
   return Just(desc.ToAttributes());
@@ -8515,12 +8512,23 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
                                     KeyCollectionType type,
                                     PropertyFilter filter,
                                     KeyAccumulator* accumulator) {
+  // Proxies have no hidden prototype and we should not trigger the
+  // [[GetPrototypeOf]] trap on the last iteration when using
+  // AdvanceFollowingProxies.
+  if (type == OWN_ONLY && object->IsJSProxy()) {
+    MAYBE_RETURN(JSProxy::OwnPropertyKeys(isolate, receiver,
+                                          Handle<JSProxy>::cast(object), filter,
+                                          accumulator),
+                 Nothing<bool>());
+    return Just(true);
+  }
+
   PrototypeIterator::WhereToEnd end = type == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER, end);
-       !iter.IsAtEnd(); iter.Advance()) {
+       !iter.IsAtEnd();) {
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
@@ -8536,6 +8544,11 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
     }
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
+    // Iterate through proxies but ignore access checks for the ALL_CAN_READ
+    // case on API objects for OWN_ONLY keys handlede in GgetKeysFromJSObject.
+    if (!iter.AdvanceFollowingProxiesIgnoringAccessChecks()) {
+      return Nothing<bool>();
+    }
   }
   return Just(true);
 }
@@ -8694,14 +8707,15 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
   return accumulator->AddKeysFromProxy(proxy, trap_result);
 }
 
-
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
                                             PropertyFilter filter,
-                                            GetKeysConversion keys_conversion) {
+                                            GetKeysConversion keys_conversion,
+                                            bool filter_proxy_keys) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate, type, filter);
+  accumulator.set_filter_proxy_keys(filter_proxy_keys);
   MAYBE_RETURN(
       GetKeys_Internal(isolate, object, object, type, filter, &accumulator),
       MaybeHandle<FixedArray>());
@@ -8719,17 +8733,23 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
   Handle<JSObject> object(JSObject::cast(*receiver));
-  if (object->elements() != isolate->heap()->empty_fixed_array()) {
-    return Just(false);
-  }
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<FixedArray> values_or_entries =
-      isolate->factory()->NewFixedArray(number_of_own_descriptors);
+  int number_of_own_elements =
+      object->GetElementsAccessor()->GetCapacity(*object, object->elements());
+  Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
+      number_of_own_descriptors + number_of_own_elements);
   int count = 0;
 
-  bool stable = true;
+  if (object->elements() != isolate->heap()->empty_fixed_array()) {
+    MAYBE_RETURN(object->GetElementsAccessor()->CollectValuesOrEntries(
+                     isolate, object, values_or_entries, get_entries, &count,
+                     ENUMERABLE_STRINGS),
+                 Nothing<bool>());
+  }
+
+  bool stable = object->map() == *map;
 
   for (int index = 0; index < number_of_own_descriptors; index++) {
     Handle<Name> next_key(descriptors->GetKey(index), isolate);
@@ -8768,12 +8788,7 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     }
 
     if (get_entries) {
-      Handle<FixedArray> entry_storage =
-          isolate->factory()->NewUninitializedFixedArray(2);
-      entry_storage->set(0, *next_key);
-      entry_storage->set(1, *prop_value);
-      prop_value = isolate->factory()->NewJSArrayWithElements(entry_storage,
-                                                              FAST_ELEMENTS, 2);
+      prop_value = MakeEntryPair(isolate, next_key, prop_value);
     }
 
     values_or_entries->set(count, *prop_value);
@@ -13140,43 +13155,6 @@ void JSFunction::PrintName(FILE* out) {
 }
 
 
-// The filter is a pattern that matches function names in this way:
-//   "*"      all; the default
-//   "-"      all but the top-level function
-//   "-name"  all but the function "name"
-//   ""       only the top-level function
-//   "name"   only the function "name"
-//   "name*"  only functions starting with "name"
-//   "~"      none; the tilde is not an identifier
-bool JSFunction::PassesFilter(const char* raw_filter) {
-  if (*raw_filter == '*') return true;
-  String* name = shared()->DebugName();
-  Vector<const char> filter = CStrVector(raw_filter);
-  if (filter.length() == 0) return name->length() == 0;
-  if (filter[0] == '-') {
-    // Negative filter.
-    if (filter.length() == 1) {
-      return (name->length() != 0);
-    } else if (name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
-      return false;
-    }
-    if (filter[filter.length() - 1] == '*' &&
-        name->IsUtf8EqualTo(filter.SubVector(1, filter.length() - 1), true)) {
-      return false;
-    }
-    return true;
-
-  } else if (name->IsUtf8EqualTo(filter)) {
-    return true;
-  }
-  if (filter[filter.length() - 1] == '*' &&
-      name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
-    return true;
-  }
-  return false;
-}
-
-
 Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<Object> name =
@@ -13542,6 +13520,41 @@ String* SharedFunctionInfo::DebugName() {
   return String::cast(n);
 }
 
+// The filter is a pattern that matches function names in this way:
+//   "*"      all; the default
+//   "-"      all but the top-level function
+//   "-name"  all but the function "name"
+//   ""       only the top-level function
+//   "name"   only the function "name"
+//   "name*"  only functions starting with "name"
+//   "~"      none; the tilde is not an identifier
+bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
+  if (*raw_filter == '*') return true;
+  String* name = DebugName();
+  Vector<const char> filter = CStrVector(raw_filter);
+  if (filter.length() == 0) return name->length() == 0;
+  if (filter[0] == '-') {
+    // Negative filter.
+    if (filter.length() == 1) {
+      return (name->length() != 0);
+    } else if (name->IsUtf8EqualTo(filter.SubVector(1, filter.length()))) {
+      return false;
+    }
+    if (filter[filter.length() - 1] == '*' &&
+        name->IsUtf8EqualTo(filter.SubVector(1, filter.length() - 1), true)) {
+      return false;
+    }
+    return true;
+
+  } else if (name->IsUtf8EqualTo(filter)) {
+    return true;
+  }
+  if (filter[filter.length() - 1] == '*' &&
+      name->IsUtf8EqualTo(filter.SubVector(0, filter.length() - 1), true)) {
+    return true;
+  }
+  return false;
+}
 
 bool SharedFunctionInfo::HasSourceCode() const {
   return !script()->IsUndefined() &&
@@ -14999,6 +15012,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   const uint8_t* base_address = GetFirstBytecodeAddress();
   interpreter::SourcePositionTableIterator source_positions(
       source_position_table());
+
   interpreter::BytecodeArrayIterator iterator(handle(this));
   while (!iterator.done()) {
     if (!source_positions.done() &&
@@ -16116,14 +16130,16 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
 
 
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
-  Isolate* isolate = array->GetIsolate();
-  // Optimistic fast path: "length" is usually the first fast property.
-  DescriptorArray* descriptors = array->map()->instance_descriptors();
-  if (descriptors->length() >= 1 &&
-      descriptors->GetKey(0) == isolate->heap()->length_string()) {
-    return descriptors->GetDetails(0).IsReadOnly();
+  Map* map = array->map();
+  // Fast path: "length" is the first fast property of arrays. Since it's not
+  // configurable, it's guaranteed to be the first in the descriptor array.
+  if (!map->is_dictionary_map()) {
+    DCHECK(map->instance_descriptors()->GetKey(0) ==
+           array->GetHeap()->length_string());
+    return map->instance_descriptors()->GetDetails(0).IsReadOnly();
   }
 
+  Isolate* isolate = array->GetIsolate();
   LookupIterator it(array, isolate->factory()->length_string(), array,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
@@ -16766,7 +16782,6 @@ JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {
         flag = JSRegExp::kUnicode;
         break;
       case 'y':
-        if (!FLAG_harmony_regexps) return JSRegExp::Flags(0);
         flag = JSRegExp::kSticky;
         break;
       default:

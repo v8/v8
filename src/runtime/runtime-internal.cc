@@ -357,18 +357,6 @@ RUNTIME_FUNCTION(Runtime_IS_VAR) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(String, name, 0);
-
-  if (FLAG_native_code_counters) {
-    StatsCounter(isolate, name->ToCString().get()).Increment();
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {

@@ -119,16 +119,6 @@ RUNTIME_FUNCTION(Runtime_MathClz32) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathFloor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_floor_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(Floor(x));
-}
-
-
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
 RUNTIME_FUNCTION(Runtime_MathPow) {
@@ -211,17 +201,6 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
 
   // Do not call NumberFromDouble() to avoid extra checks.
   return *isolate->factory()->NewNumber(Floor(value + 0.5));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathSqrt) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_sqrt_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  lazily_initialize_fast_sqrt(isolate);
-  return *isolate->factory()->NewNumber(fast_sqrt(x, isolate));
 }
 
 

@@ -928,10 +928,8 @@ TEST(LowerBooleanToNumber_tagged_tagged) {
   CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
 }
 
-
 static Type* test_types[] = {Type::Signed32(), Type::Unsigned32(),
-                             Type::Number(), Type::Any()};
-
+                             Type::Number()};
 
 TEST(LowerNumberCmp_to_int32) {
   TestingGraph t(Type::Signed32(), Type::Signed32());
@@ -956,18 +954,13 @@ TEST(LowerNumberCmp_to_uint32) {
 
 
 TEST(LowerNumberCmp_to_float64) {
-  static Type* types[] = {Type::Number(), Type::Any()};
+  TestingGraph t(Type::Number(), Type::Number());
 
-  for (size_t i = 0; i < arraysize(types); i++) {
-    TestingGraph t(types[i], types[i]);
-
-    t.CheckLoweringBinop(IrOpcode::kFloat64Equal,
-                         t.simplified()->NumberEqual());
-    t.CheckLoweringBinop(IrOpcode::kFloat64LessThan,
-                         t.simplified()->NumberLessThan());
-    t.CheckLoweringBinop(IrOpcode::kFloat64LessThanOrEqual,
-                         t.simplified()->NumberLessThanOrEqual());
-  }
+  t.CheckLoweringBinop(IrOpcode::kFloat64Equal, t.simplified()->NumberEqual());
+  t.CheckLoweringBinop(IrOpcode::kFloat64LessThan,
+                       t.simplified()->NumberLessThan());
+  t.CheckLoweringBinop(IrOpcode::kFloat64LessThanOrEqual,
+                       t.simplified()->NumberLessThanOrEqual());
 }
 
 
@@ -1169,7 +1162,8 @@ TEST(InsertBasicChanges) {
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToTagged, MachineType::Float64(),
                        MachineType::AnyTagged());
   CheckChangeInsertion(IrOpcode::kChangeTaggedToFloat64,
-                       MachineType::AnyTagged(), MachineType::Float64());
+                       MachineType::AnyTagged(), MachineType::Float64(),
+                       Type::Number());
 
   CheckChangeInsertion(IrOpcode::kChangeInt32ToFloat64, MachineType::Int32(),
                        MachineType::Float64(), Type::Signed32());

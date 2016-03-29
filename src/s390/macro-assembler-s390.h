@@ -1588,6 +1588,12 @@ class MacroAssembler : public Assembler {
     if (isSmi) {
       SmiToArrayOffset(dst, src, elementSizeLog2);
     } else {
+#if V8_TARGET_ARCH_S390X
+      // src (key) is a 32-bit integer.  Sign extension ensures
+      // upper 32-bit does not contain garbage before being used to
+      // reference memory.
+      lgfr(src, src);
+#endif
       ShiftLeftP(dst, src, Operand(elementSizeLog2));
     }
   }
@@ -1623,6 +1629,9 @@ class MacroAssembler : public Assembler {
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+
+  // Abort execution if argument is a number, enabled via --debug-code.
+  void AssertNotNumber(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

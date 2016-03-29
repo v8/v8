@@ -1005,31 +1005,28 @@ class ScriptOriginOptions {
  public:
   V8_INLINE ScriptOriginOptions(bool is_embedder_debug_script = false,
                                 bool is_shared_cross_origin = false,
-                                bool is_opaque = false,
-                                bool allow_html_comments = false)
+                                bool is_opaque = false)
       : flags_((is_embedder_debug_script ? kIsEmbedderDebugScript : 0) |
                (is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
-               (is_opaque ? kIsOpaque : 0) |
-               (allow_html_comments ? kAllowHtmlComments : 0)) {}
+               (is_opaque ? kIsOpaque : 0)) {}
   V8_INLINE ScriptOriginOptions(int flags)
-      : flags_(flags & (kIsEmbedderDebugScript | kIsSharedCrossOrigin |
-                        kIsOpaque | kAllowHtmlComments)) {}
-  bool IsEmbedderDebugScript() const { return HasFlag(kIsEmbedderDebugScript); }
-  bool IsSharedCrossOrigin() const { return HasFlag(kIsSharedCrossOrigin); }
-  bool IsOpaque() const { return HasFlag(kIsOpaque); }
-  bool AllowHtmlComments() const { return HasFlag(kAllowHtmlComments); }
+      : flags_(flags &
+               (kIsEmbedderDebugScript | kIsSharedCrossOrigin | kIsOpaque)) {}
+  bool IsEmbedderDebugScript() const {
+    return (flags_ & kIsEmbedderDebugScript) != 0;
+  }
+  bool IsSharedCrossOrigin() const {
+    return (flags_ & kIsSharedCrossOrigin) != 0;
+  }
+  bool IsOpaque() const { return (flags_ & kIsOpaque) != 0; }
   int Flags() const { return flags_; }
 
  private:
   enum {
     kIsEmbedderDebugScript = 1,
     kIsSharedCrossOrigin = 1 << 1,
-    kIsOpaque = 1 << 2,
-    kAllowHtmlComments = 1 << 3
+    kIsOpaque = 1 << 2
   };
-
-  inline bool HasFlag(int flag) const { return (flags_ & flag) != 0; }
-
   const int flags_;
 };
 
@@ -1046,8 +1043,7 @@ class ScriptOrigin {
       Local<Integer> script_id = Local<Integer>(),
       Local<Boolean> resource_is_embedder_debug_script = Local<Boolean>(),
       Local<Value> source_map_url = Local<Value>(),
-      Local<Boolean> resource_is_opaque = Local<Boolean>(),
-      Local<Boolean> allow_html_comments = Local<Boolean>());
+      Local<Boolean> resource_is_opaque = Local<Boolean>());
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
   V8_INLINE Local<Integer> ResourceColumnOffset() const;
@@ -5354,6 +5350,15 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
                                      uint16_t class_id) {}
 };
 
+/**
+ * Memory pressure level for the MemoryPressureNotification.
+ * kNone hints V8 that there is no memory pressure.
+ * kModerate hints V8 to speed up incremental garbage collection at the cost of
+ * of higher latency due to garbage collection pauses.
+ * kCritical hints V8 to free memory as soon as possible. Garbage collection
+ * pauses at this level will be large.
+ */
+enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
@@ -5593,6 +5598,14 @@ class V8_EXPORT Isolate {
   typedef bool (*AbortOnUncaughtExceptionCallback)(Isolate*);
   void SetAbortOnUncaughtExceptionCallback(
       AbortOnUncaughtExceptionCallback callback);
+
+  /**
+   * Optional notification that the system is running low on memory.
+   * V8 uses these notifications to guide heuristics.
+   * It is allowed to call this function from another thread while
+   * the isolate is executing long running JavaScript code.
+   */
+  void MemoryPressureNotification(MemoryPressureLevel level);
 
   /**
    * Methods below this point require holding a lock (using Locker) in
@@ -7832,8 +7845,7 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Integer> script_id,
                            Local<Boolean> resource_is_embedder_debug_script,
                            Local<Value> source_map_url,
-                           Local<Boolean> resource_is_opaque,
-                           Local<Boolean> allow_html_comments)
+                           Local<Boolean> resource_is_opaque)
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
@@ -7841,8 +7853,7 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                    resource_is_embedder_debug_script->IsTrue(),
                !resource_is_shared_cross_origin.IsEmpty() &&
                    resource_is_shared_cross_origin->IsTrue(),
-               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue(),
-               allow_html_comments.IsEmpty() || allow_html_comments->IsTrue()),
+               !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue()),
       script_id_(script_id),
       source_map_url_(source_map_url) {}
 

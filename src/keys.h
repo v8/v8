@@ -52,6 +52,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   int length() { return length_; }
   Isolate* isolate() { return isolate_; }
+  void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
 
  private:
   bool AddIntegerKey(uint32_t key);
@@ -62,6 +63,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   Isolate* isolate_;
   KeyCollectionType type_;
   PropertyFilter filter_;
+  bool filter_proxy_keys_ = true;
   // |elements_| contains the sorted element keys (indices) per level.
   std::vector<std::vector<uint32_t>*> elements_;
   // |protoLengths_| contains the total number of keys (elements + properties)
@@ -101,6 +103,7 @@ class FastKeyAccumulator {
 
   bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
   bool has_empty_prototype() { return has_empty_prototype_; }
+  void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
 
   MaybeHandle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
 
@@ -115,6 +118,7 @@ class FastKeyAccumulator {
   PropertyFilter filter_;
   bool is_receiver_simple_enum_ = false;
   bool has_empty_prototype_ = false;
+  bool filter_proxy_keys_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
 };

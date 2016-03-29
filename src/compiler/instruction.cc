@@ -635,6 +635,17 @@ void InstructionSequence::ValidateEdgeSplitForm() {
   }
 }
 
+void InstructionSequence::ValidateDeferredBlockExitPaths() {
+  // A deferred block with more than one successor must have all its successors
+  // deferred.
+  for (const InstructionBlock* block : instruction_blocks()) {
+    if (!block->IsDeferred() || block->SuccessorCount() <= 1) continue;
+    for (RpoNumber successor_id : block->successors()) {
+      CHECK(InstructionBlockAt(successor_id)->IsDeferred());
+    }
+  }
+}
+
 void InstructionSequence::ValidateSSA() {
   // TODO(mtrofin): We could use a local zone here instead.
   BitVector definitions(VirtualRegisterCount(), zone());

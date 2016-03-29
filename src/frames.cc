@@ -456,6 +456,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         return INTERPRETED;
       }
       switch (code_obj->kind()) {
+        case Code::BUILTIN:
+          if (marker->IsSmi()) break;
+          // We treat frames for BUILTIN Code objects as OptimizedFrame for now
+          // (all the builtins with JavaScript linkage are actually generated
+          // with TurboFan currently, so this is sound).
+          return OPTIMIZED;
         case Code::FUNCTION:
           return JAVA_SCRIPT;
         case Code::OPTIMIZED_FUNCTION:
@@ -981,8 +987,10 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  if (LookupCode()->is_turbofanned() && function()->shared()->asm_function() &&
-      !FLAG_turbo_asm_deoptimization) {
+  Code* code = LookupCode();
+  if (code->kind() == Code::BUILTIN ||
+      (code->is_turbofanned() && function()->shared()->asm_function() &&
+       !FLAG_turbo_asm_deoptimization)) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1085,7 +1093,6 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 int OptimizedFrame::LookupExceptionHandlerInTable(
     int* stack_slots, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
-  DCHECK(code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
   if (stack_slots) *stack_slots = code->stack_slots();

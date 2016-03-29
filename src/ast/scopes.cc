@@ -100,7 +100,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
               function_kind);
   // The outermost scope must be a script scope.
   DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != NULL);
-  DCHECK(!HasIllegalRedeclaration());
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
@@ -169,7 +168,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   function_ = nullptr;
   arguments_ = nullptr;
   this_function_ = nullptr;
-  illegal_redecl_ = nullptr;
   scope_inside_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
@@ -573,21 +571,6 @@ bool Scope::RemoveTemporary(Variable* var) {
 
 void Scope::AddDeclaration(Declaration* declaration) {
   decls_.Add(declaration, zone());
-}
-
-
-void Scope::SetIllegalRedeclaration(Expression* expression) {
-  // Record only the first illegal redeclaration.
-  if (!HasIllegalRedeclaration()) {
-    illegal_redecl_ = expression;
-  }
-  DCHECK(HasIllegalRedeclaration());
-}
-
-
-Expression* Scope::GetIllegalRedeclaration() {
-  DCHECK(HasIllegalRedeclaration());
-  return illegal_redecl_;
 }
 
 

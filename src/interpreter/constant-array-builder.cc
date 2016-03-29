@@ -58,6 +58,8 @@ ConstantArrayBuilder::ConstantArrayBuilder(Isolate* isolate, Zone* zone)
       new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
   idx_slice_[1] = new (zone) ConstantArraySlice(
       zone, k8BitCapacity, k16BitCapacity, OperandSize::kShort);
+  idx_slice_[2] = new (zone) ConstantArraySlice(
+      zone, k16BitCapacity, k32BitCapacity, OperandSize::kQuad);
 }
 
 size_t ConstantArrayBuilder::size() const {
@@ -163,6 +165,9 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
       break;
     case OperandSize::kShort:
       slice = idx_slice_[1];
+      break;
+    case OperandSize::kQuad:
+      slice = idx_slice_[2];
       break;
   }
   DCHECK(slice->operand_size() == operand_size);

@@ -7,11 +7,16 @@
 # Convenience Script used to rank GC NVP output.
 
 print_usage_and_die() {
-  echo "Usage: $0 new-gen-rank|old-gen-rank max|avg logfile"
+  echo "Usage: $0 RANK SORT [LOGFILE]"
+  echo ""
+  echo "Arguments:"
+  echo "  RANK: old-gen-rank | new-gen-rank"
+  echo "  SORT: max | avg"
+  echo "  LOGFILE: the file to process. will default to /dev/stdin"
   exit 1
 }
 
-if [ $# -ne 3 ]; then
+if [[ $# -lt 2 || $# -gt 3 ]]; then
   print_usage_and_die
 fi
 
@@ -31,7 +36,11 @@ case $2 in
     print_usage_and_die
 esac
 
-LOGFILE=$3
+if [ $# -eq 3 ]; then
+  LOGFILE=$3
+else
+  LOGFILE=/dev/stdin
+fi
 
 GENERAL_INTERESTING_KEYS="\
   pause \
@@ -95,7 +104,7 @@ case $OP in
       ${INTERESTING_NEW_GEN_KEYS}
     ;;
   old-gen-rank)
-    cat $LOGFILE | grep "gc=ms" | grep "reduce_memory=0" | grep -v "steps=0" \
+    cat $LOGFILE | grep "gc=ms" \
       | $BASE_DIR/eval_gc_nvp.py \
       --no-histogram \
       --rank $RANK_MODE \

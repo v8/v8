@@ -693,8 +693,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitContinue(Statement* target);
   void EmitBreak(Statement* target);
 
-  void EmitIllegalRedeclaration();
-
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }
   void increment_loop_depth() { loop_depth_++; }

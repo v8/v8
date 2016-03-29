@@ -240,6 +240,7 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
+  static Type* NumberFloor(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
 
@@ -487,6 +488,12 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
   return Type::String();
 }
 
+// static
+Type* Typer::Visitor::NumberFloor(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
 
 Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
@@ -1585,8 +1592,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleHi:
       return Type::Signed32();
     case Runtime::kInlineConstructDouble:
-    case Runtime::kInlineMathFloor:
-    case Runtime::kInlineMathSqrt:
     case Runtime::kInlineMathAtan2:
       return Type::Number();
     case Runtime::kInlineMathClz32:
@@ -1717,6 +1722,9 @@ Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypeNumberFloor(Node* node) {
+  return TypeUnaryOp(node, NumberFloor);
+}
 
 Type* Typer::Visitor::TypeNumberToInt32(Node* node) {
   return TypeUnaryOp(node, NumberToInt32);
@@ -1759,6 +1767,9 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeStringToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
 
 namespace {
 

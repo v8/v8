@@ -1605,11 +1605,13 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
 }
 
 Node* WasmGraphBuilder::BuildF32SConvertI64(Node* input) {
+  // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
       input, ExternalReference::wasm_int64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());
 }
 Node* WasmGraphBuilder::BuildF32UConvertI64(Node* input) {
+  // TODO(titzer/bradnelson): Check handlng of asm.js case.
   return BuildIntToFloatConversionInstruction(
       input, ExternalReference::wasm_uint64_to_float32(jsgraph()->isolate()),
       MachineRepresentation::kWord64, MachineType::Float32());
@@ -2073,19 +2075,22 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   Node** args = Buffer(count);
 
   // Build the start and the JS parameter nodes.
-  Node* start = Start(params + 3);
+  Node* start = Start(params + 5);
   *control_ = start;
   *effect_ = start;
-  // JS context is the last parameter.
+  // Create the context parameter
   Node* context = graph()->NewNode(
-      jsgraph()->common()->Parameter(params + 1, "context"), start);
+      jsgraph()->common()->Parameter(
+          Linkage::GetJSCallContextParamIndex(params + 1), "%context"),
+      graph()->start());
 
   int pos = 0;
   args[pos++] = Constant(wasm_code);
 
   // Convert JS parameters to WASM numbers.
   for (int i = 0; i < params; i++) {
-    Node* param = graph()->NewNode(jsgraph()->common()->Parameter(i), start);
+    Node* param =
+        graph()->NewNode(jsgraph()->common()->Parameter(i + 1), start);
     args[pos++] = FromJS(param, context, sig->GetParam(i));
   }
 
@@ -2382,7 +2387,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(
       isolate->factory()->NewSharedFunctionInfo(name, wasm_code, false);
   int params = static_cast<int>(func->sig->parameter_count());
   shared->set_length(params);
-  shared->set_internal_formal_parameter_count(1 + params);
+  shared->set_internal_formal_parameter_count(params);
   Handle<JSFunction> function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, MaybeHandle<Code>());
   function->SetInternalField(0, *module_object);

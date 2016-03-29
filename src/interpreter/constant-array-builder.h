@@ -97,7 +97,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   IdentityMap<index_t>* constants_map() { return &constants_map_; }
 
   Isolate* isolate_;
-  ConstantArraySlice* idx_slice_[2];
+  ConstantArraySlice* idx_slice_[3];
   IdentityMap<index_t> constants_map_;
 };
 

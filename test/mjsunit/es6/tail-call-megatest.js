@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-tailcalls
-// TODO(v8:4698), TODO(ishell): support these cases.
-// Flags: --turbo --nostress-opt
 
 
 Error.prepareStackTrace = (error,stack) => {
@@ -59,6 +57,19 @@ function run_tests(shard) {
   }
   var check_arguments = check_arguments_template("expected_args");
 
+  function deopt_template(deopt_mode) {
+    switch(deopt_mode) {
+      case "none":
+        return "  // Don't deoptimize";
+      case "f":
+      case "g":
+      case "test":
+        return `  %DeoptimizeFunction(${deopt_mode});`;
+      default:
+        assertUnreachable();
+    }
+  }
+
   var f_cfg_sloppy = {
     func_name: 'f',
     source_template: function(cfg) {
@@ -66,7 +77,7 @@ function run_tests(shard) {
                                                  : "global";
       var do_checks = [
         `  assertEquals_(${receiver}, this);`,
-        `  assertEquals_(undefined, new.target);`,
+        `  ${!cfg.check_new_target ? "// " : ""}assertEquals_(undefined, new.target);`,
         check_arguments,
         `  checkStackTrace_([f, test]);`,
       ].join("\n");
@@ -74,9 +85,10 @@ function run_tests(shard) {
       var lines = [
         `function f(a) {`,
         `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  counter++;`,
         `  var expected_args = [${cfg.f_args}];`,
         do_checks,
-        `  %DeoptimizeNow();`,
+        deopt_template(cfg.deopt_mode),
         do_checks,
         `  return 42;`,
         `}`,
@@ -92,7 +104,7 @@ function run_tests(shard) {
                                                  : "undefined";
       var do_checks = [
         `  assertEquals_(${receiver}, this);`,
-        `  assertEquals_(undefined, new.target);`,
+        `  ${!cfg.check_new_target ? "// " : ""}assertEquals_(undefined, new.target);`,
         check_arguments,
         `  checkStackTrace_([f, test]);`,
       ].join("\n");
@@ -101,9 +113,10 @@ function run_tests(shard) {
         `function f(a) {`,
         `  "use strict";`,
         `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  counter++;`,
         `  var expected_args = [${cfg.f_args}];`,
         do_checks,
-        `  %DeoptimizeNow();`,
+        deopt_template(cfg.deopt_mode),
         do_checks,
         `  return 42;`,
         `}`,
@@ -119,7 +132,7 @@ function run_tests(shard) {
                                                  : "global";
       var do_checks = [
         `  assertEquals_(${receiver}, this);`,
-        `  assertEquals_(undefined, new.target);`,
+        `  ${!cfg.check_new_target ? "// " : ""}assertEquals_(undefined, new.target);`,
         check_arguments,
         `  checkStackTrace_([f, test]);`,
       ].join("\n");
@@ -127,9 +140,10 @@ function run_tests(shard) {
       var lines = [
         `function f(a) {`,
         `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  counter++;`,
         `  var expected_args = [${cfg.f_args}];`,
         do_checks,
-        `  %DeoptimizeNow();`,
+        deopt_template(cfg.deopt_mode),
         do_checks,
         `  return 42;`,
         `}`,
@@ -144,7 +158,7 @@ function run_tests(shard) {
     source_template: function(cfg) {
       var do_checks = [
         `  assertEquals_(receiver, this);`,
-        `  assertEquals_(undefined, new.target);`,
+        `  ${!cfg.check_new_target ? "// " : ""}assertEquals_(undefined, new.target);`,
         check_arguments,
         `  checkStackTrace_([f, test]);`,
       ].join("\n");
@@ -153,9 +167,10 @@ function run_tests(shard) {
         `function f(a) {`,
         `  "use strict";`,
         `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  counter++;`,
         `  var expected_args = [${cfg.f_args}];`,
         do_checks,
-        `  %DeoptimizeNow();`,
+        deopt_template(cfg.deopt_mode),
         do_checks,
         `  return 42;`,
         `}`,
@@ -173,7 +188,7 @@ function run_tests(shard) {
                                                  : "global";
       var do_checks = [
         `  assertEquals_(${receiver}, this);`,
-        `  assertEquals_(undefined, new.target);`,
+        `  ${!cfg.check_new_target ? "// " : ""}assertEquals_(undefined, new.target);`,
         check_arguments,
         `  checkStackTrace_([f, test]);`,
       ].join("\n");
@@ -181,9 +196,10 @@ function run_tests(shard) {
       var lines = [
         `function f(a) {`,
         `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  counter++;`,
         `  var expected_args = [${cfg.f_args}];`,
         do_checks,
-        `  %DeoptimizeNow();`,
+        deopt_template(cfg.deopt_mode),
         do_checks,
         `  return 42;`,
         `}`,
@@ -203,6 +219,23 @@ function run_tests(shard) {
         `  var expected_args = [${cfg.g_args}];`,
         check_arguments,
         `  return ${cfg.f_name}(${cfg.f_args});`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+
+  var g_cfg_reflect_apply = {
+    receiver: "the_receiver",
+    source_template: function(cfg) {
+      var lines = [
+        `function g(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.g_inlinable)}`,
+        `  var expected_args = [${cfg.g_args}];`,
+        check_arguments,
+        `  return Reflect.apply(${cfg.f_name}, the_receiver, [${cfg.f_args}]);`,
         `}`,
       ];
       return lines.join("\n");
@@ -282,6 +315,7 @@ function run_tests(shard) {
       `  var undefined = void 0;`,
       `  var global = Function('return this')();`,
       `  var the_receiver = {receiver: 1};`,
+      `  var counter = 0;`,
       ``,
       `  // Don't inline helper functions`,
       `  %NeverOptimizeFunction(assertEquals);`,
@@ -293,13 +327,12 @@ function run_tests(shard) {
       `    "use strict";`,
       `    assertEquals_(42, g(${cfg.g_args}));`,
       `  }`,
-      `  ${cfg.f_inlinable ? "%SetForceInlineFlag(f)" : ""};`,
-      `  ${cfg.g_inlinable ? "%SetForceInlineFlag(g)" : ""};`,
       `  ${"test();".repeat(cfg.test_warmup_count)}`,
+      `  ${cfg.f_inlinable ? "%SetForceInlineFlag(f)" : "%OptimizeFunctionOnNextCall(f)"};`,
+      `  ${cfg.g_inlinable ? "%SetForceInlineFlag(g)" : "%OptimizeFunctionOnNextCall(g)"};`,
       `  %OptimizeFunctionOnNextCall(test);`,
-      `  %OptimizeFunctionOnNextCall(f);`,
-      `  %OptimizeFunctionOnNextCall(g);`,
       `  test();`,
+      `  assertEquals(${1 + cfg.test_warmup_count}, counter);`,
       `})();`,
       ``,
     ];
@@ -311,6 +344,9 @@ function run_tests(shard) {
   var g_args_variants = ["", "10", "10, 20"];
   var f_inlinable_variants = [true, false];
   var g_inlinable_variants = [true, false];
+  // This is to avoid bailing out because of referencing new.target.
+  var check_new_target_variants = [true, false];
+  var deopt_mode_variants = ["none", "f", "g", "test"];
   var f_variants = [
       f_cfg_sloppy,
       f_cfg_strict,
@@ -320,42 +356,51 @@ function run_tests(shard) {
   ];
   var g_variants = [
       g_cfg_normal,
-      g_cfg_function_call,
+      g_cfg_reflect_apply,
       g_cfg_function_apply,
       g_cfg_function_apply_arguments_object,
+      g_cfg_function_call,
   ];
   var test_warmup_counts = [0, 1, 2];
 
   var iter = 0;
+  var tests_executed = 0;
   if (shard !== undefined) {
     print("Running shard #" + shard);
   }
   f_variants.forEach((f_cfg) => {
-    g_variants.forEach((g_cfg) => {
-      f_args_variants.forEach((f_args) => {
-        g_args_variants.forEach((g_args) => {
-          f_inlinable_variants.forEach((f_inlinable) => {
-            g_inlinable_variants.forEach((g_inlinable) => {
-              test_warmup_counts.forEach((test_warmup_count) => {
-                if (shard !== undefined && (iter++) % SHARDS_COUNT != shard) {
-                  print("skipping...");
-                  return;
-                }
-                var cfg = {
-                  f_source_template: f_cfg.source_template,
-                  f_inlinable,
-                  f_args,
-                  f_name: f_cfg.func_name,
-                  f_receiver: g_cfg.receiver,
-                  g_source_template: g_cfg.source_template,
-                  g_inlinable,
-                  g_args,
-                  test_warmup_count,
-                };
-                var source = test_template(cfg);
-                print("====================");
-                print(source);
-                eval(source);
+    check_new_target_variants.forEach((check_new_target) => {
+      deopt_mode_variants.forEach((deopt_mode) => {
+        g_variants.forEach((g_cfg) => {
+          f_args_variants.forEach((f_args) => {
+            g_args_variants.forEach((g_args) => {
+              f_inlinable_variants.forEach((f_inlinable) => {
+                g_inlinable_variants.forEach((g_inlinable) => {
+                  test_warmup_counts.forEach((test_warmup_count) => {
+                    if (shard !== undefined && (iter++) % SHARDS_COUNT != shard) {
+                      print("skipping...");
+                      return;
+                    }
+                    tests_executed++;
+                    var cfg = {
+                      f_source_template: f_cfg.source_template,
+                      f_inlinable,
+                      f_args,
+                      f_name: f_cfg.func_name,
+                      f_receiver: g_cfg.receiver,
+                      g_source_template: g_cfg.source_template,
+                      g_inlinable,
+                      g_args,
+                      test_warmup_count,
+                      check_new_target,
+                      deopt_mode,
+                    };
+                    var source = test_template(cfg);
+                    print("====================");
+                    print(source);
+                    eval(source);
+                  });
+                });
               });
             });
           });
@@ -363,6 +408,7 @@ function run_tests(shard) {
       });
     });
   });
+  print("Number of tests executed: " + tests_executed);
 }
 
 // Uncomment to run all the tests at once or use shard runners.

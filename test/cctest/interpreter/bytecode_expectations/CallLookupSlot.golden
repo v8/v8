@@ -36,7 +36,7 @@ bytecodes: [
   B(Mov), R(closure), R(6),
   B(LdaZero),
   B(Star), R(7),
-  B(LdaSmi8), U8(30),
+  B(LdaSmi), U8(30),
   B(Star), R(8),
   B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(5),
   B(Star), R(1),

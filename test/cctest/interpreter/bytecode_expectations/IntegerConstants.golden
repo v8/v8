@@ -13,14 +13,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(LdaConstant), U8(0),
+  B(ExtraWide), B(LdaSmi), U32(12345678),
   B(Return),
 ]
 constant pool: [
-  12345678,
 ]
 handlers: [
 ]
@@ -31,17 +30,15 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 12
 bytecodes: [
   B(StackCheck),
-  B(LdaConstant), U8(0),
+  B(Wide), B(LdaSmi), U16(1234),
   B(Star), R(0),
-  B(LdaConstant), U8(1),
+  B(Wide), B(LdaSmi), U16(5678),
   B(Return),
 ]
 constant pool: [
-  1234,
-  5678,
 ]
 handlers: [
 ]
@@ -52,16 +49,15 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 12
 bytecodes: [
   B(StackCheck),
-  B(LdaConstant), U8(0),
+  B(Wide), B(LdaSmi), U16(1234),
   B(Star), R(0),
-  B(LdaConstant), U8(0),
+  B(Wide), B(LdaSmi), U16(1234),
   B(Return),
 ]
 constant pool: [
-  1234,
 ]
 handlers: [
 ]

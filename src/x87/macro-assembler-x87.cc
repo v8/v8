@@ -376,7 +376,7 @@ void MacroAssembler::RecordWriteField(
   lea(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
-    test_b(dst, (1 << kPointerSizeLog2) - 1);
+    test_b(dst, Immediate((1 << kPointerSizeLog2) - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -406,7 +406,7 @@ void MacroAssembler::RecordWriteForMap(Register object, Handle<Map> map,
   if (emit_debug_code()) {
     Label ok;
     lea(address, FieldOperand(object, HeapObject::kMapOffset));
-    test_b(address, (1 << kPointerSizeLog2) - 1);
+    test_b(address, Immediate((1 << kPointerSizeLog2) - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -699,8 +699,7 @@ void MacroAssembler::CmpObjectType(Register heap_object,
 
 
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
-  cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
-       static_cast<int8_t>(type));
+  cmpb(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
 
@@ -712,7 +711,7 @@ void MacroAssembler::CheckFastElements(Register map,
   STATIC_ASSERT(FAST_ELEMENTS == 2);
   STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastHoleyElementValue);
+       Immediate(Map::kMaximumBitField2FastHoleyElementValue));
   j(above, fail, distance);
 }
 
@@ -725,10 +724,10 @@ void MacroAssembler::CheckFastObjectElements(Register map,
   STATIC_ASSERT(FAST_ELEMENTS == 2);
   STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastHoleySmiElementValue);
+       Immediate(Map::kMaximumBitField2FastHoleySmiElementValue));
   j(below_equal, fail, distance);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastHoleyElementValue);
+       Immediate(Map::kMaximumBitField2FastHoleyElementValue));
   j(above, fail, distance);
 }
 
@@ -739,7 +738,7 @@ void MacroAssembler::CheckFastSmiElements(Register map,
   STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
   STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastHoleySmiElementValue);
+       Immediate(Map::kMaximumBitField2FastHoleySmiElementValue));
   j(above, fail, distance);
 }
 
@@ -826,7 +825,7 @@ Condition MacroAssembler::IsObjectNameType(Register heap_object,
                                            Register instance_type) {
   mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
   movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  cmpb(instance_type, static_cast<uint8_t>(LAST_NAME_TYPE));
+  cmpb(instance_type, Immediate(LAST_NAME_TYPE));
   return below_equal;
 }
 
@@ -907,6 +906,15 @@ void MacroAssembler::AssertNumber(Register object) {
   }
 }
 
+void MacroAssembler::AssertNotNumber(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsANumber);
+    cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(not_equal, kOperandIsANumber);
+  }
+}
 
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
@@ -1935,7 +1943,7 @@ void MacroAssembler::BooleanBitTest(Register object,
   int byte_index = bit_index / kBitsPerByte;
   int byte_bit_index = bit_index & (kBitsPerByte - 1);
   test_b(FieldOperand(object, field_offset + byte_index),
-         static_cast<byte>(1 << byte_bit_index));
+         Immediate(1 << byte_bit_index));
 }
 
 
@@ -2255,7 +2263,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
   Label skip_flooding;
   ExternalReference step_in_enabled =
       ExternalReference::debug_step_in_enabled_address(isolate());
-  cmpb(Operand::StaticVariable(step_in_enabled), 0);
+  cmpb(Operand::StaticVariable(step_in_enabled), Immediate(0));
   j(equal, &skip_flooding);
   {
     FrameScope frame(this,
@@ -2852,7 +2860,7 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
   Label succeed;
   test(operand, Immediate(kIsNotStringMask | kIsNotInternalizedMask));
   j(zero, &succeed);
-  cmpb(operand, static_cast<uint8_t>(SYMBOL_TYPE));
+  cmpb(operand, Immediate(SYMBOL_TYPE));
   j(not_equal, not_unique_name, distance);
 
   bind(&succeed);
@@ -3000,8 +3008,7 @@ void MacroAssembler::CheckPageFlag(
     and_(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand(scratch, MemoryChunk::kFlagsOffset),
-           static_cast<uint8_t>(mask));
+    test_b(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
   } else {
     test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
   }
@@ -3024,7 +3031,7 @@ void MacroAssembler::CheckPageFlagForMap(
   DCHECK(!isolate()->heap()->mark_compact_collector()->
          IsOnEvacuationCandidate(*map));
   if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand::StaticVariable(reference), static_cast<uint8_t>(mask));
+    test_b(Operand::StaticVariable(reference), Immediate(mask));
   } else {
     test(Operand::StaticVariable(reference), Immediate(mask));
   }
@@ -3064,7 +3071,8 @@ void MacroAssembler::HasColor(Register object,
   jmp(&other_color, Label::kNear);
 
   bind(&word_boundary);
-  test_b(Operand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize), 1);
+  test_b(Operand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize),
+         Immediate(1));
 
   j(second_bit == 1 ? not_zero : zero, has_color, has_color_distance);
   bind(&other_color);

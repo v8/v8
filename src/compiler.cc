@@ -411,7 +411,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   // Check the whitelist for Crankshaft.
-  if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
+  if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
     return AbortOptimization(kHydrogenFilter);
   }
 
@@ -452,7 +452,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       !optimization_disabled;
 
   // 3. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter = info()->closure()->PassesFilter(FLAG_turbo_filter);
+  bool passes_turbo_filter =
+      info()->shared_info()->PassesFilter(FLAG_turbo_filter);
 
   // If this is OSR request, OSR must be enabled by Turbofan.
   bool passes_osr_test = FLAG_turbo_osr || !info()->is_osr();
@@ -510,11 +511,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
                                                   scope->num_stack_slots())) {
     // Crankshaft would require too many Lithium operands.
     return AbortOptimization(kTooManyParametersLocals);
-  }
-
-  if (scope->HasIllegalRedeclaration()) {
-    // Crankshaft cannot handle illegal redeclarations.
-    return AbortOptimization(kFunctionWithIllegalRedeclaration);
   }
 
   if (FLAG_trace_opt) {
@@ -821,7 +817,7 @@ bool UseIgnition(CompilationInfo* info) {
   }
 
   // Finally respect the filter.
-  return info->closure()->PassesFilter(FLAG_ignition_filter);
+  return info->closure()->shared()->PassesFilter(FLAG_ignition_filter);
 }
 
 int CodeAndMetadataSize(CompilationInfo* info) {
@@ -1276,6 +1272,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
       // Consider parsing eagerly when targeting the code cache.
       parse_allow_lazy &= !(FLAG_serialize_eager && info->will_serialize());
+
+      // Consider parsing eagerly when targeting Ignition.
+      parse_allow_lazy &= !(FLAG_ignition && FLAG_ignition_eager &&
+                            !isolate->serializer_enabled());
 
       parse_info->set_allow_lazy_parsing(parse_allow_lazy);
       if (!parse_allow_lazy &&
@@ -1795,6 +1795,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // Consider compiling eagerly when targeting the code cache.
   lazy &= !(FLAG_serialize_eager && info.will_serialize());
+
+  // Consider compiling eagerly when compiling bytecode for Ignition.
+  lazy &=
+      !(FLAG_ignition && FLAG_ignition_eager && !isolate->serializer_enabled());
 
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);

@@ -226,8 +226,7 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       v8::Integer::New(v8_isolate, script->id()),
       v8::Boolean::New(v8_isolate, options.IsEmbedderDebugScript()),
       Utils::ToLocal(source_map_url),
-      v8::Boolean::New(v8_isolate, options.IsOpaque()),
-      v8::Boolean::New(v8_isolate, options.AllowHtmlComments()));
+      v8::Boolean::New(v8_isolate, options.IsOpaque()));
   return origin;
 }
 
@@ -501,13 +500,17 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
     Isolate::Scope isolate_scope(isolate);
     i::Snapshot::Initialize(internal_isolate);
     Persistent<Context> context;
+    bool success;
     {
       HandleScope handle_scope(isolate);
-      Local<Context> warmup_context = Context::New(isolate);
-      if (RunExtraCode(isolate, warmup_context, warmup_source, "<warm-up>")) {
-        Local<Context> fresh_context = Context::New(isolate);
-        context.Reset(isolate, fresh_context);
-      }
+      Local<Context> new_context = Context::New(isolate);
+      success = RunExtraCode(isolate, new_context, warmup_source, "<warm-up>");
+    }
+    if (success) {
+      HandleScope handle_scope(isolate);
+      isolate->ContextDisposedNotification(false);
+      Local<Context> new_context = Context::New(isolate);
+      context.Reset(isolate, new_context);
     }
 
     i::Snapshot::Metadata metadata;
@@ -7654,6 +7657,11 @@ void Isolate::IsolateInBackgroundNotification() {
   return isolate->heap()->SetOptimizeForMemoryUsage();
 }
 
+void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->heap()->MemoryPressureNotification(level,
+                                                     Locker::IsLocked(this));
+}
 
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {

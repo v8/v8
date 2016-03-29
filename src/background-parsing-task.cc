@@ -32,7 +32,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->set_global();
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
-  info->set_allow_lazy_parsing(true);
+  // Parse eagerly with ignition since we will compile eagerly.
+  info->set_allow_lazy_parsing(!(i::FLAG_ignition && i::FLAG_ignition_eager));
 }
 
 

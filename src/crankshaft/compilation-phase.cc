@@ -34,7 +34,7 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
       info()->IsStub()
           ? FLAG_trace_hydrogen_stubs
           : (FLAG_trace_hydrogen &&
-             info()->closure()->PassesFilter(FLAG_trace_hydrogen_filter));
+             info()->shared_info()->PassesFilter(FLAG_trace_hydrogen_filter));
   return (tracing_on &&
           base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) !=
               NULL);

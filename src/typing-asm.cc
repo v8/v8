@@ -934,6 +934,54 @@ void AsmTyper::VisitProperty(Property* expr) {
   FAIL(expr, "invalid property access");
 }
 
+void AsmTyper::CheckPolymorphicStdlibArguments(
+    enum StandardMember standard_member, ZoneList<Expression*>* args) {
+  if (args->length() == 0) {
+    return;
+  }
+  // Handle polymorphic stdlib functions specially.
+  Expression* arg0 = args->at(0);
+  Type* arg0_type = arg0->bounds().upper;
+  switch (standard_member) {
+    case kMathFround: {
+      if (!arg0_type->Is(cache_.kAsmFloat) &&
+          !arg0_type->Is(cache_.kAsmDouble) &&
+          !arg0_type->Is(cache_.kAsmSigned) &&
+          !arg0_type->Is(cache_.kAsmUnsigned)) {
+        FAIL(arg0, "illegal function argument type");
+      }
+      break;
+    }
+    case kMathCeil:
+    case kMathFloor:
+    case kMathSqrt: {
+      if (!arg0_type->Is(cache_.kAsmFloat) &&
+          !arg0_type->Is(cache_.kAsmDouble)) {
+        FAIL(arg0, "illegal function argument type");
+      }
+      break;
+    }
+    case kMathAbs:
+    case kMathMin:
+    case kMathMax: {
+      if (!arg0_type->Is(cache_.kAsmFloat) &&
+          !arg0_type->Is(cache_.kAsmDouble) &&
+          !arg0_type->Is(cache_.kAsmSigned)) {
+        FAIL(arg0, "illegal function argument type");
+      }
+      if (args->length() > 1) {
+        Type* other = Type::Intersect(args->at(0)->bounds().upper,
+                                      args->at(1)->bounds().upper, zone());
+        if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
+            !other->Is(cache_.kAsmSigned)) {
+          FAIL(arg0, "function arguments types don't match");
+        }
+      }
+      break;
+    }
+    default: { break; }
+  }
+}
 
 void AsmTyper::VisitCall(Call* expr) {
   Type* expected_type = expected_type_;
@@ -987,29 +1035,7 @@ void AsmTyper::VisitCall(Call* expr) {
           result_type = computed_type_;
         }
       }
-      // Handle polymorphic stdlib functions specially.
-      if (standard_member == kMathCeil || standard_member == kMathFloor ||
-          standard_member == kMathSqrt) {
-        if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
-            !args->at(0)->bounds().upper->Is(cache_.kAsmDouble)) {
-          FAIL(expr, "illegal function argument type");
-        }
-      } else if (standard_member == kMathAbs || standard_member == kMathMin ||
-                 standard_member == kMathMax) {
-        if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
-            !args->at(0)->bounds().upper->Is(cache_.kAsmDouble) &&
-            !args->at(0)->bounds().upper->Is(cache_.kAsmSigned)) {
-          FAIL(expr, "illegal function argument type");
-        }
-        if (args->length() > 1) {
-          Type* other = Type::Intersect(args->at(0)->bounds().upper,
-                                        args->at(1)->bounds().upper, zone());
-          if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
-              !other->Is(cache_.kAsmSigned)) {
-            FAIL(expr, "function arguments types don't match");
-          }
-        }
-      }
+      RECURSE(CheckPolymorphicStdlibArguments(standard_member, args));
       intish_ = 0;
       IntersectResult(expr, result_type);
     }
@@ -1156,12 +1182,15 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       FAIL(expr, "illegal logical operator");
     case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
-      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
-                                  cache_.kAsmSigned, true);
+      RECURSE(VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
+                                          cache_.kAsmSigned, true));
       if (expr->left()->IsCall() && expr->op() == Token::BIT_OR &&
           Type::Number()->Is(expr->left()->bounds().upper)) {
         // Force the return types of foreign functions.
         expr->left()->set_bounds(Bounds(cache_.kAsmSigned));
+      }
+      if (in_function_ && !expr->left()->bounds().upper->Is(cache_.kAsmIntQ)) {
+        FAIL(expr->left(), "intish required");
       }
       return;
     }
@@ -1180,20 +1209,20 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
         }
       }
       // BIT_XOR allows Any since it is used as a type coercion (via ~~).
-      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
-                                  cache_.kAsmSigned, true);
+      RECURSE(VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
+                                          cache_.kAsmSigned, true));
       return;
     }
     case Token::SHR: {
-      VisitIntegerBitwiseOperator(expr, cache_.kAsmIntQ, cache_.kAsmIntQ,
-                                  cache_.kAsmUnsigned, false);
+      RECURSE(VisitIntegerBitwiseOperator(
+          expr, cache_.kAsmIntQ, cache_.kAsmIntQ, cache_.kAsmUnsigned, false));
       return;
     }
     case Token::SHL:
     case Token::SAR:
     case Token::BIT_AND: {
-      VisitIntegerBitwiseOperator(expr, cache_.kAsmIntQ, cache_.kAsmIntQ,
-                                  cache_.kAsmSigned, false);
+      RECURSE(VisitIntegerBitwiseOperator(
+          expr, cache_.kAsmIntQ, cache_.kAsmIntQ, cache_.kAsmSigned, false));
       return;
     }
     case Token::ADD:
@@ -1252,12 +1281,27 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           return;
         }
       } else if (expr->op() == Token::MUL && expr->right()->IsLiteral() &&
-                 right_type->Is(cache_.kAsmDouble)) {
+                 right_type->Is(cache_.kAsmDouble) &&
+                 expr->right()->AsLiteral()->raw_value()->ContainsDot() &&
+                 expr->right()->AsLiteral()->raw_value()->AsNumber() == 1.0) {
         // For unary +, expressed as x * 1.0
-        if (expr->left()->IsCall() && expr->op() == Token::MUL &&
+        if (expr->left()->IsCall() &&
             Type::Number()->Is(expr->left()->bounds().upper)) {
           // Force the return types of foreign functions.
           expr->left()->set_bounds(Bounds(cache_.kAsmDouble));
+          left_type = expr->left()->bounds().upper;
+        }
+        if (!(expr->left()->IsProperty() &&
+              Type::Number()->Is(expr->left()->bounds().upper))) {
+          if (!left_type->Is(cache_.kAsmSigned) &&
+              !left_type->Is(cache_.kAsmUnsigned) &&
+              !left_type->Is(cache_.kAsmFixnum) &&
+              !left_type->Is(cache_.kAsmFloatQ) &&
+              !left_type->Is(cache_.kAsmDoubleQ)) {
+            FAIL(
+                expr->left(),
+                "unary + only allowed on signed, unsigned, float?, or double?");
+          }
         }
         IntersectResult(expr, cache_.kAsmDouble);
         return;

@@ -545,11 +545,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   }
   // Rule out short external strings.
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(result, kShortExternalStringMask);
+  __ test_b(result, Immediate(kShortExternalStringMask));
   __ j(not_zero, call_runtime);
   // Check encoding.
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ test_b(result, kStringEncodingMask);
+  __ test_b(result, Immediate(kStringEncodingMask));
   __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
   __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.

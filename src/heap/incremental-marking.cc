@@ -45,7 +45,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       black_allocation_(false),
       finalize_marking_completed_(false),
       incremental_marking_finalization_rounds_(0),
-      request_type_(COMPLETE_MARKING) {}
+      request_type_(NONE) {}
 
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
@@ -138,52 +138,6 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
     // Object is not going to be rescanned.  We need to record the slot.
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
   }
-}
-
-
-void IncrementalMarking::RecordWrites(HeapObject* obj) {
-  if (IsMarking()) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-        chunk->set_progress_bar(0);
-      }
-      BlackToGreyAndUnshift(obj, obj_bit);
-      RestartIfNotMarking();
-    }
-  }
-}
-
-
-void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
-                                               MarkBit mark_bit) {
-  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  DCHECK(obj->Size() >= 2 * kPointerSize);
-  DCHECK(IsMarking());
-  Marking::BlackToGrey(mark_bit);
-  int obj_size = obj->Size();
-  MemoryChunk::IncrementLiveBytesFromGC(obj, -obj_size);
-  bytes_scanned_ -= obj_size;
-  int64_t old_bytes_rescanned = bytes_rescanned_;
-  bytes_rescanned_ = old_bytes_rescanned + obj_size;
-  if ((bytes_rescanned_ >> 20) != (old_bytes_rescanned >> 20)) {
-    if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSizeOfObjects()) {
-      // If we have queued twice the heap size for rescanning then we are
-      // going around in circles, scanning the same objects again and again
-      // as the program mutates the heap faster than we can incrementally
-      // trace it.  In this case we switch to non-incremental marking in
-      // order to finish off this marking phase.
-      if (FLAG_trace_incremental_marking) {
-        PrintIsolate(
-            heap()->isolate(),
-            "Hurrying incremental marking because of lack of progress\n");
-      }
-      marking_speed_ = kMaxMarkingSpeed;
-    }
-  }
-
-  heap_->mark_compact_collector()->marking_deque()->Unshift(obj);
 }
 
 
@@ -323,8 +277,7 @@ class IncrementalMarkingMarkingVisitor
 };
 
 void IncrementalMarking::IterateBlackObject(HeapObject* object) {
-  if (black_allocation() &&
-      Page::FromAddress(object->address())->IsFlagSet(Page::BLACK_PAGE)) {
+  if (IsMarking() && Marking::IsBlack(Marking::MarkBitFrom(object))) {
     IncrementalMarkingMarkingVisitor::IterateBody(object->map(), object);
   }
 }

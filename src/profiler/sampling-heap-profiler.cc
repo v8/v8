@@ -204,15 +204,17 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     // Cannot use std::map<T>::at because it is not available on android.
     auto non_const_scripts = const_cast<std::map<int, Script*>&>(scripts);
     Script* script = non_const_scripts[node->script_id_];
-    if (script->name()->IsName()) {
-      Name* name = Name::cast(script->name());
-      script_name = ToApiHandle<v8::String>(
-          isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
+    if (script) {
+      if (script->name()->IsName()) {
+        Name* name = Name::cast(script->name());
+        script_name = ToApiHandle<v8::String>(
+            isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
+      }
+      Handle<Script> script_handle(script);
+      line = 1 + Script::GetLineNumber(script_handle, node->script_position_);
+      column =
+          1 + Script::GetColumnNumber(script_handle, node->script_position_);
     }
-    Handle<Script> script_handle(script);
-
-    line = 1 + Script::GetLineNumber(script_handle, node->script_position_);
-    column = 1 + Script::GetColumnNumber(script_handle, node->script_position_);
     for (auto alloc : node->allocations_) {
       allocations.push_back(ScaleSample(alloc.first, alloc.second));
     }

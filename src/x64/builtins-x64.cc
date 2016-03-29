@@ -1009,6 +1009,28 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   }
 }
 
+// static
+void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax     : argc
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : first argument (left-hand side)
+  //  -- rsp[16] : receiver (right-hand side)
+  // -----------------------------------
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ movp(InstanceOfDescriptor::LeftRegister(),
+            Operand(rbp, 2 * kPointerSize));  // Load left-hand side.
+    __ movp(InstanceOfDescriptor::RightRegister(),
+            Operand(rbp, 3 * kPointerSize));  // Load right-hand side.
+    InstanceOfStub stub(masm->isolate(), true);
+    __ CallStub(&stub);
+  }
+
+  // Pop the argument and the receiver.
+  __ ret(2 * kPointerSize);
+}
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
@@ -2030,14 +2052,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
   Comment cmnt(masm, "[ PrepareForTailCall");
 
-  // Prepare for tail call only if the debugger is not active.
-  Label done;
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(masm->isolate());
-  __ Move(kScratchRegister, debug_is_active);
-  __ cmpb(Operand(kScratchRegister, 0), Immediate(0));
-  __ j(not_equal, &done);
-
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
@@ -2077,7 +2091,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
                         scratch3, ReturnAddressState::kOnStack);
-  __ bind(&done);
 }
 }  // namespace
 

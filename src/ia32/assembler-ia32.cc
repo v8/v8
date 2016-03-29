@@ -746,8 +746,8 @@ void Assembler::and_(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
-
-void Assembler::cmpb(const Operand& op, int8_t imm8) {
+void Assembler::cmpb(const Operand& op, Immediate imm8) {
+  DCHECK(imm8.is_int8() || imm8.is_uint8());
   EnsureSpace ensure_space(this);
   if (op.is_reg(eax)) {
     EMIT(0x3C);
@@ -755,7 +755,7 @@ void Assembler::cmpb(const Operand& op, int8_t imm8) {
     EMIT(0x80);
     emit_operand(edi, op);  // edi == 7
   }
-  EMIT(imm8);
+  emit_b(imm8);
 }
 
 
@@ -784,6 +784,19 @@ void Assembler::cmpw(const Operand& op, Immediate imm16) {
   emit_w(imm16);
 }
 
+void Assembler::cmpw(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x39);
+  emit_operand(reg, op);
+}
+
+void Assembler::cmpw(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x3B);
+  emit_operand(reg, op);
+}
 
 void Assembler::cmp(Register reg, int32_t imm32) {
   EnsureSpace ensure_space(this);
@@ -1168,8 +1181,8 @@ void Assembler::sub(const Operand& dst, Register src) {
 
 
 void Assembler::test(Register reg, const Immediate& imm) {
-  if (RelocInfo::IsNone(imm.rmode_) && is_uint8(imm.x_)) {
-    test_b(reg, imm.x_);
+  if (imm.is_uint8()) {
+    test_b(reg, imm);
     return;
   }
 
@@ -1206,8 +1219,8 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
     test(op.reg(), imm);
     return;
   }
-  if (RelocInfo::IsNone(imm.rmode_) && is_uint8(imm.x_)) {
-    return test_b(op, imm.x_);
+  if (imm.is_uint8()) {
+    return test_b(op, imm);
   }
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
@@ -1215,25 +1228,25 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
   emit(imm);
 }
 
-
-void Assembler::test_b(Register reg, uint8_t imm8) {
+void Assembler::test_b(Register reg, Immediate imm8) {
+  DCHECK(imm8.is_uint8());
   EnsureSpace ensure_space(this);
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
   if (reg.is(eax)) {
     EMIT(0xA8);
-    EMIT(imm8);
+    emit_b(imm8);
   } else if (reg.is_byte_register()) {
-    emit_arith_b(0xF6, 0xC0, reg, imm8);
+    emit_arith_b(0xF6, 0xC0, reg, static_cast<uint8_t>(imm8.x_));
   } else {
+    EMIT(0x66);
     EMIT(0xF7);
     EMIT(0xC0 | reg.code());
-    emit(imm8);
+    emit_w(imm8);
   }
 }
 
-
-void Assembler::test_b(const Operand& op, uint8_t imm8) {
+void Assembler::test_b(const Operand& op, Immediate imm8) {
   if (op.is_reg_only()) {
     test_b(op.reg(), imm8);
     return;
@@ -1241,7 +1254,7 @@ void Assembler::test_b(const Operand& op, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   EMIT(0xF6);
   emit_operand(eax, op);
-  EMIT(imm8);
+  emit_b(imm8);
 }
 
 

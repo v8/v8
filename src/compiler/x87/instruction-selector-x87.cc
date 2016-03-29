@@ -496,9 +496,10 @@ void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
 
 void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   X87OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempRegister(eax)};
   selector->Emit(opcode, g.DefineAsFixed(node, edx),
                  g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)));
+                 g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void EmitLea(InstructionSelector* selector, Node* result, Node* index,

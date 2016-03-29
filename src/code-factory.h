@@ -54,6 +54,8 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
+  static Callable StoreInterceptor(Isolate* isolate);
+
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
@@ -66,6 +68,8 @@ class CodeFactory final {
   static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
+  static Callable NonNumberToNumber(Isolate* isolate);
+  static Callable StringToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
   static Callable ToName(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
@@ -75,6 +79,11 @@ class CodeFactory final {
   static Callable RegExpConstructResult(Isolate* isolate);
   static Callable RegExpExec(Isolate* isolate);
 
+  static Callable Add(Isolate* isolate);
+  static Callable Subtract(Isolate* isolate);
+  static Callable BitwiseAnd(Isolate* isolate);
+  static Callable BitwiseOr(Isolate* isolate);
+  static Callable BitwiseXor(Isolate* isolate);
   static Callable LessThan(Isolate* isolate);
   static Callable LessThanOrEqual(Isolate* isolate);
   static Callable GreaterThan(Isolate* isolate);
@@ -111,6 +120,10 @@ class CodeFactory final {
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);
+#define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
+  static Callable Allocate##Type(Isolate* isolate);
+  SIMD128_TYPES(SIMD128_ALLOC)
+#undef SIMD128_ALLOC
   static Callable AllocateInNewSpace(Isolate* isolate);
 
   static Callable ArgumentAdaptor(Isolate* isolate);

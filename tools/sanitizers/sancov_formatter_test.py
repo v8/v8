@@ -8,8 +8,11 @@
 import copy
 import coverage
 import logging
+import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 
@@ -128,6 +131,44 @@ EXPECTED_COVERED_LINES_DATA = {
 }
 
 
+#------------------------------------------------------------------------------
+
+# Data for test_split.
+
+EXPECTED_SPLIT_FILES = [
+  (
+    os.path.join('src', 'baz', 'bar.h.json'),
+    {
+      'version': 1,
+      'tests': ['cctest', 'd8', 'unittests'],
+      'files': {
+        'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
+      },
+    },
+  ),
+  (
+    os.path.join('src', 'baz.cc.json'),
+    {
+      'version': 1,
+      'tests': ['cctest', 'd8', 'unittests'],
+      'files': {
+        'src/baz.cc': [[1, 0b0], [2, 0b101]],
+      },
+    },
+  ),
+  (
+    os.path.join('src', 'foo.cc.json'),
+    {
+      'version': 1,
+      'tests': ['cctest', 'd8', 'unittests'],
+      'files': {
+        'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
+      },
+    },
+  ),
+]
+
+
 class FormatterTests(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -157,3 +198,25 @@ class FormatterTests(unittest.TestCase):
     sancov_formatter.merge_covered_line_results(
       data, COVERED_LINE_RESULTS)
     self.assertEquals(EXPECTED_COVERED_LINES_DATA, data)
+
+  def test_split(self):
+    _, json_input = tempfile.mkstemp(prefix='tmp_coverage_test_split')
+    with open(json_input, 'w') as f:
+      json.dump(EXPECTED_COVERED_LINES_DATA, f)
+    output_dir = tempfile.mkdtemp(prefix='tmp_coverage_test_split')
+
+    try:
+      sancov_formatter.main([
+        'split',
+        '--json-input', json_input,
+        '--output-dir', output_dir,
+      ])
+
+      for file_name, expected_data in EXPECTED_SPLIT_FILES:
+        full_path = os.path.join(output_dir, file_name)
+        self.assertTrue(os.path.exists(full_path))
+        with open(full_path) as f:
+          self.assertEquals(expected_data, json.load(f))
+    finally:
+      os.remove(json_input)
+      shutil.rmtree(output_dir)

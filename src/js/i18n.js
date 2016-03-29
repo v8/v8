@@ -32,10 +32,10 @@ var GlobalString = global.String;
 var MakeError;
 var MakeRangeError;
 var MakeTypeError;
-var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
+var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var RegExpTest;
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
@@ -57,7 +57,6 @@ utils.Import(function(from) {
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  MathFloor = from.MathFloor;
   RegExpTest = from.RegExpTest;
   StringIndexOf = from.StringIndexOf;
   StringLastIndexOf = from.StringLastIndexOf;
@@ -69,17 +68,6 @@ utils.Import(function(from) {
 });
 
 // Utilities for definitions
-
-function OverrideFunction(object, name, f) {
-  %CheckIsBootstrapping();
-  ObjectDefineProperty(object, name, { value: f,
-                                       writeable: true,
-                                       configurable: true,
-                                       enumerable: false });
-  %FunctionSetName(f, name);
-  %FunctionRemovePrototype(f);
-  %SetNativeFlag(f);
-}
 
 function InstallFunction(object, name, func) {
   InstallFunctions(object, DONT_ENUM, [name, func]);
@@ -1112,7 +1100,7 @@ function getNumberOption(options, property, min, max, fallback) {
     if (IsNaN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
-    return MathFloor(value);
+    return %math_floor(value);
   }
 
   return fallback;

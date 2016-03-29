@@ -16,7 +16,7 @@ parameter count: 1
 bytecode array length: 10
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(ToNumber),
   B(Inc),
@@ -37,7 +37,7 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(ToNumber),
   B(Star), R(1),
@@ -60,7 +60,7 @@ parameter count: 1
 bytecode array length: 10
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(ToNumber),
   B(Dec),
@@ -81,7 +81,7 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(ToNumber),
   B(Star), R(1),
@@ -222,7 +222,7 @@ bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(1),
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(StaContextSlot), R(context), U8(4),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(0),
@@ -249,7 +249,7 @@ bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(1),
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(StaContextSlot), R(context), U8(4),
   B(CreateClosure), U8(0), U8(0),
   B(Star), R(0),
@@ -276,7 +276,7 @@ parameter count: 1
 bytecode array length: 28
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(0),
   B(CreateArrayLiteral), U8(0), U8(0), U8(3),
   B(Star), R(1),
@@ -286,7 +286,7 @@ bytecodes: [
   B(Star), R(3),
   B(Inc),
   B(Star), R(0),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(KeyedStoreICSloppy), R(2), R(3), U8(1),
   B(Return),
 ]

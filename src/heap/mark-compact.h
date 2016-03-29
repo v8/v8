@@ -25,7 +25,6 @@ class CodeFlusher;
 class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
-class LocalSlotsBuffer;
 
 class Marking : public AllStatic {
  public:
@@ -371,7 +370,6 @@ class MarkBitCellIterator BASE_EMBEDDED {
 enum LiveObjectIterationMode {
   kBlackObjects,
   kGreyObjects,
-  kGreyObjectsOnBlackPage,
   kAllLiveObjects
 };
 
@@ -383,10 +381,8 @@ class LiveObjectIterator BASE_EMBEDDED {
         it_(chunk_),
         cell_base_(it_.CurrentCellBase()),
         current_cell_(*it_.CurrentCell()) {
-    // Black pages can only be iterated with kGreyObjectsOnBlackPage mode.
-    if (T != kGreyObjectsOnBlackPage) {
-      DCHECK(!chunk->IsFlagSet(Page::BLACK_PAGE));
-    }
+    // Black pages can not be iterated.
+    DCHECK(!chunk->IsFlagSet(Page::BLACK_PAGE));
   }
 
   HeapObject* Next();
@@ -485,11 +481,6 @@ class MarkCompactCollector {
 
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
-
-  void MigrateObject(HeapObject* dst, HeapObject* src, int size,
-                     AllocationSpace to_old_space,
-                     LocalSlotsBuffer* old_to_old_slots,
-                     LocalSlotsBuffer* old_to_new_slots);
 
   void InvalidateCode(Code* code);
 
@@ -715,7 +706,6 @@ class MarkCompactCollector {
   // on various pages of the heap. Used by {RefillMarkingDeque} only.
   template <class T>
   void DiscoverGreyObjectsWithIterator(T* it);
-  template <LiveObjectIterationMode T>
   void DiscoverGreyObjectsOnPage(MemoryChunk* p);
   void DiscoverGreyObjectsInSpace(PagedSpace* space);
   void DiscoverGreyObjectsInNewSpace();
@@ -810,11 +800,6 @@ class MarkCompactCollector {
   // Finalizes the parallel sweeping phase. Marks all the pages that were
   // swept in parallel.
   void ParallelSweepSpacesComplete();
-
-  // Updates store buffer and slot buffer for a pointer in a migrating object.
-  void RecordMigratedSlot(Object* value, Address slot,
-                          LocalSlotsBuffer* old_to_old_slots,
-                          LocalSlotsBuffer* old_to_new_slots);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;

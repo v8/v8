@@ -1150,8 +1150,9 @@ bool Simulator::BorrowFrom(int32_t left, int32_t right) {
 }
 
 // Calculate V flag value for additions and subtractions.
-bool Simulator::OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
-                             bool addition) {
+template <typename T1>
+bool Simulator::OverflowFromSigned(T1 alu_out, T1 left, T1 right,
+                                   bool addition) {
   bool overflow;
   if (addition) {
     // operands have the same sign
@@ -1640,12 +1641,11 @@ void Simulator::PrintStopInfo(uint32_t code) {
 //   (2) Test the result and one of the operands have opposite sign
 //      (a) No overflow if they don't have opposite sign
 //      (b) Overflow if opposite
-#define CheckOverflowForIntAdd(src1, src2) \
-  (((src1) ^ (src2)) < 0 ? false : ((((src1) + (src2)) ^ (src1)) < 0))
+#define CheckOverflowForIntAdd(src1, src2, type) \
+  OverflowFromSigned<type>(src1 + src2, src1, src2, true);
 
-// Method for checking overflow on signed subtraction:
-#define CheckOverflowForIntSub(src1, src2) \
-  (((src1 - src2) < src1) != (src2 > 0))
+#define CheckOverflowForIntSub(src1, src2, type) \
+  OverflowFromSigned<type>(src1 - src2, src1, src2, false);
 
 // Method for checking overflow on unsigned addtion
 #define CheckOverflowForUIntAdd(src1, src2) \
@@ -1686,13 +1686,13 @@ bool Simulator::DecodeTwoByte(Instruction* instr) {
       bool isOF = false;
       switch (op) {
         case AR:
-          isOF = CheckOverflowForIntAdd(r1_val, r2_val);
+          isOF = CheckOverflowForIntAdd(r1_val, r2_val, int32_t);
           r1_val += r2_val;
           SetS390ConditionCode<int32_t>(r1_val, 0);
           SetS390OverflowCode(isOF);
           break;
         case SR:
-          isOF = CheckOverflowForIntSub(r1_val, r2_val);
+          isOF = CheckOverflowForIntSub(r1_val, r2_val, int32_t);
           r1_val -= r2_val;
           SetS390ConditionCode<int32_t>(r1_val, 0);
           SetS390OverflowCode(isOF);
@@ -2191,6 +2191,25 @@ bool Simulator::DecodeFourByte(Instruction* instr) {
       set_low_register(r1, alu_out);
       break;
     }
+    case SLDL: {
+      RSInstruction* rsInstr = reinterpret_cast<RSInstruction*>(instr);
+      int r1 = rsInstr->R1Value();
+      int b2 = rsInstr->B2Value();
+      intptr_t d2 = rsInstr->D2Value();
+      // only takes rightmost 6bits
+      int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
+      int shiftBits = (b2_val + d2) & 0x3F;
+
+      DCHECK(r1 % 2 == 0);
+      uint32_t r1_val = get_low_register<uint32_t>(r1);
+      uint32_t r1_next_val = get_low_register<uint32_t>(r1 + 1);
+      uint64_t alu_out = (static_cast<uint64_t>(r1_val) << 32) |
+                         (static_cast<uint64_t>(r1_next_val));
+      alu_out <<= shiftBits;
+      set_low_register(r1 + 1, static_cast<uint32_t>(alu_out));
+      set_low_register(r1, static_cast<uint32_t>(alu_out >> 32));
+      break;
+    }
     case SLA:
     case SRA: {
       RSInstruction* rsInstr = reinterpret_cast<RSInstruction*>(instr);
@@ -2461,13 +2480,13 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       bool isOF = false;
       switch (op) {
         case AGR:
-          isOF = CheckOverflowForIntAdd(r1_val, r2_val);
+          isOF = CheckOverflowForIntAdd(r1_val, r2_val, int64_t);
           r1_val += r2_val;
           SetS390ConditionCode<int64_t>(r1_val, 0);
           SetS390OverflowCode(isOF);
           break;
         case SGR:
-          isOF = CheckOverflowForIntSub(r1_val, r2_val);
+          isOF = CheckOverflowForIntSub(r1_val, r2_val, int64_t);
           r1_val -= r2_val;
           SetS390ConditionCode<int64_t>(r1_val, 0);
           SetS390OverflowCode(isOF);
@@ -2497,7 +2516,7 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       int r2 = rreInst->R2Value();
       int64_t r1_val = get_register(r1);
       int64_t r2_val = static_cast<int64_t>(get_low_register<int32_t>(r2));
-      bool isOF = CheckOverflowForIntAdd(r1_val, r2_val);
+      bool isOF = CheckOverflowForIntAdd(r1_val, r2_val, int64_t);
       r1_val += r2_val;
       SetS390ConditionCode<int64_t>(r1_val, 0);
       SetS390OverflowCode(isOF);
@@ -2511,7 +2530,7 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       int64_t r1_val = get_register(r1);
       int64_t r2_val = static_cast<int64_t>(get_low_register<int32_t>(r2));
       bool isOF = false;
-      isOF = CheckOverflowForIntSub(r1_val, r2_val);
+      isOF = CheckOverflowForIntSub(r1_val, r2_val, int64_t);
       r1_val -= r2_val;
       SetS390ConditionCode<int64_t>(r1_val, 0);
       SetS390OverflowCode(isOF);
@@ -2530,12 +2549,12 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       int32_t r2_val = get_low_register<int32_t>(r2);
       int32_t r3_val = get_low_register<int32_t>(r3);
       if (ARK == op) {
-        bool isOF = CheckOverflowForIntAdd(r2_val, r3_val);
+        bool isOF = CheckOverflowForIntAdd(r2_val, r3_val, int32_t);
         SetS390ConditionCode<int32_t>(r2_val + r3_val, 0);
         SetS390OverflowCode(isOF);
         set_low_register(r1, r2_val + r3_val);
       } else if (SRK == op) {
-        bool isOF = CheckOverflowForIntSub(r2_val, r3_val);
+        bool isOF = CheckOverflowForIntSub(r2_val, r3_val, int32_t);
         SetS390ConditionCode<int32_t>(r2_val - r3_val, 0);
         SetS390OverflowCode(isOF);
         set_low_register(r1, r2_val - r3_val);
@@ -2587,12 +2606,12 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       int64_t r2_val = get_register(r2);
       int64_t r3_val = get_register(r3);
       if (AGRK == op) {
-        bool isOF = CheckOverflowForIntAdd(r2_val, r3_val);
+        bool isOF = CheckOverflowForIntAdd(r2_val, r3_val, int64_t);
         SetS390ConditionCode<int64_t>(r2_val + r3_val, 0);
         SetS390OverflowCode(isOF);
         set_register(r1, r2_val + r3_val);
       } else if (SGRK == op) {
-        bool isOF = CheckOverflowForIntSub(r2_val, r3_val);
+        bool isOF = CheckOverflowForIntSub(r2_val, r3_val, int64_t);
         SetS390ConditionCode<int64_t>(r2_val - r3_val, 0);
         SetS390OverflowCode(isOF);
         set_register(r1, r2_val - r3_val);
@@ -2635,13 +2654,13 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
     case AHI:
     case MHI: {
       RIInstruction* riinst = reinterpret_cast<RIInstruction*>(instr);
-      int r1 = riinst->R1Value();
-      int i = riinst->I2Value();
+      int32_t r1 = riinst->R1Value();
+      int32_t i = riinst->I2Value();
       int32_t r1_val = get_low_register<int32_t>(r1);
       bool isOF = false;
       switch (op) {
         case AHI:
-          isOF = CheckOverflowForIntAdd(r1_val, i);
+          isOF = CheckOverflowForIntAdd(r1_val, i, int32_t);
           r1_val += i;
           break;
         case MHI:
@@ -2659,13 +2678,13 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
     case AGHI:
     case MGHI: {
       RIInstruction* riinst = reinterpret_cast<RIInstruction*>(instr);
-      int r1 = riinst->R1Value();
+      int32_t r1 = riinst->R1Value();
       int64_t i = static_cast<int64_t>(riinst->I2Value());
       int64_t r1_val = get_register(r1);
       bool isOF = false;
       switch (op) {
         case AGHI:
-          isOF = CheckOverflowForIntAdd(r1_val, i);
+          isOF = CheckOverflowForIntAdd(r1_val, i, int64_t);
           r1_val += i;
           break;
         case MGHI:
@@ -2752,13 +2771,13 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       bool isOF = false;
       switch (op) {
         case A:
-          isOF = CheckOverflowForIntAdd(r1_val, mem_val);
+          isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
           alu_out = r1_val + mem_val;
           SetS390ConditionCode<int32_t>(alu_out, 0);
           SetS390OverflowCode(isOF);
           break;
         case S:
-          isOF = CheckOverflowForIntSub(r1_val, mem_val);
+          isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
           alu_out = r1_val - mem_val;
           SetS390ConditionCode<int32_t>(alu_out, 0);
           SetS390OverflowCode(isOF);
@@ -2836,14 +2855,14 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
       intptr_t d2_val = rxinst->D2Value();
       intptr_t addr = b2_val + x2_val + d2_val;
-      int16_t mem_val = ReadH(addr, instr);
+      int32_t mem_val = static_cast<int32_t>(ReadH(addr, instr));
       int32_t alu_out = 0;
       bool isOF = false;
       if (AH == op) {
-        isOF = CheckOverflowForIntAdd(r1_val, mem_val);
+        isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
         alu_out = r1_val + mem_val;
       } else if (SH == op) {
-        isOF = CheckOverflowForIntSub(r1_val, mem_val);
+        isOF = CheckOverflowForIntSub(r1_val, mem_val, int32_t);
         alu_out = r1_val - mem_val;
       } else if (MH == op) {
         alu_out = r1_val * mem_val;
@@ -4322,14 +4341,14 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
         // 32-bit Add
         int32_t r2_val = get_low_register<int32_t>(r2);
         int32_t imm = rieInst->I6Value();
-        isOF = CheckOverflowForIntAdd(r2_val, imm);
+        isOF = CheckOverflowForIntAdd(r2_val, imm, int32_t);
         set_low_register(r1, r2_val + imm);
         SetS390ConditionCode<int32_t>(r2_val + imm, 0);
       } else if (AGHIK == op) {
         // 64-bit Add
         int64_t r2_val = get_register(r2);
         int64_t imm = static_cast<int64_t>(rieInst->I6Value());
-        isOF = CheckOverflowForIntAdd(r2_val, imm);
+        isOF = CheckOverflowForIntAdd(r2_val, imm, int64_t);
         set_register(r1, r2_val + imm);
         SetS390ConditionCode<int64_t>(r2_val + imm, 0);
       }
@@ -4372,12 +4391,12 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
       bool isOF = false;
       if (op == AY) {
-        isOF = CheckOverflowForIntAdd(alu_out, mem_val);
+        isOF = CheckOverflowForIntAdd(alu_out, mem_val, int32_t);
         alu_out += mem_val;
         SetS390ConditionCode<int32_t>(alu_out, 0);
         SetS390OverflowCode(isOF);
       } else if (op == SY) {
-        isOF = CheckOverflowForIntSub(alu_out, mem_val);
+        isOF = CheckOverflowForIntSub(alu_out, mem_val, int32_t);
         alu_out -= mem_val;
         SetS390ConditionCode<int32_t>(alu_out, 0);
         SetS390OverflowCode(isOF);
@@ -4407,17 +4426,18 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
       int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
       intptr_t d2_val = rxyInstr->D2Value();
-      int16_t mem_val = ReadH(b2_val + d2_val + x2_val, instr);
+      int32_t mem_val =
+          static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val, instr));
       int32_t alu_out = 0;
       bool isOF = false;
       switch (op) {
         case AHY:
           alu_out = r1_val + mem_val;
-          isOF = CheckOverflowForIntAdd(r1_val, mem_val);
+          isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
           break;
         case SHY:
           alu_out = r1_val - mem_val;
-          isOF = CheckOverflowForIntSub(r1_val, mem_val);
+          isOF = CheckOverflowForIntSub(r1_val, mem_val, int64_t);
           break;
         default:
           UNREACHABLE();
@@ -4520,20 +4540,21 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
     case AFI: {
       // Clobbering Add Word Immediate
       RILInstruction* rilInstr = reinterpret_cast<RILInstruction*>(instr);
-      int r1 = rilInstr->R1Value();
-      int i2 = rilInstr->I2Value();
+      int32_t r1 = rilInstr->R1Value();
       bool isOF = false;
       if (AFI == op) {
         // 32-bit Add (Register + 32-bit Immediate)
         int32_t r1_val = get_low_register<int32_t>(r1);
-        isOF = CheckOverflowForIntAdd(r1_val, i2);
+        int32_t i2 = rilInstr->I2Value();
+        isOF = CheckOverflowForIntAdd(r1_val, i2, int32_t);
         int32_t alu_out = r1_val + i2;
         set_low_register(r1, alu_out);
         SetS390ConditionCode<int32_t>(alu_out, 0);
       } else if (AGFI == op) {
         // 64-bit Add (Register + 32-bit Imm)
         int64_t r1_val = get_register(r1);
-        isOF = CheckOverflowForIntAdd(r1_val, i2);
+        int64_t i2 = static_cast<int64_t>(rilInstr->I2Value());
+        isOF = CheckOverflowForIntAdd(r1_val, i2, int64_t);
         int64_t alu_out = r1_val + i2;
         set_register(r1, alu_out);
         SetS390ConditionCode<int64_t>(alu_out, 0);
@@ -4542,7 +4563,12 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       break;
     }
     case ASI: {
-      int8_t i2 = static_cast<int8_t>(siyInstr->I2Value());
+      // TODO(bcleung): Change all fooInstr->I2Value() to template functions.
+      // The below static cast to 8 bit and then to 32 bit is necessary
+      // because siyInstr->I2Value() returns a uint8_t, which a direct
+      // cast to int32_t could incorrectly interpret.
+      int8_t i2_8bit = static_cast<int8_t>(siyInstr->I2Value());
+      int32_t i2 = static_cast<int32_t>(i2_8bit);
       int b1 = siyInstr->B1Value();
       intptr_t b1_val = (b1 == 0) ? 0 : get_register(b1);
 
@@ -4550,7 +4576,7 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       intptr_t addr = b1_val + d1_val;
 
       int32_t mem_val = ReadW(addr, instr);
-      bool isOF = CheckOverflowForIntAdd(mem_val, i2);
+      bool isOF = CheckOverflowForIntAdd(mem_val, i2, int32_t);
       int32_t alu_out = mem_val + i2;
       SetS390ConditionCode<int32_t>(alu_out, 0);
       SetS390OverflowCode(isOF);
@@ -4558,7 +4584,12 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       break;
     }
     case AGSI: {
-      int8_t i2 = static_cast<int8_t>(siyInstr->I2Value());
+      // TODO(bcleung): Change all fooInstr->I2Value() to template functions.
+      // The below static cast to 8 bit and then to 32 bit is necessary
+      // because siyInstr->I2Value() returns a uint8_t, which a direct
+      // cast to int32_t could incorrectly interpret.
+      int8_t i2_8bit = static_cast<int8_t>(siyInstr->I2Value());
+      int64_t i2 = static_cast<int64_t>(i2_8bit);
       int b1 = siyInstr->B1Value();
       intptr_t b1_val = (b1 == 0) ? 0 : get_register(b1);
 
@@ -4566,7 +4597,7 @@ bool Simulator::DecodeSixByteArithmetic(Instruction* instr) {
       intptr_t addr = b1_val + d1_val;
 
       int64_t mem_val = ReadDW(addr);
-      int isOF = CheckOverflowForIntAdd(mem_val, i2);
+      int isOF = CheckOverflowForIntAdd(mem_val, i2, int64_t);
       int64_t alu_out = mem_val + i2;
       SetS390ConditionCode<uint64_t>(alu_out, 0);
       SetS390OverflowCode(isOF);

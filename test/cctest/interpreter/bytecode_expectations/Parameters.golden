@@ -108,7 +108,7 @@ parameter count: 2
 bytecode array length: 7
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(arg0),
   B(LdaUndefined),
   B(Return),
@@ -128,7 +128,7 @@ parameter count: 5
 bytecode array length: 7
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(1),
+  B(LdaSmi), U8(1),
   B(Star), R(arg1),
   B(LdaUndefined),
   B(Return),

@@ -279,7 +279,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1029
+bytecode array length: 1030
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -794,7 +794,7 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(LdaLookupSlotWide), U16(256),
+  B(Wide), B(LdaLookupSlot), U16(256),
   B(Return),
 ]
 constant pool: [
@@ -1330,7 +1330,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1030
+bytecode array length: 1031
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -1845,7 +1845,7 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(LdaLookupSlotInsideTypeofWide), U16(256),
+  B(Wide), B(LdaLookupSlotInsideTypeof), U16(256),
   B(TypeOf),
   B(Return),
 ]
@@ -2382,7 +2382,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1032
+bytecode array length: 1033
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -2897,8 +2897,8 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(LdaSmi8), U8(10),
-  B(StaLookupSlotSloppyWide), U16(256),
+  B(LdaSmi), U8(10),
+  B(Wide), B(StaLookupSlotSloppy), U16(256),
   B(LdaUndefined),
   B(Return),
 ]
@@ -3436,7 +3436,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 1032
+bytecode array length: 1033
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -3951,8 +3951,8 @@ bytecodes: [
   B(Star), R(0),
   B(LdaConstant), U8(255),
   B(Star), R(0),
-  B(LdaSmi8), U8(10),
-  B(StaLookupSlotStrictWide), U16(256),
+  B(LdaSmi), U8(10),
+  B(Wide), B(StaLookupSlotStrict), U16(256),
   B(LdaUndefined),
   B(Return),
 ]

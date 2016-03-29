@@ -20,8 +20,8 @@ var MakeRangeError;
 var MakeTypeError;
 var MaxSimple;
 var MinSimple;
+var RegExpInitialize;
 var matchSymbol = utils.ImportNow("match_symbol");
-var RegExpExecNoTests;
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
@@ -34,7 +34,7 @@ utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  RegExpExecNoTests = from.RegExpExecNoTests;
+  RegExpInitialize = from.RegExpInitialize;
 });
 
 //-------------------------------------------------------------------
@@ -161,9 +161,10 @@ function StringMatchJS(pattern) {
 
   var subject = TO_STRING(this);
 
-  // Non-regexp argument.
-  var regexp = new GlobalRegExp(pattern);
-  return RegExpExecNoTests(regexp, subject, 0);
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
+  return regexp[matchSymbol](subject);
 }
 
 
@@ -357,7 +358,10 @@ function StringSearch(pattern) {
   }
 
   var subject = TO_STRING(this);
-  var regexp = new GlobalRegExp(pattern);
+
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
   return %_Call(regexp[searchSymbol], regexp, subject);
 }
 

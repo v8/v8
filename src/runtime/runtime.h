@@ -42,6 +42,7 @@ namespace internal {
   F(ArrayConstructor, -1, 1)         \
   F(NewArray, -1 /* >= 3 */, 1)      \
   F(InternalArrayConstructor, -1, 1) \
+  F(ArrayPush, -1, 1)                \
   F(NormalizeElements, 1, 1)         \
   F(GrowArrayElements, 2, 1)         \
   F(HasComplexElements, 1, 1)        \
@@ -51,7 +52,6 @@ namespace internal {
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F) \
   F(AtomicsCompareExchange, 4, 1)     \
@@ -314,7 +314,6 @@ namespace internal {
   F(CallSiteIsEvalRT, 1, 1)                         \
   F(CallSiteIsConstructorRT, 1, 1)                  \
   F(IS_VAR, 1, 1)                                   \
-  F(IncrementStatsCounter, 1, 1)                    \
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
   F(ThrowCalledNonCallable, 1, 1)                   \
@@ -359,11 +358,9 @@ namespace internal {
   F(MathAtan2, 2, 1)                \
   F(MathExpRT, 1, 1)                \
   F(MathClz32, 1, 1)                \
-  F(MathFloor, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
   F(RoundNumber, 1, 1)              \
-  F(MathSqrt, 1, 1)                 \
   F(GenerateRandomNumbers, 1, 1)
 
 
@@ -440,6 +437,7 @@ namespace internal {
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
   F(InstanceOf, 2, 1)                                \
+  F(OrdinaryHasInstance, 2, 1)                       \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \

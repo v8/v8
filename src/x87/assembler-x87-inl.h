@@ -452,6 +452,11 @@ void Assembler::emit_code_relative_offset(Label* label) {
   }
 }
 
+void Assembler::emit_b(Immediate x) {
+  DCHECK(x.is_int8() || x.is_uint8());
+  uint8_t value = static_cast<uint8_t>(x.x_);
+  *pc_++ = value;
+}
 
 void Assembler::emit_w(const Immediate& x) {
   DCHECK(RelocInfo::IsNone(x.rmode_));

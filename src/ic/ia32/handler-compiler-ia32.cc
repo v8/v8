@@ -94,7 +94,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Bail out if the receiver has a named interceptor or requires access checks.
   __ test_b(FieldOperand(scratch0, Map::kBitFieldOffset),
-            kInterceptorOrAccessCheckNeededMask);
+            Immediate(kInterceptorOrAccessCheckNeededMask));
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
@@ -757,22 +757,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
-    Handle<Name> name) {
-  __ pop(scratch1());  // remove the return address
-  __ push(receiver());
-  __ push(this->name());
-  __ push(value());
-  __ push(scratch1());  // restore return address
-
-  // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

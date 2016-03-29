@@ -27,18 +27,26 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!obj->IsJSFunction());
 
-  if (obj->IsCode()) {
-    Code* code = Code::cast(obj);
-    // If the function code is compiled (either as native code or bytecode),
-    // replace it with lazy-compile builtin. Only exception is when we are
-    // serializing the canonical interpreter-entry-trampoline builtin.
-    if (function_code_handling_ == CLEAR_FUNCTION_CODE &&
-        (code->kind() == Code::FUNCTION ||
-         (!serializing_builtins_ && code->is_interpreter_entry_trampoline()))) {
-      obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
+  if (function_code_handling_ == CLEAR_FUNCTION_CODE) {
+    if (obj->IsCode()) {
+      Code* code = Code::cast(obj);
+      // If the function code is compiled (either as native code or bytecode),
+      // replace it with lazy-compile builtin. Only exception is when we are
+      // serializing the canonical interpreter-entry-trampoline builtin.
+      if (code->kind() == Code::FUNCTION ||
+          (!serializing_builtins_ && code->is_interpreter_entry_trampoline())) {
+        obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
+      }
+    } else if (obj->IsBytecodeArray()) {
+      obj = isolate()->heap()->undefined_value();
     }
-  } else if (obj->IsBytecodeArray()) {
-    obj = isolate()->heap()->undefined_value();
+  } else if (obj->IsCode()) {
+    DCHECK_EQ(KEEP_FUNCTION_CODE, function_code_handling_);
+    Code* code = Code::cast(obj);
+    if (code->kind() == Code::FUNCTION) {
+      code->ClearInlineCaches();
+      code->set_profiler_ticks(0);
+    }
   }
 
   int root_index = root_index_map_.Lookup(obj);

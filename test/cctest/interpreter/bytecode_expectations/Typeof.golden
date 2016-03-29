@@ -21,7 +21,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(13),
+  B(LdaSmi), U8(13),
   B(Star), R(0),
   B(TypeOf),
   B(Return),

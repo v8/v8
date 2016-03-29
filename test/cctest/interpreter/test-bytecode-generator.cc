@@ -1496,24 +1496,6 @@ TEST(CreateRestParameter) {
            LoadGolden("CreateRestParameter.golden"));
 }
 
-TEST(IllegalRedeclaration) {
-  bool old_legacy_const_flag = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  CHECK_GE(MessageTemplate::kVarRedeclaration, 128);
-  // Must adapt bytecode if this changes.
-
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kMixed);
-  const char* snippets[] = {"const a = 1; { var a = 2; }"};
-
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("IllegalRedeclaration.golden"));
-
-  FLAG_legacy_const = old_legacy_const_flag;
-}
-
 TEST(ForIn) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
@@ -2000,29 +1982,6 @@ TEST(LetVariable) {
   };
 
   CHECK_EQ(BuildActual(printer, snippets), LoadGolden("LetVariable.golden"));
-}
-
-TEST(LegacyConstVariable) {
-  bool old_legacy_const_flag = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kString);
-  const char* snippets[] = {
-      "const x = 10;",
-
-      "const x = 10; return x;",
-
-      "const x = ( x = 20);",
-
-      "const x = 10; x = 20;",
-  };
-
-  CHECK_EQ(BuildActual(printer, snippets),
-           LoadGolden("LegacyConstVariable.golden"));
-
-  FLAG_legacy_const = old_legacy_const_flag;
 }
 
 TEST(ConstVariableContextSlot) {

@@ -19,7 +19,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(StaGlobalSloppy), U8(0), U8(1),
   B(LdaUndefined),
   B(Return),
@@ -62,7 +62,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(StaGlobalStrict), U8(0), U8(1),
   B(LdaUndefined),
   B(Return),
@@ -84,7 +84,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(LdaSmi8), U8(2),
+  B(LdaSmi), U8(2),
   B(StaGlobalSloppy), U8(0), U8(1),
   B(LdaUndefined),
   B(Return),
@@ -233,7 +233,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 1034
+bytecode array length: 1035
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
@@ -620,8 +620,8 @@ bytecodes: [
   B(Ldar), R(arg0),
   B(Star), R(0),
   B(LoadIC), R(0), U8(0), U8(255),
-  B(LdaSmi8), U8(2),
-  B(StaGlobalSloppyWide), U16(1), U16(257),
+  B(LdaSmi), U8(2),
+  B(Wide), B(StaGlobalSloppy), U16(1), U16(257),
   B(LdaUndefined),
   B(Return),
 ]
@@ -771,7 +771,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 1034
+bytecode array length: 1035
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
@@ -1158,8 +1158,8 @@ bytecodes: [
   B(Ldar), R(arg0),
   B(Star), R(0),
   B(LoadIC), R(0), U8(0), U8(255),
-  B(LdaSmi8), U8(2),
-  B(StaGlobalStrictWide), U16(1), U16(257),
+  B(LdaSmi), U8(2),
+  B(Wide), B(StaGlobalStrict), U16(1), U16(257),
   B(LdaUndefined),
   B(Return),
 ]

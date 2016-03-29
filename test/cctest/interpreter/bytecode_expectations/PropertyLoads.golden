@@ -62,7 +62,7 @@ bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
   B(Star), R(0),
-  B(LdaSmi8), U8(100),
+  B(LdaSmi), U8(100),
   B(KeyedLoadIC), R(0), U8(1),
   B(Return),
 ]
@@ -108,7 +108,7 @@ bytecodes: [
   B(Star), R(0),
   B(Ldar), R(arg0),
   B(Star), R(1),
-  B(LdaSmi8), U8(-124),
+  B(LdaSmi), U8(-124),
   B(KeyedLoadIC), R(1), U8(3),
   B(Return),
 ]
@@ -256,7 +256,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 1292
+bytecode array length: 1294
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
@@ -773,7 +773,7 @@ bytecodes: [
   B(Star), R(0),
   B(Ldar), R(arg0),
   B(Star), R(1),
-  B(LoadICWide), R(1), U16(0), U16(257),
+  B(Wide), B(LoadIC), R16(1), U16(0), U16(257),
   B(Return),
 ]
 constant pool: [
@@ -920,7 +920,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 3
-bytecode array length: 1420
+bytecode array length: 1422
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(arg0),
@@ -1566,7 +1566,7 @@ bytecodes: [
   B(Ldar), R(arg0),
   B(Star), R(1),
   B(Ldar), R(arg1),
-  B(KeyedLoadICWide), R(1), U16(257),
+  B(Wide), B(KeyedLoadIC), R16(1), U16(257),
   B(Return),
 ]
 constant pool: [

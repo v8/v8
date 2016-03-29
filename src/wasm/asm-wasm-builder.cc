@@ -461,33 +461,32 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void VisitLiteral(Literal* expr) {
-    if (in_function_) {
-      if (expr->raw_value()->IsNumber()) {
-        LocalType type = TypeOf(expr);
-        switch (type) {
-          case kAstI32: {
-            int val = static_cast<int>(expr->raw_value()->AsNumber());
-            // TODO(bradnelson): variable size
-            byte code[] = {WASM_I32V(val)};
-            current_function_builder_->EmitCode(code, sizeof(code));
-            break;
-          }
-          case kAstF32: {
-            float val = static_cast<float>(expr->raw_value()->AsNumber());
-            byte code[] = {WASM_F32(val)};
-            current_function_builder_->EmitCode(code, sizeof(code));
-            break;
-          }
-          case kAstF64: {
-            double val = static_cast<double>(expr->raw_value()->AsNumber());
-            byte code[] = {WASM_F64(val)};
-            current_function_builder_->EmitCode(code, sizeof(code));
-            break;
-          }
-          default:
-            UNREACHABLE();
-        }
+    Handle<Object> value = expr->value();
+    if (!in_function_ || !value->IsNumber()) {
+      return;
+    }
+    Type* type = expr->bounds().upper;
+    if (type->Is(cache_.kAsmSigned)) {
+      int32_t i;
+      if (!value->ToInt32(&i)) {
+        UNREACHABLE();
       }
+      byte code[] = {WASM_I32V(i)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    } else if (type->Is(cache_.kAsmUnsigned) || type->Is(cache_.kAsmFixnum)) {
+      uint32_t u;
+      if (!value->ToUint32(&u)) {
+        UNREACHABLE();
+      }
+      int32_t i = static_cast<int32_t>(u);
+      byte code[] = {WASM_I32V(i)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    } else if (type->Is(cache_.kAsmDouble)) {
+      double val = expr->raw_value()->AsNumber();
+      byte code[] = {WASM_F64(val)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    } else {
+      UNREACHABLE();
     }
   }
 
@@ -996,6 +995,22 @@ class AsmWasmBuilderImpl : public AstVisitor {
             current_function_builder_->EmitCode(code, sizeof(code));
             return true;
           }
+        }
+        switch (TypeIndexOf(args->at(0))) {
+          case kInt32:
+          case kFixnum:
+            current_function_builder_->Emit(kExprF32SConvertI32);
+            break;
+          case kUint32:
+            current_function_builder_->Emit(kExprF32UConvertI32);
+            break;
+          case kFloat32:
+            break;
+          case kFloat64:
+            current_function_builder_->Emit(kExprF32ConvertF64);
+            break;
+          default:
+            UNREACHABLE();
         }
         break;
       }

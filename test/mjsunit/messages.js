@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
+// Flags: --stack-size=100 --harmony
 // Flags: --harmony-simd --harmony-instanceof
 
 function test(f, expected, type) {
@@ -150,7 +150,7 @@ TypeError);
 // kInstanceofFunctionExpected
 test(function() {
   1 instanceof 1;
-}, "right-hand side is not an object", TypeError);
+}, "Right-hand side of 'instanceof' is not an object", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {

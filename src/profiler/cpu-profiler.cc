@@ -274,18 +274,23 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   if (script) {
     if (abstract_code->IsCode()) {
       Code* code = abstract_code->GetCode();
+      int start_position = shared->start_position();
+      int end_position = shared->end_position();
       line_table = new JITLineInfoTable();
       for (RelocIterator it(code); !it.done(); it.next()) {
-        RelocInfo::Mode mode = it.rinfo()->rmode();
-        if (RelocInfo::IsPosition(mode)) {
-          int position = static_cast<int>(it.rinfo()->data());
-          if (position >= 0) {
-            int pc_offset =
-                static_cast<int>(it.rinfo()->pc() - code->address());
-            int line_number = script->GetLineNumber(position) + 1;
-            line_table->SetPosition(pc_offset, line_number);
-          }
-        }
+        RelocInfo* reloc_info = it.rinfo();
+        if (!RelocInfo::IsPosition(reloc_info->rmode())) continue;
+        int position = static_cast<int>(reloc_info->data());
+        // TODO(alph): in case of inlining the position may correspond
+        // to an inlined function source code. Do not collect positions
+        // that fall beyond the function source code. There's however a
+        // chance the inlined function has similar positions but in another
+        // script. So the proper fix is to store script_id in some form
+        // along with the inlined function positions.
+        if (position < start_position || position >= end_position) continue;
+        int pc_offset = static_cast<int>(reloc_info->pc() - code->address());
+        int line_number = script->GetLineNumber(position) + 1;
+        line_table->SetPosition(pc_offset, line_number);
       }
     } else {
       BytecodeArray* bytecode = abstract_code->GetBytecodeArray();

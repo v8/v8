@@ -957,6 +957,28 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   }
 }
 
+// static
+void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : argc
+  //  -- esp[0] : return address
+  //  -- esp[4] : first argument (left-hand side)
+  //  -- esp[8] : receiver (right-hand side)
+  // -----------------------------------
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ mov(InstanceOfDescriptor::LeftRegister(),
+           Operand(ebp, 2 * kPointerSize));  // Load left-hand side.
+    __ mov(InstanceOfDescriptor::RightRegister(),
+           Operand(ebp, 3 * kPointerSize));  // Load right-hand side.
+    InstanceOfStub stub(masm->isolate(), true);
+    __ CallStub(&stub);
+  }
+
+  // Pop the argument and the receiver.
+  __ ret(2 * kPointerSize);
+}
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
@@ -1004,7 +1026,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   Label receiver_not_callable;
   __ JumpIfSmi(edi, &receiver_not_callable, Label::kNear);
   __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsCallable);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsCallable));
   __ j(zero, &receiver_not_callable, Label::kNear);
 
   // 3. Tail call with no arguments if argArray is null or undefined.
@@ -1127,7 +1150,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   Label target_not_callable;
   __ JumpIfSmi(edi, &target_not_callable, Label::kNear);
   __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsCallable);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsCallable));
   __ j(zero, &target_not_callable, Label::kNear);
 
   // 3a. Apply the target to the given argumentsList (passing undefined for
@@ -1142,7 +1166,6 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ TailCallRuntime(Runtime::kThrowApplyNonFunction);
   }
 }
-
 
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -1192,14 +1215,16 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   Label target_not_constructor;
   __ JumpIfSmi(edi, &target_not_constructor, Label::kNear);
   __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsConstructor);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsConstructor));
   __ j(zero, &target_not_constructor, Label::kNear);
 
   // 3. Make sure the target is actually a constructor.
   Label new_target_not_constructor;
   __ JumpIfSmi(edx, &new_target_not_constructor, Label::kNear);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsConstructor);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsConstructor));
   __ j(zero, &new_target_not_constructor, Label::kNear);
 
   // 4a. Construct the target with the given new.target and argumentsList.
@@ -1887,14 +1912,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
   Comment cmnt(masm, "[ PrepareForTailCall");
 
-  // Prepare for tail call only if the debugger is not active.
-  Label done;
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(masm->isolate());
-  __ movzx_b(scratch1, Operand::StaticVariable(debug_is_active));
-  __ cmp(scratch1, Immediate(0));
-  __ j(not_equal, &done, Label::kNear);
-
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
@@ -1935,7 +1952,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
                         scratch3, ReturnAddressState::kOnStack, 0);
-  __ bind(&done);
 }
 }  // namespace
 
@@ -1954,7 +1970,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ test_b(FieldOperand(edx, SharedFunctionInfo::kFunctionKindByteOffset),
-            SharedFunctionInfo::kClassConstructorBitsWithinByte);
+            Immediate(SharedFunctionInfo::kClassConstructorBitsWithinByte));
   __ j(not_zero, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
@@ -1966,8 +1982,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ test_b(FieldOperand(edx, SharedFunctionInfo::kNativeByteOffset),
-            (1 << SharedFunctionInfo::kNativeBitWithinByte) |
-                (1 << SharedFunctionInfo::kStrictModeBitWithinByte));
+            Immediate((1 << SharedFunctionInfo::kNativeBitWithinByte) |
+                      (1 << SharedFunctionInfo::kStrictModeBitWithinByte)));
   __ j(not_zero, &done_convert);
   {
     // ----------- S t a t e -------------
@@ -2189,7 +2205,8 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
        RelocInfo::CODE_TARGET);
 
   // Check if target has a [[Call]] internal method.
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsCallable);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsCallable));
   __ j(zero, &non_callable);
 
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
@@ -2325,7 +2342,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
        RelocInfo::CODE_TARGET);
 
   // Check if target has a [[Construct]] internal method.
-  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsConstructor);
+  __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+            Immediate(1 << Map::kIsConstructor));
   __ j(zero, &non_constructor, Label::kNear);
 
   // Only dispatch to bound functions after checking whether they are

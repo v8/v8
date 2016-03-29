@@ -2989,7 +2989,6 @@ THREADED_TEST(SymbolTemplateProperties) {
 
 
 THREADED_TEST(PrivatePropertiesOnProxies) {
-  i::FLAG_harmony_proxies = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -14517,12 +14516,17 @@ static int move_events = 0;
 static bool FunctionNameIs(const char* expected,
                            const v8::JitCodeEvent* event) {
   // Log lines for functions are of the general form:
-  // "LazyCompile:<type><function_name>", where the type is one of
-  // "*", "~" or "".
-  static const char kPreamble[] = "LazyCompile:";
-  static size_t kPreambleLen = sizeof(kPreamble) - 1;
+  // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
+  // where the type is one of "*", "~" or "".
+  static const char* kPreamble;
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) {
+    kPreamble = "Function:";
+  } else {
+    kPreamble = "LazyCompile:";
+  }
+  static size_t kPreambleLen = strlen(kPreamble);
 
-  if (event->name.len < sizeof(kPreamble) - 1 ||
+  if (event->name.len < kPreambleLen ||
       strncmp(kPreamble, event->name.str, kPreambleLen) != 0) {
     return false;
   }
@@ -14690,7 +14694,8 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
       i::AlwaysAllocateScope always_allocate(i_isolate);
-      SimulateFullSpace(heap->code_space());
+      SimulateFullSpace(i::FLAG_ignition ? heap->old_space()
+                                         : heap->code_space());
       CompileRun(script);
 
       // Keep a strong reference to the code object in the handle scope.
@@ -15131,6 +15136,9 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
 
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
+  // Producing cached parser data while parsing eagerly is not supported.
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+
   v8::V8::Initialize();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -19891,7 +19899,6 @@ TEST(PersistentHandleInNewSpaceVisitor) {
 
 
 TEST(RegExp) {
-  i::FLAG_harmony_regexps = true;
   i::FLAG_harmony_unicode_regexps = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -24062,12 +24069,18 @@ TEST(InvalidCacheData) {
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
-  TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
+  if (i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager)) {
+    // Cached parser data is not consumed while parsing eagerly.
+    TestInvalidCacheData(v8::ScriptCompiler::kConsumeParserCache);
+  }
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
 }
 
 
 TEST(ParserCacheRejectedGracefully) {
+  // Producing cached parser data while parsing eagerly is not supported.
+  if (!i::FLAG_lazy || (i::FLAG_ignition && i::FLAG_ignition_eager)) return;
+
   i::FLAG_min_preparse_length = 0;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
@@ -24836,7 +24849,6 @@ TEST(ObjectTemplateIntrinsics) {
 
 
 TEST(Proxy) {
-  i::FLAG_harmony_proxies = true;
   LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -24859,39 +24871,70 @@ TEST(Proxy) {
   CHECK(proxy->GetHandler()->IsNull());
 }
 
-TEST(HTMLCommentInJavascript) {
-  // Regression test for crbug.com/573887.
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
+WeakCallCounterAndPersistent<Value>* CreateGarbageWithWeakCallCounter(
+    v8::Isolate* isolate, WeakCallCounter* counter) {
+  v8::Locker locker(isolate);
+  LocalContext env;
+  HandleScope scope(isolate);
+  WeakCallCounterAndPersistent<Value>* val =
+      new WeakCallCounterAndPersistent<Value>(counter);
+  val->handle.Reset(isolate, Object::New(isolate));
+  val->handle.SetWeak(val, &WeakPointerCallback,
+                      v8::WeakCallbackType::kParameter);
+  return val;
+}
 
-  // Inline scripts - i.e. the contents of <script> tags - need to obey HTML
-  // comments, but JS sources - i.e., everything else - shouldn't.
-  const char* source = "<!--\n var result = 2 + 2;\n-->\n result";
+class MemoryPressureThread : public v8::base::Thread {
+ public:
+  explicit MemoryPressureThread(v8::Isolate* isolate,
+                                v8::MemoryPressureLevel level)
+      : Thread(Options("MemoryPressureThread")),
+        isolate_(isolate),
+        level_(level) {}
 
-  v8::ScriptOrigin inline_script(v8_str(""));
+  virtual void Run() { isolate_->MemoryPressureNotification(level_); }
 
-  v8::ScriptOrigin source_script(
-      v8_str("http://some-resource.net/"), Local<v8::Integer>(),
-      Local<v8::Integer>(), Local<Boolean>(), Local<v8::Integer>(),
-      Local<Boolean>(), Local<Value>(), Local<Boolean>(),
-      v8::False(CcTest::isolate()));
+ private:
+  v8::Isolate* isolate_;
+  v8::MemoryPressureLevel level_;
+};
 
-  // Case 1: An inline script.
+TEST(MemoryPressure) {
+  v8::Isolate* isolate = CcTest::isolate();
+  WeakCallCounter counter(1234);
+
+  // Check that critical memory pressure notification sets GC interrupt.
+  auto garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
+  CHECK(!v8::Locker::IsLocked(isolate));
   {
-    v8::MaybeLocal<v8::Script> script =
-        v8::Script::Compile(context.local(), v8_str(source), &inline_script);
-    CHECK(!script.IsEmpty());
-    CHECK_EQ(4, script.ToLocalChecked()
-                    ->Run(context.local())
-                    .ToLocalChecked()
-                    ->Int32Value(context.local())
-                    .FromJust());
+    v8::Locker locker(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext env;
+    MemoryPressureThread memory_pressure_thread(
+        isolate, v8::MemoryPressureLevel::kCritical);
+    memory_pressure_thread.Start();
+    memory_pressure_thread.Join();
+    // This should trigger GC.
+    CHECK_EQ(0, counter.NumberOfWeakCalls());
+    CompileRun("(function noop() { return 0; })()");
+    CHECK_EQ(1, counter.NumberOfWeakCalls());
   }
-
-  // Case 2: Js source file.
+  delete garbage;
+  // Check that critical memory pressure notification triggers GC.
+  garbage = CreateGarbageWithWeakCallCounter(isolate, &counter);
   {
-    v8::MaybeLocal<v8::Script> script =
-        v8::Script::Compile(context.local(), v8_str(source), &source_script);
-    CHECK(script.IsEmpty());
+    v8::Locker locker(isolate);
+    // If isolate is locked, memory pressure notification should trigger GC.
+    CHECK_EQ(1, counter.NumberOfWeakCalls());
+    isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical);
+    CHECK_EQ(2, counter.NumberOfWeakCalls());
   }
+  delete garbage;
+  // Check that moderate memory pressure notification sets GC into memory
+  // optimizing mode.
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kModerate);
+  CHECK(CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
+  // Check that disabling memory pressure returns GC into normal mode.
+  isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kNone);
+  CHECK(!CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
 }
