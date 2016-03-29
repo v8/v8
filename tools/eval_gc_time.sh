@@ -90,6 +90,10 @@ INTERESTING_OLD_GEN_KEYS="\
   mark.prepare_code_flush \
   mark.roots \
   mark.weak_closure \
+  mark.weak_closure.ephemeral \
+  mark.weak_closure.weak_handles \
+  mark.weak_closure.weak_roots \
+  mark.weak_closure.harmony \
   sweep \
   sweep.code \
   sweep.map \

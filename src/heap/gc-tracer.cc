@@ -559,6 +559,10 @@ void GCTracer::PrintNVP() const {
           "mark.prepare_code_flush=%.1f "
           "mark.roots=%.1f "
           "mark.weak_closure=%.1f "
+          "mark.weak_closure.ephemeral=%.1f "
+          "mark.weak_closure.weak_handles=%.1f "
+          "mark.weak_closure.weak_roots=%.1f "
+          "mark.weak_closure.harmony=%.1f "
           "sweep=%.1f "
           "sweep.code=%.1f "
           "sweep.map=%.1f "
@@ -628,6 +632,10 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
+          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
           current_.scopes[Scope::MC_SWEEP],
           current_.scopes[Scope::MC_SWEEP_CODE],
           current_.scopes[Scope::MC_SWEEP_MAP],
