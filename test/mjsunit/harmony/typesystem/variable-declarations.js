@@ -6,7 +6,6 @@
 
 
 load("test/mjsunit/harmony/typesystem/typegen.js");
-debug = true;
 
 
 // In all the following functions, the size parameter (positive integer)
