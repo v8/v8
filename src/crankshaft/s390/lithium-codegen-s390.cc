@@ -108,7 +108,8 @@ bool LCodeGen::GeneratePrologue() {
     // Prologue logic requires its starting address in ip and the
     // corresponding offset from the function entry.  Need to add
     // 4 bytes for the size of AHI/AGHI that AddP expands into.
-    __ AddP(ip, ip, Operand(prologue_offset + sizeof(FourByteInstr)));
+    prologue_offset += sizeof(FourByteInstr);
+    __ AddP(ip, ip, Operand(prologue_offset));
   }
   info()->set_prologue_offset(prologue_offset);
   if (NeedsEagerFrame()) {
