@@ -247,10 +247,10 @@ inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
-    : WasmFrame(iterator) {}
+    : StubFrame(iterator) {}
 
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
-    : WasmFrame(iterator) {}
+    : StubFrame(iterator) {}
 
 inline InternalFrame::InternalFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {

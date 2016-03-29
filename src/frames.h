@@ -961,6 +961,11 @@ class WasmFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
+  static WasmFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm());
+    return static_cast<WasmFrame*>(frame);
+  }
+
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
@@ -970,7 +975,7 @@ class WasmFrame : public StandardFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmToJsFrame : public WasmFrame {
+class WasmToJsFrame : public StubFrame {
  public:
   Type type() const override { return WASM_TO_JS; }
 
@@ -981,7 +986,7 @@ class WasmToJsFrame : public WasmFrame {
   friend class StackFrameIteratorBase;
 };
 
-class JsToWasmFrame : public WasmFrame {
+class JsToWasmFrame : public StubFrame {
  public:
   Type type() const override { return JS_TO_WASM; }
 
