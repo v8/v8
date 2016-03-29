@@ -94,10 +94,10 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, bool just_signature, bool* ok) {
+    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, just_signature, ok);
+      function_token_position, type, language_mode, type_flags, ok);
 }
 
 
@@ -411,7 +411,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
-                       true, CHECK_OK);
+                       typesystem::kAllowSignature, CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
@@ -1005,7 +1005,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, bool just_signature, bool* ok) {
+    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -1020,7 +1020,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
   // Parse optional type parameters.
-  if (scope_->typed() && peek() == Token::LT) {  // Braces required here.
+  if (scope_->typed()
+      && !(type_flags & typesystem::kDisallowTypeParameters)
+      && peek() == Token::LT) {  // Braces required here.
     ParseTypeParameters(CHECK_OK);
   }
 
@@ -1047,7 +1049,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   // Allow for a function signature (i.e., a literal without body).
-  if (peek() != Token::LBRACE && scope_->typed() && just_signature) {
+  if (peek() != Token::LBRACE && scope_->typed() &&
+        (type_flags & typesystem::kAllowSignature)) {
     ExpectSemicolon(CHECK_OK);
     return this->EmptyExpression();
   }
