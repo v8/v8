@@ -1049,7 +1049,7 @@ function InnerArraySort(array, length, comparefn) {
   var CopyFromPrototype = function CopyFromPrototype(obj, length) {
     var max = 0;
     for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
-      var indices = %GetArrayKeys(proto, length);
+      var indices = IS_PROXY(proto) ? length : %GetArrayKeys(proto, length);
       if (IS_NUMBER(indices)) {
         // It's an interval.
         var proto_length = indices;
@@ -1077,7 +1077,7 @@ function InnerArraySort(array, length, comparefn) {
   // elements in that range.
   var ShadowPrototypeElements = function(obj, from, to) {
     for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
-      var indices = %GetArrayKeys(proto, to);
+      var indices = IS_PROXY(proto) ? to : %GetArrayKeys(proto, to);
       if (IS_NUMBER(indices)) {
         // It's an interval.
         var proto_length = indices;
