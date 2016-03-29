@@ -1631,20 +1631,20 @@ void InstructionSelector::EmitPrepareArguments(
     Node* node) {
   Arm64OperandGenerator g(this);
 
+  bool from_native_stack = linkage()->GetIncomingDescriptor()->UseNativeStack();
   bool to_native_stack = descriptor->UseNativeStack();
+
+  bool always_claim = to_native_stack != from_native_stack;
 
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
-  if (to_native_stack) {
-    // Native stack must always be aligned to 16 (2 words).
-    claim_count = RoundUp(claim_count, 2);
-  }
-  // TODO(titzer): claim and poke probably take small immediates.
   // Bump the stack pointer(s).
-  if (claim_count > 0 || to_native_stack) {
+  if (claim_count > 0 || always_claim) {
+    // TODO(titzer): claim and poke probably take small immediates.
     // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
     ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
+    // Claim(0) isn't a nop if there is a mismatch between CSP and JSSP.
     Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 

@@ -19,7 +19,6 @@ using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
 
-#if !V8_TARGET_ARCH_ARM64
 // TODO(titzer): fix arm64 frame alignment.
 namespace {
 void TestModule(WasmModuleIndex* module, int32_t expected_result) {
@@ -207,5 +206,3 @@ TEST(Run_WasmModule_Global) {
   TestModule(writer->WriteTo(&zone), 97);
 }
 #endif
-
-#endif  // !V8_TARGET_ARCH_ARM64

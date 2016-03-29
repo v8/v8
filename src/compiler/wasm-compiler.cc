@@ -2461,6 +2461,12 @@ Handle<JSFunction> CompileJSToWasmWrapper(
     CompilationInfo info(func_name, isolate, &zone, flags);
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_opt_code && !code.is_null()) {
+      OFStream os(stdout);
+      code->Disassemble(buffer.start(), os);
+    }
+#endif
     if (debugging) {
       buffer.Dispose();
     }
@@ -2541,6 +2547,12 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 
     CompilationInfo info(func_name, isolate, &zone, flags);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_opt_code && !code.is_null()) {
+      OFStream os(stdout);
+      code->Disassemble(buffer.start(), os);
+    }
+#endif
     if (debugging) {
       buffer.Dispose();
     }

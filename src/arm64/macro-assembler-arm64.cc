@@ -1355,6 +1355,14 @@ void MacroAssembler::AssertStackConsistency() {
   }
 }
 
+void MacroAssembler::AssertCspAligned() {
+  if (emit_debug_code() && use_real_aborts()) {
+    // TODO(titzer): use a real assert for alignment check?
+    UseScratchRegisterScope scope(this);
+    Register temp = scope.AcquireX();
+    ldr(temp, MemOperand(csp));
+  }
+}
 
 void MacroAssembler::AssertFPCRState(Register fpcr) {
   if (emit_debug_code()) {

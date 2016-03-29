@@ -230,6 +230,11 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
+  if (set_initialize_root_flag) {
+    flags |= CallDescriptor::kInitializeRootRegister;
+  }
+
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
@@ -240,10 +245,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       Operator::kNoProperties,       // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
-      set_initialize_root_flag ?     // flags
-          CallDescriptor::kInitializeRootRegister
-                               : CallDescriptor::kNoFlags,
-      "c-call");
+      flags, "c-call");
 }
 
 }  // namespace compiler

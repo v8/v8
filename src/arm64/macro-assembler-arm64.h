@@ -788,6 +788,9 @@ class MacroAssembler : public Assembler {
   // If emit_debug_code() is false, this emits no code.
   void AssertStackConsistency();
 
+  // Emits a runtime assert that the CSP is aligned.
+  void AssertCspAligned();
+
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and

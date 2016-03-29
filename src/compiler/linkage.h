@@ -160,10 +160,11 @@ class CallDescriptor final : public ZoneObject {
     kCanUseRoots = 1u << 6,
     // (arm64 only) native stack should be used for arguments.
     kUseNativeStack = 1u << 7,
-    // (arm64 only) call instruction has to restore JSSP.
+    // (arm64 only) call instruction has to restore JSSP or CSP.
     kRestoreJSSP = 1u << 8,
+    kRestoreCSP = 1u << 9,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 9,
+    kInitializeRootRegister = 1u << 10,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;

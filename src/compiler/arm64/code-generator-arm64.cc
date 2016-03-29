@@ -530,16 +530,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
         __ Call(target);
       }
+      RecordCallPosition(instr);
       // TODO(titzer): this is ugly. JSSP should be a caller-save register
       // in this case, but it is not possible to express in the register
       // allocator.
-      CallDescriptor::Flags flags =
-          static_cast<CallDescriptor::Flags>(MiscField::decode(opcode));
+      CallDescriptor::Flags flags(MiscField::decode(opcode));
       if (flags & CallDescriptor::kRestoreJSSP) {
-        __ mov(jssp, csp);
+        __ Ldr(jssp, MemOperand(csp));
+        __ Mov(csp, jssp);
+      }
+      if (flags & CallDescriptor::kRestoreCSP) {
+        __ Mov(csp, jssp);
+        __ AssertCspAligned();
       }
       frame_access_state()->ClearSPDelta();
-      RecordCallPosition(instr);
       break;
     }
     case kArchTailCallCodeObjectFromJSFunction:
@@ -575,16 +579,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(x10);
+      RecordCallPosition(instr);
       // TODO(titzer): this is ugly. JSSP should be a caller-save register
       // in this case, but it is not possible to express in the register
       // allocator.
-      CallDescriptor::Flags flags =
-          static_cast<CallDescriptor::Flags>(MiscField::decode(opcode));
+      CallDescriptor::Flags flags(MiscField::decode(opcode));
       if (flags & CallDescriptor::kRestoreJSSP) {
-        __ mov(jssp, csp);
+        __ Ldr(jssp, MemOperand(csp));
+        __ Mov(csp, jssp);
+      }
+      if (flags & CallDescriptor::kRestoreCSP) {
+        __ Mov(csp, jssp);
+        __ AssertCspAligned();
       }
       frame_access_state()->ClearSPDelta();
-      RecordCallPosition(instr);
       break;
     }
     case kArchTailCallJSFunctionFromJSFunction:
@@ -967,26 +975,46 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
     case kArm64ClaimCSP: {
-      int count = i.InputInt32(0);
+      int count = RoundUp(i.InputInt32(0), 2);
       Register prev = __ StackPointer();
       if (prev.Is(jssp)) {
-        __ AlignAndSetCSPForFrame();
+        // TODO(titzer): make this a macro-assembler method.
+        // Align the CSP and store the previous JSSP on the stack.
+        UseScratchRegisterScope scope(masm());
+        Register tmp = scope.AcquireX();
+
+        int sp_alignment = __ ActivationFrameAlignment();
+        __ Sub(tmp, jssp, kPointerSize);
+        __ And(tmp, tmp, Operand(~static_cast<uint64_t>(sp_alignment - 1)));
+        __ Mov(csp, tmp);
+        __ Str(jssp, MemOperand(csp));
+        if (count > 0) {
+          __ SetStackPointer(csp);
+          __ Claim(count);
+          __ SetStackPointer(prev);
+        }
+      } else {
+        __ AssertCspAligned();
+        if (count > 0) {
+          __ Claim(count);
+          frame_access_state()->IncreaseSPDelta(count);
+        }
       }
-      if (count > 0) {
-        __ Claim(count);
-      }
-      __ SetStackPointer(prev);
-      frame_access_state()->IncreaseSPDelta(count);
       break;
     }
     case kArm64ClaimJSSP: {
       int count = i.InputInt32(0);
       if (csp.Is(__ StackPointer())) {
-        // No JSP is set up. Compute it from the CSP.
-        int even = RoundUp(count, 2);
-        __ Sub(jssp, csp, count * kPointerSize);
-        __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
-        frame_access_state()->IncreaseSPDelta(even);
+        // No JSSP is set up. Compute it from the CSP.
+        __ AssertCspAligned();
+        if (count > 0) {
+          int even = RoundUp(count, 2);
+          __ Sub(jssp, csp, count * kPointerSize);
+          __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
+          frame_access_state()->IncreaseSPDelta(even);
+        } else {
+          __ Mov(jssp, csp);
+        }
       } else {
         // JSSP is the current stack pointer, just use regular Claim().
         __ Claim(count);
@@ -1467,6 +1495,10 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  if (descriptor->UseNativeStack()) {
+    __ AssertCspAligned();
+  }
+
   frame()->AlignFrame(16);
   int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (frame()->needs_frame()) {
@@ -1579,6 +1611,10 @@ void CodeGenerator::AssembleReturn() {
     pop_count += (pop_count & 1);  // align
   }
   __ Drop(pop_count);
+
+  if (descriptor->UseNativeStack()) {
+    __ AssertCspAligned();
+  }
   __ Ret();
 }
 

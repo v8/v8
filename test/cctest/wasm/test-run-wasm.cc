@@ -2680,9 +2680,6 @@ TEST(Run_Wasm_F64CopySign) {
 }
 
 
-// TODO(tizer): Fix on arm and reenable.
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64
-
 TEST(Run_Wasm_F32CopySign) {
   WasmRunner<float> r(MachineType::Float32(), MachineType::Float32());
   BUILD(r, WASM_F32_COPYSIGN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -2691,10 +2688,6 @@ TEST(Run_Wasm_F32CopySign) {
     FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysign(*i, *j), r.Call(*i, *j)); }
   }
 }
-
-
-#endif
-
 
 void CompileCallIndirectMany(LocalType param) {
   // Make sure we don't run out of registers when compiling indirect calls
