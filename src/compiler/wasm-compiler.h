@@ -232,9 +232,9 @@ class WasmGraphBuilder {
   Node* BuildDiv64Call(Node* left, Node* right, ExternalReference ref,
                        MachineType result_type, int trap_zero);
 
-  Node** Realloc(Node** buffer, size_t count) {
-    Node** buf = Buffer(count);
-    if (buf != buffer) memcpy(buf, buffer, count * sizeof(Node*));
+  Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
+    Node** buf = Buffer(new_count);
+    if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
 };

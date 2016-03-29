@@ -352,8 +352,7 @@ Node* WasmGraphBuilder::Merge(unsigned count, Node** controls) {
 Node* WasmGraphBuilder::Phi(wasm::LocalType type, unsigned count, Node** vals,
                             Node* control) {
   DCHECK(IrOpcode::IsMergeOpcode(control->opcode()));
-  Node** buf = Realloc(vals, count);
-  buf = Realloc(buf, count + 1);
+  Node** buf = Realloc(vals, count, count + 1);
   buf[count] = control;
   return graph()->NewNode(jsgraph()->common()->Phi(type, count), count + 1,
                           buf);
@@ -363,8 +362,7 @@ Node* WasmGraphBuilder::Phi(wasm::LocalType type, unsigned count, Node** vals,
 Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
                                   Node* control) {
   DCHECK(IrOpcode::IsMergeOpcode(control->opcode()));
-  Node** buf = Realloc(effects, count);
-  buf = Realloc(buf, count + 1);
+  Node** buf = Realloc(effects, count, count + 1);
   buf[count] = control;
   return graph()->NewNode(jsgraph()->common()->EffectPhi(count), count + 1,
                           buf);
@@ -976,8 +974,7 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
     count = 1;
   }
 
-  Node** buf = Realloc(vals, count);
-  buf = Realloc(buf, count + 2);
+  Node** buf = Realloc(vals, count, count + 2);
   buf[count] = *effect_;
   buf[count + 1] = *control_;
   Node* ret = graph()->NewNode(jsgraph()->common()->Return(), count + 2, vals);
@@ -1569,7 +1566,7 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
                               *control_);
 
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
-  Node** args = Buffer(4);
+  Node** args = Buffer(5);
   args[0] = function;
   args[1] = stack_slot_param0;
   int input_count = 1;
@@ -1582,7 +1579,6 @@ Node* WasmGraphBuilder::BuildCFuncInstruction(ExternalReference ref,
     *effect_ = graph()->NewNode(store_op1, stack_slot_param1,
                                 jsgraph()->Int32Constant(0), input1, *effect_,
                                 *control_);
-    args = Realloc(args, 5);
     args[2] = stack_slot_param1;
     ++input_count;
   }
@@ -1855,7 +1851,7 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node** args) {
   const size_t count = 1 + params + extra;
 
   // Reallocate the buffer to make space for extra inputs.
-  args = Realloc(args, count);
+  args = Realloc(args, 1 + params, count);
 
   // Add effect and control inputs.
   args[params + 1] = *effect_;
@@ -1876,7 +1872,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args) {
   const size_t count = 1 + params + extra;
 
   // Reallocate the buffer to make space for extra inputs.
-  args = Realloc(args, count);
+  args = Realloc(args, 1 + params, count);
 
   // Add effect and control inputs.
   args[params + 1] = *effect_;
