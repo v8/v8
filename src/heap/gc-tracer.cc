@@ -45,23 +45,6 @@ GCTracer::Scope::~Scope() {
 }
 
 
-GCTracer::AllocationEvent::AllocationEvent(double duration,
-                                           size_t allocation_in_bytes) {
-  duration_ = duration;
-  allocation_in_bytes_ = allocation_in_bytes;
-}
-
-
-GCTracer::ContextDisposalEvent::ContextDisposalEvent(double time) {
-  time_ = time;
-}
-
-
-GCTracer::SurvivalEvent::SurvivalEvent(double promotion_ratio) {
-  promotion_ratio_ = promotion_ratio;
-}
-
-
 GCTracer::Event::Event(Type type, const char* gc_reason,
                        const char* collector_reason)
     : type(type),
@@ -202,7 +185,6 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   }
 }
 
-
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
   if (start_counter_ != 0) {
@@ -233,6 +215,7 @@ void GCTracer::Stop(GarbageCollector collector) {
   heap_->isolate()->counters()->aggregated_memory_heap_used()->AddSample(
       current_.end_time, used_memory);
 
+  double duration = current_.end_time - current_.start_time;
   if (current_.type == Event::SCAVENGER) {
     current_.incremental_marking_steps =
         current_.cumulative_incremental_marking_steps -
@@ -246,7 +229,10 @@ void GCTracer::Stop(GarbageCollector collector) {
     current_.pure_incremental_marking_duration =
         current_.cumulative_pure_incremental_marking_duration -
         previous_.cumulative_pure_incremental_marking_duration;
-    scavenger_events_.push_front(current_);
+    recorded_scavenges_total_.Push(
+        MakeBytesAndDuration(current_.new_space_object_size, duration));
+    recorded_scavenges_survived_.Push(MakeBytesAndDuration(
+        current_.survived_new_space_object_size, duration));
   } else if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
     current_.incremental_marking_steps =
         current_.cumulative_incremental_marking_steps -
@@ -265,20 +251,24 @@ void GCTracer::Stop(GarbageCollector collector) {
         previous_incremental_mark_compactor_event_
             .cumulative_pure_incremental_marking_duration;
     longest_incremental_marking_step_ = 0.0;
-    incremental_mark_compactor_events_.push_front(current_);
+    recorded_incremental_marking_steps_.Push(
+        MakeBytesAndDuration(current_.incremental_marking_bytes,
+                             current_.pure_incremental_marking_duration));
+    recorded_incremental_mark_compacts_.Push(
+        MakeBytesAndDuration(current_.start_object_size, duration));
     combined_mark_compact_speed_cache_ = 0.0;
   } else {
     DCHECK(current_.incremental_marking_bytes == 0);
     DCHECK(current_.incremental_marking_duration == 0);
     DCHECK(current_.pure_incremental_marking_duration == 0);
     longest_incremental_marking_step_ = 0.0;
-    mark_compactor_events_.push_front(current_);
+    recorded_mark_compacts_.Push(
+        MakeBytesAndDuration(current_.start_object_size, duration));
     combined_mark_compact_speed_cache_ = 0.0;
   }
 
   // TODO(ernstm): move the code below out of GCTracer.
 
-  double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = Max(current_.start_time - previous_.end_time, 0.0);
 
   heap_->UpdateCumulativeGCStatistics(duration, spent_in_mutator,
@@ -336,12 +326,12 @@ void GCTracer::SampleAllocation(double current_ms,
 void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
   if (allocation_duration_since_gc_ > 0) {
-    new_space_allocation_events_.push_front(
-        AllocationEvent(allocation_duration_since_gc_,
-                        new_space_allocation_in_bytes_since_gc_));
-    old_generation_allocation_events_.push_front(
-        AllocationEvent(allocation_duration_since_gc_,
-                        old_generation_allocation_in_bytes_since_gc_));
+    recorded_new_generation_allocations_.Push(
+        MakeBytesAndDuration(new_space_allocation_in_bytes_since_gc_,
+                             allocation_duration_since_gc_));
+    recorded_old_generation_allocations_.Push(
+        MakeBytesAndDuration(old_generation_allocation_in_bytes_since_gc_,
+                             allocation_duration_since_gc_));
   }
   allocation_duration_since_gc_ = 0;
   new_space_allocation_in_bytes_since_gc_ = 0;
@@ -350,19 +340,19 @@ void GCTracer::AddAllocation(double current_ms) {
 
 
 void GCTracer::AddContextDisposalTime(double time) {
-  context_disposal_events_.push_front(ContextDisposalEvent(time));
+  recorded_context_disposal_times_.Push(time);
 }
 
 
 void GCTracer::AddCompactionEvent(double duration,
                                   intptr_t live_bytes_compacted) {
-  compaction_events_.push_front(
-      CompactionEvent(duration, live_bytes_compacted));
+  recorded_compactions_.Push(
+      MakeBytesAndDuration(live_bytes_compacted, duration));
 }
 
 
 void GCTracer::AddSurvivalRatio(double promotion_ratio) {
-  survival_events_.push_front(SurvivalEvent(promotion_ratio));
+  recorded_survival_ratios_.Push(promotion_ratio);
 }
 
 
@@ -669,127 +659,61 @@ void GCTracer::PrintNVP() const {
   }
 }
 
-
-double GCTracer::MeanDuration(const EventBuffer& events) const {
-  if (events.empty()) return 0.0;
-
-  double mean = 0.0;
-  EventBuffer::const_iterator iter = events.begin();
-  while (iter != events.end()) {
-    mean += iter->end_time - iter->start_time;
-    ++iter;
-  }
-
-  return mean / events.size();
+int GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+                           const BytesAndDuration& initial, double time_ms) {
+  BytesAndDuration sum = buffer.Sum(
+      [time_ms](BytesAndDuration a, BytesAndDuration b) {
+        if (time_ms != 0 && a.second >= time_ms) return a;
+        return std::make_pair(a.first + b.first, a.second + b.second);
+      },
+      initial);
+  uint64_t bytes = sum.first;
+  double durations = sum.second;
+  if (durations == 0.0) return 0;
+  double speed = bytes / durations + 0.5;
+  const int max_speed = 1024 * MB;
+  const int min_speed = 1;
+  if (speed >= max_speed) return max_speed;
+  if (speed <= min_speed) return min_speed;
+  return static_cast<int>(speed);
 }
 
-
-double GCTracer::MaxDuration(const EventBuffer& events) const {
-  if (events.empty()) return 0.0;
-
-  double maximum = 0.0f;
-  EventBuffer::const_iterator iter = events.begin();
-  while (iter != events.end()) {
-    maximum = Max(iter->end_time - iter->start_time, maximum);
-    ++iter;
-  }
-
-  return maximum;
+int GCTracer::AverageSpeed(const RingBuffer<BytesAndDuration>& buffer) {
+  return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
 }
-
 
 intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   if (cumulative_incremental_marking_duration_ == 0.0) return 0;
-
   // We haven't completed an entire round of incremental marking, yet.
   // Use data from GCTracer instead of data from event buffers.
-  if (incremental_mark_compactor_events_.empty()) {
+  if (recorded_incremental_marking_steps_.Count() == 0) {
     return static_cast<intptr_t>(cumulative_incremental_marking_bytes_ /
                                  cumulative_pure_incremental_marking_duration_);
   }
-
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  EventBuffer::const_iterator iter = incremental_mark_compactor_events_.begin();
-  while (iter != incremental_mark_compactor_events_.end()) {
-    bytes += iter->incremental_marking_bytes;
-    durations += iter->pure_incremental_marking_duration;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+  return AverageSpeed(recorded_incremental_marking_steps_);
 }
-
 
 intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond(
     ScavengeSpeedMode mode) const {
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  EventBuffer::const_iterator iter = scavenger_events_.begin();
-  while (iter != scavenger_events_.end()) {
-    bytes += mode == kForAllObjects ? iter->new_space_object_size
-                                    : iter->survived_new_space_object_size;
-    durations += iter->end_time - iter->start_time;
-    ++iter;
+  if (mode == kForAllObjects) {
+    return AverageSpeed(recorded_scavenges_total_);
+  } else {
+    return AverageSpeed(recorded_scavenges_survived_);
   }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
 }
-
 
 intptr_t GCTracer::CompactionSpeedInBytesPerMillisecond() const {
-  if (compaction_events_.size() == 0) return 0;
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  CompactionEventBuffer::const_iterator iter = compaction_events_.begin();
-  while (iter != compaction_events_.end()) {
-    bytes += iter->live_bytes_compacted;
-    durations += iter->duration;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<intptr_t>(static_cast<intptr_t>(bytes / durations + 0.5), 1);
+  return AverageSpeed(recorded_compactions_);
 }
-
 
 intptr_t GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  EventBuffer::const_iterator iter = mark_compactor_events_.begin();
-  while (iter != mark_compactor_events_.end()) {
-    bytes += iter->start_object_size;
-    durations += iter->end_time - iter->start_time;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+  return AverageSpeed(recorded_mark_compacts_);
 }
-
 
 intptr_t GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond()
     const {
-  intptr_t bytes = 0;
-  double durations = 0.0;
-  EventBuffer::const_iterator iter = incremental_mark_compactor_events_.begin();
-  while (iter != incremental_mark_compactor_events_.end()) {
-    bytes += iter->start_object_size;
-    durations += iter->end_time - iter->start_time;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<size_t>(static_cast<size_t>(bytes / durations + 0.5), 1);
+  return AverageSpeed(recorded_incremental_mark_compacts_);
 }
-
 
 double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   if (combined_mark_compact_speed_cache_ > 0)
@@ -816,39 +740,16 @@ double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   size_t bytes = new_space_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
-  AllocationEventBuffer::const_iterator iter =
-      new_space_allocation_events_.begin();
-  const size_t max_bytes = static_cast<size_t>(-1);
-  while (iter != new_space_allocation_events_.end() &&
-         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
-    bytes += iter->allocation_in_bytes_;
-    durations += iter->duration_;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-
-  // Make sure the result is at least 1.
-  return Max<double>(bytes / durations, 1);
+  return AverageSpeed(recorded_new_generation_allocations_,
+                      MakeBytesAndDuration(bytes, durations), time_ms);
 }
 
 double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   size_t bytes = old_generation_allocation_in_bytes_since_gc_;
   double durations = allocation_duration_since_gc_;
-  AllocationEventBuffer::const_iterator iter =
-      old_generation_allocation_events_.begin();
-  const size_t max_bytes = static_cast<size_t>(-1);
-  while (iter != old_generation_allocation_events_.end() &&
-         bytes < max_bytes - bytes && (time_ms == 0 || durations < time_ms)) {
-    bytes += iter->allocation_in_bytes_;
-    durations += iter->duration_;
-    ++iter;
-  }
-
-  if (durations == 0.0) return 0;
-  // Make sure the result is at least 1.
-  return Max<double>(bytes / durations, 1);
+  return AverageSpeed(recorded_old_generation_allocations_,
+                      MakeBytesAndDuration(bytes, durations), time_ms);
 }
 
 double GCTracer::AllocationThroughputInBytesPerMillisecond(
@@ -869,42 +770,27 @@ size_t GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
       kThroughputTimeFrameMs);
 }
 
-
 double GCTracer::ContextDisposalRateInMilliseconds() const {
-  if (context_disposal_events_.size() < kRingBufferMaxSize) return 0.0;
-
+  if (recorded_context_disposal_times_.Count() <
+      recorded_context_disposal_times_.kSize)
+    return 0.0;
   double begin = heap_->MonotonicallyIncreasingTimeInMs();
-  double end = 0.0;
-  ContextDisposalEventBuffer::const_iterator iter =
-      context_disposal_events_.begin();
-  while (iter != context_disposal_events_.end()) {
-    end = iter->time_;
-    ++iter;
-  }
-
-  return (begin - end) / context_disposal_events_.size();
+  double end = recorded_context_disposal_times_.Sum(
+      [](double a, double b) { return b; }, 0.0);
+  return (begin - end) / recorded_context_disposal_times_.Count();
 }
-
 
 double GCTracer::AverageSurvivalRatio() const {
-  if (survival_events_.size() == 0) return 0.0;
-
-  double sum_of_rates = 0.0;
-  SurvivalEventBuffer::const_iterator iter = survival_events_.begin();
-  while (iter != survival_events_.end()) {
-    sum_of_rates += iter->promotion_ratio_;
-    ++iter;
-  }
-
-  return sum_of_rates / static_cast<double>(survival_events_.size());
+  if (recorded_survival_ratios_.Count() == 0) return 0.0;
+  double sum = recorded_survival_ratios_.Sum(
+      [](double a, double b) { return a + b; }, 0.0);
+  return sum / recorded_survival_ratios_.Count();
 }
-
 
 bool GCTracer::SurvivalEventsRecorded() const {
-  return survival_events_.size() > 0;
+  return recorded_survival_ratios_.Count() > 0;
 }
 
-
-void GCTracer::ResetSurvivalEvents() { survival_events_.reset(); }
+void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Reset(); }
 }  // namespace internal
 }  // namespace v8

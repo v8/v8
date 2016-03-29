@@ -12,80 +12,49 @@
 namespace v8 {
 namespace internal {
 
-// A simple ring buffer class with maximum size known at compile time.
-// The class only implements the functionality required in GCTracer.
-template <typename T, size_t MAX_SIZE>
+template <typename T>
 class RingBuffer {
  public:
-  class const_iterator {
-   public:
-    const_iterator() : index_(0), elements_(NULL) {}
-
-    const_iterator(size_t index, const T* elements)
-        : index_(index), elements_(elements) {}
-
-    bool operator==(const const_iterator& rhs) const {
-      return elements_ == rhs.elements_ && index_ == rhs.index_;
+  RingBuffer() { Reset(); }
+  static const int kSize = 10;
+  void Push(const T& value) {
+    if (count_ == kSize) {
+      elements_[start_++] = value;
+      if (start_ == kSize) start_ = 0;
+    } else {
+      DCHECK_EQ(start_, 0);
+      elements_[count_++] = value;
     }
-
-    bool operator!=(const const_iterator& rhs) const {
-      return elements_ != rhs.elements_ || index_ != rhs.index_;
-    }
-
-    operator const T*() const { return elements_ + index_; }
-
-    const T* operator->() const { return elements_ + index_; }
-
-    const T& operator*() const { return elements_[index_]; }
-
-    const_iterator& operator++() {
-      index_ = (index_ + 1) % (MAX_SIZE + 1);
-      return *this;
-    }
-
-    const_iterator& operator--() {
-      index_ = (index_ + MAX_SIZE) % (MAX_SIZE + 1);
-      return *this;
-    }
-
-   private:
-    size_t index_;
-    const T* elements_;
-  };
-
-  RingBuffer() : begin_(0), end_(0) {}
-
-  bool empty() const { return begin_ == end_; }
-  size_t size() const {
-    return (end_ - begin_ + MAX_SIZE + 1) % (MAX_SIZE + 1);
-  }
-  const_iterator begin() const { return const_iterator(begin_, elements_); }
-  const_iterator end() const { return const_iterator(end_, elements_); }
-  const_iterator back() const { return --end(); }
-  void push_back(const T& element) {
-    elements_[end_] = element;
-    end_ = (end_ + 1) % (MAX_SIZE + 1);
-    if (end_ == begin_) begin_ = (begin_ + 1) % (MAX_SIZE + 1);
-  }
-  void push_front(const T& element) {
-    begin_ = (begin_ + MAX_SIZE) % (MAX_SIZE + 1);
-    if (begin_ == end_) end_ = (end_ + MAX_SIZE) % (MAX_SIZE + 1);
-    elements_[begin_] = element;
   }
 
-  void reset() {
-    begin_ = 0;
-    end_ = 0;
+  int Count() const { return count_; }
+
+  template <typename Callback>
+  T Sum(Callback callback, const T& initial) const {
+    int j = start_ + count_ - 1;
+    if (j >= kSize) j -= kSize;
+    T result = initial;
+    for (int i = 0; i < count_; i++) {
+      result = callback(result, elements_[j]);
+      if (--j == -1) j += kSize;
+    }
+    return result;
   }
+
+  void Reset() { start_ = count_ = 0; }
 
  private:
-  T elements_[MAX_SIZE + 1];
-  size_t begin_;
-  size_t end_;
-
+  T elements_[kSize];
+  int start_;
+  int count_;
   DISALLOW_COPY_AND_ASSIGN(RingBuffer);
 };
 
+typedef std::pair<uint64_t, double> BytesAndDuration;
+
+inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
+  return std::make_pair(bytes, duration);
+}
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
@@ -155,58 +124,6 @@ class GCTracer {
     RuntimeCallTimer timer_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
-  };
-
-
-  class AllocationEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    AllocationEvent() {}
-
-    AllocationEvent(double duration, size_t allocation_in_bytes);
-
-    // Time spent in the mutator during the end of the last sample to the
-    // beginning of the next sample.
-    double duration_;
-
-    // Memory allocated in the new space during the end of the last sample
-    // to the beginning of the next sample
-    size_t allocation_in_bytes_;
-  };
-
-
-  class CompactionEvent {
-   public:
-    CompactionEvent() : duration(0), live_bytes_compacted(0) {}
-
-    CompactionEvent(double duration, intptr_t live_bytes_compacted)
-        : duration(duration), live_bytes_compacted(live_bytes_compacted) {}
-
-    double duration;
-    intptr_t live_bytes_compacted;
-  };
-
-
-  class ContextDisposalEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    ContextDisposalEvent() {}
-
-    explicit ContextDisposalEvent(double time);
-
-    // Time when context disposal event happened.
-    double time_;
-  };
-
-
-  class SurvivalEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    SurvivalEvent() {}
-
-    explicit SurvivalEvent(double survival_ratio);
-
-    double promotion_ratio_;
   };
 
 
@@ -313,19 +230,6 @@ class GCTracer {
     // Amounts of time spent in different scopes during GC.
     double scopes[Scope::NUMBER_OF_SCOPES];
   };
-
-  static const size_t kRingBufferMaxSize = 10;
-
-  typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
-
-  typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
-
-  typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
-      ContextDisposalEventBuffer;
-
-  typedef RingBuffer<CompactionEvent, kRingBufferMaxSize> CompactionEventBuffer;
-
-  typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
 
   static const int kThroughputTimeFrameMs = 5000;
 
@@ -445,6 +349,13 @@ class GCTracer {
   // Discard all recorded survival events.
   void ResetSurvivalEvents();
 
+  // Returns the average speed of the events in the buffer.
+  // If the buffer is empty, the result is 0.
+  // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
+  static int AverageSpeed(const RingBuffer<BytesAndDuration>& buffer);
+  static int AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+                          const BytesAndDuration& initial, double time_ms);
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -457,12 +368,6 @@ class GCTracer {
   // Prints a line and also adds it to the heap's ring buffer so that
   // it can be included in later crash dumps.
   void Output(const char* format, ...) const;
-
-  // Compute the mean duration of the events in the given ring buffer.
-  double MeanDuration(const EventBuffer& events) const;
-
-  // Compute the max duration of the events in the given ring buffer.
-  double MaxDuration(const EventBuffer& events) const;
 
   void ClearMarkCompactStatistics() {
     cumulative_incremental_marking_steps_ = 0;
@@ -499,28 +404,6 @@ class GCTracer {
 
   // Previous INCREMENTAL_MARK_COMPACTOR event.
   Event previous_incremental_mark_compactor_event_;
-
-  // RingBuffers for SCAVENGER events.
-  EventBuffer scavenger_events_;
-
-  // RingBuffers for MARK_COMPACTOR events.
-  EventBuffer mark_compactor_events_;
-
-  // RingBuffers for INCREMENTAL_MARK_COMPACTOR events.
-  EventBuffer incremental_mark_compactor_events_;
-
-  // RingBuffer for allocation events.
-  AllocationEventBuffer new_space_allocation_events_;
-  AllocationEventBuffer old_generation_allocation_events_;
-
-  // RingBuffer for context disposal events.
-  ContextDisposalEventBuffer context_disposal_events_;
-
-  // RingBuffer for compaction events.
-  CompactionEventBuffer compaction_events_;
-
-  // RingBuffer for survival events.
-  SurvivalEventBuffer survival_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
@@ -580,6 +463,17 @@ class GCTracer {
 
   // Separate timer used for --runtime_call_stats
   RuntimeCallTimer timer_;
+
+  RingBuffer<BytesAndDuration> recorded_incremental_marking_steps_;
+  RingBuffer<BytesAndDuration> recorded_scavenges_total_;
+  RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
+  RingBuffer<BytesAndDuration> recorded_compactions_;
+  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
+  RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
+  RingBuffer<double> recorded_context_disposal_times_;
+  RingBuffer<double> recorded_survival_ratios_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
