@@ -1484,7 +1484,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           val, representation(), false, false));
     }
   }
-  if (op() == kMathFloor && value()->IsDiv() && value()->HasOneUse()) {
+  if (op() == kMathFloor && representation().IsSmiOrInteger32() &&
+      value()->IsDiv() && value()->HasOneUse()) {
     HDiv* hdiv = HDiv::cast(value());
 
     HValue* left = hdiv->left();

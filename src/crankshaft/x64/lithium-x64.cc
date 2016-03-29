@@ -1150,21 +1150,32 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   }
 }
 
-
 LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
+  DCHECK(instr->value()->representation().IsDouble());
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathFloor* result = new(zone()) LMathFloor(input);
-  return AssignEnvironment(DefineAsRegister(result));
+  if (instr->representation().IsInteger32()) {
+    LMathFloorI* result = new (zone()) LMathFloorI(input);
+    return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  } else {
+    DCHECK(instr->representation().IsDouble());
+    LMathFloorD* result = new (zone()) LMathFloorD(input);
+    return DefineAsRegister(result);
+  }
 }
-
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
+  DCHECK(instr->value()->representation().IsDouble());
   LOperand* input = UseRegister(instr->value());
-  LOperand* temp = FixedTemp(xmm4);
-  LMathRound* result = new(zone()) LMathRound(input, temp);
-  return AssignEnvironment(DefineAsRegister(result));
+  if (instr->representation().IsInteger32()) {
+    LOperand* temp = FixedTemp(xmm4);
+    LMathRoundI* result = new (zone()) LMathRoundI(input, temp);
+    return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+  } else {
+    DCHECK(instr->representation().IsDouble());
+    LMathRoundD* result = new (zone()) LMathRoundD(input);
+    return DefineAsRegister(result);
+  }
 }
-
 
 LInstruction* LChunkBuilder::DoMathFround(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());

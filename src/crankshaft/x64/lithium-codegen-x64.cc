@@ -3384,8 +3384,14 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   }
 }
 
+void LCodeGen::DoMathFloorD(LMathFloorD* instr) {
+  XMMRegister output_reg = ToDoubleRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->value());
+  CpuFeatureScope scope(masm(), SSE4_1);
+  __ Roundsd(output_reg, input_reg, kRoundDown);
+}
 
-void LCodeGen::DoMathFloor(LMathFloor* instr) {
+void LCodeGen::DoMathFloorI(LMathFloorI* instr) {
   XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
@@ -3443,8 +3449,23 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   }
 }
 
+void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
+  XMMRegister xmm_scratch = double_scratch0();
+  XMMRegister output_reg = ToDoubleRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->value());
+  CpuFeatureScope scope(masm(), SSE4_1);
+  Label done;
+  __ Roundsd(output_reg, input_reg, kRoundUp);
+  __ Move(xmm_scratch, -0.5);
+  __ Addsd(xmm_scratch, output_reg);
+  __ Ucomisd(xmm_scratch, input_reg);
+  __ j(below_equal, &done, Label::kNear);
+  __ Move(xmm_scratch, 1.0);
+  __ Subsd(output_reg, xmm_scratch);
+  __ bind(&done);
+}
 
-void LCodeGen::DoMathRound(LMathRound* instr) {
+void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   const XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
