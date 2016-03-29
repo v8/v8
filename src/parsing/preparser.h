@@ -1378,11 +1378,13 @@ class PreParser : public ParserBase<PreParserTraits> {
       const PreParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  Expression ParseFunctionLiteral(
-      Identifier name, Scanner::Location function_name_location,
-      FunctionNameValidity function_name_validity, FunctionKind kind,
-      int function_token_pos, FunctionLiteral::FunctionType function_type,
-      LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok);
+  Expression ParseFunctionLiteral(Identifier name,
+                                  Scanner::Location function_name_location,
+                                  FunctionNameValidity function_name_validity,
+                                  FunctionKind kind, int function_token_pos,
+                                  FunctionLiteral::FunctionType function_type,
+                                  LanguageMode language_mode,
+                                  typesystem::TypeFlags type_flags, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
 

@@ -1024,9 +1024,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
   // Parse optional type parameters.
-  if (scope_->typed()
-      && !(type_flags & typesystem::kDisallowTypeParameters)
-      && peek() == Token::LT) {  // Braces required here.
+  if (scope_->typed() && !(type_flags & typesystem::kDisallowTypeParameters) &&
+      peek() == Token::LT) {  // Braces required here.
     ParseTypeParameters(CHECK_OK);
   }
 
@@ -1054,7 +1053,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Allow for a function signature (i.e., a literal without body).
   if (peek() != Token::LBRACE && scope_->typed() &&
-        (type_flags & typesystem::kAllowSignature)) {
+      (type_flags & typesystem::kAllowSignature)) {
     ExpectSemicolon(CHECK_OK);
     return this->EmptyExpression();
   }
