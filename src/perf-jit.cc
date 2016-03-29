@@ -171,6 +171,11 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   Code* code = abstract_code->GetCode();
   DCHECK(code->instruction_start() == code->address() + Code::kHeaderSize);
 
+  // Debug info has to be emitted first.
+  if (FLAG_perf_prof_debug_info) {
+    LogWriteDebugInfo(code, shared);
+  }
+
   const char* code_name = name;
   uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
   uint32_t code_size = code->is_crankshafted() ? code->safepoint_table_offset()
@@ -196,10 +201,6 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   LogWriteBytes(code_name, length);
   LogWriteBytes(string_terminator, 1);
   LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
-
-  if (FLAG_perf_prof_debug_info) {
-    LogWriteDebugInfo(code, shared);
-  }
 }
 
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
@@ -241,9 +242,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   // Add the sizes of fixed parts of entries.
   size += entry_count * sizeof(PerfJitDebugEntry);
   // Add the size of the name after the first entry.
-  size += static_cast<uint32_t>(name_length) + 1;
-  // Add the sizes of the links to previous name (\0xff\0).
-  size += (entry_count - 1) * 2;
+  size += (static_cast<uint32_t>(name_length) + 1) * entry_count;
 
   int padding = ((size + 7) & (~7)) - size;
 
@@ -254,7 +253,6 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   int script_line_offset = script->line_offset();
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
 
-  bool is_first = true;
   for (RelocIterator it(code, RelocInfo::kPositionMask); !it.done();
        it.next()) {
     int position = static_cast<int>(it.rinfo()->data());
@@ -276,13 +274,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     entry.line_number_ = line_number;
     entry.column_ = column_offset;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-
-    if (is_first) {
-      is_first = false;
-      LogWriteBytes(name_string.get(), name_length + 1);
-    } else {
-      LogWriteBytes("\xff", 2);
-    }
+    LogWriteBytes(name_string.get(), name_length + 1);
   }
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
   LogWriteBytes(padding_bytes, padding);
