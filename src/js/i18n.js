@@ -20,15 +20,18 @@
 var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
-var InstallFunctions = utils.InstallFunctions;
-var InstallGetter = utils.InstallGetter;
-var IsFinite;
-var IsNaN;
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
+var InstallFunctions = utils.InstallFunctions;
+var InstallGetter = utils.InstallGetter;
+var InternalPackedArray = utils.InternalPackedArray;
+var InternalRegExpMatch;
+var InternalRegExpReplace
+var IsFinite;
+var IsNaN;
 var MakeError;
 var MakeRangeError;
 var MakeTypeError;
@@ -37,13 +40,10 @@ var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
-var RegExpTest;
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringLastIndexOf;
-var StringMatch;
-var StringReplace;
 var StringSplit;
 var StringSubstr;
 var StringSubstring;
@@ -57,11 +57,10 @@ utils.Import(function(from) {
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  RegExpTest = from.RegExpTest;
+  InternalRegExpMatch = from.InternalRegExpMatch;
+  InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
   StringLastIndexOf = from.StringLastIndexOf;
-  StringMatch = from.StringMatch;
-  StringReplace = from.StringReplace;
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
@@ -263,7 +262,7 @@ function GetTimezoneNameLocationPartRE() {
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
+  if (IS_NULL(InternalRegExpMatch(GetServiceRE(), service))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -311,10 +310,8 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
   var matchedLocales = [];
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove -u- extension.
-    var locale = %_Call(StringReplace,
-                        requestedLocales[i],
-                        GetUnicodeExtensionRE(),
-                        '');
+    var locale = InternalRegExpReplace(
+        GetUnicodeExtensionRE(), requestedLocales[i], '');
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
@@ -420,7 +417,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
+  if (IS_NULL(InternalRegExpMatch(GetServiceRE(), service))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -431,13 +428,13 @@ function lookupMatcher(service, requestedLocales) {
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
-    var locale = %_Call(StringReplace, requestedLocales[i],
-                        GetAnyExtensionRE(), '');
+    var locale = InternalRegExpReplace(
+        GetAnyExtensionRE(), requestedLocales[i], '');
     do {
       if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
         // Return the resolved locale and extension.
-        var extensionMatch =
-            %_Call(StringMatch, requestedLocales[i], GetUnicodeExtensionRE());
+        var extensionMatch = InternalRegExpMatch(
+            GetUnicodeExtensionRE(), requestedLocales[i]);
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
@@ -611,8 +608,8 @@ function getOptimalLanguageTag(original, resolved) {
   }
 
   // Preserve extensions of resolved locale, but swap base tags with original.
-  var resolvedBase = new GlobalRegExp('^' + locales[1].base);
-  return %_Call(StringReplace, resolved, resolvedBase, locales[0].base);
+  var resolvedBase = new GlobalRegExp('^' + locales[1].base, 'g');
+  return InternalRegExpReplace(resolvedBase, resolved, locales[0].base);
 }
 
 
@@ -627,9 +624,9 @@ function getAvailableLocalesOf(service) {
 
   for (var i in available) {
     if (HAS_OWN_PROPERTY(available, i)) {
-      var parts =
-          %_Call(StringMatch, i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/);
-      if (parts !== null) {
+      var parts = InternalRegExpMatch(
+          /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/, i);
+      if (!IS_NULL(parts)) {
         // Build xx-ZZ. We don't care about the actual value,
         // as long it's not undefined.
         available[parts[1] + '-' + parts[3]] = null;
@@ -699,7 +696,7 @@ function toTitleCaseWord(word) {
  * 'of', 'au' and 'es' are special-cased and lowercased.
  */
 function toTitleCaseTimezoneLocation(location) {
-  var match = %_Call(StringMatch, location, GetTimezoneNameLocationPartRE());
+  var match = InternalRegExpMatch(GetTimezoneNameLocationPartRE(), location)
   if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, location);
 
   var result = toTitleCaseWord(match[1]);
@@ -796,7 +793,7 @@ function initializeLocaleList(locales) {
  */
 function isValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
-  if (!%_Call(RegExpTest, GetLanguageTagRE(), locale)) {
+  if (IS_NULL(InternalRegExpMatch(GetLanguageTagRE(), locale))) {
     return false;
   }
 
@@ -808,17 +805,17 @@ function isValidLanguageTag(locale) {
   // Check if there are any duplicate variants or singletons (extensions).
 
   // Remove private use section.
-  locale = %_Call(StringSplit, locale, /-x-/)[0];
+  locale = %_Call(StringSplit, locale, '-x-')[0];
 
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
   var variants = [];
   var extensions = [];
-  var parts = %_Call(StringSplit, locale, /-/);
+  var parts = %_Call(StringSplit, locale, '-');
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];
-    if (%_Call(RegExpTest, GetLanguageVariantRE(), value) &&
+    if (!IS_NULL(InternalRegExpMatch(GetLanguageVariantRE(), value)) &&
         extensions.length === 0) {
       if (%_Call(ArrayIndexOf, variants, value) === -1) {
         %_Call(ArrayPush, variants, value);
@@ -827,7 +824,7 @@ function isValidLanguageTag(locale) {
       }
     }
 
-    if (%_Call(RegExpTest, GetLanguageSingletonRE(), value)) {
+    if (!IS_NULL(InternalRegExpMatch(GetLanguageSingletonRE(), value))) {
       if (%_Call(ArrayIndexOf, extensions, value) === -1) {
         %_Call(ArrayPush, extensions, value);
       } else {
@@ -1083,9 +1080,8 @@ AddBoundMethod(Intl.Collator, 'compare', compare, 2);
  * For example \u00DFP (Eszett+P) becomes SSP.
  */
 function isWellFormedCurrencyCode(currency) {
-  return typeof currency == "string" &&
-      currency.length == 3 &&
-      %_Call(StringMatch, currency, /[^A-Za-z]/) == null;
+  return typeof currency == "string" && currency.length == 3 &&
+      IS_NULL(InternalRegExpMatch(/[^A-Za-z]/, currency));
 }
 
 
@@ -1415,57 +1411,57 @@ function appendToLDMLString(option, pairs) {
  */
 function fromLDMLString(ldmlString) {
   // First remove '' quoted text, so we lose 'Uhr' strings.
-  ldmlString = %_Call(StringReplace, ldmlString, GetQuotedStringRE(), '');
+  ldmlString = InternalRegExpReplace(GetQuotedStringRE(), ldmlString, '');
 
   var options = {};
-  var match = %_Call(StringMatch, ldmlString, /E{3,5}/g);
+  var match = InternalRegExpMatch(/E{3,5}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /G{3,5}/g);
+  match = InternalRegExpMatch(/G{3,5}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'era', match, {GGGGG: 'narrow', GGG: 'short', GGGG: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /y{1,2}/g);
+  match = InternalRegExpMatch(/y{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'year', match, {y: 'numeric', yy: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /M{1,5}/g);
+  match = InternalRegExpMatch(/M{1,5}/, ldmlString);
   options = appendToDateTimeObject(options, 'month', match, {MM: '2-digit',
       M: 'numeric', MMMMM: 'narrow', MMM: 'short', MMMM: 'long'});
 
   // Sometimes we get L instead of M for month - standalone name.
-  match = %_Call(StringMatch, ldmlString, /L{1,5}/g);
+  match = InternalRegExpMatch(/L{1,5}/, ldmlString);
   options = appendToDateTimeObject(options, 'month', match, {LL: '2-digit',
       L: 'numeric', LLLLL: 'narrow', LLL: 'short', LLLL: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /d{1,2}/g);
+  match = InternalRegExpMatch(/d{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'day', match, {d: 'numeric', dd: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /h{1,2}/g);
+  match = InternalRegExpMatch(/h{1,2}/, ldmlString);
   if (match !== null) {
     options['hour12'] = true;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {h: 'numeric', hh: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /H{1,2}/g);
+  match = InternalRegExpMatch(/H{1,2}/, ldmlString);
   if (match !== null) {
     options['hour12'] = false;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {H: 'numeric', HH: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /m{1,2}/g);
+  match = InternalRegExpMatch(/m{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'minute', match, {m: 'numeric', mm: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /s{1,2}/g);
+  match = InternalRegExpMatch(/s{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /z|zzzz/g);
+  match = InternalRegExpMatch(/z|zzzz/, ldmlString);
   options = appendToDateTimeObject(
       options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
@@ -1792,7 +1788,7 @@ function canonicalizeTimeZoneID(tzID) {
 
   // We expect only _, '-' and / beside ASCII letters.
   // All inputs should conform to Area/Location(/Location)* from now on.
-  var match = %_Call(StringMatch, tzID, GetTimezoneNameCheckRE());
+  var match = InternalRegExpMatch(GetTimezoneNameCheckRE(), tzID);
   if (IS_NULL(match)) throw MakeRangeError(kExpectedTimezoneID, tzID);
 
   var result = toTitleCaseTimezoneLocation(match[1]) + '/' +

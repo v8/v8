@@ -124,9 +124,6 @@
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4361
-  'intl402/Collator/10.1.1_a': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4476
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
@@ -206,14 +203,12 @@
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
   'intl402/DateTimeFormat/12.1.1': [FAIL],
-  'intl402/DateTimeFormat/12.1.1_a': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
   'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
-  'intl402/NumberFormat/11.1.1_a': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
   'intl402/NumberFormat/11.1.2.1_4': [FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],

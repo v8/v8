@@ -1174,9 +1174,30 @@ for (var i = 1; i < 10; ++i) {
 %ToFastProperties(GlobalRegExp);
 
 // -------------------------------------------------------------------
+// Internal
+
+var InternalRegExpMatchInfo = new InternalPackedArray(2, "", UNDEFINED, 0, 0);
+
+function InternalRegExpMatch(regexp, subject) {
+  var matchInfo = %_RegExpExec(regexp, subject, 0, InternalRegExpMatchInfo);
+  if (!IS_NULL(matchInfo)) {
+    RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, subject);
+  }
+  return null;
+}
+
+function InternalRegExpReplace(regexp, subject, replacement) {
+  return %StringReplaceGlobalRegExpWithString(
+      subject, regexp, replacement, InternalRegExpMatchInfo);
+}
+
+// -------------------------------------------------------------------
 // Exports
 
 utils.Export(function(to) {
+  to.InternalRegExpMatch = InternalRegExpMatch;
+  to.InternalRegExpReplace = InternalRegExpReplace;
+  to.IsRegExp = IsRegExp;
   to.RegExpExec = DoRegExpExec;
   to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
@@ -1187,7 +1208,6 @@ utils.Export(function(to) {
   to.RegExpSubclassSplit = RegExpSubclassSplit;
   to.RegExpSubclassTest = RegExpSubclassTest;
   to.RegExpTest = RegExpTest;
-  to.IsRegExp = IsRegExp;
 });
 
 })
