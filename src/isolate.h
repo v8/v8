@@ -1096,9 +1096,7 @@ class Isolate {
   bool is_tail_call_elimination_enabled() const {
     return is_tail_call_elimination_enabled_;
   }
-  void set_tail_call_elimination_enabled(bool enabled) {
-    is_tail_call_elimination_enabled_ = enabled;
-  }
+  void SetTailCallEliminationEnabled(bool enabled);
 
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();

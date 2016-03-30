@@ -2885,6 +2885,14 @@ std::string Isolate::GetTurboCfgFileName() {
   }
 }
 
+void Isolate::SetTailCallEliminationEnabled(bool enabled) {
+  if (is_tail_call_elimination_enabled_ == enabled) return;
+  is_tail_call_elimination_enabled_ = enabled;
+  // TODO(ishell): Introduce DependencyGroup::kTailCallChangedGroup to
+  // deoptimize only those functions that are affected by the change of this
+  // flag.
+  internal::Deoptimizer::DeoptimizeAll(this);
+}
 
 // Heap::detached_contexts tracks detached contexts as pairs
 // (number of GC since the context was detached, the context).

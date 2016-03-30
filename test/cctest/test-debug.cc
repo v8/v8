@@ -8070,3 +8070,60 @@ TEST(BreakLocationIterator) {
 
   DisableDebugger(isolate);
 }
+
+TEST(DisableTailCallElimination) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_harmony_tailcalls = true;
+  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
+  // stack[2].getFunctionName() return null.
+  i::FLAG_turbo_inlining = false;
+
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+
+  CompileRun(
+      "'use strict';                                                         \n"
+      "Error.prepareStackTrace = (error,stack) => {                          \n"
+      "  error.strace = stack;                                               \n"
+      "  return error.message + \"\\n    at \" + stack.join(\"\\n    at \"); \n"
+      "}                                                                     \n"
+      "                                                                      \n"
+      "function getCaller() {                                                \n"
+      "  var e = new Error();                                                \n"
+      "  e.stack;  // prepare stack trace                                    \n"
+      "  var stack = e.strace;                                               \n"
+      "  %GlobalPrint('caller: ');                                           \n"
+      "  %GlobalPrint(stack[2].getFunctionName());                           \n"
+      "  %GlobalPrint('\\n');                                                \n"
+      "  return stack[2].getFunctionName();                                  \n"
+      "}                                                                     \n"
+      "function f() {                                                        \n"
+      "  var caller = getCaller();                                           \n"
+      "  if (caller === 'g') return 1;                                       \n"
+      "  if (caller === 'h') return 2;                                       \n"
+      "  return 0;                                                           \n"
+      "}                                                                     \n"
+      "function g() {                                                        \n"
+      "  return f();                                                         \n"
+      "}                                                                     \n"
+      "function h() {                                                        \n"
+      "  var result = g();                                                   \n"
+      "  return result;                                                      \n"
+      "}                                                                     \n"
+      "%NeverOptimizeFunction(getCaller);                                    \n"
+      "%NeverOptimizeFunction(f);                                            \n"
+      "%NeverOptimizeFunction(h);                                            \n"
+      "");
+  ExpectInt32("h();", 2);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
+  v8::Debug::SetTailCallEliminationEnabled(isolate, false);
+  CHECK(!v8::Debug::IsTailCallEliminationEnabled(isolate));
+  ExpectInt32("h();", 1);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 1);
+  v8::Debug::SetTailCallEliminationEnabled(isolate, true);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+  ExpectInt32("h();", 2);
+  ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
+}

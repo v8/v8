@@ -927,7 +927,13 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
 
 void BytecodeGraphBuilder::VisitCall() { BuildCall(TailCallMode::kDisallow); }
 
-void BytecodeGraphBuilder::VisitTailCall() { BuildCall(TailCallMode::kAllow); }
+void BytecodeGraphBuilder::VisitTailCall() {
+  TailCallMode tail_call_mode =
+      bytecode_array_->GetIsolate()->is_tail_call_elimination_enabled()
+          ? TailCallMode::kAllow
+          : TailCallMode::kDisallow;
+  BuildCall(tail_call_mode);
+}
 
 void BytecodeGraphBuilder::VisitCallJSRuntime() {
   FrameStateBeforeAndAfter states(this);
