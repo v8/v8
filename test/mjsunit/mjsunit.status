@@ -819,6 +819,9 @@
   # Debugger test cases that pass with ignition, but not full-codegen.
   # These differences between full-codegen and ignition are deliberate.
   'ignition/elided-instruction-no-ignition': [FAIL],
+
+  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
+  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 }],  # ignition == True
 
 ['ignition == True and system == windows', {
