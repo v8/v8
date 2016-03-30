@@ -2618,13 +2618,6 @@ LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
   return AssignPointerMap(result);
 }
 
-
-LInstruction* LChunkBuilder::DoStoreFrameContext(HStoreFrameContext* instr) {
-  LOperand* context = UseRegisterAtStart(instr->context());
-  return new(zone()) LStoreFrameContext(context);
-}
-
-
 }  // namespace internal
 }  // namespace v8
 

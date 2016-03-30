@@ -132,7 +132,6 @@ class LChunkBuilder;
   V(StackCheck)                               \
   V(StoreCodeEntry)                           \
   V(StoreContextSlot)                         \
-  V(StoreFrameContext)                        \
   V(StoreKeyed)                               \
   V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
@@ -7242,28 +7241,6 @@ class HLoadFieldByIndex final : public HTemplateInstruction<2> {
  private:
   bool IsDeletable() const override { return true; }
 };
-
-
-class HStoreFrameContext: public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HStoreFrameContext, HValue*);
-
-  HValue* context() { return OperandAt(0); }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext)
- private:
-  explicit HStoreFrameContext(HValue* context)
-      : HUnaryOperation(context) {
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kContextSlots);
-  }
-};
-
-
 
 #undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION

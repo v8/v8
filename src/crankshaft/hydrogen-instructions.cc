@@ -815,7 +815,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kReturn:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
-    case HValue::kStoreFrameContext:
     case HValue::kStoreKeyed:
     case HValue::kStoreNamedField:
     case HValue::kStoreNamedGeneric:

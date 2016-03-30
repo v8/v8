@@ -134,7 +134,6 @@ class LCodeGen;
   V(StackCheck)                              \
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
-  V(StoreFrameContext)                       \
   V(StoreKeyed)                              \
   V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
@@ -2511,18 +2510,6 @@ class LLoadFieldByIndex final : public LTemplateInstruction<1, 2, 0> {
   LOperand* index() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFieldByIndex, "load-field-by-index")
-};
-
-
-class LStoreFrameContext: public LTemplateInstruction<0, 1, 0> {
- public:
-  explicit LStoreFrameContext(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext, "store-frame-context")
 };
 
 

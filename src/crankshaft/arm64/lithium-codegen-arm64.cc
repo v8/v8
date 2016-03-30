@@ -5730,12 +5730,5 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ Bind(&done);
 }
 
-
-void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
-  Register context = ToRegister(instr->context());
-  __ Str(context, MemOperand(fp, StandardFrameConstants::kContextOffset));
-}
-
-
 }  // namespace internal
 }  // namespace v8
