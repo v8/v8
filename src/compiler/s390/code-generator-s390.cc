@@ -929,11 +929,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kS390_RotRight64:
       if (HasRegisterInput(instr, 1)) {
         __ LoadComplementRR(kScratchReg, i.InputRegister(1));
-        __ rll(i.OutputRegister(), i.InputRegister(0), kScratchReg,
-               Operand(32));
-        __ lgfr(i.OutputRegister(), i.OutputRegister());
+        __ rllg(i.OutputRegister(), i.InputRegister(0), kScratchReg);
       } else {
-        UNIMPLEMENTED();  // Not implemented for now
+        __ rllg(i.OutputRegister(), i.InputRegister(0),
+                Operand(64 - i.InputInt32(1)));
       }
       break;
 #endif
