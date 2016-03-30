@@ -1317,3 +1317,42 @@ TEST(Run_WasmI64Eqz) {
     CHECK_EQ(result, r.Call(*i));
   }
 }
+
+TEST(Run_WasmI64Shl) {
+  REQUIRE(I64Shl);
+  WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
+  BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      uint64_t expected = (*i) << (*j & 0x3f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+TEST(Run_WasmI64Shr) {
+  REQUIRE(I64ShrU);
+  WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
+  BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      uint64_t expected = (*i) >> (*j & 0x3f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+TEST(Run_WasmI64Sar) {
+  REQUIRE(I64ShrS);
+  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int64_t expected = (*i) >> (*j & 0x3f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}

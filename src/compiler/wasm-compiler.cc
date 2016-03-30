@@ -412,17 +412,22 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       break;
     case wasm::kExprI32Shl:
       op = m->Word32Shl();
+      right = MaskShiftCount32(right);
       break;
     case wasm::kExprI32ShrU:
       op = m->Word32Shr();
+      right = MaskShiftCount32(right);
       break;
     case wasm::kExprI32ShrS:
       op = m->Word32Sar();
+      right = MaskShiftCount32(right);
       break;
     case wasm::kExprI32Ror:
       op = m->Word32Ror();
+      right = MaskShiftCount32(right);
       break;
     case wasm::kExprI32Rol:
+      right = MaskShiftCount32(right);
       return BuildI32Rol(left, right);
     case wasm::kExprI32Eq:
       op = m->Word32Equal();
@@ -496,14 +501,17 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
 // kExprI64Shl:
     case wasm::kExprI64Shl:
       op = m->Word64Shl();
+      right = MaskShiftCount64(right);
       break;
     // kExprI64ShrU:
     case wasm::kExprI64ShrU:
       op = m->Word64Shr();
+      right = MaskShiftCount64(right);
       break;
     // kExprI64ShrS:
     case wasm::kExprI64ShrS:
       op = m->Word64Sar();
+      right = MaskShiftCount64(right);
       break;
     // kExprI64Eq:
     case wasm::kExprI64Eq:
@@ -547,8 +555,10 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
     case wasm::kExprI64Ror:
       op = m->Word64Ror();
+      right = MaskShiftCount64(right);
       break;
     case wasm::kExprI64Rol:
+      right = MaskShiftCount64(right);
       return BuildI64Rol(left, right);
 #endif
 
@@ -963,6 +973,37 @@ Node* WasmGraphBuilder::Unreachable() {
   return nullptr;
 }
 
+Node* WasmGraphBuilder::MaskShiftCount32(Node* node) {
+  static const int32_t kMask32 = 0x1f;
+  if (!jsgraph()->machine()->Word32ShiftIsSafe()) {
+    // Shifts by constants are so common we pattern-match them here.
+    Int32Matcher match(node);
+    if (match.HasValue()) {
+      int32_t masked = (match.Value() & kMask32);
+      if (match.Value() != masked) node = jsgraph()->Int32Constant(masked);
+    } else {
+      node = graph()->NewNode(jsgraph()->machine()->Word32And(), node,
+                              jsgraph()->Int32Constant(kMask32));
+    }
+  }
+  return node;
+}
+
+Node* WasmGraphBuilder::MaskShiftCount64(Node* node) {
+  static const int64_t kMask64 = 0x3f;
+  if (!jsgraph()->machine()->Word32ShiftIsSafe()) {
+    // Shifts by constants are so common we pattern-match them here.
+    Int64Matcher match(node);
+    if (match.HasValue()) {
+      int64_t masked = (match.Value() & kMask64);
+      if (match.Value() != masked) node = jsgraph()->Int64Constant(masked);
+    } else {
+      node = graph()->NewNode(jsgraph()->machine()->Word64And(), node,
+                              jsgraph()->Int64Constant(kMask64));
+    }
+  }
+  return node;
+}
 
 Node* WasmGraphBuilder::BuildF32Neg(Node* input) {
   Node* result =

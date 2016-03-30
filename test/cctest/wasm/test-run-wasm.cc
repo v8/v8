@@ -324,6 +324,42 @@ TEST(Run_WasmI32Eqz) {
   TestInt32Unop(kExprI32Eqz, 1, 0);
 }
 
+TEST(Run_WasmI32Shl) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_I32_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      uint32_t expected = (*i) << (*j & 0x1f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+TEST(Run_WasmI32Shr) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_I32_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      uint32_t expected = (*i) >> (*j & 0x1f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+TEST(Run_WasmI32Sar) {
+  WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
+  BUILD(r, WASM_I32_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected = (*i) >> (*j & 0x1f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
 TEST(Run_WASM_Int32DivS_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));

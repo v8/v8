@@ -164,6 +164,9 @@ class WasmGraphBuilder {
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset);
 
+  Node* MaskShiftCount32(Node* node);
+  Node* MaskShiftCount64(Node* node);
+
   Node* BuildCCall(MachineSignature* sig, Node** args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
 

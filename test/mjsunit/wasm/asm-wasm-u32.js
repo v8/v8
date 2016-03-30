@@ -196,9 +196,9 @@ var funcs = [
   u32_and,
   u32_or,
   u32_xor,
-// TODO(titzer): u32_shl on arm
-// TODO(titzer): u32_shr on arm
-// TODO(titzer): u32_sar on arm
+  u32_shl,
+  u32_shr,
+  u32_sar,
   u32_eq,
   u32_ne,
   u32_lt,
