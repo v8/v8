@@ -33,6 +33,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Sar:
     case kIA32AddPair:
     case kIA32SubPair:
+    case kIA32MulPair:
     case kIA32ShlPair:
     case kIA32ShrPair:
     case kIA32SarPair:

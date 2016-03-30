@@ -303,6 +303,24 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     // kExprI64Mul:
+    case IrOpcode::kInt64Mul: {
+      DCHECK(node->InputCount() == 2);
+
+      Node* right = node->InputAt(1);
+      node->ReplaceInput(1, GetReplacementLow(right));
+      node->AppendInput(zone(), GetReplacementHigh(right));
+
+      Node* left = node->InputAt(0);
+      node->ReplaceInput(0, GetReplacementLow(left));
+      node->InsertInput(zone(), 1, GetReplacementHigh(left));
+
+      NodeProperties::ChangeOp(node, machine()->Int32PairMul());
+      // We access the additional return values through projections.
+      Node* low_node = graph()->NewNode(common()->Projection(0), node);
+      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
     // kExprI64DivS:
     // kExprI64DivU:
     // kExprI64RemS:

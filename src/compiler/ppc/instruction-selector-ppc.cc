@@ -810,6 +810,8 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   VisitPairBinop(this, kPPC_SubPair, node);
 }
 
+void InstructionSelector::VisitInt32PairMul(Node* node) { UNIMPLEMENTED(); }
+
 void VisitPairShift(InstructionSelector* selector, InstructionCode opcode,
                     Node* node) {
   PPCOperandGenerator g(selector);

@@ -799,6 +799,20 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   Emit(kArmSubPair, 2, outputs, 4, inputs);
 }
 
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  ArmOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kArmMulPair, 2, outputs, 4, inputs);
+}
+
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   ArmOperandGenerator g(this);
   // We use g.UseUniqueRegister here for InputAt(0) to guarantee that there is

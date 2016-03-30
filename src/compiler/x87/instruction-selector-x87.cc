@@ -581,6 +581,8 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   Emit(kX87SubPair, 2, outputs, 4, inputs, 1, temps);
 }
 
+void InstructionSelector::VisitInt32PairMul(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   X87OperandGenerator g(this);
 

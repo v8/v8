@@ -37,10 +37,13 @@ class Int64Lowering {
   CommonOperatorBuilder* common() const { return common_; }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
+  void PrepareReplacements(Node* node);
+  void PushNode(Node* node);
   void LowerNode(Node* node);
   bool DefaultLowering(Node* node);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
+  void PrepareProjectionReplacements(Node* node);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);

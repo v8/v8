@@ -369,6 +369,10 @@ Matcher<Node*> IsInt32PairSub(const Matcher<Node*>& a_matcher,
                               const Matcher<Node*>& b_matcher,
                               const Matcher<Node*>& c_matcher,
                               const Matcher<Node*>& d_matcher);
+Matcher<Node*> IsInt32PairMul(const Matcher<Node*>& a_matcher,
+                              const Matcher<Node*>& b_matcher,
+                              const Matcher<Node*>& c_matcher,
+                              const Matcher<Node*>& d_matcher);
 
 Matcher<Node*> IsWord32PairShl(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& mid_matcher,

@@ -183,6 +183,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   const Operator* Int32PairAdd();
   const Operator* Int32PairSub();
+  const Operator* Int32PairMul();
   const Operator* Word32PairShl();
   const Operator* Word32PairShr();
   const Operator* Word32PairSar();

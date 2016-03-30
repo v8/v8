@@ -4328,6 +4328,70 @@ TEST(RunInt32PairSubWithSharedInput) {
   TestInt32PairSubWithSharedInput(1, 1, 0, 0);
 }
 
+TEST(RunInt32PairMul) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
+      MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairMul = m.Int32PairMul(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+                                 m.Parameter(3));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairMul));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairMul));
+  m.Return(m.Int32Constant(74));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+             static_cast<uint32_t>(*i >> 32),
+             static_cast<uint32_t>(*j & 0xffffffff),
+             static_cast<uint32_t>(*j >> 32));
+      CHECK_EQ(*i * *j, ToInt64(low, high));
+    }
+  }
+}
+
+void TestInt32PairMulWithSharedInput(int a, int b, int c, int d) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32(),
+                                               MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairMul = m.Int32PairMul(m.Parameter(a), m.Parameter(b), m.Parameter(c),
+                                 m.Parameter(d));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairMul));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairMul));
+  m.Return(m.Int32Constant(74));
+
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      m.Call(*i, *j);
+      uint32_t inputs[] = {*i, *j};
+      CHECK_EQ(ToInt64(inputs[a], inputs[b]) * ToInt64(inputs[c], inputs[d]),
+               ToInt64(low, high));
+    }
+  }
+}
+
+TEST(RunInt32PairMulWithSharedInput) {
+  TestInt32PairMulWithSharedInput(0, 0, 0, 0);
+  TestInt32PairMulWithSharedInput(1, 0, 0, 0);
+  TestInt32PairMulWithSharedInput(0, 1, 0, 0);
+  TestInt32PairMulWithSharedInput(0, 0, 1, 0);
+  TestInt32PairMulWithSharedInput(0, 0, 0, 1);
+  TestInt32PairMulWithSharedInput(1, 1, 0, 0);
+  TestInt32PairMulWithSharedInput(0, 1, 1, 0);
+}
+
 TEST(RunWord32PairShl) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());

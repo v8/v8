@@ -330,6 +330,9 @@ class RawMachineAssembler {
   Node* Int32PairSub(Node* a_low, Node* a_high, Node* b_low, Node* b_high) {
     return AddNode(machine()->Int32PairSub(), a_low, a_high, b_low, b_high);
   }
+  Node* Int32PairMul(Node* a_low, Node* a_high, Node* b_low, Node* b_high) {
+    return AddNode(machine()->Int32PairMul(), a_low, a_high, b_low, b_high);
+  }
   Node* Word32PairShl(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairShl(), low_word, high_word, shift);
   }

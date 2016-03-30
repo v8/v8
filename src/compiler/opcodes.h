@@ -338,6 +338,7 @@
   V(CheckedStore)               \
   V(Int32PairAdd)               \
   V(Int32PairSub)               \
+  V(Int32PairMul)               \
   V(Word32PairShl)              \
   V(Word32PairShr)              \
   V(Word32PairSar)

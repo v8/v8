@@ -337,6 +337,23 @@ TEST_F(Int64LoweringTest, Int64Sub) {
 }
 
 // kExprI64Mul:
+TEST_F(Int64LoweringTest, Int64Mul) {
+  LowerGraph(graph()->NewNode(machine()->Int64Mul(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+
+  Capture<Node*> mul_capture;
+  Matcher<Node*> mul_matcher = IsInt32PairMul(
+      IsInt32Constant(low_word_value(0)), IsInt32Constant(high_word_value(0)),
+      IsInt32Constant(low_word_value(1)), IsInt32Constant(high_word_value(1)));
+
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsProjection(0, AllOf(CaptureEq(&mul_capture), mul_matcher)),
+                IsProjection(1, AllOf(CaptureEq(&mul_capture), mul_matcher)),
+                start(), start()));
+}
+
 // kExprI64DivS:
 // kExprI64DivU:
 // kExprI64RemS:

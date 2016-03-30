@@ -48,6 +48,7 @@ namespace compiler {
   V(ArmUxtah)                      \
   V(ArmAddPair)                    \
   V(ArmSubPair)                    \
+  V(ArmMulPair)                    \
   V(ArmLslPair)                    \
   V(ArmLsrPair)                    \
   V(ArmAsrPair)                    \
