@@ -8395,7 +8395,7 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
     int length = dictionary->NumberOfEnumElements();
     if (length == 0) {
-      return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
+      return isolate->factory()->empty_fixed_array();
     }
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
     dictionary->CopyEnumKeysTo(*storage);
@@ -8404,7 +8404,7 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object) {
     Handle<NameDictionary> dictionary(object->property_dictionary());
     int length = dictionary->NumberOfEnumElements();
     if (length == 0) {
-      return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
+      return isolate->factory()->empty_fixed_array();
     }
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
     dictionary->CopyEnumKeysTo(*storage);
