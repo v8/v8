@@ -535,7 +535,11 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kCallTargetAddressOffset = 5 * kInstrSize;
+#else
   static const int kCallTargetAddressOffset = 6 * kInstrSize;
+#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
@@ -545,7 +549,11 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 4;
 
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kDebugBreakSlotInstructions = 5;
+#else
   static const int kDebugBreakSlotInstructions = 6;
+#endif
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
