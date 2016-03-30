@@ -90,6 +90,13 @@ const char PerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
 // Extra padding for the PID in the filename
 const int PerfJitLogger::kFilenameBufferPadding = 16;
 
+base::LazyRecursiveMutex PerfJitLogger::file_mutex_;
+// The following static variables are protected by PerfJitLogger::file_mutex_.
+uint64_t PerfJitLogger::reference_count_ = 0;
+void* PerfJitLogger::marker_address_ = nullptr;
+uint64_t PerfJitLogger::code_index_ = 0;
+FILE* PerfJitLogger::perf_output_handle_ = nullptr;
+
 void PerfJitLogger::OpenJitDumpFile() {
   // Open the perf JIT dump file.
   perf_output_handle_ = nullptr;
@@ -137,14 +144,27 @@ void PerfJitLogger::CloseMarkerFile(void* marker_address) {
   munmap(marker_address, page_size);
 }
 
-PerfJitLogger::PerfJitLogger()
-    : perf_output_handle_(nullptr), code_index_(0), marker_address_(nullptr) {
-  OpenJitDumpFile();
-  if (perf_output_handle_ == nullptr) return;
-  LogWriteHeader();
+PerfJitLogger::PerfJitLogger() {
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+
+  reference_count_++;
+  // If this is the first logger, open the file and write the header.
+  if (reference_count_ == 1) {
+    OpenJitDumpFile();
+    if (perf_output_handle_ == nullptr) return;
+    LogWriteHeader();
+  }
 }
 
-PerfJitLogger::~PerfJitLogger() { CloseJitDumpFile(); }
+PerfJitLogger::~PerfJitLogger() {
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+
+  reference_count_--;
+  // If this was the last logger, close the file.
+  if (reference_count_ == 0) {
+    CloseJitDumpFile();
+  }
+}
 
 uint64_t PerfJitLogger::GetTimestamp() {
   struct timespec ts;
@@ -158,7 +178,6 @@ uint64_t PerfJitLogger::GetTimestamp() {
 void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
                                       SharedFunctionInfo* shared,
                                       const char* name, int length) {
-  if (perf_output_handle_ == nullptr) return;
   if (FLAG_perf_basic_prof_only_functions &&
       (abstract_code->kind() != AbstractCode::FUNCTION &&
        abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
@@ -166,13 +185,17 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
     return;
   }
 
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+
+  if (perf_output_handle_ == nullptr) return;
+
   // We only support non-interpreted functions.
   if (!abstract_code->IsCode()) return;
   Code* code = abstract_code->GetCode();
   DCHECK(code->instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
-  if (FLAG_perf_prof_debug_info) {
+  if (FLAG_perf_prof_debug_info && shared != nullptr) {
     LogWriteDebugInfo(code, shared);
   }
 

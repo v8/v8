@@ -87,9 +87,13 @@ class PerfJitLogger : public CodeEventLogger {
 #endif
   }
 
-  FILE* perf_output_handle_;
-  uint64_t code_index_;
-  void* marker_address_;
+  // Per-process singleton file. We assume that there is one main isolate;
+  // to determine when it goes away, we keep reference count.
+  static base::LazyRecursiveMutex file_mutex_;
+  static FILE* perf_output_handle_;
+  static uint64_t reference_count_;
+  static void* marker_address_;
+  static uint64_t code_index_;
 };
 
 #else
