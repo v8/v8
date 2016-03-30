@@ -2767,6 +2767,83 @@ void StringGreaterThanOrEqualStub::GenerateAssembly(
   GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
+void ToLengthStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_len(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_len);
+  var_len.Bind(assembler->Parameter(0));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Shared entry points.
+    Label return_len(assembler),
+        return_two53minus1(assembler, Label::kDeferred),
+        return_zero(assembler, Label::kDeferred);
+
+    // Load the current {len} value.
+    Node* len = var_len.value();
+
+    // Check if {len} is a positive Smi.
+    assembler->GotoIf(assembler->WordIsPositiveSmi(len), &return_len);
+
+    // Check if {len} is a (negative) Smi.
+    assembler->GotoIf(assembler->WordIsSmi(len), &return_zero);
+
+    // Check if {len} is a HeapNumber.
+    Label if_lenisheapnumber(assembler),
+        if_lenisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->WordEqual(assembler->LoadMap(len),
+                                           assembler->HeapNumberMapConstant()),
+                      &if_lenisheapnumber, &if_lenisnotheapnumber);
+
+    assembler->Bind(&if_lenisheapnumber);
+    {
+      // Load the floating-point value of {len}.
+      Node* len_value = assembler->LoadHeapNumberValue(len);
+
+      // Check if {len} is not greater than zero.
+      assembler->GotoUnless(assembler->Float64GreaterThan(
+                                len_value, assembler->Float64Constant(0.0)),
+                            &return_zero);
+
+      // Check if {len} is greater than or equal to 2^53-1.
+      assembler->GotoIf(
+          assembler->Float64GreaterThanOrEqual(
+              len_value, assembler->Float64Constant(kMaxSafeInteger)),
+          &return_two53minus1);
+
+      // Round the {len} towards -Infinity.
+      Node* value = assembler->Float64Floor(len_value);
+      Node* result = assembler->ChangeFloat64ToTagged(value);
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_lenisnotheapnumber);
+    {
+      // Need to convert {len} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_len.Bind(assembler->CallStub(callable, context, len));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&return_len);
+    assembler->Return(var_len.value());
+
+    assembler->Bind(&return_two53minus1);
+    assembler->Return(assembler->NumberConstant(kMaxSafeInteger));
+
+    assembler->Bind(&return_zero);
+    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
+  }
+}
+
 void ToBooleanStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;

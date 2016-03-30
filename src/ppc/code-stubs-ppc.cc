@@ -2754,28 +2754,6 @@ void StringToNumberStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kStringToNumber);
 }
 
-void ToLengthStub::Generate(MacroAssembler* masm) {
-  // The ToLength stub takes one argument in r3.
-  Label not_smi;
-  __ JumpIfNotSmi(r3, &not_smi);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ cmpi(r3, Operand::Zero());
-  if (CpuFeatures::IsSupported(ISELECT)) {
-    __ isel(lt, r3, r0, r3);
-  } else {
-    Label positive;
-    __ bgt(&positive);
-    __ li(r3, Operand::Zero());
-    __ bind(&positive);
-  }
-  __ Ret();
-  __ bind(&not_smi);
-
-  __ push(r3);  // Push argument.
-  __ TailCallRuntime(Runtime::kToLength);
-}
-
-
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in r3.
   Label is_number;

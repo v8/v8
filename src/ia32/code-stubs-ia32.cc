@@ -2661,25 +2661,6 @@ void StringToNumberStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kStringToNumber);
 }
 
-void ToLengthStub::Generate(MacroAssembler* masm) {
-  // The ToLength stub takes on argument in eax.
-  Label not_smi, positive_smi;
-  __ JumpIfNotSmi(eax, &not_smi, Label::kNear);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ test(eax, eax);
-  __ j(greater_equal, &positive_smi, Label::kNear);
-  __ xor_(eax, eax);
-  __ bind(&positive_smi);
-  __ Ret();
-  __ bind(&not_smi);
-
-  __ pop(ecx);   // Pop return address.
-  __ push(eax);  // Push argument.
-  __ push(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kToLength);
-}
-
-
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in eax.
   Label is_number;

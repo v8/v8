@@ -49,7 +49,6 @@ namespace internal {
   V(ToNumber)                               \
   V(NonNumberToNumber)                      \
   V(StringToNumber)                         \
-  V(ToLength)                               \
   V(ToString)                               \
   V(ToName)                                 \
   V(ToObject)                               \
@@ -131,6 +130,7 @@ namespace internal {
   V(StringGreaterThan)                      \
   V(StringGreaterThanOrEqual)               \
   V(ToBoolean)                              \
+  V(ToLength)                               \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(LoadConstant)                           \
@@ -834,6 +834,14 @@ class ToBooleanStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(ToBoolean, TurboFanCodeStub);
+};
+
+class ToLengthStub final : public TurboFanCodeStub {
+ public:
+  explicit ToLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
+  DEFINE_TURBOFAN_CODE_STUB(ToLength, TurboFanCodeStub);
 };
 
 class StoreInterceptorStub : public TurboFanCodeStub {
@@ -3051,14 +3059,6 @@ class StringToNumberStub final : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(StringToNumber, PlatformCodeStub);
-};
-
-class ToLengthStub final : public PlatformCodeStub {
- public:
-  explicit ToLengthStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(ToLength, PlatformCodeStub);
 };
 
 
