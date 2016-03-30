@@ -1098,9 +1098,8 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
 
   // TODO(mvstanton): we'd only like to cache code on the map when it's custom
   // code compiled for this map, otherwise it's already cached in the global
-  // code
-  // cache. We are also guarding against installing code with flags that don't
-  // match the desired CacheHolderFlag computed above, which would lead to
+  // code cache. We are also guarding against installing code with flags that
+  // don't match the desired CacheHolderFlag computed above, which would lead to
   // invalid lookups later.
   if (code->type() != Code::NORMAL &&
       Code::ExtractCacheHolderFromFlags(code->flags()) == flag) {

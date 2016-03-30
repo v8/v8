@@ -10123,6 +10123,7 @@ void CodeCache::Update(
 
 void CodeCache::UpdateDefaultCache(
     Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
+  Isolate* isolate = code_cache->GetIsolate();
   // When updating the default code cache we disregard the type encoded in the
   // flags. This allows call constant stubs to overwrite call field
   // stubs, etc.
@@ -10135,19 +10136,23 @@ void CodeCache::UpdateDefaultCache(
   {
     DisallowHeapAllocation no_alloc;
     int deleted_index = -1;
+    Object* null = isolate->heap()->null_value();
+    Object* undefined = isolate->heap()->undefined_value();
+    DCHECK(name->IsUniqueName());
     for (int i = 0; i < length; i += kCodeCacheEntrySize) {
       Object* key = cache->get(i);
-      if (key->IsNull()) {
+      if (key == null) {
         if (deleted_index < 0) deleted_index = i;
         continue;
       }
-      if (key->IsUndefined()) {
+      if (key == undefined) {
         if (deleted_index >= 0) i = deleted_index;
         cache->set(i + kCodeCacheEntryNameOffset, *name);
         cache->set(i + kCodeCacheEntryCodeOffset, *code);
         return;
       }
-      if (name->Equals(Name::cast(key))) {
+      DCHECK(key->IsUniqueName());
+      if (*name == key) {
         Code::Flags found =
             Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
         if (Code::RemoveTypeFromFlags(found) == flags) {
@@ -10168,7 +10173,6 @@ void CodeCache::UpdateDefaultCache(
 
   // Extend the code cache with some new entries (at least one). Must be a
   // multiple of the entry size.
-  Isolate* isolate = cache->GetIsolate();
   int new_length = length + (length >> 1) + kCodeCacheEntrySize;
   new_length = new_length - new_length % kCodeCacheEntrySize;
   DCHECK((new_length % kCodeCacheEntrySize) == 0);
@@ -10203,13 +10207,18 @@ Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
 
 Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
   FixedArray* cache = default_cache();
+  Heap* heap = GetHeap();
+  Object* null = heap->null_value();
+  Object* undefined = heap->undefined_value();
   int length = cache->length();
+  DCHECK(name->IsUniqueName());
   for (int i = 0; i < length; i += kCodeCacheEntrySize) {
     Object* key = cache->get(i + kCodeCacheEntryNameOffset);
     // Skip deleted elements.
-    if (key->IsNull()) continue;
-    if (key->IsUndefined()) return key;
-    if (name->Equals(Name::cast(key))) {
+    if (key == null) continue;
+    if (key == undefined) return key;
+    DCHECK(key->IsUniqueName());
+    if (name == key) {
       Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
       if (Code::RemoveTypeFromFlags(code->flags()) == flags) {
         return code;
