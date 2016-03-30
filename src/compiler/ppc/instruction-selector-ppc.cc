@@ -810,7 +810,21 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   VisitPairBinop(this, kPPC_SubPair, node);
 }
 
-void InstructionSelector::VisitInt32PairMul(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  PPCOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+
+  Emit(kPPC_MulPair, 2, outputs, 4, inputs, 2, temps);
+}
 
 void VisitPairShift(InstructionSelector* selector, InstructionCode opcode,
                     Node* node) {

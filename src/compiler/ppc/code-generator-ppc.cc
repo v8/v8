@@ -991,6 +991,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ sube(i.OutputRegister(1), i.InputRegister(1), i.InputRegister(3));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kPPC_MulPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ mullw(i.TempRegister(0), i.InputRegister(0), i.InputRegister(3));
+      __ mullw(i.TempRegister(1), i.InputRegister(2), i.InputRegister(1));
+      __ add(i.TempRegister(0), i.TempRegister(0), i.TempRegister(1));
+      __ mullw(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2));
+      __ mulhwu(i.OutputRegister(1), i.InputRegister(0), i.InputRegister(2));
+      __ add(i.OutputRegister(1), i.OutputRegister(1), i.TempRegister(0));
+      break;
     case kPPC_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),
