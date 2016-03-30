@@ -179,6 +179,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumberStub to convert it.
       FrameScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(a0);
+      __ SmiTag(a3);
       __ Push(a0, a1, a3);
       __ mov(a0, a2);
       ToNumberStub stub(masm->isolate());
@@ -195,6 +197,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ SmiToDoubleFPURegister(a1, f0, a4);
         __ bind(&done_restore);
       }
+      __ SmiUntag(a3);
+      __ SmiUntag(a0);
     }
     __ jmp(&convert);
     __ bind(&convert_number);
