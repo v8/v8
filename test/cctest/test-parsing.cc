@@ -7867,3 +7867,46 @@ TEST(TypedModeTypeAliases) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeClassDeclarations) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "class C { f(x: number) : boolean { return x == 42; } }",
+    "class D extends C { g<A>(x: A[]) : A { return x[0]; } }",
+    "class E extends D implements I, J {}",
+    "class F<A> extends D implements I<A>, J<number, A> {}",
+    "class C { x; y=42; z: number; w: number = 17; }",
+    "class C { [x: string]; }",
+    "class C { [x: number]; }",
+    "class C { [x: string] : boolean; }",
+    "class C { [x: number] : boolean; }",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "class C { f(x: number) : () {} }",
+    "class D implements () {}",
+    "class E implements number[] {}",
+    "class F implements I<> {}",
+    "class E<> {}",
+    "class C { x: (); }",
+    "class C { [42]; }",
+    "class C { [42] : number; }",
+    "class C { [x: any]; }",
+    "class C { [x: any] : any; }",
+    "class C { static [x: number]; }",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

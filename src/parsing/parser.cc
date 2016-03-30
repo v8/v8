@@ -4849,16 +4849,46 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   }
 
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters =
+      this->NullTypeParameters();
+  if (scope_->typed() && peek() == Token::LT) {  // Braces required here.
+    type_parameters = ParseTypeParameters(CHECK_OK);
+  }
+  USE(type_parameters);  // TODO(nikolaos): really use them!
+
+  bool started_scope = false;
+
+  // Parse optional extends clause.
   Expression* extends = NULL;
   if (Check(Token::EXTENDS)) {
     block_scope->set_start_position(scanner()->location().end_pos);
+    started_scope = true;
+    // TODO(nikolaos): If this remains an expression, we have to explicitly
+    // allow type arguments.
     ExpressionClassifier classifier(this);
     extends = ParseLeftHandSideExpression(&classifier, CHECK_OK);
     RewriteNonPattern(&classifier, CHECK_OK);
-  } else {
-    block_scope->set_start_position(scanner()->location().end_pos);
   }
 
+  // Parse optional implements clause.
+  ZoneList<typesystem::Type*>* implements = nullptr;
+  if (scope_->typed() && CheckContextualKeyword(CStrVector("implements"))) {
+    implements = new (zone()) ZoneList<typesystem::Type*>(1, zone());
+    if (!started_scope) {
+      block_scope->set_start_position(scanner()->location().end_pos);
+      started_scope = true;
+    }
+    do {
+      typesystem::Type* class_or_interface = ParseTypeReference(CHECK_OK);
+      implements->Add(class_or_interface, zone());
+    } while (Check(Token::COMMA));
+  }
+  USE(implements);  // TODO(nikolaos): really use it!
+
+  if (!started_scope) {
+    block_scope->set_start_position(scanner()->location().end_pos);
+  }
 
   ClassLiteralChecker checker(this);
   ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
@@ -4880,6 +4910,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
         &has_seen_constructor, &classifier, &property_name, CHECK_OK);
+    // Ignore member variable declarations in typed mode.
+    if (property == nullptr) continue;
     RewriteNonPattern(&classifier, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
