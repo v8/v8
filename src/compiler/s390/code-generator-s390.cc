@@ -1165,10 +1165,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_Mod64:
-      ASSEMBLE_MODULO(dr, srda);
+      __ LoadRR(r1, i.InputRegister(0));
+      __ dsgr(r0, i.InputRegister(1));  // R1: Dividend
+      __ ltgr(i.OutputRegister(), r0);  // Copy R0: Remainder to output
       break;
     case kS390_ModU64:
-      ASSEMBLE_MODULO(dlr, srdl);
+      __ LoadRR(r1, i.InputRegister(0));
+      __ LoadImmP(r0, Operand::Zero());
+      __ dlgr(r0, i.InputRegister(1));  // R0:R1: Dividend
+      __ ltgr(i.OutputRegister(), r0);  // Copy R0: Remainder to output
       break;
 #endif
     case kS390_AbsFloat:
