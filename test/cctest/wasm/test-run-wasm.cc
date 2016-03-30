@@ -327,33 +327,36 @@ TEST(Run_WasmI32Eqz) {
 TEST(Run_WASM_Int32DivS_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(0, r.Call(0, 100));
   CHECK_TRAP(r.Call(100, 0));
   CHECK_TRAP(r.Call(-1001, 0));
-  CHECK_TRAP(r.Call(std::numeric_limits<int32_t>::min(), -1));
-  CHECK_TRAP(r.Call(std::numeric_limits<int32_t>::min(), 0));
+  CHECK_TRAP(r.Call(kMin, -1));
+  CHECK_TRAP(r.Call(kMin, 0));
 }
 
 
 TEST(Run_WASM_Int32RemS_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(33, r.Call(133, 100));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int32_t>::min(), -1));
+  CHECK_EQ(0, r.Call(kMin, -1));
   CHECK_TRAP(r.Call(100, 0));
   CHECK_TRAP(r.Call(-1001, 0));
-  CHECK_TRAP(r.Call(std::numeric_limits<int32_t>::min(), 0));
+  CHECK_TRAP(r.Call(kMin, 0));
 }
 
 
 TEST(Run_WASM_Int32DivU_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(0, r.Call(0, 100));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int32_t>::min(), -1));
+  CHECK_EQ(0, r.Call(kMin, -1));
   CHECK_TRAP(r.Call(100, 0));
   CHECK_TRAP(r.Call(-1001, 0));
-  CHECK_TRAP(r.Call(std::numeric_limits<int32_t>::min(), 0));
+  CHECK_TRAP(r.Call(kMin, 0));
 }
 
 
@@ -361,11 +364,63 @@ TEST(Run_WASM_Int32RemU_trap) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(17, r.Call(217, 100));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_TRAP(r.Call(100, 0));
   CHECK_TRAP(r.Call(-1001, 0));
-  CHECK_TRAP(r.Call(std::numeric_limits<int32_t>::min(), 0));
-  CHECK_EQ(std::numeric_limits<int32_t>::min(),
-           r.Call(std::numeric_limits<int32_t>::min(), -1));
+  CHECK_TRAP(r.Call(kMin, 0));
+  CHECK_EQ(kMin, r.Call(kMin, -1));
+}
+
+TEST(Run_WASM_Int32DivS_asmjs) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
+  BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
+  CHECK_EQ(0, r.Call(0, 100));
+  CHECK_EQ(0, r.Call(100, 0));
+  CHECK_EQ(0, r.Call(-1001, 0));
+  CHECK_EQ(kMin, r.Call(kMin, -1));
+  CHECK_EQ(0, r.Call(kMin, 0));
+}
+
+TEST(Run_WASM_Int32RemS_asmjs) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
+  BUILD(r, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
+  CHECK_EQ(33, r.Call(133, 100));
+  CHECK_EQ(0, r.Call(kMin, -1));
+  CHECK_EQ(0, r.Call(100, 0));
+  CHECK_EQ(0, r.Call(-1001, 0));
+  CHECK_EQ(0, r.Call(kMin, 0));
+}
+
+TEST(Run_WASM_Int32DivU_asmjs) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
+  BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
+  CHECK_EQ(0, r.Call(0, 100));
+  CHECK_EQ(0, r.Call(kMin, -1));
+  CHECK_EQ(0, r.Call(100, 0));
+  CHECK_EQ(0, r.Call(-1001, 0));
+  CHECK_EQ(0, r.Call(kMin, 0));
+}
+
+TEST(Run_WASM_Int32RemU_asmjs) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
+  BUILD(r, WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  const int32_t kMin = std::numeric_limits<int32_t>::min();
+  CHECK_EQ(17, r.Call(217, 100));
+  CHECK_EQ(0, r.Call(100, 0));
+  CHECK_EQ(0, r.Call(-1001, 0));
+  CHECK_EQ(0, r.Call(kMin, 0));
+  CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
 

@@ -166,6 +166,7 @@ class WasmGraphBuilder {
 
   Node* BuildCCall(MachineSignature* sig, Node** args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
+
   Node* BuildF32Neg(Node* input);
   Node* BuildF64Neg(Node* input);
   Node* BuildF32CopySign(Node* left, Node* right);
@@ -224,6 +225,11 @@ class WasmGraphBuilder {
   Node* BuildI64UConvertF32(Node* input);
   Node* BuildI64SConvertF64(Node* input);
   Node* BuildI64UConvertF64(Node* input);
+
+  Node* BuildI32DivS(Node* left, Node* right);
+  Node* BuildI32RemS(Node* left, Node* right);
+  Node* BuildI32DivU(Node* left, Node* right);
+  Node* BuildI32RemU(Node* left, Node* right);
 
   Node* BuildI64DivS(Node* left, Node* right);
   Node* BuildI64RemS(Node* left, Node* right);

@@ -393,43 +393,14 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI32Mul:
       op = m->Int32Mul();
       break;
-    case wasm::kExprI32DivS: {
-      trap_->ZeroCheck32(kTrapDivByZero, right);
-      Node* before = *control_;
-      Node* denom_is_m1;
-      Node* denom_is_not_m1;
-      Branch(graph()->NewNode(jsgraph()->machine()->Word32Equal(), right,
-                              jsgraph()->Int32Constant(-1)),
-             &denom_is_m1, &denom_is_not_m1);
-      *control_ = denom_is_m1;
-      trap_->TrapIfEq32(kTrapDivUnrepresentable, left, kMinInt);
-      if (*control_ != denom_is_m1) {
-        *control_ = graph()->NewNode(jsgraph()->common()->Merge(2),
-                                     denom_is_not_m1, *control_);
-      } else {
-        *control_ = before;
-      }
-      return graph()->NewNode(m->Int32Div(), left, right, *control_);
-    }
+    case wasm::kExprI32DivS:
+      return BuildI32DivS(left, right);
     case wasm::kExprI32DivU:
-      op = m->Uint32Div();
-      return graph()->NewNode(op, left, right,
-                              trap_->ZeroCheck32(kTrapDivByZero, right));
-    case wasm::kExprI32RemS: {
-      trap_->ZeroCheck32(kTrapRemByZero, right);
-      Diamond d(graph(), jsgraph()->common(),
-                graph()->NewNode(jsgraph()->machine()->Word32Equal(), right,
-                                 jsgraph()->Int32Constant(-1)));
-
-      Node* rem = graph()->NewNode(m->Int32Mod(), left, right, d.if_false);
-
-      return d.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
-                   rem);
-    }
+      return BuildI32DivU(left, right);
+    case wasm::kExprI32RemS:
+      return BuildI32RemS(left, right);
     case wasm::kExprI32RemU:
-      op = m->Uint32Mod();
-      return graph()->NewNode(op, left, right,
-                              trap_->ZeroCheck32(kTrapRemByZero, right));
+      return BuildI32RemU(left, right);
     case wasm::kExprI32And:
       op = m->Word32And();
       break;
@@ -1741,6 +1712,132 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
                        *effect_, *control_);
   *effect_ = load;
   return load;
+}
+
+Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js()) {
+    // asm.js semantics return 0 on divide or mod by zero.
+    if (m->Int32DivIsSafe()) {
+      // The hardware instruction does the right thing (e.g. arm).
+      return graph()->NewNode(m->Int32Div(), left, right, graph()->start());
+    }
+
+    // Check denominator for zero.
+    Diamond z(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(0)),
+        BranchHint::kFalse);
+
+    // Check numerator for -1. (avoid minint / -1 case).
+    Diamond n(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
+        BranchHint::kFalse);
+
+    Node* div = graph()->NewNode(m->Int32Div(), left, right, z.if_false);
+    Node* neg =
+        graph()->NewNode(m->Int32Sub(), jsgraph()->Int32Constant(0), left);
+
+    return n.Phi(MachineRepresentation::kWord32, neg,
+                 z.Phi(MachineRepresentation::kWord32,
+                       jsgraph()->Int32Constant(0), div));
+  }
+
+  trap_->ZeroCheck32(kTrapDivByZero, right);
+  Node* before = *control_;
+  Node* denom_is_m1;
+  Node* denom_is_not_m1;
+  Branch(
+      graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
+      &denom_is_m1, &denom_is_not_m1);
+  *control_ = denom_is_m1;
+  trap_->TrapIfEq32(kTrapDivUnrepresentable, left, kMinInt);
+  if (*control_ != denom_is_m1) {
+    *control_ = graph()->NewNode(jsgraph()->common()->Merge(2), denom_is_not_m1,
+                                 *control_);
+  } else {
+    *control_ = before;
+  }
+  return graph()->NewNode(m->Int32Div(), left, right, *control_);
+}
+
+Node* WasmGraphBuilder::BuildI32RemS(Node* left, Node* right) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js()) {
+    // asm.js semantics return 0 on divide or mod by zero.
+    // Explicit check for x % 0.
+    Diamond z(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(0)),
+        BranchHint::kFalse);
+
+    // Explicit check for x % -1.
+    Diamond d(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
+        BranchHint::kFalse);
+    d.Chain(z.if_false);
+
+    return z.Phi(
+        MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
+        d.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
+              graph()->NewNode(m->Int32Mod(), left, right, d.if_false)));
+  }
+
+  trap_->ZeroCheck32(kTrapRemByZero, right);
+
+  Diamond d(
+      graph(), jsgraph()->common(),
+      graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
+      BranchHint::kFalse);
+  d.Chain(*control_);
+
+  return d.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
+               graph()->NewNode(m->Int32Mod(), left, right, d.if_false));
+}
+
+Node* WasmGraphBuilder::BuildI32DivU(Node* left, Node* right) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js()) {
+    // asm.js semantics return 0 on divide or mod by zero.
+    if (m->Uint32DivIsSafe()) {
+      // The hardware instruction does the right thing (e.g. arm).
+      return graph()->NewNode(m->Uint32Div(), left, right, graph()->start());
+    }
+
+    // Explicit check for x % 0.
+    Diamond z(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(0)),
+        BranchHint::kFalse);
+
+    return z.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
+                 graph()->NewNode(jsgraph()->machine()->Uint32Div(), left,
+                                  right, z.if_false));
+  }
+  return graph()->NewNode(m->Uint32Div(), left, right,
+                          trap_->ZeroCheck32(kTrapDivByZero, right));
+}
+
+Node* WasmGraphBuilder::BuildI32RemU(Node* left, Node* right) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js()) {
+    // asm.js semantics return 0 on divide or mod by zero.
+    // Explicit check for x % 0.
+    Diamond z(
+        graph(), jsgraph()->common(),
+        graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(0)),
+        BranchHint::kFalse);
+
+    Node* rem = graph()->NewNode(jsgraph()->machine()->Uint32Mod(), left, right,
+                                 z.if_false);
+    return z.Phi(MachineRepresentation::kWord32, jsgraph()->Int32Constant(0),
+                 rem);
+  }
+
+  return graph()->NewNode(m->Uint32Mod(), left, right,
+                          trap_->ZeroCheck32(kTrapRemByZero, right));
 }
 
 Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right) {
