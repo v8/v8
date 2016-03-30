@@ -308,8 +308,11 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
 #define BUILTIN_LIST_T(V) \
+  V(MathCeil, 2)          \
   V(MathFloor, 2)         \
-  V(MathSqrt, 2)
+  V(MathRound, 2)         \
+  V(MathSqrt, 2)          \
+  V(MathTrunc, 2)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -582,6 +585,8 @@ class Builtins {
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
 
+  // ES6 section 20.2.2.10 Math.floor ( x )
+  static void Generate_MathCeil(compiler::CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
   static void Generate_MathFloor(compiler::CodeStubAssembler* assembler);
   enum class MathMaxMinKind { kMax, kMin };
@@ -594,8 +599,12 @@ class Builtins {
   static void Generate_MathMin(MacroAssembler* masm) {
     Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
   }
+  // ES6 section 20.2.2.28 Math.round ( x )
+  static void Generate_MathRound(compiler::CodeStubAssembler* assembler);
   // ES6 section 20.2.2.32 Math.sqrt ( x )
   static void Generate_MathSqrt(compiler::CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.35 Math.trunc ( x )
+  static void Generate_MathTrunc(compiler::CodeStubAssembler* assembler);
 
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
   static void Generate_NumberConstructor(MacroAssembler* masm);

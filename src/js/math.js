@@ -39,11 +39,6 @@ function MathAtan2JS(y, x) {
   return %MathAtan2(y, x);
 }
 
-// ECMA 262 - 15.8.2.6
-function MathCeil(x) {
-  return -%math_floor(-x);
-}
-
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
   return %MathExpRT(TO_NUMBER(x));
@@ -81,25 +76,11 @@ function MathRandomRaw() {
   return %_DoubleLo(randomNumbers[--nextRandomIndex]) & 0x3FFFFFFF;
 }
 
-// ECMA 262 - 15.8.2.15
-function MathRound(x) {
-  return %RoundNumber(TO_NUMBER(x));
-}
-
 // ES6 draft 09-27-13, section 20.2.2.28.
 function MathSign(x) {
   x = +x;
   if (x > 0) return 1;
   if (x < 0) return -1;
-  // -0, 0 or NaN.
-  return x;
-}
-
-// ES6 draft 09-27-13, section 20.2.2.34.
-function MathTrunc(x) {
-  x = +x;
-  if (x > 0) return %math_floor(x);
-  if (x < 0) return -%math_floor(-x);
   // -0, 0 or NaN.
   return x;
 }
@@ -219,14 +200,11 @@ utils.InstallConstants(GlobalMath, [
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
-  "ceil", MathCeil,
   "exp", MathExp,
   "log", MathLog,
-  "round", MathRound,
   "atan2", MathAtan2JS,
   "pow", MathPowJS,
   "sign", MathSign,
-  "trunc", MathTrunc,
   "asinh", MathAsinh,
   "acosh", MathAcosh,
   "atanh", MathAtanh,
@@ -237,11 +215,9 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 
 %SetForceInlineFlag(MathAbs);
 %SetForceInlineFlag(MathAtan2JS);
-%SetForceInlineFlag(MathCeil);
 %SetForceInlineFlag(MathClz32JS);
 %SetForceInlineFlag(MathRandom);
 %SetForceInlineFlag(MathSign);
-%SetForceInlineFlag(MathTrunc);
 
 // -------------------------------------------------------------------
 // Exports

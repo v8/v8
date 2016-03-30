@@ -97,6 +97,7 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_STUB_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Neg)                              \
   V(Float64Sqrt)                             \
   V(ChangeFloat64ToUint32)                   \
   V(ChangeInt32ToFloat64)                    \
@@ -168,6 +169,8 @@ class CodeStubAssembler {
 
   void Bind(Label* label);
   void Goto(Label* label);
+  void GotoIf(Node* condition, Label* true_label);
+  void GotoUnless(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
   void Switch(Node* index, Label* default_label, int32_t* case_values,
@@ -260,7 +263,10 @@ class CodeStubAssembler {
   // ===========================================================================
 
   // Float64 operations.
+  Node* Float64Ceil(Node* x);
   Node* Float64Floor(Node* x);
+  Node* Float64Round(Node* x);
+  Node* Float64Trunc(Node* x);
 
   // Tag a Word as a Smi value.
   Node* SmiTag(Node* value);

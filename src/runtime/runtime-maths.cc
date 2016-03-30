@@ -161,49 +161,6 @@ RUNTIME_FUNCTION(Runtime_MathPowRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_RoundNumber) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(input, 0);
-  isolate->counters()->math_round_runtime()->Increment();
-
-  if (!input->IsHeapNumber()) {
-    DCHECK(input->IsSmi());
-    return *input;
-  }
-
-  Handle<HeapNumber> number = Handle<HeapNumber>::cast(input);
-
-  double value = number->value();
-  int exponent = number->get_exponent();
-  int sign = number->get_sign();
-
-  if (exponent < -1) {
-    // Number in range ]-0.5..0.5[. These always round to +/-zero.
-    if (sign) return isolate->heap()->minus_zero_value();
-    return Smi::FromInt(0);
-  }
-
-  // We compare with kSmiValueSize - 2 because (2^30 - 0.1) has exponent 29 and
-  // should be rounded to 2^30, which is not smi (for 31-bit smis, similar
-  // argument holds for 32-bit smis).
-  if (!sign && exponent < kSmiValueSize - 2) {
-    return Smi::FromInt(static_cast<int>(value + 0.5));
-  }
-
-  // If the magnitude is big enough, there's no place for fraction part. If we
-  // try to add 0.5 to this number, 1.0 will be added instead.
-  if (exponent >= 52) {
-    return *number;
-  }
-
-  if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
-
-  // Do not call NumberFromDouble() to avoid extra checks.
-  return *isolate->factory()->NewNumber(Floor(value + 0.5));
-}
-
-
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

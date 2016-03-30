@@ -173,7 +173,10 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberShiftLeft, Operator::kNoProperties, 2)         \
   V(NumberShiftRight, Operator::kNoProperties, 2)        \
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
+  V(NumberCeil, Operator::kNoProperties, 1)              \
   V(NumberFloor, Operator::kNoProperties, 1)             \
+  V(NumberRound, Operator::kNoProperties, 1)             \
+  V(NumberTrunc, Operator::kNoProperties, 1)             \
   V(NumberToInt32, Operator::kNoProperties, 1)           \
   V(NumberToUint32, Operator::kNoProperties, 1)          \
   V(NumberIsHoleNaN, Operator::kNoProperties, 1)         \

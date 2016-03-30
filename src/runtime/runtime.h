@@ -359,7 +359,6 @@ namespace internal {
   F(MathClz32, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
-  F(RoundNumber, 1, 1)              \
   F(GenerateRandomNumbers, 1, 1)
 
 

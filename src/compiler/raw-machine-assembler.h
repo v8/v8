@@ -394,6 +394,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Float32Min().op(), a, b);
   }
   Node* Float32Abs(Node* a) { return AddNode(machine()->Float32Abs(), a); }
+  Node* Float32Neg(Node* a) { return Float32Sub(Float32Constant(-0.0f), a); }
   Node* Float32Sqrt(Node* a) { return AddNode(machine()->Float32Sqrt(), a); }
   Node* Float32Equal(Node* a, Node* b) {
     return AddNode(machine()->Float32Equal(), a, b);
@@ -434,6 +435,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Float64Min().op(), a, b);
   }
   Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
+  Node* Float64Neg(Node* a) { return Float64Sub(Float64Constant(-0.0), a); }
   Node* Float64Sqrt(Node* a) { return AddNode(machine()->Float64Sqrt(), a); }
   Node* Float64Equal(Node* a, Node* b) {
     return AddNode(machine()->Float64Equal(), a, b);

@@ -29,7 +29,6 @@ class SimplifiedOperatorReducer final : public Reducer {
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceNumberFloor(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
 
   Reduction Change(Node* node, const Operator* op, Node* a);

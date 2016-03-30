@@ -75,12 +75,12 @@ TEST(SimpleCallRuntime1Arg) {
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(256));
-  m.Return(m.CallRuntime(Runtime::kRoundNumber, context, b));
+  Node* b = m.SmiTag(m.Int32Constant(-1));
+  m.Return(m.CallRuntime(Runtime::kMathClz32, context, b));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(256, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 
@@ -89,12 +89,12 @@ TEST(SimpleTailCallRuntime1Arg) {
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(256));
-  m.TailCallRuntime(Runtime::kRoundNumber, context, b);
+  Node* b = m.SmiTag(m.Int32Constant(-1));
+  m.TailCallRuntime(Runtime::kMathClz32, context, b);
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(256, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 

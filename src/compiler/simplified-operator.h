@@ -143,7 +143,10 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberShiftLeft();
   const Operator* NumberShiftRight();
   const Operator* NumberShiftRightLogical();
+  const Operator* NumberCeil();
   const Operator* NumberFloor();
+  const Operator* NumberRound();
+  const Operator* NumberTrunc();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
   const Operator* NumberIsHoleNaN();

@@ -6619,7 +6619,8 @@ class Script: public Struct {
   V(Math, atan2, MathAtan2)                                 \
   V(Math, imul, MathImul)                                   \
   V(Math, clz32, MathClz32)                                 \
-  V(Math, fround, MathFround)
+  V(Math, fround, MathFround)                               \
+  V(Math, trunc, MathTrunc)
 
 #define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
   V(Atomics, load, AtomicsLoad)          \

@@ -2007,8 +2007,12 @@ BUILTIN(MathAtan) {
   return *isolate->factory()->NewHeapNumber(std::atan(x->Number()));
 }
 
-// ES6 section 20.2.2.16 Math.floor ( x )
-void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
+namespace {
+
+void Generate_MathRoundingOperation(
+    compiler::CodeStubAssembler* assembler,
+    compiler::Node* (compiler::CodeStubAssembler::*float64op)(
+        compiler::Node*)) {
   typedef compiler::CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef compiler::CodeStubAssembler::Variable Variable;
@@ -2048,7 +2052,7 @@ void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
       assembler->Bind(&if_xisheapnumber);
       {
         Node* x_value = assembler->LoadHeapNumberValue(x);
-        Node* value = assembler->Float64Floor(x_value);
+        Node* value = (assembler->*float64op)(x_value);
         Node* result = assembler->ChangeFloat64ToTagged(value);
         assembler->Return(result);
       }
@@ -2063,6 +2067,20 @@ void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
       }
     }
   }
+}
+
+}  // namespace
+
+// ES6 section 20.2.2.10 Math.ceil ( x )
+void Builtins::Generate_MathCeil(compiler::CodeStubAssembler* assembler) {
+  Generate_MathRoundingOperation(assembler,
+                                 &compiler::CodeStubAssembler::Float64Ceil);
+}
+
+// ES6 section 20.2.2.16 Math.floor ( x )
+void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
+  Generate_MathRoundingOperation(assembler,
+                                 &compiler::CodeStubAssembler::Float64Floor);
 }
 
 // ES6 section 20.2.2.17 Math.fround ( x )
@@ -2087,6 +2105,12 @@ BUILTIN(MathImul) {
   return *isolate->factory()->NewNumberFromInt(product);
 }
 
+// ES6 section 20.2.2.28 Math.round ( x )
+void Builtins::Generate_MathRound(compiler::CodeStubAssembler* assembler) {
+  Generate_MathRoundingOperation(assembler,
+                                 &compiler::CodeStubAssembler::Float64Round);
+}
+
 // ES6 section 20.2.2.32 Math.sqrt ( x )
 void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2097,6 +2121,12 @@ void Builtins::Generate_MathSqrt(compiler::CodeStubAssembler* assembler) {
   Node* value = assembler->Float64Sqrt(x_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
+}
+
+// ES6 section 20.2.2.35 Math.trunc ( x )
+void Builtins::Generate_MathTrunc(compiler::CodeStubAssembler* assembler) {
+  Generate_MathRoundingOperation(assembler,
+                                 &compiler::CodeStubAssembler::Float64Trunc);
 }
 
 // -----------------------------------------------------------------------------

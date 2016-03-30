@@ -761,8 +761,6 @@ class RuntimeCallTimerScope {
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \
-  SC(math_round_runtime, V8.MathRoundRuntime)                                  \
-  SC(math_sqrt_runtime, V8.MathSqrtRuntime)                                    \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
   SC(runtime_calls, V8.RuntimeCalls)                          \

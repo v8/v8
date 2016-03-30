@@ -240,7 +240,10 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
+  static Type* NumberCeil(Type*, Typer*);
   static Type* NumberFloor(Type*, Typer*);
+  static Type* NumberRound(Type*, Typer*);
+  static Type* NumberTrunc(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
 
@@ -489,9 +492,34 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 }
 
 // static
+Type* Typer::Visitor::NumberCeil(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
 Type* Typer::Visitor::NumberFloor(Type* type, Typer* t) {
   DCHECK(type->Is(Type::Number()));
   if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberRound(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberTrunc(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
   return t->cache_.kIntegerOrMinusZeroOrNaN;
 }
 
@@ -1521,8 +1549,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathRandom:
           return Type::OrderedNumber();
         case kMathFloor:
-        case kMathRound:
         case kMathCeil:
+        case kMathRound:
+        case kMathTrunc:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         // Unary math functions.
         case kMathAbs:
@@ -1722,8 +1751,20 @@ Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypeNumberCeil(Node* node) {
+  return TypeUnaryOp(node, NumberCeil);
+}
+
 Type* Typer::Visitor::TypeNumberFloor(Node* node) {
   return TypeUnaryOp(node, NumberFloor);
+}
+
+Type* Typer::Visitor::TypeNumberRound(Node* node) {
+  return TypeUnaryOp(node, NumberRound);
+}
+
+Type* Typer::Visitor::TypeNumberTrunc(Node* node) {
+  return TypeUnaryOp(node, NumberTrunc);
 }
 
 Type* Typer::Visitor::TypeNumberToInt32(Node* node) {

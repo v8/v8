@@ -130,6 +130,17 @@ Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
 }
 
 // ES6 draft 08-24-14, section 20.2.2.16.
+Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.ceil(a:number) -> NumberCeil(a)
+    Node* value = graph()->NewNode(simplified()->NumberCeil(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 draft 08-24-14, section 20.2.2.16.
 Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
   JSCallReduction r(node);
   if (r.InputsMatchOne(Type::Number())) {
@@ -155,25 +166,10 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(type_cache_.kIntegerOrMinusZeroOrNaN)) {
-    // Math.round(a:integer \/ -0 \/ NaN) -> a
-    return Replace(r.left());
-  }
-  if (r.InputsMatchOne(Type::Number()) &&
-      machine()->Float64RoundUp().IsSupported()) {
-    // Math.round(a:number) -> Select(Float64LessThan(#0.5, Float64Sub(i, a)),
-    //                                Float64Sub(i, #1.0), i)
-    //   where i = Float64RoundUp(a)
-    Node* value = r.left();
-    Node* integer = graph()->NewNode(machine()->Float64RoundUp().op(), value);
-    Node* real = graph()->NewNode(machine()->Float64Sub(), integer, value);
-    return Replace(graph()->NewNode(
-        common()->Select(MachineRepresentation::kFloat64),
-        graph()->NewNode(machine()->Float64LessThan(),
-                         jsgraph()->Float64Constant(0.5), real),
-        graph()->NewNode(machine()->Float64Sub(), integer,
-                         jsgraph()->Float64Constant(1.0)),
-        integer));
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.round(a:number) -> NumberRound(a)
+    Node* value = graph()->NewNode(simplified()->NumberRound(), r.left());
+    return Replace(value);
   }
   return NoChange();
 }
@@ -184,6 +180,17 @@ Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
   if (r.InputsMatchOne(Type::Number())) {
     // Math.sqrt(a:number) -> Float64Sqrt(a)
     Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.35 Math.trunc ( x )
+Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.trunc(a:number) -> NumberTrunc(a)
+    Node* value = graph()->NewNode(simplified()->NumberTrunc(), r.left());
     return Replace(value);
   }
   return NoChange();
@@ -202,6 +209,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathImul:
       reduction = ReduceMathImul(node);
       break;
+    case kMathCeil:
+      reduction = ReduceMathCeil(node);
+      break;
     case kMathFloor:
       reduction = ReduceMathFloor(node);
       break;
@@ -213,6 +223,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathSqrt:
       reduction = ReduceMathSqrt(node);
+      break;
+    case kMathTrunc:
+      reduction = ReduceMathTrunc(node);
       break;
     default:
       break;

@@ -47,8 +47,10 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
 CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      CallDescriptor* call_descriptor,
                                      Code::Flags flags, const char* name)
-    : raw_assembler_(new RawMachineAssembler(isolate, new (zone) Graph(zone),
-                                             call_descriptor)),
+    : raw_assembler_(new RawMachineAssembler(
+          isolate, new (zone) Graph(zone), call_descriptor,
+          MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags())),
       flags_(flags),
       name_(name),
       code_generated_(false),
@@ -152,109 +154,188 @@ Node* CodeStubAssembler::SmiShiftBitsConstant() {
   return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
+Node* CodeStubAssembler::Float64Round(Node* x) {
+  Node* one = Float64Constant(1.0);
+  Node* one_half = Float64Constant(0.5);
+
+  Variable var_x(this, MachineRepresentation::kFloat64);
+  Label return_x(this);
+
+  // Round up {x} towards Infinity.
+  var_x.Bind(Float64Ceil(x));
+
+  GotoIf(Float64LessThanOrEqual(Float64Sub(var_x.value(), one_half), x),
+         &return_x);
+  var_x.Bind(Float64Sub(var_x.value(), one));
+  Goto(&return_x);
+
+  Bind(&return_x);
+  return var_x.value();
+}
+
+Node* CodeStubAssembler::Float64Ceil(Node* x) {
+  if (raw_assembler_->machine()->Float64RoundUp().IsSupported()) {
+    return raw_assembler_->Float64RoundUp(x);
+  }
+
+  Node* one = Float64Constant(1.0);
+  Node* zero = Float64Constant(0.0);
+  Node* two_52 = Float64Constant(4503599627370496.0E0);
+  Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
+
+  Variable var_x(this, MachineRepresentation::kFloat64);
+  Label return_x(this), return_minus_x(this);
+  var_x.Bind(x);
+
+  // Check if {x} is greater than zero.
+  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+         &if_xnotgreaterthanzero);
+
+  Bind(&if_xgreaterthanzero);
+  {
+    // Just return {x} unless it's in the range ]0,2^52[.
+    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+    // Round positive {x} towards Infinity.
+    var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+    GotoUnless(Float64LessThan(var_x.value(), x), &return_x);
+    var_x.Bind(Float64Add(var_x.value(), one));
+    Goto(&return_x);
+  }
+
+  Bind(&if_xnotgreaterthanzero);
+  {
+    // Just return {x} unless it's in the range ]-2^52,0[
+    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+    GotoUnless(Float64LessThan(x, zero), &return_x);
+
+    // Round negated {x} towards Infinity and return the result negated.
+    Node* minus_x = Float64Neg(x);
+    var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+    GotoUnless(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+    var_x.Bind(Float64Sub(var_x.value(), one));
+    Goto(&return_minus_x);
+  }
+
+  Bind(&return_minus_x);
+  var_x.Bind(Float64Neg(var_x.value()));
+  Goto(&return_x);
+
+  Bind(&return_x);
+  return var_x.value();
+}
+
 Node* CodeStubAssembler::Float64Floor(Node* x) {
   if (raw_assembler_->machine()->Float64RoundDown().IsSupported()) {
     return raw_assembler_->Float64RoundDown(x);
   }
 
+  Node* one = Float64Constant(1.0);
+  Node* zero = Float64Constant(0.0);
   Node* two_52 = Float64Constant(4503599627370496.0E0);
   Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
   Variable var_x(this, MachineRepresentation::kFloat64);
+  Label return_x(this), return_minus_x(this);
   var_x.Bind(x);
 
-  Label return_x(this);
+  // Check if {x} is greater than zero.
+  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+         &if_xnotgreaterthanzero);
 
-  // Check if {x} is a large positive integer.
-  Label if_xlargeposint(this), if_xnotlargeposint(this);
-  Branch(Float64GreaterThanOrEqual(x, two_52), &if_xlargeposint,
-         &if_xnotlargeposint);
-
-  Bind(&if_xlargeposint);
+  Bind(&if_xgreaterthanzero);
   {
-    // The {x} is already an even integer.
+    // Just return {x} unless it's in the range ]0,2^52[.
+    GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+    // Round positive {x} towards -Infinity.
+    var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+    GotoUnless(Float64GreaterThan(var_x.value(), x), &return_x);
+    var_x.Bind(Float64Sub(var_x.value(), one));
     Goto(&return_x);
   }
 
-  Bind(&if_xnotlargeposint);
+  Bind(&if_xnotgreaterthanzero);
   {
-    // Check if {x} is negative.
-    Label if_xnegative(this), if_xpositive(this);
-    Branch(Float64LessThan(x, Float64Constant(0.0)), &if_xnegative,
-           &if_xpositive);
+    // Just return {x} unless it's in the range ]-2^52,0[
+    GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+    GotoUnless(Float64LessThan(x, zero), &return_x);
 
-    Bind(&if_xnegative);
-    {
-      // Check if {x} is a large negative integer.
-      Label if_xlargenegint(this), if_xnotlargenegint(this);
-      Branch(Float64LessThanOrEqual(x, minus_two_52), &if_xlargenegint,
-             &if_xnotlargenegint);
+    // Round negated {x} towards -Infinity and return the result negated.
+    Node* minus_x = Float64Neg(x);
+    var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+    GotoUnless(Float64LessThan(var_x.value(), minus_x), &return_minus_x);
+    var_x.Bind(Float64Add(var_x.value(), one));
+    Goto(&return_minus_x);
+  }
 
-      Bind(&if_xlargenegint);
-      {
-        // The {x} is already an even integer.
-        Goto(&return_x);
-      }
+  Bind(&return_minus_x);
+  var_x.Bind(Float64Neg(var_x.value()));
+  Goto(&return_x);
 
-      Bind(&if_xnotlargenegint);
-      {
-        // Round negative {x} towards -Infinity.
-        Node* z = Float64Sub(Float64Constant(-0.0), x);
-        Node* y = Float64Sub(Float64Add(two_52, z), two_52);
+  Bind(&return_x);
+  return var_x.value();
+}
 
-        // Check if we need to adjust {y}.
-        Label if_adjust(this), if_notadjust(this);
-        Branch(Float64GreaterThan(z, y), &if_adjust, &if_notadjust);
+Node* CodeStubAssembler::Float64Trunc(Node* x) {
+  if (raw_assembler_->machine()->Float64RoundTruncate().IsSupported()) {
+    return raw_assembler_->Float64RoundTruncate(x);
+  }
 
-        Bind(&if_adjust);
-        {
-          var_x.Bind(Float64Sub(Float64Constant(-1.0), y));
-          Goto(&return_x);
-        }
+  Node* one = Float64Constant(1.0);
+  Node* zero = Float64Constant(0.0);
+  Node* two_52 = Float64Constant(4503599627370496.0E0);
+  Node* minus_two_52 = Float64Constant(-4503599627370496.0E0);
 
-        Bind(&if_notadjust);
-        {
-          var_x.Bind(Float64Sub(Float64Constant(-0.0), y));
-          Goto(&return_x);
-        }
-      }
+  Variable var_x(this, MachineRepresentation::kFloat64);
+  Label return_x(this), return_minus_x(this);
+  var_x.Bind(x);
+
+  // Check if {x} is greater than 0.
+  Label if_xgreaterthanzero(this), if_xnotgreaterthanzero(this);
+  Branch(Float64GreaterThan(x, zero), &if_xgreaterthanzero,
+         &if_xnotgreaterthanzero);
+
+  Bind(&if_xgreaterthanzero);
+  {
+    if (raw_assembler_->machine()->Float64RoundDown().IsSupported()) {
+      var_x.Bind(raw_assembler_->Float64RoundDown(x));
+    } else {
+      // Just return {x} unless it's in the range ]0,2^52[.
+      GotoIf(Float64GreaterThanOrEqual(x, two_52), &return_x);
+
+      // Round positive {x} towards -Infinity.
+      var_x.Bind(Float64Sub(Float64Add(two_52, x), two_52));
+      GotoUnless(Float64GreaterThan(var_x.value(), x), &return_x);
+      var_x.Bind(Float64Sub(var_x.value(), one));
     }
+    Goto(&return_x);
+  }
 
-    Bind(&if_xpositive);
-    {
-      // Check if {x} is zero (either positive or negative).
-      Label if_xzero(this), if_xnotzero(this);
-      Branch(Float64Equal(x, Float64Constant(0.0)), &if_xzero, &if_xnotzero);
+  Bind(&if_xnotgreaterthanzero);
+  {
+    if (raw_assembler_->machine()->Float64RoundUp().IsSupported()) {
+      var_x.Bind(raw_assembler_->Float64RoundUp(x));
+      Goto(&return_x);
+    } else {
+      // Just return {x} unless its in the range ]-2^52,0[.
+      GotoIf(Float64LessThanOrEqual(x, minus_two_52), &return_x);
+      GotoUnless(Float64LessThan(x, zero), &return_x);
 
-      Bind(&if_xzero);
-      {
-        // We have to return both 0.0 and -0.0 as is.
-        Goto(&return_x);
-      }
-
-      Bind(&if_xnotzero);
-      {
-        // Round positive {x} towards -Infinity.
-        Node* y = Float64Sub(Float64Add(two_52, x), two_52);
-
-        // Check if we need to adjust {y}.
-        Label if_adjust(this), if_notadjust(this);
-        Branch(Float64LessThan(x, y), &if_adjust, &if_notadjust);
-
-        Bind(&if_adjust);
-        {
-          var_x.Bind(Float64Sub(y, Float64Constant(1.0)));
-          Goto(&return_x);
-        }
-
-        Bind(&if_notadjust);
-        {
-          var_x.Bind(y);
-          Goto(&return_x);
-        }
-      }
+      // Round negated {x} towards -Infinity and return result negated.
+      Node* minus_x = Float64Neg(x);
+      var_x.Bind(Float64Sub(Float64Add(two_52, minus_x), two_52));
+      GotoUnless(Float64GreaterThan(var_x.value(), minus_x), &return_minus_x);
+      var_x.Bind(Float64Sub(var_x.value(), one));
+      Goto(&return_minus_x);
     }
   }
+
+  Bind(&return_minus_x);
+  var_x.Bind(Float64Neg(var_x.value()));
+  Goto(&return_x);
 
   Bind(&return_x);
   return var_x.value();
@@ -1034,6 +1115,18 @@ Node* CodeStubAssembler::TailCall(
 void CodeStubAssembler::Goto(CodeStubAssembler::Label* label) {
   label->MergeVariables();
   raw_assembler_->Goto(label->label_);
+}
+
+void CodeStubAssembler::GotoIf(Node* condition, Label* true_label) {
+  Label false_label(this);
+  Branch(condition, true_label, &false_label);
+  Bind(&false_label);
+}
+
+void CodeStubAssembler::GotoUnless(Node* condition, Label* false_label) {
+  Label true_label(this);
+  Branch(condition, &true_label, false_label);
+  Bind(&true_label);
 }
 
 void CodeStubAssembler::Branch(Node* condition,

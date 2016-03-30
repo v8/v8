@@ -89,22 +89,21 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
+    case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
-      return ReduceNumberFloor(node);
+    case IrOpcode::kNumberRound:
+    case IrOpcode::kNumberTrunc: {
+      Node* const input = NodeProperties::GetValueInput(node, 0);
+      Type* const input_type = NodeProperties::GetType(input);
+      if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+        return Replace(input);
+      }
+      break;
+    }
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
     default:
       break;
-  }
-  return NoChange();
-}
-
-Reduction SimplifiedOperatorReducer::ReduceNumberFloor(Node* node) {
-  DCHECK_EQ(IrOpcode::kNumberFloor, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetType(input);
-  if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
-    return Replace(input);
   }
   return NoChange();
 }

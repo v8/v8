@@ -1519,6 +1519,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "acos", Builtins::kMathAcos, 1, true);
     SimpleInstallFunction(math, "asin", Builtins::kMathAsin, 1, true);
     SimpleInstallFunction(math, "atan", Builtins::kMathAtan, 1, true);
+    SimpleInstallFunction(math, "ceil", Builtins::kMathCeil, 1, true);
     Handle<JSFunction> math_floor =
         SimpleInstallFunction(math, "floor", Builtins::kMathFloor, 1, true);
     native_context()->set_math_floor(*math_floor);
@@ -1526,9 +1527,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "imul", Builtins::kMathImul, 2, true);
     SimpleInstallFunction(math, "max", Builtins::kMathMax, 2, false);
     SimpleInstallFunction(math, "min", Builtins::kMathMin, 2, false);
+    SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
     Handle<JSFunction> math_sqrt =
         SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
     native_context()->set_math_sqrt(*math_sqrt);
+    SimpleInstallFunction(math, "trunc", Builtins::kMathTrunc, 1, true);
   }
 
   {  // -- A r r a y B u f f e r
