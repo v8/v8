@@ -88,6 +88,7 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
+  typedef typename Traits::Type::Statement StatementT;
   typedef typename Traits::Type::StatementList StatementListT;
   typedef typename Traits::Type::ExpressionClassifier ExpressionClassifier;
   typedef typename Traits::Type::TypeSystem TypeSystem;
@@ -852,6 +853,7 @@ class ParserBase : public Traits {
   typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
   typename TypeSystem::TypeMember ParseTypeMember(bool* ok);
+  StatementT ParseTypeAliasDeclaration(int pos, bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
@@ -3595,6 +3597,35 @@ ParserBase<Traits>::ParseTypeMember(bool* ok) {
   return factory()->NewTypeMember(property, optional, type_parameters,
                                   parameters, type, valid_type, valid_binder,
                                   pos, has_new);
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::StatementT
+ParserBase<Traits>::ParseTypeAliasDeclaration(int pos, bool* ok) {
+  // TypeAliasDeclaration ::
+  //   'type' BindingIdentifier [ TypeParameters ] '=' Type ';'
+  typename ParserBase<Traits>::StatementT empty =
+      factory()->NewEmptyStatement(pos);
+  IdentifierT name = ParseIdentifierName(ok);
+  if (!*ok) return empty;
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters =
+      this->NullTypeParameters();
+  if (peek() == Token::LT) {
+    type_parameters = ParseTypeParameters(ok);
+    if (!*ok) return empty;
+  }
+  Expect(Token::ASSIGN, ok);
+  if (!*ok) return empty;
+  typename TypeSystem::Type type = ParseValidType(ok);
+  if (!*ok) return empty;
+  ExpectSemicolon(ok);
+  if (!*ok) return empty;
+  USE(name);  // TODO(nikolaos): really use them!
+  USE(type_parameters);
+  USE(type);
+  return empty;
 }
 
 
