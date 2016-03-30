@@ -1295,8 +1295,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       InstructionOperand* input = instr->InputAt(0);
       if (input->IsDoubleRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
-        __ fstp_d(MemOperand(esp, 0));
-        __ fld_d(MemOperand(esp, 0));
+        __ fstp_s(MemOperand(esp, 0));
+        __ fld_s(MemOperand(esp, 0));
         __ add(esp, Immediate(kDoubleSize));
       } else {
         DCHECK(input->IsDoubleStackSlot());
