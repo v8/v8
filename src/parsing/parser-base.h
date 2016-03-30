@@ -467,14 +467,16 @@ class ParserBase : public Traits {
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
     if (PeekContextualKeyword(keyword)) {
-      Consume(Token::IDENTIFIER);
+      Next();
       return true;
     }
     return false;
   }
 
   bool PeekContextualKeyword(Vector<const char> keyword) {
-    return peek() == Token::IDENTIFIER &&
+    return (peek() == Token::IDENTIFIER ||
+            peek() == Token::FUTURE_RESERVED_WORD ||
+            peek() == Token::FUTURE_STRICT_RESERVED_WORD) &&
            scanner()->is_next_contextual_keyword(keyword);
   }
 
@@ -482,9 +484,12 @@ class ParserBase : public Traits {
                           const char* full_name, int pos, bool* ok);
 
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
-    Expect(Token::IDENTIFIER, ok);
-    if (!*ok) return;
-    if (!scanner()->is_literal_contextual_keyword(keyword)) {
+    Token::Value next = Next();
+    if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
+        next != Token::FUTURE_STRICT_RESERVED_WORD) {
+      ReportUnexpectedToken(next);
+      *ok = false;
+    } else if (!scanner()->is_literal_contextual_keyword(keyword)) {
       ReportUnexpectedToken(scanner()->current_token());
       *ok = false;
     }
@@ -856,6 +861,7 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParseUnionOrIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParseIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
+  typename TypeSystem::Type ParseTypeReference(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
   typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
@@ -1667,6 +1673,44 @@ ParserBase<Traits>::ParsePropertyDefinition(
     bool is_static, bool* is_computed_name, bool* has_seen_constructor,
     ExpressionClassifier* classifier, IdentifierT* name, bool* ok) {
   DCHECK(!in_class || is_static || has_seen_constructor != nullptr);
+
+  // Parse index member declarations in typed mode.
+  // We implicitly disallow computed property names, in this case,
+  // i.e., class C { [42](x) {} } does not work in typed mode.
+  if (in_class && !is_static && scope_->typed() && Check(Token::LBRACK)) {
+    int property_pos = peek_position();
+    IdentifierT property_name =
+        ParseIdentifierName(CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    ExpressionT property =
+        factory()->NewStringLiteral(property_name, property_pos);
+    Expect(Token::COLON, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    typesystem::TypeMember::IndexType index_type =
+        typesystem::TypeMember::kNoIndexType;
+    if (peek() == Token::IDENTIFIER) {
+      if (CheckContextualKeyword(CStrVector("number"))) {
+        index_type = typesystem::TypeMember::kNumberIndexType;
+      } else if (CheckContextualKeyword(CStrVector("string"))) {
+        index_type = typesystem::TypeMember::kStringIndexType;
+      }
+    }
+    if (index_type == typesystem::TypeMember::kNoIndexType) {
+      Scanner::Location next_location = scanner()->peek_location();
+      ReportMessageAt(next_location, MessageTemplate::kBadIndexType);
+      *ok = false;
+      return this->EmptyObjectLiteralProperty();
+    }
+    Expect(Token::RBRACK, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    // Parse optional result type
+    typename TypeSystem::Type type = this->EmptyType();
+    if (Check(Token::COLON)) {  // Braces required here.
+      type = ParseValidType(CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    }
+    USE(property);  // TODO(nikolaos): really use these!
+    USE(index_type);
+    USE(type);
+    return this->EmptyObjectLiteralProperty();
+  }
+
   ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
@@ -1843,6 +1887,28 @@ ParserBase<Traits>::ParsePropertyDefinition(
         name_expression, value,
         is_get ? ObjectLiteralProperty::GETTER : ObjectLiteralProperty::SETTER,
         is_static, *is_computed_name);
+  }
+
+  // Allow member variable declarations in typed mode.
+  if (in_class && scope_->typed()) {
+    // Parse optional type annotation.
+    typename TypeSystem::Type type = this->EmptyType();
+    if (Check(Token::COLON)) {  // Braces required here.
+      type = ParseValidType(CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    }
+    USE(type);  // TODO(nikolaos): really use it!
+    // Parse optional initializer.
+    if (Check(Token::ASSIGN)) {
+      ExpressionClassifier rhs_classifier(this);
+      ExpressionT rhs = this->ParseAssignmentExpression(
+          true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      Traits::RewriteNonPattern(&rhs_classifier,
+                                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      classifier->Accumulate(&rhs_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+      USE(rhs);  // TODO(nikolaos): really use it!
+    }
+    return this->EmptyObjectLiteralProperty();
   }
 
   Token::Value next = Next();
@@ -3398,13 +3464,8 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       } else if (CheckContextualKeyword(CStrVector("symbol"))) {
         type = factory()->NewPredefinedType(
             typesystem::PredefinedType::kSymbolType, pos);
-      } else {
-        IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
-        typename TypeSystem::TypeList type_arguments = this->NullTypeList();
-        if (peek() == Token::LT) {  // Braces required here.
-          type_arguments = ParseTypeArguments(CHECK_OK_TYPE);
-        }
-        type = factory()->NewTypeReference(name, type_arguments, pos);
+      } else {  // Braces required here.
+        type = ParseTypeReference(CHECK_OK_TYPE);
       }
       break;
     }
@@ -3512,6 +3573,19 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   }
 
   return type;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseTypeReference(bool* ok) {
+  int pos = peek_position();
+  IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
+  typename TypeSystem::TypeList type_arguments = this->NullTypeList();
+  if (peek() == Token::LT) {  // Braces required here.
+    type_arguments = ParseTypeArguments(CHECK_OK_TYPE);
+  }
+  return factory()->NewTypeReference(name, type_arguments, pos);
 }
 
 
