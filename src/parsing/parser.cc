@@ -1290,6 +1290,16 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
       break;
+    case Token::IDENTIFIER: {
+      if (!scope_->typed()) break;
+      int pos = peek_position();
+      if (CheckContextualKeyword(CStrVector("type"))) {
+        return ParseTypeAliasDeclaration(pos, ok);
+      }
+      break;
+    }
+    // TODO(nikolaos): interface
+    // TODO(nikolaos): ambient
     default:
       break;
   }
