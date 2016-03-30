@@ -13,9 +13,7 @@ namespace internal {
 namespace compiler {
 
 Frame::Frame(int fixed_frame_size_in_slots, const CallDescriptor* descriptor)
-    : needs_frame_((descriptor != nullptr) &&
-                   descriptor->RequiresFrameAsIncoming()),
-      frame_slot_count_(fixed_frame_size_in_slots),
+    : frame_slot_count_(fixed_frame_size_in_slots),
       callee_saved_slot_count_(0),
       spill_slot_count_(0),
       allocated_registers_(nullptr),
@@ -34,8 +32,13 @@ int Frame::AlignFrame(int alignment) {
   return delta;
 }
 
+void FrameAccessState::MarkHasFrame(bool state) {
+  has_frame_ = state;
+  SetFrameAccessToDefault();
+}
+
 void FrameAccessState::SetFrameAccessToDefault() {
-  if (frame()->needs_frame() && !FLAG_turbo_sp_frame_access) {
+  if (has_frame() && !FLAG_turbo_sp_frame_access) {
     SetFrameAccessToFP();
   } else {
     SetFrameAccessToSP();
@@ -46,7 +49,6 @@ void FrameAccessState::SetFrameAccessToDefault() {
 FrameOffset FrameAccessState::GetFrameOffset(int spill_slot) const {
   const int frame_offset = FrameSlotToFPOffset(spill_slot);
   if (access_frame_with_fp()) {
-    DCHECK(frame()->needs_frame());
     return FrameOffset::FromFramePointer(frame_offset);
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.

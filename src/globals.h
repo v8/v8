@@ -124,6 +124,11 @@ const int kFloatSize     = sizeof(float);     // NOLINT
 const int kDoubleSize    = sizeof(double);    // NOLINT
 const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
 const int kPointerSize   = sizeof(void*);     // NOLINT
+#if V8_TARGET_ARCH_ARM64
+const int kFrameAlignmentInBytes = 2 * kPointerSize;
+#else
+const int kFrameAlignmentInBytes = kPointerSize;
+#endif
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 const int kRegisterSize  = kPointerSize + kPointerSize;
 #else
@@ -131,6 +136,12 @@ const int kRegisterSize  = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
+
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+#else
+const int kElidedFrameSlots = 0;
+#endif
 
 const int kDoubleSizeLog2 = 3;
 

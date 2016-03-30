@@ -734,7 +734,8 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
     } else {
       Node* pair = Int32AddWithOverflow(value32, value32);
       Node* overflow = Projection(1, pair);
-      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
+      Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
+          if_join(this);
       Branch(overflow, &if_overflow, &if_notoverflow);
       Bind(&if_overflow);
       Goto(&if_valueisheapnumber);

@@ -230,7 +230,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
-        mode_(mode) {}
+        mode_(mode),
+        must_save_lr_(!gen->frame_access_state()->has_frame()) {}
 
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
@@ -244,7 +245,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                              : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    if (!frame()->needs_frame()) {
+    if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Push(lr);
     }
@@ -257,7 +258,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ add(scratch1_, object_, Operand(index_));
     }
     __ CallStub(&stub);
-    if (!frame()->needs_frame()) {
+    if (must_save_lr_) {
       __ Pop(lr);
     }
   }
@@ -270,6 +271,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
+  bool must_save_lr_;
 };
 
 
@@ -386,6 +388,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     DCHECK_EQ(LeaveCC, i.OutputSBit());           \
   } while (0)
 
+void CodeGenerator::AssembleDeconstructFrame() {
+  __ LeaveFrame(StackFrame::MANUAL);
+}
+
+void CodeGenerator::AssembleSetupStackPointer() {}
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
@@ -402,7 +409,7 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
     __ sub(sp, sp, Operand(-sp_slot_delta * kPointerSize));
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     if (FLAG_enable_embedded_constant_pool) {
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
     }
@@ -580,7 +587,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchParentFramePointer:
-      if (frame_access_state()->frame()->needs_frame()) {
+      if (frame_access_state()->has_frame()) {
         __ ldr(i.OutputRegister(), MemOperand(fp, 0));
       } else {
         __ mov(i.OutputRegister(), fp);
@@ -1271,7 +1278,7 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
       if (FLAG_enable_embedded_constant_pool) {
         __ Push(lr, fp, pp);
@@ -1286,10 +1293,7 @@ void CodeGenerator::AssemblePrologue() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
-  } else {
-    frame()->SetElidedFrameSizeInSlots(0);
   }
-  frame_access_state()->SetFrameAccessToDefault();
 
   int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
@@ -1359,15 +1363,15 @@ void CodeGenerator::AssembleReturn() {
   }
 
   if (descriptor->IsCFunctionCall()) {
-    __ LeaveFrame(StackFrame::MANUAL);
-  } else if (frame()->needs_frame()) {
+    AssembleDeconstructFrame();
+  } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ b(&return_label_);
       return;
     } else {
       __ bind(&return_label_);
-      __ LeaveFrame(StackFrame::MANUAL);
+      AssembleDeconstructFrame();
     }
   }
   __ Ret(pop_count);

@@ -276,6 +276,9 @@ class PipelineData {
         info()->isolate(), instruction_zone(), instruction_blocks);
     if (descriptor && descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
+    } else {
+      DCHECK_EQ(0, descriptor->CalleeSavedFPRegisters());
+      DCHECK_EQ(0, descriptor->CalleeSavedRegisters());
     }
   }
 
@@ -1370,6 +1373,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   AllocateRegisters(
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
       call_descriptor, run_verifier);
+  Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return Handle<Code>();
@@ -1378,11 +1382,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   BeginPhaseKind("code generation");
   // TODO(mtrofin): move this off to the register allocator.
   bool generate_frame_at_start =
-      !FLAG_turbo_frame_elision || !data_->info()->IsStub() ||
-      !data_->frame()->needs_frame() ||
-      data_->sequence()->instruction_blocks().front()->needs_frame() ||
-      linkage.GetIncomingDescriptor()->CalleeSavedFPRegisters() != 0 ||
-      linkage.GetIncomingDescriptor()->CalleeSavedRegisters() != 0;
+      data_->sequence()->instruction_blocks().front()->must_construct_frame();
   // Optimimize jumps.
   if (FLAG_turbo_jt) {
     Run<JumpThreadingPhase>(generate_frame_at_start);
@@ -1502,7 +1502,6 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   Run<LocateSpillSlotsPhase>();
-  Run<FrameElisionPhase>();
 
   if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);

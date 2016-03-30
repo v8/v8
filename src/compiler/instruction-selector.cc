@@ -1190,7 +1190,6 @@ void InstructionSelector::VisitLoadStackPointer(Node* node) {
 
 void InstructionSelector::VisitLoadFramePointer(Node* node) {
   OperandGenerator g(this);
-  frame_->MarkNeedsFrame();
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 

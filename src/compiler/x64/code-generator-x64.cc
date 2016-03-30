@@ -602,6 +602,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                            \
   } while (false)
 
+void CodeGenerator::AssembleDeconstructFrame() {
+  __ movq(rsp, rbp);
+  __ popq(rbp);
+}
+
+void CodeGenerator::AssembleSetupStackPointer() {}
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
@@ -618,7 +624,7 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
     __ subq(rsp, Immediate(-sp_slot_delta * kPointerSize));
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     __ movq(rbp, MemOperand(rbp, 0));
   }
   frame_access_state()->SetFrameAccessToSP();
@@ -775,7 +781,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movq(i.OutputRegister(), rbp);
       break;
     case kArchParentFramePointer:
-      if (frame_access_state()->frame()->needs_frame()) {
+      if (frame_access_state()->has_frame()) {
         __ movq(i.OutputRegister(), Operand(rbp, 0));
       } else {
         __ movq(i.OutputRegister(), rbp);
@@ -1929,7 +1935,7 @@ static const int kQuadWordSize = 16;
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
       __ pushq(rbp);
       __ movq(rbp, rsp);
@@ -1938,11 +1944,7 @@ void CodeGenerator::AssemblePrologue() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
-  } else {
-    frame()->SetElidedFrameSizeInSlots(kPCOnStackSize / kPointerSize);
   }
-  frame_access_state()->SetFrameAccessToDefault();
-
   int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2022,17 +2024,15 @@ void CodeGenerator::AssembleReturn() {
   }
 
   if (descriptor->IsCFunctionCall()) {
-    __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
-    __ popq(rbp);       // Pop caller's frame pointer.
-  } else if (frame()->needs_frame()) {
+    AssembleDeconstructFrame();
+  } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ jmp(&return_label_);
       return;
     } else {
       __ bind(&return_label_);
-      __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
-      __ popq(rbp);       // Pop caller's frame pointer.
+      AssembleDeconstructFrame();
     }
   }
   size_t pop_size = descriptor->StackParameterCount() * kPointerSize;

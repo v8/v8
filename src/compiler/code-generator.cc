@@ -56,11 +56,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
-  if (code->ContainsCall()) {
-    frame->MarkNeedsFrame();
-  }
 }
-
 
 Handle<Code> CodeGenerator::GenerateCode() {
   CompilationInfo* info = this->info();
@@ -80,10 +76,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());
-  AssemblePrologue();
-  if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
-    masm()->InitializeRootRegister();
-  }
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
@@ -104,6 +96,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
+  // Finish the Frame
+  frame()->AlignFrame(kFrameAlignmentInBytes);
+  AssembleSetupStackPointer();
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
     for (const InstructionBlock* block : code()->instruction_blocks()) {
@@ -143,9 +138,24 @@ Handle<Code> CodeGenerator::GenerateCode() {
         SNPrintF(buffer, " --");
         masm()->RecordComment(buffer_start);
       }
+
+      frame_access_state()->MarkHasFrame(block->needs_frame());
+
       masm()->bind(GetLabel(current_block_));
+      if (block->must_construct_frame()) {
+        AssemblePrologue();
+        // We need to setup the root register after we assemble the prologue, to
+        // avoid clobbering callee saved registers in case of C linkage and
+        // using the roots.
+        // TODO(mtrofin): investigate how we can avoid doing this repeatedly.
+        if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+          masm()->InitializeRootRegister();
+        }
+      }
+
       for (int i = block->code_start(); i < block->code_end(); ++i) {
-        AssembleInstruction(code()->InstructionAt(i));
+        Instruction* instr = code()->InstructionAt(i);
+        AssembleInstruction(instr, block);
       }
     }
   }
@@ -290,9 +300,12 @@ bool CodeGenerator::IsMaterializableFromRoot(
   return false;
 }
 
-
-void CodeGenerator::AssembleInstruction(Instruction* instr) {
+void CodeGenerator::AssembleInstruction(Instruction* instr,
+                                        const InstructionBlock* block) {
   AssembleGaps(instr);
+  if (instr->IsJump() && block->must_deconstruct_frame()) {
+    AssembleDeconstructFrame();
+  }
   AssembleSourcePosition(instr);
   // Assemble architecture-specific code for the instruction.
   AssembleArchInstruction(instr);
@@ -761,13 +774,11 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
 }
 
 int CodeGenerator::TailCallFrameStackSlotDelta(int stack_param_delta) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int spill_slots = frame()->GetSpillSlotCount();
-  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
   // Leave the PC on the stack on platforms that have that as part of their ABI
   int pc_slots = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
-  int sp_slot_delta =
-      has_frame ? (frame()->GetTotalFrameSlotCount() - pc_slots) : 0;
+  int sp_slot_delta = frame_access_state()->has_frame()
+                          ? (frame()->GetTotalFrameSlotCount() - pc_slots)
+                          : 0;
   // Discard only slots that won't be used by new parameters.
   sp_slot_delta += stack_param_delta;
   return sp_slot_delta;

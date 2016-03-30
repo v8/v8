@@ -85,7 +85,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                                 Heap::RootListIndex* index_return);
 
   // Assemble code for the specified instruction.
-  void AssembleInstruction(Instruction* instr);
+  void AssembleInstruction(Instruction* instr, const InstructionBlock* block);
   void AssembleSourcePosition(Instruction* instr);
   void AssembleGaps(Instruction* instr);
 
@@ -106,12 +106,17 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
   void AssemblePrologue();
+
+  void AssembleSetupStackPointer();
+
   // Generates an architecture-specific, descriptor-specific return sequence
   // to tear down a stack frame.
   void AssembleReturn();
 
   // Generates code to deconstruct a the caller's frame, including arguments.
   void AssembleDeconstructActivationRecord(int stack_param_delta);
+
+  void AssembleDeconstructFrame();
 
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall(int stack_param_delta);
