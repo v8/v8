@@ -16,7 +16,6 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
@@ -474,6 +473,7 @@ void Debug::ThreadInit() {
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
   thread_local_.step_in_enabled_ = false;
+  thread_local_.return_value_ = Handle<Object>();
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
@@ -560,10 +560,8 @@ void Debug::Unload() {
   debug_context_ = Handle<Context>();
 }
 
-
-void Debug::Break(Arguments args, JavaScriptFrame* frame) {
+void Debug::Break(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
-  DCHECK(args.length() == 0);
 
   // Initialize LiveEdit.
   LiveEdit::InitializeThreadLocal(this);
@@ -1569,25 +1567,11 @@ void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
   UNREACHABLE();
 }
 
-Object* Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
-  if (frame->is_interpreted()) {
-    // Find the handler from the original bytecode array.
-    InterpretedFrame* interpreted_frame =
-        reinterpret_cast<InterpretedFrame*>(frame);
-    SharedFunctionInfo* shared = interpreted_frame->function()->shared();
-    BytecodeArray* bytecode_array = shared->bytecode_array();
-    int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-    interpreter::Bytecode bytecode =
-        interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
-    return isolate_->interpreter()->GetBytecodeHandler(
-        bytecode, interpreter::OperandScale::kSingle);
-  } else {
-    after_break_target_ = NULL;
-    if (!LiveEdit::SetAfterBreakTarget(this)) {
-      // Continue just after the slot.
-      after_break_target_ = frame->pc();
-    }
-    return isolate_->heap()->undefined_value();
+void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
+  after_break_target_ = NULL;
+  if (!LiveEdit::SetAfterBreakTarget(this)) {
+    // Continue just after the slot.
+    after_break_target_ = frame->pc();
   }
 }
 
@@ -2328,9 +2312,10 @@ DebugScope::DebugScope(Debug* debug)
   base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
                         reinterpret_cast<base::AtomicWord>(this));
 
-  // Store the previous break id and frame id.
+  // Store the previous break id, frame id and return value.
   break_id_ = debug_->break_id();
   break_frame_id_ = debug_->break_frame_id();
+  return_value_ = debug_->return_value();
 
   // Create the new break info. If there is no JavaScript frames there is no
   // break frame id.
@@ -2368,6 +2353,7 @@ DebugScope::~DebugScope() {
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
   debug_->thread_local_.break_id_ = break_id_;
+  debug_->thread_local_.return_value_ = return_value_;
 
   debug_->UpdateState();
 }
