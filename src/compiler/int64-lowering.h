@@ -47,6 +47,7 @@ class Int64Lowering {
   Node* GetReplacementLow(Node* node);
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
+  void PreparePhiReplacement(Node* phi);
 
   struct NodeState {
     Node* node;
@@ -58,9 +59,10 @@ class Int64Lowering {
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   NodeMarker<State> state_;
-  ZoneStack<NodeState> stack_;
+  ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;
+  Node* placeholder_;
 };
 
 }  // namespace compiler

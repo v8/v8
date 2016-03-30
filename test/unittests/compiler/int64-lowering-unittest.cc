@@ -642,6 +642,48 @@ TEST_F(Int64LoweringTest, I64Popcnt) {
                            IsWord32Popcnt(IsInt32Constant(high_word_value(0)))),
                 IsInt32Constant(0), start(), start()));
 }
+
+TEST_F(Int64LoweringTest, I64PhiWord64) {
+  LowerGraph(graph()->NewNode(common()->Phi(MachineRepresentation::kWord64, 2),
+                              Int64Constant(value(0)), Int64Constant(value(1)),
+                              start()),
+             MachineRepresentation::kWord64);
+
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsPhi(MachineRepresentation::kWord32,
+                              IsInt32Constant(low_word_value(0)),
+                              IsInt32Constant(low_word_value(1)), start()),
+                        IsPhi(MachineRepresentation::kWord32,
+                              IsInt32Constant(high_word_value(0)),
+                              IsInt32Constant(high_word_value(1)), start()),
+                        start(), start()));
+}
+
+void TestPhi(Int64LoweringTest* test, MachineRepresentation rep, Node* v1,
+             Node* v2) {
+  test->LowerGraph(test->graph()->NewNode(test->common()->Phi(rep, 2), v1, v2,
+                                          test->start()),
+                   rep);
+
+  EXPECT_THAT(test->graph()->end()->InputAt(1),
+              IsReturn(IsPhi(rep, v1, v2, test->start()), test->start(),
+                       test->start()));
+}
+
+TEST_F(Int64LoweringTest, I64PhiFloat32) {
+  TestPhi(this, MachineRepresentation::kFloat32, Float32Constant(1.5),
+          Float32Constant(2.5));
+}
+
+TEST_F(Int64LoweringTest, I64PhiFloat64) {
+  TestPhi(this, MachineRepresentation::kFloat64, Float32Constant(1.5),
+          Float32Constant(2.5));
+}
+
+TEST_F(Int64LoweringTest, I64PhiWord32) {
+  TestPhi(this, MachineRepresentation::kWord32, Float32Constant(1),
+          Float32Constant(2));
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

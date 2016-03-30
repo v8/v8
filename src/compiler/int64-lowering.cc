@@ -27,8 +27,11 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       common_(common),
       state_(graph, 3),
       stack_(zone),
-      replacements_(zone->NewArray<Replacement>(graph->NodeCount())),
-      signature_(signature) {
+      replacements_(nullptr),
+      signature_(signature),
+      placeholder_(graph->NewNode(common->Parameter(-2, "placeholder"),
+                                  graph->start())) {
+  replacements_ = zone->NewArray<Replacement>(graph->NodeCount());
   memset(replacements_, 0, sizeof(Replacement) * graph->NodeCount());
 }
 
@@ -36,21 +39,28 @@ void Int64Lowering::LowerGraph() {
   if (!machine()->Is32()) {
     return;
   }
-  stack_.push({graph()->end(), 0});
+  stack_.push_back({graph()->end(), 0});
   state_.Set(graph()->end(), State::kOnStack);
 
   while (!stack_.empty()) {
-    NodeState& top = stack_.top();
+    NodeState& top = stack_.back();
     if (top.input_index == top.node->InputCount()) {
       // All inputs of top have already been lowered, now lower top.
-      stack_.pop();
+      stack_.pop_back();
       state_.Set(top.node, State::kVisited);
       LowerNode(top.node);
     } else {
       // Push the next input onto the stack.
       Node* input = top.node->InputAt(top.input_index++);
       if (state_.Get(input) == State::kUnvisited) {
-        stack_.push({input, 0});
+        if (input->opcode() == IrOpcode::kPhi) {
+          // To break cycles with phi nodes we push phis on a separate stack so
+          // that they are processed after all other nodes.
+          PreparePhiReplacement(input);
+          stack_.push_front({input, 0});
+        } else {
+          stack_.push_back({input, 0});
+        }
         state_.Set(input, State::kOnStack);
       }
     }
@@ -577,6 +587,22 @@ void Int64Lowering::LowerNode(Node* node) {
                   graph()->NewNode(common()->Int32Constant(0)));
       break;
     }
+    case IrOpcode::kPhi: {
+      MachineRepresentation rep = PhiRepresentationOf(node->op());
+      if (rep == MachineRepresentation::kWord64) {
+        // The replacement nodes have already been created, we only have to
+        // replace placeholder nodes.
+        Node* low_node = GetReplacementLow(node);
+        Node* high_node = GetReplacementHigh(node);
+        for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+          low_node->ReplaceInput(i, GetReplacementLow(node->InputAt(i)));
+          high_node->ReplaceInput(i, GetReplacementHigh(node->InputAt(i)));
+        }
+      } else {
+        DefaultLowering(node);
+      }
+      break;
+    }
 
     default: { DefaultLowering(node); }
   }
@@ -642,6 +668,32 @@ Node* Int64Lowering::GetReplacementHigh(Node* node) {
   Node* result = replacements_[node->id()].high;
   DCHECK(result);
   return result;
+}
+
+void Int64Lowering::PreparePhiReplacement(Node* phi) {
+  MachineRepresentation rep = PhiRepresentationOf(phi->op());
+  if (rep == MachineRepresentation::kWord64) {
+    // We have to create the replacements for a phi node before we actually
+    // lower the phi to break potential cycles in the graph. The replacements of
+    // input nodes do not exist yet, so we use a placeholder node to pass the
+    // graph verifier.
+    int value_count = phi->op()->ValueInputCount();
+    Node** inputs_low = zone()->NewArray<Node*>(value_count + 1);
+    Node** inputs_high = zone()->NewArray<Node*>(value_count + 1);
+    for (int i = 0; i < value_count; i++) {
+      inputs_low[i] = placeholder_;
+      inputs_high[i] = placeholder_;
+    }
+    inputs_low[value_count] = NodeProperties::GetControlInput(phi, 0);
+    inputs_high[value_count] = NodeProperties::GetControlInput(phi, 0);
+    ReplaceNode(phi,
+                graph()->NewNode(
+                    common()->Phi(MachineRepresentation::kWord32, value_count),
+                    value_count + 1, inputs_low, false),
+                graph()->NewNode(
+                    common()->Phi(MachineRepresentation::kWord32, value_count),
+                    value_count + 1, inputs_high, false));
+  }
 }
 }  // namespace compiler
 }  // namespace internal

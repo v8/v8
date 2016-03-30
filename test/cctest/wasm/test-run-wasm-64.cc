@@ -41,7 +41,7 @@
 
 #define FOREACH_I64_OPERATOR(V) \
   V(DepthFirst, true)           \
-  V(I64Phi, false)              \
+  V(I64Phi, true)               \
   V(I64Const, true)             \
   V(I64Return, true)            \
   V(I64Param, true)             \
