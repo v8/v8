@@ -841,7 +841,7 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
       GCTracer::Scope scope(tracer(),
-                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
+                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
