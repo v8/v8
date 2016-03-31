@@ -3088,6 +3088,11 @@ class DescriptorArray: public FixedArray {
            kDescriptorDetails;
   }
 
+  // Conversion from descriptor number to array indices.
+  static int ToKeyIndex(int descriptor_number) {
+    return kFirstIndex + (descriptor_number * kDescriptorSize) + kDescriptorKey;
+  }
+
  private:
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
@@ -3102,13 +3107,6 @@ class DescriptorArray: public FixedArray {
     DescriptorArray* descs_;
     int index_;
   };
-
-  // Conversion from descriptor number to array indices.
-  static int ToKeyIndex(int descriptor_number) {
-    return kFirstIndex +
-           (descriptor_number * kDescriptorSize) +
-           kDescriptorKey;
-  }
 
   static int ToValueIndex(int descriptor_number) {
     return kFirstIndex +

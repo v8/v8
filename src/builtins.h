@@ -134,7 +134,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ObjectGetOwnPropertyDescriptor, kNone)                     \
   V(ObjectGetOwnPropertyNames, kNone)                          \
   V(ObjectGetOwnPropertySymbols, kNone)                        \
-  V(ObjectHasOwnProperty, kNone)                               \
   V(ObjectIs, kNone)                                           \
   V(ObjectIsExtensible, kNone)                                 \
   V(ObjectIsFrozen, kNone)                                     \
@@ -312,7 +311,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathFloor, 2)         \
   V(MathRound, 2)         \
   V(MathSqrt, 2)          \
-  V(MathTrunc, 2)
+  V(MathTrunc, 2)         \
+  V(ObjectHasOwnProperty, 2)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -610,6 +610,10 @@ class Builtins {
   static void Generate_NumberConstructor(MacroAssembler* masm);
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
   static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
+
+  // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
+  static void Generate_ObjectHasOwnProperty(
+      compiler::CodeStubAssembler* assembler);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);

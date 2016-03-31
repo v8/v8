@@ -344,82 +344,187 @@ BUILTIN(Illegal) {
 
 BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
 
-// ES6 7.3.11
-BUILTIN(ObjectHasOwnProperty) {
-  HandleScope scope(isolate);
+void Builtins::Generate_ObjectHasOwnProperty(
+    compiler::CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::CodeStubAssembler::Variable Variable;
 
-  Handle<Object> property = args.atOrUndefined(isolate, 1);
+  Node* object = assembler->Parameter(0);
+  Node* key = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
 
-  Handle<Name> key;
-  uint32_t index;
-  bool key_is_array_index = property->ToArrayIndex(&index);
+  Label call_runtime(assembler), return_true(assembler),
+      return_false(assembler);
 
-  if (!key_is_array_index) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
-                                       Object::ToName(isolate, property));
-    key_is_array_index = key->AsArrayIndex(&index);
+  // Smi receivers do not have own properties.
+  Label if_objectisnotsmi(assembler);
+  assembler->Branch(assembler->WordIsSmi(object), &return_false,
+                    &if_objectisnotsmi);
+  assembler->Bind(&if_objectisnotsmi);
+
+  Node* map = assembler->LoadMap(object);
+  Node* instance_type = assembler->LoadMapInstanceType(map);
+
+  Variable var_index(assembler, MachineRepresentation::kWord32);
+
+  Label if_keyissmi(assembler), if_keyisnotsmi(assembler),
+      keyisindex(assembler);
+  assembler->Branch(assembler->WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
+  assembler->Bind(&if_keyissmi);
+  {
+    // Negative smi keys are named properties. Handle in the runtime.
+    Label if_keyispositive(assembler);
+    assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositive,
+                      &call_runtime);
+    assembler->Bind(&if_keyispositive);
+
+    var_index.Bind(assembler->SmiUntag(key));
+    assembler->Goto(&keyisindex);
   }
 
-  Handle<Object> object = args.receiver();
+  assembler->Bind(&if_keyisnotsmi);
 
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
-    // Fast case: either the key is a real named property or it is not
-    // an array index and there are no interceptors or hidden
-    // prototypes.
-    // TODO(jkummerow): Make JSReceiver::HasOwnProperty fast enough to
-    // handle all cases directly (without this custom fast path).
+  Node* key_instance_type = assembler->LoadInstanceType(key);
+  Label if_iskeyunique(assembler), if_iskeynotsymbol(assembler);
+  assembler->Branch(
+      assembler->Word32Equal(key_instance_type,
+                             assembler->Int32Constant(SYMBOL_TYPE)),
+      &if_iskeyunique, &if_iskeynotsymbol);
+  assembler->Bind(&if_iskeynotsymbol);
+  {
+    Label if_iskeyinternalized(assembler);
+    Node* bits = assembler->WordAnd(
+        key_instance_type,
+        assembler->Int32Constant(kIsNotStringMask | kIsNotInternalizedMask));
+    assembler->Branch(
+        assembler->Word32Equal(
+            bits, assembler->Int32Constant(kStringTag | kInternalizedTag)),
+        &if_iskeyinternalized, &call_runtime);
+    assembler->Bind(&if_iskeyinternalized);
+
+    // Check whether the key is an array index passed in as string. Handle
+    // uniform with smi keys if so.
+    // TODO(verwaest): Also support non-internalized strings.
+    Node* hash = assembler->LoadNameHash(key);
+    Node* bit = assembler->Word32And(
+        hash, assembler->Int32Constant(internal::Name::kIsNotArrayIndexMask));
+    Label if_isarrayindex(assembler);
+    assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
+                      &if_isarrayindex, &if_iskeyunique);
+    assembler->Bind(&if_isarrayindex);
+    var_index.Bind(
+        assembler->BitFieldDecode<internal::Name::ArrayIndexValueBits>(hash));
+    assembler->Goto(&keyisindex);
+  }
+  assembler->Bind(&if_iskeyunique);
+
+  {
+    Label if_objectissimple(assembler);
+    assembler->Branch(assembler->Int32LessThanOrEqual(
+                          instance_type,
+                          assembler->Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+                      &call_runtime, &if_objectissimple);
+    assembler->Bind(&if_objectissimple);
+  }
+
+  // TODO(verwaest): Perform a dictonary lookup on slow-mode receivers.
+  Node* bit_field3 = assembler->LoadMapBitField3(map);
+  Node* bit = assembler->BitFieldDecode<Map::DictionaryMap>(bit_field3);
+  Label if_isfastmap(assembler);
+  assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
+                    &if_isfastmap, &call_runtime);
+  assembler->Bind(&if_isfastmap);
+  Node* nof =
+      assembler->BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
+  // Bail out to the runtime for large numbers of own descriptors. The stub only
+  // does linear search, which becomes too expensive in that case.
+  {
+    static const int32_t kMaxLinear = 256;
+    Label above_max(assembler), below_max(assembler);
+    assembler->Branch(assembler->Int32LessThanOrEqual(
+                          nof, assembler->Int32Constant(kMaxLinear)),
+                      &below_max, &call_runtime);
+    assembler->Bind(&below_max);
+  }
+  Node* descriptors = assembler->LoadMapDescriptors(map);
+
+  Variable var_descriptor(assembler, MachineRepresentation::kWord32);
+  Label loop(assembler, &var_descriptor);
+  var_descriptor.Bind(assembler->Int32Constant(0));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* index = var_descriptor.value();
+    Node* offset = assembler->Int32Constant(DescriptorArray::ToKeyIndex(0));
+    Node* factor = assembler->Int32Constant(DescriptorArray::kDescriptorSize);
+    Label if_notdone(assembler);
+    assembler->Branch(assembler->Word32Equal(index, nof), &return_false,
+                      &if_notdone);
+    assembler->Bind(&if_notdone);
     {
-      LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-      LookupIterator it =
-          key_is_array_index ? LookupIterator(isolate, js_obj, index, js_obj, c)
-                             : LookupIterator(js_obj, key, js_obj, c);
-      Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-      if (maybe.IsNothing()) return isolate->heap()->exception();
-      DCHECK(!isolate->has_pending_exception());
-      if (maybe.FromJust()) return isolate->heap()->true_value();
+      Node* array_index =
+          assembler->Int32Add(offset, assembler->Int32Mul(index, factor));
+      Node* current =
+          assembler->LoadFixedArrayElementInt32Index(descriptors, array_index);
+      Label if_unequal(assembler);
+      assembler->Branch(assembler->WordEqual(current, key), &return_true,
+                        &if_unequal);
+      assembler->Bind(&if_unequal);
+
+      var_descriptor.Bind(
+          assembler->Int32Add(index, assembler->Int32Constant(1)));
+      assembler->Goto(&loop);
     }
-
-    Map* map = js_obj->map();
-    if (!map->has_hidden_prototype() &&
-        (key_is_array_index ? !map->has_indexed_interceptor()
-                            : !map->has_named_interceptor())) {
-      return isolate->heap()->false_value();
-    }
-
-    // Slow case.
-    LookupIterator::Configuration c = LookupIterator::HIDDEN;
-    LookupIterator it = key_is_array_index
-                            ? LookupIterator(isolate, js_obj, index, js_obj, c)
-                            : LookupIterator(js_obj, key, js_obj, c);
-
-    Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-    if (maybe.IsNothing()) return isolate->heap()->exception();
-    DCHECK(!isolate->has_pending_exception());
-    return isolate->heap()->ToBoolean(maybe.FromJust());
-
-  } else if (object->IsJSProxy()) {
-    if (key.is_null()) {
-      DCHECK(key_is_array_index);
-      key = isolate->factory()->Uint32ToString(index);
-    }
-
-    Maybe<bool> result =
-        JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
-    if (!result.IsJust()) return isolate->heap()->exception();
-    return isolate->heap()->ToBoolean(result.FromJust());
-
-  } else if (object->IsString()) {
-    return isolate->heap()->ToBoolean(
-        key_is_array_index
-            ? index < static_cast<uint32_t>(String::cast(*object)->length())
-            : key->Equals(isolate->heap()->length_string()));
-  } else if (object->IsNull() || object->IsUndefined()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
 
-  return isolate->heap()->false_value();
+  assembler->Bind(&keyisindex);
+  {
+    Label if_objectissimple(assembler);
+    assembler->Branch(assembler->Int32LessThanOrEqual(
+                          instance_type, assembler->Int32Constant(
+                                             LAST_CUSTOM_ELEMENTS_RECEIVER)),
+                      &call_runtime, &if_objectissimple);
+    assembler->Bind(&if_objectissimple);
+  }
+
+  Node* index = var_index.value();
+  Node* bit_field2 = assembler->LoadMapBitField2(map);
+  Node* elements_kind =
+      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+
+  // TODO(verwaest): Support other elements kinds as well.
+  Label if_isobjectorsmi(assembler);
+  assembler->Branch(
+      assembler->Int32LessThanOrEqual(
+          elements_kind, assembler->Int32Constant(FAST_HOLEY_ELEMENTS)),
+      &if_isobjectorsmi, &call_runtime);
+  assembler->Bind(&if_isobjectorsmi);
+  {
+    Node* elements = assembler->LoadElements(object);
+    Node* length = assembler->LoadFixedArrayBaseLength(elements);
+
+    Label if_iskeyinrange(assembler);
+    assembler->Branch(
+        assembler->Int32LessThan(index, assembler->SmiToWord32(length)),
+        &if_iskeyinrange, &return_false);
+
+    assembler->Bind(&if_iskeyinrange);
+    Node* element = assembler->LoadFixedArrayElementInt32Index(elements, index);
+    Node* the_hole = assembler->LoadRoot(Heap::kTheHoleValueRootIndex);
+    assembler->Branch(assembler->WordEqual(element, the_hole), &return_false,
+                      &return_true);
+  }
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+
+  assembler->Bind(&call_runtime);
+  assembler->Return(assembler->CallRuntime(Runtime::kObjectHasOwnProperty,
+                                           context, object, key));
 }
 
 namespace {

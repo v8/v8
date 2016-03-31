@@ -384,6 +384,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_OBJECT(F)                 \
   F(GetPrototype, 1, 1)                              \
+  F(ObjectHasOwnProperty, 2, 1)                      \
   F(InternalSetPrototype, 2, 1)                      \
   F(SetPrototype, 2, 1)                              \
   F(GetOwnProperty_Legacy, 2, 1)                     \

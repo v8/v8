@@ -458,9 +458,37 @@ Node* CodeStubAssembler::LoadMapBitField(Node* map) {
               IntPtrConstant(Map::kBitFieldOffset - kHeapObjectTag));
 }
 
+Node* CodeStubAssembler::LoadMapBitField2(Node* map) {
+  return Load(MachineType::Uint8(), map,
+              IntPtrConstant(Map::kBitField2Offset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadMapBitField3(Node* map) {
+  return Load(MachineType::Uint32(), map,
+              IntPtrConstant(Map::kBitField3Offset - kHeapObjectTag));
+}
+
 Node* CodeStubAssembler::LoadMapInstanceType(Node* map) {
   return Load(MachineType::Uint8(), map,
               IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadMapDescriptors(Node* map) {
+  return LoadObjectField(map, Map::kDescriptorsOffset);
+}
+
+Node* CodeStubAssembler::LoadNameHash(Node* name) {
+  return Load(MachineType::Uint32(), name,
+              IntPtrConstant(Name::kHashFieldOffset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
+    Node* object, Node* int32_index, int additional_offset) {
+  Node* header_size = IntPtrConstant(additional_offset +
+                                     FixedArray::kHeaderSize - kHeapObjectTag);
+  Node* scaled_index = WordShl(int32_index, IntPtrConstant(kPointerSizeLog2));
+  Node* offset = IntPtrAdd(scaled_index, header_size);
+  return Load(MachineType::AnyTagged(), object, offset);
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
@@ -689,6 +717,14 @@ Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
 
 Node* CodeStubAssembler::LoadInstanceType(Node* object) {
   return LoadMapInstanceType(LoadMap(object));
+}
+
+Node* CodeStubAssembler::LoadElements(Node* object) {
+  return LoadObjectField(object, JSObject::kElementsOffset);
+}
+
+Node* CodeStubAssembler::LoadFixedArrayBaseLength(Node* array) {
+  return LoadObjectField(array, FixedArrayBase::kLengthOffset);
 }
 
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
