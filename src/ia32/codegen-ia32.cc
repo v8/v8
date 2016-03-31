@@ -704,6 +704,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
   __ j(equal, &only_change_map);
 
+  __ push(esi);
   __ push(eax);
   __ push(edx);
   __ push(ebx);
@@ -753,10 +754,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ pop(ebx);
   __ pop(edx);
   __ pop(eax);
+  __ pop(esi);
   __ jmp(fail);
 
   // Box doubles into heap numbers.
@@ -818,7 +819,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Restore registers.
   __ pop(eax);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
 
   __ bind(&success);
 }
