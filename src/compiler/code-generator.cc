@@ -153,9 +153,11 @@ Handle<Code> CodeGenerator::GenerateCode() {
         }
       }
 
-      for (int i = block->code_start(); i < block->code_end(); ++i) {
-        Instruction* instr = code()->InstructionAt(i);
-        AssembleInstruction(instr, block);
+      if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
+        ConstantPoolUnavailableScope constant_pool_unavailable(masm());
+        AssembleBlock(block);
+      } else {
+        AssembleBlock(block);
       }
     }
   }
@@ -298,6 +300,13 @@ bool CodeGenerator::IsMaterializableFromRoot(
     }
   }
   return false;
+}
+
+void CodeGenerator::AssembleBlock(const InstructionBlock* block) {
+  for (int i = block->code_start(); i < block->code_end(); ++i) {
+    Instruction* instr = code()->InstructionAt(i);
+    AssembleInstruction(instr, block);
+  }
 }
 
 void CodeGenerator::AssembleInstruction(Instruction* instr,

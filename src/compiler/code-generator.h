@@ -84,6 +84,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
                                 Heap::RootListIndex* index_return);
 
+  // Assemble instructions for the specified block.
+  void AssembleBlock(const InstructionBlock* block);
+
   // Assemble code for the specified instruction.
   void AssembleInstruction(Instruction* instr, const InstructionBlock* block);
   void AssembleSourcePosition(Instruction* instr);

@@ -992,8 +992,11 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
 
 void MacroAssembler::StubPrologue(StackFrame::Type type, Register base,
                                   int prologue_offset) {
-  LoadSmiLiteral(r11, Smi::FromInt(type));
-  PushCommonFrame(r11);
+  {
+    ConstantPoolUnavailableScope constant_pool_unavailable(this);
+    LoadSmiLiteral(r11, Smi::FromInt(type));
+    PushCommonFrame(r11);
+  }
   if (FLAG_enable_embedded_constant_pool) {
     if (!base.is(no_reg)) {
       // base contains prologue address
