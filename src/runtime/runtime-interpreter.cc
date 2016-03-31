@@ -35,7 +35,10 @@ void AdvanceToOffsetForTracing(
          offset) {
     bytecode_iterator.Advance();
   }
-  DCHECK_EQ(offset, bytecode_iterator.current_offset());
+  DCHECK(bytecode_iterator.current_offset() == offset ||
+         ((bytecode_iterator.current_offset() + 1) == offset &&
+          bytecode_iterator.current_operand_scale() >
+              interpreter::OperandScale::kSingle));
 }
 
 void PrintRegisters(std::ostream& os, bool is_input,
@@ -111,9 +114,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
     // Print bytecode.
     const uint8_t* bytecode_address =
         reinterpret_cast<const uint8_t*>(*bytecode_array) + bytecode_offset;
-    Vector<char> buf = Vector<char>::New(50);
-    SNPrintF(buf, "%p", bytecode_address);
-    os << " -> " << buf.start() << " (" << bytecode_offset << ") : ";
+    os << " -> " << static_cast<const void*>(bytecode_address)
+       << " (" << bytecode_offset << ") : ";
     interpreter::Bytecodes::Decode(os, bytecode_address,
                                    bytecode_array->parameter_count());
     os << std::endl;
