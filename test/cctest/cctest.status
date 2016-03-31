@@ -240,6 +240,8 @@
 
   # BUG(v8:2999,v8:4751).
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
+  'test-cpu-profiler/FunctionCallSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
