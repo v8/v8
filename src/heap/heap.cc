@@ -116,6 +116,7 @@ Heap::Heap()
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
+      embedder_heap_tracer_(nullptr),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       promotion_ratio_(0),
@@ -5418,6 +5419,13 @@ void Heap::NotifyDeserializationComplete() {
 #endif  // DEBUG
 }
 
+void Heap::RegisterExternallyReferencedObject(Object** object) {
+  DCHECK(mark_compact_collector()->in_use());
+  HeapObject* heap_object = HeapObject::cast(*object);
+  DCHECK(Contains(heap_object));
+  MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+  mark_compact_collector()->MarkObject(heap_object, mark_bit);
+}
 
 void Heap::TearDown() {
 #ifdef VERIFY_HEAP
@@ -5583,6 +5591,11 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
   UNREACHABLE();
 }
 
+void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
+  DCHECK_NOT_NULL(tracer);
+  CHECK_NULL(embedder_heap_tracer_);
+  embedder_heap_tracer_ = tracer;
+}
 
 // TODO(ishell): Find a better place for this.
 void Heap::AddWeakObjectToCodeDependency(Handle<HeapObject> obj,

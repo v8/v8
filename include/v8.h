@@ -18,6 +18,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <utility>
+#include <vector>
 
 #include "v8-version.h"  // NOLINT(build/include)
 #include "v8config.h"    // NOLINT(build/include)
@@ -592,6 +594,13 @@ template <class T> class PersistentBase {
 
   // TODO(dcarney): remove this.
   V8_INLINE void ClearWeak() { ClearWeak<void>(); }
+
+  /**
+   * Allows the embedder to tell the v8 garbage collector that a certain object
+   * is alive. Only allowed when the embedder is asked to trace its heap by
+   * EmbedderHeapTracer.
+   */
+  V8_INLINE void RegisterExternalReference(Isolate* isolate);
 
   /**
    * Marks the reference to this object independent. Garbage collector is free
@@ -5361,6 +5370,43 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
+ * Interface for tracing through the embedder heap. During the v8 garbage
+ * collection, v8 collects hidden fields of all potential wrappers, and at the
+ * end of its marking phase iterates the collection and asks the embedder to
+ * trace through its heap and call PersistentBase::RegisterExternalReference on
+ * each js object reachable from any of the given wrappers.
+ *
+ * Before the first call to the TraceWrappableFrom function v8 will call
+ * TraceRoots. When the v8 garbage collection is finished, v8 will call
+ * ClearTracingMarks.
+ */
+class EmbedderHeapTracer {
+ public:
+  /**
+   * V8 will call this method at the beginning of the gc cycle.
+   */
+  virtual void TraceRoots(Isolate* isolate) = 0;
+
+  /**
+   * V8 will call this method with internal fields of a potential wrappers.
+   * Embedder is expected to trace its heap (synchronously) and call
+   * PersistentBase::RegisterExternalReference() on all wrappers reachable from
+   * any of the given wrappers.
+   */
+  virtual void TraceWrappableFrom(
+      Isolate* isolate,
+      const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
+  /**
+   * V8 will call this method at the end of the gc cycle. Allocation is *not*
+   * allowed in the ClearTracingMarks.
+   */
+  virtual void ClearTracingMarks(Isolate* isolate) = 0;
+
+ protected:
+  virtual ~EmbedderHeapTracer() = default;
+};
+
+/**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
  * completely separate states.  Objects from one isolate must not be used in
  * other isolates.  The embedder can create multiple isolates and use them in
@@ -5827,6 +5873,11 @@ class V8_EXPORT Isolate {
    * AddGCPrologueCallback function.
    */
   void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * Sets the embedder heap tracer for the isolate.
+   */
+  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
   /**
    * Enables the host application to receive a notification after a
@@ -6585,6 +6636,8 @@ class V8_EXPORT V8 {
   static internal::Object** CopyPersistent(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
+  static void RegisterExternallyReferencedObject(internal::Object** object,
+                                                 internal::Isolate* isolate);
   static void MakeWeak(internal::Object** global_handle, void* data,
                        WeakCallback weak_callback);
   static void MakeWeak(internal::Object** global_handle, void* data,
@@ -7602,6 +7655,13 @@ P* PersistentBase<T>::ClearWeak() {
     V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
 }
 
+template <class T>
+void PersistentBase<T>::RegisterExternalReference(Isolate* isolate) {
+  if (IsEmpty()) return;
+  V8::RegisterExternallyReferencedObject(
+      reinterpret_cast<internal::Object**>(this->val_),
+      reinterpret_cast<internal::Isolate*>(isolate));
+}
 
 template <class T>
 void PersistentBase<T>::MarkIndependent() {

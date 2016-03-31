@@ -677,6 +677,10 @@ i::Object** V8::CopyPersistent(i::Object** obj) {
   return result.location();
 }
 
+void V8::RegisterExternallyReferencedObject(i::Object** object,
+                                            i::Isolate* isolate) {
+  isolate->heap()->RegisterExternallyReferencedObject(object);
+}
 
 void V8::MakeWeak(i::Object** object, void* parameter,
                   WeakCallback weak_callback) {
@@ -7174,6 +7178,10 @@ void V8::AddGCEpilogueCallback(GCCallback callback, GCType gc_type) {
       reinterpret_cast<v8::Isolate::GCCallback>(callback), gc_type, false);
 }
 
+void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->SetEmbedderHeapTracer(tracer);
+}
 
 void Isolate::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
                                           ObjectSpace space,

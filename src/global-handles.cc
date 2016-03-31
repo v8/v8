@@ -644,7 +644,6 @@ bool GlobalHandles::IsWeak(Object** location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
-
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();

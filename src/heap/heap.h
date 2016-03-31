@@ -915,10 +915,20 @@ class Heap {
   const char* GetSpaceName(int idx);
 
   // ===========================================================================
+  // API. ======================================================================
+  // ===========================================================================
+
+  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+
+  void RegisterExternallyReferencedObject(Object** object);
+
+  // ===========================================================================
   // Getters to other components. ==============================================
   // ===========================================================================
 
   GCTracer* tracer() { return tracer_; }
+
+  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
@@ -2096,6 +2106,7 @@ class Heap {
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 
   GCTracer* tracer_;
+  EmbedderHeapTracer* embedder_heap_tracer_;
 
   int high_survival_rate_period_length_;
   intptr_t promoted_objects_size_;
