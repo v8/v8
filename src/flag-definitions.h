@@ -608,8 +608,6 @@ DEFINE_IMPLICATION(trace_array_abuse, trace_js_array_abuse)
 DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
 
 // debugger
-DEFINE_BOOL(debug_eval_readonly_locals, true,
-            "do not update locals after debug-evaluate")
 DEFINE_BOOL(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")

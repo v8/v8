@@ -208,7 +208,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   while (!context->IsNativeContext()) {
-    if (context->IsWithContext()) {
+    if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
+      // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
           Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null(),
                 script_scope->ast_value_factory_);
@@ -790,8 +791,7 @@ Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
   return scope_info_;
 }
 
-
-void Scope::CollectNonLocals(HashMap* non_locals) {
+Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
   // Collect non-local variables referenced in the scope.
   // TODO(yangguo): store non-local variables explicitly if we can no longer
   //                rely on unresolved_ to find them.
@@ -799,13 +799,12 @@ void Scope::CollectNonLocals(HashMap* non_locals) {
     VariableProxy* proxy = unresolved_[i];
     if (proxy->is_resolved() && proxy->var()->IsStackAllocated()) continue;
     Handle<String> name = proxy->name();
-    void* key = reinterpret_cast<void*>(name.location());
-    HashMap::Entry* entry = non_locals->LookupOrInsert(key, name->Hash());
-    entry->value = key;
+    non_locals = StringSet::Add(non_locals, name);
   }
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->CollectNonLocals(non_locals);
+    non_locals = inner_scopes_[i]->CollectNonLocals(non_locals);
   }
+  return non_locals;
 }
 
 

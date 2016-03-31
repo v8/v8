@@ -19,7 +19,6 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       nested_scope_chain_(4),
-      non_locals_(nullptr),
       seen_script_scope_(false),
       failed_(false) {
   if (!frame_inspector->GetContext()->IsContext() ||
@@ -116,7 +115,6 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
     : isolate_(isolate),
       frame_inspector_(NULL),
       context_(function->context()),
-      non_locals_(nullptr),
       seen_script_scope_(false),
       failed_(false) {
   if (!function->shared()->IsSubjectToDebugging()) context_ = Handle<Context>();
@@ -214,7 +212,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
         DCHECK(context_->IsScriptContext() || context_->IsNativeContext());
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK(context_->IsWithContext());
+        DCHECK(context_->IsWithContext() || context_->IsDebugEvaluateContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
@@ -247,7 +245,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
   if (context_->IsScriptContext()) {
     return ScopeTypeScript;
   }
-  DCHECK(context_->IsWithContext());
+  DCHECK(context_->IsWithContext() || context_->IsDebugEvaluateContext());
   return ScopeTypeWith;
 }
 
@@ -344,26 +342,7 @@ Handle<Context> ScopeIterator::CurrentContext() {
   }
 }
 
-
-void ScopeIterator::GetNonLocals(List<Handle<String> >* list_out) {
-  Handle<String> this_string = isolate_->factory()->this_string();
-  for (HashMap::Entry* entry = non_locals_->Start(); entry != nullptr;
-       entry = non_locals_->Next(entry)) {
-    Handle<String> name(reinterpret_cast<String**>(entry->key));
-    // We need to treat "this" differently.
-    if (name.is_identical_to(this_string)) continue;
-    list_out->Add(Handle<String>(reinterpret_cast<String**>(entry->key)));
-  }
-}
-
-
-bool ScopeIterator::ThisIsNonLocal() {
-  Handle<String> this_string = isolate_->factory()->this_string();
-  void* key = reinterpret_cast<void*>(this_string.location());
-  HashMap::Entry* entry = non_locals_->Lookup(key, this_string->Hash());
-  return entry != nullptr;
-}
-
+Handle<StringSet> ScopeIterator::GetNonLocals() { return non_locals_; }
 
 #ifdef DEBUG
 // Debug print of the content of the current scope.
@@ -449,9 +428,8 @@ void ScopeIterator::RetrieveScopeChain(Scope* scope) {
 
 void ScopeIterator::CollectNonLocals(Scope* scope) {
   if (scope != NULL) {
-    DCHECK_NULL(non_locals_);
-    non_locals_ = new HashMap(InternalizedStringMatch);
-    scope->CollectNonLocals(non_locals_);
+    DCHECK(non_locals_.is_null());
+    non_locals_ = scope->CollectNonLocals(StringSet::New(isolate_));
   }
 }
 

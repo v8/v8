@@ -540,7 +540,7 @@ class Scope: public ZoneObject {
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
-  void CollectNonLocals(HashMap* non_locals);
+  Handle<StringSet> CollectNonLocals(Handle<StringSet> non_locals);
 
   // ---------------------------------------------------------------------------
   // Strict mode support.

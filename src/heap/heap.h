@@ -138,6 +138,7 @@ using v8::MemoryPressureLevel;
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
+  V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, module_context_map, ModuleContextMap)                                 \
   V(Map, script_context_map, ScriptContextMap)                                 \

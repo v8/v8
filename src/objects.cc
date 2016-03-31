@@ -17940,6 +17940,25 @@ String* StringTable::LookupKeyIfExists(Isolate* isolate, HashTableKey* key) {
   return NULL;
 }
 
+Handle<StringSet> StringSet::New(Isolate* isolate) {
+  return HashTable::New(isolate, 0);
+}
+
+Handle<StringSet> StringSet::Add(Handle<StringSet> stringset,
+                                 Handle<String> name) {
+  if (!stringset->Has(name)) {
+    stringset = EnsureCapacity(stringset, 1, *name);
+    uint32_t hash = StringSetShape::Hash(*name);
+    int entry = stringset->FindInsertionEntry(hash);
+    stringset->set(EntryToIndex(entry), *name);
+    stringset->ElementAdded();
+  }
+  return stringset;
+}
+
+bool StringSet::Has(Handle<String> name) {
+  return FindEntry(*name) != kNotFound;
+}
 
 Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
                                              Handle<Context> context,
@@ -18095,40 +18114,6 @@ void CompilationCacheTable::Remove(Object* value) {
   }
   return;
 }
-
-
-// StringsKey used for HashTable where key is array of internalized strings.
-class StringsKey : public HashTableKey {
- public:
-  explicit StringsKey(Handle<FixedArray> strings) : strings_(strings) { }
-
-  bool IsMatch(Object* strings) override {
-    FixedArray* o = FixedArray::cast(strings);
-    int len = strings_->length();
-    if (o->length() != len) return false;
-    for (int i = 0; i < len; i++) {
-      if (o->get(i) != strings_->get(i)) return false;
-    }
-    return true;
-  }
-
-  uint32_t Hash() override { return HashForObject(*strings_); }
-
-  uint32_t HashForObject(Object* obj) override {
-    FixedArray* strings = FixedArray::cast(obj);
-    int len = strings->length();
-    uint32_t hash = 0;
-    for (int i = 0; i < len; i++) {
-      hash ^= String::cast(strings->get(i))->Hash();
-    }
-    return hash;
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override { return strings_; }
-
- private:
-  Handle<FixedArray> strings_;
-};
 
 
 template<typename Derived, typename Shape, typename Key>

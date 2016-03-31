@@ -738,13 +738,12 @@ bool HeapObject::IsDependentCode() const {
 bool HeapObject::IsContext() const {
   Map* map = this->map();
   Heap* heap = GetHeap();
-  return (map == heap->function_context_map() ||
-      map == heap->catch_context_map() ||
-      map == heap->with_context_map() ||
-      map == heap->native_context_map() ||
-      map == heap->block_context_map() ||
-      map == heap->module_context_map() ||
-      map == heap->script_context_map());
+  return (
+      map == heap->function_context_map() || map == heap->catch_context_map() ||
+      map == heap->with_context_map() || map == heap->native_context_map() ||
+      map == heap->block_context_map() || map == heap->module_context_map() ||
+      map == heap->script_context_map() ||
+      map == heap->debug_evaluate_context_map());
 }
 
 bool HeapObject::IsNativeContext() const {
@@ -844,6 +843,8 @@ bool Object::IsUnseededNumberDictionary() const {
 }
 
 bool HeapObject::IsStringTable() const { return IsHashTable(); }
+
+bool HeapObject::IsStringSet() const { return IsHashTable(); }
 
 bool HeapObject::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
@@ -3045,6 +3046,15 @@ int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
   return kNotFound;
 }
 
+bool StringSetShape::IsMatch(String* key, Object* value) {
+  return value->IsString() && key->Equals(String::cast(value));
+}
+
+uint32_t StringSetShape::Hash(String* key) { return key->Hash(); }
+
+uint32_t StringSetShape::HashForObject(String* key, Object* object) {
+  return object->IsString() ? String::cast(object)->Hash() : 0;
+}
 
 bool SeededNumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
@@ -3148,6 +3158,7 @@ CAST_ACCESSOR(Simd128Value)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(String)
+CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)

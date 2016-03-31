@@ -256,6 +256,11 @@ class Factory final {
                                  Handle<Context> previous,
                                  Handle<JSReceiver> extension);
 
+  Handle<Context> NewDebugEvaluateContext(Handle<Context> previous,
+                                          Handle<JSReceiver> extension,
+                                          Handle<Context> wrapped,
+                                          Handle<StringSet> whitelist);
+
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,

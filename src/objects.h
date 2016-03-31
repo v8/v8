@@ -80,6 +80,7 @@
 //         - HashTable
 //           - Dictionary
 //           - StringTable
+//           - StringSet
 //           - CompilationCacheTable
 //           - CodeCacheHashTable
 //           - MapCache
@@ -976,6 +977,7 @@ template <class C> inline bool Is(Object* obj);
   V(HashTable)                     \
   V(Dictionary)                    \
   V(StringTable)                   \
+  V(StringSet)                     \
   V(NormalizedMapCache)            \
   V(CompilationCacheTable)         \
   V(CodeCacheHashTable)            \
@@ -3432,6 +3434,25 @@ class StringTable: public HashTable<StringTable,
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringTable);
 };
 
+class StringSetShape : public BaseShape<String*> {
+ public:
+  static inline bool IsMatch(String* key, Object* value);
+  static inline uint32_t Hash(String* key);
+  static inline uint32_t HashForObject(String* key, Object* object);
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 1;
+};
+
+class StringSet : public HashTable<StringSet, StringSetShape, String*> {
+ public:
+  static Handle<StringSet> New(Isolate* isolate);
+  static Handle<StringSet> Add(Handle<StringSet> blacklist,
+                               Handle<String> name);
+  bool Has(Handle<String> name);
+
+  DECLARE_CAST(StringSet)
+};
 
 template <typename Derived, typename Shape, typename Key>
 class Dictionary: public HashTable<Derived, Shape, Key> {
