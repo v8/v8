@@ -960,8 +960,11 @@ void MacroAssembler::MovInt64ToDouble(DoubleRegister dst, Register src) {
 
 void MacroAssembler::StubPrologue(StackFrame::Type type, Register base,
                                   int prologue_offset) {
-  LoadSmiLiteral(r1, Smi::FromInt(type));
-  PushCommonFrame(r1);
+  {
+    ConstantPoolUnavailableScope constant_pool_unavailable(this);
+    LoadSmiLiteral(r1, Smi::FromInt(type));
+    PushCommonFrame(r1);
+  }
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging, Register base,
