@@ -473,9 +473,10 @@ action("postmortem-metadata") {
 
   script = "tools/gen-postmortem-metadata.py"
 
+  # NOSORT
   sources = [
-    "src/objects-inl.h",
     "src/objects.h",
+    "src/objects-inl.h",
   ]
 
   outputs = [
