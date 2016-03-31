@@ -18,9 +18,8 @@ namespace internal {
 // code. On buffer overflow the slots are moved to the remembered set.
 class StoreBuffer {
  public:
-  static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
-  static const int kStoreBufferSize = kStoreBufferOverflowBit;
-  static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
+  static const int kStoreBufferSize = 1 << (14 + kPointerSizeLog2);
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
 
   static void StoreBufferOverflow(Isolate* isolate);
 

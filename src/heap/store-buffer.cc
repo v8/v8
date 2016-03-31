@@ -26,11 +26,10 @@ void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
   // aligned to 2x the size.  This lets us use a bit test to detect the end of
   // the area.
-  virtual_memory_ = new base::VirtualMemory(kStoreBufferSize * 3);
+  virtual_memory_ = new base::VirtualMemory(kStoreBufferSize * 2);
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());
-  start_ =
-      reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize * 2));
+  start_ = reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize));
   limit_ = start_ + (kStoreBufferSize / kPointerSize);
 
   DCHECK(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
@@ -41,9 +40,7 @@ void StoreBuffer::SetUp() {
   DCHECK(start_ <= vm_limit);
   DCHECK(limit_ <= vm_limit);
   USE(vm_limit);
-  DCHECK((reinterpret_cast<uintptr_t>(limit_) & kStoreBufferOverflowBit) != 0);
-  DCHECK((reinterpret_cast<uintptr_t>(limit_ - 1) & kStoreBufferOverflowBit) ==
-         0);
+  DCHECK((reinterpret_cast<uintptr_t>(limit_) & kStoreBufferMask) == 0);
 
   if (!virtual_memory_->Commit(reinterpret_cast<Address>(start_),
                                kStoreBufferSize,

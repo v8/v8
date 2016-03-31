@@ -4032,13 +4032,12 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Str(scratch1, MemOperand(scratch2));
   // Call stub on end of buffer.
   // Check for end of buffer.
-  DCHECK(StoreBuffer::kStoreBufferOverflowBit ==
-         (1 << (14 + kPointerSizeLog2)));
+  Tst(scratch1, StoreBuffer::kStoreBufferMask);
   if (and_then == kFallThroughAtEnd) {
-    Tbz(scratch1, (14 + kPointerSizeLog2), &done);
+    B(ne, &done);
   } else {
     DCHECK(and_then == kReturnAtEnd);
-    Tbnz(scratch1, (14 + kPointerSizeLog2), &store_buffer_overflow);
+    B(eq, &store_buffer_overflow);
     Ret();
   }
 

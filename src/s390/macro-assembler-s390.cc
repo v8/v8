@@ -540,13 +540,13 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   StoreP(scratch, MemOperand(ip));
   // Call stub on end of buffer.
   // Check for end of buffer.
-  AndP(scratch, Operand(StoreBuffer::kStoreBufferOverflowBit));
+  AndP(scratch, Operand(StoreBuffer::kStoreBufferMask));
 
   if (and_then == kFallThroughAtEnd) {
-    beq(&done, Label::kNear);
+    bne(&done, Label::kNear);
   } else {
     DCHECK(and_then == kReturnAtEnd);
-    beq(&done, Label::kNear);
+    bne(&done, Label::kNear);
   }
   push(r14);
   StoreBufferOverflowStub store_buffer_overflow(isolate(), fp_mode);
