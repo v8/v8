@@ -882,6 +882,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ SubLogicalWithBorrow32(i.OutputRegister(1), i.InputRegister(1),
                                 i.InputRegister(3));
       break;
+    case kS390_MulPair:
+      // i.InputRegister(0) ... left low word.
+      // i.InputRegister(1) ... left high word.
+      // i.InputRegister(2) ... right low word.
+      // i.InputRegister(3) ... right high word.
+      __ sllg(r0, i.InputRegister(1), Operand(32));
+      __ sllg(r1, i.InputRegister(3), Operand(32));
+      __ lr(r0, i.InputRegister(0));
+      __ lr(r1, i.InputRegister(2));
+      __ msgr(r1, r0);
+      __ lr(i.OutputRegister(0), r1);
+      __ srag(i.OutputRegister(1), r1, Operand(32));
+      break;
     case kS390_ShiftLeftPair:
       if (instr->InputAt(2)->IsImmediate()) {
         __ ShiftLeftPair(i.OutputRegister(0), i.OutputRegister(1),

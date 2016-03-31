@@ -42,6 +42,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Sub:
     case kS390_SubWithOverflow32:
     case kS390_SubPair:
+    case kS390_MulPair:
     case kS390_SubFloat:
     case kS390_SubDouble:
     case kS390_Mul32:

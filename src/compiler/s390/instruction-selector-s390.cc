@@ -779,6 +779,20 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   VisitPairBinop(this, kS390_SubPair, node);
 }
 
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  S390OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  Emit(kS390_MulPair, 2, outputs, 4, inputs);
+}
+
 void VisitPairShift(InstructionSelector* selector, ArchOpcode opcode,
                     Node* node) {
   S390OperandGenerator g(selector);
