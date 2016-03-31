@@ -1945,15 +1945,17 @@ class LTransitionElementsKind final : public LTemplateInstruction<0, 2, 1> {
   ElementsKind to_kind() { return hydrogen()->to_kind(); }
 };
 
-class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 1> {
+class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 2> {
  public:
-  LTrapAllocationMemento(LOperand* object, LOperand* temp) {
+  LTrapAllocationMemento(LOperand* object, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = object;
-    temps_[0] = temp;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento, "trap-allocation-memento")
 };
