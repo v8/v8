@@ -1230,7 +1230,7 @@ Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input) {
   }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
-  Node* result = graph()->NewNode(m->ChangeFloat64ToUint32(), trunc);
+  Node* result = graph()->NewNode(m->TruncateFloat64ToUint32(), trunc);
 
   // Convert the result back to f64. If we end up at a different value than the
   // truncated input value, then there has been an overflow and we trap.

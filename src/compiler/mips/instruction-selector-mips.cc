@@ -626,6 +626,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kMipsTruncUwD, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kMipsTruncUwD, node);
+}
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   MipsOperandGenerator g(this);

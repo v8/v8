@@ -2198,6 +2198,10 @@ Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
                          zone());
 }
 
+Type* Typer::Visitor::TypeTruncateFloat64ToUint32(Node* node) {
+  return Type::Intersect(Type::Unsigned32(), Type::UntaggedIntegral32(),
+                         zone());
+}
 
 Type* Typer::Visitor::TypeTruncateFloat32ToInt32(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());

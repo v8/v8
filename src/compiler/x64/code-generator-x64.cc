@@ -1059,7 +1059,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      __ AssertZeroExtended(i.OutputRegister());
       break;
     }
     case kSSEFloat64Cmp:
@@ -1158,7 +1157,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      __ AssertZeroExtended(i.OutputRegister());
+      if (MiscField::decode(instr->opcode())) {
+        __ AssertZeroExtended(i.OutputRegister());
+      }
       break;
     }
     case kSSEFloat32ToInt64:

@@ -838,6 +838,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToUint32);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToUint32);
+}
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToFloat32);

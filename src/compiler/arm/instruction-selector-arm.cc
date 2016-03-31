@@ -1135,7 +1135,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kArmVcvtU32F64, node);
 }
 
-
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kArmVcvtU32F64, node);
+}
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kArmVcvtF32F64, node);
 }
