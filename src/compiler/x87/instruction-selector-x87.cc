@@ -581,7 +581,23 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   Emit(kX87SubPair, 2, outputs, 4, inputs, 1, temps);
 }
 
-void InstructionSelector::VisitInt32PairMul(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  X87OperandGenerator g(this);
+
+  // InputAt(3) explicitly shares ecx with OutputRegister(1) to save one
+  // register and one mov instruction.
+  InstructionOperand inputs[] = {
+      g.UseUnique(node->InputAt(0)), g.UseUnique(node->InputAt(1)),
+      g.UseUniqueRegister(node->InputAt(2)), g.UseFixed(node->InputAt(3), ecx)};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(node, eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), ecx)};
+
+  InstructionOperand temps[] = {g.TempRegister(edx)};
+
+  Emit(kX87MulPair, 2, outputs, 4, inputs, 1, temps);
+}
 
 void InstructionSelector::VisitWord32PairShl(Node* node) {
   X87OperandGenerator g(this);
