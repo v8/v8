@@ -312,6 +312,10 @@ void CodeGenerator::AssembleBlock(const InstructionBlock* block) {
 void CodeGenerator::AssembleInstruction(Instruction* instr,
                                         const InstructionBlock* block) {
   AssembleGaps(instr);
+  DCHECK_IMPLIES(
+      block->must_deconstruct_frame(),
+      instr != code()->InstructionAt(block->last_instruction_index()) ||
+          instr->IsRet() || instr->IsJump());
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
   }
