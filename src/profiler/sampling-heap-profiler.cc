@@ -200,7 +200,8 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   int column = v8::AllocationProfile::kNoColumnNumberInfo;
   std::vector<v8::AllocationProfile::Allocation> allocations;
   allocations.reserve(node->allocations_.size());
-  if (node->script_id_ != v8::UnboundScript::kNoScriptId) {
+  if (node->script_id_ != v8::UnboundScript::kNoScriptId &&
+      scripts.find(node->script_id_) != scripts.end()) {
     // Cannot use std::map<T>::at because it is not available on android.
     auto non_const_scripts = const_cast<std::map<int, Script*>&>(scripts);
     Script* script = non_const_scripts[node->script_id_];
