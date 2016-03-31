@@ -316,7 +316,7 @@ class GoogleTestSuite(TestSuite):
       elif test_case and test_desc:
         test = testcase.TestCase(self, test_case + test_desc)
         tests.append(test)
-    tests.sort()
+    tests.sort(key=lambda t: t.path)
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):

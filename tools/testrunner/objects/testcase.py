@@ -100,3 +100,11 @@ class TestCase(object):
     send the name only and retrieve a process-local suite later.
     """
     return dict(self.__dict__, suite=self.suite.name)
+
+  def __cmp__(self, other):
+    # Make sure that test cases are sorted correctly if sorted without
+    # key function. But using a key function is preferred for speed.
+    return cmp(
+        (self.suite.name, self.path, self.flags),
+        (other.suite.name, other.path, other.flags),
+    )
