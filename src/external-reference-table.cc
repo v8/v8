@@ -31,8 +31,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "StackGuard::address_of_jslimit()");
   Add(ExternalReference::address_of_real_stack_limit(isolate).address(),
       "StackGuard::address_of_real_jslimit()");
-  Add(ExternalReference::new_space_start(isolate).address(),
-      "Heap::NewSpaceStart()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),

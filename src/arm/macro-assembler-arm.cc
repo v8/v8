@@ -3764,28 +3764,45 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   b(ne, &next);
 }
 
-
 void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg,
     Label* no_memento_found) {
-  ExternalReference new_space_start =
-      ExternalReference::new_space_start(isolate());
+  Label map_check;
+  Label top_check;
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
-  add(scratch_reg, receiver_reg,
-      Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  cmp(scratch_reg, Operand(new_space_start));
-  b(lt, no_memento_found);
-  mov(ip, Operand(new_space_allocation_top));
-  ldr(ip, MemOperand(ip));
-  cmp(scratch_reg, ip);
-  b(gt, no_memento_found);
-  ldr(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
-  cmp(scratch_reg,
-      Operand(isolate()->factory()->allocation_memento_map()));
-}
+  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
 
+  // Bail out if the object is not in new space.
+  JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
+  // If the object is in new space, we need to check whether it is on the same
+  // page as the current top.
+  add(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  eor(scratch_reg, scratch_reg, Operand(new_space_allocation_top));
+  tst(scratch_reg, Operand(~Page::kPageAlignmentMask));
+  b(eq, &top_check);
+  // The object is on a different page than allocation top. Bail out if the
+  // object sits on the page boundary as no memento can follow and we cannot
+  // touch the memory following it.
+  add(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  eor(scratch_reg, scratch_reg, Operand(receiver_reg));
+  tst(scratch_reg, Operand(~Page::kPageAlignmentMask));
+  b(ne, no_memento_found);
+  // Continue with the actual map check.
+  jmp(&map_check);
+  // If top is on the same page as the current object, we need to check whether
+  // we are below top.
+  bind(&top_check);
+  add(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  cmp(scratch_reg, Operand(new_space_allocation_top));
+  b(gt, no_memento_found);
+  // Memento map check.
+  bind(&map_check);
+  ldr(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
+  cmp(scratch_reg, Operand(isolate()->factory()->allocation_memento_map()));
+}
 
 Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg2,

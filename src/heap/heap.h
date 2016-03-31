@@ -878,10 +878,6 @@ class Heap {
   // Getters for spaces. =======================================================
   // ===========================================================================
 
-  // Return the starting address and a mask for the new space.  And-masking an
-  // address with the mask will result in the start address of the new space
-  // for all addresses in either semispace.
-  Address NewSpaceStart() { return new_space_.start(); }
   Address NewSpaceTop() { return new_space_.top(); }
 
   NewSpace* new_space() { return &new_space_; }

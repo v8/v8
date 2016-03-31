@@ -987,9 +987,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_regexp_stack_memory_size(
       Isolate* isolate);
 
-  // Static variable Heap::NewSpaceStart()
-  static ExternalReference new_space_start(Isolate* isolate);
-
   // Write barrier.
   static ExternalReference store_buffer_top(Isolate* isolate);
 

@@ -1335,8 +1335,6 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   }
   DCHECK(!from_space_.is_committed());  // No need to use memory yet.
 
-  start_ = chunk_base_;
-
   ResetAllocationInfo();
 
   return true;
@@ -1353,9 +1351,7 @@ void NewSpace::TearDown() {
     promoted_histogram_ = NULL;
   }
 
-  start_ = NULL;
   allocation_info_.Reset(nullptr, nullptr);
-
 
   to_space_.TearDown();
   from_space_.TearDown();

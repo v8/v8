@@ -4221,8 +4221,7 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
   Register temp = ToRegister(instr->temp());
   Label no_memento_found;
-  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found,
-                                     ne, &no_memento_found);
+  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found);
   DeoptimizeIf(al, instr);
   __ bind(&no_memento_found);
 }

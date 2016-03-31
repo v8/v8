@@ -2691,10 +2691,6 @@ class NewSpace : public Space {
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  // The start address of the space and a bit mask. Anding an address in the
-  // new space with the mask will result in the start address.
-  Address start() { return start_; }
-
   // The allocation top and limit address.
   Address* allocation_top_address() { return allocation_info_.top_address(); }
 
@@ -2817,9 +2813,6 @@ class NewSpace : public Space {
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
   int pages_used_;
-
-  // Start address and bit mask for containment testing.
-  Address start_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.

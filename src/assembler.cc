@@ -1403,12 +1403,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit(
   return ExternalReference(isolate->regexp_stack()->limit_address());
 }
 
-
-ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceStart());
-}
-
-
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
 }

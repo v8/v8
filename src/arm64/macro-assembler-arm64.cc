@@ -1556,24 +1556,38 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
                                                      Register scratch1,
                                                      Register scratch2,
                                                      Label* no_memento_found) {
-  ExternalReference new_space_start =
-      ExternalReference::new_space_start(isolate());
+  Label map_check;
+  Label top_check;
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
+  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
 
-  Add(scratch1, receiver,
-      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag);
-  Cmp(scratch1, new_space_start);
-  B(lt, no_memento_found);
-
-  Mov(scratch2, new_space_allocation_top);
-  Ldr(scratch2, MemOperand(scratch2));
-  Cmp(scratch1, scratch2);
+  // Bail out if the object is not in new space.
+  JumpIfNotInNewSpace(receiver, no_memento_found);
+  Add(scratch1, receiver, kMementoEndOffset);
+  // If the object is in new space, we need to check whether it is on the same
+  // page as the current top.
+  Eor(scratch2, scratch1, new_space_allocation_top);
+  Tst(scratch2, ~Page::kPageAlignmentMask);
+  B(eq, &top_check);
+  // The object is on a different page than allocation top. Bail out if the
+  // object sits on the page boundary as no memento can follow and we cannot
+  // touch the memory following it.
+  Eor(scratch2, scratch1, receiver);
+  Tst(scratch2, ~Page::kPageAlignmentMask);
+  B(ne, no_memento_found);
+  // Continue with the actual map check.
+  jmp(&map_check);
+  // If top is on the same page as the current object, we need to check whether
+  // we are below top.
+  bind(&top_check);
+  Cmp(scratch1, new_space_allocation_top);
   B(gt, no_memento_found);
-
-  Ldr(scratch1, MemOperand(scratch1, -AllocationMemento::kSize));
-  Cmp(scratch1,
-      Operand(isolate()->factory()->allocation_memento_map()));
+  // Memento map check.
+  bind(&map_check);
+  Ldr(scratch1, MemOperand(receiver, kMementoMapOffset));
+  Cmp(scratch1, Operand(isolate()->factory()->allocation_memento_map()));
 }
 
 
