@@ -459,7 +459,6 @@ function TestFloatHeapAccess(stdlib, foreign, buffer) {
     var j = 8;
     var v = 6.0;
 
-    // TODO(bradnelson): Add float32 when asm-wasm supports it.
     f64[2] = v + 1.0;
     f64[i >> 3] = +f64[2] + 1.0;
     f64[j >> 3] = +f64[j >> 3] + 1.0;
@@ -587,9 +586,6 @@ function TestModDouble() {
 assertWasm(28, TestModDouble);
 
 
-/*
-TODO: Fix parsing of negative doubles
-      Fix code to use trunc instead of casts
 function TestModDoubleNegative() {
   "use asm";
 
@@ -606,8 +602,6 @@ function TestModDoubleNegative() {
 }
 
 assertWasm(28, TestModDoubleNegative);
-*/
-
 
 (function () {
 function TestNamedFunctions() {
@@ -1325,7 +1319,7 @@ assertWasm(1, TestXor);
 
   var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
-});  // TODO(bradnelson): Enable when Math.fround implementation lands.
+})();
 
 
 (function TestDoubleToFloatAssignment() {

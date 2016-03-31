@@ -443,7 +443,6 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     return result;
   }
 
-  // TODO(titzer): remove me.
   Handle<Code> Compile() {
     InitializeDescriptor();
     CallDescriptor* desc = descriptor_;
@@ -463,7 +462,6 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     return result;
   }
 
-  // TODO(titzer): remove me.
   uint32_t CompileAndAdd(uint16_t sig_index = 0) {
     CHECK(testing_module_);
     function()->sig_index = sig_index;

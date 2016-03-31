@@ -2089,7 +2089,6 @@ TEST(Run_WasmCall_Float64Sub) {
   double* memory = module.AddMemoryElems<double>(16);
   WasmRunner<int32_t> r(&module);
 
-  // TODO(titzer): convert to a binop test.
   BUILD(r, WASM_BLOCK(
                2, WASM_STORE_MEM(
                       MachineType::Float64(), WASM_ZERO,
