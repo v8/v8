@@ -446,11 +446,12 @@ if (v8_use_external_startup_data) {
       ":js2c_extras",
     ]
 
+    # NOSORT
     sources = [
       "$target_gen_dir/libraries.bin",
       "$target_gen_dir/libraries_experimental.bin",
-      "$target_gen_dir/libraries_experimental_extras.bin",
       "$target_gen_dir/libraries_extras.bin",
+      "$target_gen_dir/libraries_experimental_extras.bin",
     ]
 
     outputs = [
