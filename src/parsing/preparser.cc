@@ -193,15 +193,17 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
       break;
-    case Token::IDENTIFIER: {
+    case Token::IDENTIFIER:
+    case Token::FUTURE_STRICT_RESERVED_WORD: {
       if (!scope_->typed()) break;
       int pos = peek_position();
       if (CheckContextualKeyword(CStrVector("type"))) {
         return ParseTypeAliasDeclaration(pos, ok);
+      } else if (CheckContextualKeyword(CStrVector("interface"))) {
+        return ParseInterfaceDeclaration(pos, ok);
       }
       break;
     }
-    // TODO(nikolaos): interface
     // TODO(nikolaos): ambient
     default:
       break;
