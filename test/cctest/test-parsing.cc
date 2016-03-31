@@ -7854,3 +7854,34 @@ TEST(TypedModeClassDeclarations) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeInterfaceDeclarations) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "interface I { f(x: number) : boolean }",
+    "interface J extends I { g(x: number) : boolean }",
+    "interface K extends I, J { h(x: number) : boolean }",
+    "interface I<A> {}",
+    "interface I<A, B> extends A, J<B> {}",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "interface I { x: () }",
+    "interface I { f(a: ()) }",
+    "interface I<> {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

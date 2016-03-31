@@ -865,8 +865,10 @@ class ParserBase : public Traits {
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
   typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
+  typename TypeSystem::Type ParseObjectType(bool* ok);
   typename TypeSystem::TypeMember ParseTypeMember(bool* ok);
   StatementT ParseTypeAliasDeclaration(int pos, bool* ok);
+  StatementT ParseInterfaceDeclaration(int pos, bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
                                          Scanner::Location location, bool* ok) {
@@ -3510,23 +3512,7 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       break;
     }
     case Token::LBRACE: {
-      Consume(Token::LBRACE);
-      typename TypeSystem::TypeMembers members = this->EmptyTypeMembers();
-      bool valid_type = true, valid_binder = true;
-      while (peek() != Token::RBRACE) {
-        typename TypeSystem::TypeMember type_member =
-            ParseTypeMember(CHECK_OK_TYPE);
-        members->Add(type_member, zone());
-        if (!type_member->IsValidType()) valid_type = false;
-        if (!type_member->IsValidBindingIdentifierOrPattern())
-          valid_binder = false;
-        if (peek() != Token::RBRACE && !Check(Token::COMMA)) {
-          ExpectSemicolon(CHECK_OK_TYPE);
-          valid_binder = false;  // Semicolons not allowed in valid binders.
-        }
-      }
-      Consume(Token::RBRACE);
-      type = factory()->NewObjectType(members, valid_type, valid_binder, pos);
+      type = ParseObjectType(CHECK_OK_TYPE);
       break;
     }
     case Token::TYPEOF: {
@@ -3600,6 +3586,29 @@ ParserBase<Traits>::ParsePropertyNameList(bool* ok) {
     property_names->Add(property_name, zone());
   } while (Check(Token::PERIOD));
   return property_names;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseObjectType(bool* ok) {
+  int pos = peek_position();
+  Expect(Token::LBRACE, CHECK_OK_TYPE);
+  typename TypeSystem::TypeMembers members = this->EmptyTypeMembers();
+  bool valid_type = true, valid_binder = true;
+  while (peek() != Token::RBRACE) {
+    typename TypeSystem::TypeMember type_member =
+        ParseTypeMember(CHECK_OK_TYPE);
+    members->Add(type_member, zone());
+    if (!type_member->IsValidType()) valid_type = false;
+    if (!type_member->IsValidBindingIdentifierOrPattern()) valid_binder = false;
+    if (peek() != Token::RBRACE && !Check(Token::COMMA)) {
+      ExpectSemicolon(CHECK_OK_TYPE);
+      valid_binder = false;  // Semicolons not allowed in valid binders.
+    }
+  }
+  Consume(Token::RBRACE);
+  return factory()->NewObjectType(members, valid_type, valid_binder, pos);
 }
 
 
@@ -3710,6 +3719,49 @@ ParserBase<Traits>::ParseTypeAliasDeclaration(int pos, bool* ok) {
   if (!*ok) return empty;
   USE(name);  // TODO(nikolaos): really use them!
   USE(type_parameters);
+  USE(type);
+  return empty;
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::StatementT
+ParserBase<Traits>::ParseInterfaceDeclaration(int pos, bool* ok) {
+  // InterfaceDeclaration ::
+  //   'interface' BindingIdentifier [ TypeParameters ]
+  //      [ InterfaceExtendsClause ] ObjectType ';'
+  // InterfaceExtendsClause ::
+  //   'extends' (TypeReference // ',')+
+  typename ParserBase<Traits>::StatementT empty =
+      factory()->NewEmptyStatement(pos);
+  IdentifierT name = ParseIdentifierName(ok);
+  if (!*ok) return empty;
+  // Parse optional type parameters.
+  typename TypeSystem::TypeParameters type_parameters =
+      this->NullTypeParameters();
+  if (peek() == Token::LT) {
+    type_parameters = ParseTypeParameters(ok);
+    if (!*ok) return empty;
+  }
+  // Parse optional extends clause.
+  typename TypeSystem::TypeList extends = this->NullTypeList();
+  if (Check(Token::EXTENDS)) {
+    extends = this->EmptyTypeList();
+    do {
+      typename TypeSystem::Type class_or_interface = ParseTypeReference(ok);
+      if (!*ok) return empty;
+      extends->Add(class_or_interface, zone());
+    } while (Check(Token::COMMA));
+  }
+  // Parse object type.
+  Scanner::Location type_location = scanner()->peek_location();
+  typename TypeSystem::Type type = ParseObjectType(ok);
+  if (!*ok) return empty;
+  type = ValidateType(type, type_location, ok);
+  if (!*ok) return empty;
+  USE(name);  // TODO(nikolaos): really use them!
+  USE(type_parameters);
+  USE(extends);
   USE(type);
   return empty;
 }
