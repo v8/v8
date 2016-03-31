@@ -3941,12 +3941,6 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 }
 
 
-void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  __ ld(v0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  context()->Plug(v0);
-}
-
-
 Register FullCodeGenerator::result_register() {
   return v0;
 }
@@ -3956,6 +3950,12 @@ Register FullCodeGenerator::context_register() {
   return cp;
 }
 
+void FullCodeGenerator::LoadFromFrameField(int frame_offset, Register value) {
+  // DCHECK_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
+  DCHECK(IsAligned(frame_offset, kPointerSize));
+  //  __ sw(value, MemOperand(fp, frame_offset));
+  __ ld(value, MemOperand(fp, frame_offset));
+}
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   // DCHECK_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);

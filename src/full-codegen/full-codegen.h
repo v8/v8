@@ -719,6 +719,9 @@ class FullCodeGenerator: public AstVisitor {
 
   static Register context_register();
 
+  // Get fields from the stack frame. Offsets are the frame pointer relative
+  // offsets defined in, e.g., StandardFrameConstants.
+  void LoadFromFrameField(int frame_offset, Register value);
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
   void StoreToFrameField(int frame_offset, Register value);

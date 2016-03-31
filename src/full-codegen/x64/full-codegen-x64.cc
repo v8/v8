@@ -3810,12 +3810,6 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 }
 
 
-void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  context()->Plug(rax);
-}
-
-
 Register FullCodeGenerator::result_register() {
   return rax;
 }
@@ -3825,6 +3819,10 @@ Register FullCodeGenerator::context_register() {
   return rsi;
 }
 
+void FullCodeGenerator::LoadFromFrameField(int frame_offset, Register value) {
+  DCHECK(IsAligned(frame_offset, kPointerSize));
+  __ movp(value, Operand(rbp, frame_offset));
+}
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   DCHECK(IsAligned(frame_offset, kPointerSize));

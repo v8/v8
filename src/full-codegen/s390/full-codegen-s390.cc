@@ -3815,15 +3815,14 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
   }
   context()->Plug(if_true, if_false);
 }
-
-void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  __ LoadP(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  context()->Plug(r2);
-}
-
 Register FullCodeGenerator::result_register() { return r2; }
 
 Register FullCodeGenerator::context_register() { return cp; }
+
+void FullCodeGenerator::LoadFromFrameField(int frame_offset, Register value) {
+  DCHECK_EQ(static_cast<int>(POINTER_SIZE_ALIGN(frame_offset)), frame_offset);
+  __ LoadP(value, MemOperand(fp, frame_offset));
+}
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   DCHECK_EQ(static_cast<int>(POINTER_SIZE_ALIGN(frame_offset)), frame_offset);
