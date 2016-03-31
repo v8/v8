@@ -396,10 +396,16 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  PrototypeIterator iter(obj->GetIsolate(), obj);
   os << "\n - map = " << reinterpret_cast<void*>(obj->map()) << " ["
-     << ElementsKindToString(obj->map()->elements_kind())
-     << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
+     << ElementsKindToString(obj->map()->elements_kind());
+  if (obj->elements()->map() == obj->GetHeap()->fixed_cow_array_map()) {
+    os << " (COW)";
+  }
+  PrototypeIterator iter(obj->GetIsolate(), obj);
+  os << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
+  if (obj->elements()->length() > 0) {
+    os << "\n - elements = " << Brief(obj->elements());
+  }
 }
 
 
