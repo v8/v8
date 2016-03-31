@@ -915,7 +915,6 @@
         '../../src/heap/spaces-inl.h',
         '../../src/heap/spaces.cc',
         '../../src/heap/spaces.h',
-        '../../src/heap/store-buffer-inl.h',
         '../../src/heap/store-buffer.cc',
         '../../src/heap/store-buffer.h',
         '../../src/i18n.cc',

@@ -150,8 +150,7 @@ void StartupSerializer::VisitPointers(Object** start, Object** end) {
 }
 
 bool StartupSerializer::RootShouldBeSkipped(int root_index) {
-  if (root_index == Heap::kStoreBufferTopRootIndex ||
-      root_index == Heap::kStackLimitRootIndex ||
+  if (root_index == Heap::kStackLimitRootIndex ||
       root_index == Heap::kRealStackLimitRootIndex) {
     return true;
   }

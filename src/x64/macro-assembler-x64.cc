@@ -215,13 +215,15 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
     bind(&ok);
   }
   // Load store buffer top.
-  LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
+  ExternalReference store_buffer =
+      ExternalReference::store_buffer_top(isolate());
+  movp(scratch, ExternalOperand(store_buffer));
   // Store pointer to buffer.
   movp(Operand(scratch, 0), addr);
   // Increment buffer top.
   addp(scratch, Immediate(kPointerSize));
   // Write back new top of buffer.
-  StoreRoot(scratch, Heap::kStoreBufferTopRootIndex);
+  movp(ExternalOperand(store_buffer), scratch);
   // Call stub on end of buffer.
   Label done;
   // Check for end of buffer.

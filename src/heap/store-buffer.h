@@ -18,19 +18,25 @@ namespace internal {
 // code. On buffer overflow the slots are moved to the remembered set.
 class StoreBuffer {
  public:
-  explicit StoreBuffer(Heap* heap);
-  static void StoreBufferOverflow(Isolate* isolate);
-  void SetUp();
-  void TearDown();
-
   static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
+
+  static void StoreBufferOverflow(Isolate* isolate);
+
+  explicit StoreBuffer(Heap* heap);
+  void SetUp();
+  void TearDown();
+
+  // Used to add entries from generated code.
+  inline Address* top_address() { return reinterpret_cast<Address*>(&top_); }
 
   void MoveEntriesToRememberedSet();
 
  private:
   Heap* heap_;
+
+  Address* top_;
 
   // The start and the limit of the buffer that contains store slots
   // added from the generated code.

@@ -8,7 +8,6 @@
 
 #include "src/counters.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
@@ -17,7 +16,11 @@ namespace v8 {
 namespace internal {
 
 StoreBuffer::StoreBuffer(Heap* heap)
-    : heap_(heap), start_(nullptr), limit_(nullptr), virtual_memory_(nullptr) {}
+    : heap_(heap),
+      top_(nullptr),
+      start_(nullptr),
+      limit_(nullptr),
+      virtual_memory_(nullptr) {}
 
 void StoreBuffer::SetUp() {
   // Allocate 3x the buffer size, so that we can start the new store buffer
@@ -47,14 +50,13 @@ void StoreBuffer::SetUp() {
                                false)) {  // Not executable.
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
-  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
+  top_ = start_;
 }
 
 
 void StoreBuffer::TearDown() {
   delete virtual_memory_;
-  start_ = limit_ = NULL;
-  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
+  top_ = start_ = limit_ = nullptr;
 }
 
 
@@ -64,16 +66,15 @@ void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
 }
 
 void StoreBuffer::MoveEntriesToRememberedSet() {
-  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
-  if (top == start_) return;
-  DCHECK(top <= limit_);
-  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
-  for (Address* current = start_; current < top; current++) {
+  if (top_ == start_) return;
+  DCHECK(top_ <= limit_);
+  for (Address* current = start_; current < top_; current++) {
     DCHECK(!heap_->code_space()->Contains(*current));
     Address addr = *current;
     Page* page = Page::FromAnyPointerAddress(heap_, addr);
     RememberedSet<OLD_TO_NEW>::Insert(page, addr);
   }
+  top_ = start_;
 }
 
 }  // namespace internal

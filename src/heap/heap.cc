@@ -2934,7 +2934,6 @@ void Heap::CreateInitialObjects() {
 
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
   switch (root_index) {
-    case kStoreBufferTopRootIndex:
     case kNumberStringCacheRootIndex:
     case kInstanceofCacheFunctionRootIndex:
     case kInstanceofCacheMapRootIndex:
