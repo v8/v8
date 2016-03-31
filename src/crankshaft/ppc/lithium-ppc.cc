@@ -2239,9 +2239,10 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
 LInstruction* LChunkBuilder::DoTrapAllocationMemento(
     HTrapAllocationMemento* instr) {
   LOperand* object = UseRegister(instr->object());
-  LOperand* temp = TempRegister();
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
   LTrapAllocationMemento* result =
-      new (zone()) LTrapAllocationMemento(object, temp);
+      new (zone()) LTrapAllocationMemento(object, temp1, temp2);
   return AssignEnvironment(result);
 }
 

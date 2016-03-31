@@ -1509,13 +1509,15 @@ class MacroAssembler : public Assembler {
   // If allocation info is present, condition flags are set to eq.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
                                        Register scratch_reg,
+                                       Register scratch2_reg,
                                        Label* no_memento_found);
 
   void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
                                          Register scratch_reg,
+                                         Register scratch2_reg,
                                          Label* memento_found) {
     Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg, scratch2_reg,
                                     &no_memento_found);
     beq(memento_found);
     bind(&no_memento_found);
