@@ -8,6 +8,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
@@ -550,6 +551,114 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
+    case IrOpcode::kWord64Ror: {
+      DCHECK(node->InputCount() == 2);
+      Node* input = node->InputAt(0);
+      Node* shift = HasReplacementLow(node->InputAt(1))
+                        ? GetReplacementLow(node->InputAt(1))
+                        : node->InputAt(1);
+      Int32Matcher m(shift);
+      if (m.HasValue()) {
+        // Precondition: 0 <= shift < 64.
+        int32_t shift_value = m.Value() & 0x3f;
+        if (shift_value == 0) {
+          ReplaceNode(node, GetReplacementLow(input),
+                      GetReplacementHigh(input));
+        } else if (shift_value == 32) {
+          ReplaceNode(node, GetReplacementHigh(input),
+                      GetReplacementLow(input));
+        } else {
+          Node* low_input;
+          Node* high_input;
+          if (shift_value < 32) {
+            low_input = GetReplacementLow(input);
+            high_input = GetReplacementHigh(input);
+          } else {
+            low_input = GetReplacementHigh(input);
+            high_input = GetReplacementLow(input);
+          }
+          int32_t masked_shift_value = shift_value & 0x1f;
+          Node* masked_shift =
+              graph()->NewNode(common()->Int32Constant(masked_shift_value));
+          Node* inv_shift = graph()->NewNode(
+              common()->Int32Constant(32 - masked_shift_value));
+
+          Node* low_node = graph()->NewNode(
+              machine()->Word32Or(),
+              graph()->NewNode(machine()->Word32Shr(), low_input, masked_shift),
+              graph()->NewNode(machine()->Word32Shl(), high_input, inv_shift));
+          Node* high_node = graph()->NewNode(
+              machine()->Word32Or(), graph()->NewNode(machine()->Word32Shr(),
+                                                      high_input, masked_shift),
+              graph()->NewNode(machine()->Word32Shl(), low_input, inv_shift));
+          ReplaceNode(node, low_node, high_node);
+        }
+      } else {
+        Node* safe_shift = shift;
+        if (!machine()->Word32ShiftIsSafe()) {
+          safe_shift =
+              graph()->NewNode(machine()->Word32And(), shift,
+                               graph()->NewNode(common()->Int32Constant(0x1f)));
+        }
+
+        // By creating this bit-mask with SAR and SHL we do not have to deal
+        // with shift == 0 as a special case.
+        Node* inv_mask = graph()->NewNode(
+            machine()->Word32Shl(),
+            graph()->NewNode(machine()->Word32Sar(),
+                             graph()->NewNode(common()->Int32Constant(
+                                 std::numeric_limits<int32_t>::min())),
+                             safe_shift),
+            graph()->NewNode(common()->Int32Constant(1)));
+
+        Node* bit_mask =
+            graph()->NewNode(machine()->Word32Xor(), inv_mask,
+                             graph()->NewNode(common()->Int32Constant(-1)));
+
+        // We have to mask the shift value for this comparison. If
+        // !machine()->Word32ShiftIsSafe() then the masking should already be
+        // part of the graph.
+        Node* masked_shift6 = shift;
+        if (machine()->Word32ShiftIsSafe()) {
+          masked_shift6 =
+              graph()->NewNode(machine()->Word32And(), shift,
+                               graph()->NewNode(common()->Int32Constant(0x3f)));
+        }
+
+        Diamond lt32(
+            graph(), common(),
+            graph()->NewNode(machine()->Int32LessThan(), masked_shift6,
+                             graph()->NewNode(common()->Int32Constant(32))));
+
+        // The low word and the high word can be swapped either at the input or
+        // at the output. We swap the inputs so that shift does not have to be
+        // kept for so long in a register.
+        Node* input_low =
+            lt32.Phi(MachineRepresentation::kWord32, GetReplacementLow(input),
+                     GetReplacementHigh(input));
+        Node* input_high =
+            lt32.Phi(MachineRepresentation::kWord32, GetReplacementHigh(input),
+                     GetReplacementLow(input));
+
+        Node* rotate_low =
+            graph()->NewNode(machine()->Word32Ror(), input_low, safe_shift);
+        Node* rotate_high =
+            graph()->NewNode(machine()->Word32Ror(), input_high, safe_shift);
+
+        Node* low_node = graph()->NewNode(
+            machine()->Word32Or(),
+            graph()->NewNode(machine()->Word32And(), rotate_low, bit_mask),
+            graph()->NewNode(machine()->Word32And(), rotate_high, inv_mask));
+
+        Node* high_node = graph()->NewNode(
+            machine()->Word32Or(),
+            graph()->NewNode(machine()->Word32And(), rotate_high, bit_mask),
+            graph()->NewNode(machine()->Word32And(), rotate_low, inv_mask));
+
+        ReplaceNode(node, low_node, high_node);
+      }
+      break;
+    }
     // kExprI64Clz:
     case IrOpcode::kWord64Clz: {
       DCHECK(node->InputCount() == 1);
@@ -624,7 +733,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
     default: { DefaultLowering(node); }
   }
-}
+}  // NOLINT(readability/fn_size)
 
 void Int64Lowering::LowerComparison(Node* node, const Operator* high_word_op,
                                     const Operator* low_word_op) {

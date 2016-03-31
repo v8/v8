@@ -549,19 +549,12 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Uint64LessThanOrEqual();
       std::swap(left, right);
       break;
-
-#if WASM_64
-    // Opcodes only supported on 64-bit platforms.
-    // TODO(titzer): query the machine operator builder here instead of #ifdef.
     case wasm::kExprI64Ror:
       op = m->Word64Ror();
       right = MaskShiftCount64(right);
       break;
     case wasm::kExprI64Rol:
-      right = MaskShiftCount64(right);
       return BuildI64Rol(left, right);
-#endif
-
     case wasm::kExprF32CopySign:
       return BuildF32CopySign(left, right);
     case wasm::kExprF64CopySign:

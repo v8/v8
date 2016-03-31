@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/base/bits.h"
 #include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
@@ -85,8 +86,8 @@
   V(F64UConvertI64, true)       \
   V(F64ReinterpretI64, true)    \
   V(I64ReinterpretF64, true)    \
-  V(I64Ror, false)              \
-  V(I64Rol, false)
+  V(I64Ror, true)               \
+  V(I64Rol, true)
 
 #define DECLARE_CONST(name, cond) static const bool kSupported_##name = cond;
 FOREACH_I64_OPERATOR(DECLARE_CONST)
@@ -317,11 +318,13 @@ TEST(Run_Wasm_I64Xor) {
 TEST(Run_Wasm_I64Shl) {
   REQUIRE(I64Shl);
   {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+    WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
     BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
     FOR_UINT64_INPUTS(i) {
-      for (int64_t j = 1; j < 64; j++) {
-        CHECK_EQ(*i << j, r.Call(*i, j));
+      FOR_UINT64_INPUTS(j) {
+        uint64_t expected = (*i) << (*j & 0x3f);
+        CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
   }
@@ -350,11 +353,13 @@ TEST(Run_Wasm_I64Shl) {
 TEST(Run_Wasm_I64ShrU) {
   REQUIRE(I64ShrU);
   {
-    WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+    WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
     BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
     FOR_UINT64_INPUTS(i) {
-      for (int64_t j = 1; j < 64; j++) {
-        CHECK_EQ(*i >> j, r.Call(*i, j));
+      FOR_UINT64_INPUTS(j) {
+        uint64_t expected = (*i) >> (*j & 0x3f);
+        CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
   }
@@ -385,9 +390,11 @@ TEST(Run_Wasm_I64ShrS) {
   {
     WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
     BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
     FOR_INT64_INPUTS(i) {
-      for (int64_t j = 1; j < 64; j++) {
-        CHECK_EQ(*i >> j, r.Call(*i, j));
+      FOR_INT64_INPUTS(j) {
+        int64_t expected = (*i) >> (*j & 0x3f);
+        CHECK_EQ(expected, r.Call(*i, *j));
       }
     }
   }
@@ -1314,7 +1321,7 @@ TEST(Run_Wasm_I64Global) {
   }
 }
 
-TEST(Run_WasmI64Eqz) {
+TEST(Run_Wasm_I64Eqz) {
   REQUIRE(I64Eq);
 
   WasmRunner<int32_t> r(MachineType::Int64());
@@ -1326,40 +1333,27 @@ TEST(Run_WasmI64Eqz) {
   }
 }
 
-TEST(Run_WasmI64Shl) {
-  REQUIRE(I64Shl);
-  WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
-  BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) {
-      uint64_t expected = (*i) << (*j & 0x3f);
-      CHECK_EQ(expected, r.Call(*i, *j));
-    }
-  }
-}
-
-TEST(Run_WasmI64Shr) {
-  REQUIRE(I64ShrU);
-  WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
-  BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-
-  FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) {
-      uint64_t expected = (*i) >> (*j & 0x3f);
-      CHECK_EQ(expected, r.Call(*i, *j));
-    }
-  }
-}
-
-TEST(Run_WasmI64Sar) {
-  REQUIRE(I64ShrS);
+TEST(Run_Wasm_I64Ror) {
+  REQUIRE(I64Ror);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  BUILD(r, WASM_I64_ROR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
-  FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) {
-      int64_t expected = (*i) >> (*j & 0x3f);
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      int64_t expected = bits::RotateRight64(*i, *j & 0x3f);
+      CHECK_EQ(expected, r.Call(*i, *j));
+    }
+  }
+}
+
+TEST(Run_Wasm_I64Rol) {
+  REQUIRE(I64Rol);
+  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_ROL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) {
+      int64_t expected = bits::RotateRight64(*i, 64 - (*j & 0x3f));
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
