@@ -39,7 +39,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       allocated_(0),
       write_barriers_invoked_since_last_step_(0),
       idle_marking_delay_counter_(0),
-      no_marking_scope_depth_(0),
       unscanned_bytes_of_large_object_(0),
       was_activated_(false),
       black_allocation_(false),
@@ -1150,8 +1149,6 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
       heap_->RecentIdleNotificationHappened()) {
     return 0;
   }
-
-  if (state_ == MARKING && no_marking_scope_depth_ > 0) return 0;
 
   intptr_t bytes_processed = 0;
   {

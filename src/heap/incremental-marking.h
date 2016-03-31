@@ -194,10 +194,6 @@ class IncrementalMarking {
 
   void NotifyOfHighPromotionRate();
 
-  void EnterNoMarkingScope() { no_marking_scope_depth_++; }
-
-  void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
-
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
   }
@@ -290,8 +286,6 @@ class IncrementalMarking {
   intptr_t allocated_;
   intptr_t write_barriers_invoked_since_last_step_;
   size_t idle_marking_delay_counter_;
-
-  int no_marking_scope_depth_;
 
   int unscanned_bytes_of_large_object_;
 
