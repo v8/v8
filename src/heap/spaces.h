@@ -478,6 +478,8 @@ class MemoryChunk {
 
   static const intptr_t kSizeOffset = 0;
 
+  static const intptr_t kFlagsOffset = kSizeOffset + kPointerSize;
+
   static const intptr_t kLiveBytesOffset =
       kSizeOffset + kPointerSize  // size_t size
       + kIntptrSize               // intptr_t flags_
@@ -524,8 +526,6 @@ class MemoryChunk {
   static const int kObjectStartOffset =
       kBodyOffset - 1 +
       (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
-
-  static const int kFlagsOffset = kPointerSize;
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
