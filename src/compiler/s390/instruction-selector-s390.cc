@@ -1006,6 +1006,10 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kS390_DoubleToUint32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kS390_DoubleToUint32, node);
+}
+
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   VisitTryTruncateDouble(this, kS390_Float32ToInt64, node);
