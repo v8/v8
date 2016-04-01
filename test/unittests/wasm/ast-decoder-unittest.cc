@@ -80,7 +80,8 @@ class AstDecoderTest : public TestWithZone {
               const byte* end) {
     local_decls.Prepend(&start, &end);
     // Verify the code.
-    TreeResult result = VerifyWasmCode(module, sig, start, end);
+    TreeResult result =
+        VerifyWasmCode(zone()->allocator(), module, sig, start, end);
 
     if (result.error_code != expected) {
       ptrdiff_t pc = result.error_pc - result.start;
@@ -2211,7 +2212,9 @@ class LocalDeclDecoderTest : public TestWithZone {
 
 TEST_F(LocalDeclDecoderTest, NoLocals) {
   static const byte data[] = {0};
-  LocalTypeMap map = DecodeLocalDeclsForTesting(data, data + sizeof(data));
+  base::AccountingAllocator allocator;
+  LocalTypeMap map =
+      DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
   EXPECT_EQ(0, map->size());
   if (map) delete map;
 }
@@ -2221,7 +2224,9 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
     LocalType type = kLocalTypes[i];
     const byte data[] = {
         1, 1, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
-    LocalTypeMap map = DecodeLocalDeclsForTesting(data, data + sizeof(data));
+    base::AccountingAllocator allocator;
+    LocalTypeMap map =
+        DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
     EXPECT_EQ(1, map->size());
     EXPECT_EQ(type, map->at(0));
     if (map) delete map;
@@ -2233,7 +2238,9 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
     LocalType type = kLocalTypes[i];
     const byte data[] = {
         1, 5, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
-    LocalTypeMap map = DecodeLocalDeclsForTesting(data, data + sizeof(data));
+    base::AccountingAllocator allocator;
+    LocalTypeMap map =
+        DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
     EXPECT_EQ(5, map->size());
     ExpectRun(map, 0, type, 5);
     if (map) delete map;
@@ -2247,8 +2254,9 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
         for (byte d = 0; d < 3; d++) {
           const byte data[] = {4, a,         kLocalI32, b,        kLocalI64,
                                c, kLocalF32, d,         kLocalF64};
+          base::AccountingAllocator allocator;
           LocalTypeMap map =
-              DecodeLocalDeclsForTesting(data, data + sizeof(data));
+              DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
           EXPECT_EQ(a + b + c + d, map->size());
 
           size_t pos = 0;
@@ -2274,7 +2282,8 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.AddLocals(212, kAstI64);
   local_decls.Prepend(&data, &end);
 
-  LocalTypeMap map = DecodeLocalDeclsForTesting(data, end);
+  base::AccountingAllocator allocator;
+  LocalTypeMap map = DecodeLocalDeclsForTesting(&allocator, data, end);
   size_t pos = 0;
   pos = ExpectRun(map, pos, kAstF32, 5);
   pos = ExpectRun(map, pos, kAstI32, 1337);

@@ -2523,7 +2523,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone;
+  Zone zone(isolate->allocator());
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   JSOperatorBuilder javascript(&zone);
@@ -2615,7 +2615,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone;
+  Zone zone(isolate->allocator());
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   JSOperatorBuilder javascript(&zone);
@@ -2709,7 +2709,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   }
 
   // Create a TF graph during decoding.
-  Zone zone;
+  Zone zone(isolate->allocator());
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   MachineOperatorBuilder machine(
@@ -2721,7 +2721,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
       module_env, function.sig, module_env->module->module_start,
       module_env->module->module_start + function.code_start_offset,
       module_env->module->module_start + function.code_end_offset};
-  wasm::TreeResult result = wasm::BuildTFGraph(&builder, body);
+  wasm::TreeResult result =
+      wasm::BuildTFGraph(isolate->allocator(), &builder, body);
 
   if (result.failed()) {
     if (FLAG_trace_wasm_compiler) {
@@ -2740,7 +2741,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 
   int index = static_cast<int>(function.func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
-    PrintAst(body);
+    PrintAst(isolate->allocator(), body);
   }
 
   if (FLAG_trace_wasm_decode_time) {

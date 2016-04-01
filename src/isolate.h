@@ -11,6 +11,7 @@
 #include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
+#include "src/base/accounting-allocator.h"
 #include "src/base/atomicops.h"
 #include "src/builtins.h"
 #include "src/cancelable-task.h"
@@ -26,8 +27,8 @@
 #include "src/messages.h"
 #include "src/optimizing-compile-dispatcher.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
+#include "src/runtime/runtime.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -1118,6 +1119,8 @@ class Isolate {
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
+  base::AccountingAllocator* allocator() { return &allocator_; }
+
  protected:
   explicit Isolate(bool enable_serializer);
 
@@ -1258,6 +1261,7 @@ class Isolate {
   HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
+  base::AccountingAllocator allocator_;
   Zone runtime_zone_;
   Zone interface_descriptor_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;

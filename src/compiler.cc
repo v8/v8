@@ -85,7 +85,8 @@ class CompilationHandleScope BASE_EMBEDDED {
 class CompilationInfoWithZone : public CompilationInfo {
  public:
   explicit CompilationInfoWithZone(Handle<JSFunction> function)
-      : CompilationInfo(new ParseInfo(&zone_, function)) {}
+      : CompilationInfo(new ParseInfo(&zone_, function)),
+        zone_(function->GetIsolate()->allocator()) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
   // zone scope and get rid of dependent maps even when the destructor is
@@ -1175,7 +1176,7 @@ bool CompileEvalForDebugging(Handle<JSFunction> function,
   Handle<Script> script(Script::cast(shared->script()));
   Handle<Context> context(function->context());
 
-  Zone zone;
+  Zone zone(function->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
   Isolate* isolate = info.isolate();
@@ -1430,7 +1431,7 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->allows_lazy_compilation_without_context());
   DCHECK(!IsEvalToplevel(shared));
-  Zone zone;
+  Zone zone(shared->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info);
   return CompileForDebugging(&info);
@@ -1483,7 +1484,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 
 void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
-  Zone zone;
+  Zone zone(script->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
   PostponeInterruptsScope postpone(info.isolate());
@@ -1530,7 +1531,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       script->set_column_offset(column_offset);
     }
     script->set_origin_options(options);
-    Zone zone;
+    Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info);
     parse_info.set_eval();
@@ -1654,7 +1655,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     // Compile the function and add it to the cache.
-    Zone zone;
+    Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info);
     if (is_module) {
@@ -1758,7 +1759,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     result->set_is_toplevel(false);
   }
 
-  Zone zone;
+  Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
   parse_info.set_literal(literal);

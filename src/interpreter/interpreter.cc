@@ -30,7 +30,7 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
 void Interpreter::Initialize() {
   DCHECK(FLAG_ignition);
   if (IsDispatchTableInitialized()) return;
-  Zone zone;
+  Zone zone(isolate_->allocator());
   HandleScope scope(isolate_);
 
   // Generate bytecode handlers for all bytecodes and scales.

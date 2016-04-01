@@ -578,7 +578,7 @@ TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
@@ -631,7 +631,7 @@ TEST(InterpreterLoadKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
@@ -673,7 +673,7 @@ TEST(InterpreterStoreNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
@@ -732,7 +732,7 @@ TEST(InterpreterStoreKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
@@ -779,7 +779,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();

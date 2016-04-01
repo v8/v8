@@ -40,7 +40,7 @@ struct Tests {
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
         scope(isolate),
-        zone(),
+        zone(isolate->allocator()),
         T(&zone, isolate, isolate->random_number_generator()) {}
 
   bool IsBitset(Type* type) { return type->IsBitsetForTesting(); }

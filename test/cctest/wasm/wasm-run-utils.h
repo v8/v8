@@ -221,7 +221,8 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig, const byte* start,
                               const byte* end) {
   compiler::WasmGraphBuilder builder(zone, jsgraph, sig);
-  TreeResult result = BuildTFGraph(&builder, module, sig, start, end);
+  TreeResult result =
+      BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
     ptrdiff_t pc = result.error_pc - result.start;
     ptrdiff_t pt = result.error_pt - result.start;
@@ -485,8 +486,8 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : compiled_(false),
-
+      : zone(&allocator_),
+        compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
         compiler_(&signature_, nullptr) {
@@ -497,7 +498,8 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : compiled_(false),
+      : zone(&allocator_),
+        compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
         compiler_(&signature_, module) {
@@ -577,6 +579,7 @@ class WasmRunner {
   byte AllocateLocal(LocalType type) { return compiler_.AllocateLocal(type); }
 
  protected:
+  v8::base::AccountingAllocator allocator_;
   Zone zone;
   bool compiled_;
   LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];

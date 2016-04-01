@@ -574,7 +574,7 @@ static void TestGeneralizeRepresentation(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
@@ -966,7 +966,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());
@@ -1051,7 +1051,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone;
+  Zone zone(isolate->allocator());
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationInfo info("testing", isolate, &zone);
   CHECK(!info.dependencies()->HasAborted());

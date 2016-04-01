@@ -52,7 +52,8 @@ class EncoderTest : public TestWithZone {
 
 
 TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -90,7 +91,8 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
 
 
 TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -109,7 +111,8 @@ TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
 }
 
 TEST_F(EncoderTest, Function_Builder_Block_Variable_Width) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -123,7 +126,8 @@ TEST_F(EncoderTest, Function_Builder_Block_Variable_Width) {
 }
 
 TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
@@ -139,7 +143,8 @@ TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate) {
 }
 
 TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate_Locals) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);

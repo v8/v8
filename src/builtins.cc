@@ -4579,7 +4579,7 @@ Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
 
 Handle<Code> CodeStubAssemblerBuilder(Isolate* isolate,
                                       BuiltinDesc const* builtin_desc) {
-  Zone zone;
+  Zone zone(isolate->allocator());
   compiler::CodeStubAssembler assembler(isolate, &zone, builtin_desc->argc,
                                         builtin_desc->flags,
                                         builtin_desc->s_name);

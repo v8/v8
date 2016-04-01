@@ -589,7 +589,7 @@ compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, bool asm_js) {
   HandleScope scope(isolate);
-  Zone zone;
+  Zone zone(isolate->allocator());
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
   ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,

@@ -153,7 +153,7 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -171,7 +171,7 @@ TEST(ScanHTMLEndComments) {
     i::CompleteParserRecorder log;
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -332,7 +332,7 @@ TEST(StandAlonePreParser) {
     i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
     scanner.Initialize(&stream);
 
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -369,7 +369,7 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize(&stream);
 
     // Preparser defaults to disallowing natives syntax.
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -438,7 +438,7 @@ TEST(RegressChromium62639) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -473,7 +473,7 @@ TEST(Regress928) {
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -526,7 +526,7 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(&stream);
 
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -843,7 +843,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::AstValueFactory ast_value_factory(&zone,
                                        CcTest::i_isolate()->heap()->HashSeed());
   ast_value_factory.Internalize(CcTest::i_isolate());
@@ -1067,7 +1067,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
           factory->NewStringFromUtf8(i::CStrVector(program.start()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone;
+      i::Zone zone(CcTest::i_isolate()->allocator());
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
       parser.set_allow_harmony_sloppy(true);
@@ -1385,7 +1385,7 @@ TEST(ScopePositions) {
         i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     parser.set_allow_lazy(true);
@@ -1434,7 +1434,7 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::String> source_code =
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::ParseInfo info(&zone, script);
     info.set_allow_lazy_parsing();
     i::Parser parser(&info);
@@ -1556,7 +1556,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, &ast_value_factory, &log,
@@ -1573,7 +1573,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::FunctionLiteral* function;
   {
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     SetParserFlags(&parser, flags);
@@ -2662,7 +2662,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::ParseInfo info(&zone, script);
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
@@ -3288,7 +3288,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3338,7 +3338,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
   source->PrintOn(stdout);
   printf("\n");
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
@@ -3482,7 +3482,7 @@ TEST(InnerAssignment) {
           printf("\n");
 
           i::Handle<i::Script> script = factory->NewScript(source);
-          i::Zone zone;
+          i::Zone zone(CcTest::i_isolate()->allocator());
           i::ParseInfo info(&zone, script);
           i::Parser parser(&info);
           CHECK(parser.Parse(&info));
@@ -5627,7 +5627,7 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone;
+      i::Zone zone(CcTest::i_isolate()->allocator());
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
       info.set_module();
@@ -5652,7 +5652,7 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone;
+      i::Zone zone(CcTest::i_isolate()->allocator());
       i::ParseInfo info(&zone, script);
       i::Parser parser(&info);
       info.set_global();
@@ -5742,7 +5742,7 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone;
+    i::Zone zone(CcTest::i_isolate()->allocator());
     i::ParseInfo info(&zone, script);
     i::Parser parser(&info);
     info.set_module();
@@ -5770,7 +5770,7 @@ TEST(ModuleParsingInternals) {
       "import 'q.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::ParseInfo info(&zone, script);
   i::Parser parser(&info);
   info.set_module();
@@ -5883,7 +5883,7 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::Zone zone;
+  i::Zone zone(CcTest::i_isolate()->allocator());
   i::ParseInfo info(&zone, script);
   i::Parser parser(&info);
   info.set_global();

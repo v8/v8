@@ -1626,23 +1626,25 @@ class SR_WasmDecoder : public WasmDecoder {
   }
 };
 
-std::vector<LocalType>* DecodeLocalDeclsForTesting(const byte* start,
-                                                   const byte* end) {
-  Zone zone;
+std::vector<LocalType>* DecodeLocalDeclsForTesting(
+    base::AccountingAllocator* allocator, const byte* start, const byte* end) {
+  Zone zone(allocator);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
   SR_WasmDecoder decoder(&zone, nullptr, body);
   return decoder.DecodeLocalDeclsForTesting();
 }
 
-TreeResult VerifyWasmCode(FunctionBody& body) {
-  Zone zone;
+TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+                          FunctionBody& body) {
+  Zone zone(allocator);
   SR_WasmDecoder decoder(&zone, nullptr, body);
   TreeResult result = decoder.Decode();
   return result;
 }
 
-TreeResult BuildTFGraph(TFBuilder* builder, FunctionBody& body) {
-  Zone zone;
+TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
+                        TFBuilder* builder, FunctionBody& body) {
+  Zone zone(allocator);
   SR_WasmDecoder decoder(&zone, builder, body);
   TreeResult result = decoder.Decode();
   return result;
@@ -1686,8 +1688,8 @@ int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
   return decoder.OpcodeArity(pc);
 }
 
-void PrintAst(FunctionBody& body) {
-  Zone zone;
+void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
+  Zone zone(allocator);
   SR_WasmDecoder decoder(&zone, nullptr, body);
 
   OFStream os(stdout);

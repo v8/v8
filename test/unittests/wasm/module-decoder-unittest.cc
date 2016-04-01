@@ -779,7 +779,8 @@ class WasmSignatureDecodeTest : public TestWithZone {};
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {0, 0};
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   FunctionSig* sig =
       DecodeWasmSignatureForTesting(&zone, data, data + arraysize(data));
 

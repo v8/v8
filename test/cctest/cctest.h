@@ -585,12 +585,13 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() {}
+  HandleAndZoneScope() : main_zone_(&allocator_) {}
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Zone* main_zone() { return &main_zone_; }
 
  private:
+  v8::base::AccountingAllocator allocator_;
   i::Zone main_zone_;
 };
 

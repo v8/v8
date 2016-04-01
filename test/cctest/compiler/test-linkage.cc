@@ -96,7 +96,7 @@ TEST(TestLinkageRuntimeCall) {
 
 TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone;
+  Zone zone(isolate->allocator());
   ToNumberStub stub(isolate);
   CompilationInfo info("test", isolate, &zone, Code::ComputeFlags(Code::STUB));
   CallInterfaceDescriptor interface_descriptor =

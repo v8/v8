@@ -1714,8 +1714,8 @@ TEST(Run_Wasm_Infinite_Loop_not_taken2_brif) {
 static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   if (!WasmOpcodes::IsSupported(opcode)) return;
 
-  Zone zone;
   Isolate* isolate = CcTest::InitIsolateOnce();
+  Zone zone(isolate->allocator());
   HandleScope scope(isolate);
   // Enable all optional operators.
   CommonOperatorBuilder common(&zone);
@@ -2141,7 +2141,8 @@ static void Run_WasmMixedCall_N(int start) {
 
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; which++) {
-    Zone zone;
+    v8::base::AccountingAllocator allocator;
+    Zone zone(&allocator);
     TestingModule module;
     module.AddMemory(1024);
     MachineType* memtypes = &mixed[start];
@@ -2780,7 +2781,8 @@ void CompileCallIndirectMany(LocalType param) {
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    Zone zone;
+    v8::base::AccountingAllocator allocator;
+    Zone zone(&allocator);
     HandleScope scope(CcTest::InitIsolateOnce());
     TestingModule module;
     FunctionSig* sig = sigs.many(&zone, kAstStmt, param, num_params);

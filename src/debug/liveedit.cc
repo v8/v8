@@ -1700,7 +1700,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
                                                      TARGET& target,  // NOLINT
                                                      bool do_drop) {
   Debug* debug = isolate->debug();
-  Zone zone;
+  Zone zone(isolate->allocator());
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 

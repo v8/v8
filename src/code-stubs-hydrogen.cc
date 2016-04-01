@@ -297,7 +297,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }
-  Zone zone;
+  Zone zone(isolate->allocator());
   CompilationInfo info(CodeStub::MajorName(stub->MajorKey()), isolate, &zone,
                        stub->GetCodeFlags());
   // Parameter count is number of stack parameters.

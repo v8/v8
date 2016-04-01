@@ -412,7 +412,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
-  Zone zone;
+  Zone zone(info_->isolate()->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();

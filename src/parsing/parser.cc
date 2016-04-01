@@ -4218,7 +4218,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // temp_zone is deallocated. These objects are instead allocated in a
       // parser-persistent zone (see parser_zone_ in AstNodeFactory).
       {
-        Zone temp_zone;
+        Zone temp_zone(zone()->allocator());
         AstNodeFactory::BodyScope inner(factory(), &temp_zone, use_temp_zone);
 
         body = ParseEagerFunctionBody(function_name, pos, formals, kind,

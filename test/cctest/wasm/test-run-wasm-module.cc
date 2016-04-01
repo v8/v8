@@ -69,7 +69,8 @@ TEST(Run_WasmModule_CallAdd_rev) {
 
 TEST(Run_WasmModule_Return114) {
   static const int32_t kReturnValue = 114;
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
@@ -83,7 +84,8 @@ TEST(Run_WasmModule_Return114) {
 
 
 TEST(Run_WasmModule_CallAdd) {
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f1_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f1_index);
@@ -106,7 +108,8 @@ TEST(Run_WasmModule_CallAdd) {
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
   static const byte kDataSegmentDest0 = 12;
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
@@ -124,7 +127,8 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 
 TEST(Run_WasmModule_CheckMemoryIsZero) {
   static const int kCheckSize = 16 * 1024;
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
@@ -145,7 +149,8 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
 }
 
 TEST(Run_WasmModule_CallMain_recursive) {
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
@@ -166,7 +171,8 @@ TEST(Run_WasmModule_CallMain_recursive) {
 }
 
 TEST(Run_WasmModule_Global) {
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint32_t global1 = builder->AddGlobal(MachineType::Int32(), 0);
   uint32_t global2 = builder->AddGlobal(MachineType::Int32(), 0);
