@@ -109,7 +109,7 @@ function RegExpConstructor(pattern, flags) {
     if (IS_UNDEFINED(flags)) flags = input_pattern.flags;
   }
 
-  var object = %NewObject(GlobalRegExp, newtarget);
+  var object = %_NewObject(GlobalRegExp, newtarget);
   return RegExpInitialize(object, pattern, flags);
 }
 

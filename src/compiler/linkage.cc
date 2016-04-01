@@ -170,6 +170,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kTraceExit:
       return 0;
     case Runtime::kInlineGetPrototype:
+    case Runtime::kInlineNewObject:
     case Runtime::kInlineRegExpConstructResult:
     case Runtime::kInlineRegExpExec:
     case Runtime::kInlineSubString:
@@ -178,9 +179,9 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToName:
     case Runtime::kInlineToNumber:
     case Runtime::kInlineToObject:
+    case Runtime::kInlineToPrimitive:
     case Runtime::kInlineToPrimitive_Number:
     case Runtime::kInlineToPrimitive_String:
-    case Runtime::kInlineToPrimitive:
     case Runtime::kInlineToString:
       return 1;
     case Runtime::kInlineCall:

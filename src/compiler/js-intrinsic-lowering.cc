@@ -84,6 +84,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
+    case Runtime::kInlineNewObject:
+      return ReduceNewObject(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
     case Runtime::kInlineGetOrdinaryHasInstance:
@@ -401,6 +403,17 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   return Changed(node);
 }
 
+Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* value = graph()->NewNode(javascript()->Create(), constructor,
+                                 new_target, context, frame_state, effect);
+  ReplaceWithValue(node, value, value);
+  return Replace(value);
+}
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
   Node* active_function = NodeProperties::GetValueInput(node, 0);

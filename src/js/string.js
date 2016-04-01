@@ -162,7 +162,7 @@ function StringMatchJS(pattern) {
   var subject = TO_STRING(this);
 
   // Equivalent to RegExpCreate (ES#sec-regexpcreate)
-  var regexp = %NewObject(GlobalRegExp, GlobalRegExp);
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
   RegExpInitialize(regexp, pattern);
   return regexp[matchSymbol](subject);
 }
@@ -360,7 +360,7 @@ function StringSearch(pattern) {
   var subject = TO_STRING(this);
 
   // Equivalent to RegExpCreate (ES#sec-regexpcreate)
-  var regexp = %NewObject(GlobalRegExp, GlobalRegExp);
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
   RegExpInitialize(regexp, pattern);
   return %_Call(regexp[searchSymbol], regexp, subject);
 }
