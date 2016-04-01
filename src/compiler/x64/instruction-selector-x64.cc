@@ -618,6 +618,75 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
+  X64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+      m.right().Is(32)) {
+    // Just load and sign-extend the interesting 4 bytes instead. This happens,
+    // for example, when we're loading and untagging SMIs.
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    if (mleft.matches() && (mleft.displacement() == nullptr ||
+                            g.CanBeImmediate(mleft.displacement()))) {
+      size_t input_count = 0;
+      InstructionOperand inputs[3];
+      AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+          m.left().node(), inputs, &input_count);
+      if (mleft.displacement() == nullptr) {
+        // Make sure that the addressing mode indicates the presence of an
+        // immediate displacement. It seems that we never use M1 and M2, but we
+        // handle them here anyways.
+        switch (mode) {
+          case kMode_MR:
+            mode = kMode_MRI;
+            break;
+          case kMode_MR1:
+            mode = kMode_MR1I;
+            break;
+          case kMode_MR2:
+            mode = kMode_MR2I;
+            break;
+          case kMode_MR4:
+            mode = kMode_MR4I;
+            break;
+          case kMode_MR8:
+            mode = kMode_MR8I;
+            break;
+          case kMode_M1:
+            mode = kMode_M1I;
+            break;
+          case kMode_M2:
+            mode = kMode_M2I;
+            break;
+          case kMode_M4:
+            mode = kMode_M4I;
+            break;
+          case kMode_M8:
+            mode = kMode_M8I;
+            break;
+          case kMode_None:
+          case kMode_MRI:
+          case kMode_MR1I:
+          case kMode_MR2I:
+          case kMode_MR4I:
+          case kMode_MR8I:
+          case kMode_M1I:
+          case kMode_M2I:
+          case kMode_M4I:
+          case kMode_M8I:
+            UNREACHABLE();
+        }
+        inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
+      } else {
+        ImmediateOperand* op = ImmediateOperand::cast(&inputs[input_count - 1]);
+        int32_t displacement = sequence()->GetImmediate(op).ToInt32();
+        *op = ImmediateOperand(ImmediateOperand::INLINE, displacement + 4);
+      }
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionCode code = kX64Movsxlq | AddressingModeField::encode(mode);
+      Emit(code, 1, outputs, input_count, inputs);
+      return;
+    }
+  }
   VisitWord64Shift(this, node, kX64Sar);
 }
 
