@@ -818,6 +818,7 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
+  void Set(Register dst, int64_t x, RelocInfo::Mode rmode);
   void Set(const Operand& dst, intptr_t x);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);

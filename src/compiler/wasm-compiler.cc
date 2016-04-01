@@ -2314,15 +2314,13 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
   DCHECK(module_ && module_->instance);
   if (offset == 0) {
     if (!mem_buffer_) {
-      mem_buffer_ = jsgraph()->RelocatableIntPtrConstant(
-          reinterpret_cast<uintptr_t>(module_->instance->mem_start),
-          RelocInfo::WASM_MEMORY_REFERENCE);
+      mem_buffer_ = jsgraph()->IntPtrConstant(
+          reinterpret_cast<uintptr_t>(module_->instance->mem_start));
     }
     return mem_buffer_;
   } else {
-    return jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<uintptr_t>(module_->instance->mem_start + offset),
-        RelocInfo::WASM_MEMORY_REFERENCE);
+    return jsgraph()->IntPtrConstant(
+        reinterpret_cast<uintptr_t>(module_->instance->mem_start + offset));
   }
 }
 

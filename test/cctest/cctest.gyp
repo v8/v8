@@ -85,7 +85,6 @@
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
-        'compiler/test-run-wasm-machops.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
         'expression-type-collector.cc',

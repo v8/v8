@@ -32,16 +32,14 @@
   V(End)
 
 // Opcodes for constant operators.
-#define CONSTANT_OP_LIST(V)   \
-  V(Int32Constant)            \
-  V(Int64Constant)            \
-  V(Float32Constant)          \
-  V(Float64Constant)          \
-  V(ExternalConstant)         \
-  V(NumberConstant)           \
-  V(HeapConstant)             \
-  V(RelocatableInt32Constant) \
-  V(RelocatableInt64Constant)
+#define CONSTANT_OP_LIST(V) \
+  V(Int32Constant)          \
+  V(Int64Constant)          \
+  V(Float32Constant)        \
+  V(Float64Constant)        \
+  V(ExternalConstant)       \
+  V(NumberConstant)         \
+  V(HeapConstant)
 
 #define INNER_OP_LIST(V) \
   V(Select)              \
@@ -398,7 +396,7 @@ class IrOpcode {
 
   // Returns true if opcode for constant operator.
   static bool IsConstantOpcode(Value value) {
-    return kInt32Constant <= value && value <= kRelocatableInt64Constant;
+    return kInt32Constant <= value && value <= kHeapConstant;
   }
 
   static bool IsPhiOpcode(Value value) {

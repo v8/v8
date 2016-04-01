@@ -2076,45 +2076,41 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister() || destination->IsStackSlot()) {
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : kScratchRegister;
-      if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
-        __ movq(dst, src.ToInt64(), src.rmode());
-      } else {
-        switch (src.type()) {
-          case Constant::kInt32:
-            // TODO(dcarney): don't need scratch in this case.
-            __ Set(dst, src.ToInt32());
-            break;
-          case Constant::kInt64:
-            __ Set(dst, src.ToInt64());
-            break;
-          case Constant::kFloat32:
-            __ Move(dst,
-                    isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
-            break;
-          case Constant::kFloat64:
-            __ Move(dst,
-                    isolate()->factory()->NewNumber(src.ToFloat64(), TENURED));
-            break;
-          case Constant::kExternalReference:
-            __ Move(dst, src.ToExternalReference());
-            break;
-          case Constant::kHeapObject: {
-            Handle<HeapObject> src_object = src.ToHeapObject();
-            Heap::RootListIndex index;
-            int slot;
-            if (IsMaterializableFromFrame(src_object, &slot)) {
-              __ movp(dst, g.SlotToOperand(slot));
-            } else if (IsMaterializableFromRoot(src_object, &index)) {
-              __ LoadRoot(dst, index);
-            } else {
-              __ Move(dst, src_object);
-            }
-            break;
+      switch (src.type()) {
+        case Constant::kInt32:
+          // TODO(dcarney): don't need scratch in this case.
+          __ Set(dst, src.ToInt32());
+          break;
+        case Constant::kInt64:
+          __ Set(dst, src.ToInt64());
+          break;
+        case Constant::kFloat32:
+          __ Move(dst,
+                  isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
+          break;
+        case Constant::kFloat64:
+          __ Move(dst,
+                  isolate()->factory()->NewNumber(src.ToFloat64(), TENURED));
+          break;
+        case Constant::kExternalReference:
+          __ Move(dst, src.ToExternalReference());
+          break;
+        case Constant::kHeapObject: {
+          Handle<HeapObject> src_object = src.ToHeapObject();
+          Heap::RootListIndex index;
+          int slot;
+          if (IsMaterializableFromFrame(src_object, &slot)) {
+            __ movp(dst, g.SlotToOperand(slot));
+          } else if (IsMaterializableFromRoot(src_object, &index)) {
+            __ LoadRoot(dst, index);
+          } else {
+            __ Move(dst, src_object);
           }
-          case Constant::kRpoNumber:
-            UNREACHABLE();  // TODO(dcarney): load of labels on x64.
-            break;
+          break;
         }
+        case Constant::kRpoNumber:
+          UNREACHABLE();  // TODO(dcarney): load of labels on x64.
+          break;
       }
       if (destination->IsStackSlot()) {
         __ movq(g.ToOperand(destination), kScratchRegister);
