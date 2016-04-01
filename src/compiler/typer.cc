@@ -619,6 +619,14 @@ Type* Typer::Visitor::TypeInt64Constant(Node* node) {
   return Type::Internal();  // TODO(rossberg): Add int64 bitset type?
 }
 
+// TODO(gdeepti) : Fix this to do something meaningful.
+Type* Typer::Visitor::TypeRelocatableInt32Constant(Node* node) {
+  return Type::Internal();
+}
+
+Type* Typer::Visitor::TypeRelocatableInt64Constant(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeFloat32Constant(Node* node) {
   return Type::Intersect(Type::Of(OpParameter<float>(node), zone()),

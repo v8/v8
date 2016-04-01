@@ -21,6 +21,7 @@ using namespace v8::internal::compiler;
 #define __ assm.
 
 static int32_t DummyStaticFunction(Object* result) { return 1; }
+
 TEST(WasmRelocationX64movq64) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

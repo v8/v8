@@ -504,6 +504,14 @@ std::ostream& operator<<(std::ostream& os,
 
 Constant::Constant(int32_t v) : type_(kInt32), value_(v) {}
 
+Constant::Constant(RelocatablePtrConstantInfo info)
+#ifdef V8_HOST_ARCH_32_BIT
+    : type_(kInt32), value_(info.value()), rmode_(info.rmode()) {
+}
+#else
+    : type_(kInt64), value_(info.value()), rmode_(info.rmode()) {
+}
+#endif
 
 std::ostream& operator<<(std::ostream& os, const Constant& constant) {
   switch (constant.type()) {
