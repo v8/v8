@@ -3039,6 +3039,27 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       SetS390ConditionCodeCarry<uint32_t>(alu_out, isOF);
       break;
     }
+    case SLBR: {
+      RREInstruction* rrinst = reinterpret_cast<RREInstruction*>(instr);
+      int r1 = rrinst->R1Value();
+      int r2 = rrinst->R2Value();
+      uint32_t r1_val = get_low_register<uint32_t>(r1);
+      uint32_t r2_val = get_low_register<uint32_t>(r2);
+      uint32_t alu_out = 0;
+      bool isOF = false;
+
+      alu_out = r1_val - r2_val;
+      bool isOF_original = CheckOverflowForUIntSub(r1_val, r2_val);
+      if (TestConditionCode((Condition)2) || TestConditionCode((Condition)3)) {
+        alu_out = alu_out - 1;
+        isOF = isOF_original || CheckOverflowForUIntSub(alu_out, 1);
+      } else {
+        isOF = isOF_original;
+      }
+      set_low_register(r1, alu_out);
+      SetS390ConditionCodeCarry<uint32_t>(alu_out, isOF);
+      break;
+    }
     default: { return DecodeFourByteFloatingPoint(instr); }
   }
   return true;
