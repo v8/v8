@@ -1848,10 +1848,26 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-          __ mov(dst, Operand(src.ToInt32()));
+#if !V8_TARGET_ARCH_PPC64
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+            __ mov(dst, Operand(src.ToInt32(), src.rmode()));
+          } else {
+#endif
+            __ mov(dst, Operand(src.ToInt32()));
+#if !V8_TARGET_ARCH_PPC64
+          }
+#endif
           break;
         case Constant::kInt64:
-          __ mov(dst, Operand(src.ToInt64()));
+#if V8_TARGET_ARCH_PPC64
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+            __ mov(dst, Operand(src.ToInt64(), src.rmode()));
+          } else {
+#endif
+            __ mov(dst, Operand(src.ToInt64()));
+#if V8_TARGET_ARCH_PPC64
+          }
+#endif
           break;
         case Constant::kFloat32:
           __ Move(dst,
