@@ -1353,7 +1353,7 @@ TEST(Run_Wasm_I64Rol) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = bits::RotateRight64(*i, 64 - (*j & 0x3f));
+      int64_t expected = bits::RotateLeft64(*i, *j & 0x3f);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
