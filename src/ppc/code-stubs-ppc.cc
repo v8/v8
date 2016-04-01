@@ -5669,7 +5669,7 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  DCHECK(argc.is_immediate() || r3.is(argc.reg()));
+  DCHECK(argc.is_immediate() || r6.is(argc.reg()));
 
   // context save
   __ push(context);

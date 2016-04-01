@@ -597,7 +597,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      *entry++ = code_map_.FindEntry(sample.external_callback);
+      *entry++ = code_map_.FindEntry(sample.external_callback_entry);
     } else {
       CodeEntry* pc_entry = code_map_.FindEntry(sample.pc);
       // If there is no pc_entry we're likely in native code.

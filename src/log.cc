@@ -1499,11 +1499,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.Append(",%ld", static_cast<int>(timer_.Elapsed().InMicroseconds()));
   if (sample->has_external_callback) {
     msg.Append(",1,");
-#if USES_FUNCTION_DESCRIPTORS
-    msg.AppendAddress(*FUNCTION_ENTRYPOINT_ADDRESS(sample->external_callback));
-#else
-    msg.AppendAddress(sample->external_callback);
-#endif
+    msg.AppendAddress(sample->external_callback_entry);
   } else {
     msg.Append(",0,");
     msg.AppendAddress(sample->tos);
@@ -1714,6 +1710,9 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
+#if USES_FUNCTION_DESCRIPTORS
+      entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
+#endif
       PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
     }
   } else {
@@ -1757,10 +1756,16 @@ void Logger::LogAccessorCallbacks() {
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name* name = Name::cast(ai->name());
     if (getter_entry != 0) {
+#if USES_FUNCTION_DESCRIPTORS
+      getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(getter_entry);
+#endif
       PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
+#if USES_FUNCTION_DESCRIPTORS
+      setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(setter_entry);
+#endif
       PROFILE(isolate_, SetterCallbackEvent(name, setter_entry));
     }
   }

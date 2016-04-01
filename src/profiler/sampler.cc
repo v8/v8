@@ -683,7 +683,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   // we have already entrered JavaScript again and the external callback
   // is not the top function.
   if (scope && scope->scope_address() < handler) {
-    external_callback = scope->callback();
+    external_callback_entry = *scope->callback_entrypoint_address();
     has_external_callback = true;
   } else {
     // sp register may point at an arbitrary place in memory, make
