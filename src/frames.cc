@@ -954,6 +954,15 @@ void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
   }
 }
 
+namespace {
+
+bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
+  return code->is_turbofanned() && function->shared()->asm_function() &&
+         !FLAG_turbo_asm_deoptimization;
+}
+
+}  // namespace
+
 FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
                            AbstractCode* abstract_code, int code_offset,
                            bool is_constructor)
@@ -961,7 +970,11 @@ FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
       function_(function),
       abstract_code_(abstract_code),
       code_offset_(code_offset),
-      is_constructor_(is_constructor) {}
+      is_constructor_(is_constructor) {
+  DCHECK(abstract_code->IsBytecodeArray() ||
+         Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION ||
+         CannotDeoptFromAsmCode(Code::cast(abstract_code), function));
+}
 
 void FrameSummary::Print() {
   PrintF("receiver: ");
@@ -973,7 +986,10 @@ void FrameSummary::Print() {
   if (abstract_code_->IsCode()) {
     Code* code = abstract_code_->GetCode();
     if (code->kind() == Code::FUNCTION) PrintF(" UNOPT ");
-    if (code->kind() == Code::OPTIMIZED_FUNCTION) PrintF(" OPT ");
+    if (code->kind() == Code::OPTIMIZED_FUNCTION) {
+      DCHECK(CannotDeoptFromAsmCode(code, *function()));
+      PrintF(" ASM ");
+    }
   } else {
     PrintF(" BYTECODE ");
   }
@@ -989,8 +1005,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN ||
-      (code->is_turbofanned() && function()->shared()->asm_function() &&
-       !FLAG_turbo_asm_deoptimization)) {
+      CannotDeoptFromAsmCode(code, function())) {
     return JavaScriptFrame::Summarize(frames);
   }
 

@@ -14057,6 +14057,8 @@ int Code::SourcePosition(int code_offset) {
     }
     it.next();
   }
+  DCHECK(kind() == FUNCTION || is_optimized_code() && is_turbofanned() ||
+         is_wasm_code() || position == RelocInfo::kNoPosition);
   return position;
 }
 
