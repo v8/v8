@@ -15,7 +15,11 @@ namespace compiler {
   V(IA32Add)                       \
   V(IA32And)                       \
   V(IA32Cmp)                       \
+  V(IA32Cmp16)                     \
+  V(IA32Cmp8)                      \
   V(IA32Test)                      \
+  V(IA32Test16)                    \
+  V(IA32Test8)                     \
   V(IA32Or)                        \
   V(IA32Xor)                       \
   V(IA32Sub)                       \
