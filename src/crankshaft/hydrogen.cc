@@ -12283,22 +12283,13 @@ void HOptimizedGraphBuilder::GenerateToInteger(CallRuntime* call) {
   if (input->type().IsSmi()) {
     return ast_context()->ReturnValue(input);
   } else {
-    IfBuilder if_inputissmi(this);
-    if_inputissmi.If<HIsSmiAndBranch>(input);
-    if_inputissmi.Then();
-    {
-      // Return the input value.
-      Push(input);
-      Add<HSimulate>(call->id(), FIXED_SIMULATE);
-    }
-    if_inputissmi.Else();
-    {
-      Add<HPushArguments>(input);
-      Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToInteger), 1));
-      Add<HSimulate>(call->id(), FIXED_SIMULATE);
-    }
-    if_inputissmi.End();
-    return ast_context()->ReturnValue(Pop());
+    Callable callable = CodeFactory::ToInteger(isolate());
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), input};
+    HInstruction* result =
+        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                                 Vector<HValue*>(values, arraysize(values)));
+    return ast_context()->ReturnInstruction(result, call->id());
   }
 }
 

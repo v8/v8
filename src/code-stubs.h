@@ -130,6 +130,7 @@ namespace internal {
   V(StringGreaterThan)                      \
   V(StringGreaterThanOrEqual)               \
   V(ToBoolean)                              \
+  V(ToInteger)                              \
   V(ToLength)                               \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
@@ -834,6 +835,14 @@ class ToBooleanStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(ToBoolean, TurboFanCodeStub);
+};
+
+class ToIntegerStub final : public TurboFanCodeStub {
+ public:
+  explicit ToIntegerStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
+  DEFINE_TURBOFAN_CODE_STUB(ToInteger, TurboFanCodeStub);
 };
 
 class ToLengthStub final : public TurboFanCodeStub {

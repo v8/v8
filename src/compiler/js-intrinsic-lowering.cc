@@ -352,10 +352,6 @@ Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   // ToInteger is a no-op on integer values and -0.
   Type* value_type = NodeProperties::GetType(value);
@@ -364,36 +360,7 @@ Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
     return Replace(value);
   }
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-  Node* vtrue =
-      graph()->NewNode(common()->Guard(type_cache_.kSmi), value, if_true);
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  Node* vfalse;
-  {
-    vfalse = efalse =
-        graph()->NewNode(javascript()->CallRuntime(Runtime::kToInteger), value,
-                         context, frame_state, efalse, if_false);
-    // TODO(jarin) Intersect the type with integers?
-    NodeProperties::SetType(vfalse, NodeProperties::GetType(node));
-
-    if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue, vfalse, control);
-
-  // TODO(bmeurer, mstarzinger): Rewire IfException inputs to {vfalse}.
-  ReplaceWithValue(node, value, effect, control);
-  return Changed(value);
+  return Change(node, CodeFactory::ToInteger(isolate()), 0);
 }
 
 

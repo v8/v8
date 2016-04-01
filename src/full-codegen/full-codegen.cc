@@ -588,6 +588,9 @@ void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
 }
 
+void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToInteger(isolate()));
+}
 
 void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
