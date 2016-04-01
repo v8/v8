@@ -1646,7 +1646,7 @@ void NewSpace::Verify() {
 
       // The object should not be code or a map.
       CHECK(!object->IsMap());
-      CHECK(!object->IsCode());
+      CHECK(!object->IsAbstractCode());
 
       // The object itself should look OK.
       object->ObjectVerify();
@@ -2780,9 +2780,14 @@ void PagedSpace::CollectCodeStatistics() {
   Isolate* isolate = heap()->isolate();
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsCode()) {
-      Code* code = Code::cast(obj);
+    if (obj->IsAbstractCode()) {
+      AbstractCode* code = AbstractCode::cast(obj);
       isolate->code_kind_statistics()[code->kind()] += code->Size();
+    }
+    if (obj->IsCode()) {
+      // TODO(mythria): Also enable this for BytecodeArray when it supports
+      // RelocInformation.
+      Code* code = Code::cast(obj);
       RelocIterator it(code);
       int delta = 0;
       const byte* prev_pc = code->instruction_start();
@@ -3073,7 +3078,7 @@ void LargeObjectSpace::Verify() {
     // (sequential strings that have been morphed into external
     // strings), fixed arrays, byte arrays, and constant pool arrays in the
     // large object space.
-    CHECK(object->IsCode() || object->IsSeqString() ||
+    CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsFixedArray() ||
           object->IsFixedDoubleArray() || object->IsByteArray());
 
@@ -3081,7 +3086,7 @@ void LargeObjectSpace::Verify() {
     object->ObjectVerify();
 
     // Byte arrays and strings don't have interior pointers.
-    if (object->IsCode()) {
+    if (object->IsAbstractCode()) {
       VerifyPointersVisitor code_visitor;
       object->IterateBody(map->instance_type(), object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
@@ -3132,8 +3137,8 @@ void LargeObjectSpace::CollectCodeStatistics() {
   Isolate* isolate = heap()->isolate();
   LargeObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsCode()) {
-      Code* code = Code::cast(obj);
+    if (obj->IsAbstractCode()) {
+      AbstractCode* code = AbstractCode::cast(obj);
       isolate->code_kind_statistics()[code->kind()] += code->Size();
     }
   }
