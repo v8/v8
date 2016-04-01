@@ -43,7 +43,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       }
       __ Push(receiver);
       __ LoadAccessor(r3, holder, accessor_index, ACCESSOR_GETTER);
-      __ LoadImmP(r2, Operand(0));
+      __ LoadImmP(r2, Operand::Zero());
       __ Call(masm->isolate()->builtins()->CallFunction(
                   ConvertReceiverMode::kNotNullOrUndefined),
               RelocInfo::CODE_TARGET);
