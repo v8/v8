@@ -4229,7 +4229,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     if (hinstr->key()->representation().IsSmi()) {
       __ SmiToPtrArrayOffset(scratch, key);
     } else {
-      if (instr->hydrogen()->IsDehoisted()) {
+      if (instr->hydrogen()->IsDehoisted() ||
+          !CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
 #if V8_TARGET_ARCH_S390X
         // If array access is dehoisted, the key, being an int32, can contain
         // a negative value, as needs to be sign-extended to 64-bit for
