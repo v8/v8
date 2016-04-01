@@ -1123,6 +1123,11 @@ function RegExpGetMultiline() {
 // ES6 21.2.5.10.
 function RegExpGetSource() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeSourceGetter);
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.source");
   }
   return REGEXP_SOURCE(this);
