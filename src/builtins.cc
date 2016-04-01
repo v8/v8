@@ -1039,7 +1039,8 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
     case FAST_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(object->elements()));
+      DisallowHeapAllocation no_gc;
+      FixedArray* elements = FixedArray::cast(object->elements());
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
@@ -1067,17 +1068,21 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> dict(
-          SeededNumberDictionary::cast(object->elements()));
+      DisallowHeapAllocation no_gc;
+      SeededNumberDictionary* dict =
+          SeededNumberDictionary::cast(object->elements());
       uint32_t capacity = dict->Capacity();
+      Heap* heap = isolate->heap();
+      Object* undefined = heap->undefined_value();
+      Object* the_hole = heap->the_hole_value();
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Handle<Object> k(dict->KeyAt(j), isolate);
-        if (dict->IsKey(*k)) {
-          DCHECK(k->IsNumber());
-          uint32_t index = static_cast<uint32_t>(k->Number());
-          if (index < range) {
-            indices->Add(index);
-          }
+        Object* k = dict->KeyAt(j);
+        if (k == undefined) continue;
+        if (k == the_hole) continue;
+        DCHECK(k->IsNumber());
+        uint32_t index = static_cast<uint32_t>(k->Number());
+        if (index < range) {
+          indices->Add(index);
         }
       });
       break;
@@ -1410,6 +1415,7 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
           double_storage->set(j, obj->Number());
           j++;
         } else {
+          DisallowHeapAllocation no_gc;
           JSArray* array = JSArray::cast(*obj);
           uint32_t length = static_cast<uint32_t>(array->length()->Number());
           switch (array->GetElementsKind()) {
@@ -1437,10 +1443,11 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
             }
             case FAST_HOLEY_SMI_ELEMENTS:
             case FAST_SMI_ELEMENTS: {
+              Object* the_hole = isolate->heap()->the_hole_value();
               FixedArray* elements(FixedArray::cast(array->elements()));
               for (uint32_t i = 0; i < length; i++) {
                 Object* element = elements->get(i);
-                if (element->IsTheHole()) {
+                if (element == the_hole) {
                   failure = true;
                   break;
                 }
@@ -1530,11 +1537,10 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
     for (int i = 0; i < n_arguments; i++) {
       Object* arg = (*args)[i];
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
-      if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
+      if (!JSObject::cast(arg)->HasFastElements()) {
         return MaybeHandle<JSArray>();
       }
-      // TODO(cbruni): support fast concatenation of DICTIONARY_ELEMENTS.
-      if (!JSObject::cast(arg)->HasFastElements()) {
+      if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
         return MaybeHandle<JSArray>();
       }
       Handle<JSArray> array(JSArray::cast(arg), isolate);

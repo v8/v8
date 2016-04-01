@@ -2998,6 +2998,9 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   return Max(capacity, kMinCapacity);
 }
 
+bool HashTableBase::IsKey(Heap* heap, Object* k) {
+  return k != heap->the_hole_value() && k != heap->undefined_value();
+}
 
 bool HashTableBase::IsKey(Object* k) {
   return !k->IsTheHole() && !k->IsUndefined();

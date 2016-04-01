@@ -1192,12 +1192,16 @@ class DictionaryElementsAccessor
 
   static bool HasAccessorsImpl(JSObject* holder,
                                FixedArrayBase* backing_store) {
+    DisallowHeapAllocation no_gc;
     SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
     if (!dict->requires_slow_elements()) return false;
     int capacity = dict->Capacity();
+    Heap* heap = holder->GetHeap();
+    Object* undefined = heap->undefined_value();
+    Object* the_hole = heap->the_hole_value();
     for (int i = 0; i < capacity; i++) {
       Object* key = dict->KeyAt(i);
-      if (!dict->IsKey(key)) continue;
+      if (key == the_hole || key == undefined) continue;
       DCHECK(!dict->IsDeleted(i));
       PropertyDetails details = dict->DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
@@ -1296,11 +1300,8 @@ class DictionaryElementsAccessor
     return SeededNumberDictionary::cast(backing_store)->DetailsAt(entry);
   }
 
-  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
-                                     int entry, PropertyFilter filter) {
-    DisallowHeapAllocation no_gc;
-    Object* raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(raw_key)) return kMaxUInt32;
+  static uint32_t FilterKey(Handle<SeededNumberDictionary> dictionary,
+                            int entry, Object* raw_key, PropertyFilter filter) {
     DCHECK(!dictionary->IsDeleted(entry));
     DCHECK(raw_key->IsNumber());
     DCHECK_LE(raw_key->Number(), kMaxUInt32);
@@ -1310,17 +1311,41 @@ class DictionaryElementsAccessor
     return static_cast<uint32_t>(raw_key->Number());
   }
 
+  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
+                                     int entry, PropertyFilter filter) {
+    DisallowHeapAllocation no_gc;
+    Object* raw_key = dictionary->KeyAt(entry);
+    if (!dictionary->IsKey(raw_key)) return kMaxUInt32;
+    return FilterKey(dictionary, entry, raw_key, filter);
+  }
+
+  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
+                                     int entry, PropertyFilter filter,
+                                     Object* undefined, Object* the_hole) {
+    DisallowHeapAllocation no_gc;
+    Object* raw_key = dictionary->KeyAt(entry);
+    // Replace the IsKey check with a direct comparison which is much faster.
+    if (raw_key == undefined || raw_key == the_hole) {
+      return kMaxUInt32;
+    }
+    return FilterKey(dictionary, entry, raw_key, filter);
+  }
+
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys, uint32_t range,
                                         PropertyFilter filter,
                                         uint32_t offset) {
     if (filter & SKIP_STRINGS) return;
+    Isolate* isolate = keys->isolate();
+    Handle<Object> undefined = isolate->factory()->undefined_value();
+    Handle<Object> the_hole = isolate->factory()->the_hole_value();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(dictionary, i, filter);
+      uint32_t key =
+          GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
       if (key == kMaxUInt32) continue;
       keys->AddKey(key);
     }
@@ -1335,11 +1360,15 @@ class DictionaryElementsAccessor
       uint32_t insertion_index = 0) {
     if (filter & SKIP_STRINGS) return list;
     if (filter & ONLY_ALL_CAN_READ) return list;
+
+    Handle<Object> undefined = isolate->factory()->undefined_value();
+    Handle<Object> the_hole = isolate->factory()->the_hole_value();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     uint32_t capacity = dictionary->Capacity();
     for (uint32_t i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(dictionary, i, filter);
+      uint32_t key =
+          GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
       if (key == kMaxUInt32) continue;
       Handle<Object> index = isolate->factory()->NewNumberFromUint(key);
       list->set(insertion_index, *index);
@@ -1352,12 +1381,16 @@ class DictionaryElementsAccessor
   static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
                                               KeyAccumulator* accumulator,
                                               AddKeyConversion convert) {
+    Isolate* isolate = accumulator->isolate();
+    Handle<Object> undefined = isolate->factory()->undefined_value();
+    Handle<Object> the_hole = isolate->factory()->the_hole_value();
     SeededNumberDictionary* dictionary =
         SeededNumberDictionary::cast(receiver->elements());
     int capacity = dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(k)) continue;
+      if (k == *undefined) continue;
+      if (k == *the_hole) continue;
       if (dictionary->IsDeleted(i)) continue;
       Object* value = dictionary->ValueAt(i);
       DCHECK(!value->IsTheHole());
