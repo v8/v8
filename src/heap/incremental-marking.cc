@@ -1030,12 +1030,15 @@ double IncrementalMarking::AdvanceIncrementalMarking(
   }
 
   double remaining_time_in_ms = 0.0;
+  intptr_t bytes_processed = 0;
   do {
-    Step(step_size_in_bytes, step_actions.completion_action,
-         step_actions.force_marking, step_actions.force_completion);
+    bytes_processed =
+        Step(step_size_in_bytes, step_actions.completion_action,
+             step_actions.force_marking, step_actions.force_completion);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms >=
+  } while (bytes_processed > 0 &&
+           remaining_time_in_ms >=
                2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
            !IsComplete() &&
            !heap()->mark_compact_collector()->marking_deque()->IsEmpty());
@@ -1183,7 +1186,8 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
         bytes_scanned_ = 0;
         StartMarking();
       }
-    } else if (state_ == MARKING) {
+    }
+    if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
         if (completion == FORCE_COMPLETION ||
