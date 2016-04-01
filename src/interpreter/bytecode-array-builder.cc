@@ -344,16 +344,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadFalse() {
   return *this;
 }
 
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadBooleanConstant(bool value) {
-  if (value) {
-    LoadTrue();
-  } else {
-    LoadFalse();
-  }
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {
   if (!IsRegisterInAccumulator(reg)) {
