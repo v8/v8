@@ -106,6 +106,13 @@ REPLACE_STUB_CALL(Equal)
 REPLACE_STUB_CALL(NotEqual)
 REPLACE_STUB_CALL(StrictEqual)
 REPLACE_STUB_CALL(StrictNotEqual)
+REPLACE_STUB_CALL(ToBoolean)
+REPLACE_STUB_CALL(ToInteger)
+REPLACE_STUB_CALL(ToLength)
+REPLACE_STUB_CALL(ToNumber)
+REPLACE_STUB_CALL(ToName)
+REPLACE_STUB_CALL(ToObject)
+REPLACE_STUB_CALL(ToString)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
@@ -140,41 +147,6 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   Callable callable = CodeFactory::Typeof(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-
-void JSGenericLowering::LowerJSToBoolean(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToBoolean(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-
-void JSGenericLowering::LowerJSToNumber(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToNumber(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-
-void JSGenericLowering::LowerJSToString(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToString(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-
-void JSGenericLowering::LowerJSToName(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToName(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-
-void JSGenericLowering::LowerJSToObject(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToObject(isolate());
   ReplaceWithStubCall(node, callable, flags);
 }
 

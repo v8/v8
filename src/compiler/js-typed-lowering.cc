@@ -644,6 +644,51 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
+    // JSToInteger(x:integer) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
+    if (input_type->Max() <= 0.0) {
+      input = jsgraph()->ZeroConstant();
+    } else if (input_type->Min() >= kMaxSafeInteger) {
+      input = jsgraph()->Constant(kMaxSafeInteger);
+    } else {
+      if (input_type->Min() <= 0.0) {
+        input = graph()->NewNode(
+            common()->Select(MachineRepresentation::kTagged),
+            graph()->NewNode(simplified()->NumberLessThanOrEqual(), input,
+                             jsgraph()->ZeroConstant()),
+            jsgraph()->ZeroConstant(), input);
+        input_type = Type::Range(0.0, input_type->Max(), graph()->zone());
+        NodeProperties::SetType(input, input_type);
+      }
+      if (input_type->Max() > kMaxSafeInteger) {
+        input = graph()->NewNode(
+            common()->Select(MachineRepresentation::kTagged),
+            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                             jsgraph()->Constant(kMaxSafeInteger), input),
+            jsgraph()->Constant(kMaxSafeInteger), input);
+        input_type =
+            Type::Range(input_type->Min(), kMaxSafeInteger, graph()->zone());
+        NodeProperties::SetType(input, input_type);
+      }
+    }
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
 
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   if (input->opcode() == IrOpcode::kJSToNumber) {
@@ -1683,6 +1728,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSModulus(node);
     case IrOpcode::kJSToBoolean:
       return ReduceJSToBoolean(node);
+    case IrOpcode::kJSToInteger:
+      return ReduceJSToInteger(node);
+    case IrOpcode::kJSToLength:
+      return ReduceJSToLength(node);
     case IrOpcode::kJSToNumber:
       return ReduceJSToNumber(node);
     case IrOpcode::kJSToString:

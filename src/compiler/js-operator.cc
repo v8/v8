@@ -385,10 +385,12 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(GreaterThan, Operator::kNoProperties, 2, 1)            \
   V(LessThanOrEqual, Operator::kNoProperties, 2, 1)        \
   V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)     \
-  V(ToNumber, Operator::kNoProperties, 1, 1)               \
-  V(ToString, Operator::kNoProperties, 1, 1)               \
+  V(ToInteger, Operator::kNoProperties, 1, 1)              \
+  V(ToLength, Operator::kNoProperties, 1, 1)               \
   V(ToName, Operator::kNoProperties, 1, 1)                 \
+  V(ToNumber, Operator::kNoProperties, 1, 1)               \
   V(ToObject, Operator::kNoProperties, 1, 1)               \
+  V(ToString, Operator::kNoProperties, 1, 1)               \
   V(Yield, Operator::kNoProperties, 1, 1)                  \
   V(Create, Operator::kEliminatable, 2, 1)                 \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1) \

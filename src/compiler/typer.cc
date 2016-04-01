@@ -421,6 +421,11 @@ Type* Typer::Visitor::ToInteger(Type* type, Typer* t) {
   // ES6 section 7.1.4 ToInteger ( argument )
   type = ToNumber(type, t);
   if (type->Is(t->cache_.kIntegerOrMinusZero)) return type;
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Type::Union(
+        Type::Intersect(type, t->cache_.kIntegerOrMinusZero, t->zone()),
+        t->cache_.kSingletonZero, t->zone());
+  }
   return t->cache_.kIntegerOrMinusZero;
 }
 
@@ -1245,26 +1250,29 @@ Type* Typer::Visitor::TypeJSToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
 }
 
-
-Type* Typer::Visitor::TypeJSToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
+Type* Typer::Visitor::TypeJSToInteger(Node* node) {
+  return TypeUnaryOp(node, ToInteger);
 }
 
-
-Type* Typer::Visitor::TypeJSToString(Node* node) {
-  return TypeUnaryOp(node, ToString);
+Type* Typer::Visitor::TypeJSToLength(Node* node) {
+  return TypeUnaryOp(node, ToLength);
 }
-
 
 Type* Typer::Visitor::TypeJSToName(Node* node) {
   return TypeUnaryOp(node, ToName);
 }
 
+Type* Typer::Visitor::TypeJSToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
 
 Type* Typer::Visitor::TypeJSToObject(Node* node) {
   return TypeUnaryOp(node, ToObject);
 }
 
+Type* Typer::Visitor::TypeJSToString(Node* node) {
+  return TypeUnaryOp(node, ToString);
+}
 
 // JS object operators.
 

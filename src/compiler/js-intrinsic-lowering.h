@@ -13,7 +13,6 @@ namespace internal {
 
 // Forward declarations.
 class Callable;
-class TypeCache;
 
 
 namespace compiler {
@@ -83,11 +82,9 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
   DeoptimizationMode mode() const { return mode_; }
-  TypeCache const& type_cache() const { return type_cache_; }
 
   JSGraph* const jsgraph_;
   DeoptimizationMode const mode_;
-  TypeCache const& type_cache_;
 };
 
 }  // namespace compiler

@@ -492,6 +492,18 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Boolean.
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kJSToInteger:
+      // Type is OrderedNumber.
+      CheckUpperIs(node, Type::OrderedNumber());
+      break;
+    case IrOpcode::kJSToLength:
+      // Type is OrderedNumber.
+      CheckUpperIs(node, Type::OrderedNumber());
+      break;
+    case IrOpcode::kJSToName:
+      // Type is Name.
+      CheckUpperIs(node, Type::Name());
+      break;
     case IrOpcode::kJSToNumber:
       // Type is Number.
       CheckUpperIs(node, Type::Number());
@@ -499,10 +511,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSToString:
       // Type is String.
       CheckUpperIs(node, Type::String());
-      break;
-    case IrOpcode::kJSToName:
-      // Type is Name.
-      CheckUpperIs(node, Type::Name());
       break;
     case IrOpcode::kJSToObject:
       // Type is Receiver.

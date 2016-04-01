@@ -15,7 +15,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -23,11 +22,7 @@ namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
                                          DeoptimizationMode mode)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      mode_(mode),
-      type_cache_(TypeCache::Get()) {}
-
+    : AdvancedReducer(editor), jsgraph_(jsgraph), mode_(mode) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
@@ -351,16 +346,8 @@ Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-
-  // ToInteger is a no-op on integer values and -0.
-  Type* value_type = NodeProperties::GetType(value);
-  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-
-  return Change(node, CodeFactory::ToInteger(isolate()), 0);
+  NodeProperties::ChangeOp(node, javascript()->ToInteger());
+  return Changed(node);
 }
 
 
@@ -377,38 +364,8 @@ Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
-  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
-    if (value_type->Max() <= 0.0) {
-      value = jsgraph()->ZeroConstant();
-    } else if (value_type->Min() >= kMaxSafeInteger) {
-      value = jsgraph()->Constant(kMaxSafeInteger);
-    } else {
-      if (value_type->Min() <= 0.0) {
-        value = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(), value,
-                             jsgraph()->ZeroConstant()),
-            jsgraph()->ZeroConstant(), value);
-        value_type = Type::Range(0.0, value_type->Max(), graph()->zone());
-        NodeProperties::SetType(value, value_type);
-      }
-      if (value_type->Max() > kMaxSafeInteger) {
-        value = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                             jsgraph()->Constant(kMaxSafeInteger), value),
-            jsgraph()->Constant(kMaxSafeInteger), value);
-        value_type =
-            Type::Range(value_type->Min(), kMaxSafeInteger, graph()->zone());
-        NodeProperties::SetType(value, value_type);
-      }
-    }
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  return Change(node, CodeFactory::ToLength(isolate()), 0);
+  NodeProperties::ChangeOp(node, javascript()->ToLength());
+  return Changed(node);
 }
 
 

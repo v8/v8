@@ -96,10 +96,12 @@
 
 #define JS_CONVERSION_UNOP_LIST(V) \
   V(JSToBoolean)                   \
-  V(JSToNumber)                    \
-  V(JSToString)                    \
+  V(JSToInteger)                   \
+  V(JSToLength)                    \
   V(JSToName)                      \
-  V(JSToObject)
+  V(JSToNumber)                    \
+  V(JSToObject)                    \
+  V(JSToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
   V(JSTypeOf)
