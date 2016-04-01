@@ -183,6 +183,12 @@ class PreParserExpression {
         ExpressionTypeField::encode(kNoTemplateTagExpression));
   }
 
+  static PreParserExpression Empty() {
+    return PreParserExpression(TypeField::encode(kEmptyExpression));
+  }
+
+  bool IsEmpty() const { return TypeField::decode(code_) == kEmptyExpression; }
+
   bool IsIdentifier() const {
     return TypeField::decode(code_) == kIdentifierExpression;
   }
@@ -282,6 +288,7 @@ class PreParserExpression {
  private:
   enum Type {
     kExpression,
+    kEmptyExpression,
     kIdentifierExpression,
     kStringLiteralExpression,
     kBinaryOperationExpression,
@@ -1005,7 +1012,7 @@ class PreParserTraits {
     return PreParserIdentifier::Default();
   }
   static PreParserExpression EmptyExpression() {
-    return PreParserExpression::Default();
+    return PreParserExpression::Empty();
   }
   static PreParserExpression EmptyLiteral() {
     return PreParserExpression::Default();
@@ -1058,6 +1065,9 @@ class PreParserTraits {
   }
   static typesystem::PreParserTypeMember EmptyTypeMember() {
     return typesystem::PreParserTypeMember::Default(false, false);
+  }
+  static bool IsEmptyExpression(const PreParserExpression& expression) {
+    return expression.IsEmpty();
   }
 
   // Odd-ball literal creators.
