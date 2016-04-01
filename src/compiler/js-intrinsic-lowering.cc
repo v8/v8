@@ -50,8 +50,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineMathClz32:
-      return ReduceMathClz32(node);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     case Runtime::kInlineFixedArrayGet:
@@ -203,11 +201,6 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathClz32(Node* node) {
-  return Change(node, machine()->Word32Clz());
 }
 
 

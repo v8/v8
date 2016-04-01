@@ -962,6 +962,12 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kNumberClz32: {
+        VisitUnop(node, UseInfo::TruncatingWord32(),
+                  MachineRepresentation::kWord32);
+        if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
+        break;
+      }
       case IrOpcode::kNumberCeil: {
         VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Ceil(node));

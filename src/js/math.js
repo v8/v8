@@ -143,11 +143,6 @@ function MathHypot(x, y) {  // Function length is 2.
   return %math_sqrt(sum) * max;
 }
 
-// ES6 draft 07-18-14, section 20.2.2.11
-function MathClz32JS(x) {
-  return %_MathClz32(x >>> 0);
-}
-
 // ES6 draft 09-27-13, section 20.2.2.9.
 // Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
 // Using initial approximation adapted from Kahan's cbrt and 4 iterations
@@ -209,13 +204,11 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "acosh", MathAcosh,
   "atanh", MathAtanh,
   "hypot", MathHypot,
-  "clz32", MathClz32JS,
   "cbrt", MathCbrt
 ]);
 
 %SetForceInlineFlag(MathAbs);
 %SetForceInlineFlag(MathAtan2JS);
-%SetForceInlineFlag(MathClz32JS);
 %SetForceInlineFlag(MathRandom);
 %SetForceInlineFlag(MathSign);
 

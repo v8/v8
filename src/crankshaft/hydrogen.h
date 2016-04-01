@@ -2269,7 +2269,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ConstructDouble)                   \
   F(DoubleHi)                          \
   F(DoubleLo)                          \
-  F(MathClz32)                         \
   F(MathLogRT)                         \
   /* ES6 Collections */                \
   F(MapClear)                          \

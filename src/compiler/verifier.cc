@@ -685,6 +685,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckUpperIs(node, Type::Unsigned32());
       break;
+    case IrOpcode::kNumberClz32:
+      // Unsigned32 -> Unsigned32
+      CheckValueInputIs(node, 0, Type::Unsigned32());
+      CheckUpperIs(node, Type::Unsigned32());
+      break;
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberRound:

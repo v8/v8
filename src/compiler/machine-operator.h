@@ -350,6 +350,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   V(Word, Shr)            \
   V(Word, Sar)            \
   V(Word, Ror)            \
+  V(Word, Clz)            \
   V(Word, Equal)          \
   V(Int, Add)             \
   V(Int, Sub)             \

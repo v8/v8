@@ -465,6 +465,8 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
       return machine()->Uint32LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
       return machine()->Uint32LessThanOrEqual();
+    case IrOpcode::kNumberClz32:
+      return machine()->Word32Clz();
     default:
       UNREACHABLE();
       return nullptr;

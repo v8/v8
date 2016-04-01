@@ -103,7 +103,8 @@ class Schedule;
   V(ChangeInt32ToFloat64)                    \
   V(ChangeInt32ToInt64)                      \
   V(ChangeUint32ToFloat64)                   \
-  V(ChangeUint32ToUint64)
+  V(ChangeUint32ToUint64)                    \
+  V(Word32Clz)
 
 class CodeStubAssembler {
  public:

@@ -308,6 +308,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 // Define list of builtins implemented in TurboFan (with JS linkage).
 #define BUILTIN_LIST_T(V) \
   V(MathCeil, 2)          \
+  V(MathClz32, 2)         \
   V(MathFloor, 2)         \
   V(MathRound, 2)         \
   V(MathSqrt, 2)          \
@@ -585,8 +586,10 @@ class Builtins {
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
 
-  // ES6 section 20.2.2.10 Math.floor ( x )
+  // ES6 section 20.2.2.10 Math.ceil ( x )
   static void Generate_MathCeil(compiler::CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.11 Math.clz32 ( x )
+  static void Generate_MathClz32(compiler::CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
   static void Generate_MathFloor(compiler::CodeStubAssembler* assembler);
   enum class MathMaxMinKind { kMax, kMin };

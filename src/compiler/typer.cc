@@ -1631,8 +1631,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineConstructDouble:
     case Runtime::kInlineMathAtan2:
       return Type::Number();
-    case Runtime::kInlineMathClz32:
-      return Type::Range(0, 32, zone());
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
@@ -1757,6 +1755,10 @@ Type* Typer::Visitor::TypeNumberShiftRight(Node* node) {
 
 Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
+}
+
+Type* Typer::Visitor::TypeNumberClz32(Node* node) {
+  return typer_->cache_.kZeroToThirtyTwo;
 }
 
 Type* Typer::Visitor::TypeNumberCeil(Node* node) {

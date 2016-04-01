@@ -108,17 +108,6 @@ RUNTIME_FUNCTION(Runtime_MathExpRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathClz32) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_clz32_runtime()->Increment();
-
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
-  return *isolate->factory()->NewNumberFromUint(
-      base::bits::CountLeadingZeros32(x));
-}
-
-
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
 RUNTIME_FUNCTION(Runtime_MathPow) {

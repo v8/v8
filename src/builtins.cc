@@ -2182,6 +2182,74 @@ void Builtins::Generate_MathCeil(compiler::CodeStubAssembler* assembler) {
                                  &compiler::CodeStubAssembler::Float64Ceil);
 }
 
+// ES6 section 20.2.2.11 Math.clz32 ( x )
+void Builtins::Generate_MathClz32(compiler::CodeStubAssembler* assembler) {
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  // Shared entry point for the clz32 operation.
+  Variable var_clz32_x(assembler, MachineRepresentation::kWord32);
+  Label do_clz32(assembler);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_x(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_x);
+  var_x.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {x} value.
+    Node* x = var_x.value();
+
+    // Check if {x} is a Smi or a HeapObject.
+    Label if_xissmi(assembler), if_xisnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(x), &if_xissmi, &if_xisnotsmi);
+
+    assembler->Bind(&if_xissmi);
+    {
+      var_clz32_x.Bind(assembler->SmiToWord32(x));
+      assembler->Goto(&do_clz32);
+    }
+
+    assembler->Bind(&if_xisnotsmi);
+    {
+      // Check if {x} is a HeapNumber.
+      Label if_xisheapnumber(assembler),
+          if_xisnotheapnumber(assembler, Label::kDeferred);
+      assembler->Branch(
+          assembler->WordEqual(assembler->LoadMap(x),
+                               assembler->HeapNumberMapConstant()),
+          &if_xisheapnumber, &if_xisnotheapnumber);
+
+      assembler->Bind(&if_xisheapnumber);
+      {
+        var_clz32_x.Bind(assembler->TruncateHeapNumberValueToWord32(x));
+        assembler->Goto(&do_clz32);
+      }
+
+      assembler->Bind(&if_xisnotheapnumber);
+      {
+        // Need to convert {x} to a Number first.
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
+        var_x.Bind(assembler->CallStub(callable, context, x));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_clz32);
+  {
+    Node* x_value = var_clz32_x.value();
+    Node* value = assembler->Word32Clz(x_value);
+    Node* result = assembler->ChangeInt32ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
 // ES6 section 20.2.2.16 Math.floor ( x )
 void Builtins::Generate_MathFloor(compiler::CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler,
