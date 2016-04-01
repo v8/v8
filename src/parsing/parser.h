@@ -500,6 +500,7 @@ class ParserTraits {
   static Expression* EmptyExpression() {
     return NULL;
   }
+  static bool IsEmptyExpression(Expression* e) { return e == nullptr; }
   static Literal* EmptyLiteral() {
     return NULL;
   }
