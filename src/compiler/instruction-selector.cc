@@ -615,15 +615,17 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
         call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
 
     // If it was a syntactic tail call we need to drop the current frame and
-    // an arguments adaptor frame on top of it (if the latter is present).
+    // all the frames on top of it that are either an arguments adaptor frame
+    // or a tail caller frame.
     if (buffer->descriptor->SupportsTailCalls()) {
       frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
-
-      if (buffer->frame_state_descriptor != nullptr &&
-          buffer->frame_state_descriptor->type() ==
-              FrameStateType::kArgumentsAdaptor) {
+      while (buffer->frame_state_descriptor != nullptr &&
+             (buffer->frame_state_descriptor->type() ==
+                  FrameStateType::kArgumentsAdaptor ||
+              buffer->frame_state_descriptor->type() ==
+                  FrameStateType::kTailCallerFunction)) {
         frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
         buffer->frame_state_descriptor =
             buffer->frame_state_descriptor->outer_state();
