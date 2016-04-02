@@ -984,6 +984,11 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
+
+#define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
+      MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)
+#undef SIMD_MACHINE_OP_CASE
+
       // TODO(rossberg): Check.
       break;
   }
