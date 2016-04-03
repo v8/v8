@@ -14,7 +14,7 @@ deps = {
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "80b5126f91be4eb359248d28696746ef09d5be67",
   "v8/base/trace_event/common":
-    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "0fc98828a66ee4d69b9524e4967b9287b7b8eea0",
+    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "ffb39885a2418caa7a6a6652471fe097732675bd",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
@@ -29,7 +29,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "57d3e2216fa86ad63b6c0a54914ba9dcbff96003",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "87058e09f9c547eb5d00cb8ca666c6aec203a117",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "8f7a85a108698ce7ed4fe1aa842efa61f195364e",
 }
 
 deps_os = {
