@@ -498,10 +498,6 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
-  'test-api/TryCatchMixedNesting': [FAIL],
-
   # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
   # on nodes (behind --turbo_source_positions flag).
   'test-cpu-profiler/TickLinesOptimized': [FAIL],
@@ -526,9 +522,6 @@
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # TODO(mythria,4680): Incorrect column number on eval.
-  'test-api/PromiseRejectCallback': [FAIL],
 
   # TODO(rmcilroy,4680): Fails with eager compilation due to SharedFunctionInfo
   # being null in compiler.cc Renumber(), meaning MaybeDisableOptimization never

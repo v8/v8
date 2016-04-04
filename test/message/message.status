@@ -34,14 +34,4 @@
   # back-references).
   'strict-octal-regexp': [SKIP],
 }],  # ALWAYS
-['ignition == True', {
-  # TODO(4680): Some source positions are off with Ignition.
-  'default-parameter-tdz': [SKIP],
-  'default-parameter-tdz-arrow': [SKIP],
-  'destructuring-modify-const': [SKIP],
-  'overwritten-builtins': [SKIP],
-  'regress/regress-1527': [SKIP],
-  'regress/regress-3995': [SKIP],
-  'replacement-marker-as-argument': [SKIP],
-}],  # ignition == True
 ]

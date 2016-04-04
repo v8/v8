@@ -140,7 +140,10 @@ void SourcePositionTableBuilder::AddEntry(
   // Don't encode a new entry if this bytecode already has a source position
   // assigned.
   if (candidate_.bytecode_offset == entry.bytecode_offset) {
-    if (on_duplicate == OVERWRITE_DUPLICATE) candidate_ = entry;
+    if ((!candidate_.is_statement && entry.is_statement) ||
+        on_duplicate == OVERWRITE_DUPLICATE) {
+      candidate_ = entry;
+    }
     return;
   }
 
