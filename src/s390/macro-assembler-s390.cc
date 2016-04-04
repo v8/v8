@@ -944,7 +944,7 @@ void MacroAssembler::ShiftRightArithPair(Register dst_low, Register dst_high,
                                          uint32_t shift) {
   LoadRR(r0, src_high);
   LoadRR(r1, src_low);
-  srdl(r0, r0, Operand(shift));
+  srda(r0, r0, Operand(shift));
   LoadRR(dst_high, r0);
   LoadRR(dst_low, r1);
 }
