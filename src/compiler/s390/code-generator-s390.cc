@@ -1203,13 +1203,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_FLOAT_UNOP(sqebr);
       break;
     case kS390_FloorFloat:
-      //      ASSEMBLE_FLOAT_UNOP_RC(frim);
-      __ FloatFloor32(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                      kScratchReg);
+      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
       break;
     case kS390_CeilFloat:
-      __ FloatCeiling32(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                        kScratchReg, kScratchDoubleReg);
+      __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
       break;
     case kS390_TruncateFloat:
       __ fiebra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1235,12 +1234,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_FLOAT_UNOP(sqdbr);
       break;
     case kS390_FloorDouble:
-      __ FloatFloor64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                      kScratchReg);
+      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_NEG_INF);
       break;
     case kS390_CeilDouble:
-      __ FloatCeiling64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                        kScratchReg, kScratchDoubleReg);
+      __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                v8::internal::Assembler::FIDBRA_ROUND_TOWARD_POS_INF);
       break;
     case kS390_TruncateDouble:
       __ fidbra(i.OutputDoubleRegister(), i.InputDoubleRegister(0),

@@ -308,12 +308,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
 int Decoder::FormatMask(Instruction* instr, const char* format) {
   DCHECK(format[0] == 'm');
   int32_t value = 0;
-  if ((format[1] == '1')) {  // prints the mask format in bit 8-12
+  if ((format[1] == '1')) {  // prints the mask format in bits 8-12
     value = reinterpret_cast<RRInstruction*>(instr)->R1Value();
     out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
-  } else if (format[1] == '2') {  // mask format in bit 16 - 19
+  } else if (format[1] == '2') {  // mask format in bits 16-19
     value = reinterpret_cast<RXInstruction*>(instr)->B2Value();
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    return 2;
+  } else if (format[1] == '3') {  // mask format in bits 20-23
+    value = reinterpret_cast<RRFInstruction*>(instr)->M4Value();
     out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
   }
@@ -990,6 +994,12 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     case FLOGR:
       Format(instr, "flogr\t'r5,'r6");
+      break;
+    case FIEBRA:
+      Format(instr, "fiebra\t'f5,'m2,'f6,'m3");
+      break;
+    case FIDBRA:
+      Format(instr, "fidbra\t'f5,'m2,'f6,'m3");
       break;
     // TRAP4 is used in calling to native function. it will not be generated
     // in native code.
