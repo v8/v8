@@ -1182,7 +1182,6 @@ class TryCatchStatement final : public TryStatement {
   Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
-  bool clear_pending_message() { return clear_pending_message_; }
 
   // The clear_pending_message flag indicates whether or not to clear the
   // isolate's pending exception message before executing the catch_block.  In
@@ -1194,6 +1193,7 @@ class TryCatchStatement final : public TryStatement {
   // message instead of generating a new one.
   // (When the catch block doesn't rethrow but is guaranteed to perform an
   // ordinary throw, not clearing the old message is safe but not very useful.)
+  bool clear_pending_message() { return clear_pending_message_; }
 
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
