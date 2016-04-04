@@ -2772,7 +2772,7 @@ TEST(Run_Wasm_F32CopySign) {
   BUILD(r, WASM_F32_COPYSIGN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysign(*i, *j), r.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysignf(*i, *j), r.Call(*i, *j)); }
   }
 }
 
