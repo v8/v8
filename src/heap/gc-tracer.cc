@@ -44,6 +44,18 @@ GCTracer::Scope::~Scope() {
   }
 }
 
+const char* GCTracer::Scope::Name(ScopeId id) {
+#define CASE(scope)  \
+  case Scope::scope: \
+    return "V8.GC_" #scope;
+  switch (id) {
+    TRACER_SCOPES(CASE)
+    case Scope::NUMBER_OF_SCOPES:
+      break;
+  }
+#undef CASE
+  return "(unknown)";
+}
 
 GCTracer::Event::Event(Type type, const char* gc_reason,
                        const char* collector_reason)

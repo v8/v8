@@ -819,7 +819,7 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     PrintF("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
-  GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
+  TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
   HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
@@ -828,8 +828,7 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(),
-                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
@@ -840,8 +839,7 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(),
-                            GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
@@ -1285,10 +1283,9 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(),
-                            collector == MARK_COMPACTOR
-                                ? GCTracer::Scope::MC_EXTERNAL_PROLOGUE
-                                : GCTracer::Scope::SCAVENGER_EXTERNAL_PROLOGUE);
+      TRACE_GC(tracer(), collector == MARK_COMPACTOR
+                             ? GCTracer::Scope::MC_EXTERNAL_PROLOGUE
+                             : GCTracer::Scope::SCAVENGER_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1335,8 +1332,7 @@ bool Heap::PerformGarbageCollection(
   gc_post_processing_depth_++;
   {
     AllowHeapAllocation allow_allocation;
-    GCTracer::Scope scope(tracer(),
-                          GCTracer::Scope::EXTERNAL_WEAK_GLOBAL_HANDLES);
+    TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_WEAK_GLOBAL_HANDLES);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
             collector, gc_callback_flags);
@@ -1366,10 +1362,9 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer(),
-                            collector == MARK_COMPACTOR
-                                ? GCTracer::Scope::MC_EXTERNAL_EPILOGUE
-                                : GCTracer::Scope::SCAVENGER_EXTERNAL_EPILOGUE);
+      TRACE_GC(tracer(), collector == MARK_COMPACTOR
+                             ? GCTracer::Scope::MC_EXTERNAL_EPILOGUE
+                             : GCTracer::Scope::SCAVENGER_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
@@ -1622,7 +1617,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
-  GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
+  TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   RelocationLock relocation_lock(this);
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
@@ -1683,20 +1678,19 @@ void Heap::Scavenge() {
 
   {
     // Copy roots.
-    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_ROOTS);
     IterateRoots(&scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
   }
 
   {
     // Copy objects reachable from the old generation.
-    GCTracer::Scope gc_scope(tracer(),
-                             GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
     RememberedSet<OLD_TO_NEW>::IterateWithWrapper(this,
                                                   Scavenger::ScavengeObject);
   }
 
   {
-    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_WEAK);
     // Copy objects reachable from the encountered weak collections list.
     scavenge_visitor.VisitPointer(&encountered_weak_collections_);
     // Copy objects reachable from the encountered weak cells.
@@ -1705,8 +1699,7 @@ void Heap::Scavenge() {
 
   {
     // Copy objects reachable from the code flushing candidates list.
-    GCTracer::Scope gc_scope(tracer(),
-                             GCTracer::Scope::SCAVENGER_CODE_FLUSH_CANDIDATES);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_CODE_FLUSH_CANDIDATES);
     MarkCompactCollector* collector = mark_compact_collector();
     if (collector->is_code_flushing_enabled()) {
       collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
@@ -1714,7 +1707,7 @@ void Heap::Scavenge() {
   }
 
   {
-    GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SEMISPACE);
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
 
@@ -1726,8 +1719,7 @@ void Heap::Scavenge() {
         &scavenge_visitor);
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   } else {
-    GCTracer::Scope gc_scope(tracer(),
-                             GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OBJECT_GROUPS);
     while (isolate()->global_handles()->IterateObjectGroups(
         &scavenge_visitor, &IsUnscavengedHeapObject)) {
       new_space_front = DoScavenge(&scavenge_visitor, new_space_front);

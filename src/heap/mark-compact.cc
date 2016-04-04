@@ -317,8 +317,7 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
 
 void MarkCompactCollector::ClearInvalidRememberedSetSlots() {
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_CLEAR_STORE_BUFFER);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STORE_BUFFER);
     RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(heap());
   }
 // There is not need to filter the old to old set because
@@ -856,7 +855,7 @@ void MarkCompactCollector::Prepare() {
 
 
 void MarkCompactCollector::Finish() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_FINISH);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
   // The hashing of weak_object_to_code_table is no longer valid.
   heap()->weak_object_to_code_table()->Rehash(
@@ -2082,7 +2081,7 @@ void MarkingDeque::Uninitialize(bool aborting) {
 
 
 void MarkCompactCollector::MarkLiveObjects() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;
   if (FLAG_print_cumulative_gc_stat) {
     start_time = heap_->MonotonicallyIncreasingTimeInMs();
@@ -2093,8 +2092,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   PostponeInterruptsScope postpone(isolate());
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
     IncrementalMarking* incremental_marking = heap_->incremental_marking();
     if (was_marked_incrementally_) {
       incremental_marking->Finalize();
@@ -2116,29 +2114,27 @@ void MarkCompactCollector::MarkLiveObjects() {
       MarkCompactCollector::kMaxMarkingDequeSize);
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_MARK_PREPARE_CODE_FLUSH);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_PREPARE_CODE_FLUSH);
     PrepareForCodeFlushing();
   }
 
   RootMarkingVisitor root_visitor(heap());
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
     MarkRoots(&root_visitor);
     ProcessTopOptimizedFrame(&root_visitor);
   }
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
 
     // The objects reachable from the roots are marked, yet unreachable
     // objects are unmarked.  Mark objects reachable due to host
     // application specific logic or through Harmony weak maps.
     {
-      GCTracer::Scope gc_scope(heap()->tracer(),
-                               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
       ProcessEphemeralMarking(&root_visitor, false);
       ProcessMarkingDeque();
     }
@@ -2151,8 +2147,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     // First we identify nonlive weak handles and mark them as pending
     // destruction.
     {
-      GCTracer::Scope gc_scope(
-          heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IdentifyWeakHandles(
           &IsUnmarkedHeapObject);
       ProcessMarkingDeque();
@@ -2160,8 +2156,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     // Then we mark the objects.
 
     {
-      GCTracer::Scope gc_scope(
-          heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
       ProcessMarkingDeque();
     }
@@ -2172,8 +2168,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     // We only process harmony collections, as all object groups have been fully
     // processed and no weakly reachable node can discover new objects groups.
     {
-      GCTracer::Scope gc_scope(heap()->tracer(),
-                               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
       ProcessMarkingDeque();
     }
@@ -2193,11 +2188,10 @@ void MarkCompactCollector::MarkLiveObjects() {
 
 
 void MarkCompactCollector::ClearNonLiveReferences() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_CLEAR_STRING_TABLE);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE);
 
     // Prune the string table removing all strings only pointed to by the
     // string table.  Cannot use string_table() here because the string
@@ -2213,16 +2207,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
     MarkCompactWeakObjectRetainer mark_compact_object_retainer;
     heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_CLEAR_GLOBAL_HANDLES);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_GLOBAL_HANDLES);
 
     // Remove object groups after marking phase.
     heap()->isolate()->global_handles()->RemoveObjectGroups();
@@ -2231,8 +2223,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_CLEAR_CODE_FLUSH);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_CODE_FLUSH);
     code_flusher_->ProcessCandidates();
   }
 
@@ -2242,7 +2233,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   ClearWeakCells(&non_live_map_list, &dependent_code_list);
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_MAPS);
     ClearSimpleMapTransitions(non_live_map_list);
     ClearFullMapTransitions();
   }
@@ -2257,8 +2248,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization(
     DependentCode* list_head) {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_CLEAR_DEPENDENT_CODE);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_DEPENDENT_CODE);
   Isolate* isolate = this->isolate();
   DependentCode* current = list_head;
   while (current->length() > 0) {
@@ -2479,8 +2469,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
 
 
 void MarkCompactCollector::ClearWeakCollections() {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::FromInt(0)) {
     JSWeakCollection* weak_collection =
@@ -2517,8 +2506,7 @@ void MarkCompactCollector::AbortWeakCollections() {
 void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
                                           DependentCode** dependent_code_list) {
   Heap* heap = this->heap();
-  GCTracer::Scope gc_scope(heap->tracer(),
-                           GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
+  TRACE_GC(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
   Object* weak_cell_obj = heap->encountered_weak_cells();
   Object* the_hole_value = heap->the_hole_value();
   DependentCode* dependent_code_head =
@@ -3397,12 +3385,11 @@ void MarkCompactCollector::SweepAbortedPages() {
 
 
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
   Heap::RelocationLock relocation_lock(heap());
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_EVACUATE_COPY);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_COPY);
     EvacuationScope evacuation_scope(this);
 
     EvacuateNewSpacePrologue();
@@ -3420,8 +3407,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   heap()->FreeQueuedChunks();
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
     // After updating all pointers, we can finally sweep the aborted pages,
     // effectively overriding any forward pointers.
     SweepAbortedPages();
@@ -3558,14 +3544,13 @@ void UpdateToSpacePointersInParallel(Heap* heap) {
 }
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
   PointersUpdatingVisitor updating_visitor(heap());
 
   {
-    GCTracer::Scope gc_scope(
-        heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
     UpdateToSpacePointersInParallel(heap_);
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
@@ -3574,16 +3559,14 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 
   {
     Heap* heap = this->heap();
-    GCTracer::Scope gc_scope(
-        heap->tracer(),
-        GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
+    TRACE_GC(heap->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
     UpdatePointersInParallel<OLD_TO_OLD>(heap_);
   }
 
   {
-    GCTracer::Scope gc_scope(
-        heap()->tracer(),
-        GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED);
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED);
     for (Page* p : evacuation_candidates_) {
       DCHECK(p->IsEvacuationCandidate());
       // Important: skip list should be cleared only after roots were updated
@@ -3601,8 +3584,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   }
 
   {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK);
     // Update pointers from external string table.
     heap_->UpdateReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
@@ -3747,7 +3730,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
 
 void MarkCompactCollector::SweepSpaces() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
   double start_time = 0.0;
   if (FLAG_print_cumulative_gc_stat) {
     start_time = heap_->MonotonicallyIncreasingTimeInMs();

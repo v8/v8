@@ -58,6 +58,63 @@ inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
+#define TRACER_SCOPES(F)                           \
+  F(EXTERNAL_WEAK_GLOBAL_HANDLES)                  \
+  F(MC_CLEAR)                                      \
+  F(MC_CLEAR_CODE_FLUSH)                           \
+  F(MC_CLEAR_DEPENDENT_CODE)                       \
+  F(MC_CLEAR_GLOBAL_HANDLES)                       \
+  F(MC_CLEAR_MAPS)                                 \
+  F(MC_CLEAR_SLOTS_BUFFER)                         \
+  F(MC_CLEAR_STORE_BUFFER)                         \
+  F(MC_CLEAR_STRING_TABLE)                         \
+  F(MC_CLEAR_WEAK_CELLS)                           \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                     \
+  F(MC_CLEAR_WEAK_LISTS)                           \
+  F(MC_EVACUATE)                                   \
+  F(MC_EVACUATE_CANDIDATES)                        \
+  F(MC_EVACUATE_CLEAN_UP)                          \
+  F(MC_EVACUATE_COPY)                              \
+  F(MC_EVACUATE_UPDATE_POINTERS)                   \
+  F(MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED) \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED)      \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)            \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)              \
+  F(MC_EXTERNAL_EPILOGUE)                          \
+  F(MC_EXTERNAL_PROLOGUE)                          \
+  F(MC_FINISH)                                     \
+  F(MC_INCREMENTAL_FINALIZE)                       \
+  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)              \
+  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)              \
+  F(MC_MARK)                                       \
+  F(MC_MARK_FINISH_INCREMENTAL)                    \
+  F(MC_MARK_PREPARE_CODE_FLUSH)                    \
+  F(MC_MARK_ROOTS)                                 \
+  F(MC_MARK_WEAK_CLOSURE)                          \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)             \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)               \
+  F(MC_MARK_WEAK_CLOSURE_HARMONY)                  \
+  F(MC_SWEEP)                                      \
+  F(MC_SWEEP_CODE)                                 \
+  F(MC_SWEEP_MAP)                                  \
+  F(MC_SWEEP_OLD)                                  \
+  F(SCAVENGER_CODE_FLUSH_CANDIDATES)               \
+  F(SCAVENGER_EXTERNAL_EPILOGUE)                   \
+  F(SCAVENGER_EXTERNAL_PROLOGUE)                   \
+  F(SCAVENGER_OBJECT_GROUPS)                       \
+  F(SCAVENGER_OLD_TO_NEW_POINTERS)                 \
+  F(SCAVENGER_ROOTS)                               \
+  F(SCAVENGER_SCAVENGE)                            \
+  F(SCAVENGER_SEMISPACE)                           \
+  F(SCAVENGER_WEAK)
+
+#define TRACE_GC(tracer, scope_id)                             \
+  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
+  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"),                \
+               GCTracer::Scope::Name(gc_tracer_scope_id))
+
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 // TODO(ernstm): Unit tests.
@@ -66,60 +123,15 @@ class GCTracer {
   class Scope {
    public:
     enum ScopeId {
-      EXTERNAL_WEAK_GLOBAL_HANDLES,
-      MC_CLEAR,
-      MC_CLEAR_CODE_FLUSH,
-      MC_CLEAR_DEPENDENT_CODE,
-      MC_CLEAR_GLOBAL_HANDLES,
-      MC_CLEAR_MAPS,
-      MC_CLEAR_SLOTS_BUFFER,
-      MC_CLEAR_STORE_BUFFER,
-      MC_CLEAR_STRING_TABLE,
-      MC_CLEAR_WEAK_CELLS,
-      MC_CLEAR_WEAK_COLLECTIONS,
-      MC_CLEAR_WEAK_LISTS,
-      MC_EVACUATE,
-      MC_EVACUATE_CANDIDATES,
-      MC_EVACUATE_CLEAN_UP,
-      MC_EVACUATE_COPY,
-      MC_EVACUATE_UPDATE_POINTERS,
-      MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED,
-      MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED,
-      MC_EVACUATE_UPDATE_POINTERS_TO_NEW,
-      MC_EVACUATE_UPDATE_POINTERS_WEAK,
-      MC_EXTERNAL_EPILOGUE,
-      MC_EXTERNAL_PROLOGUE,
-      MC_FINISH,
-      MC_INCREMENTAL_FINALIZE,
-      MC_INCREMENTAL_EXTERNAL_EPILOGUE,
-      MC_INCREMENTAL_EXTERNAL_PROLOGUE,
-      MC_MARK,
-      MC_MARK_FINISH_INCREMENTAL,
-      MC_MARK_PREPARE_CODE_FLUSH,
-      MC_MARK_ROOTS,
-      MC_MARK_WEAK_CLOSURE,
-      MC_MARK_WEAK_CLOSURE_EPHEMERAL,
-      MC_MARK_WEAK_CLOSURE_WEAK_HANDLES,
-      MC_MARK_WEAK_CLOSURE_WEAK_ROOTS,
-      MC_MARK_WEAK_CLOSURE_HARMONY,
-      MC_SWEEP,
-      MC_SWEEP_CODE,
-      MC_SWEEP_MAP,
-      MC_SWEEP_OLD,
-      SCAVENGER_CODE_FLUSH_CANDIDATES,
-      SCAVENGER_EXTERNAL_EPILOGUE,
-      SCAVENGER_EXTERNAL_PROLOGUE,
-      SCAVENGER_OBJECT_GROUPS,
-      SCAVENGER_OLD_TO_NEW_POINTERS,
-      SCAVENGER_ROOTS,
-      SCAVENGER_SCAVENGE,
-      SCAVENGER_SEMISPACE,
-      SCAVENGER_WEAK,
-      NUMBER_OF_SCOPES
+#define DEFINE_SCOPE(scope) scope,
+      TRACER_SCOPES(DEFINE_SCOPE)
+#undef DEFINE_SCOPE
+          NUMBER_OF_SCOPES
     };
 
     Scope(GCTracer* tracer, ScopeId scope);
     ~Scope();
+    static const char* Name(ScopeId id);
 
    private:
     GCTracer* tracer_;
