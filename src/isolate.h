@@ -682,12 +682,12 @@ class Isolate {
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
-  Handle<Object> CaptureSimpleStackTrace(Handle<JSObject> error_object,
+  Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                          Handle<Object> caller);
-  MaybeHandle<JSObject> CaptureAndSetDetailedStackTrace(
-      Handle<JSObject> error_object);
-  MaybeHandle<JSObject> CaptureAndSetSimpleStackTrace(
-      Handle<JSObject> error_object, Handle<Object> caller);
+  MaybeHandle<JSReceiver> CaptureAndSetDetailedStackTrace(
+      Handle<JSReceiver> error_object);
+  MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
+      Handle<JSReceiver> error_object, Handle<Object> caller);
   Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);

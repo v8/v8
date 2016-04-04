@@ -263,7 +263,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
 RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, error_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, caller, 1);
 
   if (!isolate->bootstrapper()->IsActive()) {
