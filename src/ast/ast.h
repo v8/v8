@@ -1182,19 +1182,34 @@ class TryCatchStatement final : public TryStatement {
   Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
+  bool clear_pending_message() { return clear_pending_message_; }
+
+  // The clear_pending_message flag indicates whether or not to clear the
+  // isolate's pending exception message before executing the catch_block.  In
+  // the normal use case, this flag is always on because the message object
+  // is not needed anymore when entering the catch block and should not be kept
+  // alive.
+  // The use case where the flag is off is when the catch block is guaranteed to
+  // rethrow the caught exception (using %ReThrow), which reuses the pending
+  // message instead of generating a new one.
+  // (When the catch block doesn't rethrow but is guaranteed to perform an
+  // ordinary throw, not clearing the old message is safe but not very useful.)
 
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
-                    Variable* variable, Block* catch_block, int pos)
+                    Variable* variable, Block* catch_block,
+                    bool clear_pending_message, int pos)
       : TryStatement(zone, try_block, pos),
         scope_(scope),
         variable_(variable),
-        catch_block_(catch_block) {}
+        catch_block_(catch_block),
+        clear_pending_message_(clear_pending_message) {}
 
  private:
   Scope* scope_;
   Variable* variable_;
   Block* catch_block_;
+  bool clear_pending_message_;
 };
 
 
@@ -3134,8 +3149,17 @@ class AstNodeFactory final BASE_EMBEDDED {
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
                                           Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (local_zone_) TryCatchStatement(local_zone_, try_block, scope,
-                                               variable, catch_block, pos);
+    return new (local_zone_) TryCatchStatement(
+        local_zone_, try_block, scope, variable, catch_block, true, pos);
+  }
+
+  TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
+                                                    Scope* scope,
+                                                    Variable* variable,
+                                                    Block* catch_block,
+                                                    int pos) {
+    return new (local_zone_) TryCatchStatement(
+        local_zone_, try_block, scope, variable, catch_block, false, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,

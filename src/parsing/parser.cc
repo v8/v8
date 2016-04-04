@@ -6465,7 +6465,7 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
   //       iterator_use
   //     } catch(e) {
   //       if (completion === kAbruptCompletion) completion = kThrowCompletion;
-  //       throw e;
+  //       %ReThrow(e);
   //     }
   //   } finally {
   //     if (condition) {
@@ -6526,7 +6526,7 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
   // try { #try_block }
   // catch(e) {
   //   #set_completion_throw;
-  //   throw e;
+  //   %ReThrow(e);
   // }
   Statement* try_catch;
   {
@@ -6536,17 +6536,22 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
                                   kCreatedInitialized, Variable::NORMAL);
 
     Statement* rethrow;
+    // We use %ReThrow rather than the ordinary throw because we want to
+    // preserve the original exception message.  This is also why we create a
+    // TryCatchStatementForReThrow below (which does not clear the pending
+    // message), rather than a TryCatchStatement.
     {
-      Expression* proxy = factory->NewVariableProxy(catch_variable);
-      rethrow = factory->NewExpressionStatement(factory->NewThrow(proxy, nopos),
-                                                nopos);
+      auto args = new (zone) ZoneList<Expression*>(1, zone);
+      args->Add(factory->NewVariableProxy(catch_variable), zone);
+      rethrow = factory->NewExpressionStatement(
+          factory->NewCallRuntime(Runtime::kReThrow, args, nopos), nopos);
     }
 
     Block* catch_block = factory->NewBlock(nullptr, 2, false, nopos);
     catch_block->statements()->Add(set_completion_throw, zone);
     catch_block->statements()->Add(rethrow, zone);
 
-    try_catch = factory->NewTryCatchStatement(
+    try_catch = factory->NewTryCatchStatementForReThrow(
         iterator_use, catch_scope, catch_variable, catch_block, nopos);
   }
 
@@ -6742,7 +6747,7 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   //       #loop;
   //     } catch(e) {
   //       if (completion === kAbruptCompletion) completion = kThrowCompletion;
-  //       throw e;
+  //       %ReThrow(e);
   //     }
   //   } finally {
   //     if (!(completion === kNormalCompletion || IS_UNDEFINED(#iterator))) {

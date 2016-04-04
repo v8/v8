@@ -1442,9 +1442,11 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control.EndTry();
 
-  // Clear message object as we enter the catch block.
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  NewNode(javascript()->StoreMessage(), the_hole);
+  // If requested, clear message object as we enter the catch block.
+  if (stmt->clear_pending_message()) {
+    Node* the_hole = jsgraph()->TheHoleConstant();
+    NewNode(javascript()->StoreMessage(), the_hole);
+  }
 
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();

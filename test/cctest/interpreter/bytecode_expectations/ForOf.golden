@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 346
+bytecode array length: 347
 bytecodes: [
   B(StackCheck),
   B(LdaUndefined),
@@ -59,7 +59,7 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(3),
   B(Jump), U8(-70),
-  B(Jump), U8(46),
+  B(Jump), U8(47),
   B(Star), R(14),
   B(LdaConstant), U8(5),
   B(Star), R(13),
@@ -67,8 +67,6 @@ bytecodes: [
   B(Star), R(15),
   B(CallRuntime), U16(Runtime::kPushCatchContext), R(13), U8(3),
   B(Star), R(12),
-  B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
-  B(Ldar), R(12),
   B(PushContext), R(8),
   B(Ldar), R(3),
   B(Star), R(13),
@@ -78,7 +76,9 @@ bytecodes: [
   B(LdaSmi), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
-  B(Throw),
+  B(Star), R(13),
+  B(CallRuntime), U16(Runtime::kReThrow), R(13), U8(1),
+  B(PopContext), R(8),
   B(LdaSmi), U8(-1),
   B(Star), R(9),
   B(Jump), U8(7),
@@ -180,9 +180,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [10, 151, 157],
+  [10, 152, 158],
   [13, 105, 107],
-  [249, 262, 264],
+  [250, 263, 265],
 ]
 
 ---
@@ -192,7 +192,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 362
+bytecode array length: 363
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -240,9 +240,9 @@ bytecodes: [
   B(Star), R(11),
   B(LdaZero),
   B(Star), R(10),
-  B(Jump), U8(62),
+  B(Jump), U8(63),
   B(Jump), U8(-74),
-  B(Jump), U8(46),
+  B(Jump), U8(47),
   B(Star), R(15),
   B(LdaConstant), U8(5),
   B(Star), R(14),
@@ -250,8 +250,6 @@ bytecodes: [
   B(Star), R(16),
   B(CallRuntime), U16(Runtime::kPushCatchContext), R(14), U8(3),
   B(Star), R(13),
-  B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
-  B(Ldar), R(13),
   B(PushContext), R(9),
   B(Ldar), R(3),
   B(Star), R(14),
@@ -261,7 +259,9 @@ bytecodes: [
   B(LdaSmi), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
-  B(Throw),
+  B(Star), R(14),
+  B(CallRuntime), U16(Runtime::kReThrow), R(14), U8(1),
+  B(PopContext), R(9),
   B(LdaSmi), U8(-1),
   B(Star), R(10),
   B(Jump), U8(8),
@@ -368,9 +368,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [14, 157, 163],
+  [14, 158, 164],
   [17, 111, 113],
-  [256, 269, 271],
+  [257, 270, 272],
 ]
 
 ---
@@ -382,7 +382,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 368
+bytecode array length: 369
 bytecodes: [
   B(StackCheck),
   B(LdaUndefined),
@@ -439,7 +439,7 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(3),
   B(Jump), U8(-92),
-  B(Jump), U8(46),
+  B(Jump), U8(47),
   B(Star), R(14),
   B(LdaConstant), U8(5),
   B(Star), R(13),
@@ -447,8 +447,6 @@ bytecodes: [
   B(Star), R(15),
   B(CallRuntime), U16(Runtime::kPushCatchContext), R(13), U8(3),
   B(Star), R(12),
-  B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
-  B(Ldar), R(12),
   B(PushContext), R(8),
   B(Ldar), R(3),
   B(Star), R(13),
@@ -458,7 +456,9 @@ bytecodes: [
   B(LdaSmi), U8(1),
   B(Star), R(3),
   B(LdaContextSlot), R(context), U8(4),
-  B(Throw),
+  B(Star), R(13),
+  B(CallRuntime), U16(Runtime::kReThrow), R(13), U8(1),
+  B(PopContext), R(8),
   B(LdaSmi), U8(-1),
   B(Star), R(9),
   B(Jump), U8(7),
@@ -560,9 +560,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [10, 173, 179],
+  [10, 174, 180],
   [13, 127, 129],
-  [271, 284, 286],
+  [272, 285, 287],
 ]
 
 ---
@@ -572,7 +572,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 378
+bytecode array length: 379
 bytecodes: [
   B(StackCheck),
   B(CreateObjectLiteral), U8(0), U8(0), U8(5),
@@ -624,9 +624,9 @@ bytecodes: [
   B(Star), R(9),
   B(LdaZero),
   B(Star), R(8),
-  B(Jump), U8(62),
+  B(Jump), U8(63),
   B(Jump), U8(-84),
-  B(Jump), U8(46),
+  B(Jump), U8(47),
   B(Star), R(13),
   B(LdaConstant), U8(7),
   B(Star), R(12),
@@ -634,8 +634,6 @@ bytecodes: [
   B(Star), R(14),
   B(CallRuntime), U16(Runtime::kPushCatchContext), R(12), U8(3),
   B(Star), R(11),
-  B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
-  B(Ldar), R(11),
   B(PushContext), R(7),
   B(Ldar), R(2),
   B(Star), R(12),
@@ -645,7 +643,9 @@ bytecodes: [
   B(LdaSmi), U8(1),
   B(Star), R(2),
   B(LdaContextSlot), R(context), U8(4),
-  B(Throw),
+  B(Star), R(12),
+  B(CallRuntime), U16(Runtime::kReThrow), R(12), U8(1),
+  B(PopContext), R(7),
   B(LdaSmi), U8(-1),
   B(Star), R(8),
   B(Jump), U8(8),
@@ -754,8 +754,8 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [18, 173, 179],
+  [18, 174, 180],
   [21, 127, 129],
-  [272, 285, 287],
+  [273, 286, 288],
 ]
 
