@@ -97,6 +97,9 @@ class Category:
       return 0.0
     return sum(self.values) / len(self.values)
 
+  def empty(self):
+    return len(self.values) == 0
+
   def __str__(self):
     if self.csv:
       ret = [self.key]
@@ -178,6 +181,9 @@ def main():
     obj = split_nvp(line)
     for category in categories:
       category.process_entry(obj)
+
+  # Filter out empty categories.
+  categories = [x for x in categories if not x.empty()]
 
   if args.rank != "no":
     categories = sorted(categories, key=make_key_func(args.rank), reverse=True)
