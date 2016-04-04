@@ -8127,3 +8127,61 @@ TEST(DisableTailCallElimination) {
   ExpectInt32("h();", 2);
   ExpectInt32("h(); %OptimizeFunctionOnNextCall(g); h();", 2);
 }
+
+TEST(DebugStepNextTailCallEliminiation) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_harmony_tailcalls = true;
+  // TODO(ishell, 4698): Investigate why TurboFan in --always-opt mode makes
+  // stack[2].getFunctionName() return null.
+  i::FLAG_turbo_inlining = false;
+
+  DebugLocalContext env;
+  env.ExposeDebug();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CHECK(v8::Debug::IsTailCallEliminationEnabled(isolate));
+
+  const char* source =
+      "'use strict';                                           \n"
+      "var Debug = debug.Debug;                                \n"
+      "var exception = null;                                   \n"
+      "var breaks = 0;                                         \n"
+      "var log = [];                                           \n"
+      "function f(x) {                                         \n"
+      "  if (x == 2) {                                         \n"
+      "    debugger;             // Break a                    \n"
+      "  }                                                     \n"
+      "  if (x-- > 0) {          // Break b                    \n"
+      "    return f(x);          // Break c                    \n"
+      "  }                                                     \n"
+      "}                         // Break e                    \n"
+      "function listener(event, exec_state, event_data, data) {\n"
+      "  if (event != Debug.DebugEvent.Break) return;          \n"
+      "  try {                                                 \n"
+      "    var line = exec_state.frame(0).sourceLineText();    \n"
+      "    var col = exec_state.frame(0).sourceColumn();       \n"
+      "    var match = line.match(/\\/\\/ Break (\\w)/);       \n"
+      "    log.push(match[1] + col);                           \n"
+      "    exec_state.prepareStep(Debug.StepAction.StepNext);  \n"
+      "  } catch (e) {                                         \n"
+      "    exception = e;                                      \n"
+      "  };                                                    \n"
+      "};                                                      \n"
+      "Debug.setListener(listener);                            \n"
+      "f(4);                                                   \n"
+      "Debug.setListener(null);  // Break d                    \n";
+
+  CompileRun(source);
+  ExpectNull("exception");
+  ExpectString("JSON.stringify(log)", "[\"a4\",\"b2\",\"c4\",\"c11\",\"d0\"]");
+
+  v8::Debug::SetTailCallEliminationEnabled(isolate, false);
+  CompileRun(
+      "log = [];                            \n"
+      "Debug.setListener(listener);         \n"
+      "f(5);                                \n"
+      "Debug.setListener(null);  // Break f \n");
+  ExpectNull("exception");
+  ExpectString("JSON.stringify(log)",
+               "[\"a4\",\"b2\",\"c4\",\"e0\",\"e0\",\"e0\",\"e0\",\"f0\"]");
+}

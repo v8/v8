@@ -671,13 +671,16 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   }
 }
 
-
-void FullCodeGenerator::SetCallPosition(Expression* expr) {
+void FullCodeGenerator::SetCallPosition(Expression* expr,
+                                        TailCallMode tail_call_mode) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
+    RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
+                               ? RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL
+                               : RelocInfo::DEBUG_BREAK_SLOT_AT_CALL;
     // Always emit a debug break slot before a call.
-    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
+    DebugCodegen::GenerateSlot(masm_, mode);
   }
 }
 

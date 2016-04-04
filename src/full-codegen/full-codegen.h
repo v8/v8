@@ -677,7 +677,8 @@ class FullCodeGenerator: public AstVisitor {
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
-  void SetCallPosition(Expression* expr);
+  void SetCallPosition(Expression* expr,
+                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   void SetConstructCallPosition(Expression* expr) {
     // Currently call and construct calls are treated the same wrt debugging.
