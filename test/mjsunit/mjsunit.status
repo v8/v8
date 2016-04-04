@@ -822,6 +822,7 @@
 ['ignition == True and system == windows', {
   # TODO(rmcilroy,4680): Crash on windows nosnap shared.
   'regress/regress-crbug-352058': [PASS, ['no_snap == True', SKIP]],
+  'regress/regress-crbug-513471': [PASS, ['no_snap == True', SKIP]],
 
   # TODO(513471): Attempting to optimize generator hits unreachable path.
   'regress/regress-crbug-513471': [PASS, ['no_snap == True', SKIP]],
