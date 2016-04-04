@@ -928,7 +928,7 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
     double deadline = MonotonicallyIncreasingTimeInMs() +
                       FLAG_external_allocation_limit_incremental_time;
     incremental_marking()->AdvanceIncrementalMarking(
-        0, deadline,
+        deadline,
         IncrementalMarking::StepActions(IncrementalMarking::GC_VIA_STACK_GUARD,
                                         IncrementalMarking::FORCE_MARKING,
                                         IncrementalMarking::FORCE_COMPLETION));

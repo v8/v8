@@ -106,13 +106,10 @@ class IncrementalMarking {
 
   void Epilogue();
 
-  // Performs incremental marking steps of step_size_in_bytes as long as
-  // deadline_in_ms is not reached. step_size_in_bytes can be 0 to compute
-  // an estimate increment. Returns the remaining time that cannot be used
-  // for incremental marking anymore because a single step would exceed the
-  // deadline.
-  double AdvanceIncrementalMarking(intptr_t step_size_in_bytes,
-                                   double deadline_in_ms,
+  // Performs incremental marking steps until deadline_in_ms is reached. It
+  // returns the remaining time that cannot be used for incremental marking
+  // anymore because a single step would exceed the deadline.
+  double AdvanceIncrementalMarking(double deadline_in_ms,
                                    StepActions step_actions);
 
   // It's hard to know how much work the incremental marker should do to make

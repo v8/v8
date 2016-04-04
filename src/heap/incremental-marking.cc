@@ -1015,22 +1015,18 @@ void IncrementalMarking::Epilogue() {
   incremental_marking_finalization_rounds_ = 0;
 }
 
-
 double IncrementalMarking::AdvanceIncrementalMarking(
-    intptr_t step_size_in_bytes, double deadline_in_ms,
-    IncrementalMarking::StepActions step_actions) {
+    double deadline_in_ms, IncrementalMarking::StepActions step_actions) {
   DCHECK(!IsStopped());
 
-  if (step_size_in_bytes == 0) {
-    step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
-        GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
-        heap()
-            ->tracer()
-            ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
-  }
-
+  intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
+      GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs,
+      heap()
+          ->tracer()
+          ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
   double remaining_time_in_ms = 0.0;
   intptr_t bytes_processed = 0;
+
   do {
     bytes_processed =
         Step(step_size_in_bytes, step_actions.completion_action,
