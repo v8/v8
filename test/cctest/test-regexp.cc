@@ -1949,7 +1949,7 @@ TEST(UseCountRegExp) {
   // a UseCounter is incremented to track it.
   v8::Local<v8::Value> resultToString =
       CompileRun("RegExp.prototype.toString().length");
-  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToString->IsInt32());
   CHECK_EQ(6,
@@ -1957,7 +1957,7 @@ TEST(UseCountRegExp) {
 
   // .toString() works on normal RegExps
   v8::Local<v8::Value> resultReToString = CompileRun("/a/.toString().length");
-  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultReToString->IsInt32());
   CHECK_EQ(
@@ -1969,7 +1969,7 @@ TEST(UseCountRegExp) {
       "try { RegExp.prototype.toString.call(null) }"
       "catch (e) { exception = e; }"
       "exception");
-  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
 }
