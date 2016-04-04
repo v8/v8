@@ -467,14 +467,14 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
     Type* type = expr->bounds().upper;
     if (type->Is(cache_.kAsmSigned)) {
-      int32_t i;
+      int32_t i = 0;
       if (!value->ToInt32(&i)) {
         UNREACHABLE();
       }
       byte code[] = {WASM_I32V(i)};
       current_function_builder_->EmitCode(code, sizeof(code));
     } else if (type->Is(cache_.kAsmUnsigned) || type->Is(cache_.kAsmFixnum)) {
-      uint32_t u;
+      uint32_t u = 0;
       if (!value->ToUint32(&u)) {
         UNREACHABLE();
       }
