@@ -44,9 +44,11 @@ assertEquals(2, get_count);
 // Overridden flag getters affects the flags getter.
 assertEquals("gi", r3.flags);
 assertEquals(4, get_count);
-// Overridden flag getters do not affect the internal flags.
+// Overridden flag getters affect string.replace
+// TODO(adamk): Add more tests here once we've switched
+// to use [[OriginalFlags]] in more cases.
 assertEquals(expected, string.replace(r3, "X"));
-assertEquals(4, get_count);
+assertEquals(5, get_count);
 
 
 function testName(name) {
