@@ -1552,7 +1552,6 @@
             '../../src/ppc/frames-ppc.cc',
             '../../src/ppc/frames-ppc.h',
             '../../src/ppc/interface-descriptors-ppc.cc',
-            '../../src/ppc/interface-descriptors-ppc.h',
             '../../src/ppc/macro-assembler-ppc.cc',
             '../../src/ppc/macro-assembler-ppc.h',
             '../../src/ppc/simulator-ppc.cc',
