@@ -108,6 +108,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     if (!ignore_nested_scopes) RetrieveScopeChain(scope);
     if (collect_non_locals) CollectNonLocals(scope);
   }
+  UnwrapEvaluationContext();
 }
 
 
@@ -118,6 +119,23 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
       seen_script_scope_(false),
       failed_(false) {
   if (!function->shared()->IsSubjectToDebugging()) context_ = Handle<Context>();
+  UnwrapEvaluationContext();
+}
+
+void ScopeIterator::UnwrapEvaluationContext() {
+  while (true) {
+    if (context_.is_null()) return;
+    if (!context_->IsDebugEvaluateContext()) return;
+    // An existing debug-evaluate context can only be outside the local scope.
+    DCHECK(nested_scope_chain_.is_empty());
+    Handle<Object> wrapped(context_->get(Context::WRAPPED_CONTEXT_INDEX),
+                           isolate_);
+    if (wrapped->IsContext()) {
+      context_ = Handle<Context>::cast(wrapped);
+    } else {
+      context_ = Handle<Context>(context_->previous(), isolate_);
+    }
+  }
 }
 
 
@@ -168,9 +186,7 @@ void ScopeIterator::Next() {
     // The global scope is always the last in the chain.
     DCHECK(context_->IsNativeContext());
     context_ = Handle<Context>();
-    return;
-  }
-  if (scope_type == ScopeTypeScript) {
+  } else if (scope_type == ScopeTypeScript) {
     seen_script_scope_ = true;
     if (context_->IsScriptContext()) {
       context_ = Handle<Context>(context_->previous(), isolate_);
@@ -182,9 +198,7 @@ void ScopeIterator::Next() {
       DCHECK(nested_scope_chain_.is_empty());
     }
     CHECK(context_->IsNativeContext());
-    return;
-  }
-  if (nested_scope_chain_.is_empty()) {
+  } else if (nested_scope_chain_.is_empty()) {
     context_ = Handle<Context>(context_->previous(), isolate_);
   } else {
     if (nested_scope_chain_.last().scope_info->HasContext()) {
@@ -193,6 +207,7 @@ void ScopeIterator::Next() {
     }
     nested_scope_chain_.RemoveLast();
   }
+  UnwrapEvaluationContext();
 }
 
 
@@ -262,9 +277,7 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
       DCHECK(nested_scope_chain_.length() == 1);
       return MaterializeLocalScope();
     case ScopeIterator::ScopeTypeWith:
-      // Return the with object.
-      // TODO(neis): This breaks for proxies.
-      return handle(JSObject::cast(CurrentContext()->extension_receiver()));
+      return WithContextExtension();
     case ScopeIterator::ScopeTypeCatch:
       return MaterializeCatchScope();
     case ScopeIterator::ScopeTypeClosure:
@@ -534,6 +547,16 @@ Handle<JSObject> ScopeIterator::MaterializeCatchScope() {
   return catch_scope;
 }
 
+// Retrieve the with-context extension object. If the extension object is
+// a proxy, return an empty object.
+Handle<JSObject> ScopeIterator::WithContextExtension() {
+  Handle<Context> context = CurrentContext();
+  DCHECK(context->IsWithContext());
+  if (context->extension_receiver()->IsJSProxy()) {
+    return isolate_->factory()->NewJSObjectWithNullProto();
+  }
+  return handle(JSObject::cast(context->extension_receiver()));
+}
 
 // Create a plain JSObject which materializes the block scope for the specified
 // block context.

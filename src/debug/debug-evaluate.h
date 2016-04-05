@@ -64,8 +64,6 @@ class DebugEvaluate : public AllStatic {
       Handle<StringSet> whitelist;
     };
 
-    Handle<JSObject> NewJSObjectWithNullProto();
-
     // Helper function to find or create the arguments object for
     // Runtime_DebugEvaluate.
     void MaterializeArgumentsObject(Handle<JSObject> target,

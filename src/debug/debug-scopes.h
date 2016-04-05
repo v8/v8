@@ -110,12 +110,15 @@ class ScopeIterator {
 
   void CollectNonLocals(Scope* scope);
 
+  void UnwrapEvaluationContext();
+
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
   Handle<JSObject> MaterializeClosure();
   Handle<JSObject> MaterializeCatchScope();
   Handle<JSObject> MaterializeBlockScope();
+  Handle<JSObject> WithContextExtension();
 
   bool SetLocalVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);

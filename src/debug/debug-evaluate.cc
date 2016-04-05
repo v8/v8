@@ -154,7 +154,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     ScopeIterator::ScopeType scope_type = it.Type();
     if (scope_type == ScopeIterator::ScopeTypeLocal) {
       DCHECK_EQ(FUNCTION_SCOPE, it.CurrentScopeInfo()->scope_type());
-      Handle<JSObject> materialized = NewJSObjectWithNullProto();
+      Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
       Handle<Context> local_context =
           it.HasContext() ? it.CurrentContext() : outer_context;
       Handle<StringSet> non_locals = it.GetNonLocals();
@@ -183,7 +183,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       }
       context_chain_.Add(context_chain_element);
     } else if (scope_type == ScopeIterator::ScopeTypeBlock) {
-      Handle<JSObject> materialized = NewJSObjectWithNullProto();
+      Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
       frame_inspector.MaterializeStackLocals(materialized,
                                              it.CurrentScopeInfo());
       ContextChainElement context_chain_element;
@@ -217,17 +217,6 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
                                                    element.scope_info);
     }
   }
-}
-
-
-Handle<JSObject> DebugEvaluate::ContextBuilder::NewJSObjectWithNullProto() {
-  Handle<JSObject> result =
-      isolate_->factory()->NewJSObject(isolate_->object_function());
-  Handle<Map> new_map =
-      Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
-  Map::SetPrototype(new_map, isolate_->factory()->null_value());
-  JSObject::MigrateToMap(result, new_map);
-  return result;
 }
 
 

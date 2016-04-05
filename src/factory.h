@@ -394,6 +394,8 @@ class Factory final {
   // JSObject that should have a memento pointing to the allocation site.
   Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
                                           Handle<AllocationSite> site);
+  // JSObject without a prototype.
+  Handle<JSObject> NewJSObjectWithNullProto();
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);

@@ -1498,6 +1498,14 @@ Handle<JSObject> Factory::NewJSObjectWithMemento(
       JSObject);
 }
 
+Handle<JSObject> Factory::NewJSObjectWithNullProto() {
+  Handle<JSObject> result = NewJSObject(isolate()->object_function());
+  Handle<Map> new_map =
+      Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
+  Map::SetPrototype(new_map, null_value());
+  JSObject::MigrateToMap(result, new_map);
+  return result;
+}
 
 Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
                                       Handle<ScopeInfo> scope_info) {
