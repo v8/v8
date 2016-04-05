@@ -5369,6 +5369,10 @@ void Heap::SetStackLimits() {
       (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
 
+void Heap::ClearStackLimits() {
+  roots_[kStackLimitRootIndex] = Smi::FromInt(0);
+  roots_[kRealStackLimitRootIndex] = Smi::FromInt(0);
+}
 
 void Heap::PrintAlloctionsHash() {
   uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);

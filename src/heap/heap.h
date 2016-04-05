@@ -1004,6 +1004,10 @@ class Heap {
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
 
+  // The stack limit is thread-dependent. To be able to reproduce the same
+  // snapshot blob, we need to reset it before serializing.
+  void ClearStackLimits();
+
   // Generated code can treat direct references to this root as constant.
   bool RootCanBeTreatedAsConstant(RootListIndex root_index);
 

@@ -113,7 +113,12 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK(HasNotExceededFirstPageOfEachSpace());
   serializing_immortal_immovables_roots_ = false;
   // Visit the rest of the strong roots.
+  // Clear the stack limits to make the snapshot reproducible.
+  // Reset it again afterwards.
+  isolate->heap()->ClearStackLimits();
   isolate->heap()->IterateSmiRoots(this);
+  isolate->heap()->SetStackLimits();
+
   isolate->heap()->IterateStrongRoots(this,
                                       VISIT_ONLY_STRONG_FOR_SERIALIZATION);
 }
