@@ -322,10 +322,6 @@ class CompilationInfo {
            output_code_kind() == Code::FUNCTION;
   }
 
-  void EnsureFeedbackVector();
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
   void SetCode(Handle<Code> code) { code_ = code; }
 
   void SetBytecodeArray(Handle<BytecodeArray> bytecode_array) {
@@ -533,9 +529,6 @@ class CompilationInfo {
 
   // The compiled code.
   Handle<Code> code_;
-
-  // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
-  Handle<TypeFeedbackVector> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;

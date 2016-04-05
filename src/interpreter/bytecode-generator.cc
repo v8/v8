@@ -3156,7 +3156,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 
 
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
-  return info()->feedback_vector()->GetIndex(slot);
+  return info()->shared_info()->feedback_vector()->GetIndex(slot);
 }
 
 }  // namespace interpreter
