@@ -3480,6 +3480,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   __ sub(esp, Immediate(kPointerSize));
   __ fist_s(Operand(esp, 0));
   __ pop(output_reg);
+  __ X87SetRC(0x0000);
   __ X87CheckIA();
   DeoptimizeIf(equal, instr, Deoptimizer::kOverflow);
   __ fnclex();
@@ -3512,6 +3513,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Clear exception bits.
   __ fnclex();
   __ fistp_s(MemOperand(esp, 0));
+  // Restore round mode.
+  __ X87SetRC(0x0000);
   // Check overflow.
   __ X87CheckIA();
   __ pop(result);
@@ -3546,6 +3549,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Clear exception bits.
   __ fnclex();
   __ fistp_s(MemOperand(esp, 0));
+  // Restore round mode.
+  __ X87SetRC(0x0000);
   // Check overflow.
   __ X87CheckIA();
   __ pop(result);
