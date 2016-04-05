@@ -89,9 +89,6 @@ function PromiseSet(promise, status, value, onResolve, onReject) {
   SET_PRIVATE(promise, promiseValueSymbol, value);
   SET_PRIVATE(promise, promiseOnResolveSymbol, onResolve);
   SET_PRIVATE(promise, promiseOnRejectSymbol, onReject);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: promise, status: status, value: value });
-  }
   return promise;
 }
 
@@ -306,9 +303,6 @@ function PromiseThen(onResolve, onReject) {
   }
   // Mark this promise as having handler.
   SET_PRIVATE(this, promiseHasHandlerSymbol, true);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
-  }
   return deferred.promise;
 }
 
