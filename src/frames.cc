@@ -1146,8 +1146,9 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
 
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  if (LookupCode()->is_turbofanned() && function()->shared()->asm_function() &&
-      !FLAG_turbo_asm_deoptimization) {
+  Code* code = LookupCode();
+  if (code->kind() == Code::BUILTIN ||
+      CannotDeoptFromAsmCode(code, function())) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
