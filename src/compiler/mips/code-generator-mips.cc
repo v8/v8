@@ -923,6 +923,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMipsCmpD:
       // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
+    case kMipsMulPair: {
+      __ Mulu(i.OutputRegister(1), i.OutputRegister(0), i.InputRegister(0),
+              i.InputRegister(2));
+      __ mul(kScratchReg, i.InputRegister(0), i.InputRegister(3));
+      __ mul(kScratchReg2, i.InputRegister(1), i.InputRegister(2));
+      __ Addu(i.OutputRegister(1), i.OutputRegister(1), kScratchReg);
+      __ Addu(i.OutputRegister(1), i.OutputRegister(1), kScratchReg2);
+    } break;
     case kMipsAddD:
       // TODO(plind): add special case: combine mult & add.
       __ add_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),

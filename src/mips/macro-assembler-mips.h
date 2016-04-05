@@ -649,6 +649,7 @@ class MacroAssembler: public Assembler {
 
   DEFINE_INSTRUCTION3(Div);
   DEFINE_INSTRUCTION3(Mul);
+  DEFINE_INSTRUCTION3(Mulu);
 
   DEFINE_INSTRUCTION(And);
   DEFINE_INSTRUCTION(Or);
