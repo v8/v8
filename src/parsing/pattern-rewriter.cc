@@ -547,39 +547,82 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // RecurseIntoSubpattern above.
 
     // let array = [];
-    // if (!done) %concat_iterable_to_array(array, iterator);
+    // while (!done) {
+    //   result = IteratorNext(iterator);
+    //   if (result.done) {
+    //     done = true;
+    //   } else {
+    //     %AppendElement(array, result.value);
+    //   }
+    // }
+
+    // let array = [];
+    Variable* array;
+    {
+      auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
+      array = CreateTempVar(factory()->NewArrayLiteral(
+          empty_exprs,
+          // Reuse pattern's literal index - it is unused since there is no
+          // actual literal allocated.
+          node->literal_index(), RelocInfo::kNoPosition));
+    }
+
+    // result = IteratorNext(iterator);
+    Statement* get_next = factory()->NewExpressionStatement(
+        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
+                                         result, nopos),
+        nopos);
+
     // done = true;
+    Statement* set_done = factory()->NewExpressionStatement(
+        factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(done),
+            factory()->NewBooleanLiteral(true, nopos), nopos),
+        nopos);
 
-    auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
-    auto array = CreateTempVar(factory()->NewArrayLiteral(
-        empty_exprs,
-        // Reuse pattern's literal index - it is unused since there is no
-        // actual literal allocated.
-        node->literal_index(), RelocInfo::kNoPosition));
+    // %AppendElement(array, result.value);
+    Statement* append_element;
+    {
+      auto args = new (zone()) ZoneList<Expression*>(2, zone());
+      args->Add(factory()->NewVariableProxy(array), zone());
+      args->Add(factory()->NewProperty(
+                    factory()->NewVariableProxy(result),
+                    factory()->NewStringLiteral(
+                        ast_value_factory()->value_string(), nopos),
+                    nopos),
+                zone());
+      append_element = factory()->NewExpressionStatement(
+          factory()->NewCallRuntime(Runtime::kAppendElement, args, nopos),
+          nopos);
+    }
 
-    auto arguments = new (zone()) ZoneList<Expression*>(2, zone());
-    arguments->Add(factory()->NewVariableProxy(array), zone());
-    arguments->Add(factory()->NewVariableProxy(iterator), zone());
-    auto spread_into_array_call =
-        factory()->NewCallRuntime(Context::CONCAT_ITERABLE_TO_ARRAY_INDEX,
-                                  arguments, RelocInfo::kNoPosition);
+    // if (result.done) { #set_done } else { #append_element }
+    Statement* set_done_or_append;
+    {
+      Expression* result_done =
+          factory()->NewProperty(factory()->NewVariableProxy(result),
+                                 factory()->NewStringLiteral(
+                                     ast_value_factory()->done_string(), nopos),
+                                 nopos);
+      set_done_or_append = factory()->NewIfStatement(result_done, set_done,
+                                                     append_element, nopos);
+    }
 
-    auto if_statement = factory()->NewIfStatement(
-        factory()->NewUnaryOperation(Token::NOT,
-                                     factory()->NewVariableProxy(done),
-                                     RelocInfo::kNoPosition),
-        factory()->NewExpressionStatement(spread_into_array_call,
-                                          RelocInfo::kNoPosition),
-        factory()->NewEmptyStatement(RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
-    block_->statements()->Add(if_statement, zone());
+    // while (!done) {
+    //   #get_next;
+    //   #set_done_or_append;
+    // }
+    WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
+    {
+      Expression* condition = factory()->NewUnaryOperation(
+          Token::NOT, factory()->NewVariableProxy(done), nopos);
+      Block* body = factory()->NewBlock(nullptr, 2, true, nopos);
+      body->statements()->Add(get_next, zone());
+      body->statements()->Add(set_done_or_append, zone());
+      loop->Initialize(condition, body);
+    }
 
-    auto set_done = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(done),
-        factory()->NewBooleanLiteral(true, nopos), nopos);
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(set_done, nopos), zone());
-
+    block_->statements()->Add(loop, zone());
     RecurseIntoSubpattern(spread->expression(),
                           factory()->NewVariableProxy(array));
   }

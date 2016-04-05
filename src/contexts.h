@@ -79,7 +79,6 @@ enum BindingFlags {
 
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                             \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                               \
-  V(CONCAT_ITERABLE_TO_ARRAY_INDEX, JSFunction, concat_iterable_to_array) \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
