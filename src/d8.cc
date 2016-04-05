@@ -2478,6 +2478,9 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Shut down contexts and collect garbage.
     evaluation_context_.Reset();
+#ifndef V8_SHARED
+    stringify_function_.Reset();
+#endif  // !V8_SHARED
     CollectGarbage(isolate);
   }
   OnExit(isolate);
