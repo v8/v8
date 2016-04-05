@@ -2032,6 +2032,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   }
 
   i::Handle<i::Object> name_obj;
+  int eval_position = 0;
   int line_offset = 0;
   int column_offset = 0;
   if (!source->resource_name.IsEmpty()) {
@@ -2044,11 +2045,12 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     column_offset = static_cast<int>(source->resource_column_offset->Value());
   }
   i::Handle<i::JSFunction> fun;
-  has_pending_exception = !i::Compiler::GetFunctionFromEval(
-                               source_string, outer_info, context, i::SLOPPY,
-                               i::ONLY_SINGLE_FUNCTION_LITERAL, line_offset,
-                               column_offset - scope_position, name_obj,
-                               source->resource_options).ToHandle(&fun);
+  has_pending_exception =
+      !i::Compiler::GetFunctionFromEval(
+           source_string, outer_info, context, i::SLOPPY,
+           i::ONLY_SINGLE_FUNCTION_LITERAL, eval_position, line_offset,
+           column_offset - scope_position, name_obj, source->resource_options)
+           .ToHandle(&fun);
   if (has_pending_exception) {
     isolate->ReportPendingMessages();
   }
