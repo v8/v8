@@ -412,15 +412,23 @@ class SR_WasmDecoder : public WasmDecoder {
     return toResult(tree);
   }
 
-  std::vector<LocalType>* DecodeLocalDeclsForTesting() {
+  bool DecodeLocalDecls(AstLocalDecls& decls) {
     DecodeLocalDecls();
-    if (failed()) return nullptr;
-    auto result = new std::vector<LocalType>();
-    result->reserve(local_type_vec_.size());
-    for (size_t i = 0; i < local_type_vec_.size(); i++) {
-      result->push_back(local_type_vec_[i]);
+    if (failed()) return false;
+    decls.decls_encoded_size = pc_offset();
+    decls.total_local_count = 0;
+    decls.local_types.reserve(local_type_vec_.size());
+    for (size_t pos = 0; pos < local_type_vec_.size();) {
+      uint32_t count = 0;
+      LocalType type = local_type_vec_[pos];
+      while (pos < local_type_vec_.size() && local_type_vec_[pos] == type) {
+        pos++;
+        count++;
+      }
+      decls.total_local_count += count;
+      decls.local_types.push_back(std::pair<LocalType, uint32_t>(type, count));
     }
-    return result;
+    return true;
   }
 
   BitVector* AnalyzeLoopAssignmentForTesting(const byte* pc,
@@ -1626,12 +1634,13 @@ class SR_WasmDecoder : public WasmDecoder {
   }
 };
 
-std::vector<LocalType>* DecodeLocalDeclsForTesting(
-    base::AccountingAllocator* allocator, const byte* start, const byte* end) {
-  Zone zone(allocator);
+bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
+                      const byte* end) {
+  base::AccountingAllocator allocator;
+  Zone tmp(&allocator);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  SR_WasmDecoder decoder(&zone, nullptr, body);
-  return decoder.DecodeLocalDeclsForTesting();
+  SR_WasmDecoder decoder(&tmp, nullptr, body);
+  return decoder.DecodeLocalDecls(decls);
 }
 
 TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
@@ -1700,19 +1709,14 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
   }
 
   // Print the local declarations.
-  std::vector<LocalType>* decls = decoder.DecodeLocalDeclsForTesting();
+  AstLocalDecls decls(&zone);
+  decoder.DecodeLocalDecls(decls);
   const byte* pc = decoder.pc();
   if (body.start != decoder.pc()) {
     printf("// locals:");
-    size_t pos = 0;
-    while (pos < decls->size()) {
-      LocalType type = decls->at(pos++);
-      size_t count = 1;
-      while (pos < decls->size() && decls->at(pos) == type) {
-        pos++;
-        count++;
-      }
-
+    for (auto p : decls.local_types) {
+      LocalType type = p.first;
+      uint32_t count = p.second;
       os << " " << count << " " << WasmOpcodes::TypeName(type);
     }
     os << std::endl;
@@ -1722,7 +1726,6 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
     }
     printf("\n");
   }
-  delete decls;
 
   printf("// body: \n");
   std::vector<int> arity_stack;

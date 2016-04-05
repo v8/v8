@@ -2197,26 +2197,41 @@ TEST_F(WasmOpcodeArityTest, SimpleExpressions) {
   EXPECT_ARITY(1, kExprI64ReinterpretF64);
 }
 
-typedef std::vector<LocalType>* LocalTypeMap;
+typedef ZoneVector<LocalType> LocalTypeMap;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
+  base::AccountingAllocator allocator;
+
   size_t ExpectRun(LocalTypeMap map, size_t pos, LocalType expected,
                    size_t count) {
     for (size_t i = 0; i < count; i++) {
-      EXPECT_EQ(expected, map->at(pos++));
+      EXPECT_EQ(expected, map[pos++]);
     }
     return pos;
   }
+
+  LocalTypeMap Expand(AstLocalDecls& decls) {
+    ZoneVector<LocalType> map(zone());
+    for (auto p : decls.local_types) {
+      map.insert(map.end(), p.second, p.first);
+    }
+    return map;
+  }
 };
+
+TEST_F(LocalDeclDecoderTest, EmptyLocals) {
+  AstLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(decls, nullptr, nullptr);
+  EXPECT_FALSE(result);
+}
 
 TEST_F(LocalDeclDecoderTest, NoLocals) {
   static const byte data[] = {0};
-  base::AccountingAllocator allocator;
-  LocalTypeMap map =
-      DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
-  EXPECT_EQ(0, map->size());
-  if (map) delete map;
+  AstLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+  EXPECT_TRUE(result);
+  EXPECT_EQ(0, decls.total_local_count);
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
@@ -2224,12 +2239,14 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
     LocalType type = kLocalTypes[i];
     const byte data[] = {
         1, 1, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
-    base::AccountingAllocator allocator;
-    LocalTypeMap map =
-        DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
-    EXPECT_EQ(1, map->size());
-    EXPECT_EQ(type, map->at(0));
-    if (map) delete map;
+    AstLocalDecls decls(zone());
+    bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+    EXPECT_TRUE(result);
+    EXPECT_EQ(1, decls.total_local_count);
+
+    LocalTypeMap map = Expand(decls);
+    EXPECT_EQ(1, map.size());
+    EXPECT_EQ(type, map.at(0));
   }
 }
 
@@ -2238,12 +2255,15 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
     LocalType type = kLocalTypes[i];
     const byte data[] = {
         1, 5, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
-    base::AccountingAllocator allocator;
-    LocalTypeMap map =
-        DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
-    EXPECT_EQ(5, map->size());
+    AstLocalDecls decls(zone());
+    bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+    EXPECT_TRUE(result);
+    EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
+    EXPECT_EQ(5, decls.total_local_count);
+
+    LocalTypeMap map = Expand(decls);
+    EXPECT_EQ(5, map.size());
     ExpectRun(map, 0, type, 5);
-    if (map) delete map;
   }
 }
 
@@ -2254,18 +2274,20 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
         for (byte d = 0; d < 3; d++) {
           const byte data[] = {4, a,         kLocalI32, b,        kLocalI64,
                                c, kLocalF32, d,         kLocalF64};
-          base::AccountingAllocator allocator;
-          LocalTypeMap map =
-              DecodeLocalDeclsForTesting(&allocator, data, data + sizeof(data));
-          EXPECT_EQ(a + b + c + d, map->size());
+          AstLocalDecls decls(zone());
+          bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+          EXPECT_TRUE(result);
+          EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
+          EXPECT_EQ(a + b + c + d, decls.total_local_count);
+
+          LocalTypeMap map = Expand(decls);
+          EXPECT_EQ(a + b + c + d, map.size());
 
           size_t pos = 0;
           pos = ExpectRun(map, pos, kAstI32, a);
           pos = ExpectRun(map, pos, kAstI64, b);
           pos = ExpectRun(map, pos, kAstF32, c);
           pos = ExpectRun(map, pos, kAstF64, d);
-
-          if (map) delete map;
         }
       }
     }
@@ -2282,14 +2304,16 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.AddLocals(212, kAstI64);
   local_decls.Prepend(&data, &end);
 
-  base::AccountingAllocator allocator;
-  LocalTypeMap map = DecodeLocalDeclsForTesting(&allocator, data, end);
+  AstLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(decls, data, end);
+  EXPECT_TRUE(result);
+  EXPECT_EQ(5 + 1337 + 212, decls.total_local_count);
+
+  LocalTypeMap map = Expand(decls);
   size_t pos = 0;
   pos = ExpectRun(map, pos, kAstF32, 5);
   pos = ExpectRun(map, pos, kAstI32, 1337);
   pos = ExpectRun(map, pos, kAstI64, 212);
-
-  if (map) delete map;
   delete[] data;
 }
 

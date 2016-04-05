@@ -220,8 +220,22 @@ enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
 ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte*, const byte*,
                                                       int*, uint32_t*);
 
-std::vector<LocalType>* DecodeLocalDeclsForTesting(
-    base::AccountingAllocator* allocator, const byte* start, const byte* end);
+struct AstLocalDecls {
+  // The size of the encoded declarations.
+  uint32_t decls_encoded_size;  // size of encoded declarations
+
+  // Total number of locals.
+  uint32_t total_local_count;
+
+  // List of {local type, count} pairs.
+  ZoneVector<std::pair<LocalType, uint32_t>> local_types;
+
+  // Constructor initializes the vector.
+  explicit AstLocalDecls(Zone* zone)
+      : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
+};
+
+bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start, const byte* end);
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end);
 
