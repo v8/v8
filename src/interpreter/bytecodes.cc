@@ -8,6 +8,7 @@
 
 #include "src/frames.h"
 #include "src/interpreter/bytecode-traits.h"
+#include "src/interpreter/interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -572,6 +573,13 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
     }
   }
   return os;
+}
+
+// static
+bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
+                                   OperandScale operand_scale) {
+  return operand_scale == OperandScale::kSingle ||
+         Bytecodes::IsBytecodeWithScalableOperands(bytecode);
 }
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {

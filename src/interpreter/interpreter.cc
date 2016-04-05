@@ -39,7 +39,7 @@ void Interpreter::Initialize() {
        operand_scale = Bytecodes::NextOperandScale(operand_scale)) {
 #define GENERATE_CODE(Name, ...)                                               \
   {                                                                            \
-    if (BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {                \
+    if (Bytecodes::BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {     \
       InterpreterAssembler assembler(isolate_, &zone, Bytecode::k##Name,       \
                                      operand_scale);                           \
       Do##Name(&assembler);                                                    \
@@ -71,7 +71,7 @@ void Interpreter::Initialize() {
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
                                       OperandScale operand_scale) {
   DCHECK(IsDispatchTableInitialized());
-  DCHECK(BytecodeHasHandler(bytecode, operand_scale));
+  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   return dispatch_table_[index];
 }
@@ -87,13 +87,6 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
     current_scale = Bytecodes::NextOperandScale(current_scale);
   }
   return index;
-}
-
-// static
-bool Interpreter::BytecodeHasHandler(Bytecode bytecode,
-                                     OperandScale operand_scale) {
-  return operand_scale == OperandScale::kSingle ||
-         Bytecodes::IsBytecodeWithScalableOperands(bytecode);
 }
 
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {

@@ -512,6 +512,12 @@ class Bytecodes {
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
                               int number_of_parameters);
 
+  // Returns true if a handler is generated for a bytecode at a given
+  // operand scale. All bytecodes have handlers at OperandScale::kSingle,
+  // but only bytecodes with scalable operands have handlers with larger
+  // OperandScale values.
+  static bool BytecodeHasHandler(Bytecode bytecode, OperandScale operand_scale);
+
   // Return the next larger operand scale.
   static OperandScale NextOperandScale(OperandScale operand_scale);
 

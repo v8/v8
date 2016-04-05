@@ -1615,8 +1615,7 @@ void Logger::LogBytecodeHandlers() {
            interpreter::Bytecodes::NextOperandScale(operand_scale)) {
     for (int index = 0; index <= last_index; ++index) {
       interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
-      if (interpreter::Interpreter::BytecodeHasHandler(bytecode,
-                                                       operand_scale)) {
+      if (interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
         Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
         std::string bytecode_name =
             interpreter::Bytecodes::ToString(bytecode, operand_scale);
