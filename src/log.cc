@@ -326,14 +326,6 @@ class LowLevelLogger : public CodeEventLogger {
   };
 
 
-  struct SnapshotPositionStruct {
-    static const char kTag = 'P';
-
-    Address address;
-    int32_t position;
-  };
-
-
   static const char kCodeMovingGCTag = 'G';
 
 
@@ -424,17 +416,6 @@ void LowLevelLogger::CodeMoveEvent(AbstractCode* from, Address to) {
   size_t header_size = from->instruction_start() - from->address();
   event.to_address = to + header_size;
   LogWriteStruct(event);
-}
-
-void LowLevelLogger::SnapshotPositionEvent(HeapObject* obj, int pos) {
-  if (obj->IsAbstractCode()) {
-    SnapshotPositionStruct event;
-    event.address =
-        obj->address() +
-        (obj->IsCode() ? Code::kHeaderSize : BytecodeArray::kHeaderSize);
-    event.position = pos;
-    LogWriteStruct(event);
-  }
 }
 
 
@@ -1296,17 +1277,6 @@ void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   msg.WriteToLogFile();
 }
 
-void Logger::SnapshotPositionEvent(HeapObject* obj, int pos) {
-  if (!log_->IsEnabled()) return;
-  LL_LOG(SnapshotPositionEvent(obj, pos));
-  if (!FLAG_log_snapshot_positions) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("%s,", kLogEventsNames[SNAPSHOT_POSITION_EVENT]);
-  msg.AppendAddress(obj->address());
-  msg.Append(",%d", pos);
-  msg.WriteToLogFile();
-}
-
 
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
   if (!is_logging_code_events()) return;
@@ -1780,11 +1750,6 @@ bool Logger::SetUp(Isolate* isolate) {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
   is_initialized_ = true;
-
-  // --ll-prof implies --log-code and --log-snapshot-positions.
-  if (FLAG_ll_prof) {
-    FLAG_log_snapshot_positions = true;
-  }
 
   std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);

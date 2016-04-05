@@ -1003,8 +1003,6 @@ DEFINE_BOOL(log_code, false,
 DEFINE_BOOL(log_gc, false,
             "Log heap samples on garbage collection for the hp2ps tool.")
 DEFINE_BOOL(log_handles, false, "Log global handle events.")
-DEFINE_BOOL(log_snapshot_positions, false,
-            "log positions of (de)serialized objects in the snapshot.")
 DEFINE_BOOL(log_suspect, false, "Log suspect operations.")
 DEFINE_BOOL(prof, false,
             "Log statistical profiling information (implies --log-code).")

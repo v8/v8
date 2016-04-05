@@ -211,10 +211,6 @@
             '<(INTERMEDIATE_DIR)/snapshot.cc',
           ],
           'variables': {
-            'mksnapshot_flags': [
-              '--log-snapshot-positions',
-              '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
-            ],
             'conditions': [
               ['v8_random_seed!=0', {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -311,8 +307,6 @@
                     # variable.
                     'mksnapshot_flags_ignition': [
                       '--ignition',
-                      '--log-snapshot-positions',
-                      '--logfile', '<(INTERMEDIATE_DIR)/snapshot_ignition.log',
                     ],
                     'conditions': [
                       ['v8_random_seed!=0', {
@@ -376,10 +370,6 @@
               'action_name': 'run_mksnapshot (external)',
               'inputs': ['<(mksnapshot_exec)'],
               'variables': {
-                'mksnapshot_flags': [
-                  '--log-snapshot-positions',
-                  '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
-                ],
                 'conditions': [
                   ['v8_random_seed!=0', {
                     'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],

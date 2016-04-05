@@ -89,7 +89,6 @@ struct TickSample;
   V(CODE_DELETE_EVENT, "code-delete")                                    \
   V(CODE_MOVING_GC, "code-moving-gc")                                    \
   V(SHARED_FUNC_MOVE_EVENT, "sfi-move")                                  \
-  V(SNAPSHOT_POSITION_EVENT, "snapshot-pos")                             \
   V(SNAPSHOT_CODE_NAME_EVENT, "snapshot-code-name")                      \
   V(TICK_EVENT, "tick")                                                  \
   V(REPEAT_META_EVENT, "repeat")                                         \
@@ -260,7 +259,6 @@ class Logger {
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
-  void SnapshotPositionEvent(HeapObject* obj, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.

@@ -136,11 +136,9 @@ char* GetExtraCode(char* filename, const char* description) {
 
 
 int main(int argc, char** argv) {
-  // By default, log code create information in the snapshot.
-  i::FLAG_log_code = true;
-  i::FLAG_logfile_per_isolate = false;
   // Make mksnapshot runs predictable to create reproducible snapshots.
   i::FLAG_predictable = true;
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
