@@ -2604,7 +2604,11 @@ BUILTIN(DateConstructor) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(time_val, str, isolate->date_cache());
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3184,7 +3188,11 @@ BUILTIN(DatePrototypeToDateString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache(), kDateOnly);
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3224,7 +3232,11 @@ BUILTIN(DatePrototypeToString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache());
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
@@ -3235,7 +3247,11 @@ BUILTIN(DatePrototypeToTimeString) {
   char buffer[128];
   Vector<char> str(buffer, arraysize(buffer));
   ToDateString(date->value()->Number(), str, isolate->date_cache(), kTimeOnly);
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
+  return *result;
 }
 
 
