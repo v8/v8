@@ -1259,7 +1259,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         prototype, Builtins::kSymbolConstructor);
     symbol_fun->shared()->set_construct_stub(
         *isolate->builtins()->SymbolConstructor_ConstructStub());
-    symbol_fun->shared()->set_length(1);
+    symbol_fun->shared()->set_length(0);
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
 
