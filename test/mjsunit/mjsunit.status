@@ -833,6 +833,8 @@
   'asm/construct-double': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
+  'wasm/asm-wasm-i32': [SKIP],
+  'wasm/asm-wasm-u32': [SKIP],
 }],  # ignition == True and arch == arm64
 
 ['ignition == True and arch == arm', {
