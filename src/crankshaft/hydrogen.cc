@@ -13162,6 +13162,11 @@ void HEnvironment::MarkAsTailCaller() {
   frame_type_ = TAIL_CALLER_FUNCTION;
 }
 
+void HEnvironment::ClearTailCallerMark() {
+  DCHECK_EQ(TAIL_CALLER_FUNCTION, frame_type());
+  frame_type_ = JS_FUNCTION;
+}
+
 HEnvironment* HEnvironment::CopyForInlining(
     Handle<JSFunction> target, int arguments, FunctionLiteral* function,
     HConstant* undefined, InliningKind inlining_kind,

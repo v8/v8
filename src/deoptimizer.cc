@@ -1430,7 +1430,7 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
 
   bool is_bottommost = (0 == frame_index);
   // Tail caller frame can't be topmost.
-  DCHECK_NE(output_count_ - 1, frame_index);
+  CHECK_NE(output_count_ - 1, frame_index);
 
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating tail caller frame ");

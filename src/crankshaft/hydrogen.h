@@ -625,6 +625,9 @@ class HEnvironment final : public ZoneObject {
       outer = outer->outer_;
     }
     if (drop_extra) outer->Drop(1);
+    if (outer->frame_type() == TAIL_CALLER_FUNCTION) {
+      outer->ClearTailCallerMark();
+    }
     return outer;
   }
 
@@ -685,6 +688,7 @@ class HEnvironment final : public ZoneObject {
   // Marks current environment as tail caller by setting frame type to
   // TAIL_CALLER_FUNCTION.
   void MarkAsTailCaller();
+  void ClearTailCallerMark();
 
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
