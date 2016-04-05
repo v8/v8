@@ -2978,6 +2978,9 @@ void ElementsAccessor::TearDown() {
 
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
                                          uint32_t concat_size) {
+  const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+  STATIC_ASSERT(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
+  USE(kHalfOfMaxInt);
   uint32_t result_len = 0;
   bool has_raw_doubles = false;
   ElementsKind result_elements_kind = GetInitialFastElementsKind();
@@ -2992,9 +2995,6 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
       array->length()->ToArrayLength(&len);
 
       // We shouldn't overflow when adding another len.
-      const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-      STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
-      USE(kHalfOfMaxInt);
       result_len += len;
       DCHECK(0 <= result_len);
       DCHECK(result_len <= FixedDoubleArray::kMaxLength);

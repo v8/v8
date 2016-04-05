@@ -1528,6 +1528,12 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
 
 
 MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
+  // We shouldn't overflow when adding another len.
+  const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+  STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
+  STATIC_ASSERT(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
+  USE(kHalfOfMaxInt);
+
   int n_arguments = args->length();
   int result_len = 0;
   {
@@ -1547,16 +1553,14 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
       if (HasConcatSpreadableModifier(isolate, array)) {
         return MaybeHandle<JSArray>();
       }
-      int len = Smi::cast(array->length())->value();
-
-      // We shouldn't overflow when adding another len.
-      const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-      STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
-      USE(kHalfOfMaxInt);
-      result_len += len;
+      // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
+      // overflow.
+      result_len += Smi::cast(array->length())->value();
       DCHECK(result_len >= 0);
       // Throw an Error if we overflow the FixedArray limits
-      if (FixedArray::kMaxLength < result_len) {
+      if (FixedDoubleArray::kMaxLength < result_len ||
+          FixedArray::kMaxLength < result_len) {
+        AllowHeapAllocation allow_gc;
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength),
                         JSArray);
