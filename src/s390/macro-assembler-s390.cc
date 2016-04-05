@@ -154,7 +154,14 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void MacroAssembler::Drop(int count) {
   if (count > 0) {
-    la(sp, MemOperand(sp, count * kPointerSize));
+    int total = count * kPointerSize;
+    if (is_uint12(total)) {
+      la(sp, MemOperand(sp, total));
+    } else if (is_int20(total)) {
+      lay(sp, MemOperand(sp, total));
+    } else {
+      AddP(sp, Operand(total));
+    }
   }
 }
 
