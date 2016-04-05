@@ -6685,7 +6685,9 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
   Isolate* isolate = receiver->GetIsolate();
 
   if (it->IsFound()) {
-    if (!it->IsConfigurable()) {
+    Maybe<PropertyAttributes> attributes = GetPropertyAttributes(it);
+    MAYBE_RETURN(attributes, Nothing<bool>());
+    if ((attributes.FromJust() & DONT_DELETE) != 0) {
       RETURN_FAILURE(
           isolate, should_throw,
           NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
