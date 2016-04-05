@@ -523,11 +523,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # TODO(rmcilroy,4680): Fails with eager compilation due to SharedFunctionInfo
-  # being null in compiler.cc Renumber(), meaning MaybeDisableOptimization never
-  # gets called.
-  'test-profile-generator/BailoutReason': [FAIL],
-
   # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
   # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
   # code.
@@ -558,7 +553,6 @@
   'test-run-inlining/InlineBuiltin': [FAIL],
   'test-run-inlining/InlineTwiceDependent': [FAIL],
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
-  'test-debug/DebugBreakInline': [FAIL],
 }],  # ignition == True
 
 ]

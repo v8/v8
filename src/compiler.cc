@@ -797,13 +797,12 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
 
 bool UseIgnition(CompilationInfo* info) {
   // TODO(4681): Generator functions are not yet supported.
-  if ((info->has_shared_info() && info->shared_info()->is_generator()) ||
-      (info->has_literal() && IsGeneratorFunction(info->literal()->kind()))) {
+  if (info->shared_info()->is_generator()) {
     return false;
   }
 
   // TODO(4681): Resuming a suspended frame is not supported.
-  if (info->has_shared_info() && info->shared_info()->HasBuiltinFunctionId() &&
+  if (info->shared_info()->HasBuiltinFunctionId() &&
       (info->shared_info()->builtin_function_id() == kGeneratorObjectNext ||
        info->shared_info()->builtin_function_id() == kGeneratorObjectReturn ||
        info->shared_info()->builtin_function_id() == kGeneratorObjectThrow)) {
@@ -811,13 +810,13 @@ bool UseIgnition(CompilationInfo* info) {
   }
 
   // Checks whether top level functions should be passed by the filter.
-  if (info->closure().is_null()) {
+  if (info->shared_info()->is_toplevel()) {
     Vector<const char> filter = CStrVector(FLAG_ignition_filter);
     return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
   }
 
   // Finally respect the filter.
-  return info->closure()->shared()->PassesFilter(FLAG_ignition_filter);
+  return info->shared_info()->PassesFilter(FLAG_ignition_filter);
 }
 
 int CodeAndMetadataSize(CompilationInfo* info) {
@@ -1316,6 +1315,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       // Eval scripts cannot be (re-)compiled without context.
       result->set_allows_lazy_compilation_without_context(false);
     }
+    parse_info->set_shared_info(result);
 
     // Compile the code.
     if (!CompileBaselineCode(info)) {
@@ -1763,6 +1763,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info);
   parse_info.set_literal(literal);
+  parse_info.set_shared_info(result);
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();

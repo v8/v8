@@ -131,6 +131,7 @@ class ParseInfo {
   Handle<Context> context() { return context_; }
   void clear_script() { script_ = Handle<Script>::null(); }
   void set_isolate(Isolate* isolate) { isolate_ = isolate; }
+  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_context(Handle<Context> context) { context_ = context; }
   void set_script(Handle<Script> script) { script_ = script; }
   //--------------------------------------------------------------------------
@@ -202,7 +203,6 @@ class ParseInfo {
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
   bool GetFlag(Flag f) const { return (flags_ & f) != 0; }
 
-  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_closure(Handle<JSFunction> closure) { closure_ = closure; }
 };
 
