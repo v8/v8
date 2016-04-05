@@ -798,9 +798,6 @@
   # objects.
   'es6/mirror-collections': [FAIL],
 
-  # TODO(mythria, 4680): possibly problem with line numbers.
-  'es6/regress/regress-468661': [FAIL],
-
   # TODO(mythria, 4680): Fails with context_register_count_ > 0 (0 vs. 0) when
   # trying to get a context register in BytecodeGenerator.
   'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
