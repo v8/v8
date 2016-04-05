@@ -4111,11 +4111,7 @@ enum Intrinsic {
  */
 class V8_EXPORT Template : public Data {
  public:
-  /**
-   * Adds a property to each instance created by this template.
-   *
-   * The property must be defined either as a primitive value, or a template.
-   */
+  /** Adds a property to each instance created by this template.*/
   void Set(Local<Name> name, Local<Data> value,
            PropertyAttribute attributes = None);
   V8_INLINE void Set(Isolate* isolate, const char* name, Local<Data> value);
