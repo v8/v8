@@ -72,27 +72,7 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   }
 }
 
-
-enum TrapReason {
-  kTrapUnreachable,
-  kTrapMemOutOfBounds,
-  kTrapDivByZero,
-  kTrapDivUnrepresentable,
-  kTrapRemByZero,
-  kTrapFloatUnrepresentable,
-  kTrapFuncInvalid,
-  kTrapFuncSigMismatch,
-  kTrapCount
-};
-
-
-static const char* kTrapMessages[] = {
-    "unreachable",       "memory access out of bounds",
-    "divide by zero",    "divide result unrepresentable",
-    "remainder by zero", "integer result unrepresentable",
-    "invalid function",  "function signature mismatch"};
 }  // namespace
-
 
 // A helper that handles building graph fragments for trapping.
 // To avoid generating a ton of redundant code that just calls the runtime
@@ -104,17 +84,17 @@ class WasmTrapHelper : public ZoneObject {
       : builder_(builder),
         jsgraph_(builder->jsgraph()),
         graph_(builder->jsgraph() ? builder->jsgraph()->graph() : nullptr) {
-    for (int i = 0; i < kTrapCount; i++) traps_[i] = nullptr;
+    for (int i = 0; i < wasm::kTrapCount; i++) traps_[i] = nullptr;
   }
 
   // Make the current control path trap to unreachable.
-  void Unreachable() { ConnectTrap(kTrapUnreachable); }
+  void Unreachable() { ConnectTrap(wasm::kTrapUnreachable); }
 
   // Always trap with the given reason.
-  void TrapAlways(TrapReason reason) { ConnectTrap(reason); }
+  void TrapAlways(wasm::TrapReason reason) { ConnectTrap(reason); }
 
   // Add a check that traps if {node} is equal to {val}.
-  Node* TrapIfEq32(TrapReason reason, Node* node, int32_t val) {
+  Node* TrapIfEq32(wasm::TrapReason reason, Node* node, int32_t val) {
     Int32Matcher m(node);
     if (m.HasValue() && !m.Is(val)) return graph()->start();
     if (val == 0) {
@@ -128,12 +108,12 @@ class WasmTrapHelper : public ZoneObject {
   }
 
   // Add a check that traps if {node} is zero.
-  Node* ZeroCheck32(TrapReason reason, Node* node) {
+  Node* ZeroCheck32(wasm::TrapReason reason, Node* node) {
     return TrapIfEq32(reason, node, 0);
   }
 
   // Add a check that traps if {node} is equal to {val}.
-  Node* TrapIfEq64(TrapReason reason, Node* node, int64_t val) {
+  Node* TrapIfEq64(wasm::TrapReason reason, Node* node, int64_t val) {
     Int64Matcher m(node);
     if (m.HasValue() && !m.Is(val)) return graph()->start();
     AddTrapIfTrue(reason,
@@ -143,22 +123,22 @@ class WasmTrapHelper : public ZoneObject {
   }
 
   // Add a check that traps if {node} is zero.
-  Node* ZeroCheck64(TrapReason reason, Node* node) {
+  Node* ZeroCheck64(wasm::TrapReason reason, Node* node) {
     return TrapIfEq64(reason, node, 0);
   }
 
   // Add a trap if {cond} is true.
-  void AddTrapIfTrue(TrapReason reason, Node* cond) {
+  void AddTrapIfTrue(wasm::TrapReason reason, Node* cond) {
     AddTrapIf(reason, cond, true);
   }
 
   // Add a trap if {cond} is false.
-  void AddTrapIfFalse(TrapReason reason, Node* cond) {
+  void AddTrapIfFalse(wasm::TrapReason reason, Node* cond) {
     AddTrapIf(reason, cond, false);
   }
 
   // Add a trap if {cond} is true or false according to {iftrue}.
-  void AddTrapIf(TrapReason reason, Node* cond, bool iftrue) {
+  void AddTrapIf(wasm::TrapReason reason, Node* cond, bool iftrue) {
     Node** effect_ptr = builder_->effect_;
     Node** control_ptr = builder_->control_;
     Node* before = *effect_ptr;
@@ -199,14 +179,14 @@ class WasmTrapHelper : public ZoneObject {
   WasmGraphBuilder* builder_;
   JSGraph* jsgraph_;
   Graph* graph_;
-  Node* traps_[kTrapCount];
-  Node* effects_[kTrapCount];
+  Node* traps_[wasm::kTrapCount];
+  Node* effects_[wasm::kTrapCount];
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
 
-  void ConnectTrap(TrapReason reason) {
+  void ConnectTrap(wasm::TrapReason reason) {
     if (traps_[reason] == nullptr) {
       // Create trap code for the first time this trap is used.
       return BuildTrapCode(reason);
@@ -216,8 +196,9 @@ class WasmTrapHelper : public ZoneObject {
     builder_->AppendToPhi(traps_[reason], effects_[reason], builder_->Effect());
   }
 
-  void BuildTrapCode(TrapReason reason) {
-    Node* exception = builder_->String(kTrapMessages[reason]);
+  void BuildTrapCode(wasm::TrapReason reason) {
+    Node* exception =
+        builder_->String(wasm::WasmOpcodes::TrapReasonName(reason));
     Node* end;
     Node** control_ptr = builder_->control_;
     Node** effect_ptr = builder_->effect_;
@@ -265,7 +246,6 @@ class WasmTrapHelper : public ZoneObject {
     MergeControlToEnd(jsgraph(), end);
   }
 };
-
 
 WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph,
                                    wasm::FunctionSig* function_signature)
@@ -1171,7 +1151,7 @@ Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input) {
   // truncated input value, then there has been an overflow and we trap.
   Node* check = Unop(wasm::kExprF32SConvertI32, result);
   Node* overflow = Binop(wasm::kExprF32Ne, trunc, check);
-  trap_->AddTrapIfTrue(kTrapFloatUnrepresentable, overflow);
+  trap_->AddTrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow);
 
   return result;
 }
@@ -1192,7 +1172,7 @@ Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input) {
   // truncated input value, then there has been an overflow and we trap.
   Node* check = Unop(wasm::kExprF64SConvertI32, result);
   Node* overflow = Binop(wasm::kExprF64Ne, trunc, check);
-  trap_->AddTrapIfTrue(kTrapFloatUnrepresentable, overflow);
+  trap_->AddTrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow);
 
   return result;
 }
@@ -1215,7 +1195,7 @@ Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input) {
   // truncated input value, then there has been an overflow and we trap.
   Node* check = Unop(wasm::kExprF32UConvertI32, result);
   Node* overflow = Binop(wasm::kExprF32Ne, trunc, check);
-  trap_->AddTrapIfTrue(kTrapFloatUnrepresentable, overflow);
+  trap_->AddTrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow);
 
   return result;
 }
@@ -1236,7 +1216,7 @@ Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input) {
   // truncated input value, then there has been an overflow and we trap.
   Node* check = Unop(wasm::kExprF64UConvertI32, result);
   Node* overflow = Binop(wasm::kExprF64Ne, trunc, check);
-  trap_->AddTrapIfTrue(kTrapFloatUnrepresentable, overflow);
+  trap_->AddTrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow);
 
   return result;
 }
@@ -1666,7 +1646,7 @@ Node* WasmGraphBuilder::BuildI64SConvertF32(Node* input) {
     Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
     Node* overflow =
         graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
-    trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+    trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow);
     return result;
   }
 }
@@ -1682,7 +1662,7 @@ Node* WasmGraphBuilder::BuildI64UConvertF32(Node* input) {
     Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
     Node* overflow =
         graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
-    trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+    trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow);
     return result;
   }
 }
@@ -1698,7 +1678,7 @@ Node* WasmGraphBuilder::BuildI64SConvertF64(Node* input) {
     Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
     Node* overflow =
         graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
-    trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+    trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow);
     return result;
   }
 }
@@ -1714,7 +1694,7 @@ Node* WasmGraphBuilder::BuildI64UConvertF64(Node* input) {
     Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
     Node* overflow =
         graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
-    trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+    trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow);
     return result;
   }
 }
@@ -1738,7 +1718,7 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
   sig_builder.AddParam(MachineType::Pointer());
   Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
   Node* args[] = {function, stack_slot_param, stack_slot_result};
-  trap_->ZeroCheck32(kTrapFloatUnrepresentable,
+  trap_->ZeroCheck32(wasm::kTrapFloatUnrepresentable,
                      BuildCCall(sig_builder.Build(), args));
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
   Node* load =
@@ -1778,7 +1758,7 @@ Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right) {
                        jsgraph()->Int32Constant(0), div));
   }
 
-  trap_->ZeroCheck32(kTrapDivByZero, right);
+  trap_->ZeroCheck32(wasm::kTrapDivByZero, right);
   Node* before = *control_;
   Node* denom_is_m1;
   Node* denom_is_not_m1;
@@ -1786,7 +1766,7 @@ Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right) {
       graph()->NewNode(m->Word32Equal(), right, jsgraph()->Int32Constant(-1)),
       &denom_is_m1, &denom_is_not_m1);
   *control_ = denom_is_m1;
-  trap_->TrapIfEq32(kTrapDivUnrepresentable, left, kMinInt);
+  trap_->TrapIfEq32(wasm::kTrapDivUnrepresentable, left, kMinInt);
   if (*control_ != denom_is_m1) {
     *control_ = graph()->NewNode(jsgraph()->common()->Merge(2), denom_is_not_m1,
                                  *control_);
@@ -1819,7 +1799,7 @@ Node* WasmGraphBuilder::BuildI32RemS(Node* left, Node* right) {
               graph()->NewNode(m->Int32Mod(), left, right, d.if_false)));
   }
 
-  trap_->ZeroCheck32(kTrapRemByZero, right);
+  trap_->ZeroCheck32(wasm::kTrapRemByZero, right);
 
   Diamond d(
       graph(), jsgraph()->common(),
@@ -1851,7 +1831,7 @@ Node* WasmGraphBuilder::BuildI32DivU(Node* left, Node* right) {
                                   right, z.if_false));
   }
   return graph()->NewNode(m->Uint32Div(), left, right,
-                          trap_->ZeroCheck32(kTrapDivByZero, right));
+                          trap_->ZeroCheck32(wasm::kTrapDivByZero, right));
 }
 
 Node* WasmGraphBuilder::BuildI32RemU(Node* left, Node* right) {
@@ -1871,16 +1851,16 @@ Node* WasmGraphBuilder::BuildI32RemU(Node* left, Node* right) {
   }
 
   return graph()->NewNode(m->Uint32Mod(), left, right,
-                          trap_->ZeroCheck32(kTrapRemByZero, right));
+                          trap_->ZeroCheck32(wasm::kTrapRemByZero, right));
 }
 
 Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right) {
   if (jsgraph()->machine()->Is32()) {
     return BuildDiv64Call(
         left, right, ExternalReference::wasm_int64_div(jsgraph()->isolate()),
-        MachineType::Int64(), kTrapDivByZero);
+        MachineType::Int64(), wasm::kTrapDivByZero);
   }
-  trap_->ZeroCheck64(kTrapDivByZero, right);
+  trap_->ZeroCheck64(wasm::kTrapDivByZero, right);
   Node* before = *control_;
   Node* denom_is_m1;
   Node* denom_is_not_m1;
@@ -1888,7 +1868,7 @@ Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right) {
                           jsgraph()->Int64Constant(-1)),
          &denom_is_m1, &denom_is_not_m1);
   *control_ = denom_is_m1;
-  trap_->TrapIfEq64(kTrapDivUnrepresentable, left,
+  trap_->TrapIfEq64(wasm::kTrapDivUnrepresentable, left,
                     std::numeric_limits<int64_t>::min());
   if (*control_ != denom_is_m1) {
     *control_ = graph()->NewNode(jsgraph()->common()->Merge(2), denom_is_not_m1,
@@ -1904,9 +1884,9 @@ Node* WasmGraphBuilder::BuildI64RemS(Node* left, Node* right) {
   if (jsgraph()->machine()->Is32()) {
     return BuildDiv64Call(
         left, right, ExternalReference::wasm_int64_mod(jsgraph()->isolate()),
-        MachineType::Int64(), kTrapRemByZero);
+        MachineType::Int64(), wasm::kTrapRemByZero);
   }
-  trap_->ZeroCheck64(kTrapRemByZero, right);
+  trap_->ZeroCheck64(wasm::kTrapRemByZero, right);
   Diamond d(jsgraph()->graph(), jsgraph()->common(),
             graph()->NewNode(jsgraph()->machine()->Word64Equal(), right,
                              jsgraph()->Int64Constant(-1)));
@@ -1922,19 +1902,19 @@ Node* WasmGraphBuilder::BuildI64DivU(Node* left, Node* right) {
   if (jsgraph()->machine()->Is32()) {
     return BuildDiv64Call(
         left, right, ExternalReference::wasm_uint64_div(jsgraph()->isolate()),
-        MachineType::Int64(), kTrapDivByZero);
+        MachineType::Int64(), wasm::kTrapDivByZero);
   }
   return graph()->NewNode(jsgraph()->machine()->Uint64Div(), left, right,
-                          trap_->ZeroCheck64(kTrapDivByZero, right));
+                          trap_->ZeroCheck64(wasm::kTrapDivByZero, right));
 }
 Node* WasmGraphBuilder::BuildI64RemU(Node* left, Node* right) {
   if (jsgraph()->machine()->Is32()) {
     return BuildDiv64Call(
         left, right, ExternalReference::wasm_uint64_mod(jsgraph()->isolate()),
-        MachineType::Int64(), kTrapRemByZero);
+        MachineType::Int64(), wasm::kTrapRemByZero);
   }
   return graph()->NewNode(jsgraph()->machine()->Uint64Mod(), left, right,
-                          trap_->ZeroCheck64(kTrapRemByZero, right));
+                          trap_->ZeroCheck64(wasm::kTrapRemByZero, right));
 }
 
 Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
@@ -1966,8 +1946,8 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 
   // TODO(wasm): This can get simpler if we have a specialized runtime call to
   // throw WASM exceptions by trap code instead of by string.
-  trap_->ZeroCheck32(static_cast<TrapReason>(trap_zero), call);
-  trap_->TrapIfEq32(kTrapDivUnrepresentable, call, -1);
+  trap_->ZeroCheck32(static_cast<wasm::TrapReason>(trap_zero), call);
+  trap_->TrapIfEq32(wasm::kTrapDivUnrepresentable, call, -1);
   const Operator* load_op = jsgraph()->machine()->Load(result_type);
   Node* load =
       graph()->NewNode(load_op, stack_slot_dst, jsgraph()->Int32Constant(0),
@@ -2053,10 +2033,10 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args) {
     // Bounds check against the table size.
     Node* size = Int32Constant(static_cast<int>(table_size));
     Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
-    trap_->AddTrapIfFalse(kTrapFuncInvalid, in_bounds);
+    trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, in_bounds);
   } else {
     // No function table. Generate a trap and return a constant.
-    trap_->AddTrapIfFalse(kTrapFuncInvalid, Int32Constant(0));
+    trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, Int32Constant(0));
     return trap_->GetTrapValue(module_->GetSignature(index));
   }
   Node* table = FunctionTable();
@@ -2076,7 +2056,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args) {
         *effect_, *control_);
     Node* sig_match = graph()->NewNode(machine->WordEqual(), load_sig,
                                        jsgraph()->SmiConstant(index));
-    trap_->AddTrapIfFalse(kTrapFuncSigMismatch, sig_match);
+    trap_->AddTrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match);
   }
 
   // Load code object from the table.
@@ -2395,7 +2375,7 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
         jsgraph()->Int32Constant(static_cast<uint32_t>(limit)));
   }
 
-  trap_->AddTrapIfFalse(kTrapMemOutOfBounds, cond);
+  trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, cond);
 }
 
 

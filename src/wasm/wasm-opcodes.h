@@ -329,6 +329,19 @@ enum WasmOpcode {
 #undef DECLARE_NAMED_ENUM
 };
 
+// The reason for a trap.
+enum TrapReason {
+  kTrapUnreachable,
+  kTrapMemOutOfBounds,
+  kTrapDivByZero,
+  kTrapDivUnrepresentable,
+  kTrapRemByZero,
+  kTrapFloatUnrepresentable,
+  kTrapFuncInvalid,
+  kTrapFuncSigMismatch,
+  kTrapCount
+};
+
 // A collection of opcode-related static methods.
 class WasmOpcodes {
  public:
@@ -493,6 +506,29 @@ class WasmOpcodes {
         return "<end>";
       default:
         return "<unknown>";
+    }
+  }
+
+  static const char* TrapReasonName(TrapReason reason) {
+    switch (reason) {
+      case kTrapUnreachable:
+        return "unreachable";
+      case kTrapMemOutOfBounds:
+        return "memory access out of bounds";
+      case kTrapDivByZero:
+        return "divide by zero";
+      case kTrapDivUnrepresentable:
+        return "divide result unrepresentable";
+      case kTrapRemByZero:
+        return "remainder by zero";
+      case kTrapFloatUnrepresentable:
+        return "integer result unrepresentable";
+      case kTrapFuncInvalid:
+        return "invalid function";
+      case kTrapFuncSigMismatch:
+        return "function signature mismatch";
+      default:
+        return "<?>";
     }
   }
 };
