@@ -95,11 +95,11 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   }
 
   Handle<JSFunction> eval_fun;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, eval_fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
-                                    NO_PARSE_RESTRICTION, 0),
-      Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, eval_fun,
+                             Compiler::GetFunctionFromEval(
+                                 source, outer_info, context, SLOPPY,
+                                 NO_PARSE_RESTRICTION, RelocInfo::kNoPosition),
+                             Object);
 
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(

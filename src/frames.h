@@ -701,15 +701,12 @@ class StandardFrame: public StackFrame {
   friend class SafeStackFrameIterator;
 };
 
-class JavaScriptFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
   FrameSummary(Object* receiver, JSFunction* function,
                AbstractCode* abstract_code, int code_offset,
                bool is_constructor);
-
-  static FrameSummary GetFirst(JavaScriptFrame* frame);
 
   Handle<Object> receiver() { return receiver_; }
   Handle<JSFunction> function() { return function_; }
@@ -896,11 +893,11 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeOffset(int new_offset);
 
   // Returns the frame's current bytecode array.
-  BytecodeArray* GetBytecodeArray() const;
+  Object* GetBytecodeArray() const;
 
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray* bytecode_array);
+  void PatchBytecodeArray(Object* bytecode_array);
 
   // Access to the interpreter register file for this frame.
   Object* GetInterpreterRegister(int register_index) const;

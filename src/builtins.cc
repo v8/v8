@@ -2055,12 +2055,11 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
   }
 
   // Compile source string in the native context.
-  StackTraceFrameIterator it(isolate);
-  FrameSummary summary = FrameSummary::GetFirst(it.frame());
-  Handle<SharedFunctionInfo> outer_info(summary.function()->shared());
-  int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
+  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared(),
+                                        isolate);
   return Compiler::GetFunctionFromEval(source, outer_info, native_context,
-                                       SLOPPY, restriction, pos);
+                                       SLOPPY, restriction,
+                                       RelocInfo::kNoPosition);
 }
 
 }  // namespace
