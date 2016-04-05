@@ -12586,6 +12586,9 @@ static void ShrinkInstanceSize(Map* map, void* data) {
   map->set_visitor_id(Heap::GetStaticVisitorIdForMap(map));
 }
 
+static void StopSlackTracking(Map* map, void* data) {
+  map->set_construction_counter(Map::kNoSlackTracking);
+}
 
 void Map::CompleteInobjectSlackTracking() {
   // Has to be an initial map.
@@ -12596,6 +12599,8 @@ void Map::CompleteInobjectSlackTracking() {
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
     TransitionArray::TraverseTransitionTree(this, &ShrinkInstanceSize, &slack);
+  } else {
+    TransitionArray::TraverseTransitionTree(this, &StopSlackTracking, nullptr);
   }
 }
 
