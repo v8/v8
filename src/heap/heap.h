@@ -1174,16 +1174,11 @@ class Heap {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  // Returns the maximum amount of memory reserved for the heap.  For
-  // the young generation, we reserve 4 times the amount needed for a
-  // semi space.  The young generation consists of two semi spaces and
-  // we reserve twice the amount needed for those in order to ensure
-  // that new space can be aligned to its size.
+  // Returns the maximum amount of memory reserved for the heap.
   intptr_t MaxReserved() {
-    return 4 * reserved_semispace_size_ + max_old_generation_size_;
+    return 2 * max_semi_space_size_ + max_old_generation_size_;
   }
   int MaxSemiSpaceSize() { return max_semi_space_size_; }
-  int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
   intptr_t MaxExecutableSize() { return max_executable_size_; }
@@ -1995,10 +1990,8 @@ class Heap {
   Object* roots_[kRootListLength];
 
   size_t code_range_size_;
-  int reserved_semispace_size_;
   int max_semi_space_size_;
   int initial_semispace_size_;
-  int target_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t initial_old_generation_size_;
   bool old_generation_size_configured_;

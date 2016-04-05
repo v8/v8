@@ -251,6 +251,19 @@ AllocationSpace AllocationResult::RetrySpace() {
   return static_cast<AllocationSpace>(Smi::cast(object_)->value());
 }
 
+NewSpacePage* NewSpacePage::Initialize(Heap* heap, MemoryChunk* chunk,
+                                       Executability executable,
+                                       SemiSpace* owner) {
+  DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
+  bool in_to_space = (owner->id() != kFromSpace);
+  chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
+                             : MemoryChunk::IN_FROM_SPACE);
+  DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
+                                       : MemoryChunk::IN_TO_SPACE));
+  NewSpacePage* page = static_cast<NewSpacePage*>(chunk);
+  heap->incremental_marking()->SetNewSpacePageFlags(page);
+  return page;
+}
 
 // --------------------------------------------------------------------------
 // PagedSpace
@@ -261,6 +274,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   page->mutex_ = new base::Mutex();
   DCHECK(page->area_size() <= kAllocatableMemory);
   DCHECK(chunk->owner() == owner);
+
   owner->IncreaseCapacity(page->area_size());
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
 

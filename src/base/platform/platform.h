@@ -291,6 +291,10 @@ class VirtualMemory {
   // by address().
   VirtualMemory(size_t size, size_t alignment);
 
+  // Construct a virtual memory by assigning it some already mapped address
+  // and size.
+  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
+
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
   ~VirtualMemory();

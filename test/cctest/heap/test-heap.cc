@@ -2333,11 +2333,7 @@ TEST(GrowAndShrinkNewSpace) {
   Heap* heap = CcTest::heap();
   NewSpace* new_space = heap->new_space();
 
-  if (heap->ReservedSemiSpaceSize() == heap->InitialSemiSpaceSize() ||
-      heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    // The max size cannot exceed the reserved size, since semispaces must be
-    // always within the reserved space.  We can't test new space growing and
-    // shrinking if the reserved size is the same as the minimum (initial) size.
+  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
     return;
   }
 
@@ -2382,11 +2378,7 @@ TEST(GrowAndShrinkNewSpace) {
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  if (heap->ReservedSemiSpaceSize() == heap->InitialSemiSpaceSize() ||
-      heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    // The max size cannot exceed the reserved size, since semispaces must be
-    // always within the reserved space.  We can't test new space growing and
-    // shrinking if the reserved size is the same as the minimum (initial) size.
+  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
     return;
   }
 

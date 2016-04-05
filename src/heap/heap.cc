@@ -75,7 +75,6 @@ Heap::Heap()
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
-      reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
@@ -4915,32 +4914,10 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
     max_semi_space_size_ = Page::kPageSize;
   }
 
-  if (isolate()->snapshot_available()) {
-    // If we are using a snapshot we always reserve the default amount
-    // of memory for each semispace because code in the snapshot has
-    // write-barrier code that relies on the size and alignment of new
-    // space.  We therefore cannot use a larger max semispace size
-    // than the default reserved semispace size.
-    if (max_semi_space_size_ > reserved_semispace_size_) {
-      max_semi_space_size_ = reserved_semispace_size_;
-      if (FLAG_trace_gc) {
-        PrintIsolate(isolate_,
-                     "Max semi-space size cannot be more than %d kbytes\n",
-                     reserved_semispace_size_ >> 10);
-      }
-    }
-  } else {
-    // If we are not using snapshots we reserve space for the actual
-    // max semispace size.
-    reserved_semispace_size_ = max_semi_space_size_;
-  }
-
   // The new space size must be a power of two to support single-bit testing
   // for containment.
   max_semi_space_size_ =
       base::bits::RoundUpToPowerOfTwo32(max_semi_space_size_);
-  reserved_semispace_size_ =
-      base::bits::RoundUpToPowerOfTwo32(reserved_semispace_size_);
 
   if (FLAG_min_semi_space_size > 0) {
     int initial_semispace_size = FLAG_min_semi_space_size * MB;
@@ -5284,7 +5261,7 @@ bool Heap::SetUp() {
   incremental_marking_ = new IncrementalMarking(this);
 
   // Set up new space.
-  if (!new_space_.SetUp(reserved_semispace_size_, max_semi_space_size_)) {
+  if (!new_space_.SetUp(initial_semispace_size_, max_semi_space_size_)) {
     return false;
   }
   new_space_top_after_last_gc_ = new_space()->top();
