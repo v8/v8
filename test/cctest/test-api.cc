@@ -24658,6 +24658,53 @@ TEST(CompatibleReceiverCheckOnCachedICHandler) {
       0);
 }
 
+THREADED_TEST(ReceiverConversionForAccessors) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::FunctionTemplate> acc =
+      v8::FunctionTemplate::New(isolate, Returns42);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("acc"),
+                  acc->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetAccessorProperty(v8_str("acc"), acc, acc);
+  Local<v8::Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
+
+  CHECK(env->Global()->Set(env.local(), v8_str("p"), instance).FromJust());
+  CHECK(CompileRun("(p.acc == 42)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(p.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+
+  CHECK(!CompileRun("Number.prototype.__proto__ = p;"
+                    "var a = 1;")
+             .IsEmpty());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+
+  CHECK(!CompileRun("Boolean.prototype.__proto__ = p;"
+                    "var a = true;")
+             .IsEmpty());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+
+  CHECK(!CompileRun("String.prototype.__proto__ = p;"
+                    "var a = 'foo';")
+             .IsEmpty());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+
+  CHECK(CompileRun("acc.call(1) == 42")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("acc.call(true)==42")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("acc.call('aa')==42")->BooleanValue(env.local()).FromJust());
+  CHECK(
+      CompileRun("acc.call(null) == 42")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("acc.call(undefined) == 42")
+            ->BooleanValue(env.local())
+            .FromJust());
+}
+
 class FutexInterruptionThread : public v8::base::Thread {
  public:
   explicit FutexInterruptionThread(v8::Isolate* isolate)

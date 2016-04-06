@@ -4366,6 +4366,20 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
                                                 Handle<Object> receiver,
                                                 int argc,
                                                 Handle<Object> args[]) {
+  Isolate* isolate = function->GetIsolate();
+  // Do proper receiver conversion for non-strict mode api functions.
+  if (!receiver->IsJSReceiver()) {
+    DCHECK(function->IsFunctionTemplateInfo() || function->IsJSFunction());
+    if (function->IsFunctionTemplateInfo() ||
+        is_sloppy(JSFunction::cast(*function)->shared()->language_mode())) {
+      if (receiver->IsUndefined() || receiver->IsNull()) {
+        receiver = handle(isolate->global_proxy(), isolate);
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                   Object::ToObject(isolate, receiver), Object);
+      }
+    }
+  }
   // Construct BuiltinArguments object: function, arguments reversed, receiver.
   const int kBufferSize = 32;
   Object* small_argv[kBufferSize];
@@ -4382,7 +4396,6 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
   argv[0] = *function;
   MaybeHandle<Object> result;
   {
-    auto isolate = function->GetIsolate();
     RelocatableArguments arguments(isolate, argc + 2, &argv[argc + 1]);
     result = HandleApiCallHelper<false>(isolate, arguments);
   }
