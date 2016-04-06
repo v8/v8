@@ -10064,215 +10064,22 @@ void Map::UpdateCodeCache(Handle<Map> map,
   Isolate* isolate = map->GetIsolate();
   HandleScope scope(isolate);
   // Allocate the code cache if not present.
-  if (map->code_cache()->IsFixedArray()) {
-    Handle<Object> result = isolate->factory()->NewCodeCache();
+  if (!map->has_code_cache()) {
+    Handle<Object> result =
+        CodeCacheHashTable::New(isolate, CodeCacheHashTable::kInitialSize);
     map->set_code_cache(*result);
   }
 
   // Update the code cache.
-  Handle<CodeCache> code_cache(CodeCache::cast(map->code_cache()), isolate);
-  CodeCache::Update(code_cache, name, code);
-}
-
-
-Object* Map::FindInCodeCache(Name* name, Code::Flags flags) {
-  // Do a lookup if a code cache exists.
-  if (!code_cache()->IsFixedArray()) {
-    return CodeCache::cast(code_cache())->Lookup(name, flags);
-  } else {
-    return GetHeap()->undefined_value();
-  }
-}
-
-
-int Map::IndexInCodeCache(Object* name, Code* code) {
-  // Get the internal index if a code cache exists.
-  if (!code_cache()->IsFixedArray()) {
-    return CodeCache::cast(code_cache())->GetIndex(name, code);
-  }
-  return -1;
-}
-
-
-void Map::RemoveFromCodeCache(Name* name, Code* code, int index) {
-  // No GC is supposed to happen between a call to IndexInCodeCache and
-  // RemoveFromCodeCache so the code cache must be there.
-  DCHECK(!code_cache()->IsFixedArray());
-  CodeCache::cast(code_cache())->RemoveByIndex(name, code, index);
-}
-
-
-void CodeCache::Update(
-    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
-  // The number of monomorphic stubs for normal load/store/call IC's can grow to
-  // a large number and therefore they need to go into a hash table. They are
-  // used to load global properties from cells.
-  if (code->type() == Code::NORMAL) {
-    // Make sure that a hash table is allocated for the normal load code cache.
-    if (code_cache->normal_type_cache()->IsUndefined()) {
-      Handle<Object> result =
-          CodeCacheHashTable::New(code_cache->GetIsolate(),
-                                  CodeCacheHashTable::kInitialSize);
-      code_cache->set_normal_type_cache(*result);
-    }
-    UpdateNormalTypeCache(code_cache, name, code);
-  } else {
-    DCHECK(code_cache->default_cache()->IsFixedArray());
-    UpdateDefaultCache(code_cache, name, code);
-  }
-}
-
-
-void CodeCache::UpdateDefaultCache(
-    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
-  Isolate* isolate = code_cache->GetIsolate();
-  // When updating the default code cache we disregard the type encoded in the
-  // flags. This allows call constant stubs to overwrite call field
-  // stubs, etc.
-  Code::Flags flags = Code::RemoveTypeFromFlags(code->flags());
-
-  // First check whether we can update existing code cache without
-  // extending it.
-  Handle<FixedArray> cache = handle(code_cache->default_cache());
-  int length = cache->length();
-  {
-    DisallowHeapAllocation no_alloc;
-    int deleted_index = -1;
-    Object* null = isolate->heap()->null_value();
-    Object* undefined = isolate->heap()->undefined_value();
-    DCHECK(name->IsUniqueName());
-    for (int i = 0; i < length; i += kCodeCacheEntrySize) {
-      Object* key = cache->get(i);
-      if (key == null) {
-        if (deleted_index < 0) deleted_index = i;
-        continue;
-      }
-      if (key == undefined) {
-        if (deleted_index >= 0) i = deleted_index;
-        cache->set(i + kCodeCacheEntryNameOffset, *name);
-        cache->set(i + kCodeCacheEntryCodeOffset, *code);
-        return;
-      }
-      DCHECK(key->IsUniqueName());
-      if (*name == key) {
-        Code::Flags found =
-            Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
-        if (Code::RemoveTypeFromFlags(found) == flags) {
-          cache->set(i + kCodeCacheEntryCodeOffset, *code);
-          return;
-        }
-      }
-    }
-
-    // Reached the end of the code cache.  If there were deleted
-    // elements, reuse the space for the first of them.
-    if (deleted_index >= 0) {
-      cache->set(deleted_index + kCodeCacheEntryNameOffset, *name);
-      cache->set(deleted_index + kCodeCacheEntryCodeOffset, *code);
-      return;
-    }
-  }
-
-  // Extend the code cache with some new entries (at least one). Must be a
-  // multiple of the entry size.
-  int new_length = length + (length >> 1) + kCodeCacheEntrySize;
-  new_length = new_length - new_length % kCodeCacheEntrySize;
-  DCHECK((new_length % kCodeCacheEntrySize) == 0);
-  cache = isolate->factory()->CopyFixedArrayAndGrow(cache, new_length - length);
-
-  // Add the (name, code) pair to the new cache.
-  cache->set(length + kCodeCacheEntryNameOffset, *name);
-  cache->set(length + kCodeCacheEntryCodeOffset, *code);
-  code_cache->set_default_cache(*cache);
-}
-
-
-void CodeCache::UpdateNormalTypeCache(
-    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
-  // Adding a new entry can cause a new cache to be allocated.
-  Handle<CodeCacheHashTable> cache(
-      CodeCacheHashTable::cast(code_cache->normal_type_cache()));
+  Handle<CodeCacheHashTable> cache(CodeCacheHashTable::cast(map->code_cache()),
+                                   isolate);
   Handle<Object> new_cache = CodeCacheHashTable::Put(cache, name, code);
-  code_cache->set_normal_type_cache(*new_cache);
+  map->set_code_cache(*new_cache);
 }
 
-
-Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
-  Object* result = LookupDefaultCache(name, Code::RemoveTypeFromFlags(flags));
-  if (result->IsCode()) {
-    if (Code::cast(result)->flags() == flags) return result;
-    return GetHeap()->undefined_value();
-  }
-  return LookupNormalTypeCache(name, flags);
-}
-
-
-Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
-  FixedArray* cache = default_cache();
-  Heap* heap = GetHeap();
-  Object* null = heap->null_value();
-  Object* undefined = heap->undefined_value();
-  int length = cache->length();
-  DCHECK(name->IsUniqueName());
-  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
-    Object* key = cache->get(i + kCodeCacheEntryNameOffset);
-    // Skip deleted elements.
-    if (key == null) continue;
-    if (key == undefined) return key;
-    DCHECK(key->IsUniqueName());
-    if (name == key) {
-      Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
-      if (Code::RemoveTypeFromFlags(code->flags()) == flags) {
-        return code;
-      }
-    }
-  }
-  return GetHeap()->undefined_value();
-}
-
-
-Object* CodeCache::LookupNormalTypeCache(Name* name, Code::Flags flags) {
-  if (!normal_type_cache()->IsUndefined()) {
-    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    return cache->Lookup(name, flags);
-  } else {
-    return GetHeap()->undefined_value();
-  }
-}
-
-
-int CodeCache::GetIndex(Object* name, Code* code) {
-  if (code->type() == Code::NORMAL) {
-    if (normal_type_cache()->IsUndefined()) return -1;
-    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    return cache->GetIndex(Name::cast(name), code->flags());
-  }
-
-  FixedArray* array = default_cache();
-  int len = array->length();
-  for (int i = 0; i < len; i += kCodeCacheEntrySize) {
-    if (array->get(i + kCodeCacheEntryCodeOffset) == code) return i + 1;
-  }
-  return -1;
-}
-
-
-void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
-  if (code->type() == Code::NORMAL) {
-    DCHECK(!normal_type_cache()->IsUndefined());
-    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    DCHECK(cache->GetIndex(Name::cast(name), code->flags()) == index);
-    cache->RemoveByIndex(index);
-  } else {
-    FixedArray* array = default_cache();
-    DCHECK(array->length() >= index && array->get(index)->IsCode());
-    // Use null instead of undefined for deleted elements to distinguish
-    // deleted elements from unused elements.  This distinction is used
-    // when looking up in the cache and when updating the cache.
-    DCHECK_EQ(1, kCodeCacheEntryCodeOffset - kCodeCacheEntryNameOffset);
-    array->set_null(index - 1);  // Name.
-    array->set_null(index);  // Code.
-  }
+Code* Map::LookupInCodeCache(Name* name, Code::Flags flags) {
+  if (!has_code_cache()) return nullptr;
+  return CodeCacheHashTable::cast(code_cache())->Lookup(name, flags);
 }
 
 
@@ -10283,20 +10090,23 @@ void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
 class CodeCacheHashTableKey : public HashTableKey {
  public:
   CodeCacheHashTableKey(Handle<Name> name, Code::Flags flags)
-      : name_(name), flags_(flags), code_() { }
+      : name_(name), flags_(flags), code_() {
+    DCHECK(name_->IsUniqueName());
+  }
 
   CodeCacheHashTableKey(Handle<Name> name, Handle<Code> code)
-      : name_(name), flags_(code->flags()), code_(code) { }
+      : name_(name), flags_(code->flags()), code_(code) {
+    DCHECK(name_->IsUniqueName());
+  }
 
   bool IsMatch(Object* other) override {
-    if (!other->IsFixedArray()) return false;
+    DCHECK(other->IsFixedArray());
     FixedArray* pair = FixedArray::cast(other);
     Name* name = Name::cast(pair->get(0));
     Code::Flags flags = Code::cast(pair->get(1))->flags();
-    if (flags != flags_) {
-      return false;
-    }
-    return name_->Equals(name);
+    if (flags != flags_) return false;
+    DCHECK(name->IsUniqueName());
+    return *name_ == name;
   }
 
   static uint32_t NameFlagsHashHelper(Name* name, Code::Flags flags) {
@@ -10328,15 +10138,6 @@ class CodeCacheHashTableKey : public HashTableKey {
 };
 
 
-Object* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
-  DisallowHeapAllocation no_alloc;
-  CodeCacheHashTableKey key(handle(name), flags);
-  int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
-}
-
-
 Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
     Handle<CodeCacheHashTable> cache, Handle<Name> name, Handle<Code> code) {
   CodeCacheHashTableKey key(name, code);
@@ -10347,178 +10148,17 @@ Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
   Handle<Object> k = key.AsHandle(cache->GetIsolate());
 
   new_cache->set(EntryToIndex(entry), *k);
-  new_cache->set(EntryToIndex(entry) + 1, *code);
   new_cache->ElementAdded();
   return new_cache;
 }
 
-
-int CodeCacheHashTable::GetIndex(Name* name, Code::Flags flags) {
+Code* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
   DisallowHeapAllocation no_alloc;
   CodeCacheHashTableKey key(handle(name), flags);
   int entry = FindEntry(&key);
-  return (entry == kNotFound) ? -1 : entry;
+  if (entry == kNotFound) return nullptr;
+  return Code::cast(FixedArray::cast(get(EntryToIndex(entry)))->get(1));
 }
-
-
-void CodeCacheHashTable::RemoveByIndex(int index) {
-  DCHECK(index >= 0);
-  Heap* heap = GetHeap();
-  set(EntryToIndex(index), heap->the_hole_value());
-  set(EntryToIndex(index) + 1, heap->the_hole_value());
-  ElementRemoved();
-}
-
-
-void PolymorphicCodeCache::Update(Handle<PolymorphicCodeCache> code_cache,
-                                  MapHandleList* maps,
-                                  Code::Flags flags,
-                                  Handle<Code> code) {
-  Isolate* isolate = code_cache->GetIsolate();
-  if (code_cache->cache()->IsUndefined()) {
-    Handle<PolymorphicCodeCacheHashTable> result =
-        PolymorphicCodeCacheHashTable::New(
-            isolate,
-            PolymorphicCodeCacheHashTable::kInitialSize);
-    code_cache->set_cache(*result);
-  } else {
-    // This entry shouldn't be contained in the cache yet.
-    DCHECK(PolymorphicCodeCacheHashTable::cast(code_cache->cache())
-               ->Lookup(maps, flags)->IsUndefined());
-  }
-  Handle<PolymorphicCodeCacheHashTable> hash_table =
-      handle(PolymorphicCodeCacheHashTable::cast(code_cache->cache()));
-  Handle<PolymorphicCodeCacheHashTable> new_cache =
-      PolymorphicCodeCacheHashTable::Put(hash_table, maps, flags, code);
-  code_cache->set_cache(*new_cache);
-}
-
-
-Handle<Object> PolymorphicCodeCache::Lookup(MapHandleList* maps,
-                                            Code::Flags flags) {
-  if (!cache()->IsUndefined()) {
-    PolymorphicCodeCacheHashTable* hash_table =
-        PolymorphicCodeCacheHashTable::cast(cache());
-    return Handle<Object>(hash_table->Lookup(maps, flags), GetIsolate());
-  } else {
-    return GetIsolate()->factory()->undefined_value();
-  }
-}
-
-
-// Despite their name, object of this class are not stored in the actual
-// hash table; instead they're temporarily used for lookups. It is therefore
-// safe to have a weak (non-owning) pointer to a MapList as a member field.
-class PolymorphicCodeCacheHashTableKey : public HashTableKey {
- public:
-  // Callers must ensure that |maps| outlives the newly constructed object.
-  PolymorphicCodeCacheHashTableKey(MapHandleList* maps, int code_flags)
-      : maps_(maps),
-        code_flags_(code_flags) {}
-
-  bool IsMatch(Object* other) override {
-    MapHandleList other_maps(kDefaultListAllocationSize);
-    int other_flags;
-    FromObject(other, &other_flags, &other_maps);
-    if (code_flags_ != other_flags) return false;
-    if (maps_->length() != other_maps.length()) return false;
-    // Compare just the hashes first because it's faster.
-    int this_hash = MapsHashHelper(maps_, code_flags_);
-    int other_hash = MapsHashHelper(&other_maps, other_flags);
-    if (this_hash != other_hash) return false;
-
-    // Full comparison: for each map in maps_, look for an equivalent map in
-    // other_maps. This implementation is slow, but probably good enough for
-    // now because the lists are short (<= 4 elements currently).
-    for (int i = 0; i < maps_->length(); ++i) {
-      bool match_found = false;
-      for (int j = 0; j < other_maps.length(); ++j) {
-        if (*(maps_->at(i)) == *(other_maps.at(j))) {
-          match_found = true;
-          break;
-        }
-      }
-      if (!match_found) return false;
-    }
-    return true;
-  }
-
-  static uint32_t MapsHashHelper(MapHandleList* maps, int code_flags) {
-    uint32_t hash = code_flags;
-    for (int i = 0; i < maps->length(); ++i) {
-      hash ^= maps->at(i)->Hash();
-    }
-    return hash;
-  }
-
-  uint32_t Hash() override { return MapsHashHelper(maps_, code_flags_); }
-
-  uint32_t HashForObject(Object* obj) override {
-    MapHandleList other_maps(kDefaultListAllocationSize);
-    int other_flags;
-    FromObject(obj, &other_flags, &other_maps);
-    return MapsHashHelper(&other_maps, other_flags);
-  }
-
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) override {
-    // The maps in |maps_| must be copied to a newly allocated FixedArray,
-    // both because the referenced MapList is short-lived, and because C++
-    // objects can't be stored in the heap anyway.
-    Handle<FixedArray> list =
-        isolate->factory()->NewUninitializedFixedArray(maps_->length() + 1);
-    list->set(0, Smi::FromInt(code_flags_));
-    for (int i = 0; i < maps_->length(); ++i) {
-      list->set(i + 1, *maps_->at(i));
-    }
-    return list;
-  }
-
- private:
-  static MapHandleList* FromObject(Object* obj,
-                                   int* code_flags,
-                                   MapHandleList* maps) {
-    FixedArray* list = FixedArray::cast(obj);
-    maps->Rewind(0);
-    *code_flags = Smi::cast(list->get(0))->value();
-    for (int i = 1; i < list->length(); ++i) {
-      maps->Add(Handle<Map>(Map::cast(list->get(i))));
-    }
-    return maps;
-  }
-
-  MapHandleList* maps_;  // weak.
-  int code_flags_;
-  static const int kDefaultListAllocationSize = kMaxKeyedPolymorphism + 1;
-};
-
-
-Object* PolymorphicCodeCacheHashTable::Lookup(MapHandleList* maps,
-                                              int code_kind) {
-  DisallowHeapAllocation no_alloc;
-  PolymorphicCodeCacheHashTableKey key(maps, code_kind);
-  int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
-}
-
-
-Handle<PolymorphicCodeCacheHashTable> PolymorphicCodeCacheHashTable::Put(
-      Handle<PolymorphicCodeCacheHashTable> hash_table,
-      MapHandleList* maps,
-      int code_kind,
-      Handle<Code> code) {
-  PolymorphicCodeCacheHashTableKey key(maps, code_kind);
-  Handle<PolymorphicCodeCacheHashTable> cache =
-      EnsureCapacity(hash_table, 1, &key);
-  int entry = cache->FindInsertionEntry(key.Hash());
-
-  Handle<Object> obj = key.AsHandle(hash_table->GetIsolate());
-  cache->set(EntryToIndex(entry), *obj);
-  cache->set(EntryToIndex(entry) + 1, *code);
-  cache->ElementAdded();
-  return cache;
-}
-
 
 void FixedArray::Shrink(int new_length) {
   DCHECK(0 <= new_length && new_length <= length());
@@ -14803,24 +14443,14 @@ const char* Code::ICState2String(InlineCacheState state) {
     case UNINITIALIZED: return "UNINITIALIZED";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
-    case PROTOTYPE_FAILURE:
-      return "PROTOTYPE_FAILURE";
+    case RECOMPUTE_HANDLER:
+      return "RECOMPUTE_HANDLER";
     case POLYMORPHIC: return "POLYMORPHIC";
     case MEGAMORPHIC: return "MEGAMORPHIC";
     case GENERIC: return "GENERIC";
     case DEBUG_STUB: return "DEBUG_STUB";
   }
   UNREACHABLE();
-  return NULL;
-}
-
-
-const char* Code::StubType2String(StubType type) {
-  switch (type) {
-    case NORMAL: return "NORMAL";
-    case FAST: return "FAST";
-  }
-  UNREACHABLE();  // keep the compiler happy
   return NULL;
 }
 
@@ -14846,9 +14476,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   if (is_inline_cache_stub()) {
     os << "ic_state = " << ICState2String(ic_state()) << "\n";
     PrintExtraICState(os, kind(), extra_ic_state());
-    if (ic_state() == MONOMORPHIC) {
-      os << "type = " << StubType2String(type()) << "\n";
-    }
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
       CompareICStub stub(stub_key(), GetIsolate());
@@ -17166,10 +16793,13 @@ void HashTable<Derived, Shape, Key>::Rehash(
 
   // Rehash the elements.
   int capacity = this->Capacity();
+  Heap* heap = new_table->GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* undefined = heap->undefined_value();
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
-    if (IsKey(k)) {
+    if (k != the_hole && k != undefined) {
       uint32_t hash = this->HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
@@ -17333,9 +16963,12 @@ uint32_t HashTable<Derived, Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
+  Heap* heap = GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* undefined = heap->undefined_value();
   while (true) {
     Object* element = KeyAt(entry);
-    if (element->IsUndefined() || element->IsTheHole()) break;
+    if (element == the_hole || element == undefined) break;
     entry = NextProbe(entry, count++, capacity);
   }
   return entry;
@@ -18819,21 +18452,23 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
+  Isolate* isolate = table->GetIsolate();
+  Heap* heap = isolate->heap();
   DCHECK(!table->IsObsolete());
 
-  Handle<Derived> new_table =
-      Allocate(table->GetIsolate(),
-               new_capacity,
-               table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
+  Handle<Derived> new_table = Allocate(
+      isolate, new_capacity, heap->InNewSpace(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
   int new_buckets = new_table->NumberOfBuckets();
   int new_entry = 0;
   int removed_holes_index = 0;
 
+  DisallowHeapAllocation no_gc;
+  Object* the_hole = heap->the_hole_value();
   for (int old_entry = 0; old_entry < (nof + nod); ++old_entry) {
     Object* key = table->KeyAt(old_entry);
-    if (key->IsTheHole()) {
+    if (key == the_hole) {
       table->SetRemovedIndexAt(removed_holes_index++, old_entry);
       continue;
     }

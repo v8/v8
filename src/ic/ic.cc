@@ -38,7 +38,7 @@ char IC::TransitionMarkFromState(IC::State state) {
       return '.';
     case MONOMORPHIC:
       return '1';
-    case PROTOTYPE_FAILURE:
+    case RECOMPUTE_HANDLER:
       return '^';
     case POLYMORPHIC:
       return 'P';
@@ -258,10 +258,8 @@ static void LookupForRead(LookupIterator* it) {
   }
 }
 
-
-bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
-                                                Handle<String> name) {
-  if (!IsNameCompatibleWithPrototypeFailure(name)) return false;
+bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
+  if (!RecomputeHandlerForName(name)) return false;
   if (UseVector()) {
     maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
   } else {
@@ -283,20 +281,6 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                receiver_map()->elements_kind());
   }
 
-  CacheHolderFlag flag;
-  Handle<Map> ic_holder_map(GetICCacheHolder(receiver_map(), isolate(), &flag));
-
-  DCHECK(flag != kCacheOnReceiver || receiver->IsJSObject());
-  DCHECK(flag != kCacheOnPrototype || !receiver->IsJSReceiver());
-  DCHECK(flag != kCacheOnPrototypeReceiverIsDictionary);
-
-  if (state() == MONOMORPHIC) {
-    int index = ic_holder_map->IndexInCodeCache(*name, *target());
-    if (index >= 0) {
-      ic_holder_map->RemoveFromCodeCache(*name, *target(), index);
-    }
-  }
-
   if (receiver->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
     LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -308,8 +292,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   return true;
 }
 
-
-bool IC::IsNameCompatibleWithPrototypeFailure(Handle<Object> name) {
+bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
@@ -331,10 +314,8 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
-  if (TryRemoveInvalidPrototypeDependentStub(receiver,
-                                             Handle<String>::cast(name))) {
-    MarkPrototypeFailure(name);
-    return;
+  if (ShouldRecomputeHandler(receiver, Handle<String>::cast(name))) {
+    MarkRecomputeHandler(name);
   }
 }
 
@@ -382,7 +363,7 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
         *polymorphic_delta = 1;
       }
       break;
-    case PROTOTYPE_FAILURE:
+    case RECOMPUTE_HANDLER:
     case DEBUG_STUB:
       UNREACHABLE();
   }
@@ -460,15 +441,14 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
   if (target->is_debug_stub()) return;
 
   switch (target->kind()) {
-    case Code::LOAD_IC:
-    case Code::KEYED_LOAD_IC:
-    case Code::STORE_IC:
-    case Code::KEYED_STORE_IC:
-      return;
     case Code::COMPARE_IC:
       return CompareIC::Clear(isolate, address, target, constant_pool);
-    case Code::CALL_IC:  // CallICs are vector-based and cleared differently.
     case Code::BINARY_OP_IC:
+    case Code::CALL_IC:  // CallICs are vector-based and cleared differently.
+    case Code::KEYED_LOAD_IC:
+    case Code::KEYED_STORE_IC:
+    case Code::LOAD_IC:
+    case Code::STORE_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
       // make any performance difference.
@@ -509,28 +489,10 @@ void LoadIC::Clear(Isolate* isolate, Code* host, LoadICNexus* nexus) {
 }
 
 
-void StoreIC::Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool) {
-  if (IsCleared(target)) return;
-  Code* code = PropertyICCompiler::FindPreMonomorphic(isolate, Code::STORE_IC,
-                                                      target->extra_ic_state());
-  SetTargetAtAddress(address, code, constant_pool);
-}
-
-
 void StoreIC::Clear(Isolate* isolate, Code* host, StoreICNexus* nexus) {
   if (IsCleared(nexus)) return;
   nexus->ConfigurePremonomorphic();
   OnTypeFeedbackChanged(isolate, host);
-}
-
-
-void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
-                         Address constant_pool) {
-  if (IsCleared(target)) return;
-  Handle<Code> code = pre_monomorphic_stub(
-      isolate, StoreICState::GetLanguageMode(target->extra_ic_state()));
-  SetTargetAtAddress(address, *code, constant_pool);
 }
 
 
@@ -742,7 +704,7 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 
 bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code) {
   if (!code->is_handler()) return false;
-  if (target()->is_keyed_stub() && state() != PROTOTYPE_FAILURE) return false;
+  if (target()->is_keyed_stub() && state() != RECOMPUTE_HANDLER) return false;
   Handle<Map> map = receiver_map();
   MapHandleList maps;
   CodeHandleList handlers;
@@ -843,10 +805,10 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
     case PREMONOMORPHIC:
       UpdateMonomorphicIC(code, name);
       break;
-    case PROTOTYPE_FAILURE:
+    case RECOMPUTE_HANDLER:
     case MONOMORPHIC:
     case POLYMORPHIC:
-      if (!target()->is_keyed_stub() || state() == PROTOTYPE_FAILURE) {
+      if (!target()->is_keyed_stub() || state() == RECOMPUTE_HANDLER) {
         if (UpdatePolymorphicIC(name, code)) break;
         // For keyed stubs, we can't know whether old handlers were for the
         // same key.
@@ -907,14 +869,6 @@ static Handle<Code> KeyedStoreICInitializeStubHelper(
     Isolate* isolate, LanguageMode language_mode,
     InlineCacheState initialization_state) {
   switch (initialization_state) {
-    case UNINITIALIZED:
-      return is_strict(language_mode)
-                 ? isolate->builtins()->KeyedStoreIC_Initialize_Strict()
-                 : isolate->builtins()->KeyedStoreIC_Initialize();
-    case PREMONOMORPHIC:
-      return is_strict(language_mode)
-                 ? isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict()
-                 : isolate->builtins()->KeyedStoreIC_PreMonomorphic();
     case MEGAMORPHIC:
       return is_strict(language_mode)
                  ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
@@ -1069,16 +1023,14 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
       receiver_map(), receiver_is_holder, isolate(), &flag);
 
   Handle<Code> code = PropertyHandlerCompiler::Find(
-      lookup->name(), stub_holder_map, kind(), flag,
-      lookup->is_dictionary_holder() ? Code::NORMAL : Code::FAST);
+      lookup->name(), stub_holder_map, kind(), flag);
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
   if (!code.is_null()) {
-    if (!maybe_handler_.is_null() &&
-        !maybe_handler_.ToHandleChecked().is_identical_to(code)) {
-      return code;
-    }
-    if (maybe_handler_.is_null()) {
+    Handle<Code> handler;
+    if (maybe_handler_.ToHandle(&handler)) {
+      if (!handler.is_identical_to(code)) return code;
+    } else {
       // maybe_handler_ is only populated for MONOMORPHIC and POLYMORPHIC ICs.
       // In MEGAMORPHIC case, check if the handler in the megamorphic stub
       // cache (which just missed) is different from the cached handler.
@@ -1101,8 +1053,9 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
   // code cache. We are also guarding against installing code with flags that
   // don't match the desired CacheHolderFlag computed above, which would lead to
   // invalid lookups later.
-  if (code->type() != Code::NORMAL &&
-      Code::ExtractCacheHolderFromFlags(code->flags()) == flag) {
+  bool is_normal = receiver_is_holder &&
+                   !lookup->GetHolder<JSReceiver>()->HasFastProperties();
+  if (!is_normal && Code::ExtractCacheHolderFromFlags(code->flags()) == flag) {
     Map::UpdateCodeCache(stub_holder_map, lookup->name(), code);
   }
 
@@ -1641,13 +1594,6 @@ Handle<Code> StoreIC::slow_stub() const {
 }
 
 
-Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
-                                           LanguageMode language_mode) {
-  ExtraICState state = ComputeExtraICState(language_mode);
-  return PropertyICCompiler::ComputeStore(isolate, PREMONOMORPHIC, state);
-}
-
-
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            JSReceiver::StoreFromKeyed store_mode) {
   if (state() == UNINITIALIZED) {
@@ -1828,16 +1774,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
 Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
                                             KeyedAccessStoreMode store_mode) {
-  Handle<Code> null_handle;
-  // Don't handle megamorphic property accesses for INTERCEPTORS or
-  // ACCESSOR_CONSTANT
-  // via megamorphic stubs, since they don't have a map in their relocation info
-  // and so the stubs can't be harvested for the object needed for a map check.
-  if (target()->type() != Code::NORMAL) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-NORMAL target type");
-    return megamorphic_stub();
-  }
-
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.length() == 0) {
@@ -1848,7 +1784,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
         PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
             monomorphic_map, language_mode(), store_mode);
     ConfigureVectorState(Handle<Name>::null(), monomorphic_map, handler);
-    return null_handle;
+    return Handle<Code>();
   }
 
   // There are several special cases where an IC that is MONOMORPHIC can still
@@ -1876,7 +1812,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
               transitioned_receiver_map, language_mode(), store_mode);
       ConfigureVectorState(Handle<Name>::null(), transitioned_receiver_map,
                            handler);
-      return null_handle;
+      return Handle<Code>();
     } else if (receiver_map.is_identical_to(previous_receiver_map) &&
                old_store_mode == STANDARD_STORE &&
                (store_mode == STORE_AND_GROW_NO_TRANSITION ||
@@ -1889,7 +1825,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
               receiver_map, language_mode(), store_mode);
       ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
-      return null_handle;
+      return Handle<Code>();
     }
   }
 
@@ -1954,7 +1890,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       &target_receiver_maps, &transitioned_maps, &handlers, store_mode,
       language_mode());
   ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
-  return null_handle;
+  return Handle<Code>();
 }
 
 

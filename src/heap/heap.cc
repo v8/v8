@@ -1481,10 +1481,6 @@ void Heap::MarkCompactPrologue() {
   CompletelyClearInstanceofCache();
 
   FlushNumberStringCache();
-  if (FLAG_cleanup_code_caches_at_gc) {
-    polymorphic_code_cache()->set_cache(undefined_value());
-  }
-
   ClearNormalizedMapCaches();
 }
 
@@ -2180,6 +2176,21 @@ const Heap::StructTable Heap::struct_table[] = {
 #undef STRUCT_TABLE_ELEMENT
 };
 
+namespace {
+
+void FinalizePartialMap(Heap* heap, Map* map) {
+  map->set_code_cache(heap->empty_fixed_array());
+  map->set_dependent_code(DependentCode::cast(heap->empty_fixed_array()));
+  map->set_raw_transitions(Smi::FromInt(0));
+  map->set_instance_descriptors(heap->empty_descriptor_array());
+  if (FLAG_unbox_double_fields) {
+    map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+  }
+  map->set_prototype(heap->null_value());
+  map->set_constructor_or_backpointer(heap->null_value());
+}
+
+}  // namespace
 
 bool Heap::CreateInitialMaps() {
   HeapObject* obj = nullptr;
@@ -2203,6 +2214,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
+    ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
 
 #undef ALLOCATE_PARTIAL_MAP
   }
@@ -2228,6 +2240,12 @@ bool Heap::CreateInitialMaps() {
   set_undefined_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kUndefined);
   DCHECK(!InNewSpace(undefined_value()));
+  {
+    AllocationResult allocation = Allocate(the_hole_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_the_hole_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kTheHole);
 
   // Set preliminary exception sentinel value before actually initializing it.
   set_exception(null_value());
@@ -2240,55 +2258,13 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->set_code_cache(empty_fixed_array());
-  meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  meta_map()->set_raw_transitions(Smi::FromInt(0));
-  meta_map()->set_instance_descriptors(empty_descriptor_array());
-  if (FLAG_unbox_double_fields) {
-    meta_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
-  }
-
-  fixed_array_map()->set_code_cache(empty_fixed_array());
-  fixed_array_map()->set_dependent_code(
-      DependentCode::cast(empty_fixed_array()));
-  fixed_array_map()->set_raw_transitions(Smi::FromInt(0));
-  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
-  if (FLAG_unbox_double_fields) {
-    fixed_array_map()->set_layout_descriptor(
-        LayoutDescriptor::FastPointerLayout());
-  }
-
-  undefined_map()->set_code_cache(empty_fixed_array());
-  undefined_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  undefined_map()->set_raw_transitions(Smi::FromInt(0));
-  undefined_map()->set_instance_descriptors(empty_descriptor_array());
-  if (FLAG_unbox_double_fields) {
-    undefined_map()->set_layout_descriptor(
-        LayoutDescriptor::FastPointerLayout());
-  }
-
-  null_map()->set_code_cache(empty_fixed_array());
-  null_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  null_map()->set_raw_transitions(Smi::FromInt(0));
-  null_map()->set_instance_descriptors(empty_descriptor_array());
-  if (FLAG_unbox_double_fields) {
-    null_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
-  }
-  null_map()->set_is_undetectable();
-
-  // Fix prototype object for existing maps.
-  meta_map()->set_prototype(null_value());
-  meta_map()->set_constructor_or_backpointer(null_value());
-
-  fixed_array_map()->set_prototype(null_value());
-  fixed_array_map()->set_constructor_or_backpointer(null_value());
-
-  undefined_map()->set_prototype(null_value());
-  undefined_map()->set_constructor_or_backpointer(null_value());
+  FinalizePartialMap(this, meta_map());
+  FinalizePartialMap(this, fixed_array_map());
+  FinalizePartialMap(this, undefined_map());
   undefined_map()->set_is_undetectable();
-
-  null_map()->set_prototype(null_value());
-  null_map()->set_constructor_or_backpointer(null_value());
+  FinalizePartialMap(this, null_map());
+  null_map()->set_is_undetectable();
+  FinalizePartialMap(this, the_hole_map());
 
   {  // Map allocation
 #define ALLOCATE_MAP(instance_type, size, field_name)               \
@@ -2326,7 +2302,6 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_SIMD128_MAP
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
                            Context::BOOLEAN_FUNCTION_INDEX);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
@@ -2650,10 +2625,6 @@ void Heap::CreateInitialObjects() {
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED));
 
-  // The hole has not been created yet, but we want to put something
-  // predictable in the gaps in the string table, so lets make that Smi zero.
-  set_the_hole_value(reinterpret_cast<Oddball*>(Smi::FromInt(0)));
-
   // Allocate initial string table.
   set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
@@ -2669,6 +2640,11 @@ void Heap::CreateInitialObjects() {
                       handle(Smi::FromInt(0), isolate()), false, "object",
                       Oddball::kNull);
 
+  // Initialize the_hole_value.
+  Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
+                      handle(Smi::FromInt(-1), isolate()), false, "undefined",
+                      Oddball::kTheHole);
+
   // Initialize the true_value.
   Oddball::Initialize(isolate(), factory->true_value(), "true",
                       handle(Smi::FromInt(1), isolate()), true, "boolean",
@@ -2678,10 +2654,6 @@ void Heap::CreateInitialObjects() {
   Oddball::Initialize(isolate(), factory->false_value(), "false",
                       handle(Smi::FromInt(0), isolate()), false, "boolean",
                       Oddball::kFalse);
-
-  set_the_hole_value(*factory->NewOddball(
-      factory->the_hole_map(), "hole", handle(Smi::FromInt(-1), isolate()),
-      false, "undefined", Oddball::kTheHole));
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
@@ -2725,9 +2697,6 @@ void Heap::CreateInitialObjects() {
   // Create the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
   set_non_monomorphic_cache(*UnseededNumberDictionary::New(isolate(), 64));
-
-  set_polymorphic_code_cache(PolymorphicCodeCache::cast(
-      *factory->NewStruct(POLYMORPHIC_CODE_CACHE_TYPE)));
 
   set_instanceof_cache_function(Smi::FromInt(0));
   set_instanceof_cache_map(Smi::FromInt(0));
@@ -2932,7 +2901,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kInstanceofCacheAnswerRootIndex:
     case kCodeStubsRootIndex:
     case kNonMonomorphicCacheRootIndex:
-    case kPolymorphicCodeCacheRootIndex:
     case kEmptyScriptRootIndex:
     case kSymbolRegistryRootIndex:
     case kScriptListRootIndex:

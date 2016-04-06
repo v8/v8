@@ -4652,26 +4652,6 @@ static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Initialize_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateInitialize(masm);
-}
-
-
-static void Generate_KeyedStoreIC_PreMonomorphic(MacroAssembler* masm) {
-  KeyedStoreIC::GeneratePreMonomorphic(masm);
-}
-
-
-static void Generate_KeyedStoreIC_PreMonomorphic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GeneratePreMonomorphic(masm);
-}
-
-
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateDebugBreakStub(masm,
                                        DebugCodegen::SAVE_RESULT_REGISTER);

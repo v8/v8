@@ -35,11 +35,11 @@ class IC {
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
 
-  bool IsNameCompatibleWithPrototypeFailure(Handle<Object> name);
-  void MarkPrototypeFailure(Handle<Object> name) {
-    DCHECK(IsNameCompatibleWithPrototypeFailure(name));
+  bool RecomputeHandlerForName(Handle<Object> name);
+  void MarkRecomputeHandler(Handle<Object> name) {
+    DCHECK(RecomputeHandlerForName(name));
     old_state_ = state_;
-    state_ = PROTOTYPE_FAILURE;
+    state_ = RECOMPUTE_HANDLER;
   }
 
   // Clear the inline cache to initial state.
@@ -175,8 +175,7 @@ class IC {
     return Handle<Code>::null();
   }
 
-  bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
-                                              Handle<String> name);
+  bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
   void set_extra_ic_state(ExtraICState state) { extra_ic_state_ = state; }
@@ -207,7 +206,7 @@ class IC {
   Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
   FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
-    return state() == PROTOTYPE_FAILURE ? old_state_ : state();
+    return state() == RECOMPUTE_HANDLER ? old_state_ : state();
   }
 
   template <class NexusClass>
@@ -316,7 +315,6 @@ class LoadIC : public IC {
 
   // Code generator routines.
 
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
@@ -355,9 +353,6 @@ class LoadIC : public IC {
  private:
   Handle<Code> SimpleFieldLoad(FieldIndex index);
 
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
   friend class IC;
 };
 
@@ -391,7 +386,6 @@ class KeyedLoadIC : public LoadIC {
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMegamorphic(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
@@ -415,9 +409,6 @@ class KeyedLoadIC : public LoadIC {
   Handle<Code> LoadElementStub(Handle<HeapObject> receiver);
 
  private:
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
-
   friend class IC;
 };
 
@@ -439,10 +430,6 @@ class StoreIC : public IC {
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm);
-  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
@@ -470,13 +457,6 @@ class StoreIC : public IC {
   Handle<Code> megamorphic_stub() override;
   Handle<Code> slow_stub() const;
 
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), language_mode());
-  }
-
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           LanguageMode language_mode);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
@@ -486,9 +466,6 @@ class StoreIC : public IC {
 
  private:
   inline void set_target(Code* code);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
 
   friend class IC;
 };
@@ -533,10 +510,6 @@ class KeyedStoreIC : public StoreIC {
                                             Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm);
-  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
@@ -554,26 +527,11 @@ class KeyedStoreIC : public StoreIC {
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:
-  virtual Handle<Code> pre_monomorphic_stub() const {
-    return pre_monomorphic_stub(isolate(), language_mode());
-  }
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           LanguageMode language_mode) {
-    if (is_strict(language_mode)) {
-      return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
-    } else {
-      return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
-    }
-  }
-
   Handle<Code> StoreElementStub(Handle<Map> receiver_map,
                                 KeyedAccessStoreMode store_mode);
 
  private:
   inline void set_target(Code* code);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    Address constant_pool);
 
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);

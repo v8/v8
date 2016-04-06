@@ -853,15 +853,6 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
-Handle<CodeCache> Factory::NewCodeCache() {
-  Handle<CodeCache> code_cache =
-      Handle<CodeCache>::cast(NewStruct(CODE_CACHE_TYPE));
-  code_cache->set_default_cache(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code_cache->set_normal_type_cache(*undefined_value(), SKIP_WRITE_BARRIER);
-  return code_cache;
-}
-
-
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
   Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(

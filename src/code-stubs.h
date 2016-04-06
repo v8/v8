@@ -285,7 +285,6 @@ class CodeStub BASE_EMBEDDED {
 
   virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
-  virtual Code::StubType GetStubType() const { return Code::NORMAL; }
 
   Code::Flags GetCodeFlags() const;
 
@@ -579,8 +578,6 @@ class TurboFanCodeStub : public CodeStub {
   int GetStackParameterCount() const override {
     return GetCallInterfaceDescriptor().GetStackParameterCount();
   }
-
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
@@ -1289,7 +1286,6 @@ class LoadIndexedStringStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
@@ -1329,7 +1325,6 @@ class LoadFieldStub: public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -1355,7 +1350,6 @@ class ArrayBufferViewLoadFieldStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   class ArrayBufferViewLoadFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -1371,7 +1365,6 @@ class KeyedLoadSloppyArgumentsStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::KEYED_LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   DEFINE_HANDLER_CODE_STUB(KeyedLoadSloppyArguments, HandlerStub);
@@ -1390,7 +1383,6 @@ class KeyedStoreSloppyArgumentsStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::KEYED_STORE_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   DEFINE_HANDLER_CODE_STUB(KeyedStoreSloppyArguments, HandlerStub);
@@ -1410,7 +1402,6 @@ class LoadConstantStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
@@ -1442,7 +1433,6 @@ class StoreFieldStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::STORE_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -1552,7 +1542,6 @@ class StoreTransitionStub : public HandlerStub {
 
  protected:
   Code::Kind kind() const override { return Code::STORE_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
@@ -2505,8 +2494,6 @@ class ScriptContextFieldStub : public HandlerStub {
   class ContextIndexBits : public BitField<int, 0, kContextIndexBits> {};
   class SlotIndexBits
       : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
-
-  Code::StubType GetStubType() const override { return Code::FAST; }
 
   DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, HandlerStub);
 };

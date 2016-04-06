@@ -506,20 +506,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void CodeCache::CodeCachePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "CodeCache");
-  os << "\n - default_cache: " << Brief(default_cache());
-  os << "\n - normal_type_cache: " << Brief(normal_type_cache());
-}
-
-
-void PolymorphicCodeCache::PolymorphicCodeCachePrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "PolymorphicCodeCache");
-  os << "\n - cache: " << Brief(cache());
-}
-
-
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeFeedbackInfo");
   os << "\n - ic_total_count: " << ic_total_count()

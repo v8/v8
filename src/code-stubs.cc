@@ -99,8 +99,7 @@ Code::Kind CodeStub::GetCodeKind() const {
 
 
 Code::Flags CodeStub::GetCodeFlags() const {
-  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState(),
-                            GetStubType());
+  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState());
 }
 
 
@@ -135,11 +134,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   CodeDesc desc;
   masm.GetCode(&desc);
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(
-      GetCodeKind(),
-      GetICState(),
-      GetExtraICState(),
-      GetStubType());
+  Code::Flags flags =
+      Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -390,19 +386,14 @@ void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
 
 
 bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
-  Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  Handle<Object> probe(
-      known_map_->FindInCodeCache(
-        strict() ?
-            *factory->strict_compare_ic_string() :
-            *factory->compare_ic_string(),
-        flags),
-      isolate());
-  if (probe->IsCode()) {
-    *code_out = Code::cast(*probe);
+  Name* name = strict() ? isolate()->heap()->strict_compare_ic_string()
+                        : isolate()->heap()->compare_ic_string();
+  Code* code = known_map_->LookupInCodeCache(name, flags);
+  if (code != nullptr) {
+    *code_out = code;
 #ifdef DEBUG
     CompareICStub decode((*code_out)->stub_key(), isolate());
     DCHECK(op() == decode.op());

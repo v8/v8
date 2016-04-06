@@ -425,8 +425,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::KEYED_LOAD_IC, flags,
                                                receiver, key, r7, r8, r9, r10);
   // Cache miss.
@@ -686,8 +686,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ LoadSmiLiteral(slot, Smi::FromInt(slot_index));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
                                                receiver, key, r8, r9, r10, r11);
   // Cache miss.
@@ -747,8 +747,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   DCHECK(StoreDescriptor::ValueRegister().is(r3));
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
 
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
                                                receiver, name, r6, r7, r8, r9);

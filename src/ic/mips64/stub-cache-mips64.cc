@@ -100,9 +100,6 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // DCHECK(sizeof(Entry) == 12);
   // DCHECK(sizeof(Entry) == 3 * kPointerSize);
 
-  // Make sure the flags does not name a specific type.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
-
   // Make sure that there are no register conflicts.
   DCHECK(!AreAliased(receiver, name, scratch, extra, extra2, extra3));
 

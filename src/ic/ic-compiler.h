@@ -13,10 +13,6 @@ namespace internal {
 
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
-  // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  static Code* FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
-                                  ExtraICState extra_ic_state);
-
   // Named
   static Handle<Code> ComputeStore(Isolate* isolate, InlineCacheState ic_state,
                                    ExtraICState extra_state);
@@ -47,29 +43,16 @@ class PropertyICCompiler : public PropertyAccessCompiler {
       : PropertyAccessCompiler(isolate, kind, cache_holder),
         extra_ic_state_(extra_ic_state) {}
 
-  static Handle<Code> Find(Handle<Name> name, Handle<Map> stub_holder_map,
-                           Code::Kind kind,
-                           ExtraICState extra_ic_state = kNoExtraICState,
-                           CacheHolderFlag cache_holder = kCacheOnReceiver);
-
-  Handle<Code> CompileLoadInitialize(Code::Flags flags);
-  Handle<Code> CompileStoreInitialize(Code::Flags flags);
-  Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
-  Handle<Code> CompileStoreGeneric(Code::Flags flags);
   Handle<Code> CompileStoreMegamorphic(Code::Flags flags);
 
   Handle<Code> CompileKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
-  Handle<Code> CompileKeyedStoreMonomorphic(Handle<Map> receiver_map,
-                                            KeyedAccessStoreMode store_mode);
   void CompileKeyedStorePolymorphicHandlers(MapHandleList* receiver_maps,
                                             MapHandleList* transitioned_maps,
                                             CodeHandleList* handlers,
                                             KeyedAccessStoreMode store_mode);
 
-  bool IncludesNumberMap(MapHandleList* maps);
-
-  Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name,
+  Handle<Code> GetCode(Code::Kind kind, Handle<Name> name,
                        InlineCacheState state = MONOMORPHIC);
 
   Logger::LogEventsAndTags log_kind(Handle<Code> code) {

@@ -247,15 +247,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                            \
     StoreICState::kStrictModeState)                                            \
                                                                                \
-  V(KeyedStoreIC_Initialize, KEYED_STORE_IC, UNINITIALIZED, kNoExtraICState)   \
-  V(KeyedStoreIC_PreMonomorphic, KEYED_STORE_IC, PREMONOMORPHIC,               \
-    kNoExtraICState)                                                           \
   V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, MEGAMORPHIC, kNoExtraICState)    \
                                                                                \
-  V(KeyedStoreIC_Initialize_Strict, KEYED_STORE_IC, UNINITIALIZED,             \
-    StoreICState::kStrictModeState)                                            \
-  V(KeyedStoreIC_PreMonomorphic_Strict, KEYED_STORE_IC, PREMONOMORPHIC,        \
-    StoreICState::kStrictModeState)                                            \
   V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, MEGAMORPHIC,              \
     StoreICState::kStrictModeState)                                            \
                                                                                \

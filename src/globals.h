@@ -551,7 +551,7 @@ enum InlineCacheState {
   // Has been executed and only one receiver type has been seen.
   MONOMORPHIC,
   // Check failed due to prototype (or map deprecation).
-  PROTOTYPE_FAILURE,
+  RECOMPUTE_HANDLER,
   // Multiple receiver types have been seen.
   POLYMORPHIC,
   // Many receiver types have been seen.
@@ -561,7 +561,6 @@ enum InlineCacheState {
   // Special state for debug break or step in prepare stubs.
   DEBUG_STUB
 };
-
 
 enum CacheHolderFlag {
   kCacheOnPrototype,

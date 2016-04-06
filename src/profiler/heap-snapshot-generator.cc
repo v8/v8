@@ -1058,8 +1058,6 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractAccessorInfoReferences(entry, AccessorInfo::cast(obj));
   } else if (obj->IsAccessorPair()) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
-  } else if (obj->IsCodeCache()) {
-    ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
   } else if (obj->IsBox()) {
@@ -1441,19 +1439,6 @@ void V8HeapExplorer::ExtractAccessorPairReferences(
                        AccessorPair::kGetterOffset);
   SetInternalReference(accessors, entry, "setter", accessors->setter(),
                        AccessorPair::kSetterOffset);
-}
-
-
-void V8HeapExplorer::ExtractCodeCacheReferences(
-    int entry, CodeCache* code_cache) {
-  TagObject(code_cache->default_cache(), "(default code cache)");
-  SetInternalReference(code_cache, entry,
-                       "default_cache", code_cache->default_cache(),
-                       CodeCache::kDefaultCacheOffset);
-  TagObject(code_cache->normal_type_cache(), "(code type cache)");
-  SetInternalReference(code_cache, entry,
-                       "type_cache", code_cache->normal_type_cache(),
-                       CodeCache::kNormalTypeCacheOffset);
 }
 
 

@@ -266,8 +266,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case CODE_CACHE_TYPE:
-    case POLYMORPHIC_CODE_CACHE_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:

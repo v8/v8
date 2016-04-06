@@ -873,10 +873,6 @@ bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
 bool HeapObject::IsCodeCacheHashTable() const { return IsHashTable(); }
 
-bool HeapObject::IsPolymorphicCodeCacheHashTable() const {
-  return IsHashTable();
-}
-
 bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
@@ -3037,13 +3033,14 @@ int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key,
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
+  Object* undefined = isolate->heap()->undefined_value();
+  Object* the_hole = isolate->heap()->the_hole_value();
   while (true) {
     Object* element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
-    if (element == isolate->heap()->root(Heap::kUndefinedValueRootIndex)) break;
-    if (element != isolate->heap()->root(Heap::kTheHoleValueRootIndex) &&
-        Shape::IsMatch(key, element)) return entry;
+    if (element == undefined) break;
+    if (element != the_hole && Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -3149,7 +3146,6 @@ CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
@@ -4624,7 +4620,9 @@ bool Map::is_stable() {
 
 
 bool Map::has_code_cache() {
-  return code_cache() != GetIsolate()->heap()->empty_fixed_array();
+  // Code caches are always fixed arrays. The empty fixed array is used as a
+  // sentinel for an absent code cache.
+  return FixedArray::cast(code_cache())->length() != 0;
 }
 
 
@@ -4788,10 +4786,6 @@ ExtraICState Code::extra_ic_state() {
   return ExtractExtraICStateFromFlags(flags());
 }
 
-
-Code::StubType Code::type() {
-  return ExtractTypeFromFlags(flags());
-}
 
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
@@ -5070,11 +5064,10 @@ Address Code::constant_pool() {
 }
 
 Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
-                               ExtraICState extra_ic_state, StubType type,
+                               ExtraICState extra_ic_state,
                                CacheHolderFlag holder) {
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind) | ICStateField::encode(ic_state) |
-                      TypeField::encode(type) |
                       ExtraICStateField::encode(extra_ic_state) |
                       CacheHolderField::encode(holder);
   return static_cast<Flags>(bits);
@@ -5082,15 +5075,13 @@ Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
-                                          CacheHolderFlag holder,
-                                          StubType type) {
-  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
+                                          CacheHolderFlag holder) {
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, holder);
 }
 
-
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind, StubType type,
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
                                       CacheHolderFlag holder) {
-  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
+  return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, holder);
 }
 
 
@@ -5109,23 +5100,12 @@ ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 }
 
 
-Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
-  return TypeField::decode(flags);
-}
-
 CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
   return CacheHolderField::decode(flags);
 }
 
-
-Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
-  int bits = flags & ~TypeField::kMask;
-  return static_cast<Flags>(bits);
-}
-
-
-Code::Flags Code::RemoveTypeAndHolderFromFlags(Flags flags) {
-  int bits = flags & ~TypeField::kMask & ~CacheHolderField::kMask;
+Code::Flags Code::RemoveHolderFromFlags(Flags flags) {
+  int bits = flags & ~CacheHolderField::kMask;
   return static_cast<Flags>(bits);
 }
 
@@ -5802,11 +5782,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_setter_function,
                kIsSetterFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
-
-ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
-ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
-
-ACCESSORS(PolymorphicCodeCache, cache, Object, kCacheOffset)
 
 bool Script::HasValidSource() {
   Object* src = this->source();
@@ -7519,7 +7494,6 @@ void Map::ClearCodeCache(Heap* heap) {
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
   //  - IncrementalMarking::Step
-  DCHECK(!heap->InNewSpace(heap->empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
 }
 

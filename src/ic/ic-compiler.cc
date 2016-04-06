@@ -13,26 +13,6 @@ namespace v8 {
 namespace internal {
 
 
-Handle<Code> PropertyICCompiler::Find(Handle<Name> name,
-                                      Handle<Map> stub_holder, Code::Kind kind,
-                                      ExtraICState extra_state,
-                                      CacheHolderFlag cache_holder) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind, extra_state, cache_holder);
-  Object* probe = stub_holder->FindInCodeCache(*name, flags);
-  if (probe->IsCode()) return handle(Code::cast(probe));
-  return Handle<Code>::null();
-}
-
-
-bool PropertyICCompiler::IncludesNumberMap(MapHandleList* maps) {
-  for (int i = 0; i < maps->length(); ++i) {
-    if (maps->at(i)->instance_type() == HEAP_NUMBER_TYPE) return true;
-  }
-  return false;
-}
-
-
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     Handle<Map> receiver_map, ExtraICState extra_ic_state) {
   Isolate* isolate = receiver_map->GetIsolate();
@@ -83,20 +63,6 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
 }
 
 
-Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
-                                             ExtraICState state) {
-  Code::Flags flags = Code::ComputeFlags(kind, PREMONOMORPHIC, state);
-  UnseededNumberDictionary* dictionary =
-      isolate->heap()->non_monomorphic_cache();
-  int entry = dictionary->FindEntry(isolate, flags);
-  DCHECK(entry != -1);
-  Object* code = dictionary->ValueAt(entry);
-  // This might be called during the marking phase of the collector
-  // hence the unchecked cast.
-  return reinterpret_cast<Code*>(code);
-}
-
-
 static void FillCache(Isolate* isolate, Handle<Code> code) {
   Handle<UnseededNumberDictionary> dictionary = UnseededNumberDictionary::Set(
       isolate->factory()->non_monomorphic_cache(), code->flags(), code);
@@ -107,6 +73,7 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
                                               InlineCacheState ic_state,
                                               ExtraICState extra_state) {
+  DCHECK_EQ(MEGAMORPHIC, ic_state);
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC, ic_state, extra_state);
   Handle<UnseededNumberDictionary> cache =
       isolate->factory()->non_monomorphic_cache();
@@ -114,18 +81,7 @@ Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
   PropertyICCompiler compiler(isolate, Code::STORE_IC);
-  Handle<Code> code;
-  if (ic_state == UNINITIALIZED) {
-    code = compiler.CompileStoreInitialize(flags);
-  } else if (ic_state == PREMONOMORPHIC) {
-    code = compiler.CompileStorePreMonomorphic(flags);
-  } else if (ic_state == GENERIC) {
-    code = compiler.CompileStoreGeneric(flags);
-  } else if (ic_state == MEGAMORPHIC) {
-    code = compiler.CompileStoreMegamorphic(flags);
-  } else {
-    UNREACHABLE();
-  }
+  Handle<Code> code = compiler.CompileStoreMegamorphic(flags);
 
   FillCache(isolate, code);
   return code;
@@ -149,44 +105,6 @@ void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
 }
 
 
-Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
-  LoadIC::GenerateInitialize(masm());
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG,
-                                     AbstractCode::cast(*code), 0));
-  return code;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
-  StoreIC::GenerateInitialize(masm());
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG,
-                                     AbstractCode::cast(*code), 0));
-  return code;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
-  StoreIC::GeneratePreMonomorphic(masm());
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileStorePreMonomorphic");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG,
-                                     AbstractCode::cast(*code), 0));
-  return code;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
-  ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
-  LanguageMode language_mode = StoreICState::GetLanguageMode(extra_state);
-  GenerateRuntimeSetProperty(masm(), language_mode);
-  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG,
-                                     AbstractCode::cast(*code), 0));
-  return code;
-}
-
-
 Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
@@ -195,12 +113,10 @@ Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   return code;
 }
 
-
-Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
-                                         Handle<Name> name,
+Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Handle<Name> name,
                                          InlineCacheState state) {
   Code::Flags flags =
-      Code::ComputeFlags(kind, state, extra_ic_state_, type, cache_holder());
+      Code::ComputeFlags(kind, state, extra_ic_state_, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(),
           CodeCreateEvent(log_kind(code), AbstractCode::cast(*code), *name));
@@ -274,22 +190,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphicHandler(
     stub = StoreElementStub(isolate(), elements_kind, store_mode).GetCode();
   }
   return stub;
-}
-
-
-Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
-    Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
-  Handle<Code> stub =
-      CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
-
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-
-  __ DispatchWeakMap(receiver(), scratch1(), scratch2(), cell, stub,
-                     DO_SMI_CHECK);
-
-  TailCallBuiltin(masm(), Builtins::kKeyedStoreIC_Miss);
-
-  return GetCode(kind(), Code::NORMAL, factory()->empty_string());
 }
 
 

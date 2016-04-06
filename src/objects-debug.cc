@@ -369,21 +369,6 @@ void Map::VerifyOmittedMapChecks() {
 }
 
 
-void CodeCache::CodeCacheVerify() {
-  VerifyHeapPointer(default_cache());
-  VerifyHeapPointer(normal_type_cache());
-  CHECK(default_cache()->IsFixedArray());
-  CHECK(normal_type_cache()->IsUndefined()
-         || normal_type_cache()->IsCodeCacheHashTable());
-}
-
-
-void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
-  VerifyHeapPointer(cache());
-  CHECK(cache()->IsUndefined() || cache()->IsPolymorphicCodeCacheHashTable());
-}
-
-
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
   VerifyObjectField(kStorage1Offset);
   VerifyObjectField(kStorage2Offset);

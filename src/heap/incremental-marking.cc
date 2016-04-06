@@ -553,12 +553,6 @@ void IncrementalMarking::StartMarking() {
   heap_->CompletelyClearInstanceofCache();
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
-  if (FLAG_cleanup_code_caches_at_gc) {
-    // We will mark cache black with a separate pass
-    // when we finish marking.
-    MarkObjectGreyDoNotEnqueue(heap_->polymorphic_code_cache());
-  }
-
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
@@ -923,13 +917,6 @@ void IncrementalMarking::Hurry() {
                static_cast<int>(delta));
       }
     }
-  }
-
-  if (FLAG_cleanup_code_caches_at_gc) {
-    PolymorphicCodeCache* poly_cache = heap_->polymorphic_code_cache();
-    Marking::GreyToBlack(Marking::MarkBitFrom(poly_cache));
-    MemoryChunk::IncrementLiveBytesFromGC(poly_cache,
-                                          PolymorphicCodeCache::kSize);
   }
 
   Object* context = heap_->native_contexts_list();

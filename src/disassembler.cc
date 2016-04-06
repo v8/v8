@@ -203,10 +203,6 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
           InlineCacheState ic_state = code->ic_state();
           out.AddFormatted(" %s, %s", Code::Kind2String(kind),
               Code::ICState2String(ic_state));
-          if (ic_state == MONOMORPHIC) {
-            Code::StubType type = code->type();
-            out.AddFormatted(", %s", Code::StubType2String(type));
-          }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
           // Get the STUB key and extract major and minor key.
           uint32_t key = code->stub_key();
