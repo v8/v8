@@ -257,9 +257,6 @@ class CallIC : public IC {
   void HandleMiss(Handle<Object> function);
 
   // Code generator routines.
-  static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      ConvertReceiverMode mode,
-                                      TailCallMode tail_call_mode);
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, int argc, ConvertReceiverMode mode,
       TailCallMode tail_call_mode);
@@ -294,8 +291,6 @@ class LoadIC : public IC {
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, ExtraICState extra_state, State initialization_state);
 
@@ -365,8 +360,6 @@ class KeyedLoadIC : public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      ExtraICState extra_state);
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, State initialization_state, ExtraICState extra_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
@@ -406,9 +399,6 @@ class StoreIC : public IC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          LanguageMode language_mode);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode,
-                                      State initialization_state);
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, LanguageMode language_mode, State initialization_state);
 
@@ -479,10 +469,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
-
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode,
-                                      State initialization_state);
 
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, LanguageMode language_mode, State initialization_state);

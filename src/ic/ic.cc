@@ -794,24 +794,10 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
   }
 }
 
-
-Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
-                                     ExtraICState extra_state) {
-  return LoadICTrampolineStub(isolate, LoadICState(extra_state)).GetCode();
-}
-
-
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state, State initialization_state) {
   return LoadICStub(isolate, LoadICState(extra_state)).GetCode();
 }
-
-
-Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate,
-                                          ExtraICState extra_state) {
-  return KeyedLoadICTrampolineStub(isolate, LoadICState(extra_state)).GetCode();
-}
-
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, State initialization_state, ExtraICState extra_state) {
@@ -822,50 +808,22 @@ Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
 }
 
 
-static Handle<Code> KeyedStoreICInitializeStubHelper(
-    Isolate* isolate, LanguageMode language_mode,
-    InlineCacheState initialization_state) {
-  switch (initialization_state) {
-    case MEGAMORPHIC:
-      return is_strict(language_mode)
-                 ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
-                 : isolate->builtins()->KeyedStoreIC_Megamorphic();
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>();
-}
-
-
-Handle<Code> KeyedStoreIC::initialize_stub(Isolate* isolate,
-                                           LanguageMode language_mode,
-                                           State initialization_state) {
-  if (initialization_state != MEGAMORPHIC) {
-    VectorKeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
-    return stub.GetCode();
-  }
-
-  return KeyedStoreICInitializeStubHelper(isolate, language_mode,
-                                          initialization_state);
-}
-
-
 Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
     Isolate* isolate, LanguageMode language_mode, State initialization_state) {
+  StoreICState state = StoreICState(language_mode);
   if (initialization_state != MEGAMORPHIC) {
-    VectorKeyedStoreICStub stub(isolate, StoreICState(language_mode));
-    return stub.GetCode();
+    return VectorKeyedStoreICStub(isolate, state).GetCode();
   }
-
-  return KeyedStoreICInitializeStubHelper(isolate, language_mode,
-                                          initialization_state);
+  return ChooseMegamorphicStub(isolate, state.GetExtraICState());
 }
 
 
 Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
                                                  ExtraICState extra_state) {
   LanguageMode mode = StoreICState::GetLanguageMode(extra_state);
-  return KeyedStoreICInitializeStubHelper(isolate, mode, MEGAMORPHIC);
+  return is_strict(mode)
+             ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
+             : isolate->builtins()->KeyedStoreIC_Megamorphic();
 }
 
 
@@ -1454,31 +1412,12 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   return value;
 }
 
-Handle<Code> CallIC::initialize_stub(Isolate* isolate, int argc,
-                                     ConvertReceiverMode mode,
-                                     TailCallMode tail_call_mode) {
-  CallICTrampolineStub stub(isolate, CallICState(argc, mode, tail_call_mode));
-  Handle<Code> code = stub.GetCode();
-  return code;
-}
-
 Handle<Code> CallIC::initialize_stub_in_optimized_code(
     Isolate* isolate, int argc, ConvertReceiverMode mode,
     TailCallMode tail_call_mode) {
   CallICStub stub(isolate, CallICState(argc, mode, tail_call_mode));
   Handle<Code> code = stub.GetCode();
   return code;
-}
-
-
-Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
-                                      LanguageMode language_mode,
-                                      State initialization_state) {
-  DCHECK(initialization_state == UNINITIALIZED ||
-         initialization_state == PREMONOMORPHIC ||
-         initialization_state == MEGAMORPHIC);
-  VectorStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
-  return stub.GetCode();
 }
 
 

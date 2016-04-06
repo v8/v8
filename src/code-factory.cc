@@ -13,9 +13,8 @@ namespace internal {
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode) {
-  return Callable(LoadIC::initialize_stub(
-                      isolate, LoadICState(typeof_mode).GetExtraICState()),
-                  LoadDescriptor(isolate));
+  LoadICTrampolineStub stub(isolate, LoadICState(typeof_mode));
+  return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
 
@@ -32,8 +31,8 @@ Callable CodeFactory::LoadICInOptimizedCode(
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  return Callable(KeyedLoadIC::initialize_stub(isolate, kNoExtraICState),
-                  LoadDescriptor(isolate));
+  KeyedLoadICTrampolineStub stub(isolate, LoadICState(kNoExtraICState));
+  return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
 
@@ -53,8 +52,8 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
 Callable CodeFactory::CallIC(Isolate* isolate, int argc,
                              ConvertReceiverMode mode,
                              TailCallMode tail_call_mode) {
-  return Callable(CallIC::initialize_stub(isolate, argc, mode, tail_call_mode),
-                  CallFunctionWithFeedbackDescriptor(isolate));
+  CallICTrampolineStub stub(isolate, CallICState(argc, mode, tail_call_mode));
+  return Callable(stub.GetCode(), CallFunctionWithFeedbackDescriptor(isolate));
 }
 
 
@@ -70,9 +69,8 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  return Callable(
-      StoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),
-      VectorStoreICTrampolineDescriptor(isolate));
+  VectorStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
+  return Callable(stub.GetCode(), VectorStoreICTrampolineDescriptor(isolate));
 }
 
 
@@ -92,9 +90,8 @@ Callable CodeFactory::StoreICInOptimizedCode(
 // static
 Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
                                    LanguageMode language_mode) {
-  return Callable(
-      KeyedStoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),
-      VectorStoreICTrampolineDescriptor(isolate));
+  VectorKeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
+  return Callable(stub.GetCode(), VectorStoreICTrampolineDescriptor(isolate));
 }
 
 
