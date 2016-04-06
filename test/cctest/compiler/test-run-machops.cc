@@ -4201,7 +4201,7 @@ uint64_t ToInt64(uint32_t low, uint32_t high) {
   return (static_cast<uint64_t>(high) << 32) | static_cast<uint64_t>(low);
 }
 
-#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_X87
 TEST(RunInt32PairAdd) {
   BufferedRawMachineAssemblerTester<int32_t> m(
       MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32(),
@@ -4447,6 +4447,56 @@ TEST(RunWord32PairShlWithSharedInput) {
   TestWord32PairShlWithSharedInput(0, 1);
   TestWord32PairShlWithSharedInput(1, 0);
   TestWord32PairShlWithSharedInput(1, 1);
+}
+
+TEST(RunWord32PairShr) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairAdd =
+      m.Word32PairShr(m.Parameter(0), m.Parameter(1), m.Parameter(2));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairAdd));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairAdd));
+  m.Return(m.Int32Constant(74));
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+             static_cast<uint32_t>(*i >> 32), j);
+      CHECK_EQ(*i >> j, ToInt64(low, high));
+    }
+  }
+}
+
+TEST(RunWord32PairSar) {
+  BufferedRawMachineAssemblerTester<int32_t> m(
+      MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
+
+  uint32_t high;
+  uint32_t low;
+
+  Node* PairAdd =
+      m.Word32PairSar(m.Parameter(0), m.Parameter(1), m.Parameter(2));
+
+  m.StoreToPointer(&low, MachineRepresentation::kWord32,
+                   m.Projection(0, PairAdd));
+  m.StoreToPointer(&high, MachineRepresentation::kWord32,
+                   m.Projection(1, PairAdd));
+  m.Return(m.Int32Constant(74));
+
+  FOR_INT64_INPUTS(i) {
+    for (uint32_t j = 0; j < 64; j++) {
+      m.Call(static_cast<uint32_t>(*i & 0xffffffff),
+             static_cast<uint32_t>(*i >> 32), j);
+      CHECK_EQ(*i >> j, ToInt64(low, high));
+    }
+  }
 }
 
 #endif

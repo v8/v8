@@ -839,6 +839,36 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sra(i.OutputRegister(), i.InputRegister(0), imm);
       }
       break;
+    case kMipsShlPair: {
+      if (instr->InputAt(2)->IsRegister()) {
+        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputRegister(2));
+      } else {
+        uint32_t imm = i.InputOperand(2).immediate();
+        __ ShlPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), imm);
+      }
+    } break;
+    case kMipsShrPair: {
+      if (instr->InputAt(2)->IsRegister()) {
+        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputRegister(2));
+      } else {
+        uint32_t imm = i.InputOperand(2).immediate();
+        __ ShrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), imm);
+      }
+    } break;
+    case kMipsSarPair: {
+      if (instr->InputAt(2)->IsRegister()) {
+        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), i.InputRegister(2));
+      } else {
+        uint32_t imm = i.InputOperand(2).immediate();
+        __ SarPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                   i.InputRegister(1), imm);
+      }
+    } break;
     case kMipsExt:
       __ Ext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
              i.InputInt8(2));
@@ -922,6 +952,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kMipsCmpD:
       // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
+      break;
+    case kMipsAddPair:
+      __ AddPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3));
+      break;
+    case kMipsSubPair:
+      __ SubPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+                 i.InputRegister(1), i.InputRegister(2), i.InputRegister(3));
       break;
     case kMipsMulPair: {
       __ Mulu(i.OutputRegister(1), i.OutputRegister(0), i.InputRegister(0),

@@ -395,27 +395,71 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitRRO(this, kMipsSar, node);
 }
 
-void InstructionSelector::VisitInt32PairAdd(Node* node) { UNIMPLEMENTED(); }
+static void VisitInt32PairBinop(InstructionSelector* selector,
+                                InstructionCode opcode, Node* node) {
+  MipsOperandGenerator g(selector);
 
-void InstructionSelector::VisitInt32PairSub(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitInt32PairMul(Node* node) {
-  MipsOperandGenerator g(this);
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
   InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
                                  g.UseUniqueRegister(node->InputAt(1)),
                                  g.UseUniqueRegister(node->InputAt(2)),
                                  g.UseUniqueRegister(node->InputAt(3))};
+
   InstructionOperand outputs[] = {
       g.DefineAsRegister(node),
       g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
-  Emit(kMipsMulPair, 2, outputs, 4, inputs);
+  selector->Emit(opcode, 2, outputs, 4, inputs);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  VisitInt32PairBinop(this, kMipsAddPair, node);
+}
 
-void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  VisitInt32PairBinop(this, kMipsSubPair, node);
+}
 
-void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  VisitInt32PairBinop(this, kMipsMulPair, node);
+}
+
+// Shared routine for multiple shift operations.
+static void VisitWord32PairShift(InstructionSelector* selector,
+                                 InstructionCode opcode, Node* node) {
+  MipsOperandGenerator g(selector);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitWord32PairShift(this, kMipsShlPair, node);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  VisitWord32PairShift(this, kMipsShrPair, node);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  VisitWord32PairShift(this, kMipsSarPair, node);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kMipsRor, node);
@@ -999,7 +1043,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
 
 
 namespace {
-
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                          InstructionOperand left, InstructionOperand right,
