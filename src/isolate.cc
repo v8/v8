@@ -687,7 +687,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
   while (!it.done() && (frames_seen < limit)) {
-    JavaScriptFrame* frame = it.frame();
+    StandardFrame* frame = it.frame();
     // Set initial size to the maximum inlining level + 1 for the outermost
     // function.
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
@@ -1318,7 +1318,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   while (!it.done()) {
     HandleScope scope(this);
     // Find code position if recorded in relocation info.
-    JavaScriptFrame* frame = it.frame();
+    StandardFrame* frame = it.frame();
     Code* code = frame->LookupCode();
     int offset = static_cast<int>(frame->pc() - code->instruction_start());
     int pos = frame->LookupCode()->SourcePosition(offset);
@@ -1344,7 +1344,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
+    StandardFrame* frame = it.frame();
     JSFunction* fun = frame->function();
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
@@ -1354,7 +1354,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
       // baseline code. For optimized code this will use the deoptimization
       // information to get canonical location information.
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      it.frame()->Summarize(&frames);
+      frame->Summarize(&frames);
       FrameSummary& summary = frames.last();
       int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
       *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));

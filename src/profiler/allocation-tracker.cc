@@ -233,7 +233,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   int length = 0;
   StackTraceFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
-    JavaScriptFrame* frame = it.frame();
+    StandardFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
     SnapshotObjectId id = ids_->FindOrAddEntry(
         shared->address(), shared->Size(), false);

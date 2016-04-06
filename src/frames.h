@@ -640,8 +640,29 @@ class ExitFrame: public StackFrame {
   friend class StackFrameIteratorBase;
 };
 
+class FrameSummary BASE_EMBEDDED {
+ public:
+  FrameSummary(Object* receiver, JSFunction* function,
+               AbstractCode* abstract_code, int code_offset,
+               bool is_constructor);
 
-class StandardFrame: public StackFrame {
+  Handle<Object> receiver() { return receiver_; }
+  Handle<JSFunction> function() { return function_; }
+  Handle<AbstractCode> abstract_code() { return abstract_code_; }
+  int code_offset() { return code_offset_; }
+  bool is_constructor() { return is_constructor_; }
+
+  void Print();
+
+ private:
+  Handle<Object> receiver_;
+  Handle<JSFunction> function_;
+  Handle<AbstractCode> abstract_code_;
+  int code_offset_;
+  bool is_constructor_;
+};
+
+class StandardFrame : public StackFrame {
  public:
   // Testers.
   bool is_standard() const override { return true; }
@@ -660,6 +681,13 @@ class StandardFrame: public StackFrame {
     DCHECK(frame->is_standard());
     return static_cast<StandardFrame*>(frame);
   }
+
+  // Build a list with summaries for this frame including all inlined frames.
+  virtual void Summarize(List<FrameSummary>* frames) const;
+
+  // Accessors.
+  virtual JSFunction* function() const;
+  virtual Object* receiver() const;
 
  protected:
   inline explicit StandardFrame(StackFrameIteratorBase* iterator);
@@ -702,35 +730,13 @@ class StandardFrame: public StackFrame {
 };
 
 
-class FrameSummary BASE_EMBEDDED {
- public:
-  FrameSummary(Object* receiver, JSFunction* function,
-               AbstractCode* abstract_code, int code_offset,
-               bool is_constructor);
-
-  Handle<Object> receiver() { return receiver_; }
-  Handle<JSFunction> function() { return function_; }
-  Handle<AbstractCode> abstract_code() { return abstract_code_; }
-  int code_offset() { return code_offset_; }
-  bool is_constructor() { return is_constructor_; }
-
-  void Print();
-
- private:
-  Handle<Object> receiver_;
-  Handle<JSFunction> function_;
-  Handle<AbstractCode> abstract_code_;
-  int code_offset_;
-  bool is_constructor_;
-};
-
 class JavaScriptFrame : public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
-  // Accessors.
-  inline JSFunction* function() const;
-  inline Object* receiver() const;
+  JSFunction* function() const override;
+  Object* receiver() const override;
+
   inline void set_receiver(Object* value);
 
   // Access the parameters.
@@ -777,8 +783,7 @@ class JavaScriptFrame : public StandardFrame {
   // Return a list with JSFunctions of this frame.
   virtual void GetFunctions(List<JSFunction*>* functions) const;
 
-  // Build a list with summaries for this frame including all inlined frames.
-  virtual void Summarize(List<FrameSummary>* frames);
+  void Summarize(List<FrameSummary>* frames) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -856,7 +861,7 @@ class OptimizedFrame : public JavaScriptFrame {
   // is the top-most activation)
   void GetFunctions(List<JSFunction*>* functions) const override;
 
-  void Summarize(List<FrameSummary>* frames) override;
+  void Summarize(List<FrameSummary>* frames) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
@@ -902,7 +907,7 @@ class InterpretedFrame : public JavaScriptFrame {
   Object* GetInterpreterRegister(int register_index) const;
 
   // Build a list with summaries for this frame including all inlined frames.
-  void Summarize(List<FrameSummary>* frames) override;
+  void Summarize(List<FrameSummary>* frames) const override;
 
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
@@ -964,6 +969,8 @@ class WasmFrame : public StandardFrame {
     DCHECK(frame->is_wasm());
     return static_cast<WasmFrame*>(frame);
   }
+
+  JSFunction* function() const override;
 
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
@@ -1142,17 +1149,25 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
   StackFrameIterator iterator_;
 };
 
-// NOTE: The stack trace frame iterator is an iterator that only
-// traverse proper JavaScript frames; that is JavaScript frames that
-// have proper JavaScript functions. This excludes the problematic
-// functions in runtime.js.
-class StackTraceFrameIterator: public JavaScriptFrameIterator {
+// NOTE: The stack trace frame iterator is an iterator that only traverse proper
+// JavaScript frames that have proper JavaScript functions and WASM frames.
+// This excludes the problematic functions in runtime.js.
+class StackTraceFrameIterator BASE_EMBEDDED {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);
+  bool done() const { return iterator_.done(); }
   void Advance();
 
+  inline StandardFrame* frame() const;
+
+  inline bool is_javascript() const;
+  inline bool is_wasm() const;
+  inline JavaScriptFrame* javascript_frame() const;
+  inline WasmFrame* wasm_frame() const;
+
  private:
-  bool IsValidFrame();
+  StackFrameIterator iterator_;
+  bool IsValidFrame(StackFrame* frame) const;
 };
 
 
