@@ -296,7 +296,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
                          !FLAG_turbo_asm_deoptimization;
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
-      CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned);
+      bool builtin = code->kind() == Code::BUILTIN;
+      CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned ||
+            builtin);
       if (topmost_optimized_code == NULL) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_to_deopt;

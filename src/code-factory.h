@@ -56,6 +56,8 @@ class CodeFactory final {
 
   static Callable StoreInterceptor(Isolate* isolate);
 
+  static Callable ResumeGenerator(Isolate* isolate);
+
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 

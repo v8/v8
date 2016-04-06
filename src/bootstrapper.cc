@@ -157,7 +157,7 @@ class Genesis BASE_EMBEDDED {
   Handle<JSFunction> GetThrowTypeErrorIntrinsic(Builtins::Name builtin_name);
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
-  void CreateIteratorMaps();
+  void CreateIteratorMaps(Handle<JSFunction> empty);
   void CreateJSProxyMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
@@ -354,7 +354,6 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   }
 }
 
-
 namespace {
 
 void InstallFunction(Handle<JSObject> target, Handle<Name> property_name,
@@ -367,20 +366,18 @@ void InstallFunction(Handle<JSObject> target, Handle<Name> property_name,
   function->shared()->set_native(true);
 }
 
-
-static void InstallFunction(Handle<JSObject> target,
-                            Handle<JSFunction> function, Handle<Name> name,
-                            PropertyAttributes attributes = DONT_ENUM) {
+void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
+                     Handle<Name> name,
+                     PropertyAttributes attributes = DONT_ENUM) {
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
   InstallFunction(target, name, function, name_string, attributes);
 }
 
-
-static Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
-                                         InstanceType type, int instance_size,
-                                         MaybeHandle<JSObject> maybe_prototype,
-                                         Builtins::Name call,
-                                         bool strict_function_map = false) {
+Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
+                                  InstanceType type, int instance_size,
+                                  MaybeHandle<JSObject> maybe_prototype,
+                                  Builtins::Name call,
+                                  bool strict_function_map = false) {
   Factory* factory = isolate->factory();
   Handle<Code> call_code(isolate->builtins()->builtin(call));
   Handle<JSObject> prototype;
@@ -393,7 +390,6 @@ static Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
              : factory->NewFunctionWithoutPrototype(name, call_code,
                                                     strict_function_map);
 }
-
 
 Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
                                    InstanceType type, int instance_size,
@@ -409,7 +405,6 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
   return function;
 }
 
-
 Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
                                    InstanceType type, int instance_size,
                                    MaybeHandle<JSObject> maybe_prototype,
@@ -422,8 +417,40 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
                          strict_function_map);
 }
 
-}  // namespace
+Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
+                                        Builtins::Name call, int len,
+                                        bool adapt) {
+  Handle<JSFunction> fun =
+      CreateFunction(isolate, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                     MaybeHandle<JSObject>(), call);
+  if (adapt) {
+    fun->shared()->set_internal_formal_parameter_count(len);
+  } else {
+    fun->shared()->DontAdaptArguments();
+  }
+  fun->shared()->set_length(len);
+  return fun;
+}
 
+Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                         Handle<String> name,
+                                         Builtins::Name call, int len,
+                                         bool adapt) {
+  Handle<JSFunction> fun =
+      SimpleCreateFunction(base->GetIsolate(), name, call, len, adapt);
+  InstallFunction(base, fun, name, DONT_ENUM);
+  return fun;
+}
+
+Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                         const char* name, Builtins::Name call,
+                                         int len, bool adapt) {
+  Factory* const factory = base->GetIsolate()->factory();
+  return SimpleInstallFunction(base, factory->InternalizeUtf8String(name), call,
+                               len, adapt);
+}
+
+}  // namespace
 
 void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
                                             FunctionMode function_mode) {
@@ -709,21 +736,40 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
 }
 
-
-void Genesis::CreateIteratorMaps() {
+void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   // Create iterator-related meta-objects.
   Handle<JSObject> iterator_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   Handle<JSObject> generator_object_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
+  SetObjectPrototype(generator_object_prototype, iterator_prototype);
   Handle<JSObject> generator_function_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SetObjectPrototype(generator_object_prototype, iterator_prototype);
+  SetObjectPrototype(generator_function_prototype, empty);
 
+  JSObject::AddProperty(
+      generator_function_prototype, factory()->to_string_tag_symbol(),
+      factory()->NewStringFromAsciiChecked("GeneratorFunction"),
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   JSObject::AddProperty(generator_function_prototype,
-                        factory()->InternalizeUtf8String("prototype"),
+                        factory()->prototype_string(),
                         generator_object_prototype,
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  JSObject::AddProperty(generator_object_prototype,
+                        factory()->constructor_string(),
+                        generator_function_prototype,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  JSObject::AddProperty(generator_object_prototype,
+                        factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked("Generator"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  SimpleInstallFunction(generator_object_prototype, "next",
+                        Builtins::kGeneratorPrototypeNext, 1, true);
+  SimpleInstallFunction(generator_object_prototype, "return",
+                        Builtins::kGeneratorPrototypeReturn, 1, true);
+  SimpleInstallFunction(generator_object_prototype, "throw",
+                        Builtins::kGeneratorPrototypeThrow, 1, true);
 
   // Create maps for generator functions and their prototypes.  Store those
   // maps in the native context. The "prototype" property descriptor is
@@ -970,45 +1016,6 @@ void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   TransferNamedProperties(global_object_from_snapshot, global_object);
   TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
-
-
-static Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
-                                               Handle<String> name,
-                                               Builtins::Name call, int len,
-                                               bool adapt) {
-  Handle<JSFunction> fun =
-      CreateFunction(isolate, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                     MaybeHandle<JSObject>(), call);
-  if (adapt) {
-    fun->shared()->set_internal_formal_parameter_count(len);
-  } else {
-    fun->shared()->DontAdaptArguments();
-  }
-  fun->shared()->set_length(len);
-  return fun;
-}
-
-
-static Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                                Handle<String> name,
-                                                Builtins::Name call, int len,
-                                                bool adapt) {
-  Handle<JSFunction> fun =
-      SimpleCreateFunction(base->GetIsolate(), name, call, len, adapt);
-  InstallFunction(base, fun, name, DONT_ENUM);
-  return fun;
-}
-
-
-static Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                                const char* name,
-                                                Builtins::Name call, int len,
-                                                bool adapt) {
-  Factory* const factory = base->GetIsolate()->factory();
-  return SimpleInstallFunction(base, factory->InternalizeUtf8String(name), call,
-                               len, adapt);
-}
-
 
 static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
                                              Handle<JSFunction> function,
@@ -2165,6 +2172,13 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         isolate, generator_function_function,
         Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
 
+    SetObjectPrototype(generator_function_function,
+                       isolate->function_function());
+    JSObject::AddProperty(
+        generator_function_prototype, factory->constructor_string(),
+        generator_function_function,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
     native_context->sloppy_generator_function_map()->SetConstructor(
         *generator_function_function);
     native_context->strict_generator_function_map()->SetConstructor(
@@ -2719,37 +2733,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   }
 
   InstallBuiltinFunctionIds();
-
-  // Also install builtin function ids to some generator object methods. These
-  // three methods use the three resume operations (Runtime_GeneratorNext,
-  // Runtime_GeneratorReturn, Runtime_GeneratorThrow) respectively. Those
-  // operations are not supported by Crankshaft, TurboFan, nor Ignition.
-  {
-    Handle<JSObject> generator_object_prototype(JSObject::cast(
-        native_context()->generator_object_prototype_map()->prototype()));
-
-    {  // GeneratorObject.prototype.next
-      Handle<String> key = factory()->next_string();
-      Handle<JSFunction> function = Handle<JSFunction>::cast(
-          JSReceiver::GetProperty(generator_object_prototype, key)
-              .ToHandleChecked());
-      function->shared()->set_builtin_function_id(kGeneratorObjectNext);
-    }
-    {  // GeneratorObject.prototype.return
-      Handle<String> key = factory()->NewStringFromAsciiChecked("return");
-      Handle<JSFunction> function = Handle<JSFunction>::cast(
-          JSReceiver::GetProperty(generator_object_prototype, key)
-              .ToHandleChecked());
-      function->shared()->set_builtin_function_id(kGeneratorObjectReturn);
-    }
-    {  // GeneratorObject.prototype.throw
-      Handle<String> key = factory()->throw_string();
-      Handle<JSFunction> function = Handle<JSFunction>::cast(
-          JSReceiver::GetProperty(generator_object_prototype, key)
-              .ToHandleChecked());
-      function->shared()->set_builtin_function_id(kGeneratorObjectThrow);
-    }
-  }
 
   // Create a map for accessor property descriptors (a variant of JSObject
   // that predefines four properties get, set, configurable and enumerable).
@@ -3555,7 +3538,7 @@ Genesis::Genesis(Isolate* isolate,
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
-    CreateIteratorMaps();
+    CreateIteratorMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);

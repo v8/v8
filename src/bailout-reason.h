@@ -85,8 +85,6 @@ namespace internal {
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
-  V(kGeneratorFailedToResume, "Generator failed to resume")                    \
-  V(kGeneratorResumeMethod, "Generator resume method is being called")         \
   V(kGenerator, "Generator")                                                   \
   V(kGlobalFunctionsMustHaveInitialMap,                                        \
     "Global functions must have initial map")                                  \
@@ -143,6 +141,8 @@ namespace internal {
   V(kOperandIsASmiAndNotABoundFunction,                                        \
     "Operand is a smi and not a bound function")                               \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
+  V(kOperandIsASmiAndNotAGeneratorObject,                                      \
+    "Operand is a smi and not a generator object")                             \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAReceiver, "Operand is a smi and not a receiver")      \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
@@ -150,6 +150,7 @@ namespace internal {
   V(kOperandIsNotADate, "Operand is not a date")                               \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
+  V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotAReceiver, "Operand is not a receiver")                       \

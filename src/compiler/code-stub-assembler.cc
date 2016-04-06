@@ -1026,6 +1026,21 @@ Node* CodeStubAssembler::CallStub(Callable const& callable, Node* context,
   return CallStub(callable.descriptor(), target, context, arg1, result_size);
 }
 
+Node* CodeStubAssembler::CallStub(Callable const& callable, Node* context,
+                                  Node* arg1, Node* arg2, size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), target, context, arg1, arg2,
+                  result_size);
+}
+
+Node* CodeStubAssembler::CallStub(Callable const& callable, Node* context,
+                                  Node* arg1, Node* arg2, Node* arg3,
+                                  size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
+                  result_size);
+}
+
 Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
                                   Node* target, Node* context, Node* arg1,
                                   size_t result_size) {

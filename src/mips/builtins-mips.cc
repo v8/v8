@@ -825,6 +825,115 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
+// static
+void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- v0 : the value to pass to the generator
+  //  -- a1 : the JSGeneratorObject to resume
+  //  -- a2 : the resume mode (tagged)
+  //  -- ra : return address
+  // -----------------------------------
+  __ AssertGeneratorObject(a1);
+
+  // Store input value into generator object.
+  __ sw(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOffset));
+  __ RecordWriteField(a1, JSGeneratorObject::kInputOffset, v0, a3,
+                      kRAHasNotBeenSaved, kDontSaveFPRegs);
+
+  // Load suspended function and context.
+  __ lw(cp, FieldMemOperand(a1, JSGeneratorObject::kContextOffset));
+  __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+
+  // Flood function if we are stepping.
+  Label skip_flooding;
+  ExternalReference step_in_enabled =
+      ExternalReference::debug_step_in_enabled_address(masm->isolate());
+  __ li(t1, Operand(step_in_enabled));
+  __ lb(t1, MemOperand(t1));
+  __ Branch(&skip_flooding, eq, t1, Operand(zero_reg));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(a1, a2, t0);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(a1, a2);
+    __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+  }
+  __ bind(&skip_flooding);
+
+  // Push receiver.
+  __ lw(t1, FieldMemOperand(a1, JSGeneratorObject::kReceiverOffset));
+  __ Push(t1);
+
+  // ----------- S t a t e -------------
+  //  -- a1    : the JSGeneratorObject to resume
+  //  -- a2    : the resume mode (tagged)
+  //  -- t0    : generator function
+  //  -- cp    : generator context
+  //  -- ra    : return address
+  //  -- sp[0] : generator receiver
+  // -----------------------------------
+
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
+  __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a3,
+        FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
+  {
+    Label done_loop, loop;
+    __ bind(&loop);
+    __ Subu(a3, a3, Operand(Smi::FromInt(1)));
+    __ Branch(&done_loop, lt, a3, Operand(zero_reg));
+    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ Branch(&loop);
+    __ bind(&done_loop);
+  }
+
+  // Enter a new JavaScript frame, and initialize its slots as they were when
+  // the generator was suspended.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ Push(ra, fp);
+  __ Move(fp, sp);
+  __ Push(cp, t0);
+
+  // Restore the operand stack.
+  __ lw(a0, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+  __ lw(a3, FieldMemOperand(a0, FixedArray::kLengthOffset));
+  __ Addu(a0, a0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Lsa(a3, a0, a3, kPointerSizeLog2 - 1);
+  {
+    Label done_loop, loop;
+    __ bind(&loop);
+    __ Branch(&done_loop, eq, a0, Operand(a3));
+    __ lw(t1, MemOperand(a0));
+    __ Push(t1);
+    __ Branch(USE_DELAY_SLOT, &loop);
+    __ addiu(a0, a0, kPointerSize);  // In delay slot.
+    __ bind(&done_loop);
+  }
+
+  // Push resume mode (consumed in continuation).
+  __ Push(a2);
+
+  // Reset operand stack so we don't leak.
+  __ LoadRoot(t1, Heap::kEmptyFixedArrayRootIndex);
+  __ sw(t1, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+
+  // Restore value.
+  __ lw(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOffset));
+
+  // Resume the generator function at the continuation.
+  __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
+  __ Addu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ lw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+  __ SmiUntag(a2);
+  __ Addu(a3, a3, Operand(a2));
+  __ li(a2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+  __ sw(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+  __ Jump(a3);
+}
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the

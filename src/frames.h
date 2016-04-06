@@ -747,7 +747,6 @@ class JavaScriptFrame : public StandardFrame {
 
   // Generator support to preserve operand stack.
   void SaveOperandStack(FixedArray* store) const;
-  void RestoreOperandStack(FixedArray* store);
 
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;

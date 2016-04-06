@@ -2050,7 +2050,6 @@
           '../../src/js/arraybuffer.js',
           '../../src/js/typedarray.js',
           '../../src/js/iterator-prototype.js',
-          '../../src/js/generator.js',
           '../../src/js/object-observe.js',
           '../../src/js/collection.js',
           '../../src/js/weak-collection.js',
@@ -2070,7 +2069,6 @@
         'experimental_library_files': [
           '../../src/js/macros.py',
           '../../src/messages.h',
-          '../../src/js/generator.js',
           '../../src/js/harmony-atomics.js',
           '../../src/js/harmony-regexp-exec.js',
           '../../src/js/harmony-object-observe.js',

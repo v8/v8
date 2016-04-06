@@ -514,9 +514,6 @@ class FullCodeGenerator: public AstVisitor {
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
-  F(GeneratorNext)                      \
-  F(GeneratorReturn)                    \
-  F(GeneratorThrow)                     \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
@@ -539,11 +536,6 @@ class FullCodeGenerator: public AstVisitor {
 #undef GENERATOR_DECLARATION
 
   void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
-
-  // Platform-specific code for resuming generators.
-  void EmitGeneratorResume(Expression *generator,
-                           Expression *value,
-                           JSGeneratorObject::ResumeMode resume_mode);
 
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,

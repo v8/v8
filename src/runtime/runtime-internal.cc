@@ -160,6 +160,15 @@ RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
       isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg1, 1);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
@@ -170,6 +179,12 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kGeneratorRunning));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
   HandleScope scope(isolate);

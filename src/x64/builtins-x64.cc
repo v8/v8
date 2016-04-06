@@ -464,6 +464,122 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
+// static
+void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : the value to pass to the generator
+  //  -- rbx    : the JSGeneratorObject to resume
+  //  -- rdx    : the resume mode (tagged)
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  __ AssertGeneratorObject(rbx);
+
+  // Store input value into generator object.
+  __ movp(FieldOperand(rbx, JSGeneratorObject::kInputOffset), rax);
+  __ RecordWriteField(rbx, JSGeneratorObject::kInputOffset, rax, rcx,
+                      kDontSaveFPRegs);
+
+  // Load suspended function and context.
+  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
+  __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
+
+  // Flood function if we are stepping.
+  Label skip_flooding;
+  ExternalReference step_in_enabled =
+      ExternalReference::debug_step_in_enabled_address(masm->isolate());
+  Operand step_in_enabled_operand = masm->ExternalOperand(step_in_enabled);
+  __ cmpb(step_in_enabled_operand, Immediate(0));
+  __ j(equal, &skip_flooding);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(rbx);
+    __ Push(rdx);
+    __ Push(rdi);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(rdx);
+    __ Pop(rbx);
+    __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
+  }
+  __ bind(&skip_flooding);
+
+  // Pop return address.
+  __ PopReturnAddressTo(rax);
+
+  // Push receiver.
+  __ Push(FieldOperand(rbx, JSGeneratorObject::kReceiverOffset));
+
+  // ----------- S t a t e -------------
+  //  -- rax    : return address
+  //  -- rbx    : the JSGeneratorObject to resume
+  //  -- rdx    : the resume mode (tagged)
+  //  -- rdi    : generator function
+  //  -- rsi    : generator context
+  //  -- rsp[0] : generator receiver
+  // -----------------------------------
+
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadSharedFunctionInfoSpecialField(
+      rcx, rcx, SharedFunctionInfo::kFormalParameterCountOffset);
+  {
+    Label done_loop, loop;
+    __ bind(&loop);
+    __ subl(rcx, Immediate(1));
+    __ j(carry, &done_loop, Label::kNear);
+    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ jmp(&loop);
+    __ bind(&done_loop);
+  }
+
+  // Enter a new JavaScript frame, and initialize its slots as they were when
+  // the generator was suspended.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PushReturnAddressFrom(rax);  // Return address.
+  __ Push(rbp);                   // Caller's frame pointer.
+  __ Move(rbp, rsp);
+  __ Push(rsi);  // Callee's context.
+  __ Push(rdi);  // Callee's JS Function.
+
+  // Restore the operand stack.
+  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
+  __ SmiToInteger32(rax, FieldOperand(rsi, FixedArray::kLengthOffset));
+  {
+    Label done_loop, loop;
+    __ Set(rcx, 0);
+    __ bind(&loop);
+    __ cmpl(rcx, rax);
+    __ j(equal, &done_loop, Label::kNear);
+    __ Push(
+        FieldOperand(rsi, rcx, times_pointer_size, FixedArray::kHeaderSize));
+    __ addl(rcx, Immediate(1));
+    __ jmp(&loop);
+    __ bind(&done_loop);
+  }
+
+  // Push resume mode (consumed in continuation).
+  __ Push(rdx);
+
+  // Reset operand stack so we don't leak.
+  __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
+              Heap::kEmptyFixedArrayRootIndex);
+
+  // Restore context and value.
+  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
+  __ movp(rax, FieldOperand(rbx, JSGeneratorObject::kInputOffset));
+
+  // Resume the generator function at the continuation.
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ SmiToInteger64(rcx,
+                    FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
+  __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
+  __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
+          Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+  __ jmp(rdx);
+}
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the

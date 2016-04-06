@@ -944,16 +944,6 @@ void JavaScriptFrame::SaveOperandStack(FixedArray* store) const {
   }
 }
 
-
-void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
-  int operands_count = store->length();
-  DCHECK_LE(operands_count, ComputeOperandsCount());
-  for (int i = 0; i < operands_count; i++) {
-    DCHECK_EQ(GetOperand(i), isolate()->heap()->the_hole_value());
-    Memory::Object_at(GetOperandSlot(i)) = store->get(i);
-  }
-}
-
 namespace {
 
 bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {

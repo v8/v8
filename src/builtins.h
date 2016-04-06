@@ -217,6 +217,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(ResumeGeneratorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
   V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
   V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
   V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
@@ -306,13 +307,16 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
-#define BUILTIN_LIST_T(V) \
-  V(MathCeil, 2)          \
-  V(MathClz32, 2)         \
-  V(MathFloor, 2)         \
-  V(MathRound, 2)         \
-  V(MathSqrt, 2)          \
-  V(MathTrunc, 2)         \
+#define BUILTIN_LIST_T(V)        \
+  V(GeneratorPrototypeNext, 2)   \
+  V(GeneratorPrototypeReturn, 2) \
+  V(GeneratorPrototypeThrow, 2)  \
+  V(MathCeil, 2)                 \
+  V(MathClz32, 2)                \
+  V(MathFloor, 2)                \
+  V(MathRound, 2)                \
+  V(MathSqrt, 2)                 \
+  V(MathTrunc, 2)                \
   V(ObjectHasOwnProperty, 2)
 
 // Define list of builtin handlers implemented in assembly.
@@ -448,6 +452,7 @@ class Builtins {
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
+  static void Generate_ResumeGeneratorTrampoline(MacroAssembler* masm);
   static void Generate_NotifyDeoptimized(MacroAssembler* masm);
   static void Generate_NotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_NotifyLazyDeoptimized(MacroAssembler* masm);
@@ -613,6 +618,16 @@ class Builtins {
   static void Generate_NumberConstructor(MacroAssembler* masm);
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
   static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
+
+  // ES6 section 25.3.1.2 Generator.prototype.next ( value )
+  static void Generate_GeneratorPrototypeNext(
+      compiler::CodeStubAssembler* assembler);
+  // ES6 section 25.3.1.3 Generator.prototype.return ( value )
+  static void Generate_GeneratorPrototypeReturn(
+      compiler::CodeStubAssembler* assembler);
+  // ES6 section 25.3.1.4 Generator.prototype.throw ( exception )
+  static void Generate_GeneratorPrototypeThrow(
+      compiler::CodeStubAssembler* assembler);
 
   // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
   static void Generate_ObjectHasOwnProperty(

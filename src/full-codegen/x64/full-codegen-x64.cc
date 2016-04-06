@@ -1780,7 +1780,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // this.  It stays on the stack while we update the iterator.
   VisitForStackValue(expr->expression());
 
-  Label suspend, continuation, post_runtime, resume;
+  Label suspend, continuation, post_runtime, resume, exception;
 
   __ jmp(&suspend);
   __ bind(&continuation);
@@ -1789,11 +1789,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // respective resume operation).
   __ RecordGeneratorContinuation();
   __ Pop(rbx);
-  __ SmiCompare(rbx, Smi::FromInt(JSGeneratorObject::RETURN));
-  __ j(not_equal, &resume);
+  STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
+  STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
+  __ SmiCompare(rbx, Smi::FromInt(JSGeneratorObject::kReturn));
+  __ j(less, &resume);
   __ Push(result_register());
+  __ j(greater, &exception);
   EmitCreateIteratorResult(true);
   EmitUnwindAndReturn();
+
+  __ bind(&exception);
+  __ CallRuntime(Runtime::kThrow);
 
   __ bind(&suspend);
   OperandStackDepthIncrement(1);  // Not popped on this path.
@@ -1818,102 +1824,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   EmitReturnSequence();
 
   __ bind(&resume);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitGeneratorResume(
-    Expression* generator, Expression* value,
-    JSGeneratorObject::ResumeMode resume_mode) {
-  // The value stays in rax, and is ultimately read by the resumed generator, as
-  // if CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
-  // is read to throw the value when the resumed generator is already closed.
-  // rbx will hold the generator object until the activation has been resumed.
-  VisitForStackValue(generator);
-  VisitForAccumulatorValue(value);
-  PopOperand(rbx);
-
-  // Store input value into generator object.
-  __ movp(FieldOperand(rbx, JSGeneratorObject::kInputOffset),
-          result_register());
-  __ movp(rcx, result_register());
-  __ RecordWriteField(rbx, JSGeneratorObject::kInputOffset, rcx, rdx,
-                      kDontSaveFPRegs);
-
-  // Load suspended function and context.
-  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
-  __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
-
-  // Push receiver.
-  __ Push(FieldOperand(rbx, JSGeneratorObject::kReceiverOffset));
-
-  // Push holes for arguments to generator function. Since the parser forced
-  // context allocation for any variables in generators, the actual argument
-  // values have already been copied into the context and these dummy values
-  // will never be used.
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadSharedFunctionInfoSpecialField(rdx, rdx,
-      SharedFunctionInfo::kFormalParameterCountOffset);
-  __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
-  Label push_argument_holes, push_frame;
-  __ bind(&push_argument_holes);
-  __ subp(rdx, Immediate(1));
-  __ j(carry, &push_frame);
-  __ Push(rcx);
-  __ jmp(&push_argument_holes);
-
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  Label resume_frame, done;
-  __ bind(&push_frame);
-  __ call(&resume_frame);
-  __ jmp(&done);
-  __ bind(&resume_frame);
-  __ pushq(rbp);  // Caller's frame pointer.
-  __ movp(rbp, rsp);
-  __ Push(rsi);  // Callee's context.
-  __ Push(rdi);  // Callee's JS Function.
-
-  // Load the operand stack size.
-  __ movp(rdx, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
-  __ movp(rdx, FieldOperand(rdx, FixedArray::kLengthOffset));
-  __ SmiToInteger32(rdx, rdx);
-
-  // If we are sending a value and there is no operand stack, we can jump back
-  // in directly.
-  if (resume_mode == JSGeneratorObject::NEXT) {
-    Label slow_resume;
-    __ cmpp(rdx, Immediate(0));
-    __ j(not_zero, &slow_resume);
-    __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-    __ SmiToInteger64(rcx,
-        FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
-    __ addp(rdx, rcx);
-    __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
-            Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-    __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
-    __ jmp(rdx);
-    __ bind(&slow_resume);
-  }
-
-  // Otherwise, we push holes for the operand stack and call the runtime to fix
-  // up the stack and the handlers.
-  Label push_operand_holes, call_resume;
-  __ bind(&push_operand_holes);
-  __ subp(rdx, Immediate(1));
-  __ j(carry, &call_resume);
-  __ Push(rcx);
-  __ jmp(&push_operand_holes);
-  __ bind(&call_resume);
-  __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
-  __ Push(rbx);
-  __ Push(result_register());
-  __ Push(Smi::FromInt(resume_mode));
-  __ CallRuntime(Runtime::kResumeJSGeneratorObject);
-  // Not reached: the runtime call returns elsewhere.
-  __ Abort(kGeneratorFailedToResume);
-
-  __ bind(&done);
   context()->Plug(result_register());
 }
 

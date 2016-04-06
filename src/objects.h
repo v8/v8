@@ -6648,9 +6648,6 @@ class Script: public Struct {
 
 enum BuiltinFunctionId {
   kArrayCode,
-  kGeneratorObjectNext,
-  kGeneratorObjectReturn,
-  kGeneratorObjectThrow,
 #define DECLARE_FUNCTION_ID(ignored1, ignore2, name)    \
   k##name,
   FUNCTIONS_WITH_ID_LIST(DECLARE_FUNCTION_ID)
@@ -7401,7 +7398,7 @@ class JSGeneratorObject: public JSObject {
   static const int kSize = kOperandStackOffset + kPointerSize;
 
   // Resume mode, for use by runtime functions.
-  enum ResumeMode { NEXT, RETURN, THROW };
+  enum ResumeMode { kNext, kReturn, kThrow };
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);

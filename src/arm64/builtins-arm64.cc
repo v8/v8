@@ -711,6 +711,113 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
+// static
+void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0 : the value to pass to the generator
+  //  -- x1 : the JSGeneratorObject to resume
+  //  -- x2 : the resume mode (tagged)
+  //  -- lr : return address
+  // -----------------------------------
+  __ AssertGeneratorObject(x1);
+
+  // Store input value into generator object.
+  __ Str(x0, FieldMemOperand(x1, JSGeneratorObject::kInputOffset));
+  __ RecordWriteField(x1, JSGeneratorObject::kInputOffset, x0, x3,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs);
+
+  // Load suspended function and context.
+  __ Ldr(cp, FieldMemOperand(x1, JSGeneratorObject::kContextOffset));
+  __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+
+  // Flood function if we are stepping.
+  Label skip_flooding;
+  ExternalReference step_in_enabled =
+      ExternalReference::debug_step_in_enabled_address(masm->isolate());
+  __ Mov(x10, Operand(step_in_enabled));
+  __ Ldrb(x10, MemOperand(x10));
+  __ CompareAndBranch(x10, Operand(0), eq, &skip_flooding);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x1, x2, x4);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(x2, x1);
+    __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+  }
+  __ bind(&skip_flooding);
+
+  // Push receiver.
+  __ Ldr(x5, FieldMemOperand(x1, JSGeneratorObject::kReceiverOffset));
+  __ Push(x5);
+
+  // ----------- S t a t e -------------
+  //  -- x1      : the JSGeneratorObject to resume
+  //  -- x2      : the resume mode (tagged)
+  //  -- x4      : generator function
+  //  -- cp      : generator context
+  //  -- lr      : return address
+  //  -- jssp[0] : generator receiver
+  // -----------------------------------
+
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
+  __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
+  __ Ldr(w10,
+         FieldMemOperand(x10, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadRoot(x11, Heap::kTheHoleValueRootIndex);
+  __ PushMultipleTimes(x11, w10);
+
+  // Enter a new JavaScript frame, and initialize its slots as they were when
+  // the generator was suspended.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ Push(lr, fp);
+  __ Move(fp, jssp);
+  __ Push(cp, x4);
+
+  // Restore the operand stack.
+  __ Ldr(x0, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
+  __ Ldr(w3, UntagSmiFieldMemOperand(x0, FixedArray::kLengthOffset));
+  __ Add(x0, x0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Add(x3, x0, Operand(x3, LSL, kPointerSizeLog2));
+  {
+    Label done_loop, loop;
+    __ Bind(&loop);
+    __ Cmp(x0, x3);
+    __ B(eq, &done_loop);
+    __ Ldr(x10, MemOperand(x0, kPointerSize, PostIndex));
+    __ Push(x10);
+    __ B(&loop);
+    __ Bind(&done_loop);
+  }
+
+  // Push resume mode (consumed in continuation).
+  __ Push(x2);
+
+  // Reset operand stack so we don't leak.
+  __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
+  __ Str(x10, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
+
+  // Restore value.
+  __ Ldr(x0, FieldMemOperand(x1, JSGeneratorObject::kInputOffset));
+
+  // Resume the generator function at the continuation.
+  __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x10, FieldMemOperand(x10, SharedFunctionInfo::kCodeOffset));
+  __ Add(x10, x10, Code::kHeaderSize - kHeapObjectTag);
+  __ Ldrsw(x11,
+           UntagSmiFieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
+  __ Add(x10, x10, x11);
+  __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+  __ Str(x12, FieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
+  __ Br(x10);
+}
 
 enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 

@@ -375,14 +375,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kFunctionBeingDebugged);
   }
 
-  // Resuming a suspended frame is not supported by Crankshaft/TurboFan.
-  if (info()->shared_info()->HasBuiltinFunctionId() &&
-      (info()->shared_info()->builtin_function_id() == kGeneratorObjectNext ||
-       info()->shared_info()->builtin_function_id() == kGeneratorObjectReturn ||
-       info()->shared_info()->builtin_function_id() == kGeneratorObjectThrow)) {
-    return AbortOptimization(kGeneratorResumeMethod);
-  }
-
   // Limit the number of times we try to optimize functions.
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
@@ -798,14 +790,6 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
 bool UseIgnition(CompilationInfo* info) {
   // TODO(4681): Generator functions are not yet supported.
   if (info->shared_info()->is_generator()) {
-    return false;
-  }
-
-  // TODO(4681): Resuming a suspended frame is not supported.
-  if (info->shared_info()->HasBuiltinFunctionId() &&
-      (info->shared_info()->builtin_function_id() == kGeneratorObjectNext ||
-       info->shared_info()->builtin_function_id() == kGeneratorObjectReturn ||
-       info->shared_info()->builtin_function_id() == kGeneratorObjectThrow)) {
     return false;
   }
 

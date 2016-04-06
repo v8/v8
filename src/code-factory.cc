@@ -371,6 +371,12 @@ Callable CodeFactory::StoreInterceptor(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
+  return Callable(isolate->builtins()->ResumeGeneratorTrampoline(),
+                  ResumeGeneratorDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::Typeof(Isolate* isolate) {
   TypeofStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
