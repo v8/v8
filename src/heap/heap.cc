@@ -4239,7 +4239,23 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
   // TODO(hpayer): We do not have to iterate reservations on black objects
   // for marking. We just have to execute the special visiting side effect
   // code that adds objects to global data structures, e.g. for array buffers.
+
+  // Code space, map space, and large object space do not use black pages.
+  // Hence we have to color all objects of the reservation first black to avoid
+  // unnecessary marking deque load.
   if (incremental_marking()->black_allocation()) {
+    for (int i = CODE_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+      const Heap::Reservation& res = reservations[i];
+      for (auto& chunk : res) {
+        Address addr = chunk.start;
+        while (addr < chunk.end) {
+          HeapObject* obj = HeapObject::FromAddress(addr);
+          Marking::MarkBlack(Marking::MarkBitFrom(obj));
+          MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
+          addr += obj->Size();
+        }
+      }
+    }
     for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
       const Heap::Reservation& res = reservations[i];
       for (auto& chunk : res) {

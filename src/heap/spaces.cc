@@ -1172,9 +1172,10 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) p->MarkNeverEvacuate();
 
-  // When incremental marking was activated, old generation pages are allocated
+  // When incremental marking was activated, old space pages are allocated
   // black.
-  if (heap()->incremental_marking()->black_allocation()) {
+  if (heap()->incremental_marking()->black_allocation() &&
+      identity() == OLD_SPACE) {
     Bitmap::SetAllBits(p);
     p->SetFlag(Page::BLACK_PAGE);
     if (FLAG_trace_incremental_marking) {
@@ -2887,11 +2888,6 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   }
 
   HeapObject* object = page->GetObject();
-  if (heap()->incremental_marking()->black_allocation()) {
-    MarkBit mark_bit = Marking::MarkBitFrom(object);
-    Marking::MarkBlack(mark_bit);
-    page->SetFlag(Page::BLACK_PAGE);
-  }
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), object_size);
 
   if (Heap::ShouldZapGarbage()) {

@@ -251,6 +251,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   } else {
     old_gen_exhausted_ = true;
   }
+
+  if (!old_gen_exhausted_ && incremental_marking()->black_allocation() &&
+      space != OLD_SPACE) {
+    Marking::MarkBlack(Marking::MarkBitFrom(object));
+    MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
+  }
   return allocation;
 }
 
