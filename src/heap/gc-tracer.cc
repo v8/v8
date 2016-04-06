@@ -164,7 +164,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   current_.reduce_memory = heap_->ShouldReduceMemory();
   current_.start_time = start_time;
   current_.start_object_size = heap_->SizeOfObjects();
-  current_.start_memory_size = heap_->isolate()->memory_allocator()->Size();
+  current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
   current_.new_space_object_size =
       heap_->new_space()->top() - heap_->new_space()->bottom();
@@ -214,7 +214,7 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
   current_.end_object_size = heap_->SizeOfObjects();
-  current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
+  current_.end_memory_size = heap_->memory_allocator()->Size();
   current_.end_holes_size = CountTotalHolesSize(heap_);
   current_.survived_new_space_object_size = heap_->SurvivedNewSpaceObjectSize();
 

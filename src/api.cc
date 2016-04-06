@@ -7189,7 +7189,7 @@ void Isolate::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
                                           ObjectSpace space,
                                           AllocationAction action) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->memory_allocator()->AddMemoryAllocationCallback(
+  isolate->heap()->memory_allocator()->AddMemoryAllocationCallback(
       callback, space, action);
 }
 
@@ -7197,8 +7197,7 @@ void Isolate::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
 void Isolate::RemoveMemoryAllocationCallback(
     MemoryAllocationCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->memory_allocator()->RemoveMemoryAllocationCallback(
-      callback);
+  isolate->heap()->memory_allocator()->RemoveMemoryAllocationCallback(callback);
 }
 
 
@@ -7693,9 +7692,10 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  if (isolate->code_range()->valid()) {
-    *start = isolate->code_range()->start();
-    *length_in_bytes = isolate->code_range()->size();
+  if (isolate->heap()->memory_allocator()->code_range()->valid()) {
+    *start = isolate->heap()->memory_allocator()->code_range()->start();
+    *length_in_bytes =
+        isolate->heap()->memory_allocator()->code_range()->size();
   } else {
     *start = NULL;
     *length_in_bytes = 0;

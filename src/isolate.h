@@ -817,7 +817,6 @@ class Isolate {
     DCHECK(counters_ != NULL);
     return counters_;
   }
-  CodeRange* code_range() { return code_range_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -839,10 +838,6 @@ class Isolate {
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
-  }
-
-  MemoryAllocator* memory_allocator() {
-    return memory_allocator_;
   }
 
   KeyedLookupCache* keyed_lookup_cache() {
@@ -1240,7 +1235,6 @@ class Isolate {
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   Counters* counters_;
-  CodeRange* code_range_;
   base::RecursiveMutex break_access_;
   Logger* logger_;
   StackGuard stack_guard_;
@@ -1254,7 +1248,6 @@ class Isolate {
   bool capture_stack_trace_for_uncaught_exceptions_;
   int stack_trace_for_uncaught_exceptions_frame_limit_;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_;
-  MemoryAllocator* memory_allocator_;
   KeyedLookupCache* keyed_lookup_cache_;
   ContextSlotCache* context_slot_cache_;
   DescriptorLookupCache* descriptor_lookup_cache_;
@@ -1381,8 +1374,6 @@ class Isolate {
   friend class Simulator;
   friend class StackGuard;
   friend class ThreadId;
-  friend class TestMemoryAllocatorScope;
-  friend class TestCodeRangeScope;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;

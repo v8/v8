@@ -680,7 +680,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
 
 
 intptr_t LargeObjectSpace::Available() {
-  return ObjectSizeFor(heap()->isolate()->memory_allocator()->Available());
+  return ObjectSizeFor(heap()->memory_allocator()->Available());
 }
 
 

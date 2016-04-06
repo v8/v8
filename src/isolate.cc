@@ -1798,7 +1798,6 @@ Isolate::Isolate(bool enable_serializer)
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
       counters_(NULL),
-      code_range_(NULL),
       logger_(NULL),
       stats_table_(NULL),
       stub_cache_(NULL),
@@ -1809,7 +1808,6 @@ Isolate::Isolate(bool enable_serializer)
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      memory_allocator_(NULL),
       keyed_lookup_cache_(NULL),
       context_slot_cache_(NULL),
       descriptor_lookup_cache_(NULL),
@@ -2067,10 +2065,6 @@ Isolate::~Isolate() {
   delete thread_manager_;
   thread_manager_ = NULL;
 
-  delete memory_allocator_;
-  memory_allocator_ = NULL;
-  delete code_range_;
-  code_range_ = NULL;
   delete global_handles_;
   global_handles_ = NULL;
   delete eternal_handles_;
@@ -2164,9 +2158,6 @@ bool Isolate::Init(Deserializer* des) {
   // The initialization process does not handle memory exhaustion.
   AlwaysAllocateScope always_allocate(this);
 
-  memory_allocator_ = new MemoryAllocator(this);
-  code_range_ = new CodeRange(this);
-
   // Safe after setting Heap::isolate_, and initializing StackGuard
   heap_.SetStackLimits();
 
@@ -2225,7 +2216,7 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
-  deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
+  deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
 
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {

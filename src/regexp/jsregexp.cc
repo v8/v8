@@ -6762,7 +6762,7 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
   Heap* heap = pattern->GetHeap();
   bool too_much = pattern->length() > RegExpImpl::kRegExpTooLargeToOptimize;
   if (heap->total_regexp_code_generated() > RegExpImpl::kRegExpCompiledLimit &&
-      heap->isolate()->memory_allocator()->SizeExecutable() >
+      heap->memory_allocator()->SizeExecutable() >
           RegExpImpl::kRegExpExecutableMemoryLimit) {
     too_much = true;
   }

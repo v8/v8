@@ -71,7 +71,7 @@ class IdleScavengeObserver : public AllocationObserver {
 Heap::Heap()
     : amount_of_external_allocated_memory_(0),
       amount_of_external_allocated_memory_at_last_global_gc_(0),
-      isolate_(NULL),
+      isolate_(nullptr),
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should
       // be a multiple of Page::kPageSize.
@@ -136,6 +136,7 @@ Heap::Heap()
       last_gc_time_(0.0),
       scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
+      memory_allocator_(nullptr),
       store_buffer_(this),
       incremental_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
@@ -225,7 +226,7 @@ size_t Heap::CommittedPhysicalMemory() {
 intptr_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
-  return isolate()->memory_allocator()->SizeExecutable();
+  return memory_allocator()->SizeExecutable();
 }
 
 
@@ -296,7 +297,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (isolate_->memory_allocator()->MaxAvailable() <= new_space_.Size()) {
+  if (memory_allocator()->MaxAvailable() <= new_space_.Size()) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
@@ -339,8 +340,8 @@ void Heap::PrintShortHeapStatistics() {
   PrintIsolate(isolate_, "Memory allocator,   used: %6" V8_PTR_PREFIX
                          "d KB"
                          ", available: %6" V8_PTR_PREFIX "d KB\n",
-               isolate_->memory_allocator()->Size() / KB,
-               isolate_->memory_allocator()->Available() / KB);
+               memory_allocator()->Size() / KB,
+               memory_allocator()->Available() / KB);
   PrintIsolate(isolate_, "New space,          used: %6" V8_PTR_PREFIX
                          "d KB"
                          ", available: %6" V8_PTR_PREFIX
@@ -3341,8 +3342,9 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   result->set_map_no_write_barrier(code_map());
   Code* code = Code::cast(result);
   DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
-  DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()) ||
+  DCHECK(memory_allocator()->code_range() == NULL ||
+         !memory_allocator()->code_range()->valid() ||
+         memory_allocator()->code_range()->contains(code->address()) ||
          object_size <= code_space()->AreaSize());
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
@@ -3367,8 +3369,9 @@ AllocationResult Heap::CopyCode(Code* code) {
 
   // Relocate the copy.
   DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
-  DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()) ||
+  DCHECK(memory_allocator()->code_range() == NULL ||
+         !memory_allocator()->code_range()->valid() ||
+         memory_allocator()->code_range()->contains(code->address()) ||
          obj_size <= code_space()->AreaSize());
   new_code->Relocate(new_addr - old_addr);
   // We have to iterate over the object and process its pointers when black
@@ -3436,8 +3439,9 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 
   // Relocate the copy.
   DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
-  DCHECK(isolate_->code_range() == NULL || !isolate_->code_range()->valid() ||
-         isolate_->code_range()->contains(code->address()) ||
+  DCHECK(memory_allocator()->code_range() == NULL ||
+         !memory_allocator()->code_range()->valid() ||
+         memory_allocator()->code_range()->contains(code->address()) ||
          new_obj_size <= code_space()->AreaSize());
 
   new_code->Relocate(new_addr - old_addr);
@@ -4482,7 +4486,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("\n");
 
   PrintF("Heap statistics : ");
-  isolate_->memory_allocator()->ReportStatistics();
+  memory_allocator()->ReportStatistics();
   PrintF("To space : ");
   new_space_.ReportStatistics();
   PrintF("Old space : ");
@@ -4499,7 +4503,7 @@ void Heap::ReportHeapStatistics(const char* title) {
 #endif  // DEBUG
 
 bool Heap::Contains(HeapObject* value) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
   return HasBeenSetUp() &&
@@ -4509,7 +4513,7 @@ bool Heap::Contains(HeapObject* value) {
 }
 
 bool Heap::ContainsSlow(Address addr) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
     return false;
   }
   return HasBeenSetUp() &&
@@ -4519,7 +4523,7 @@ bool Heap::ContainsSlow(Address addr) {
 }
 
 bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
   if (!HasBeenSetUp()) return false;
@@ -4541,7 +4545,7 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
 }
 
 bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
     return false;
   }
   if (!HasBeenSetUp()) return false;
@@ -4982,12 +4986,11 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->map_space_capacity = map_space_->Capacity();
   *stats->lo_space_size = lo_space_->Size();
   isolate_->global_handles()->RecordStats(stats);
-  *stats->memory_allocator_size = isolate()->memory_allocator()->Size();
+  *stats->memory_allocator_size = memory_allocator()->Size();
   *stats->memory_allocator_capacity =
-      isolate()->memory_allocator()->Size() +
-      isolate()->memory_allocator()->Available();
+      memory_allocator()->Size() + memory_allocator()->Available();
   *stats->os_error = base::OS::GetLastError();
-  isolate()->memory_allocator()->Available();
+  memory_allocator()->Available();
   if (take_snapshot) {
     HeapIterator iterator(this);
     for (HeapObject* obj = iterator.next(); obj != NULL;
@@ -5222,7 +5225,9 @@ bool Heap::SetUp() {
   base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
   // Set up memory allocator.
-  if (!isolate_->memory_allocator()->SetUp(MaxReserved(), MaxExecutableSize()))
+  memory_allocator_ = new MemoryAllocator(isolate_);
+  if (!memory_allocator_->SetUp(MaxReserved(), MaxExecutableSize(),
+                                code_range_size_))
     return false;
 
   // Initialize incremental marking.
@@ -5238,8 +5243,6 @@ bool Heap::SetUp() {
   old_space_ = new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
   if (old_space_ == NULL) return false;
   if (!old_space_->SetUp()) return false;
-
-  if (!isolate_->code_range()->SetUp(code_range_size_)) return false;
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
@@ -5480,7 +5483,7 @@ void Heap::TearDown() {
 
   store_buffer()->TearDown();
 
-  isolate_->memory_allocator()->TearDown();
+  memory_allocator()->TearDown();
 
   StrongRootsList* next = NULL;
   for (StrongRootsList* list = strong_roots_list_; list; list = next) {
@@ -5488,6 +5491,9 @@ void Heap::TearDown() {
     delete list;
   }
   strong_roots_list_ = NULL;
+
+  delete memory_allocator_;
+  memory_allocator_ = nullptr;
 }
 
 
@@ -6287,7 +6293,7 @@ void Heap::WaitUntilUnmappingOfFreeChunksCompleted() {
 void Heap::QueueMemoryChunkForFree(MemoryChunk* chunk) {
   // PreFree logically frees the memory chunk. However, the actual freeing
   // will happen on a separate thread sometime later.
-  isolate_->memory_allocator()->PreFreeMemory(chunk);
+  memory_allocator()->PreFreeMemory(chunk);
 
   // The chunks added to this queue will be freed by a concurrent thread.
   chunk->set_next_chunk(chunks_queued_for_free_);
@@ -6320,7 +6326,7 @@ void Heap::FreeQueuedChunks(MemoryChunk* list_head) {
   MemoryChunk* chunk;
   for (chunk = list_head; chunk != NULL; chunk = next) {
     next = chunk->next_chunk();
-    isolate_->memory_allocator()->PerformFreeMemory(chunk);
+    memory_allocator()->PerformFreeMemory(chunk);
   }
 }
 

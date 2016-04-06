@@ -927,6 +927,8 @@ class Heap {
 
   GCTracer* tracer() { return tracer_; }
 
+  MemoryAllocator* memory_allocator() { return memory_allocator_; }
+
   EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
@@ -2149,6 +2151,8 @@ class Heap {
 
   MarkCompactCollector* mark_compact_collector_;
 
+  MemoryAllocator* memory_allocator_;
+
   StoreBuffer store_buffer_;
 
   IncrementalMarking* incremental_marking_;
@@ -2252,6 +2256,7 @@ class Heap {
   friend class Page;
   friend class Scavenger;
   friend class StoreBuffer;
+  friend class TestMemoryAllocatorScope;
 
   // The allocator interface.
   friend class Factory;

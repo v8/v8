@@ -1257,7 +1257,8 @@ class MemoryAllocator {
 
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable);
+  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable,
+             intptr_t code_range_size);
 
   void TearDown();
 
@@ -1383,6 +1384,8 @@ class MemoryAllocator {
                                               Address start, size_t commit_size,
                                               size_t reserved_size);
 
+  CodeRange* code_range() { return code_range_; }
+
  private:
   // See AllocatePage for public interface. Note that currently we only support
   // pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
@@ -1393,6 +1396,8 @@ class MemoryAllocator {
   void FreePooled(MemoryChunk* chunk);
 
   Isolate* isolate_;
+
+  CodeRange* code_range_;
 
   // Maximum space size in bytes.
   intptr_t capacity_;
@@ -1446,6 +1451,8 @@ class MemoryAllocator {
   }
 
   List<MemoryChunk*> chunk_pool_;
+
+  friend class TestCodeRangeScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };

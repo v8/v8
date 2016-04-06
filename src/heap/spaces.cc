@@ -222,7 +222,7 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   *allocated = current.size;
   DCHECK(*allocated <= current.size);
   DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
-  if (!isolate_->memory_allocator()->CommitExecutableMemory(
+  if (!isolate_->heap()->memory_allocator()->CommitExecutableMemory(
           code_range_, current.start, commit_size, *allocated)) {
     *allocated = 0;
     ReleaseBlock(&current);
@@ -233,7 +233,8 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
 
 
 bool CodeRange::CommitRawMemory(Address start, size_t length) {
-  return isolate_->memory_allocator()->CommitMemory(start, length, EXECUTABLE);
+  return isolate_->heap()->memory_allocator()->CommitMemory(start, length,
+                                                            EXECUTABLE);
 }
 
 
@@ -294,6 +295,7 @@ void CodeRange::ReleaseBlock(const FreeBlock* block) {
 
 MemoryAllocator::MemoryAllocator(Isolate* isolate)
     : isolate_(isolate),
+      code_range_(nullptr),
       capacity_(0),
       capacity_executable_(0),
       size_(0),
@@ -301,14 +303,17 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
       lowest_ever_allocated_(reinterpret_cast<void*>(-1)),
       highest_ever_allocated_(reinterpret_cast<void*>(0)) {}
 
-
-bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
+bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable,
+                            intptr_t code_range_size) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
   DCHECK_GE(capacity_, capacity_executable_);
 
   size_ = 0;
   size_executable_ = 0;
+
+  code_range_ = new CodeRange(isolate_);
+  if (!code_range_->SetUp(static_cast<size_t>(code_range_size))) return false;
 
   return true;
 }
@@ -325,6 +330,9 @@ void MemoryAllocator::TearDown() {
   // DCHECK(size_executable_ == 0);
   capacity_ = 0;
   capacity_executable_ = 0;
+
+  delete code_range_;
+  code_range_ = nullptr;
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
@@ -342,12 +350,10 @@ void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
   // Code which is part of the code-range does not have its own VirtualMemory.
-  DCHECK(isolate_->code_range() == NULL ||
-         !isolate_->code_range()->contains(
-             static_cast<Address>(reservation->address())));
-  DCHECK(executable == NOT_EXECUTABLE || isolate_->code_range() == NULL ||
-         !isolate_->code_range()->valid() ||
-         reservation->size() <= Page::kPageSize);
+  DCHECK(code_range() == NULL ||
+         !code_range()->contains(static_cast<Address>(reservation->address())));
+  DCHECK(executable == NOT_EXECUTABLE || code_range() == NULL ||
+         !code_range()->valid() || reservation->size() <= Page::kPageSize);
 
   reservation->Release();
 }
@@ -356,19 +362,18 @@ void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
 void MemoryAllocator::FreeMemory(Address base, size_t size,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  if (isolate_->code_range() != NULL &&
-      isolate_->code_range()->contains(static_cast<Address>(base))) {
+  if (code_range() != NULL &&
+      code_range()->contains(static_cast<Address>(base))) {
     DCHECK(executable == EXECUTABLE);
-    isolate_->code_range()->FreeRawMemory(base, size);
+    code_range()->FreeRawMemory(base, size);
   } else {
-    DCHECK(executable == NOT_EXECUTABLE || isolate_->code_range() == NULL ||
-           !isolate_->code_range()->valid());
+    DCHECK(executable == NOT_EXECUTABLE || code_range() == NULL ||
+           !code_range()->valid());
     bool result = base::VirtualMemory::ReleaseRegion(base, size);
     USE(result);
     DCHECK(result);
   }
 }
-
 
 Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
                                               base::VirtualMemory* controller) {
@@ -381,7 +386,6 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
   controller->TakeControl(&reservation);
   return base;
 }
-
 
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t reserve_size, size_t commit_size, size_t alignment,
@@ -496,19 +500,19 @@ bool MemoryChunk::CommitArea(size_t requested) {
     if (reservation_.IsReserved()) {
       Executability executable =
           IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-      if (!heap()->isolate()->memory_allocator()->CommitMemory(start, length,
-                                                               executable)) {
+      if (!heap()->memory_allocator()->CommitMemory(start, length,
+                                                    executable)) {
         return false;
       }
     } else {
-      CodeRange* code_range = heap_->isolate()->code_range();
+      CodeRange* code_range = heap_->memory_allocator()->code_range();
       DCHECK(code_range != NULL && code_range->valid() &&
              IsFlagSet(IS_EXECUTABLE));
       if (!code_range->CommitRawMemory(start, length)) return false;
     }
 
     if (Heap::ShouldZapGarbage()) {
-      heap_->isolate()->memory_allocator()->ZapBlock(start, length);
+      heap_->memory_allocator()->ZapBlock(start, length);
     }
   } else if (commit_size < committed_size) {
     DCHECK(commit_size > 0);
@@ -518,7 +522,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
     if (reservation_.IsReserved()) {
       if (!reservation_.Uncommit(start, length)) return false;
     } else {
-      CodeRange* code_range = heap_->isolate()->code_range();
+      CodeRange* code_range = heap_->memory_allocator()->code_range();
       DCHECK(code_range != NULL && code_range->valid() &&
              IsFlagSet(IS_EXECUTABLE));
       if (!code_range->UncommitRawMemory(start, length)) return false;
@@ -614,13 +618,13 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
 #ifdef V8_TARGET_ARCH_MIPS64
     // Use code range only for large object space on mips64 to keep address
     // range within 256-MB memory region.
-    if (isolate_->code_range() != NULL && isolate_->code_range()->valid() &&
+    if (code_range() != NULL && code_range()->valid() &&
         reserve_area_size > CodePageAreaSize()) {
 #else
-    if (isolate_->code_range() != NULL && isolate_->code_range()->valid()) {
+    if (code_range() != NULL && code_range()->valid()) {
 #endif
-      base = isolate_->code_range()->AllocateRawMemory(chunk_size, commit_size,
-                                                       &chunk_size);
+      base =
+          code_range()->AllocateRawMemory(chunk_size, commit_size, &chunk_size);
       DCHECK(
           IsAligned(reinterpret_cast<intptr_t>(base), MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
@@ -1036,7 +1040,7 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 void PagedSpace::TearDown() {
   PageIterator iterator(this);
   while (iterator.has_next()) {
-    heap()->isolate()->memory_allocator()->Free(iterator.next());
+    heap()->memory_allocator()->Free(iterator.next());
   }
   anchor_.set_next_page(&anchor_);
   anchor_.set_prev_page(&anchor_);
@@ -1172,8 +1176,8 @@ bool PagedSpace::Expand() {
 
   if (!CanExpand(size)) return false;
 
-  Page* p = heap()->isolate()->memory_allocator()->AllocatePage<Page>(
-      size, this, executable());
+  Page* p =
+      heap()->memory_allocator()->AllocatePage<Page>(size, this, executable());
   if (p == NULL) return false;
 
   AccountCommitted(static_cast<intptr_t>(p->size()));
@@ -1682,7 +1686,6 @@ bool SemiSpace::Commit() {
   for (int i = 0; i < num_pages; i++) {
     NewSpacePage* new_page =
         heap()
-            ->isolate()
             ->memory_allocator()
             ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
                 NewSpacePage::kAllocatableMemory, this, executable());
@@ -1703,8 +1706,7 @@ bool SemiSpace::Uncommit() {
   DCHECK(is_committed());
   NewSpacePageIterator it(this);
   while (it.has_next()) {
-    heap()->isolate()->memory_allocator()->Free<MemoryAllocator::kPooled>(
-        it.next());
+    heap()->memory_allocator()->Free<MemoryAllocator::kPooled>(it.next());
   }
   anchor()->set_next_page(anchor());
   anchor()->set_prev_page(anchor());
@@ -1740,7 +1742,6 @@ bool SemiSpace::GrowTo(int new_capacity) {
   while (delta_pages > 0) {
     NewSpacePage* new_page =
         heap()
-            ->isolate()
             ->memory_allocator()
             ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
                 NewSpacePage::kAllocatableMemory, this, executable());
@@ -1773,8 +1774,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
       new_last_page = last_page->prev_page();
       new_last_page->set_next_page(anchor());
       anchor()->set_prev_page(new_last_page);
-      heap()->isolate()->memory_allocator()->Free<MemoryAllocator::kPooled>(
-          last_page);
+      heap()->memory_allocator()->Free<MemoryAllocator::kPooled>(last_page);
       delta_pages--;
     }
     AccountUncommitted(static_cast<intptr_t>(delta));
@@ -2860,9 +2860,9 @@ void LargeObjectSpace::TearDown() {
     LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", page->address()));
 
     ObjectSpace space = static_cast<ObjectSpace>(1 << identity());
-    heap()->isolate()->memory_allocator()->PerformAllocationCallback(
+    heap()->memory_allocator()->PerformAllocationCallback(
         space, kAllocationActionFree, page->size());
-    heap()->isolate()->memory_allocator()->Free(page);
+    heap()->memory_allocator()->Free(page);
   }
   SetUp();
 }
@@ -2876,9 +2876,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     return AllocationResult::Retry(identity());
   }
 
-  LargePage* page =
-      heap()->isolate()->memory_allocator()->AllocatePage<LargePage>(
-          object_size, this, executable);
+  LargePage* page = heap()->memory_allocator()->AllocatePage<LargePage>(
+      object_size, this, executable);
   if (page == NULL) return AllocationResult::Retry(identity());
   DCHECK(page->area_size() >= object_size);
 
