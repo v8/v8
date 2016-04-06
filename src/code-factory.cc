@@ -225,6 +225,12 @@ Callable CodeFactory::Subtract(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::Multiply(Isolate* isolate) {
+  MultiplyStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::BitwiseAnd(Isolate* isolate) {
   BitwiseAndStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

@@ -1031,6 +1031,153 @@ void SubtractStub::GenerateAssembly(
   }
 }
 
+void MultiplyStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  using compiler::Node;
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry point for floating point multiplication.
+  Label do_fmul(assembler);
+  Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
+      var_rhs_float64(assembler, MachineRepresentation::kFloat64);
+
+  Node* number_map = assembler->HeapNumberMapConstant();
+
+  // We might need to loop one or two times due to ToNumber conversions.
+  Variable var_lhs(assembler, MachineRepresentation::kTagged),
+      var_rhs(assembler, MachineRepresentation::kTagged);
+  Variable* loop_variables[] = {&var_lhs, &var_rhs};
+  Label loop(assembler, 2, loop_variables);
+  var_lhs.Bind(assembler->Parameter(0));
+  var_rhs.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* lhs = var_lhs.value();
+    Node* rhs = var_rhs.value();
+
+    Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+
+    assembler->Bind(&lhs_is_smi);
+    {
+      Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+                        &rhs_is_not_smi);
+
+      assembler->Bind(&rhs_is_smi);
+      {
+        // Both {lhs} and {rhs} are Smis. Convert them to double and multiply.
+        // TODO(epertoso): use SmiMulWithOverflow once available.
+        var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
+        var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
+        assembler->Goto(&do_fmul);
+      }
+
+      assembler->Bind(&rhs_is_not_smi);
+      {
+        Node* rhs_map = assembler->LoadMap(rhs);
+
+        // Check if {rhs} is a HeapNumber.
+        Label rhs_is_number(assembler),
+            rhs_is_not_number(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                          &rhs_is_number, &rhs_is_not_number);
+
+        assembler->Bind(&rhs_is_number);
+        {
+          // Convert {lhs} to a double and multiply it with the value of {rhs}.
+          var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
+          var_rhs_float64.Bind(assembler->LoadHeapNumberValue(rhs));
+          assembler->Goto(&do_fmul);
+        }
+
+        assembler->Bind(&rhs_is_not_number);
+        {
+          // Multiplication is commutative, swap {lhs} with {rhs} and loop.
+          var_lhs.Bind(rhs);
+          var_rhs.Bind(lhs);
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&lhs_is_not_smi);
+    {
+      Node* lhs_map = assembler->LoadMap(lhs);
+
+      // Check if {lhs} is a HeapNumber.
+      Label lhs_is_number(assembler),
+          lhs_is_not_number(assembler, Label::kDeferred);
+      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                        &lhs_is_number, &lhs_is_not_number);
+
+      assembler->Bind(&lhs_is_number);
+      {
+        // Check if {rhs} is a Smi.
+        Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+                          &rhs_is_not_smi);
+
+        assembler->Bind(&rhs_is_smi);
+        {
+          // Convert {rhs} to a double and multiply it with the value of {lhs}.
+          var_lhs_float64.Bind(assembler->LoadHeapNumberValue(lhs));
+          var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
+          assembler->Goto(&do_fmul);
+        }
+
+        assembler->Bind(&rhs_is_not_smi);
+        {
+          Node* rhs_map = assembler->LoadMap(rhs);
+
+          // Check if {rhs} is a HeapNumber.
+          Label rhs_is_number(assembler),
+              rhs_is_not_number(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                            &rhs_is_number, &rhs_is_not_number);
+
+          assembler->Bind(&rhs_is_number);
+          {
+            // Both {lhs} and {rhs} are HeapNumbers. Load their values and
+            // multiply them.
+            var_lhs_float64.Bind(assembler->LoadHeapNumberValue(lhs));
+            var_rhs_float64.Bind(assembler->LoadHeapNumberValue(rhs));
+            assembler->Goto(&do_fmul);
+          }
+
+          assembler->Bind(&rhs_is_not_number);
+          {
+            // Multiplication is commutative, swap {lhs} with {rhs} and loop.
+            var_lhs.Bind(rhs);
+            var_rhs.Bind(lhs);
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&lhs_is_not_number);
+      {
+        // Convert {lhs} to a Number and loop.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fmul);
+  {
+    Node* value =
+        assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
+    Node* result = assembler->ChangeFloat64ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
 void BitwiseAndStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   using compiler::Node;

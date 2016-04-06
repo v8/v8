@@ -112,6 +112,7 @@ namespace internal {
   V(StringLength)                           \
   V(Add)                                    \
   V(Subtract)                               \
+  V(Multiply)                               \
   V(BitwiseAnd)                             \
   V(BitwiseOr)                              \
   V(BitwiseXor)                             \
@@ -687,6 +688,14 @@ class SubtractStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_TURBOFAN_CODE_STUB(Subtract, TurboFanCodeStub);
+};
+
+class MultiplyStub final : public TurboFanCodeStub {
+ public:
+  explicit MultiplyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_CODE_STUB(Multiply, TurboFanCodeStub);
 };
 
 class BitwiseAndStub final : public TurboFanCodeStub {

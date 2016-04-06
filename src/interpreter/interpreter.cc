@@ -661,7 +661,7 @@ void Interpreter::DoSub(InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kMultiply, assembler);
+  DoBinaryOp(CodeFactory::Multiply(isolate_), assembler);
 }
 
 

@@ -65,6 +65,7 @@ class Schedule;
   CODE_STUB_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float64Add)                                 \
   V(Float64Sub)                                 \
+  V(Float64Mul)                                 \
   V(Float64InsertLowWord32)                     \
   V(Float64InsertHighWord32)                    \
   V(IntPtrAdd)                                  \
