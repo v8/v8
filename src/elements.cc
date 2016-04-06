@@ -1453,7 +1453,8 @@ class FastElementsAccessor
     }
     if (entry == 0) {
       FixedArray* empty = heap->empty_fixed_array();
-      if (obj->HasFastArgumentsElements()) {
+      if (FastElementsAccessorSubclass::kind() ==
+          FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(obj->elements())->set(1, empty);
       } else {
         obj->set_elements(empty);
@@ -2568,16 +2569,45 @@ class FastSloppyArgumentsElementsAccessor
             FastHoleyObjectElementsAccessor,
             ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS> >(name) {}
 
+  static Handle<FixedArray> GetArguments(Isolate* isolate,
+                                         FixedArrayBase* backing_store) {
+    FixedArray* parameter_map = FixedArray::cast(backing_store);
+    return Handle<FixedArray>(FixedArray::cast(parameter_map->get(1)), isolate);
+  }
+
+  static Handle<JSArray> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                   uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    uint32_t result_len = end < start ? 0u : end - start;
+    Handle<JSArray> result_array = isolate->factory()->NewJSArray(
+        FAST_HOLEY_ELEMENTS, result_len, result_len);
+    DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(result_array->elements());
+    FixedArray* parameters = FixedArray::cast(receiver->elements());
+    uint32_t insertion_index = 0;
+    for (uint32_t i = start; i < end; i++) {
+      uint32_t entry =
+          GetEntryForIndexImpl(*receiver, parameters, i, ALL_PROPERTIES);
+      if (entry != kMaxUInt32 && HasEntryImpl(parameters, entry)) {
+        elements->set(insertion_index, *GetImpl(parameters, entry));
+      } else {
+        elements->set_the_hole(insertion_index);
+      }
+      insertion_index++;
+    }
+    return result_array;
+  }
+
   static Handle<SeededNumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
-    FixedArray* parameter_map = FixedArray::cast(*elements);
-    Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
+    Handle<FixedArray> arguments =
+        GetArguments(elements->GetIsolate(), *elements);
     return FastHoleyObjectElementsAccessor::NormalizeImpl(object, arguments);
   }
 
   static void DeleteFromArguments(Handle<JSObject> obj, uint32_t entry) {
-    FixedArray* parameter_map = FixedArray::cast(obj->elements());
-    Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
+    Handle<FixedArray> arguments =
+        GetArguments(obj->GetIsolate(), obj->elements());
     FastHoleyObjectElementsAccessor::DeleteCommon(obj, entry, arguments);
   }
 

@@ -207,9 +207,14 @@ inline bool ClampedToInteger(Object* object, int* out) {
 
 inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
                                      int* out) {
-  Map* arguments_map = isolate->native_context()->sloppy_arguments_map();
-  if (object->map() != arguments_map) return false;
-  DCHECK(object->HasFastElements());
+  Context* context = *isolate->native_context();
+  Map* map = object->map();
+  if (map != context->sloppy_arguments_map() &&
+      map != context->strict_arguments_map() &&
+      map != context->fast_aliased_arguments_map()) {
+    return false;
+  }
+  DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
   Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::cast(len_obj)->value());
@@ -670,10 +675,11 @@ BUILTIN(ArraySlice) {
   } else if (receiver->IsJSObject() &&
              GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
                                       &len)) {
-    DCHECK_EQ(FAST_ELEMENTS, JSObject::cast(*receiver)->GetElementsKind());
-    // Array.prototype.slice(arguments, ...) is quite a common idiom
+    // Array.prototype.slice.call(arguments, ...) is quite a common idiom
     // (notably more than 50% of invocations in Web apps).
     // Treat it in C++ as well.
+    DCHECK(JSObject::cast(*receiver)->HasFastElements() ||
+           JSObject::cast(*receiver)->HasFastArgumentsElements());
   } else {
     AllowHeapAllocation allow_allocation;
     return CallJsIntrinsic(isolate, isolate->array_slice(), args);
