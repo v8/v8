@@ -1694,7 +1694,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   // Overflow checked for add/sub only.
   DCHECK((condition != kOverflow && condition != kNotOverflow) ||
-         (op == kS390_AddWithOverflow32 || op == kS390_SubWithOverflow32));
+         (op == kS390_AddWithOverflow32 || op == kS390_SubWithOverflow32) ||
+         (op == kS390_Add || op == kS390_Sub));
 
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
