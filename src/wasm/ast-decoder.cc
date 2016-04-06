@@ -416,7 +416,6 @@ class SR_WasmDecoder : public WasmDecoder {
     DecodeLocalDecls();
     if (failed()) return false;
     decls.decls_encoded_size = pc_offset();
-    decls.total_local_count = 0;
     decls.local_types.reserve(local_type_vec_.size());
     for (size_t pos = 0; pos < local_type_vec_.size();) {
       uint32_t count = 0;
@@ -425,9 +424,9 @@ class SR_WasmDecoder : public WasmDecoder {
         pos++;
         count++;
       }
-      decls.total_local_count += count;
       decls.local_types.push_back(std::pair<LocalType, uint32_t>(type, count));
     }
+    decls.total_local_count = static_cast<uint32_t>(local_type_vec_.size());
     return true;
   }
 

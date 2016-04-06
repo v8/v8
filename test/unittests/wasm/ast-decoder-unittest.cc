@@ -2246,7 +2246,7 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
 
     LocalTypeMap map = Expand(decls);
     EXPECT_EQ(1, map.size());
-    EXPECT_EQ(type, map.at(0));
+    EXPECT_EQ(type, map[0]);
   }
 }
 
