@@ -1024,20 +1024,17 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       heap()
           ->tracer()
           ->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
-  double remaining_time_in_ms = 0.0;
-  intptr_t bytes_processed = 0;
-
-  do {
-    bytes_processed =
+  double remaining_time_in_ms =
+      deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
+  while (remaining_time_in_ms >=
+         GCIdleTimeHandler::kMinIncrementalMarkingStepTimeInMs) {
+    intptr_t bytes_processed =
         Step(step_size_in_bytes, step_actions.completion_action,
              step_actions.force_marking, step_actions.force_completion);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (bytes_processed > 0 &&
-           remaining_time_in_ms >=
-               2.0 * GCIdleTimeHandler::kIncrementalMarkingStepTimeInMs &&
-           !IsComplete() &&
-           !heap()->mark_compact_collector()->marking_deque()->IsEmpty());
+    if (bytes_processed == 0) break;
+  }
   return remaining_time_in_ms;
 }
 

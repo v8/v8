@@ -113,6 +113,10 @@ class GCIdleTimeHandler {
   // Incremental marking step time.
   static const size_t kIncrementalMarkingStepTimeInMs = 1;
 
+  // Minimum incremental marking step time.
+  static const size_t kMinIncrementalMarkingStepTimeInMs =
+      kIncrementalMarkingStepTimeInMs + 1;
+
   static const size_t kMinTimeForOverApproximatingWeakClosureInMs;
 
   // Number of times we will return a Nothing action in the current mode
