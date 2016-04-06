@@ -2941,7 +2941,9 @@ enum TypeFlagsEnum {
   kDisallowTypeParameters = 1 << 0,
   kDisallowTypeAnnotation = 1 << 1,
   kAllowSignature = 1 << 2,
-  kConstructorTypes = kDisallowTypeParameters | kDisallowTypeAnnotation
+  kDisallowBody = 1 << 3,
+  kConstructorTypes = kDisallowTypeParameters | kDisallowTypeAnnotation,
+  kAmbient = kAllowSignature | kDisallowBody
 };
 
 typedef base::Flags<TypeFlagsEnum> TypeFlags;

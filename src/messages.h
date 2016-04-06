@@ -481,6 +481,11 @@ class CallSite {
   T(BadFunctionOrConstructorType,                                              \
     "Expecting '=>' in function or constructor type.")                         \
   T(BadIndexType, "Invalid index type: expected 'number' or 'string'")         \
+  T(BadAmbientDeclaration,                                                     \
+    "Invalid ambient: expected variable, function or class declaration")       \
+  T(IllegalDeclare,                                                            \
+    "Unexpected 'declare', ambient declaration not allowed here")              \
+  T(AmbientGetOrSet, "Unexpected 'get' or 'set' in ambient class declaration") \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

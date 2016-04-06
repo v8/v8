@@ -1219,7 +1219,7 @@ class PreParserTraits {
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
-                                        bool* ok);
+                                        bool ambient, bool* ok);
 
   PreParserExpressionList PrepareSpreadArguments(PreParserExpressionList list) {
     return list;
@@ -1310,7 +1310,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
-    ParseStatementList(Token::EOS, &ok);
+    ParseStatementList(Token::EOS, true, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -1350,25 +1350,25 @@ class PreParser : public ParserBase<PreParserTraits> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseStatementListItem(bool* ok);
-  void ParseStatementList(int end_token, bool* ok,
+  Statement ParseStatementListItem(bool top_level, bool* ok);
+  void ParseStatementList(int end_token, bool top_level, bool* ok,
                           Scanner::BookmarkScope* bookmark = nullptr);
   Statement ParseStatement(AllowLabelledFunctionStatement allow_function,
                            bool* ok);
   Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
                               bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
-  Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseClassDeclaration(bool* ok);
+  Statement ParseFunctionDeclaration(bool ambient, bool* ok);
+  Statement ParseClassDeclaration(bool ambient, bool* ok);
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
-                                   bool* ok);
+                                   bool ambient, bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
                                       int* num_decl, bool* is_lexical,
                                       bool* is_binding_pattern,
                                       Scanner::Location* first_initializer_loc,
                                       Scanner::Location* bindings_loc,
-                                      bool* ok);
+                                      bool ambient, bool* ok);
   Statement ParseExpressionOrLabelledStatement(
       AllowLabelledFunctionStatement allow_function, bool* ok);
   Statement ParseIfStatement(bool* ok);
@@ -1408,7 +1408,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
-                                        bool* ok);
+                                        bool ambient, bool* ok);
 };
 
 
@@ -1485,7 +1485,7 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseStatementList(Token::RBRACE, ok);
+  ParseStatementList(Token::RBRACE, false, ok);
   if (!*ok) return PreParserStatementList();
 
   Expect(Token::RBRACE, ok);

@@ -773,7 +773,8 @@ class ParserBase : public Traits {
   ObjectLiteralPropertyT ParsePropertyDefinition(
       ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
       bool is_static, bool* is_computed_name, bool* has_seen_constructor,
-      ExpressionClassifier* classifier, IdentifierT* name, bool* ok);
+      ExpressionClassifier* classifier, IdentifierT* name, bool ambient,
+      bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(
       Scanner::Location* first_spread_pos, ExpressionClassifier* classifier,
       bool* ok);
@@ -1404,7 +1405,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       }
       return this->ParseClassLiteral(name, class_name_location,
                                      is_strict_reserved_name,
-                                     class_token_position, ok);
+                                     class_token_position, false, ok);
     }
 
     case Token::TEMPLATE_SPAN:
@@ -1679,7 +1680,8 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT
 ParserBase<Traits>::ParsePropertyDefinition(
     ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
     bool is_static, bool* is_computed_name, bool* has_seen_constructor,
-    ExpressionClassifier* classifier, IdentifierT* name, bool* ok) {
+    ExpressionClassifier* classifier, IdentifierT* name, bool ambient,
+    bool* ok) {
   DCHECK(!in_class || is_static || has_seen_constructor != nullptr);
 
   // Parse index member declarations in typed mode.
@@ -1837,6 +1839,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     }
     // Allow signatures when in a class.
     if (in_class) type_flags |= typesystem::kAllowSignature;
+    if (ambient) type_flags |= typesystem::kAmbient;
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
@@ -1865,7 +1868,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     *name = this->EmptyIdentifier();
     ObjectLiteralPropertyT property = ParsePropertyDefinition(
         checker, true, has_extends, true, is_computed_name, nullptr, classifier,
-        name, ok);
+        name, ambient, ok);
     Traits::RewriteNonPattern(classifier, ok);
     return property;
   }
@@ -1874,6 +1877,12 @@ ParserBase<Traits>::ParsePropertyDefinition(
     // MethodDefinition (Accessors)
     //    get PropertyName '(' ')' '{' FunctionBody '}'
     //    set PropertyName '(' PropertySetParameterList ')' '{' FunctionBody '}'
+    if (ambient) {
+      *ok = false;
+      ReportMessage(MessageTemplate::kAmbientGetOrSet);
+      return this->EmptyObjectLiteralProperty();
+    }
+
     *name = this->EmptyIdentifier();
     bool dont_care = false;
     name_token = peek();
@@ -1918,7 +1927,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     }
     USE(type);  // TODO(nikolaos): really use it!
     // Parse optional initializer.
-    if (Check(Token::ASSIGN)) {
+    if (!ambient && Check(Token::ASSIGN)) {
       ExpressionClassifier rhs_classifier(this);
       ExpressionT rhs = this->ParseAssignmentExpression(
           true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1963,7 +1972,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     IdentifierT name = this->EmptyIdentifier();
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name, NULL,
-        classifier, &name, CHECK_OK);
+        classifier, &name, false, CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;

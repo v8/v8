@@ -756,12 +756,11 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
       function_token_position, type, language_mode, type_flags, ok);
 }
 
-
 ClassLiteral* ParserTraits::ParseClassLiteral(
     const AstRawString* name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
+    bool name_is_strict_reserved, int pos, bool ambient, bool* ok) {
   return parser_->ParseClassLiteral(name, class_name_location,
-                                    name_is_strict_reserved, pos, ok);
+                                    name_is_strict_reserved, pos, ambient, ok);
 }
 
 
@@ -932,7 +931,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (info->is_module()) {
       ParseModuleItemList(body, &ok);
     } else {
-      ParseStatementList(body, Token::EOS, &ok);
+      ParseStatementList(body, Token::EOS, true, &ok);
     }
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
@@ -1157,7 +1156,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
 
 void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
-                                 bool* ok) {
+                                 bool top_level, bool* ok) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
@@ -1176,7 +1175,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
     }
 
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement* stat = ParseStatementListItem(CHECK_OK);
+    Statement* stat = ParseStatementListItem(top_level, CHECK_OK);
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1266,33 +1265,41 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
 }
 
 
-Statement* Parser::ParseStatementListItem(bool* ok) {
+Statement* Parser::ParseStatementListItem(bool top_level, bool* ok) {
   // (Ecma 262 6th Edition, 13.1):
   // StatementListItem:
   //    Statement
   //    Declaration
 
+  // Allow ambient variable, function, and class declarations.
+  bool ambient =
+      scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
+  if (ambient && !top_level) {
+    *ok = false;
+    ReportMessage(MessageTemplate::kIllegalDeclare);
+    return nullptr;
+  }
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(NULL, ok);
+      return ParseFunctionDeclaration(NULL, ambient, ok);
     case Token::CLASS:
       Consume(Token::CLASS);
-      return ParseClassDeclaration(NULL, ok);
+      return ParseClassDeclaration(NULL, ambient, ok);
     case Token::CONST:
       if (allow_const()) {
-        return ParseVariableStatement(kStatementListItem, NULL, ok);
+        return ParseVariableStatement(kStatementListItem, NULL, ambient, ok);
       }
       break;
     case Token::VAR:
-      return ParseVariableStatement(kStatementListItem, NULL, ok);
+      return ParseVariableStatement(kStatementListItem, NULL, ambient, ok);
     case Token::LET:
       if (IsNextLetKeyword()) {
-        return ParseVariableStatement(kStatementListItem, NULL, ok);
+        return ParseVariableStatement(kStatementListItem, NULL, ambient, ok);
       }
       break;
     case Token::IDENTIFIER:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
-      if (!scope_->typed()) break;
+      if (!scope_->typed() || ambient) break;
       int pos = peek_position();
       if (CheckContextualKeyword(CStrVector("type"))) {
         return ParseTypeAliasDeclaration(pos, ok);
@@ -1301,9 +1308,14 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
       }
       break;
     }
-    // TODO(nikolaos): ambient
     default:
       break;
+  }
+  if (ambient) {
+    *ok = false;
+    ReportMessageAt(scanner()->peek_location(),
+                    MessageTemplate::kBadAmbientDeclaration);
+    return nullptr;
   }
   return ParseStatement(NULL, kAllowLabelledFunctionStatement, ok);
 }
@@ -1322,7 +1334,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
     default:
-      return ParseStatementListItem(ok);
+      return ParseStatementListItem(true, ok);
   }
 }
 
@@ -1613,6 +1625,12 @@ Statement* Parser::ParseExportDefault(bool* ok) {
   ZoneList<const AstRawString*> names(1, zone());
   Statement* result = nullptr;
   Expression* default_export = nullptr;
+
+  // Allow ambient function and class declarations to be exported as default.
+  int ambient_pos = peek_position();
+  bool ambient =
+      scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
+
   switch (peek()) {
     case Token::FUNCTION: {
       Consume(Token::FUNCTION);
@@ -1633,7 +1651,8 @@ Statement* Parser::ParseExportDefault(bool* ok) {
             typesystem::kAllowSignature, CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
-        result = ParseFunctionDeclaration(pos, is_generator, &names, CHECK_OK);
+        result = ParseFunctionDeclaration(pos, is_generator, &names, ambient,
+                                          CHECK_OK);
       }
       break;
     }
@@ -1645,14 +1664,21 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
         default_export =
             ParseClassLiteral(default_string, Scanner::Location::invalid(),
-                              false, position(), CHECK_OK);
+                              false, position(), ambient, CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
-        result = ParseClassDeclaration(&names, CHECK_OK);
+        result = ParseClassDeclaration(&names, ambient, CHECK_OK);
       }
       break;
 
     default: {
+      if (ambient) {
+        *ok = false;
+        ReportMessageAt(scanner()->peek_location(),
+                        MessageTemplate::kBadAmbientDeclaration);
+        return nullptr;
+      }
+
       int pos = peek_position();
       ExpressionClassifier classifier(this);
       Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
@@ -1663,6 +1689,9 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       break;
     }
   }
+
+  // Exported ambients are not checked.
+  if (ambient) return factory()->NewEmptyStatement(ambient_pos);
 
   DCHECK_LE(names.length(), 1);
   if (names.length() == 1) {
@@ -1693,10 +1722,20 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   int pos = peek_position();
   Expect(Token::EXPORT, CHECK_OK);
 
+  // Allow exported ambient variable, function, and class declarations.
+  bool ambient =
+      scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
+
   Statement* result = NULL;
   ZoneList<const AstRawString*> names(1, zone());
   switch (peek()) {
     case Token::DEFAULT:
+      if (ambient) {
+        *ok = false;
+        ReportMessageAt(scanner()->peek_location(),
+                        MessageTemplate::kBadAmbientDeclaration);
+        return nullptr;
+      }
       return ParseExportDefault(ok);
 
     case Token::MUL: {
@@ -1762,18 +1801,19 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     }
 
     case Token::FUNCTION:
-      result = ParseFunctionDeclaration(&names, CHECK_OK);
+      result = ParseFunctionDeclaration(&names, ambient, CHECK_OK);
       break;
 
     case Token::CLASS:
       Consume(Token::CLASS);
-      result = ParseClassDeclaration(&names, CHECK_OK);
+      result = ParseClassDeclaration(&names, ambient, CHECK_OK);
       break;
 
     case Token::VAR:
     case Token::LET:
     case Token::CONST:
-      result = ParseVariableStatement(kStatementListItem, &names, CHECK_OK);
+      result =
+          ParseVariableStatement(kStatementListItem, &names, ambient, CHECK_OK);
       break;
 
     default:
@@ -1781,6 +1821,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       ReportUnexpectedToken(scanner()->current_token());
       return NULL;
   }
+
+  // Exported ambients are not checked.
+  if (ambient) return factory()->NewEmptyStatement(pos);
 
   // Extract declared names into export declarations.
   ModuleDescriptor* descriptor = scope_->module();
@@ -1899,7 +1942,7 @@ Statement* Parser::ParseSubStatement(
       return ParseDebuggerStatement(ok);
 
     case Token::VAR:
-      return ParseVariableStatement(kStatement, NULL, ok);
+      return ParseVariableStatement(kStatement, NULL, false, ok);
 
     default:
       return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
@@ -2142,17 +2185,17 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
 
 Statement* Parser::ParseFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZoneList<const AstRawString*>* names, bool ambient, bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
   bool is_generator = Check(Token::MUL);
-  return ParseFunctionDeclaration(pos, is_generator, names, ok);
+  return ParseFunctionDeclaration(pos, is_generator, names, ambient, ok);
 }
 
 
 Statement* Parser::ParseFunctionDeclaration(
     int pos, bool is_generator, ZoneList<const AstRawString*>* names,
-    bool* ok) {
+    bool ambient, bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
   // GeneratorDeclaration ::
@@ -2165,6 +2208,8 @@ Statement* Parser::ParseFunctionDeclaration(
 
   FuncNameInferrer::State fni_state(fni_);
   if (fni_ != NULL) fni_->PushEnclosingName(name);
+  typesystem::TypeFlags type_flags =
+      ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
   FunctionLiteral* fun =
       ParseFunctionLiteral(name, scanner()->location(),
                            is_strict_reserved ? kFunctionNameIsStrictReserved
@@ -2172,7 +2217,7 @@ Statement* Parser::ParseFunctionDeclaration(
                            is_generator ? FunctionKind::kGeneratorFunction
                                         : FunctionKind::kNormalFunction,
                            pos, FunctionLiteral::kDeclaration, language_mode(),
-                           typesystem::kAllowSignature, CHECK_OK);
+                           type_flags, CHECK_OK);
   // Return no function declaration if just the signature was given.
   EmptyStatement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   if (fun == nullptr) return empty;
@@ -2205,7 +2250,7 @@ Statement* Parser::ParseFunctionDeclaration(
 
 
 Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                         bool* ok) {
+                                         bool ambient, bool* ok) {
   // ClassDeclaration ::
   //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
   //
@@ -2231,8 +2276,10 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   bool is_strict_reserved = false;
   const AstRawString* name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
-                                          is_strict_reserved, pos, CHECK_OK);
+  ClassLiteral* value = ParseClassLiteral(
+      name, scanner()->location(), is_strict_reserved, pos, ambient, CHECK_OK);
+  // Return no class declaration in case of an ambient.
+  if (ambient) return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
 
   VariableProxy* proxy = NewUnresolved(name, LET);
   Declaration* declaration =
@@ -2267,7 +2314,7 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels,
     Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
-      Statement* stat = ParseStatementListItem(CHECK_OK);
+      Statement* stat = ParseStatementListItem(false, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->statements()->Add(stat, zone());
       }
@@ -2302,7 +2349,7 @@ Block* Parser::DeclarationParsingResult::BuildInitializationBlock(
 
 Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
                                       ZoneList<const AstRawString*>* names,
-                                      bool* ok) {
+                                      bool ambient, bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
@@ -2319,8 +2366,8 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
   // is inside an initializer block, it is ignored.
 
   DeclarationParsingResult parsing_result;
-  Block* result =
-      ParseVariableDeclarations(var_context, &parsing_result, names, CHECK_OK);
+  Block* result = ParseVariableDeclarations(var_context, &parsing_result,
+                                            names, ambient, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -2328,7 +2375,7 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
 Block* Parser::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
     DeclarationParsingResult* parsing_result,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZoneList<const AstRawString*>* names, bool ambient, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -2399,6 +2446,12 @@ Block* Parser::ParseVariableDeclarations(
       type = ParseValidType(CHECK_OK);
     }
     USE(type);  // TODO(nikolaos): really use it!
+
+    // Skip initializers, for ambient declarations.
+    if (ambient) {
+      first_declaration = false;
+      continue;
+    }
 
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
@@ -2557,7 +2610,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
       if (allow_function == kAllowLabelledFunctionStatement) {
-        return ParseFunctionDeclaration(labels, ok);
+        return ParseFunctionDeclaration(labels, false, ok);
       } else {
         return ParseScopedStatement(labels, true, ok);
       }
@@ -2827,7 +2880,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   while (peek() != Token::CASE &&
          peek() != Token::DEFAULT &&
          peek() != Token::RBRACE) {
-    stat = ParseStatementListItem(CHECK_OK);
+    stat = ParseStatementListItem(false, CHECK_OK);
     statements->Add(stat, zone());
   }
   return factory()->NewCaseClause(label, statements, pos);
@@ -3062,7 +3115,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
         Expect(Token::LBRACE, CHECK_OK);
         while (peek() != Token::RBRACE) {
-          Statement* stat = ParseStatementListItem(CHECK_OK);
+          Statement* stat = ParseStatementListItem(false, CHECK_OK);
           if (stat && !stat->IsEmpty()) {
             catch_block->statements()->Add(stat, zone());
           }
@@ -3560,7 +3613,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
     Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
     BlockState block_state(&scope_, body_scope);
     Block* block = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
-    Statement* body = ParseFunctionDeclaration(NULL, CHECK_OK);
+    Statement* body = ParseFunctionDeclaration(NULL, false, CHECK_OK);
     block->statements()->Add(body, zone());
     body_scope->set_end_position(scanner()->location().end_pos);
     body_scope = body_scope->FinalizeBlockScope();
@@ -3588,7 +3641,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && IsNextLetKeyword())) {
       ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
-                                CHECK_OK);
+                                false, CHECK_OK);
 
       ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
       int each_beg_pos = scanner()->location().beg_pos;
@@ -4225,10 +4278,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     USE(result_type);  // TODO(nikolaos): really use it!
 
-    // Allow for a function signature (i.e., a literal without body).
+    // Allow or even enforce a function signature (i.e., literal without body),
     // In that case, return a nullptr instead of a function literal.
-    if (peek() != Token::LBRACE && scope_->typed() &&
-        (type_flags & typesystem::kAllowSignature)) {
+    if ((type_flags & typesystem::kDisallowBody) ||
+        (peek() != Token::LBRACE && scope_->typed() &&
+         (type_flags & typesystem::kAllowSignature))) {
       ExpectSemicolon(CHECK_OK);
       return nullptr;
     }
@@ -4674,7 +4728,8 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
             zone());
       }
 
-      ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
+      ParseStatementList(try_block->statements(), Token::RBRACE, false,
+                         CHECK_OK);
 
       Statement* final_return = factory()->NewReturnStatement(
           BuildIteratorResult(nullptr, true), RelocInfo::kNoPosition);
@@ -4697,7 +4752,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                                                   RelocInfo::kNoPosition),
                 zone());
     } else {
-      ParseStatementList(body, Token::RBRACE, CHECK_OK);
+      ParseStatementList(body, Token::RBRACE, false, CHECK_OK);
     }
 
     if (IsSubclassConstructor(kind)) {
@@ -4807,7 +4862,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
-                                        bool* ok) {
+                                        bool ambient, bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location,
@@ -4894,8 +4949,9 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     const AstRawString* property_name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
-        &has_seen_constructor, &classifier, &property_name, CHECK_OK);
-    // Ignore member variable declarations in typed mode.
+        &has_seen_constructor, &classifier, &property_name, ambient, CHECK_OK);
+    // Ignore member variable declarations, method signatures and members of
+    // ambients in typed mode.
     if (property == nullptr) continue;
     RewriteNonPattern(&classifier, CHECK_OK);
 
