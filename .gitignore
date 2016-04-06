@@ -87,6 +87,7 @@ GTAGS
 GRTAGS
 GSYMS
 GPATH
+tags
 gtags.files
 turbo*.cfg
 turbo*.dot
