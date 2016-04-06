@@ -1146,6 +1146,46 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmFloat32Max: {
+      CpuFeatureScope scope(masm(), ARMv8);
+      // (b < a) ? a : b
+      SwVfpRegister a = i.InputFloat32Register(0);
+      SwVfpRegister b = i.InputFloat32Register(1);
+      SwVfpRegister result = i.OutputFloat32Register(0);
+      __ VFPCompareAndSetFlags(a, b);
+      __ vsel(gt, result, a, b);
+      break;
+    }
+    case kArmFloat32Min: {
+      CpuFeatureScope scope(masm(), ARMv8);
+      // (a < b) ? a : b
+      SwVfpRegister a = i.InputFloat32Register(0);
+      SwVfpRegister b = i.InputFloat32Register(1);
+      SwVfpRegister result = i.OutputFloat32Register(0);
+      __ VFPCompareAndSetFlags(b, a);
+      __ vsel(gt, result, a, b);
+      break;
+    }
+    case kArmFloat64Max: {
+      CpuFeatureScope scope(masm(), ARMv8);
+      // (b < a) ? a : b
+      DwVfpRegister a = i.InputFloat64Register(0);
+      DwVfpRegister b = i.InputFloat64Register(1);
+      DwVfpRegister result = i.OutputFloat64Register(0);
+      __ VFPCompareAndSetFlags(a, b);
+      __ vsel(gt, result, a, b);
+      break;
+    }
+    case kArmFloat64Min: {
+      CpuFeatureScope scope(masm(), ARMv8);
+      // (a < b) ? a : b
+      DwVfpRegister a = i.InputFloat64Register(0);
+      DwVfpRegister b = i.InputFloat64Register(1);
+      DwVfpRegister result = i.OutputFloat64Register(0);
+      __ VFPCompareAndSetFlags(b, a);
+      __ vsel(gt, result, a, b);
+      break;
+    }
     case kArmPush:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ vpush(i.InputDoubleRegister(0));

@@ -1285,18 +1285,25 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
+void InstructionSelector::VisitFloat32Max(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat32Max, node);
+}
 
-void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitFloat64Max(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat64Max, node);
+}
 
+void InstructionSelector::VisitFloat32Min(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat32Min, node);
+}
 
-void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
-
-
-void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
-
-
-void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
-
+void InstructionSelector::VisitFloat64Min(Node* node) {
+  DCHECK(IsSupported(ARMv8));
+  VisitRRR(this, kArmFloat64Min, node);
+}
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
   VisitRR(this, kArmVabsF32, node);
@@ -1826,7 +1833,11 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesAway |
              MachineOperatorBuilder::kFloat32RoundTiesEven |
-             MachineOperatorBuilder::kFloat64RoundTiesEven;
+             MachineOperatorBuilder::kFloat64RoundTiesEven |
+             MachineOperatorBuilder::kFloat32Min |
+             MachineOperatorBuilder::kFloat32Max |
+             MachineOperatorBuilder::kFloat64Min |
+             MachineOperatorBuilder::kFloat64Max;
   }
   return flags;
 }
