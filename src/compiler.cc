@@ -861,8 +861,7 @@ void InstallBaselineCompilationResult(CompilationInfo* info,
   }
 }
 
-MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCodeCommon(
-    CompilationInfo* info) {
+MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
@@ -1026,21 +1025,6 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   return true;
 }
 
-MaybeHandle<Code> GetUnoptimizedCode(Handle<JSFunction> function) {
-  DCHECK(!function->GetIsolate()->has_pending_exception());
-  DCHECK(!function->is_compiled());
-  if (function->shared()->is_compiled()) {
-    return Handle<Code>(function->shared()->code());
-  }
-
-  CompilationInfoWithZone info(function);
-  Handle<Code> result;
-  ASSIGN_RETURN_ON_EXCEPTION(info.isolate(), result,
-                             GetUnoptimizedCodeCommon(&info),
-                             Code);
-  return result;
-}
-
 MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                                    Compiler::ConcurrencyMode mode,
                                    BailoutId osr_ast_id = BailoutId::None(),
@@ -1137,8 +1121,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
   CompilationInfoWithZone info(function);
   Handle<Code> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCodeCommon(&info),
-                             Code);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCode(&info), Code);
 
   if (FLAG_always_opt) {
     Handle<Code> opt_code;
@@ -1192,7 +1175,7 @@ bool CompileEvalForDebugging(Handle<JSFunction> function,
 
 bool CompileForDebugging(CompilationInfo* info) {
   info->MarkAsDebug();
-  if (GetUnoptimizedCodeCommon(info).is_null()) {
+  if (GetUnoptimizedCode(info).is_null()) {
     info->isolate()->clear_pending_exception();
     return false;
   }
@@ -1385,8 +1368,13 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     code = Handle<Code>(function->shared()->code(), isolate);
     if (code->kind() != Code::FUNCTION &&
         code->kind() != Code::OPTIMIZED_FUNCTION) {
-      if (!GetUnoptimizedCode(function).ToHandle(&code)) {
-        return false;
+      DCHECK(!isolate->has_pending_exception());
+      DCHECK(!function->is_compiled());
+      if (!function->shared()->is_compiled()) {
+        CompilationInfoWithZone info(function);
+        if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
+          return false;
+        }
       }
     }
     function->ReplaceCode(*code);
