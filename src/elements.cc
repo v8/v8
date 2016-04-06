@@ -1436,8 +1436,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     if (entry == 0) {
       FixedArray* empty = heap->empty_fixed_array();
-      if (FastElementsAccessorSubclass::kind() ==
-          FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+      if (Subclass::kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(obj->elements())->set(1, empty);
       } else {
         obj->set_elements(empty);
