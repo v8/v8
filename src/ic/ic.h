@@ -376,7 +376,7 @@ class KeyedLoadIC : public LoadIC {
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
-  Handle<Code> LoadElementStub(Handle<HeapObject> receiver);
+  void UpdateLoadElement(Handle<HeapObject> receiver);
 
  private:
   friend class IC;
@@ -492,8 +492,8 @@ class KeyedStoreIC : public StoreIC {
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:
-  Handle<Code> StoreElementStub(Handle<Map> receiver_map,
-                                KeyedAccessStoreMode store_mode);
+  void UpdateStoreElement(Handle<Map> receiver_map,
+                          KeyedAccessStoreMode store_mode);
 
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,

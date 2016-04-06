@@ -592,8 +592,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     if (FLAG_use_ic) {
       DCHECK(UseVector());
       ConfigureVectorState(MEGAMORPHIC);
-      TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
+      TRACE_IC("LoadIC", name);
     }
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
@@ -1188,8 +1188,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   return key;
 }
 
-
-Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
+void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
   MapHandleList target_receiver_maps;
@@ -1199,15 +1198,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     Handle<Code> handler =
         PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
             receiver_map, extra_ic_state());
-    ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
-    return Handle<Code>();
+    return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
   for (int i = 0; i < target_receiver_maps.length(); i++) {
     if (!target_receiver_maps.at(i).is_null() &&
         target_receiver_maps.at(i)->instance_type() == JS_VALUE_TYPE) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "JSValue");
-      return Handle<Code>();
+      return;
     }
   }
 
@@ -1225,8 +1223,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     Handle<Code> handler =
         PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
             receiver_map, extra_ic_state());
-    ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
-    return Handle<Code>();
+    return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
   DCHECK(state() != GENERIC);
@@ -1237,21 +1234,20 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
-    return Handle<Code>();
+    return;
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
-    return Handle<Code>();
+    return;
   }
 
   CodeHandleList handlers(target_receiver_maps.length());
   ElementHandlerCompiler compiler(isolate());
   compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
-  ConfigureVectorState(Handle<Name>::null(), &target_receiver_maps, &handlers);
-  return Handle<Code>();
+  ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
 }
 
 
@@ -1266,7 +1262,6 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   Handle<Object> load_handle;
-  Handle<Code> stub;
 
   // Check for non-string values that can be converted into an
   // internalized string directly or is representable as a smi.
@@ -1280,19 +1275,15 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
              !object->IsJSValue()) {
     if (object->IsJSObject() || (object->IsString() && key->IsNumber())) {
       Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
-      if (object->IsString() || key->IsSmi()) stub = LoadElementStub(receiver);
+      if (object->IsString() || key->IsSmi()) UpdateLoadElement(receiver);
     }
   }
 
-  DCHECK(UseVector());
   if (!is_vector_set()) {
-    if (stub.is_null()) {
-      ConfigureVectorState(MEGAMORPHIC);
-      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
-    }
-
-    TRACE_IC("LoadIC", key);
+    ConfigureVectorState(MEGAMORPHIC);
+    TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
   }
+  TRACE_IC("LoadIC", key);
 
   if (!load_handle.is_null()) return load_handle;
 
@@ -1692,9 +1683,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   return slow_stub();
 }
 
-
-Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
-                                            KeyedAccessStoreMode store_mode) {
+void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
+                                      KeyedAccessStoreMode store_mode) {
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.length() == 0) {
@@ -1704,8 +1694,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
     Handle<Code> handler =
         PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
             monomorphic_map, language_mode(), store_mode);
-    ConfigureVectorState(Handle<Name>::null(), monomorphic_map, handler);
-    return Handle<Code>();
+    return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
 
   // There are several special cases where an IC that is MONOMORPHIC can still
@@ -1731,22 +1720,21 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       Handle<Code> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
               transitioned_receiver_map, language_mode(), store_mode);
-      ConfigureVectorState(Handle<Name>::null(), transitioned_receiver_map,
-                           handler);
-      return Handle<Code>();
-    } else if (receiver_map.is_identical_to(previous_receiver_map) &&
-               old_store_mode == STANDARD_STORE &&
-               (store_mode == STORE_AND_GROW_NO_TRANSITION ||
-                store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
-                store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
+      ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
+      return;
+    }
+    if (receiver_map.is_identical_to(previous_receiver_map) &&
+        old_store_mode == STANDARD_STORE &&
+        (store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+         store_mode == STORE_NO_TRANSITION_HANDLE_COW)) {
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
       Handle<Code> handler =
           PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
               receiver_map, language_mode(), store_mode);
-      ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
-      return Handle<Code>();
+      return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }
   }
 
@@ -1766,14 +1754,12 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the megamorphic stub which can handle everything.
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "same map added twice");
-    return Handle<Code>();
+    return;
   }
 
   // If the maximum number of receiver maps has been exceeded, use the
   // megamorphic version of the IC.
-  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    return Handle<Code>();
-  }
+  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) return;
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
@@ -1783,7 +1769,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       store_mode = old_store_mode;
     } else if (store_mode != old_store_mode) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "store mode mismatch");
-      return Handle<Code>();
+      return;
     }
   }
 
@@ -1801,7 +1787,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
         external_arrays != target_receiver_maps.length()) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
                        "unsupported combination of external and normal arrays");
-      return Handle<Code>();
+      return;
     }
   }
 
@@ -1811,7 +1797,6 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<Map> receiver_map,
       &target_receiver_maps, &transitioned_maps, &handlers, store_mode,
       language_mode());
   ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
-  return Handle<Code>();
 }
 
 
@@ -1984,7 +1969,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                                         value, language_mode()),
                              Object);
 
-  Handle<Code> stub;
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
       if (sloppy_arguments_elements) {
@@ -1995,7 +1979,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         // other non-dictionary receivers in the polymorphic case benefit
         // from fast path keyed stores.
         if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly()) {
-          stub = StoreElementStub(old_receiver_map, store_mode);
+          UpdateStoreElement(old_receiver_map, store_mode);
         } else {
           TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
                            "dictionary or proxy prototype");
@@ -2009,11 +1993,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (!is_vector_set()) {
-    if (stub.is_null() || *stub == *slow_stub()) {
-      ConfigureVectorState(MEGAMORPHIC);
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
-                       stub.is_null() ? "set generic" : "slow stub");
-    }
+    ConfigureVectorState(MEGAMORPHIC);
+    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
   }
   TRACE_IC("StoreIC", key);
 
