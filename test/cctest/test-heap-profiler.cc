@@ -2875,6 +2875,15 @@ static const v8::AllocationProfile::Node* FindAllocationProfileNode(
   return node;
 }
 
+static void CheckNoZeroCountNodes(v8::AllocationProfile::Node* node) {
+  for (auto alloc : node->allocations) {
+    CHECK_GT(alloc.count, 0u);
+  }
+  for (auto child : node->children) {
+    CheckNoZeroCountNodes(child);
+  }
+}
+
 TEST(SamplingHeapProfiler) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   LocalContext env;
@@ -3001,6 +3010,8 @@ TEST(SamplingHeapProfiler) {
     v8::base::SmartPointer<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
     CHECK(!profile.is_empty());
+
+    CheckNoZeroCountNodes(profile->GetRootNode());
 
     heap_profiler->StopSamplingHeapProfiler();
   }

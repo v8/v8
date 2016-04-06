@@ -117,6 +117,9 @@ void SamplingHeapProfiler::OnWeakCallback(
   AllocationNode* node = sample->owner;
   DCHECK(node->allocations_[sample->size] > 0);
   node->allocations_[sample->size]--;
+  if (node->allocations_[sample->size] == 0) {
+    node->allocations_.erase(sample->size);
+  }
   sample->profiler->samples_.erase(sample);
   delete sample;
 }
