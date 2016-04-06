@@ -280,6 +280,41 @@ TEST(OperandScale, PrefixesRequired) {
         Bytecode::kExtraWide);
 }
 
+TEST(AccumulatorUse, LogicalOperators) {
+  CHECK_EQ(AccumulatorUse::kNone | AccumulatorUse::kRead,
+           AccumulatorUse::kRead);
+  CHECK_EQ(AccumulatorUse::kRead | AccumulatorUse::kWrite,
+           AccumulatorUse::kReadWrite);
+  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kReadWrite,
+           AccumulatorUse::kRead);
+  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kWrite,
+           AccumulatorUse::kNone);
+}
+
+TEST(AccumulatorUse, SampleBytecodes) {
+  CHECK(Bytecodes::ReadsAccumulator(Bytecode::kStar));
+  CHECK(!Bytecodes::WritesAccumulator(Bytecode::kStar));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kStar),
+           AccumulatorUse::kRead);
+  CHECK(!Bytecodes::ReadsAccumulator(Bytecode::kLdar));
+  CHECK(Bytecodes::WritesAccumulator(Bytecode::kLdar));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kLdar),
+           AccumulatorUse::kWrite);
+  CHECK(Bytecodes::ReadsAccumulator(Bytecode::kAdd));
+  CHECK(Bytecodes::WritesAccumulator(Bytecode::kAdd));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kAdd),
+           AccumulatorUse::kReadWrite);
+}
+
+TEST(AccumulatorUse, AccumulatorUseToString) {
+  std::set<std::string> names;
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kNone));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kRead));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kWrite));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kReadWrite));
+  CHECK_EQ(names.size(), 4);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

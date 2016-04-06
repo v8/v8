@@ -11,11 +11,6 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// TODO(rmcilroy): consider simplifying this to avoid the template magic.
-
-// Template helpers to deduce the number of operands each bytecode has.
-#define OPERAND_TERM OperandType::kNone, OperandType::kNone, OperandType::kNone
-
 template <OperandTypeInfo>
 struct OperandTypeInfoTraits {
   static const bool kIsScalable = false;
@@ -59,13 +54,13 @@ struct RegisterOperandTraits {
 REGISTER_OPERAND_TYPE_LIST(DECLARE_REGISTER_OPERAND)
 #undef DECLARE_REGISTER_OPERAND
 
-template <OperandType... Args>
+template <AccumulatorUse, OperandType...>
 struct BytecodeTraits {};
 
-template <OperandType operand_0, OperandType operand_1, OperandType operand_2,
-          OperandType operand_3>
-struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
-                      OPERAND_TERM> {
+template <AccumulatorUse accumulator_use, OperandType operand_0,
+          OperandType operand_1, OperandType operand_2, OperandType operand_3>
+struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
+                      operand_3> {
   static OperandType GetOperandType(int i) {
     DCHECK(0 <= i && i < kOperandCount);
     const OperandType kOperands[] = {operand_0, operand_1, operand_2,
@@ -86,6 +81,7 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
             OperandTraits<operand_3>::TypeInfo::kIsScalable);
   }
 
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 4;
   static const int kRegisterOperandCount =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
@@ -99,8 +95,9 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
       (RegisterOperandTraits<operand_3>::kIsRegisterOperand << 3);
 };
 
-template <OperandType operand_0, OperandType operand_1, OperandType operand_2>
-struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
+template <AccumulatorUse accumulator_use, OperandType operand_0,
+          OperandType operand_1, OperandType operand_2>
+struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
   static inline OperandType GetOperandType(int i) {
     DCHECK(0 <= i && i <= 2);
     const OperandType kOperands[] = {operand_0, operand_1, operand_2};
@@ -118,6 +115,7 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
             OperandTraits<operand_2>::TypeInfo::kIsScalable);
   }
 
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 3;
   static const int kRegisterOperandCount =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
@@ -129,8 +127,9 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
       (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2);
 };
 
-template <OperandType operand_0, OperandType operand_1>
-struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
+template <AccumulatorUse accumulator_use, OperandType operand_0,
+          OperandType operand_1>
+struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
   static inline OperandType GetOperandType(int i) {
     DCHECK(0 <= i && i < kOperandCount);
     const OperandType kOperands[] = {operand_0, operand_1};
@@ -147,6 +146,7 @@ struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
             OperandTraits<operand_1>::TypeInfo::kIsScalable);
   }
 
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 2;
   static const int kRegisterOperandCount =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
@@ -156,8 +156,8 @@ struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
       (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1);
 };
 
-template <OperandType operand_0>
-struct BytecodeTraits<operand_0, OPERAND_TERM> {
+template <AccumulatorUse accumulator_use, OperandType operand_0>
+struct BytecodeTraits<accumulator_use, operand_0> {
   static inline OperandType GetOperandType(int i) {
     DCHECK(i == 0);
     return operand_0;
@@ -172,6 +172,7 @@ struct BytecodeTraits<operand_0, OPERAND_TERM> {
     return OperandTraits<operand_0>::TypeInfo::kIsScalable;
   }
 
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 1;
   static const int kRegisterOperandCount =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand;
@@ -179,8 +180,8 @@ struct BytecodeTraits<operand_0, OPERAND_TERM> {
       RegisterOperandTraits<operand_0>::kIsRegisterOperand;
 };
 
-template <>
-struct BytecodeTraits<OperandType::kNone, OPERAND_TERM> {
+template <AccumulatorUse accumulator_use>
+struct BytecodeTraits<accumulator_use> {
   static inline OperandType GetOperandType(int i) {
     UNREACHABLE();
     return OperandType::kNone;
@@ -193,6 +194,7 @@ struct BytecodeTraits<OperandType::kNone, OPERAND_TERM> {
 
   static inline bool IsScalable() { return false; }
 
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 0;
   static const int kRegisterOperandCount = 0;
   static const int kRegisterOperandBitmap = 0;

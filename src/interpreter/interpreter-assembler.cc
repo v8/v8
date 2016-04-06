@@ -31,6 +31,7 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       accumulator_(this, MachineRepresentation::kTagged),
+      accumulator_use_(AccumulatorUse::kNone),
       context_(this, MachineRepresentation::kTagged),
       bytecode_array_(this, MachineRepresentation::kTagged),
       disable_stack_check_across_call_(false),
@@ -45,11 +46,26 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
   }
 }
 
-InterpreterAssembler::~InterpreterAssembler() {}
+InterpreterAssembler::~InterpreterAssembler() {
+  // If the following check fails the handler does not use the
+  // accumulator in the way described in the bytecode definitions in
+  // bytecodes.h.
+  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+}
 
-Node* InterpreterAssembler::GetAccumulator() { return accumulator_.value(); }
+Node* InterpreterAssembler::GetAccumulatorUnchecked() {
+  return accumulator_.value();
+}
+
+Node* InterpreterAssembler::GetAccumulator() {
+  DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
+  accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
+  return GetAccumulatorUnchecked();
+}
 
 void InterpreterAssembler::SetAccumulator(Node* value) {
+  DCHECK(Bytecodes::WritesAccumulator(bytecode_));
+  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
   accumulator_.Bind(value);
 }
 
@@ -554,7 +570,7 @@ void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
   }
 
   InterpreterDispatchDescriptor descriptor(isolate());
-  Node* args[] = {GetAccumulator(),          RegisterFileRawPointer(),
+  Node* args[] = {GetAccumulatorUnchecked(), RegisterFileRawPointer(),
                   bytecode_offset,           BytecodeArrayTaggedPointer(),
                   DispatchTableRawPointer(), GetContext()};
   TailCall(descriptor, handler, args, 0);
@@ -654,7 +670,7 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
-              SmiTag(BytecodeOffset()), GetAccumulator());
+              SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
 }
 
 // static

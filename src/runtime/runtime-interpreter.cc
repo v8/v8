@@ -44,7 +44,8 @@ void AdvanceToOffsetForTracing(
 void PrintRegisters(std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
-  static const int kRegFieldWidth = static_cast<int>(strlen("accumulator"));
+  static const char kAccumulator[] = "accumulator";
+  static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
   static const char* kInputColourCode = "\033[0;36m";
   static const char* kOutputColourCode = "\033[0;35m";
   static const char* kNormalColourCode = "\033[0;m";
@@ -53,10 +54,15 @@ void PrintRegisters(std::ostream& os, bool is_input,
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
+
   // Print accumulator.
-  os << "      [ accumulator" << kArrowDirection;
-  accumulator->ShortPrint();
-  os << " ]" << std::endl;
+  if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
+      (!is_input && interpreter::Bytecodes::WritesAccumulator(bytecode))) {
+    os << "      [ " << kAccumulator << kArrowDirection;
+    accumulator->ShortPrint();
+    os << " ]" << std::endl;
+  }
 
   // Find the location of the register file.
   JavaScriptFrameIterator frame_iterator(
@@ -66,7 +72,6 @@ void PrintRegisters(std::ostream& os, bool is_input,
       frame->fp() + InterpreterFrameConstants::kRegisterFilePointerFromFp;
 
   // Print the registers.
-  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
   for (int operand_index = 0; operand_index < operand_count; operand_index++) {
     interpreter::OperandType operand_type =

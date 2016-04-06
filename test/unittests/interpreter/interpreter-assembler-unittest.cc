@@ -62,6 +62,18 @@ Matcher<Node*> IsWordOr(const Matcher<Node*>& lhs_matcher,
                            : IsWord32Or(lhs_matcher, rhs_matcher);
 }
 
+InterpreterAssemblerTest::InterpreterAssemblerForTest::
+    ~InterpreterAssemblerForTest() {
+  // Tests don't necessarily read and write accumulator but
+  // InterpreterAssembler checks accumulator uses.
+  if (Bytecodes::ReadsAccumulator(bytecode())) {
+    GetAccumulator();
+  }
+  if (Bytecodes::WritesAccumulator(bytecode())) {
+    SetAccumulator(nullptr);
+  }
+}
+
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(
     const Matcher<LoadRepresentation>& rep_matcher,
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher) {
@@ -524,12 +536,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
 
 TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    if (!interpreter::Bytecodes::ReadsAccumulator(bytecode) ||
+        !interpreter::Bytecodes::WritesAccumulator(bytecode)) {
+      continue;
+    }
+
     InterpreterAssemblerForTest m(this, bytecode);
     // Should be incoming accumulator if not set.
     EXPECT_THAT(
         m.GetAccumulator(),
         IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
-
     // Should be set by SetAccumulator.
     Node* accumulator_value_1 = m.Int32Constant(0xdeadbeef);
     m.SetAccumulator(accumulator_value_1);

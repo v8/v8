@@ -150,6 +150,7 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   void Abort(BailoutReason bailout_reason);
 
  protected:
+  Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
 
  private:
@@ -161,6 +162,11 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   compiler::Node* BytecodeOffset();
   // Returns a raw pointer to first entry in the interpreter dispatch table.
   compiler::Node* DispatchTableRawPointer();
+
+  // Returns the accumulator value without checking whether bytecode
+  // uses it. This is intended to be used only in dispatch and in
+  // tracing as these need to bypass accumulator use validity checks.
+  compiler::Node* GetAccumulatorUnchecked();
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
@@ -217,6 +223,7 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   Bytecode bytecode_;
   OperandScale operand_scale_;
   CodeStubAssembler::Variable accumulator_;
+  AccumulatorUse accumulator_use_;
   CodeStubAssembler::Variable context_;
   CodeStubAssembler::Variable bytecode_array_;
 
