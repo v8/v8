@@ -868,40 +868,6 @@
   'ignition/elided-instruction': [FAIL],
 }],  # ignition == False
 
-['ignition == True and system == windows and no_snap', {
-  # TODO(rmcilroy): Fail with nosnap and shared libraries.
-  'es6/array-from': [FAIL],
-  'es6/classes-subclass-builtins': [FAIL],
-  'es6/computed-property-names-classes': [FAIL],
-  'es6/computed-property-names-object-literals-methods': [FAIL],
-  'es6/debug-stepin-generators': [FAIL],
-  'es6/destructuring': [FAIL],
-  'es6/destructuring-assignment': [FAIL],
-  'es6/generators-iteration': [FAIL],
-  'es6/generators-mirror': [FAIL],
-  'es6/generators-parsing': [FAIL],
-  'es6/generators-poisoned-properties': [FAIL],
-  'es6/generators-relocation': [FAIL],
-  'es6/generators-states': [FAIL],
-  'es6/iteration-semantics': [FAIL],
-  'es6/object-literals-method': [FAIL],
-  'es6/object-literals-super': [FAIL],
-  'es6/promises': [FAIL],
-  'es6/regress/regress-2681': [FAIL],
-  'es6/regress/regress-2691': [FAIL],
-  'es6/regress/regress-3280': [FAIL],
-  'es6/spread-array': [FAIL],
-  'es6/spread-call': [FAIL],
-  'es6/typedarray': [FAIL],
-  'es6/typedarray-from': [FAIL],
-  'harmony/function-sent': [FAIL],
-  'harmony/generators': [FAIL],
-  'harmony/iterator-close': [FAIL],
-  'harmony/regress/regress-4482': [FAIL],
-  'messages': [FAIL],
-  'regress-3225': [FAIL],
-}],  # ignition == True and system == windows and no_snap
-
 ##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
