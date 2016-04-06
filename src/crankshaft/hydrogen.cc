@@ -3599,7 +3599,6 @@ std::ostream& operator<<(std::ostream& os, const HBasicBlock& b) {
   return os << "B" << b.block_id();
 }
 
-
 HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
     : isolate_(info->isolate()),
       next_block_id_(0),
@@ -3612,6 +3611,7 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       info_(info),
       descriptor_(descriptor),
       zone_(info->zone()),
+      allow_code_motion_(false),
       use_optimistic_licm_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
@@ -4444,6 +4444,11 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   graph()->set_use_optimistic_licm(
       !type_info->matches_inlined_type_change_checksum(composite_checksum));
   type_info->set_inlined_type_change_checksum(composite_checksum);
+
+  // Set this predicate early to avoid handle deref during graph optimization.
+  graph()->set_allow_code_motion(
+      current_info()->IsStub() ||
+      current_info()->shared_info()->opt_count() + 1 < FLAG_max_opt_count);
 
   // Perform any necessary OSR-specific cleanups or changes to the graph.
   osr()->FinishGraph();

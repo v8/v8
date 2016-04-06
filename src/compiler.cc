@@ -168,7 +168,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, const char* debug_name,
       prologue_offset_(Code::kPrologueOffsetNotSet),
       track_positions_(FLAG_hydrogen_track_positions ||
                        isolate->cpu_profiler()->is_profiling()),
-      opt_count_(has_shared_info() ? shared_info()->opt_count() : 0),
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
@@ -378,7 +377,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Limit the number of times we try to optimize functions.
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
-  if (info()->opt_count() > kMaxOptCount) {
+  if (info()->shared_info()->opt_count() > kMaxOptCount) {
     return AbortOptimization(kOptimizedTooManyTimes);
   }
 

@@ -392,13 +392,11 @@ class HGraph final : public ZoneObject {
   }
   int maximum_environment_size() { return maximum_environment_size_; }
 
-  bool use_optimistic_licm() {
-    return use_optimistic_licm_;
-  }
+  bool allow_code_motion() const { return allow_code_motion_; }
+  void set_allow_code_motion(bool value) { allow_code_motion_ = value; }
 
-  void set_use_optimistic_licm(bool value) {
-    use_optimistic_licm_ = value;
-  }
+  bool use_optimistic_licm() const { return use_optimistic_licm_; }
+  void set_use_optimistic_licm(bool value) { use_optimistic_licm_ = value; }
 
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
@@ -480,6 +478,7 @@ class HGraph final : public ZoneObject {
   CallInterfaceDescriptor descriptor_;
   Zone* zone_;
 
+  bool allow_code_motion_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;

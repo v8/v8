@@ -197,7 +197,6 @@ class CompilationInfo {
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
-  int opt_count() const { return opt_count_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
   bool is_this_defined() const;
@@ -556,10 +555,6 @@ class CompilationInfo {
   bool track_positions_;
 
   InlinedFunctionList inlined_functions_;
-
-  // A copy of shared_info()->opt_count() to avoid handle deref
-  // during graph optimization.
-  int opt_count_;
 
   // Number of parameters used for compilation of stubs that require arguments.
   int parameter_count_;
