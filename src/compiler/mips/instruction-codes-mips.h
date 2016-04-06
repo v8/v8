@@ -30,6 +30,7 @@ namespace compiler {
   V(MipsClz)                       \
   V(MipsCtz)                       \
   V(MipsPopcnt)                    \
+  V(MipsLsa)                       \
   V(MipsShl)                       \
   V(MipsShr)                       \
   V(MipsSar)                       \

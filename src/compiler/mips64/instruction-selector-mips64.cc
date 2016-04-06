@@ -611,14 +611,66 @@ void InstructionSelector::VisitWord64Clz(Node* node) {
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   Mips64OperandGenerator g(this);
-  // TODO(plind): Consider multiply & add optimization from arm port.
+  Int32BinopMatcher m(node);
+
+  // Select Lsa for (left + (left_of_right << imm)).
+  if (m.right().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(mright.left().node()), g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
+  // Select Lsa for ((left_of_left << imm) + right).
+  if (m.left().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      Emit(kMips64Lsa, g.DefineAsRegister(node),
+           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
   VisitBinop(this, node, kMips64Add);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
   Mips64OperandGenerator g(this);
-  // TODO(plind): Consider multiply & add optimization from arm port.
+  Int64BinopMatcher m(node);
+
+  // Select Dlsa for (left + (left_of_right << imm)).
+  if (m.right().opcode() == IrOpcode::kWord64Shl &&
+      CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    if (mright.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
+  // Select Dlsa for ((left_of_left << imm) + right).
+  if (m.left().opcode() == IrOpcode::kWord64Shl &&
+      CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
+    Int64BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
   VisitBinop(this, node, kMips64Dadd);
 }
 
@@ -645,12 +697,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
     if (base::bits::IsPowerOfTwo32(value - 1)) {
-      InstructionOperand temp = g.TempRegister();
-      Emit(kMips64Shl | AddressingModeField::encode(kMode_None), temp,
+      Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
-      Emit(kMips64Add | AddressingModeField::encode(kMode_None),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()), temp);
       return;
     }
     if (base::bits::IsPowerOfTwo32(value + 1)) {
@@ -705,12 +754,10 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
       return;
     }
     if (base::bits::IsPowerOfTwo32(value - 1)) {
-      InstructionOperand temp = g.TempRegister();
-      Emit(kMips64Dshl | AddressingModeField::encode(kMode_None), temp,
-           g.UseRegister(m.left().node()),
+      // Dlsa macro will handle the shifting value out of bound cases.
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
-      Emit(kMips64Dadd | AddressingModeField::encode(kMode_None),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()), temp);
       return;
     }
     if (base::bits::IsPowerOfTwo32(value + 1)) {

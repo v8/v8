@@ -899,7 +899,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ li(i.OutputRegister(), i.InputOperand(0));
       }
       break;
-
+    case kMipsLsa:
+      DCHECK(instr->InputAt(2)->IsImmediate());
+      __ Lsa(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+             i.InputInt8(2));
+      break;
     case kMipsCmpS:
       // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
