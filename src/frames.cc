@@ -104,17 +104,15 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   StackFrame::Type type = ExitFrame::GetStateForFramePointer(
       Isolate::c_entry_fp(top), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
-  if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
 }
 
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
                                              StackFrame::State* state) {
-  if (type == StackFrame::NONE) return NULL;
   StackFrame* result = SingletonFor(type);
-  DCHECK(result != NULL);
-  result->state_ = *state;
+  DCHECK((!result) == (type == StackFrame::NONE));
+  if (result) result->state_ = *state;
   return result;
 }
 
@@ -230,10 +228,8 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   } else {
     return;
   }
-  if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
-  DCHECK(frame_);
-  Advance();
+  if (frame_) Advance();
 }
 
 
@@ -261,12 +257,8 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   // Advance to the previous frame.
   StackFrame::State state;
   StackFrame::Type type = frame_->GetCallerState(&state);
-  if (SingletonFor(type) == NULL) {
-    frame_ = NULL;
-    return;
-  }
   frame_ = SingletonFor(type, &state);
-  DCHECK(frame_);
+  if (!frame_) return;
 
   // Check that we have actually moved to the previous frame in the stack.
   if (frame_->sp() < last_sp || frame_->fp() < last_fp) {
