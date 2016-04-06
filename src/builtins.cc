@@ -138,32 +138,35 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 //
 // In the body of the builtin function the arguments can be accessed
 // through the BuiltinArguments object args.
-
+// TODO(cbruni): add global flag to check whether any tracing events have been
+// enabled.
 #define BUILTIN(name)                                                          \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(name##ArgumentsType args, \
                                                      Isolate* isolate);        \
-  MUST_USE_RESULT static Object* Builtin_##name(                               \
+                                                                               \
+  V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                        \
       int args_length, Object** args_object, Isolate* isolate) {               \
-    Object* value;                                                             \
-    isolate->counters()->runtime_calls()->Increment();                         \
+    name##ArgumentsType args(args_length, args_object);                        \
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
+    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                      \
                  "V8.Builtin_" #name);                                         \
-    name##ArgumentsType args(args_length, args_object);                        \
+    return Builtin_Impl_##name(args, isolate);                                 \
+  }                                                                            \
+                                                                               \
+  MUST_USE_RESULT static Object* Builtin_##name(                               \
+      int args_length, Object** args_object, Isolate* isolate) {               \
     if (FLAG_runtime_call_stats) {                                             \
-      RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();     \
-      RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);            \
-      value = Builtin_Impl_##name(args, isolate);                              \
-    } else {                                                                   \
-      value = Builtin_Impl_##name(args, isolate);                              \
+      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);     \
     }                                                                          \
-    return value;                                                              \
+    name##ArgumentsType args(args_length, args_object);                        \
+    return Builtin_Impl_##name(args, isolate);                                 \
   }                                                                            \
                                                                                \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(name##ArgumentsType args, \
                                                      Isolate* isolate)
 
 // ----------------------------------------------------------------------------
-
 
 #define CHECK_RECEIVER(Type, name, method)                                  \
   if (!args.receiver()->Is##Type()) {                                       \
