@@ -140,14 +140,11 @@ void CopyObjectToObjectElements(FixedArrayBase* from_base,
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
   FixedArray* to = FixedArray::cast(to_base);
-  DCHECK(IsFastSmiOrObjectElementsKind(from_kind) ||
-         from_kind == FAST_STRING_WRAPPER_ELEMENTS);
+  DCHECK(IsFastSmiOrObjectElementsKind(from_kind));
   DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
 
   WriteBarrierMode write_barrier_mode =
-      ((IsFastObjectElementsKind(from_kind) &&
-        IsFastObjectElementsKind(to_kind)) ||
-       from_kind == FAST_STRING_WRAPPER_ELEMENTS)
+      (IsFastObjectElementsKind(from_kind) && IsFastObjectElementsKind(to_kind))
           ? UPDATE_WRITE_BARRIER
           : SKIP_WRITE_BARRIER;
   for (int i = 0; i < copy_size; i++) {
@@ -466,8 +463,7 @@ static void TraceTopFrame(Isolate* isolate) {
 // http://en.wikipedia.org/wiki/Curiously_recurring_template_pattern).  We use
 // CRTP to guarantee aggressive compile time optimizations (i.e.  inlining and
 // specialization of SomeElementsAccessor methods).
-template <typename ElementsAccessorSubclass,
-          typename ElementsTraitsParam>
+template <typename Subclass, typename ElementsTraitsParam>
 class ElementsAccessorBase : public ElementsAccessor {
  public:
   explicit ElementsAccessorBase(const char* name)
@@ -495,12 +491,12 @@ class ElementsAccessorBase : public ElementsAccessor {
     } else {
       length = fixed_array_base->length();
     }
-    ElementsAccessorSubclass::ValidateContents(holder, length);
+    Subclass::ValidateContents(holder, length);
   }
 
   void Validate(Handle<JSObject> holder) final {
     DisallowHeapAllocation no_gc;
-    ElementsAccessorSubclass::ValidateImpl(holder);
+    Subclass::ValidateImpl(holder);
   }
 
   static bool IsPackedImpl(Handle<JSObject> holder,
@@ -508,8 +504,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                            uint32_t end) {
     if (IsFastPackedElementsKind(kind())) return true;
     for (uint32_t i = start; i < end; i++) {
-      if (!ElementsAccessorSubclass::HasElementImpl(holder, i, backing_store,
-                                                    ALL_PROPERTIES)) {
+      if (!Subclass::HasElementImpl(holder, i, backing_store, ALL_PROPERTIES)) {
         return false;
       }
     }
@@ -520,8 +515,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (!IsHoleyElementsKind(kind())) return;
     int length = Smi::cast(array->length())->value();
     Handle<FixedArrayBase> backing_store(array->elements());
-    if (!ElementsAccessorSubclass::IsPackedImpl(array, backing_store, 0,
-                                                length)) {
+    if (!Subclass::IsPackedImpl(array, backing_store, 0, length)) {
       return;
     }
     ElementsKind packed_kind = GetPackedElementsKind(kind());
@@ -537,20 +531,18 @@ class ElementsAccessorBase : public ElementsAccessor {
   bool HasElement(Handle<JSObject> holder, uint32_t index,
                   Handle<FixedArrayBase> backing_store,
                   PropertyFilter filter) final {
-    return ElementsAccessorSubclass::HasElementImpl(holder, index,
-                                                    backing_store, filter);
+    return Subclass::HasElementImpl(holder, index, backing_store, filter);
   }
 
   static bool HasElementImpl(Handle<JSObject> holder, uint32_t index,
                              Handle<FixedArrayBase> backing_store,
                              PropertyFilter filter) {
-    return ElementsAccessorSubclass::GetEntryForIndexImpl(
-               *holder, *backing_store, index, filter) != kMaxUInt32;
+    return Subclass::GetEntryForIndexImpl(*holder, *backing_store, index,
+                                          filter) != kMaxUInt32;
   }
 
   bool HasAccessors(JSObject* holder) final {
-    return ElementsAccessorSubclass::HasAccessorsImpl(holder,
-                                                      holder->elements());
+    return Subclass::HasAccessorsImpl(holder, holder->elements());
   }
 
   static bool HasAccessorsImpl(JSObject* holder,
@@ -559,11 +551,11 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) final {
-    return ElementsAccessorSubclass::GetImpl(holder, entry);
+    return Subclass::GetImpl(holder, entry);
   }
 
   static Handle<Object> GetImpl(Handle<JSObject> holder, uint32_t entry) {
-    return ElementsAccessorSubclass::GetImpl(holder->elements(), entry);
+    return Subclass::GetImpl(holder->elements(), entry);
   }
 
   static Handle<Object> GetImpl(FixedArrayBase* backing_store, uint32_t entry) {
@@ -573,14 +565,13 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   void Set(Handle<JSObject> holder, uint32_t entry, Object* value) final {
-    ElementsAccessorSubclass::SetImpl(holder, entry, value);
+    Subclass::SetImpl(holder, entry, value);
   }
 
   void Reconfigure(Handle<JSObject> object, Handle<FixedArrayBase> store,
                    uint32_t entry, Handle<Object> value,
                    PropertyAttributes attributes) final {
-    ElementsAccessorSubclass::ReconfigureImpl(object, store, entry, value,
-                                              attributes);
+    Subclass::ReconfigureImpl(object, store, entry, value, attributes);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,
@@ -592,8 +583,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   void Add(Handle<JSObject> object, uint32_t index, Handle<Object> value,
            PropertyAttributes attributes, uint32_t new_capacity) final {
-    ElementsAccessorSubclass::AddImpl(object, index, value, attributes,
-                                      new_capacity);
+    Subclass::AddImpl(object, index, value, attributes, new_capacity);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -604,7 +594,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   uint32_t Push(Handle<JSArray> receiver, Arguments* args,
                 uint32_t push_size) final {
-    return ElementsAccessorSubclass::PushImpl(receiver, args, push_size);
+    return Subclass::PushImpl(receiver, args, push_size);
   }
 
   static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
@@ -615,7 +605,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
                    uint32_t unshift_size) final {
-    return ElementsAccessorSubclass::UnshiftImpl(receiver, args, unshift_size);
+    return Subclass::UnshiftImpl(receiver, args, unshift_size);
   }
 
   static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
@@ -626,7 +616,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   Handle<JSArray> Slice(Handle<JSObject> receiver, uint32_t start,
                         uint32_t end) final {
-    return ElementsAccessorSubclass::SliceImpl(receiver, start, end);
+    return Subclass::SliceImpl(receiver, start, end);
   }
 
   static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
@@ -638,8 +628,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   Handle<JSArray> Splice(Handle<JSArray> receiver, uint32_t start,
                          uint32_t delete_count, Arguments* args,
                          uint32_t add_count) final {
-    return ElementsAccessorSubclass::SpliceImpl(receiver, start, delete_count,
-                                                args, add_count);
+    return Subclass::SpliceImpl(receiver, start, delete_count, args, add_count);
   }
 
   static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
@@ -650,7 +639,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   Handle<Object> Pop(Handle<JSArray> receiver) final {
-    return ElementsAccessorSubclass::PopImpl(receiver);
+    return Subclass::PopImpl(receiver);
   }
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) {
@@ -659,7 +648,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   Handle<Object> Shift(Handle<JSArray> receiver) final {
-    return ElementsAccessorSubclass::ShiftImpl(receiver);
+    return Subclass::ShiftImpl(receiver);
   }
 
   static Handle<Object> ShiftImpl(Handle<JSArray> receiver) {
@@ -668,8 +657,8 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   void SetLength(Handle<JSArray> array, uint32_t length) final {
-    ElementsAccessorSubclass::SetLengthImpl(array->GetIsolate(), array, length,
-                                            handle(array->elements()));
+    Subclass::SetLengthImpl(array->GetIsolate(), array, length,
+                            handle(array->elements()));
   }
 
   static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
@@ -713,7 +702,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     } else {
       // Check whether the backing store should be expanded.
       capacity = Max(length, JSObject::NewElementsCapacity(capacity));
-      ElementsAccessorSubclass::GrowCapacityAndConvertImpl(array, capacity);
+      Subclass::GrowCapacityAndConvertImpl(array, capacity);
     }
 
     array->set_length(Smi::FromInt(length));
@@ -727,7 +716,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       return static_cast<uint32_t>(
           Smi::cast(JSArray::cast(receiver)->length())->value());
     }
-    return ElementsAccessorSubclass::GetCapacityImpl(receiver, elements);
+    return Subclass::GetCapacityImpl(receiver, elements);
   }
 
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
@@ -762,9 +751,8 @@ class ElementsAccessorBase : public ElementsAccessor {
       packed_size = Smi::cast(JSArray::cast(*object)->length())->value();
     }
 
-    ElementsAccessorSubclass::CopyElementsImpl(
-        *old_elements, src_index, *new_elements, from_kind, dst_index,
-        packed_size, copy_size);
+    Subclass::CopyElementsImpl(*old_elements, src_index, *new_elements,
+                               from_kind, dst_index, packed_size, copy_size);
 
     return new_elements;
   }
@@ -784,12 +772,17 @@ class ElementsAccessorBase : public ElementsAccessor {
     DCHECK(IsFastDoubleElementsKind(from_kind) !=
                IsFastDoubleElementsKind(kind()) ||
            IsDictionaryElementsKind(from_kind) ||
-           from_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            static_cast<uint32_t>(old_elements->length()) < capacity);
+    Subclass::BasicGrowCapacityAndConvertImpl(object, old_elements, from_kind,
+                                              kind(), capacity);
+  }
+
+  static void BasicGrowCapacityAndConvertImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> old_elements,
+      ElementsKind from_kind, ElementsKind to_kind, uint32_t capacity) {
     Handle<FixedArrayBase> elements =
         ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
 
-    ElementsKind to_kind = kind();
     if (IsHoleyElementsKind(from_kind)) to_kind = GetHoleyElementsKind(to_kind);
     Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
     JSObject::SetMapAndElements(object, new_map, elements);
@@ -805,11 +798,11 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   void GrowCapacityAndConvert(Handle<JSObject> object,
                               uint32_t capacity) final {
-    ElementsAccessorSubclass::GrowCapacityAndConvertImpl(object, capacity);
+    Subclass::GrowCapacityAndConvertImpl(object, capacity);
   }
 
   void Delete(Handle<JSObject> obj, uint32_t entry) final {
-    ElementsAccessorSubclass::DeleteImpl(obj, entry);
+    Subclass::DeleteImpl(obj, entry);
   }
 
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
@@ -833,7 +826,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       }
     }
     FixedArrayBase* from = from_holder->elements();
-    // NOTE: the ElementsAccessorSubclass::CopyElementsImpl() methods
+    // NOTE: the Subclass::CopyElementsImpl() methods
     // violate the handlified function signature convention:
     // raw pointer parameters in the function that allocates. This is done
     // intentionally to avoid ArrayConcat() builtin performance degradation.
@@ -842,13 +835,12 @@ class ElementsAccessorBase : public ElementsAccessor {
     // copying from object with fast double elements to object with object
     // elements. In all the other cases there are no allocations performed and
     // handle creation causes noticeable performance degradation of the builtin.
-    ElementsAccessorSubclass::CopyElementsImpl(
-        from, from_start, *to, from_kind, to_start, packed_size, copy_size);
+    Subclass::CopyElementsImpl(from, from_start, *to, from_kind, to_start,
+                               packed_size, copy_size);
   }
 
   Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) final {
-    return ElementsAccessorSubclass::NormalizeImpl(object,
-                                                   handle(object->elements()));
+    return Subclass::NormalizeImpl(object, handle(object->elements()));
   }
 
   static Handle<SeededNumberDictionary> NormalizeImpl(
@@ -861,7 +853,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                                      Handle<FixedArray> values_or_entries,
                                      bool get_entries, int* nof_items,
                                      PropertyFilter filter) {
-    return ElementsAccessorSubclass::CollectValuesOrEntriesImpl(
+    return Subclass::CollectValuesOrEntriesImpl(
         isolate, object, values_or_entries, get_entries, nof_items, filter);
   }
 
@@ -872,7 +864,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     int count = 0;
     KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
     accumulator.NextPrototype();
-    ElementsAccessorSubclass::CollectElementIndicesImpl(
+    Subclass::CollectElementIndicesImpl(
         object, handle(object->elements(), isolate), &accumulator, kMaxUInt32,
         ALL_PROPERTIES, 0);
     Handle<FixedArray> keys = accumulator.GetKeys();
@@ -883,15 +875,14 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t index;
       if (!key->ToUint32(&index)) continue;
 
-      uint32_t entry = ElementsAccessorSubclass::GetEntryForIndexImpl(
+      uint32_t entry = Subclass::GetEntryForIndexImpl(
           *object, object->elements(), index, filter);
       if (entry == kMaxUInt32) continue;
 
-      PropertyDetails details =
-          ElementsAccessorSubclass::GetDetailsImpl(*object, entry);
+      PropertyDetails details = Subclass::GetDetailsImpl(*object, entry);
 
       if (details.kind() == kData) {
-        value = ElementsAccessorSubclass::GetImpl(object, entry);
+        value = Subclass::GetImpl(object, entry);
       } else {
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -912,8 +903,8 @@ class ElementsAccessorBase : public ElementsAccessor {
                              KeyAccumulator* keys, uint32_t range,
                              PropertyFilter filter, uint32_t offset) final {
     if (filter & ONLY_ALL_CAN_READ) return;
-    ElementsAccessorSubclass::CollectElementIndicesImpl(
-        object, backing_store, keys, range, filter, offset);
+    Subclass::CollectElementIndicesImpl(object, backing_store, keys, range,
+                                        filter, offset);
   }
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
@@ -926,8 +917,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t length = GetIterationLength(*object, *backing_store);
     if (range < length) length = range;
     for (uint32_t i = offset; i < length; i++) {
-      if (ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
-                                                   filter)) {
+      if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
         keys->AddKey(i);
       }
     }
@@ -938,11 +928,9 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
-    uint32_t length =
-        ElementsAccessorSubclass::GetIterationLength(*object, *backing_store);
+    uint32_t length = Subclass::GetIterationLength(*object, *backing_store);
     for (uint32_t i = 0; i < length; i++) {
-      if (ElementsAccessorSubclass::HasElementImpl(object, i, backing_store,
-                                                   filter)) {
+      if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
         if (convert == CONVERT_TO_STRING) {
           Handle<String> index_string = isolate->factory()->Uint32ToString(i);
           list->set(insertion_index, *index_string);
@@ -961,8 +949,8 @@ class ElementsAccessorBase : public ElementsAccessor {
                                            Handle<FixedArray> keys,
                                            GetKeysConversion convert,
                                            PropertyFilter filter) final {
-    return ElementsAccessorSubclass::PrependElementIndicesImpl(
-        object, backing_store, keys, convert, filter);
+    return Subclass::PrependElementIndicesImpl(object, backing_store, keys,
+                                               convert, filter);
   }
 
   static Handle<FixedArray> PrependElementIndicesImpl(
@@ -972,14 +960,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     Isolate* isolate = object->GetIsolate();
     uint32_t nof_property_keys = keys->length();
     uint32_t initial_list_length =
-        ElementsAccessorSubclass::GetCapacityImpl(*object, *backing_store);
+        Subclass::GetCapacityImpl(*object, *backing_store);
     initial_list_length += nof_property_keys;
 
     // Collect the element indices into a new list.
     uint32_t nof_indices = 0;
     Handle<FixedArray> combined_keys =
         isolate->factory()->NewFixedArray(initial_list_length);
-    combined_keys = ElementsAccessorSubclass::DirectCollectElementIndicesImpl(
+    combined_keys = Subclass::DirectCollectElementIndicesImpl(
         isolate, object, backing_store, convert, filter, combined_keys,
         &nof_indices);
 
@@ -1038,8 +1026,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                    KeyAccumulator* accumulator,
                                    AddKeyConversion convert) final {
-    ElementsAccessorSubclass::AddElementsToKeyAccumulatorImpl(
-        receiver, accumulator, convert);
+    Subclass::AddElementsToKeyAccumulatorImpl(receiver, accumulator, convert);
   }
 
   static uint32_t GetCapacityImpl(JSObject* holder,
@@ -1048,7 +1035,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   uint32_t GetCapacity(JSObject* holder, FixedArrayBase* backing_store) final {
-    return ElementsAccessorSubclass::GetCapacityImpl(holder, backing_store);
+    return Subclass::GetCapacityImpl(holder, backing_store);
   }
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* backing_store,
@@ -1060,8 +1047,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                                        FixedArrayBase* backing_store,
                                        uint32_t index, PropertyFilter filter) {
     if (IsHoleyElementsKind(kind())) {
-      return index < ElementsAccessorSubclass::GetCapacityImpl(holder,
-                                                               backing_store) &&
+      return index < Subclass::GetCapacityImpl(holder, backing_store) &&
                      !BackingStore::cast(backing_store)->is_the_hole(index)
                  ? index
                  : kMaxUInt32;
@@ -1073,8 +1059,8 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   uint32_t GetEntryForIndex(JSObject* holder, FixedArrayBase* backing_store,
                             uint32_t index) final {
-    return ElementsAccessorSubclass::GetEntryForIndexImpl(
-        holder, backing_store, index, ALL_PROPERTIES);
+    return Subclass::GetEntryForIndexImpl(holder, backing_store, index,
+                                          ALL_PROPERTIES);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
@@ -1087,7 +1073,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   PropertyDetails GetDetails(JSObject* holder, uint32_t entry) final {
-    return ElementsAccessorSubclass::GetDetailsImpl(holder, entry);
+    return Subclass::GetDetailsImpl(holder, entry);
   }
 
  private:
@@ -1403,21 +1389,18 @@ class DictionaryElementsAccessor
 
 
 // Super class for all fast element arrays.
-template<typename FastElementsAccessorSubclass,
-         typename KindTraits>
-class FastElementsAccessor
-    : public ElementsAccessorBase<FastElementsAccessorSubclass, KindTraits> {
+template <typename Subclass, typename KindTraits>
+class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
   explicit FastElementsAccessor(const char* name)
-      : ElementsAccessorBase<FastElementsAccessorSubclass,
-                             KindTraits>(name) {}
+      : ElementsAccessorBase<Subclass, KindTraits>(name) {}
 
   typedef typename KindTraits::BackingStore BackingStore;
 
   static Handle<SeededNumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> store) {
     Isolate* isolate = store->GetIsolate();
-    ElementsKind kind = FastElementsAccessorSubclass::kind();
+    ElementsKind kind = Subclass::kind();
 
     // Ensure that notifications fire if the array or object prototypes are
     // normalizing.
@@ -1436,7 +1419,7 @@ class FastElementsAccessor
       if (IsHoleyElementsKind(kind)) {
         if (BackingStore::cast(*store)->is_the_hole(i)) continue;
       }
-      Handle<Object> value = FastElementsAccessorSubclass::GetImpl(*store, i);
+      Handle<Object> value = Subclass::GetImpl(*store, i);
       dictionary = SeededNumberDictionary::AddNumberEntry(
           dictionary, i, value, details, used_as_prototype);
       j++;
@@ -1539,14 +1522,13 @@ class FastElementsAccessor
                       uint32_t new_capacity) {
     DCHECK_EQ(NONE, attributes);
     ElementsKind from_kind = object->GetElementsKind();
-    ElementsKind to_kind = FastElementsAccessorSubclass::kind();
+    ElementsKind to_kind = Subclass::kind();
     if (IsDictionaryElementsKind(from_kind) ||
         IsFastDoubleElementsKind(from_kind) !=
             IsFastDoubleElementsKind(to_kind) ||
-        FastElementsAccessorSubclass::GetCapacityImpl(
-            *object, object->elements()) != new_capacity) {
-      FastElementsAccessorSubclass::GrowCapacityAndConvertImpl(object,
-                                                               new_capacity);
+        Subclass::GetCapacityImpl(*object, object->elements()) !=
+            new_capacity) {
+      Subclass::GrowCapacityAndConvertImpl(object, new_capacity);
     } else {
       if (IsFastElementsKind(from_kind) && from_kind != to_kind) {
         JSObject::TransitionElementsKind(object, to_kind);
@@ -1556,7 +1538,7 @@ class FastElementsAccessor
         JSObject::EnsureWritableFastElements(object);
       }
     }
-    FastElementsAccessorSubclass::SetImpl(object, index, *value);
+    Subclass::SetImpl(object, index, *value);
   }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
@@ -1579,13 +1561,11 @@ class FastElementsAccessor
                                               AddKeyConversion convert) {
     Handle<FixedArrayBase> elements(receiver->elements(),
                                     receiver->GetIsolate());
-    uint32_t length =
-        FastElementsAccessorSubclass::GetIterationLength(*receiver, *elements);
+    uint32_t length = Subclass::GetIterationLength(*receiver, *elements);
     for (uint32_t i = 0; i < length; i++) {
       if (IsFastPackedElementsKind(KindTraits::Kind) ||
           HasEntryImpl(*elements, i)) {
-        accumulator->AddKey(FastElementsAccessorSubclass::GetImpl(*elements, i),
-                            convert);
+        accumulator->AddKey(Subclass::GetImpl(*elements, i), convert);
       }
     }
   }
@@ -1616,25 +1596,25 @@ class FastElementsAccessor
   }
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) {
-    return FastElementsAccessorSubclass::RemoveElement(receiver, AT_END);
+    return Subclass::RemoveElement(receiver, AT_END);
   }
 
   static Handle<Object> ShiftImpl(Handle<JSArray> receiver) {
-    return FastElementsAccessorSubclass::RemoveElement(receiver, AT_START);
+    return Subclass::RemoveElement(receiver, AT_START);
   }
 
   static uint32_t PushImpl(Handle<JSArray> receiver,
                            Arguments* args, uint32_t push_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements());
-    return FastElementsAccessorSubclass::AddArguments(receiver, backing_store,
-                                                      args, push_size, AT_END);
+    return Subclass::AddArguments(receiver, backing_store, args, push_size,
+                                  AT_END);
   }
 
   static uint32_t UnshiftImpl(Handle<JSArray> receiver,
                               Arguments* args, uint32_t unshift_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements());
-    return FastElementsAccessorSubclass::AddArguments(
-        receiver, backing_store, args, unshift_size, AT_START);
+    return Subclass::AddArguments(receiver, backing_store, args, unshift_size,
+                                  AT_START);
   }
 
   static Handle<JSArray> SliceImpl(Handle<JSObject> receiver,
@@ -1645,11 +1625,10 @@ class FastElementsAccessor
     Handle<JSArray> result_array = isolate->factory()->NewJSArray(
         KindTraits::Kind, result_len, result_len);
     DisallowHeapAllocation no_gc;
-    FastElementsAccessorSubclass::CopyElementsImpl(
-        *backing_store, start, result_array->elements(), KindTraits::Kind, 0,
-        kPackedSizeNotKnown, result_len);
-    FastElementsAccessorSubclass::TryTransitionResultArrayToPacked(
-        result_array);
+    Subclass::CopyElementsImpl(*backing_store, start, result_array->elements(),
+                               KindTraits::Kind, 0, kPackedSizeNotKnown,
+                               result_len);
+    Subclass::TryTransitionResultArrayToPacked(result_array);
     return result_array;
   }
 
@@ -1682,29 +1661,26 @@ class FastElementsAccessor
         KindTraits::Kind, delete_count, delete_count);
     if (delete_count > 0) {
       DisallowHeapAllocation no_gc;
-      FastElementsAccessorSubclass::CopyElementsImpl(
-          *backing_store, start, deleted_elements->elements(), KindTraits::Kind,
-          0, kPackedSizeNotKnown, delete_count);
+      Subclass::CopyElementsImpl(*backing_store, start,
+                                 deleted_elements->elements(), KindTraits::Kind,
+                                 0, kPackedSizeNotKnown, delete_count);
     }
 
     // Delete and move elements to make space for add_count new elements.
     if (add_count < delete_count) {
-      FastElementsAccessorSubclass::SpliceShrinkStep(
-          isolate, receiver, backing_store, start, delete_count, add_count,
-          length, new_length);
+      Subclass::SpliceShrinkStep(isolate, receiver, backing_store, start,
+                                 delete_count, add_count, length, new_length);
     } else if (add_count > delete_count) {
-      backing_store = FastElementsAccessorSubclass::SpliceGrowStep(
-          isolate, receiver, backing_store, start, delete_count, add_count,
-          length, new_length);
+      backing_store =
+          Subclass::SpliceGrowStep(isolate, receiver, backing_store, start,
+                                   delete_count, add_count, length, new_length);
     }
 
     // Copy over the arguments.
-    FastElementsAccessorSubclass::CopyArguments(args, backing_store, add_count,
-                                                3, start);
+    Subclass::CopyArguments(args, backing_store, add_count, 3, start);
 
     receiver->set_length(Smi::FromInt(new_length));
-    FastElementsAccessorSubclass::TryTransitionResultArrayToPacked(
-        deleted_elements);
+    Subclass::TryTransitionResultArrayToPacked(deleted_elements);
     return deleted_elements;
   }
 
@@ -1716,8 +1692,7 @@ class FastElementsAccessor
     uint32_t length = object->elements()->length();
     for (uint32_t index = 0; index < length; ++index) {
       if (!HasEntryImpl(object->elements(), index)) continue;
-      Handle<Object> value =
-          FastElementsAccessorSubclass::GetImpl(object->elements(), index);
+      Handle<Object> value = Subclass::GetImpl(object->elements(), index);
       if (get_entries) {
         value = MakeEntryPair(isolate, index, value);
       }
@@ -1766,9 +1741,9 @@ class FastElementsAccessor
                                uint32_t new_length) {
     const int move_left_count = len - delete_count - start;
     const int move_left_dst_index = start + add_count;
-    FastElementsAccessorSubclass::MoveElements(
-        isolate, receiver, backing_store, move_left_dst_index,
-        start + delete_count, move_left_count, new_length, len);
+    Subclass::MoveElements(isolate, receiver, backing_store,
+                           move_left_dst_index, start + delete_count,
+                           move_left_count, new_length, len);
   }
 
   // SpliceGrowStep might modify the backing_store.
@@ -1781,23 +1756,22 @@ class FastElementsAccessor
     DCHECK((add_count - delete_count) <= (Smi::kMaxValue - length));
     // Check if backing_store is big enough.
     if (new_length <= static_cast<uint32_t>(backing_store->length())) {
-      FastElementsAccessorSubclass::MoveElements(
-          isolate, receiver, backing_store, start + add_count,
-          start + delete_count, (length - delete_count - start), 0, 0);
+      Subclass::MoveElements(isolate, receiver, backing_store,
+                             start + add_count, start + delete_count,
+                             (length - delete_count - start), 0, 0);
       // MoveElements updates the backing_store in-place.
       return backing_store;
     }
     // New backing storage is needed.
     int capacity = JSObject::NewElementsCapacity(new_length);
     // Partially copy all elements up to start.
-    Handle<FixedArrayBase> new_elms =
-        FastElementsAccessorSubclass::ConvertElementsWithCapacity(
-            receiver, backing_store, KindTraits::Kind, capacity, start);
+    Handle<FixedArrayBase> new_elms = Subclass::ConvertElementsWithCapacity(
+        receiver, backing_store, KindTraits::Kind, capacity, start);
     // Copy the trailing elements after start + delete_count
-    FastElementsAccessorSubclass::CopyElementsImpl(
-        *backing_store, start + delete_count, *new_elms, KindTraits::Kind,
-        start + add_count, kPackedSizeNotKnown,
-        ElementsAccessor::kCopyToEndAndInitializeToHole);
+    Subclass::CopyElementsImpl(*backing_store, start + delete_count, *new_elms,
+                               KindTraits::Kind, start + add_count,
+                               kPackedSizeNotKnown,
+                               ElementsAccessor::kCopyToEndAndInitializeToHole);
     receiver->set_elements(*new_elms);
     return new_elms;
   }
@@ -1816,14 +1790,12 @@ class FastElementsAccessor
     DCHECK(length > 0);
     int new_length = length - 1;
     int remove_index = remove_position == AT_START ? 0 : new_length;
-    Handle<Object> result =
-        FastElementsAccessorSubclass::GetImpl(*backing_store, remove_index);
+    Handle<Object> result = Subclass::GetImpl(*backing_store, remove_index);
     if (remove_position == AT_START) {
-      FastElementsAccessorSubclass::MoveElements(
-          isolate, receiver, backing_store, 0, 1, new_length, 0, 0);
+      Subclass::MoveElements(isolate, receiver, backing_store, 0, 1, new_length,
+                             0, 0);
     }
-    FastElementsAccessorSubclass::SetLengthImpl(isolate, receiver, new_length,
-                                                backing_store);
+    Subclass::SetLengthImpl(isolate, receiver, new_length, backing_store);
 
     if (IsHoleyElementsKind(kind) && result->IsTheHole()) {
       return isolate->factory()->undefined_value();
@@ -1848,7 +1820,7 @@ class FastElementsAccessor
       // If we add arguments to the start we have to shift the existing objects.
       int copy_dst_index = remove_position == AT_START ? add_size : 0;
       // Copy over all objects to a new backing_store.
-      backing_store = FastElementsAccessorSubclass::ConvertElementsWithCapacity(
+      backing_store = Subclass::ConvertElementsWithCapacity(
           receiver, backing_store, KindTraits::Kind, capacity, 0,
           copy_dst_index, ElementsAccessor::kCopyToEndAndInitializeToHole);
       receiver->set_elements(*backing_store);
@@ -1856,14 +1828,13 @@ class FastElementsAccessor
       // If the backing store has enough capacity and we add elements to the
       // start we have to shift the existing objects.
       Isolate* isolate = receiver->GetIsolate();
-      FastElementsAccessorSubclass::MoveElements(
-          isolate, receiver, backing_store, add_size, 0, length, 0, 0);
+      Subclass::MoveElements(isolate, receiver, backing_store, add_size, 0,
+                             length, 0, 0);
     }
 
     int insertion_index = remove_position == AT_START ? 0 : length;
     // Copy the arguments to the start.
-    FastElementsAccessorSubclass::CopyArguments(args, backing_store, add_size,
-                                                1, insertion_index);
+    Subclass::CopyArguments(args, backing_store, add_size, 1, insertion_index);
     // Set the length.
     receiver->set_length(Smi::FromInt(new_length));
     return new_length;
@@ -1878,21 +1849,17 @@ class FastElementsAccessor
     WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
     for (uint32_t i = 0; i < copy_size; i++) {
       Object* argument = (*args)[i + src_index];
-      FastElementsAccessorSubclass::SetImpl(raw_backing_store, i + dst_index,
-                                            argument, mode);
+      Subclass::SetImpl(raw_backing_store, i + dst_index, argument, mode);
     }
   }
 };
 
-
-template<typename FastElementsAccessorSubclass,
-         typename KindTraits>
+template <typename Subclass, typename KindTraits>
 class FastSmiOrObjectElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
+    : public FastElementsAccessor<Subclass, KindTraits> {
  public:
   explicit FastSmiOrObjectElementsAccessor(const char* name)
-      : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits>(name) {}
+      : FastElementsAccessor<Subclass, KindTraits>(name) {}
 
   static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
                              Object* value) {
@@ -1910,8 +1877,7 @@ class FastSmiOrObjectElementsAccessor
   }
 
   static Object* GetRaw(FixedArray* backing_store, uint32_t entry) {
-    uint32_t index = FastElementsAccessorSubclass::GetIndexForEntryImpl(
-        backing_store, entry);
+    uint32_t index = Subclass::GetIndexForEntryImpl(backing_store, entry);
     return backing_store->get(index);
   }
 
@@ -1932,7 +1898,6 @@ class FastSmiOrObjectElementsAccessor
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
-      case FAST_STRING_WRAPPER_ELEMENTS:
         CopyObjectToObjectElements(from, from_kind, from_start, to, to_kind,
                                    to_start, copy_size);
         break;
@@ -1944,12 +1909,13 @@ class FastSmiOrObjectElementsAccessor
         break;
       }
       case DICTIONARY_ELEMENTS:
-      case SLOW_STRING_WRAPPER_ELEMENTS:
         CopyDictionaryToObjectElements(from, from_start, to, to_kind, to_start,
                                        copy_size);
         break;
       case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      case FAST_STRING_WRAPPER_ELEMENTS:
+      case SLOW_STRING_WRAPPER_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -2011,15 +1977,12 @@ class FastHoleyObjectElementsAccessor
           ElementsKindTraits<FAST_HOLEY_ELEMENTS> >(name) {}
 };
 
-
-template<typename FastElementsAccessorSubclass,
-         typename KindTraits>
+template <typename Subclass, typename KindTraits>
 class FastDoubleElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
+    : public FastElementsAccessor<Subclass, KindTraits> {
  public:
   explicit FastDoubleElementsAccessor(const char* name)
-      : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits>(name) {}
+      : FastElementsAccessor<Subclass, KindTraits>(name) {}
 
   static Handle<Object> GetImpl(Handle<JSObject> holder, uint32_t entry) {
     return GetImpl(holder->elements(), entry);
@@ -2240,16 +2203,12 @@ class TypedElementsAccessor
 TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
 #undef FIXED_ELEMENTS_ACCESSOR
 
-
-template <typename SloppyArgumentsElementsAccessorSubclass,
-          typename ArgumentsAccessor, typename KindTraits>
+template <typename Subclass, typename ArgumentsAccessor, typename KindTraits>
 class SloppyArgumentsElementsAccessor
-    : public ElementsAccessorBase<SloppyArgumentsElementsAccessorSubclass,
-                                  KindTraits> {
+    : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
   explicit SloppyArgumentsElementsAccessor(const char* name)
-      : ElementsAccessorBase<SloppyArgumentsElementsAccessorSubclass,
-                             KindTraits>(name) {
+      : ElementsAccessorBase<Subclass, KindTraits>(name) {
     USE(KindTraits::Kind);
   }
 
@@ -2415,8 +2374,7 @@ class SloppyArgumentsElementsAccessor
       // would enable GC of the context.
       parameter_map->set_the_hole(entry + 2);
     } else {
-      SloppyArgumentsElementsAccessorSubclass::DeleteFromArguments(
-          obj, entry - length);
+      Subclass::DeleteFromArguments(obj, entry - length);
     }
   }
 
@@ -2438,8 +2396,7 @@ class SloppyArgumentsElementsAccessor
     Handle<FixedArrayBase> store(FixedArrayBase::cast(parameter_map->get(1)));
     ArgumentsAccessor::CollectElementIndicesImpl(object, store, keys, range,
                                                  filter, offset);
-    if (SloppyArgumentsElementsAccessorSubclass::kind() ==
-        FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+    if (Subclass::kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
       keys->SortCurrentElementsList();
     }
   }
@@ -2680,15 +2637,12 @@ class FastSloppyArgumentsElementsAccessor
   }
 };
 
-template <typename StringWrapperElementsAccessorSubclass,
-          typename BackingStoreAccessor, typename KindTraits>
+template <typename Subclass, typename BackingStoreAccessor, typename KindTraits>
 class StringWrapperElementsAccessor
-    : public ElementsAccessorBase<StringWrapperElementsAccessorSubclass,
-                                  KindTraits> {
+    : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
   explicit StringWrapperElementsAccessor(const char* name)
-      : ElementsAccessorBase<StringWrapperElementsAccessorSubclass, KindTraits>(
-            name) {
+      : ElementsAccessorBase<Subclass, KindTraits>(name) {
     USE(KindTraits::Kind);
   }
 
@@ -2752,8 +2706,7 @@ class StringWrapperElementsAccessor
         (object->GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS ||
          BackingStoreAccessor::GetCapacityImpl(*object, object->elements()) !=
              new_capacity)) {
-      StringWrapperElementsAccessorSubclass::GrowCapacityAndConvertImpl(
-          object, new_capacity);
+      GrowCapacityAndConvertImpl(object, new_capacity);
     }
     BackingStoreAccessor::AddImpl(object, index, value, attributes,
                                   new_capacity);
@@ -2801,12 +2754,32 @@ class StringWrapperElementsAccessor
                                                     range, filter, offset);
   }
 
+  static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
+                                         uint32_t capacity) {
+    Handle<FixedArrayBase> old_elements(object->elements());
+    ElementsKind from_kind = object->GetElementsKind();
+    // This method should only be called if there's a reason to update the
+    // elements.
+    DCHECK(from_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
+           static_cast<uint32_t>(old_elements->length()) < capacity);
+    Subclass::BasicGrowCapacityAndConvertImpl(object, old_elements, from_kind,
+                                              FAST_STRING_WRAPPER_ELEMENTS,
+                                              capacity);
+  }
+
   static void CopyElementsImpl(FixedArrayBase* from, uint32_t from_start,
                                FixedArrayBase* to, ElementsKind from_kind,
                                uint32_t to_start, int packed_size,
                                int copy_size) {
-    BackingStoreAccessor::CopyElementsImpl(from, from_start, to, from_kind,
-                                           to_start, packed_size, copy_size);
+    DCHECK(!to->IsDictionary());
+    if (from_kind == SLOW_STRING_WRAPPER_ELEMENTS) {
+      CopyDictionaryToObjectElements(from, from_start, to, FAST_HOLEY_ELEMENTS,
+                                     to_start, copy_size);
+    } else {
+      DCHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, from_kind);
+      CopyObjectToObjectElements(from, FAST_HOLEY_ELEMENTS, from_start, to,
+                                 FAST_HOLEY_ELEMENTS, to_start, copy_size);
+    }
   }
 
  private:
