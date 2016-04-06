@@ -199,8 +199,12 @@ class Code(object):
       self.origin)
 
   def _GetDisasmLines(self, arch, options):
-    inplace = True
-    filename = self.origin
+    if self.origin == JS_ORIGIN:
+      inplace = False
+      filename = options.log + ".ll"
+    else:
+      inplace = True
+      filename = self.origin
     return disasm.GetDisasmLines(filename,
                                  self.origin_offset,
                                  self.end_address - self.start_address,
