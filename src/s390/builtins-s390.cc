@@ -693,6 +693,131 @@ void Builtins::Generate_JSBuiltinsConstructStubForDerived(
   Generate_JSConstructStubHelper(masm, false, false, true);
 }
 
+// static
+void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r2 : the value to pass to the generator
+  //  -- r3 : the JSGeneratorObject to resume
+  //  -- r4 : the resume mode (tagged)
+  //  -- lr : return address
+  // -----------------------------------
+  __ AssertGeneratorObject(r3);
+
+  // Store input value into generator object.
+  __ StoreP(r2, FieldMemOperand(r3, JSGeneratorObject::kInputOffset), r0);
+  __ RecordWriteField(r3, JSGeneratorObject::kInputOffset, r2, r5,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs);
+
+  // Load suspended function and context.
+  __ LoadP(cp, FieldMemOperand(r3, JSGeneratorObject::kContextOffset));
+  __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
+
+  // Flood function if we are stepping.
+  Label skip_flooding;
+  ExternalReference step_in_enabled =
+      ExternalReference::debug_step_in_enabled_address(masm->isolate());
+  __ mov(ip, Operand(step_in_enabled));
+  __ LoadlB(ip, MemOperand(ip));
+  __ CmpP(ip, Operand::Zero());
+  __ beq(&skip_flooding);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r3, r4, r6);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(r3, r4);
+    __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
+  }
+  __ bind(&skip_flooding);
+
+  // Push receiver.
+  __ LoadP(ip, FieldMemOperand(r3, JSGeneratorObject::kReceiverOffset));
+  __ Push(ip);
+
+  // ----------- S t a t e -------------
+  //  -- r3    : the JSGeneratorObject to resume
+  //  -- r4    : the resume mode (tagged)
+  //  -- r6    : generator function
+  //  -- cp    : generator context
+  //  -- lr    : return address
+  //  -- sp[0] : generator receiver
+  // -----------------------------------
+
+  // Push holes for arguments to generator function. Since the parser forced
+  // context allocation for any variables in generators, the actual argument
+  // values have already been copied into the context and these dummy values
+  // will never be used.
+  __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadW(
+      r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
+  {
+    Label loop, done_loop;
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+#if V8_TARGET_ARCH_S390X
+    __ CmpP(r5, Operand::Zero());
+    __ beq(&done_loop);
+#else
+    __ SmiUntag(r5);
+    __ LoadAndTestP(r5, r5);
+    __ beq(&done_loop);
+#endif
+    __ LoadRR(r1, r5);
+    __ bind(&loop);
+    __ push(ip);
+    __ BranchOnCount(r1, &loop);
+    __ bind(&done_loop);
+  }
+
+  // Enter a new JavaScript frame, and initialize its slots as they were when
+  // the generator was suspended.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PushStandardFrame(r6);
+
+  // Restore the operand stack.
+  __ LoadP(r2, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset));
+  __ LoadP(r5, FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ AddP(r2, r2,
+          Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
+  {
+    Label loop, done_loop;
+    __ SmiUntag(r5);
+    __ LoadAndTestP(r5, r5);
+    __ beq(&done_loop);
+    __ LoadRR(r1, r5);
+    __ bind(&loop);
+    __ LoadP(ip, MemOperand(r2, kPointerSize));
+    __ la(r2, MemOperand(r2, kPointerSize));
+    __ Push(ip);
+    __ BranchOnCount(r1, &loop);
+    __ bind(&done_loop);
+  }
+
+  // Push resume mode (consumed in continuation).
+  __ Push(r4);
+
+  // Reset operand stack so we don't leak.
+  __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
+  __ StoreP(ip, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset),
+            r0);
+
+  // Restore value.
+  __ LoadP(r2, FieldMemOperand(r3, JSGeneratorObject::kInputOffset));
+
+  // Resume the generator function at the continuation.
+  __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kCodeOffset));
+  __ AddP(r5, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
+  {
+    ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+    __ LoadP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset));
+    __ SmiUntag(r4);
+    __ AddP(r5, r5, r4);
+    __ LoadSmiLiteral(r4, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+    __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset),
+              r0);
+    __ Jump(r5);
+  }
+}
+
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
   __ push(r3);
