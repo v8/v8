@@ -1380,6 +1380,7 @@ source_set("v8_base") {
     "src/wasm/encoder.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
+    "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",

@@ -1185,6 +1185,8 @@
         '../../src/wasm/decoder.h',
         '../../src/wasm/encoder.cc',
         '../../src/wasm/encoder.h',
+        '../../src/wasm/wasm-external-refs.cc',
+        '../../src/wasm/wasm-external-refs.h',
         '../../src/wasm/module-decoder.cc',
         '../../src/wasm/module-decoder.h',
         '../../src/wasm/wasm-js.cc',
