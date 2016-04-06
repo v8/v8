@@ -192,8 +192,14 @@ Heap::Heap()
 intptr_t Heap::Capacity() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_.Capacity() + old_space_->Capacity() +
-         code_space_->Capacity() + map_space_->Capacity();
+  return new_space_.Capacity() + OldGenerationCapacity();
+}
+
+intptr_t Heap::OldGenerationCapacity() {
+  if (!HasBeenSetUp()) return 0;
+
+  return old_space_->Capacity() + code_space_->Capacity() +
+         map_space_->Capacity() + lo_space_->SizeOfObjects();
 }
 
 

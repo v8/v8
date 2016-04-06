@@ -624,11 +624,9 @@ class Heap {
     return old_space_->allocation_limit_address();
   }
 
-  // TODO(hpayer): There is still a missmatch between capacity and actual
-  // committed memory size.
-  bool CanExpandOldGeneration(int size = 0) {
+  bool CanExpandOldGeneration(int size) {
     if (force_oom_) return false;
-    return (CommittedOldGenerationMemory() + size) < MaxOldGenerationSize();
+    return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
   }
 
   // Clear the Instanceof cache (used when a prototype changes).
@@ -1191,6 +1189,9 @@ class Heap {
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
   intptr_t Capacity();
+
+  // Returns the capacity of the old generation.
+  intptr_t OldGenerationCapacity();
 
   // Returns the amount of memory currently committed for the heap.
   intptr_t CommittedMemory();
