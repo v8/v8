@@ -882,9 +882,6 @@ class Page : public MemoryChunk {
 
   inline void ClearGCFields();
 
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, PagedSpace* owner);
-
   void InitializeAsAnchor(PagedSpace* owner);
 
   // WaitUntilSweepingCompleted only works when concurrent sweeping is in
@@ -937,6 +934,9 @@ class Page : public MemoryChunk {
   inline void ClearEvacuationCandidate();
 
  private:
+  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                                 Executability executable, PagedSpace* owner);
+
   inline void InitializeFreeListCategories();
 
   friend class MemoryAllocator;
@@ -960,7 +960,8 @@ class LargePage : public MemoryChunk {
   static const int kMaxCodePageSize = 512 * MB;
 
  private:
-  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk);
+  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
+                                      Executability executable, Space* owner);
 
   friend class MemoryAllocator;
 };
@@ -1267,9 +1268,6 @@ class MemoryAllocator {
             typename SpaceType>
   PageType* AllocatePage(intptr_t size, SpaceType* owner,
                          Executability executable);
-
-  LargePage* AllocateLargePage(intptr_t object_size, Space* owner,
-                               Executability executable);
 
   // PreFree logically frees the object, i.e., it takes care of the size
   // bookkeeping and calls the allocation callback.
@@ -2289,10 +2287,6 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 
 class NewSpacePage : public MemoryChunk {
  public:
-  static inline NewSpacePage* Initialize(Heap* heap, MemoryChunk* chunk,
-                                         Executability executable,
-                                         SemiSpace* owner);
-
   static bool IsAtStart(Address addr) {
     return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) ==
            kObjectStartOffset;
@@ -2340,6 +2334,10 @@ class NewSpacePage : public MemoryChunk {
   bool is_anchor() { return !this->InNewSpace(); }
 
  private:
+  static inline NewSpacePage* Initialize(Heap* heap, MemoryChunk* chunk,
+                                         Executability executable,
+                                         SemiSpace* owner);
+
   // GC related flags copied from from-space to to-space when
   // flipping semispaces.
   static const intptr_t kCopyOnFlipFlagsMask =
@@ -2355,6 +2353,7 @@ class NewSpacePage : public MemoryChunk {
   // Only uses the prev/next links, and sets flags to not be in new-space.
   void InitializeAsAnchor(SemiSpace* owner);
 
+  friend class MemoryAllocator;
   friend class SemiSpace;
   friend class SemiSpaceIterator;
 };

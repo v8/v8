@@ -684,20 +684,6 @@ void Page::ResetFreeListStatistics() {
   available_in_free_list_ = 0;
 }
 
-LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
-                                              Space* owner,
-                                              Executability executable) {
-  MemoryChunk* chunk =
-      AllocateChunk(object_size, object_size, executable, owner);
-  if (chunk == NULL) return NULL;
-  if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
-    STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
-    FATAL("Code page is too large.");
-  }
-  return LargePage::Initialize(isolate_->heap(), chunk);
-}
-
-
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
@@ -779,6 +765,10 @@ PageType* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
 template Page* MemoryAllocator::AllocatePage<Page, MemoryAllocator::kRegular,
                                              PagedSpace>(intptr_t, PagedSpace*,
                                                          Executability);
+
+template LargePage*
+MemoryAllocator::AllocatePage<LargePage, MemoryAllocator::kRegular, Space>(
+    intptr_t, Space*, Executability);
 
 template NewSpacePage* MemoryAllocator::AllocatePage<
     NewSpacePage, MemoryAllocator::kPooled, SemiSpace>(intptr_t, SemiSpace*,
@@ -2886,8 +2876,9 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     return AllocationResult::Retry(identity());
   }
 
-  LargePage* page = heap()->isolate()->memory_allocator()->AllocateLargePage(
-      object_size, this, executable);
+  LargePage* page =
+      heap()->isolate()->memory_allocator()->AllocatePage<LargePage>(
+          object_size, this, executable);
   if (page == NULL) return AllocationResult::Retry(identity());
   DCHECK(page->area_size() >= object_size);
 
