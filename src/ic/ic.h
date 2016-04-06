@@ -47,14 +47,12 @@ class IC {
 
 #ifdef DEBUG
   bool IsLoadStub() const {
-    return target()->is_load_stub() || target()->is_keyed_load_stub();
+    return kind_ == Code::LOAD_IC || kind_ == Code::KEYED_LOAD_IC;
   }
-
   bool IsStoreStub() const {
-    return target()->is_store_stub() || target()->is_keyed_store_stub();
+    return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
   }
-
-  bool IsCallStub() const { return target()->is_call_stub(); }
+  bool IsCallStub() const { return kind_ == Code::CALL_IC; }
 #endif
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
@@ -82,9 +80,6 @@ class IC {
   }
 
  protected:
-  // Get the call-site target; used for determining the state.
-  Handle<Code> target() const { return target_; }
-
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
@@ -101,13 +96,12 @@ class IC {
 
   // Set the call-site target.
   inline void set_target(Code* code);
-  bool is_target_set() { return target_set_; }
   bool is_vector_set() { return vector_set_; }
 
   bool UseVector() const {
     bool use = ICUseVector(kind());
     // If we are supposed to use the nexus, verify the nexus is non-null.
-    DCHECK(!use || nexus_ != NULL);
+    DCHECK(!use || nexus_ != nullptr);
     return use;
   }
 
@@ -139,9 +133,6 @@ class IC {
                                          Address constant_pool);
   static inline void SetTargetAtAddress(Address address, Code* target,
                                         Address constant_pool);
-  static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
-                                    State old_state, State new_state,
-                                    bool target_remains_ic_stub);
   // As a vector-based IC, type feedback must be updated differently.
   static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
@@ -164,21 +155,18 @@ class IC {
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Code> code);
   Code::Kind kind() const { return kind_; }
+  bool is_keyed() const {
+    return kind_ == Code::KEYED_LOAD_IC || kind_ == Code::KEYED_STORE_IC;
+  }
   Code::Kind handler_kind() const {
     if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
     DCHECK(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
-  virtual Handle<Code> megamorphic_stub() {
-    UNREACHABLE();
-    return Handle<Code>::null();
-  }
-
   bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
-  void set_extra_ic_state(ExtraICState state) { extra_ic_state_ = state; }
 
   Handle<Map> receiver_map() { return receiver_map_; }
   void update_receiver_map(Handle<Object> receiver) {
@@ -201,8 +189,6 @@ class IC {
     return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
   }
 
-  inline void UpdateTarget();
-
   Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
   FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
@@ -216,25 +202,17 @@ class IC {
   FeedbackNexus* nexus() const { return nexus_; }
 
   inline Code* get_host();
+  inline Code* target() const;
 
  private:
-  inline Code* raw_target() const;
   inline Address constant_pool() const;
   inline Address raw_constant_pool() const;
 
   void FindTargetMaps() {
     if (target_maps_set_) return;
     target_maps_set_ = true;
-    if (UseVector()) {
-      nexus()->ExtractMaps(&target_maps_);
-    } else {
-      if (state_ == MONOMORPHIC) {
-        Map* map = target_->FindFirstMap();
-        if (map != NULL) target_maps_.Add(handle(map));
-      } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
-        target_->FindAllMaps(&target_maps_);
-      }
-    }
+    DCHECK(UseVector());
+    nexus()->ExtractMaps(&target_maps_);
   }
 
   // Frame pointer for the frame that uses (calls) the IC.
@@ -252,9 +230,6 @@ class IC {
 
   Isolate* isolate_;
 
-  // The original code target that missed.
-  Handle<Code> target_;
-  bool target_set_;
   bool vector_set_;
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
@@ -330,8 +305,6 @@ class LoadIC : public IC {
   static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
-  inline void set_target(Code* code);
-
   Handle<Code> slow_stub() const {
     if (kind() == Code::LOAD_IC) {
       return isolate()->builtins()->LoadIC_Slow();
@@ -340,8 +313,6 @@ class LoadIC : public IC {
       return isolate()->builtins()->KeyedLoadIC_Slow();
     }
   }
-
-  Handle<Code> megamorphic_stub() override;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -377,7 +348,6 @@ class KeyedLoadIC : public LoadIC {
               KeyedLoadICNexus* nexus = NULL)
       : LoadIC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
-    DCHECK(target()->is_keyed_load_stub());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -454,7 +424,6 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> megamorphic_stub() override;
   Handle<Code> slow_stub() const;
 
   // Update the inline cache and the global stub cache based on the
@@ -465,8 +434,6 @@ class StoreIC : public IC {
                               CacheHolderFlag cache_holder) override;
 
  private:
-  inline void set_target(Code* code);
-
   friend class IC;
 };
 
@@ -501,9 +468,7 @@ class KeyedStoreIC : public StoreIC {
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate,
                KeyedStoreICNexus* nexus = NULL)
-      : StoreIC(depth, isolate, nexus) {
-    DCHECK(target()->is_keyed_store_stub());
-  }
+      : StoreIC(depth, isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Object> name,
@@ -531,8 +496,6 @@ class KeyedStoreIC : public StoreIC {
                                 KeyedAccessStoreMode store_mode);
 
  private:
-  inline void set_target(Code* code);
-
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 

@@ -13792,126 +13792,14 @@ void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
 }
 
 
-void Code::FindAllMaps(MapHandleList* maps) {
-  DCHECK(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Object* object = info->target_object();
-    if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
-    if (object->IsMap()) maps->Add(handle(Map::cast(object)));
-  }
-}
-
-
-Code* Code::FindFirstHandler() {
-  DCHECK(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool skip_next_handler = false;
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
-      Object* obj = info->target_object();
-      skip_next_handler |= obj->IsWeakCell() && WeakCell::cast(obj)->cleared();
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-      if (code->kind() == Code::HANDLER) {
-        if (!skip_next_handler) return code;
-        skip_next_handler = false;
-      }
-    }
-  }
-  return NULL;
-}
-
-
-bool Code::FindHandlers(CodeHandleList* code_list, int length) {
-  DCHECK(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool skip_next_handler = false;
-  int i = 0;
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    if (i == length) return true;
-    RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
-      Object* obj = info->target_object();
-      skip_next_handler |= obj->IsWeakCell() && WeakCell::cast(obj)->cleared();
-    } else {
-      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-      // IC stubs with handlers never contain non-handler code objects before
-      // handler targets.
-      if (code->kind() != Code::HANDLER) break;
-      if (!skip_next_handler) {
-        code_list->Add(Handle<Code>(code));
-        i++;
-      }
-      skip_next_handler = false;
-    }
-  }
-  return i == length;
-}
-
-
-MaybeHandle<Code> Code::FindHandlerForMap(Map* map) {
-  DCHECK(is_inline_cache_stub());
-  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool return_next = false;
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
-      Object* object = info->target_object();
-      if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
-      if (object == map) return_next = true;
-    } else if (return_next) {
-      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
-      DCHECK(code->kind() == Code::HANDLER);
-      return handle(code);
-    }
-  }
-  return MaybeHandle<Code>();
-}
-
-
-Name* Code::FindFirstName() {
-  DCHECK(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Object* object = info->target_object();
-    if (object->IsName()) return Name::cast(object);
-  }
-  return NULL;
-}
-
-
 void Code::ClearInlineCaches() {
-  ClearInlineCaches(NULL);
-}
-
-
-void Code::ClearInlineCaches(Code::Kind kind) {
-  ClearInlineCaches(&kind);
-}
-
-
-void Code::ClearInlineCaches(Code::Kind* kind) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      if (kind == NULL || *kind == target->kind()) {
-        IC::Clear(this->GetIsolate(), info->pc(),
-                  info->host()->constant_pool());
-      }
+      IC::Clear(this->GetIsolate(), info->pc(), info->host()->constant_pool());
     }
   }
 }

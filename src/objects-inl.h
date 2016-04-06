@@ -5025,18 +5025,8 @@ bool Code::is_inline_cache_stub() {
   }
 }
 
-
-bool Code::is_keyed_stub() {
-  return is_keyed_load_stub() || is_keyed_store_stub();
-}
-
-
 bool Code::is_debug_stub() { return ic_state() == DEBUG_STUB; }
 bool Code::is_handler() { return kind() == HANDLER; }
-bool Code::is_load_stub() { return kind() == LOAD_IC; }
-bool Code::is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
-bool Code::is_store_stub() { return kind() == STORE_IC; }
-bool Code::is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
 bool Code::is_call_stub() { return kind() == CALL_IC; }
 bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
