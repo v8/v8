@@ -288,6 +288,9 @@
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
+
+  # BUG(v8:4894).
+  'es6/debug-step-into-constructor': [PASS, ['system == linux and arch == x64 and mode == release ', FAST_VARIANTS]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
