@@ -1099,20 +1099,11 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   if (FLAG_turbo_asm && function->shared()->asm_function() &&
       (FLAG_turbo_asm_deoptimization || !isolate->debug()->is_active()) &&
       !FLAG_turbo_osr) {
-    CompilationInfoWithZone info(function);
-
-    VMState<COMPILER> state(isolate);
-    PostponeInterruptsScope postpone(isolate);
-
-    info.SetOptimizing();
-
-    if (GetOptimizedCodeNow(&info)) {
+    Handle<Code> code;
+    if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT).ToHandle(&code)) {
       DCHECK(function->shared()->is_compiled());
-      return info.code();
+      return code;
     }
-    // We have failed compilation. If there was an exception clear it so that
-    // we can compile unoptimized code.
-    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   }
 
   if (function->shared()->is_compiled()) {
