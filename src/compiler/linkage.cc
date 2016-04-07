@@ -118,13 +118,6 @@ bool CallDescriptor::CanTailCall(const Node* node,
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   DCHECK(!info->IsStub());
-  if (info->has_literal()) {
-    // If we already have the function literal, use the number of parameters
-    // plus the receiver.
-    return GetJSCallDescriptor(zone, info->is_osr(),
-                               1 + info->literal()->parameter_count(),
-                               CallDescriptor::kNoFlags);
-  }
   if (!info->closure().is_null()) {
     // If we are compiling a JS function, use a JS call descriptor,
     // plus the receiver.

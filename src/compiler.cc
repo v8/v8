@@ -115,11 +115,6 @@ bool CompilationInfo::has_context() const {
 }
 
 
-bool CompilationInfo::has_literal() const {
-  return parse_info_ && parse_info_->literal() != nullptr;
-}
-
-
 bool CompilationInfo::has_scope() const {
   return parse_info_ && parse_info_->scope() != nullptr;
 }

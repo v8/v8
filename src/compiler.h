@@ -185,7 +185,6 @@ class CompilationInfo {
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
   bool has_context() const;
-  bool has_literal() const;
   bool has_scope() const;
   // -----------------------------------------------------------
 

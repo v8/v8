@@ -1112,12 +1112,10 @@ Handle<Code> Pipeline::GenerateCode() {
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
               << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-      if (info()->has_literal() && !script->IsUndefined() &&
-          !script->source()->IsUndefined()) {
+      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         DisallowHeapAllocation no_allocation;
-        FunctionLiteral* function = info()->literal();
-        int start = function->start_position();
-        int len = function->end_position() - start;
+        int start = info()->shared_info()->start_position();
+        int len = info()->shared_info()->end_position() - start;
         String::SubStringRange source(String::cast(script->source()), start,
                                       len);
         for (const auto& c : source) {
