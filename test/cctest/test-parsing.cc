@@ -7843,6 +7843,7 @@ TEST(TypedModeClassDeclarations) {
     "class C { [x: any]; }",
     "class C { [x: any] : any; }",
     "class C { static [x: number]; }",
+    "class C { constructor (x: number) : number; constructor (x) {} }",
     NULL
   };
 
