@@ -29,7 +29,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "57d3e2216fa86ad63b6c0a54914ba9dcbff96003",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "faee82e064e04e5cbf60cc7327e7a81d2a4557ad",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "f9d7a272792022ffdfc9bd2cd0c901b824baf029",
 }
 
 deps_os = {
