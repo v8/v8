@@ -1107,6 +1107,18 @@ void IncrementalMarking::SpeedUp() {
   }
 }
 
+void IncrementalMarking::FinalizeSweeping() {
+  DCHECK(state_ == SWEEPING);
+  if (heap_->mark_compact_collector()->sweeping_in_progress() &&
+      (heap_->mark_compact_collector()->IsSweepingCompleted() ||
+       !FLAG_concurrent_sweeping)) {
+    heap_->mark_compact_collector()->EnsureSweepingCompleted();
+  }
+  if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
+    bytes_scanned_ = 0;
+    StartMarking();
+  }
+}
 
 intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
                                   CompletionAction action,
@@ -1156,17 +1168,11 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
 
     bytes_scanned_ += bytes_to_process;
 
+    // TODO(hpayer): Do not account for sweeping finalization while marking.
     if (state_ == SWEEPING) {
-      if (heap_->mark_compact_collector()->sweeping_in_progress() &&
-          (heap_->mark_compact_collector()->IsSweepingCompleted() ||
-           !FLAG_concurrent_sweeping)) {
-        heap_->mark_compact_collector()->EnsureSweepingCompleted();
-      }
-      if (!heap_->mark_compact_collector()->sweeping_in_progress()) {
-        bytes_scanned_ = 0;
-        StartMarking();
-      }
+      FinalizeSweeping();
     }
+
     if (state_ == MARKING) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
       if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {

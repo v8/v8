@@ -68,6 +68,8 @@ class IncrementalMarking {
 
   inline bool IsStopped() { return state() == STOPPED; }
 
+  inline bool IsSweeping() { return state() == SWEEPING; }
+
   INLINE(bool IsMarking()) { return state() >= MARKING; }
 
   inline bool IsMarkingIncomplete() { return state() == MARKING; }
@@ -134,6 +136,8 @@ class IncrementalMarking {
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
   static const size_t kMaxIdleMarkingDelayCounter = 3;
+
+  void FinalizeSweeping();
 
   void OldSpaceStep(intptr_t allocated);
 
