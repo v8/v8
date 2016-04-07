@@ -1779,7 +1779,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
                                         Object** objects,
                                         uint32_t count,
                                         EnsureElementsMode mode) {
-  ElementsKind current_kind = object->map()->elements_kind();
+  ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
   {
     DisallowHeapAllocation no_allocation;

@@ -41,12 +41,12 @@ class BuiltinArguments : public Arguments {
   }
 
   Object*& operator[] (int index) {
-    DCHECK(index < length());
+    DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }
 
   template <class S> Handle<S> at(int index) {
-    DCHECK(index < length());
+    DCHECK_LT(index, length());
     return Arguments::at<S>(index);
   }
 

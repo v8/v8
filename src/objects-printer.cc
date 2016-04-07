@@ -33,7 +33,13 @@ void Object::Print(std::ostream& os) {  // NOLINT
 
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << reinterpret_cast<void*>(this) << ": [" << id << "]";
+  os << reinterpret_cast<void*>(this) << ": [";
+  if (id != nullptr) {
+    os << id;
+  } else {
+    os << map()->instance_type();
+  }
+  os << "]";
 }
 
 
@@ -97,10 +103,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_OBJECT_TYPE:  // fall through
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ARRAY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
+      break;
+    case JS_ARRAY_TYPE:
+      JSArray::cast(this)->JSArrayPrint(os);
       break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpPrint(os);
@@ -396,16 +404,20 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  os << "\n - map = " << reinterpret_cast<void*>(obj->map()) << " ["
+  os << "\n - map = " << reinterpret_cast<void*>(obj->map()) << " [";
+  if (obj->HasFastProperties()) {
+    os << "FastProperties";
+  } else {
+    os << "DictionaryProperties";
+  }
+  PrototypeIterator iter(obj->GetIsolate(), obj);
+  os << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
+  os << "\n - elements = " << Brief(obj->elements()) << " ["
      << ElementsKindToString(obj->map()->elements_kind());
   if (obj->elements()->map() == obj->GetHeap()->fixed_cow_array_map()) {
     os << " (COW)";
   }
-  PrototypeIterator iter(obj->GetIsolate(), obj);
-  os << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
-  if (obj->elements()->length() > 0) {
-    os << "\n - elements = " << Brief(obj->elements());
-  }
+  os << "]";
 }
 
 
@@ -413,14 +425,19 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
   os << "\n {";
   obj->PrintProperties(os);
-  obj->PrintTransitions(os);
   if (print_elements) obj->PrintElements(os);
   os << "\n }\n";
 }
 
 
 void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "JSObject");
+  JSObjectPrintHeader(os, this, nullptr);
+  JSObjectPrintBody(os, this);
+}
+
+void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSArray");
+  os << "\n - length = " << Brief(this->length());
   JSObjectPrintBody(os, this);
 }
 
@@ -1279,7 +1296,7 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
   for (int i = 0; i < num_transitions; i++) {
     Name* key = GetKey(transitions, i);
     Map* target = GetTarget(transitions, i);
-    os << "\n   ";
+    os << "\n     ";
 #ifdef OBJECT_PRINT
     key->NamePrint(os);
 #else
