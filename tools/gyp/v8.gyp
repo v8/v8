@@ -211,6 +211,7 @@
             '<(INTERMEDIATE_DIR)/snapshot.cc',
           ],
           'variables': {
+            'mksnapshot_flags': [],
             'conditions': [
               ['v8_random_seed!=0', {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -370,6 +371,7 @@
               'action_name': 'run_mksnapshot (external)',
               'inputs': ['<(mksnapshot_exec)'],
               'variables': {
+                'mksnapshot_flags': [],
                 'conditions': [
                   ['v8_random_seed!=0', {
                     'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
