@@ -168,11 +168,11 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
-    int slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    int slots = info_->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
       __ Push(rdi);

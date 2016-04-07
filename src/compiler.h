@@ -185,7 +185,6 @@ class CompilationInfo {
   Handle<SharedFunctionInfo> shared_info() const;
   bool has_shared_info() const;
   bool has_context() const;
-  bool has_scope() const;
   // -----------------------------------------------------------
 
   Isolate* isolate() const {
@@ -199,7 +198,6 @@ class CompilationInfo {
   int num_parameters() const;
   int num_parameters_including_this() const;
   bool is_this_defined() const;
-  int num_heap_slots() const;
 
   void set_parameter_count(int parameter_count) {
     DCHECK(IsStub());

@@ -115,11 +115,6 @@ bool CompilationInfo::has_context() const {
 }
 
 
-bool CompilationInfo::has_scope() const {
-  return parse_info_ && parse_info_->scope() != nullptr;
-}
-
-
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
     : CompilationInfo(parse_info, nullptr, Code::ComputeFlags(Code::FUNCTION),
                       BASE, parse_info->isolate(), parse_info->zone()) {
@@ -181,7 +176,7 @@ CompilationInfo::~CompilationInfo() {
 
 
 int CompilationInfo::num_parameters() const {
-  return has_scope() ? scope()->num_parameters() : parameter_count_;
+  return !IsStub() ? scope()->num_parameters() : parameter_count_;
 }
 
 
@@ -191,11 +186,6 @@ int CompilationInfo::num_parameters_including_this() const {
 
 
 bool CompilationInfo::is_this_defined() const { return !IsStub(); }
-
-
-int CompilationInfo::num_heap_slots() const {
-  return has_scope() ? scope()->num_heap_slots() : 0;
-}
 
 
 // Primitive functions are unlikely to be picked up by the stack-walking
@@ -1397,7 +1387,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
 // be generated lazily once deopt is triggered.
 bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
-  DCHECK(info->has_scope());
+  DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
   if (!shared->has_deoptimization_support()) {
     // TODO(titzer): just reuse the ParseInfo for the unoptimized compile.

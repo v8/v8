@@ -568,7 +568,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   }
 
   // Build local context only if there are context allocated variables.
-  if (info()->num_heap_slots() > 0) {
+  if (scope->num_heap_slots() > 0) {
     // Push a new inner context scope for the current activation.
     Node* inner_context = BuildLocalActivationContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
