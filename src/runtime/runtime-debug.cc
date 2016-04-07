@@ -1454,11 +1454,14 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
+  Handle<Object> name;
   if (function->IsJSBoundFunction()) {
-    return Handle<JSBoundFunction>::cast(function)->name();
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, name, JSBoundFunction::GetName(
+                           isolate, Handle<JSBoundFunction>::cast(function)));
+  } else {
+    name = JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   }
-  Handle<Object> name =
-      JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   return *name;
 }
 

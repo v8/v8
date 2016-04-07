@@ -810,21 +810,12 @@ void Accessors::FunctionLengthGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-
-  int length = 0;
-  if (function->shared()->is_compiled()) {
-    length = function->shared()->length();
-  } else {
-    // If the function isn't compiled yet, the length is not computed
-    // correctly yet. Compile it now and return the right length.
-    if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
-      length = function->shared()->length();
-    }
-    if (isolate->has_pending_exception()) {
-      isolate->OptionalRescheduleException(false);
-    }
+  Handle<Object> result;
+  if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
+    result = handle(Smi::FromInt(0), isolate);
+    isolate->OptionalRescheduleException(false);
   }
-  Handle<Object> result(Smi::FromInt(length), isolate);
+
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -865,12 +856,7 @@ void Accessors::FunctionNameGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result;
-  if (function->shared()->name_should_print_as_anonymous()) {
-    result = isolate->factory()->anonymous_string();
-  } else {
-    result = handle(function->shared()->name(), isolate);
-  }
+  Handle<Object> result = JSFunction::GetName(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1152,6 +1138,65 @@ Handle<AccessorInfo> Accessors::FunctionCallerInfo(
                       &FunctionCallerGetter, nullptr, attributes);
 }
 
+
+//
+// Accessors::BoundFunctionLength
+//
+
+void Accessors::BoundFunctionLengthGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSBoundFunction> function =
+      Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
+
+  Handle<Smi> target_length;
+  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
+                            isolate);
+  if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
+    target_length = handle(Smi::FromInt(0), isolate);
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  int bound_length = function->bound_arguments()->length();
+  int length = Max(0, target_length->value() - bound_length);
+
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::BoundFunctionLengthInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &BoundFunctionLengthGetter,
+                      &ObservedReconfigureToDataProperty, attributes);
+}
+
+//
+// Accessors::BoundFunctionName
+//
+
+void Accessors::BoundFunctionNameGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSBoundFunction> function =
+      Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!JSBoundFunction::GetName(isolate, function).ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::BoundFunctionNameInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, isolate->factory()->name_string(),
+                      &BoundFunctionNameGetter,
+                      &ObservedReconfigureToDataProperty, attributes);
+}
 
 //
 // Accessors::MakeModuleExport

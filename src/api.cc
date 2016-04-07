@@ -4505,16 +4505,20 @@ void Function::SetName(v8::Local<v8::String> name) {
 
 Local<Value> Function::GetName() const {
   auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   if (self->IsJSBoundFunction()) {
     auto func = i::Handle<i::JSBoundFunction>::cast(self);
-    return Utils::ToLocal(handle(func->name(), func->GetIsolate()));
+    i::Handle<i::Object> name;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
+                                     i::JSBoundFunction::GetName(isolate, func),
+                                     Local<Value>());
+    return Utils::ToLocal(name);
   }
   if (self->IsJSFunction()) {
     auto func = i::Handle<i::JSFunction>::cast(self);
-    return Utils::ToLocal(handle(func->shared()->name(), func->GetIsolate()));
+    return Utils::ToLocal(handle(func->shared()->name(), isolate));
   }
-  return ToApiHandle<Primitive>(
-      self->GetIsolate()->factory()->undefined_value());
+  return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
 }
 
 

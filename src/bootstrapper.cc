@@ -1705,18 +1705,21 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
     Map::EnsureDescriptorSlack(map, 2);
 
+    Handle<AccessorInfo> bound_length =
+        Accessors::BoundFunctionLengthInfo(isolate, roc_attribs);
     {  // length
-      DataDescriptor d(factory->length_string(), JSBoundFunction::kLengthIndex,
-                       roc_attribs, Representation::Tagged());
+      AccessorConstantDescriptor d(factory->length_string(), bound_length,
+                                   roc_attribs);
       map->AppendDescriptor(&d);
     }
-    {  // name
-      DataDescriptor d(factory->name_string(), JSBoundFunction::kNameIndex,
-                       roc_attribs, Representation::Tagged());
+    Handle<AccessorInfo> bound_name =
+        Accessors::BoundFunctionNameInfo(isolate, roc_attribs);
+    {  // length
+      AccessorConstantDescriptor d(factory->name_string(), bound_name,
+                                   roc_attribs);
       map->AppendDescriptor(&d);
     }
-
-    map->SetInObjectProperties(2);
+    map->SetInObjectProperties(0);
     native_context()->set_bound_function_without_constructor_map(*map);
 
     map = Map::Copy(map, "IsConstructor");

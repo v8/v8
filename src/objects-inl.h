@@ -5395,8 +5395,6 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
 }
 
 
-ACCESSORS(JSBoundFunction, length, Object, kLengthOffset)
-ACCESSORS(JSBoundFunction, name, Object, kNameOffset)
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
