@@ -721,9 +721,15 @@ HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
     {
       HInstruction* argument =
           Add<HAccessArgumentsAt>(argument_elements, argc, key);
-      Representation r = IsFastSmiElementsKind(kind) ? Representation::Smi()
-                                                     : Representation::Double();
-      AddUncasted<HForceRepresentation>(argument, r);
+      IfBuilder can_store(this);
+      can_store.IfNot<HIsSmiAndBranch>(argument);
+      if (IsFastDoubleElementsKind(kind)) {
+        can_store.And();
+        can_store.IfNot<HCompareMap>(argument,
+                                     isolate()->factory()->heap_number_map());
+      }
+      can_store.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+      can_store.End();
     }
     builder.EndBody();
   }
