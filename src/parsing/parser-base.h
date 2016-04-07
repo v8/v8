@@ -74,8 +74,23 @@ struct FormalParametersBase {
 //     typedef PropertyList;
 //     typedef FormalParameter;
 //     typedef FormalParameters;
+//     typedef Statement;
+//     typedef StatementList;
 //     // For constructing objects returned by the traversing functions.
 //     typedef Factory;
+//     // For classifying and validating expressions.
+//     typedef ExpressionClassifier.
+//     // A struct with extra types for the optional type system.
+//     struct TypeSystem {
+//       typedef Type;
+//       typedef TypeList;
+//       typedef TypeParameter;
+//       typedef TypeParameters;
+//       typedef FormalParameter;
+//       typedef FormalParameters;
+//       typedef TypeMember;
+//       typedef TypeMembers;
+//     };
 //   };
 //   // ...
 // };
