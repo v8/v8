@@ -194,6 +194,8 @@ SLOW_ARCHS = ["android_arm",
               "mips64el",
               "nacl_ia32",
               "nacl_x64",
+              "s390",
+              "s390x",
               "x87",
               "arm64"]
 
