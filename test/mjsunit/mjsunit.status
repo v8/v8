@@ -652,6 +652,9 @@
 
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
+
+  # BUG(v8:4893).
+  'regress/regress-crbug-506443': [PASS, ['no_snap', FAST_VARIANTS]],
 }],  # 'system == windows'
 
 ##############################################################################
