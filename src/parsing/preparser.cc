@@ -478,14 +478,15 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   return final;
 }
 
+
 PreParser::Statement PreParser::ParseVariableStatement(
     VariableDeclarationContext var_context, bool ambient, bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(
-      var_context, nullptr, nullptr, nullptr, nullptr, nullptr, ambient,
-      CHECK_OK);
+  Statement result =
+      ParseVariableDeclarations(var_context, nullptr, nullptr, nullptr, nullptr,
+                                nullptr, ambient, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }

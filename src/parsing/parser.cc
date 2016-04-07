@@ -756,6 +756,7 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
       function_token_position, type, language_mode, type_flags, ok);
 }
 
+
 ClassLiteral* ParserTraits::ParseClassLiteral(
     const AstRawString* name, Scanner::Location class_name_location,
     bool name_is_strict_reserved, int pos, bool ambient, bool* ok) {
@@ -2366,8 +2367,8 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
   // is inside an initializer block, it is ignored.
 
   DeclarationParsingResult parsing_result;
-  Block* result = ParseVariableDeclarations(var_context, &parsing_result,
-                                            names, ambient, CHECK_OK);
+  Block* result = ParseVariableDeclarations(var_context, &parsing_result, names,
+                                            ambient, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -3640,8 +3641,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && IsNextLetKeyword())) {
-      ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
-                                false, CHECK_OK);
+      ParseVariableDeclarations(kForStatement, &parsing_result, nullptr, false,
+                                CHECK_OK);
 
       ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
       int each_beg_pos = scanner()->location().beg_pos;
