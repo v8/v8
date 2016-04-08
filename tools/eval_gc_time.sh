@@ -62,7 +62,7 @@ do
       LOGFILE=$2
       shift
       ;;
-    -f|--percentiles)
+    -p|--percentiles)
       PERCENTILES="--percentiles=$2"
       shift
       ;;
