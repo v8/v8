@@ -1436,7 +1436,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     if (entry == 0) {
       FixedArray* empty = heap->empty_fixed_array();
-      if (Subclass::kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
+      // Dynamically ask for the elements kind here since we manually redirect
+      // the operations for argument backing stores.
+      if (obj->GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(obj->elements())->set(1, empty);
       } else {
         obj->set_elements(empty);
@@ -2356,7 +2358,7 @@ class SloppyArgumentsElementsAccessor
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
     uint32_t entry = ArgumentsAccessor::GetEntryForIndexImpl(holder, arguments,
                                                              index, filter);
-    if (entry == kMaxUInt32) return entry;
+    if (entry == kMaxUInt32) return kMaxUInt32;
     return (parameter_map->length() - 2) + entry;
   }
 
