@@ -34,6 +34,7 @@ import time
 
 from . import execution
 from . import junit_output
+from . import statusfile
 
 
 ABS_PATH_PREFIX = os.getcwd() + os.sep
@@ -329,6 +330,12 @@ class JsonTestProgressIndicator(ProgressIndicator):
         # Buildbot might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
+    duration_mean = None
+    if self.tests:
+      # Get duration mean.
+      duration_mean = (
+          sum(t.duration for t in self.tests) / float(len(self.tests)))
+
     # Sort tests by duration.
     timed_tests = [t for t in self.tests if t.duration is not None]
     timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
@@ -338,6 +345,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "flags": test.flags,
         "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
+        "marked_slow": statusfile.IsSlow(test.outcomes),
       } for test in timed_tests[:20]
     ]
 
@@ -346,6 +354,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "mode": self.mode,
       "results": self.results,
       "slowest_tests": slowest_tests,
+      "duration_mean": duration_mean,
+      "test_total": len(self.tests),
     })
 
     with open(self.json_test_results, "w") as f:
