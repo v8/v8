@@ -117,10 +117,10 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
     // Print bytecode.
-    const uint8_t* bytecode_address =
-        reinterpret_cast<const uint8_t*>(*bytecode_array) + bytecode_offset;
-    os << " -> " << static_cast<const void*>(bytecode_address)
-       << " (" << bytecode_offset << ") : ";
+    const uint8_t* base_address = bytecode_array->GetFirstBytecodeAddress();
+    const uint8_t* bytecode_address = base_address + offset;
+    os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
+       << std::setw(4) << offset << " : ";
     interpreter::Bytecodes::Decode(os, bytecode_address,
                                    bytecode_array->parameter_count());
     os << std::endl;

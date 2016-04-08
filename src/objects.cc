@@ -14570,7 +14570,6 @@ int BytecodeArray::SourceStatementPosition(int offset) {
 void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
-  Vector<char> buf = Vector<char>::New(50);
 
   const uint8_t* base_address = GetFirstBytecodeAddress();
   interpreter::SourcePositionTableIterator source_positions(
@@ -14587,12 +14586,13 @@ void BytecodeArray::Disassemble(std::ostream& os) {
       os << "         ";
     }
     const uint8_t* current_address = base_address + iterator.current_offset();
-    SNPrintF(buf, "%p", current_address);
-    os << buf.start() << " : ";
+    os << reinterpret_cast<const void*>(current_address) << " @ "
+       << std::setw(4) << iterator.current_offset() << " : ";
     interpreter::Bytecodes::Decode(os, current_address, parameter_count());
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
-      SNPrintF(buf, " (%p)", base_address + iterator.GetJumpTargetOffset());
-      os << buf.start();
+      const void* jump_target = base_address + iterator.GetJumpTargetOffset();
+      os << " (" << jump_target << " @ " << iterator.GetJumpTargetOffset()
+         << ")";
     }
     os << std::endl;
     iterator.Advance();
