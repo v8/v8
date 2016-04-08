@@ -28,7 +28,7 @@ declare_args() {
 v8_deprecation_warnings = false
 v8_enable_disassembler = false
 v8_enable_gdbjit = false
-v8_enable_handle_zapping = true
+v8_enable_handle_zapping = false
 v8_enable_i18n_support = true
 v8_enable_verify_heap = false
 v8_interpreted_regexp = false
