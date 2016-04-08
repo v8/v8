@@ -162,10 +162,7 @@ class CodeStubAssembler {
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
   Node* BooleanMapConstant();
-  Node* EmptyStringConstant();
   Node* HeapNumberMapConstant();
-  Node* NaNConstant();
-  Node* NoContextConstant();
   Node* NullConstant();
   Node* UndefinedConstant();
 
@@ -281,11 +278,9 @@ class CodeStubAssembler {
   Node* SmiTag(Node* value);
   // Untag a Smi value as a Word.
   Node* SmiUntag(Node* value);
-  Node* SmiToWord(Node* value) { return SmiUntag(value); }
 
   // Smi conversions.
   Node* SmiToFloat64(Node* value);
-  Node* SmiFromWord32(Node* value);
   Node* SmiToWord32(Node* value);
 
   // Smi operations.
@@ -294,7 +289,6 @@ class CodeStubAssembler {
   Node* SmiSub(Node* a, Node* b);
   Node* SmiSubWithOverflow(Node* a, Node* b);
   Node* SmiEqual(Node* a, Node* b);
-  Node* SmiAboveOrEqual(Node* a, Node* b);
   Node* SmiLessThan(Node* a, Node* b);
   Node* SmiLessThanOrEqual(Node* a, Node* b);
   Node* SmiMin(Node* a, Node* b);
@@ -349,19 +343,13 @@ class CodeStubAssembler {
 
   // Allocate an object of the given size.
   Node* Allocate(int size, AllocationFlags flags = kNone);
-  Node* InnerAllocate(Node* previous, int offset);
   // Allocate a HeapNumber without initializing its value.
   Node* AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.
   Node* AllocateHeapNumberWithValue(Node* value);
-  // Allocate a SeqOneByteString with the given length.
-  Node* AllocateSeqOneByteString(int length);
-  // Allocate a SeqTwoByteString with the given length.
-  Node* AllocateSeqTwoByteString(int length);
+  Node* InnerAllocate(Node* previous, int offset);
 
   // Store an array element to a FixedArray.
-  Node* StoreFixedArrayElementInt32Index(Node* object, Node* index,
-                                         Node* value);
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
                                              Node* value);
   // Load the Map of an HeapObject.
@@ -389,17 +377,6 @@ class CodeStubAssembler {
   Node* ChangeInt32ToTagged(Node* value);
   Node* TruncateTaggedToFloat64(Node* context, Node* value);
   Node* TruncateTaggedToWord32(Node* context, Node* value);
-
-  // Type conversions.
-  // Throws a TypeError for {method_name} if {value} is not coercible to Object,
-  // or returns the {value} converted to a String otherwise.
-  Node* ToThisString(Node* context, Node* value, char const* method_name);
-
-  // String helpers.
-  // Load a character from a String (might flatten a ConsString).
-  Node* StringCharCodeAt(Node* string, Node* smi_index);
-  // Return the single character string with only {code}.
-  Node* StringFromCharCode(Node* code);
 
   // Branching helpers.
   // TODO(danno): Can we be more cleverish wrt. edge-split?

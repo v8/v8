@@ -312,7 +312,6 @@ namespace internal {
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
   F(ThrowCalledNonCallable, 1, 1)                   \
-  F(ThrowCalledOnNullOrUndefined, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
   F(GetOrdinaryHasInstance, 0, 1)                   \
@@ -859,7 +858,6 @@ namespace internal {
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
   F(StringCharAt, 2, 1)                   \
-  F(ExternalStringGetChar, 2, 1)          \
   F(OneByteSeqStringGetChar, 2, 1)        \
   F(OneByteSeqStringSetChar, 3, 1)        \
   F(TwoByteSeqStringGetChar, 2, 1)        \
