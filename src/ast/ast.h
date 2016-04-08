@@ -3227,8 +3227,8 @@ class TypeMember : public AstNode {
 
   Expression* property() const { return property_; }
   IndexType index_type() const { return index_type_; }
-  bool optional() const { return optional_; }
-  bool constructor() const { return constructor_; }
+  bool is_optional() const { return is_optional_; }
+  bool is_constructor() const { return is_constructor_; }
   ZoneList<TypeParameter*>* type_parameters() const { return type_parameters_; }
   ZoneList<FormalParameter*>* parameters() const { return parameters_; }
   Type* type() const { return type_; }
@@ -3236,16 +3236,16 @@ class TypeMember : public AstNode {
   bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
 
  protected:
-  TypeMember(Zone* zone, Expression* property, bool optional,
+  TypeMember(Zone* zone, Expression* property, bool is_optional,
              ZoneList<typesystem::TypeParameter*>* type_parameters,
              ZoneList<typesystem::FormalParameter*>* parameters,
              typesystem::Type* type, bool valid_type, bool valid_binder,
-             int pos, bool constructor = false)
+             int pos, bool is_constructor = false)
       : AstNode(pos),
         property_(property),
         index_type_(kNoIndexType),
-        optional_(optional),
-        constructor_(constructor),
+        is_optional_(is_optional),
+        is_constructor_(is_constructor),
         valid_type_(valid_type),
         valid_binder_(valid_binder),
         type_parameters_(type_parameters),
@@ -3257,8 +3257,8 @@ class TypeMember : public AstNode {
       : AstNode(pos),
         property_(property),
         index_type_(index_type),
-        optional_(false),
-        constructor_(false),
+        is_optional_(false),
+        is_constructor_(false),
         valid_type_(true),
         valid_binder_(false),
         type_parameters_(nullptr),
@@ -3268,8 +3268,8 @@ class TypeMember : public AstNode {
  private:
   Expression* property_;
   IndexType index_type_;
-  bool optional_;
-  bool constructor_;
+  bool is_optional_;
+  bool is_constructor_;
   bool valid_type_;
   bool valid_binder_;
   ZoneList<typesystem::TypeParameter*>* type_parameters_;

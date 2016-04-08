@@ -3522,8 +3522,10 @@ ParserBase<Traits>::ParseTypeMember(bool* ok) {
     type_parameters = ParseTypeParameters(CHECK_OK_CUSTOM(EmptyTypeMember));
     valid_binder = false;
   }
-  // Require formal parameters if no property was specified.
-  if (!has_property && peek() != Token::LPAREN) {
+  // Require formal parameters if type parameters are present
+  // or if no property was specified.
+  if ((!has_property || !this->IsNullTypeParameters(type_parameters)) &&
+      peek() != Token::LPAREN) {
     Expect(Token::LPAREN, CHECK_OK_CUSTOM(EmptyTypeMember));
     UNREACHABLE();
   }
