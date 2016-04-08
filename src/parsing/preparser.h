@@ -436,14 +436,14 @@ class PreParserFormalParameter {
   V8_INLINE static PreParserFormalParameter Unnamed(const PreParserType& type);
 
   bool IsValidType() const { return valid_type_; }
-  bool IsSimpleIdentifier() const { return simple_identifier_; }
+  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
 
  private:
-  PreParserFormalParameter(bool valid, bool simple)
-      : valid_type_(valid), simple_identifier_(simple) {}
+  PreParserFormalParameter(bool valid_type, bool valid_binder)
+      : valid_type_(valid_type), valid_binder_(valid_binder) {}
 
   bool valid_type_;
-  bool simple_identifier_;
+  bool valid_binder_;
 };
 
 
@@ -472,14 +472,15 @@ class PreParserFormalParameters
 
 class PreParserType {
  public:
-  static PreParserType Default(bool valid = true) {
-    return PreParserType(valid, false, false);
+  static PreParserType Default(bool valid_type = true,
+                               bool valid_binder = false) {
+    return PreParserType(valid_type, valid_binder, false);
   }
   static PreParserType Reference(bool simple) {
     return PreParserType(true, simple, false);
   }
-  static PreParserType Parenthesized(bool valid, int arity) {
-    return PreParserType(valid, false, false, arity);
+  static PreParserType Parenthesized(bool valid_type, int arity) {
+    return PreParserType(valid_type, false, false, arity);
   }
   static PreParserType StringLiteral() {
     return PreParserType(true, false, true);
@@ -501,34 +502,29 @@ class PreParserType {
   }
 
   bool IsValidType() const { return valid_type_; }
-  bool IsSimpleIdentifier() const { return simple_identifier_; }
+  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
   bool IsStringLiteralType() const { return string_; }
 
-  PreParserIdentifier AsSimpleIdentifier() const {
-    DCHECK(simple_identifier_);
-    return PreParserIdentifier::Default();
-  }
-
  private:
-  PreParserType(bool valid, bool simple, bool string, int arity = -1)
-      : valid_type_(valid),
-        simple_identifier_(simple),
+  PreParserType(bool valid_type, bool valid_binder, bool string, int arity = -1)
+      : valid_type_(valid_type),
+        valid_binder_(valid_binder),
         string_(string),
         arity_(arity) {}
 
   bool valid_type_;
-  bool simple_identifier_;
+  bool valid_binder_;
   bool string_;
   int arity_;
 };
 
 
-typedef PreParserList<PreParserType> PreParserTypeArguments;
+typedef PreParserList<PreParserType> PreParserTypeList;
 
 V8_INLINE PreParserFormalParameter
 PreParserFormalParameter::Unnamed(const PreParserType& type) {
   return PreParserFormalParameter(type.IsValidType(),
-                                  type.IsSimpleIdentifier());
+                                  type.IsValidBindingIdentifierOrPattern());
 }
 
 
@@ -674,7 +670,8 @@ class PreParserFactory {
 
   typesystem::PreParserType NewPredefinedType(
       typesystem::PredefinedType::Kind kind, int pos) {
-    return typesystem::PreParserType::Default();
+    return typesystem::PreParserType::Default(
+        true, kind != typesystem::PredefinedType::kVoidType);
   }
 
   typesystem::PreParserType NewThisType(int pos) {
@@ -698,6 +695,12 @@ class PreParserFactory {
     return typesystem::PreParserType::Default();
   }
 
+  typesystem::PreParserType NewTupleType(
+      const typesystem::PreParserTypeList& elements, bool valid_type,
+      bool valid_binder, bool spread, int pos) {
+    return typesystem::PreParserType::Default(valid_type, valid_binder);
+  }
+
   typesystem::PreParserType NewFunctionType(
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
@@ -713,7 +716,7 @@ class PreParserFactory {
 
   typesystem::PreParserType NewTypeReference(
       const PreParserIdentifier& name,
-      const typesystem::PreParserTypeArguments& type_arguments, int pos) {
+      const typesystem::PreParserTypeList& type_arguments, int pos) {
     return typesystem::PreParserType::Reference(type_arguments.length() == 0);
   }
 
@@ -724,7 +727,7 @@ class PreParserFactory {
   }
 
   typesystem::PreParserFormalParameter NewFormalParameter(
-      const PreParserIdentifier& name, bool optional, bool spread,
+      const typesystem::PreParserType& binder, bool optional, bool spread,
       const typesystem::PreParserType& type, int pos) {
     return typesystem::PreParserFormalParameter::Named();
   }
@@ -800,7 +803,7 @@ class PreParserTraits {
 
     struct TypeSystem {
       typedef typesystem::PreParserType Type;
-      typedef typesystem::PreParserTypeArguments TypeArguments;
+      typedef typesystem::PreParserTypeList TypeList;
       typedef typesystem::PreParserTypeParameter TypeParameter;
       typedef typesystem::PreParserTypeParameters TypeParameters;
       typedef typesystem::PreParserFormalParameter FormalParameter;
@@ -963,8 +966,8 @@ class PreParserTraits {
   static typesystem::PreParserType EmptyType() {
     return typesystem::PreParserType::Default(false);
   }
-  static typesystem::PreParserTypeArguments NullTypeArguments() {
-    return typesystem::PreParserTypeArguments();
+  static typesystem::PreParserTypeList NullTypeList() {
+    return typesystem::PreParserTypeList();
   }
   static typesystem::PreParserTypeParameters NullTypeParameters() {
     return typesystem::PreParserTypeParameters();
@@ -973,8 +976,8 @@ class PreParserTraits {
       const typesystem::PreParserTypeParameters& typ_pars) {
     return typ_pars.length() == 0;
   }
-  static typesystem::PreParserTypeArguments EmptyTypeArguments() {
-    return typesystem::PreParserTypeArguments();
+  static typesystem::PreParserTypeList EmptyTypeList() {
+    return typesystem::PreParserTypeList();
   }
   static typesystem::PreParserTypeParameters EmptyTypeParameters() {
     return typesystem::PreParserTypeParameters();
@@ -987,6 +990,9 @@ class PreParserTraits {
   }
   static PreParserIdentifierList EmptyIdentifierList() {
     return PreParserIdentifierList();
+  }
+  static typesystem::PreParserType HoleTypeElement() {
+    return typesystem::PreParserType::Default(false);
   }
 
   // Odd-ball literal creators.

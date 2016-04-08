@@ -354,7 +354,7 @@ class ParserTraits {
 
     struct TypeSystem {
       typedef v8::internal::typesystem::Type* Type;
-      typedef ZoneList<v8::internal::typesystem::Type*>* TypeArguments;
+      typedef ZoneList<v8::internal::typesystem::Type*>* TypeList;
       typedef v8::internal::typesystem::TypeParameter* TypeParameter;
       typedef ZoneList<v8::internal::typesystem::TypeParameter*>*
           TypeParameters;
@@ -499,9 +499,9 @@ class ParserTraits {
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
 
-  static typesystem::Type* EmptyType() { return NULL; }
-  static ZoneList<typesystem::Type*>* NullTypeArguments() { return nullptr; }
-  V8_INLINE ZoneList<typesystem::Type*>* EmptyTypeArguments() const;
+  static typesystem::Type* EmptyType() { return nullptr; }
+  static ZoneList<typesystem::Type*>* NullTypeList() { return nullptr; }
+  V8_INLINE ZoneList<typesystem::Type*>* EmptyTypeList() const;
   static ZoneList<typesystem::TypeParameter*>* NullTypeParameters() {
     return nullptr;
   }
@@ -514,6 +514,7 @@ class ParserTraits {
       const;
   static ZoneList<const AstRawString*>* NullIdentifierList() { return nullptr; }
   V8_INLINE ZoneList<const AstRawString*>* EmptyIdentifierList() const;
+  static typesystem::Type* HoleTypeElement() { return nullptr; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -1127,7 +1128,7 @@ Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
 }
 
 
-ZoneList<typesystem::Type*>* ParserTraits::EmptyTypeArguments() const {
+ZoneList<typesystem::Type*>* ParserTraits::EmptyTypeList() const {
   return new (parser_->zone()) ZoneList<typesystem::Type*>(1, parser_->zone());
 }
 

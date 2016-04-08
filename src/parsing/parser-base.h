@@ -855,7 +855,7 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParseIntersectionOrPrimaryType(bool* ok);
   typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
-  typename TypeSystem::TypeArguments ParseTypeArguments(bool* ok);
+  typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
 
   typename TypeSystem::Type ValidateType(typename TypeSystem::Type type,
@@ -3202,16 +3202,16 @@ ParserBase<Traits>::ParseTypeParameters(bool* ok) {
 
 
 template <typename Traits>
-typename ParserBase<Traits>::TypeSystem::TypeArguments
+typename ParserBase<Traits>::TypeSystem::TypeList
 ParserBase<Traits>::ParseTypeArguments(bool* ok) {
-  Expect(Token::LT, CHECK_OK_CUSTOM(NullTypeArguments));
-  typename TypeSystem::TypeArguments arguments = this->EmptyTypeArguments();
+  Expect(Token::LT, CHECK_OK_CUSTOM(NullTypeList));
+  typename TypeSystem::TypeList arguments = this->EmptyTypeList();
   do {
     typename TypeSystem::Type type =
-        ParseValidType(CHECK_OK_CUSTOM(NullTypeArguments));
+        ParseValidType(CHECK_OK_CUSTOM(NullTypeList));
     arguments->Add(type, zone());
   } while (Check(Token::COMMA));
-  Expect(Token::GT, CHECK_OK_CUSTOM(NullTypeArguments));
+  Expect(Token::GT, CHECK_OK_CUSTOM(NullTypeList));
   return arguments;
 }
 
@@ -3271,34 +3271,34 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
         do {
           Scanner::Location parameter_location = scanner()->peek_location();
           if (Check(Token::ELLIPSIS)) {
+            int name_pos = peek_position();
             IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
             if (Check(Token::COLON)) {  // Braces required here.
               type = ParseValidType(CHECK_OK_TYPE);
             } else {
               type = this->EmptyType();
             }
-            parameters->Add(
-                factory()->NewFormalParameter(name, false, true, type,
-                                              parameter_location.beg_pos),
-                zone());
+            parameters->Add(factory()->NewFormalParameter(
+                                factory()->NewTypeReference(
+                                    name, this->NullTypeList(), name_pos),
+                                false, true, type, parameter_location.beg_pos),
+                            zone());
             break;
           }
           type = ParseType(CHECK_OK_TYPE);
           if (peek() == Token::CONDITIONAL || peek() == Token::COLON) {
-            if (!type->IsSimpleIdentifier()) {
+            if (!type->IsValidBindingIdentifierOrPattern()) {
               ReportUnexpectedToken(Next());
               *ok = false;
               return this->EmptyType();
             }
             bool optional = Check(Token::CONDITIONAL);
-            IdentifierT name = type->AsSimpleIdentifier();
+            typename TypeSystem::Type of_type = this->EmptyType();
             if (Check(Token::COLON)) {  // Braces required here.
               type = ParseValidTypeOrStringLiteral(CHECK_OK_TYPE);
-            } else {
-              type = this->EmptyType();
             }
             parameters->Add(
-                factory()->NewFormalParameter(name, optional, false, type,
+                factory()->NewFormalParameter(type, optional, false, of_type,
                                               parameter_location.beg_pos),
                 zone());
           } else {
@@ -3331,13 +3331,52 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
             typesystem::PredefinedType::kSymbolType, pos);
       } else {
         IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
-        typename TypeSystem::TypeArguments type_arguments =
-            this->NullTypeArguments();
+        typename TypeSystem::TypeList type_arguments = this->NullTypeList();
         if (peek() == Token::LT) {  // Braces required here.
           type_arguments = ParseTypeArguments(CHECK_OK_TYPE);
         }
         type = factory()->NewTypeReference(name, type_arguments, pos);
       }
+      break;
+    }
+    case Token::LBRACK: {
+      Consume(Token::LBRACK);
+      typename TypeSystem::TypeList elements = this->EmptyTypeList();
+      bool valid_type = false, valid_binder = true, spread = false;
+      bool trailing_comma = false;
+      if (peek() != Token::RBRACK) {
+        valid_type = true;
+        do {
+          if (Check(Token::COMMA)) {
+            typename TypeSystem::Type type_element = this->HoleTypeElement();
+            elements->Add(type_element, zone());
+            valid_type = false;
+            trailing_comma = true;
+            continue;
+          } else {
+            trailing_comma = false;
+          }
+          if (Check(Token::ELLIPSIS)) {
+            typename TypeSystem::Type type_element = ParseType(CHECK_OK_TYPE);
+            elements->Add(type_element, zone());
+            valid_type = false;
+            spread = true;
+            break;
+          }
+          typename TypeSystem::Type type_element = ParseType(CHECK_OK_TYPE);
+          elements->Add(type_element, zone());
+          if (!type_element->IsValidType()) valid_type = false;
+          if (!type_element->IsValidBindingIdentifierOrPattern())
+            valid_binder = false;
+          if (peek() != Token::RBRACK) {  // Braces required here.
+            Expect(Token::COMMA, CHECK_OK_TYPE);
+            trailing_comma = true;
+          }
+        } while (peek() != Token::RBRACK);
+      }
+      Consume(Token::RBRACK);
+      type = factory()->NewTupleType(elements, valid_type && !trailing_comma,
+                                     valid_binder, spread, pos);
       break;
     }
     case Token::TYPEOF: {
@@ -3362,7 +3401,6 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
       break;
     }
     // TODO(nikolaos): Missing object types.
-    // TODO(nikolaos): Missing tuple types.
     case Token::STRING: {
       Consume(Token::STRING);
       IdentifierT str = this->GetSymbol(scanner());

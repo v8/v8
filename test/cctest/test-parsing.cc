@@ -7482,6 +7482,9 @@ TEST(TypedModeSimpleTypes) {
     "var s: (a: number, b?: string, c?) => number",
     "var s: (a: number, b: string, c, ...d) => number",
     "var s: (a: number, b: string, c, ...d: string[]) => number",
+    "var s: (number) => number",
+    "var s: (number: any) => number",
+    "var s: (any: number) => number",
     NULL
   };
 
@@ -7574,6 +7577,51 @@ TEST(TypedModeStringLiteralTypes) {
     "var x: (('foo')[])",
     "var x: 'foo' | 'bar'",
     "var f: ('foo') => any",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(TypedModeTupleTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var x: [number]",
+    "var x: [number, string]",
+    "var x: [number[], (a: string, b?: number) => boolean]",
+    "var f: ([]: number[]) => boolean",
+    "var f: ([x]: number[]) => boolean",
+    "var f: ([x, y]: number[]) => boolean",
+    "var f: ([x,, y]: number[]) => boolean",
+    "var f: ([, x,, y,,]: number[]) => boolean",
+    "var f: ([x, y, ...rest]: number[]) => boolean",
+    "var f: ([any]) => number",
+    "var f: ([number]: number[]) => number",
+    "var f: ([one, two, ...number]: number[]) => boolean",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var z: []",
+    "var z: [()]",
+    "var z: [number,]",
+    "var x: [number, (a: string)]",
+    "var x: [number[], (a: string, b?: number)]",
+    "var z: [, number]",
+    "var z: [,, number]",
+    "var z: [string,,,]",
+    "var z: [string,, number]",
+    "var z: [string,, ...number]",
     NULL
   };
 
