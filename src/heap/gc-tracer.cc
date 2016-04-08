@@ -411,7 +411,7 @@ void GCTracer::Output(const char* format, ...) const {
 
 void GCTracer::Print() const {
   if (FLAG_trace_gc) {
-    PrintIsolate(heap_->isolate(), "%s", "");
+    PrintIsolate(heap_->isolate(), "");
   }
   Output("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
@@ -480,20 +480,20 @@ void GCTracer::PrintNVP() const {
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "scavenge_throughput=%.f "
-                   "total_size_before=%" V8PRIdPTR
-                   " "
-                   "total_size_after=%" V8PRIdPTR
-                   " "
-                   "holes_size_before=%" V8PRIdPTR
-                   " "
-                   "holes_size_after=%" V8PRIdPTR
-                   " "
-                   "allocated=%" V8PRIdPTR
-                   " "
-                   "promoted=%" V8PRIdPTR
-                   " "
-                   "semi_space_copied=%" V8PRIdPTR
-                   " "
+                   "total_size_before=%" V8_PTR_PREFIX
+                   "d "
+                   "total_size_after=%" V8_PTR_PREFIX
+                   "d "
+                   "holes_size_before=%" V8_PTR_PREFIX
+                   "d "
+                   "holes_size_after=%" V8_PTR_PREFIX
+                   "d "
+                   "allocated=%" V8_PTR_PREFIX
+                   "d "
+                   "promoted=%" V8_PTR_PREFIX
+                   "d "
+                   "semi_space_copied=%" V8_PTR_PREFIX
+                   "d "
                    "nodes_died_in_new=%d "
                    "nodes_copied_in_new=%d "
                    "nodes_promoted=%d "
@@ -586,20 +586,20 @@ void GCTracer::PrintNVP() const {
           "finalization_steps_took=%.1f "
           "finalization_longest_step=%.1f "
           "incremental_marking_throughput=%.f "
-          "total_size_before=%" V8PRIdPTR
-          " "
-          "total_size_after=%" V8PRIdPTR
-          " "
-          "holes_size_before=%" V8PRIdPTR
-          " "
-          "holes_size_after=%" V8PRIdPTR
-          " "
-          "allocated=%" V8PRIdPTR
-          " "
-          "promoted=%" V8PRIdPTR
-          " "
-          "semi_space_copied=%" V8PRIdPTR
-          " "
+          "total_size_before=%" V8_PTR_PREFIX
+          "d "
+          "total_size_after=%" V8_PTR_PREFIX
+          "d "
+          "holes_size_before=%" V8_PTR_PREFIX
+          "d "
+          "holes_size_after=%" V8_PTR_PREFIX
+          "d "
+          "allocated=%" V8_PTR_PREFIX
+          "d "
+          "promoted=%" V8_PTR_PREFIX
+          "d "
+          "semi_space_copied=%" V8_PTR_PREFIX
+          "d "
           "nodes_died_in_new=%d "
           "nodes_copied_in_new=%d "
           "nodes_promoted=%d "

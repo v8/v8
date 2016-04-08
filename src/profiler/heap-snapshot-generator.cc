@@ -2247,9 +2247,9 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
   intptr_t elements = info->GetElementCount();
   intptr_t size = info->GetSizeInBytes();
   const char* name = elements != -1
-                         ? names_->GetFormatted("%s / %" V8PRIdPTR " entries",
-                                                info->GetLabel(), elements)
-                         : names_->GetCopy(info->GetLabel());
+      ? names_->GetFormatted(
+            "%s / %" V8_PTR_PREFIX "d entries", info->GetLabel(), elements)
+      : names_->GetCopy(info->GetLabel());
   return snapshot_->AddEntry(
       entries_type_,
       name,

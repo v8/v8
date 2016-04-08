@@ -882,7 +882,10 @@ void MemoryAllocator::RemoveMemoryAllocationCallback(
 void MemoryAllocator::ReportStatistics() {
   intptr_t size = Size();
   float pct = static_cast<float>(capacity_ - size) / capacity_;
-  PrintF("  capacity: %" V8PRIdPTR ", used: %" V8PRIdPTR
+  PrintF("  capacity: %" V8_PTR_PREFIX
+         "d"
+         ", used: %" V8_PTR_PREFIX
+         "d"
          ", available: %%%d\n\n",
          capacity_, size, static_cast<int>(pct * 100));
 }
@@ -2059,7 +2062,9 @@ void NewSpace::ReportStatistics() {
 #ifdef DEBUG
   if (FLAG_heap_stats) {
     float pct = static_cast<float>(Available()) / TotalCapacity();
-    PrintF("  capacity: %" V8PRIdPTR ", available: %" V8PRIdPTR ", %%%d\n",
+    PrintF("  capacity: %" V8_PTR_PREFIX
+           "d"
+           ", available: %" V8_PTR_PREFIX "d, %%%d\n",
            TotalCapacity(), Available(), static_cast<int>(pct * 100));
     PrintF("\n  Object Histogram:\n");
     for (int i = 0; i <= LAST_TYPE; i++) {
@@ -2785,8 +2790,11 @@ void PagedSpace::CollectCodeStatistics() {
 
 void PagedSpace::ReportStatistics() {
   int pct = static_cast<int>(Available() * 100 / Capacity());
-  PrintF("  capacity: %" V8PRIdPTR ", waste: %" V8PRIdPTR
-         ", available: %" V8PRIdPTR ", %%%d\n",
+  PrintF("  capacity: %" V8_PTR_PREFIX
+         "d"
+         ", waste: %" V8_PTR_PREFIX
+         "d"
+         ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
   if (heap()->mark_compact_collector()->sweeping_in_progress()) {
@@ -3082,7 +3090,7 @@ void LargeObjectSpace::Print() {
 
 
 void LargeObjectSpace::ReportStatistics() {
-  PrintF("  size: %" V8PRIdPTR "\n", size_);
+  PrintF("  size: %" V8_PTR_PREFIX "d\n", size_);
   int num_objects = 0;
   ClearHistograms(heap()->isolate());
   LargeObjectIterator it(this);
@@ -3093,7 +3101,7 @@ void LargeObjectSpace::ReportStatistics() {
 
   PrintF(
       "  number of objects %d, "
-      "size of objects %" V8PRIdPTR "\n",
+      "size of objects %" V8_PTR_PREFIX "d\n",
       num_objects, objects_size_);
   if (num_objects > 0) ReportHistogram(heap()->isolate(), false);
 }

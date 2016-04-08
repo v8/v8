@@ -1629,7 +1629,6 @@
         '../../src/base/division-by-constant.cc',
         '../../src/base/division-by-constant.h',
         '../../src/base/flags.h',
-        '../../src/base/format-macros.h',
         '../../src/base/functional.cc',
         '../../src/base/functional.h',
         '../../src/base/iterator.h',

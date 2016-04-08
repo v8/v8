@@ -14,7 +14,6 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/instrument-arm64.h"
 #include "src/assembler.h"
-#include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -795,7 +794,7 @@ class Simulator : public DecoderVisitor {
   // Output stream.
   FILE* stream_;
   PrintDisassembler* print_disasm_;
-  void PRINTF_FORMAT(2, 3) TraceSim(const char* format, ...);
+  void PRINTF_METHOD_CHECKING TraceSim(const char* format, ...);
 
   // Instrumentation.
   Instrument* instrument_;

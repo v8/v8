@@ -759,8 +759,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       if (FLAG_trace_fragmentation_verbose) {
         PrintIsolate(isolate(),
                      "compaction-selection-page: space=%s free_bytes_page=%d "
-                     "fragmentation_limit_kb=%" V8PRIdPTR
-                     " fragmentation_limit_percent=%d sum_compaction_kb=%d "
+                     "fragmentation_limit_kb=%d fragmentation_limit_percent=%d "
+                     "sum_compaction_kb=%d "
                      "compaction_limit_kb=%d\n",
                      AllocationSpaceName(space->identity()), free_bytes / KB,
                      free_bytes_threshold / KB, target_fragmentation_percent,
@@ -3142,15 +3142,16 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   delete[] evacuators;
 
   if (FLAG_trace_evacuation) {
-    PrintIsolate(isolate(),
-                 "%8.0f ms: evacuation-summary: parallel=%s pages=%d "
-                 "aborted=%d wanted_tasks=%d tasks=%d cores=%" PRIuS
-                 " live_bytes=%" V8PRIdPTR " compaction_speed=%.f\n",
-                 isolate()->time_millis_since_init(),
-                 FLAG_parallel_compaction ? "yes" : "no", job.NumberOfPages(),
-                 abandoned_pages, wanted_num_tasks, job.NumberOfTasks(),
-                 V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
-                 live_bytes, compaction_speed);
+    PrintIsolate(
+        isolate(),
+        "%8.0f ms: evacuation-summary: parallel=%s pages=%d aborted=%d "
+        "wanted_tasks=%d tasks=%d cores=%d live_bytes=%" V8_PTR_PREFIX
+        "d compaction_speed=%.f\n",
+        isolate()->time_millis_since_init(),
+        FLAG_parallel_compaction ? "yes" : "no", job.NumberOfPages(),
+        abandoned_pages, wanted_num_tasks, job.NumberOfTasks(),
+        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads(),
+        live_bytes, compaction_speed);
   }
 }
 
