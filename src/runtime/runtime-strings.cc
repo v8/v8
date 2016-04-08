@@ -1273,6 +1273,13 @@ RUNTIME_FUNCTION(Runtime_StringCharAt) {
   return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_ExternalStringGetChar) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(ExternalString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  return Smi::FromInt(string->Get(index));
+}
 
 RUNTIME_FUNCTION(Runtime_OneByteSeqStringGetChar) {
   SealHandleScope shs(isolate);

@@ -310,7 +310,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathRound, 2)                \
   V(MathSqrt, 2)                 \
   V(MathTrunc, 2)                \
-  V(ObjectHasOwnProperty, 2)
+  V(ObjectHasOwnProperty, 2)     \
+  V(StringPrototypeCharAt, 2)    \
+  V(StringPrototypeCharCodeAt, 2)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -624,6 +626,13 @@ class Builtins {
 
   // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
   static void Generate_ObjectHasOwnProperty(
+      compiler::CodeStubAssembler* assembler);
+
+  // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
+  static void Generate_StringPrototypeCharAt(
+      compiler::CodeStubAssembler* assembler);
+  // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
+  static void Generate_StringPrototypeCharCodeAt(
       compiler::CodeStubAssembler* assembler);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
