@@ -1774,7 +1774,6 @@ TEST(RunInt32SubP) {
   }
 }
 
-
 TEST(RunInt32SubImm) {
   {
     FOR_UINT32_INPUTS(i) {
@@ -1798,6 +1797,11 @@ TEST(RunInt32SubImm) {
   }
 }
 
+TEST(RunInt32SubImm2) {
+  BufferedRawMachineAssemblerTester<int32_t> r;
+  r.Return(r.Int32Sub(r.Int32Constant(-1), r.Int32Constant(0)));
+  CHECK_EQ(-1, r.Call());
+}
 
 TEST(RunInt32SubAndWord32SarP) {
   {

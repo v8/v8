@@ -2077,10 +2077,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : kScratchRegister;
       switch (src.type()) {
-        case Constant::kInt32:
+        case Constant::kInt32: {
           // TODO(dcarney): don't need scratch in this case.
-          __ Set(dst, src.ToInt32());
+          int32_t value = src.ToInt32();
+          if (value == 0) {
+            __ xorl(dst, dst);
+          } else {
+            __ movl(dst, Immediate(value));
+          }
           break;
+        }
         case Constant::kInt64:
           __ Set(dst, src.ToInt64());
           break;
