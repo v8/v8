@@ -521,6 +521,34 @@ class PreParserType {
 
 typedef PreParserList<PreParserType> PreParserTypeList;
 
+
+class PreParserTypeMember {
+ public:
+  static PreParserTypeMember Default(bool valid_type, bool valid_binder) {
+    return PreParserTypeMember(valid_type, valid_binder);
+  }
+  static PreParserTypeMember IndexSignature() {
+    return PreParserTypeMember(true, false);
+  }
+  bool IsValidType() const { return valid_type_; }
+  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
+
+  // Dummy implementation for making type_member->somefunc() work in both
+  // Parser and PreParser.
+  PreParserTypeMember* operator->() { return this; }
+
+ private:
+  PreParserTypeMember(bool valid_type, bool valid_binder)
+      : valid_type_(valid_type), valid_binder_(valid_binder) {}
+
+  bool valid_type_;
+  bool valid_binder_;
+};
+
+
+typedef PreParserList<PreParserTypeMember> PreParserTypeMembers;
+
+
 V8_INLINE PreParserFormalParameter
 PreParserFormalParameter::Unnamed(const PreParserType& type) {
   return PreParserFormalParameter(type.IsValidType(),
@@ -701,10 +729,16 @@ class PreParserFactory {
     return typesystem::PreParserType::Default(valid_type, valid_binder);
   }
 
+  typesystem::PreParserType NewObjectType(
+      const typesystem::PreParserTypeMembers& members, bool valid_type,
+      bool valid_binder, int pos) {
+    return typesystem::PreParserType::Default(valid_type, valid_binder);
+  }
+
   typesystem::PreParserType NewFunctionType(
       const typesystem::PreParserTypeParameters& type_parameters,
       const typesystem::PreParserFormalParameters& parameters,
-      typesystem::PreParserType result_type, int pos,
+      const typesystem::PreParserType& result_type, int pos,
       bool constructor = false) {
     return typesystem::PreParserType::Default();
   }
@@ -744,9 +778,25 @@ class PreParserFactory {
   }
 
   typesystem::PreParserTypeParameter NewTypeParameter(
-      PreParserIdentifier name, const typesystem::PreParserType& extends,
+      const PreParserIdentifier& name, const typesystem::PreParserType& extends,
       int pos) {
     return typesystem::PreParserTypeParameter::Default();
+  }
+
+  typesystem::PreParserTypeMember NewTypeMember(
+      const PreParserExpression& property, bool optional,
+      const typesystem::PreParserTypeParameters& type_parameters,
+      const typesystem::PreParserFormalParameters& parameters,
+      const typesystem::PreParserType& result_type, bool valid_type,
+      bool valid_binder, int pos, bool constructor = false) {
+    return typesystem::PreParserTypeMember::Default(valid_type, valid_binder);
+  }
+
+  typesystem::PreParserTypeMember NewTypeMember(
+      const PreParserExpression& property,
+      typesystem::TypeMember::IndexType index_type,
+      const typesystem::PreParserType& result_type, int pos) {
+    return typesystem::PreParserTypeMember::IndexSignature();
   }
 
   // Return the object itself as AstVisitor and implement the needed
@@ -808,6 +858,8 @@ class PreParserTraits {
       typedef typesystem::PreParserTypeParameters TypeParameters;
       typedef typesystem::PreParserFormalParameter FormalParameter;
       typedef typesystem::PreParserFormalParameters FormalParameters;
+      typedef typesystem::PreParserTypeMember TypeMember;
+      typedef typesystem::PreParserTypeMembers TypeMembers;
     };
 
     // For constructing objects returned by the traversing functions.
@@ -985,6 +1037,9 @@ class PreParserTraits {
   static typesystem::PreParserFormalParameters EmptyFormalParameters() {
     return typesystem::PreParserFormalParameters();
   }
+  static typesystem::PreParserFormalParameters NullFormalParameters() {
+    return typesystem::PreParserFormalParameters();
+  }
   static PreParserIdentifierList NullIdentifierList() {
     return PreParserIdentifierList();
   }
@@ -993,6 +1048,12 @@ class PreParserTraits {
   }
   static typesystem::PreParserType HoleTypeElement() {
     return typesystem::PreParserType::Default(false);
+  }
+  static typesystem::PreParserTypeMembers EmptyTypeMembers() {
+    return typesystem::PreParserTypeMembers();
+  }
+  static typesystem::PreParserTypeMember EmptyTypeMember() {
+    return typesystem::PreParserTypeMember::Default(false, false);
   }
 
   // Odd-ball literal creators.

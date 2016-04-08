@@ -7635,3 +7635,103 @@ TEST(TypedModeTupleTypes) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeObjectTypes) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var x: {}",
+    "var x: {a}",
+    "var x: {a, b}",
+    "var x: {a, b?, c}",
+    "var x: {a: number}",
+    "var x: {a: number, b: string}",
+    "var x: {a?: number; b: {c: any}}",
+    "var x: {f()}",
+    "var x: {f() : number}",
+    "var x: {f(a, b)}",
+    "var x: {f(a: number, b: string)}",
+    "var x: {f(a: number, b: string) : boolean}",
+    "var x: {f?(a: number, b: string) : boolean}",
+    "var x: {f<A>(a: A, b: string) : boolean}",
+    "var x: {f<A, B>(a: A, b: B) : boolean}",
+    "var x: {f<A extends number>(a: A, b: string) : boolean}",
+    "var x: {f<A extends number, B extends string>(a: A, b: B) : boolean}",
+    "var x: {f?<A>(a: A, b: string) : boolean}",
+    "var x: {f?<A, B>(a: A, b: B) : boolean}",
+    "var x: {f?<A extends number>(a: A, b: string) : boolean}",
+    "var x: {f?<A extends number, B extends string>(a: A, b: B) : boolean}",
+    "var x: {()}",
+    "var x: {() : number}",
+    "var x: {(a, b)}",
+    "var x: {(a: number, b: string)}",
+    "var x: {(a: number, b: string) : boolean}",
+    "var x: {<A>(a: A, b: string) : boolean}",
+    "var x: {<A, B>(a: A, b: B) : boolean}",
+    "var x: {<A extends number>(a: A, b: string) : boolean}",
+    "var x: {<A extends number, B extends string>(a: A, b: B) : boolean}",
+    "var x: {new (a, b)}",
+    "var x: {new (a: number, b: string)}",
+    "var x: {new (a: number, b: string) : boolean}",
+    "var x: {new <A>(a: A, b: string) : boolean}",
+    "var x: {new <A, B>(a: A, b: B) : boolean}",
+    "var x: {new <A extends number>(a: A, b: string) : boolean}",
+    "var x: {new <A extends number, B extends string>(a: A, b: B) : boolean}",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var z: {a: ()}",  // Not valid in general.
+    "var z: {a: []}",  // Valid as a binding pattern, not as a type.
+    "var z: {f<>()}",  // Invalid type parameters
+    "var z: {f<A>}",
+    "var z: {f<A>: A}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(TypedModeBindingPatterns) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "var f: (x: number, cmd?: 'two', ...rest) => string",
+    "var f: ([]: number[]) => boolean",
+    "var f: ([x, y]: number[]) => boolean",
+    "var f: ([x, ...rest]: number[]) => boolean",
+    "var f: ([,x, y]: number[]) => boolean",
+    "var f: ([x, y,]: number[]) => boolean",
+    "var f: ([x, y,,]: number[]) => boolean",
+    "var f: ([x, [a, b, c], z]: [number, any[], string]) => boolean",
+    "var f: ({x: a, y: b}: {x: number, y: string}) => boolean",
+    "var f: ({x: a, y: [b, c, ...rest]}: {x: number, y: string[]}) => boolean",
+    "var f: ({x: {a, b}, y: c}: {x: {a, b}, y: string}) => boolean",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "var f: ({x: {a; b}, y: c}: {x: {a; b}, y: string}) => boolean",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

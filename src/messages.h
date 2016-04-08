@@ -480,6 +480,7 @@ class CallSite {
   T(InvalidType, "Invalid type.")                                              \
   T(BadFunctionOrConstructorType,                                              \
     "Expecting '=>' in function or constructor type.")                         \
+  T(BadIndexType, "Invalid index type: expected 'number' or 'string'")         \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \
