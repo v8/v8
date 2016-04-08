@@ -308,10 +308,6 @@ class CodeStubAssembler {
   // Load a field from an object on the heap.
   Node* LoadObjectField(Node* object, int offset,
                         MachineType rep = MachineType::AnyTagged());
-  // Store a field to an object on the heap.
-  Node* StoreObjectFieldNoWriteBarrier(
-      Node* object, int offset, Node* value,
-      MachineRepresentation rep = MachineRepresentation::kTagged);
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
   // Store the floating point value of a HeapNumber.
@@ -331,8 +327,6 @@ class CodeStubAssembler {
 
   // Load the hash field of a name.
   Node* LoadNameHash(Node* name);
-  // Load the instance size of a Map.
-  Node* LoadMapInstanceSize(Node* map);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElementInt32Index(Node* object, Node* int32_index,
@@ -347,7 +341,6 @@ class CodeStubAssembler {
   Node* AllocateHeapNumber();
   // Allocate a HeapNumber with a specific value.
   Node* AllocateHeapNumberWithValue(Node* value);
-  Node* InnerAllocate(Node* previous, int offset);
 
   // Store an array element to a FixedArray.
   Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
