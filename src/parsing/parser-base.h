@@ -566,6 +566,7 @@ class ParserBase : public Traits {
   }
 
   LanguageMode language_mode() { return scope_->language_mode(); }
+  bool typed() { return scope_->typed(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
   bool allow_const() {
@@ -1780,7 +1781,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), typed(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -1820,7 +1821,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), typed(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
     // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
@@ -2605,7 +2606,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, language_mode(), CHECK_OK);
+        function_token_position, function_type, language_mode(), typed(),
+        CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, classifier, CHECK_OK);

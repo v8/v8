@@ -750,10 +750,10 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode, bool is_typed, bool* ok) {
   return parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, ok);
+      function_token_position, type, language_mode, is_typed, ok);
 }
 
 
@@ -1083,6 +1083,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         scope->RecordEvalCall();
       }
       SetLanguageMode(scope, shared_info->language_mode());
+      if (shared_info->typed()) scope->SetTyped();
 
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier(this);
@@ -1136,10 +1137,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           shared_info->start_position(), shared_info->end_position(),
           shared_info->language_mode());
     } else {
-      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    kSkipFunctionNameCheck, shared_info->kind(),
-                                    RelocInfo::kNoPosition, function_type,
-                                    shared_info->language_mode(), &ok);
+      result = ParseFunctionLiteral(
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
+          shared_info->kind(), RelocInfo::kNoPosition, function_type,
+          shared_info->language_mode(), shared_info->typed(), &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != NULL));
@@ -1571,12 +1572,13 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         //
         // GeneratorDeclaration[+Default] ::
         //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
-        default_export = ParseFunctionLiteral(
-            default_string, Scanner::Location::invalid(),
-            kSkipFunctionNameCheck,
-            is_generator ? FunctionKind::kGeneratorFunction
-                         : FunctionKind::kNormalFunction,
-            pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
+        default_export =
+            ParseFunctionLiteral(default_string, Scanner::Location::invalid(),
+                                 kSkipFunctionNameCheck,
+                                 is_generator ? FunctionKind::kGeneratorFunction
+                                              : FunctionKind::kNormalFunction,
+                                 pos, FunctionLiteral::kDeclaration,
+                                 language_mode(), typed(), CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, CHECK_OK);
@@ -2117,7 +2119,7 @@ Statement* Parser::ParseFunctionDeclaration(
                          : kFunctionNameValidityUnknown,
       is_generator ? FunctionKind::kGeneratorFunction
                    : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
+      pos, FunctionLiteral::kDeclaration, language_mode(), typed(), CHECK_OK);
 
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
@@ -4041,7 +4043,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode, bool is_typed, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   //
@@ -4103,6 +4105,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                      ? NewScope(declaration_scope, FUNCTION_SCOPE, kind)
                      : NewScope(scope_, FUNCTION_SCOPE, kind);
   SetLanguageMode(scope, language_mode);
+  if (is_typed) scope->SetTyped();
   ZoneList<Statement*>* body = NULL;
   int arity = -1;
   int materialized_literal_count = -1;

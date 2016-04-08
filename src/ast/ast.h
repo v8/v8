@@ -2609,6 +2609,7 @@ class FunctionLiteral final : public Expression {
     return IsAnonymousExpression::decode(bitfield_);
   }
   LanguageMode language_mode() const;
+  bool typed() const;
 
   static bool NeedsHomeObject(Expression* expr);
 
