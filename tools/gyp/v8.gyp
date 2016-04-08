@@ -121,30 +121,18 @@
         }],
         ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'inputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
-          'conditions': [
-            ['v8_separate_ignition_snapshot==1', {
-              'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
-            }],
-          ]
+          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
         }],
         ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
           'target_conditions': [
             ['_toolset=="host"', {
-              'inputs': ['<(PRODUCT_DIR)/snapshot_blob_host.bin'],
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+              ],
             }, {
-              'inputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
-            }],
-          ],
-          'conditions': [
-            ['v8_separate_ignition_snapshot==1', {
-              'target_conditions': [
-                ['_toolset=="host"', {
-                  'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin'],
-                }, {
-                  'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
-                }],
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob.bin',
               ],
             }],
           ],
@@ -295,66 +283,6 @@
                 ],
               },
             }],
-            # Extra snapshot blob for ignition.
-            ['v8_separate_ignition_snapshot==1', {
-              # This is concatenated to the other actions list of
-              # v8_external_snapshot.
-              'actions': [
-                {
-                  'action_name': 'run_mksnapshot (ignition)',
-                  'inputs': ['<(mksnapshot_exec)'],
-                  'variables': {
-                    # TODO: Extract common mksnapshot_flags to a separate
-                    # variable.
-                    'mksnapshot_flags_ignition': [
-                      '--ignition',
-                    ],
-                    'conditions': [
-                      ['v8_random_seed!=0', {
-                        'mksnapshot_flags_ignition': ['--random-seed', '<(v8_random_seed)'],
-                      }],
-                      ['v8_vector_stores!=0', {
-                        'mksnapshot_flags_ignition': ['--vector-stores'],
-                      }],
-                    ],
-                  },
-                  'conditions': [
-                    ['want_separate_host_toolset==1', {
-                      'target_conditions': [
-                        ['_toolset=="host"', {
-                          'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin'],
-                          'action': [
-                            '<(mksnapshot_exec)',
-                            '<@(mksnapshot_flags_ignition)',
-                            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin',
-                            '<(embed_script)',
-                            '<(warmup_script)',
-                          ],
-                        }, {
-                          'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
-                          'action': [
-                            '<(mksnapshot_exec)',
-                            '<@(mksnapshot_flags_ignition)',
-                            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
-                            '<(embed_script)',
-                            '<(warmup_script)',
-                          ],
-                        }],
-                      ],
-                    }, {
-                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
-                      'action': [
-                        '<(mksnapshot_exec)',
-                        '<@(mksnapshot_flags_ignition)',
-                        '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
-                        '<(embed_script)',
-                        '<(warmup_script)',
-                      ],
-                    }],
-                  ],
-                },
-              ],
-            }],
           ],
           'dependencies': [
             'v8_base',
@@ -369,7 +297,9 @@
           'actions': [
             {
               'action_name': 'run_mksnapshot (external)',
-              'inputs': ['<(mksnapshot_exec)'],
+              'inputs': [
+                '<(mksnapshot_exec)',
+              ],
               'variables': {
                 'mksnapshot_flags': [],
                 'conditions': [
@@ -385,7 +315,9 @@
                 ['want_separate_host_toolset==1', {
                   'target_conditions': [
                     ['_toolset=="host"', {
-                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob_host.bin'],
+                      'outputs': [
+                        '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                      ],
                       'action': [
                         '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
@@ -394,7 +326,9 @@
                         '<(warmup_script)',
                       ],
                     }, {
-                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
+                      'outputs': [
+                        '<(PRODUCT_DIR)/snapshot_blob.bin',
+                      ],
                       'action': [
                         '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
@@ -405,7 +339,9 @@
                     }],
                   ],
                 }, {
-                  'outputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
+                  'outputs': [
+                    '<(PRODUCT_DIR)/snapshot_blob.bin',
+                  ],
                   'action': [
                     '<(mksnapshot_exec)',
                     '<@(mksnapshot_flags)',

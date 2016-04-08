@@ -2253,8 +2253,7 @@ bool Isolate::Init(Deserializer* des) {
     des->Deserialize(this);
   }
   stub_cache_->Initialize();
-
-  if (FLAG_ignition) {
+  if (FLAG_ignition || serializer_enabled()) {
     interpreter_->Initialize();
   }
 
