@@ -668,7 +668,7 @@ void Interpreter::DoMul(InterpreterAssembler* assembler) {
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kDivide, assembler);
+  DoBinaryOp(CodeFactory::Divide(isolate_), assembler);
 }
 
 

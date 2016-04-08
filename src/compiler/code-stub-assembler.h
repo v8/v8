@@ -66,16 +66,19 @@ class Schedule;
   V(Float64Add)                                 \
   V(Float64Sub)                                 \
   V(Float64Mul)                                 \
+  V(Float64Div)                                 \
   V(Float64InsertLowWord32)                     \
   V(Float64InsertHighWord32)                    \
   V(IntPtrAdd)                                  \
   V(IntPtrAddWithOverflow)                      \
   V(IntPtrSub)                                  \
   V(IntPtrSubWithOverflow)                      \
+  V(IntPtrMul)                                  \
   V(Int32Add)                                   \
   V(Int32AddWithOverflow)                       \
   V(Int32Sub)                                   \
   V(Int32Mul)                                   \
+  V(Int32Div)                                   \
   V(WordOr)                                     \
   V(WordAnd)                                    \
   V(WordXor)                                    \

@@ -1169,6 +1169,217 @@ void MultiplyStub::GenerateAssembly(
   }
 }
 
+void DivideStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  using compiler::Node;
+  typedef compiler::CodeStubAssembler::Label Label;
+  typedef compiler::CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry point for floating point division.
+  Label do_fdiv(assembler);
+  Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
+      var_divisor_float64(assembler, MachineRepresentation::kFloat64);
+
+  Node* number_map = assembler->HeapNumberMapConstant();
+
+  // We might need to loop one or two times due to ToNumber conversions.
+  Variable var_dividend(assembler, MachineRepresentation::kTagged),
+      var_divisor(assembler, MachineRepresentation::kTagged);
+  Variable* loop_variables[] = {&var_dividend, &var_divisor};
+  Label loop(assembler, 2, loop_variables);
+  var_dividend.Bind(assembler->Parameter(0));
+  var_divisor.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* dividend = var_dividend.value();
+    Node* divisor = var_divisor.value();
+
+    Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
+    assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+                      &dividend_is_not_smi);
+
+    assembler->Bind(&dividend_is_smi);
+    {
+      Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                        &divisor_is_not_smi);
+
+      assembler->Bind(&divisor_is_smi);
+      {
+        Label bailout(assembler);
+
+        // Do floating point division if {divisor} is zero.
+        assembler->GotoIf(
+            assembler->WordEqual(divisor, assembler->IntPtrConstant(0)),
+            &bailout);
+
+        // Do floating point division {dividend} is zero and {divisor} is
+        // negative.
+        Label dividend_is_zero(assembler), dividend_is_not_zero(assembler);
+        assembler->Branch(
+            assembler->WordEqual(dividend, assembler->IntPtrConstant(0)),
+            &dividend_is_zero, &dividend_is_not_zero);
+
+        assembler->Bind(&dividend_is_zero);
+        {
+          assembler->GotoIf(
+              assembler->IntPtrLessThan(divisor, assembler->IntPtrConstant(0)),
+              &bailout);
+          assembler->Goto(&dividend_is_not_zero);
+        }
+        assembler->Bind(&dividend_is_not_zero);
+
+        Node* untagged_divisor = assembler->SmiUntag(divisor);
+        Node* untagged_dividend = assembler->SmiUntag(dividend);
+
+        // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
+        // if the Smi size is 31) and {divisor} is -1.
+        Label divisor_is_minus_one(assembler),
+            divisor_is_not_minus_one(assembler);
+        assembler->Branch(assembler->Word32Equal(untagged_divisor,
+                                                 assembler->Int32Constant(-1)),
+                          &divisor_is_minus_one, &divisor_is_not_minus_one);
+
+        assembler->Bind(&divisor_is_minus_one);
+        {
+          assembler->GotoIf(
+              assembler->Word32Equal(
+                  untagged_dividend,
+                  assembler->Int32Constant(
+                      kSmiValueSize == 32 ? kMinInt : (kMinInt >> 1))),
+              &bailout);
+          assembler->Goto(&divisor_is_not_minus_one);
+        }
+        assembler->Bind(&divisor_is_not_minus_one);
+
+        // TODO(epertoso): consider adding a machine instruction that returns
+        // both the result and the remainder.
+        Node* untagged_result =
+            assembler->Int32Div(untagged_dividend, untagged_divisor);
+        Node* truncated =
+            assembler->IntPtrMul(untagged_result, untagged_divisor);
+        // Do floating point division if the remainder is not 0.
+        assembler->GotoIf(
+            assembler->Word32NotEqual(untagged_dividend, truncated), &bailout);
+        assembler->Return(assembler->SmiTag(untagged_result));
+
+        // Bailout: convert {dividend} and {divisor} to double and do double
+        // division.
+        assembler->Bind(&bailout);
+        {
+          var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+          var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+      }
+
+      assembler->Bind(&divisor_is_not_smi);
+      {
+        Node* divisor_map = assembler->LoadMap(divisor);
+
+        // Check if {divisor} is a HeapNumber.
+        Label divisor_is_number(assembler),
+            divisor_is_not_number(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                          &divisor_is_number, &divisor_is_not_number);
+
+        assembler->Bind(&divisor_is_number);
+        {
+          // Convert {dividend} to a double and divide it with the value of
+          // {divisor}.
+          var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+          var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+
+        assembler->Bind(&divisor_is_not_number);
+        {
+          // Convert {divisor} to a number and loop.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&dividend_is_not_smi);
+    {
+      Node* dividend_map = assembler->LoadMap(dividend);
+
+      // Check if {dividend} is a HeapNumber.
+      Label dividend_is_number(assembler),
+          dividend_is_not_number(assembler, Label::kDeferred);
+      assembler->Branch(assembler->WordEqual(dividend_map, number_map),
+                        &dividend_is_number, &dividend_is_not_number);
+
+      assembler->Bind(&dividend_is_number);
+      {
+        // Check if {divisor} is a Smi.
+        Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+        assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                          &divisor_is_not_smi);
+
+        assembler->Bind(&divisor_is_smi);
+        {
+          // Convert {divisor} to a double and divide it with the value of
+          // {dividend}.
+          var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+          var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+
+        assembler->Bind(&divisor_is_not_smi);
+        {
+          Node* divisor_map = assembler->LoadMap(divisor);
+
+          // Check if {divisor} is a HeapNumber.
+          Label divisor_is_number(assembler),
+              divisor_is_not_number(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                            &divisor_is_number, &divisor_is_not_number);
+
+          assembler->Bind(&divisor_is_number);
+          {
+            // Both {dividend} and {divisor} are HeapNumbers. Load their values
+            // and
+            // divide them.
+            var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+            var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+            assembler->Goto(&do_fdiv);
+          }
+
+          assembler->Bind(&divisor_is_not_number);
+          {
+            // Convert {divisor} to a number and loop.
+            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&dividend_is_not_number);
+      {
+        // Convert {dividend} to a Number and loop.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_dividend.Bind(assembler->CallStub(callable, context, dividend));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fdiv);
+  {
+    Node* value = assembler->Float64Div(var_dividend_float64.value(),
+                                        var_divisor_float64.value());
+    Node* result = assembler->ChangeFloat64ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
 void BitwiseAndStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   using compiler::Node;
