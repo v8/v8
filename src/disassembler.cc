@@ -147,7 +147,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Instruction address and instruction offset.
-    out.AddFormatted("%p  %4d  ", prev_pc, prev_pc - begin);
+    out.AddFormatted("%p  %4td  ", prev_pc, prev_pc - begin);
 
     // Instruction.
     out.AddFormatted("%s", decode_buffer.start());
@@ -171,9 +171,11 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       RelocInfo::Mode rmode = relocinfo.rmode();
       if (RelocInfo::IsPosition(rmode)) {
         if (RelocInfo::IsStatementPosition(rmode)) {
-          out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
+          out.AddFormatted("    ;; debug: statement %" V8PRIdPTR,
+                           relocinfo.data());
         } else {
-          out.AddFormatted("    ;; debug: position %d", relocinfo.data());
+          out.AddFormatted("    ;; debug: position %" V8PRIdPTR,
+                           relocinfo.data());
         }
       } else if (rmode == RelocInfo::DEOPT_REASON) {
         Deoptimizer::DeoptReason reason =

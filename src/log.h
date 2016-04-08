@@ -8,6 +8,7 @@
 #include <string>
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/objects.h"
@@ -354,7 +355,7 @@ class Logger {
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
 
-  void ApiEvent(const char* name, ...);
+  PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
