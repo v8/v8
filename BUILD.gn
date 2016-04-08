@@ -21,19 +21,42 @@ declare_args() {
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
   v8_use_snapshot = true
+
+  # Sets -DVERIFY_HEAP.
+  v8_enable_verify_heap = false
+
+  # Enable compiler warnings when using V8_DEPRECATED apis.
+  v8_deprecation_warnings = false
+
+  # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
+  v8_imminent_deprecation_warnings = false
+
+  # Sets -dENABLE_DISASSEMBLER.
+  v8_enable_disassembler = false
+
+  # Sets -dENABLE_GDB_JIT_INTERFACE.
+  v8_enable_gdbjit = false
+
+  # Sets -dENABLE_HANDLE_ZAPPING.
+  v8_enable_handle_zapping = true
+
+  # Enable ECMAScript Internationalization API. Enabling this feature will
+  # add a dependency on the ICU library.
+  v8_enable_i18n_support = true
+
+  # Interpreted regexp engine exists as platform-independent alternative
+  # based where the regular expression is compiled to a bytecode.
+  v8_interpreted_regexp = false
+
+  # Sets -dOBJECT_PRINT.
+  v8_object_print = false
+
+  # With post mortem support enabled, metadata is embedded into libv8 that
+  # describes various parameters of the VM for use by debuggers. See
+  # tools/gen-postmortem-metadata.py for details.
+  v8_postmortem_support = false
 }
 
-# TODO(jochen): These will need to be user-settable to support standalone V8
-# builds.
-v8_deprecation_warnings = false
-v8_enable_disassembler = false
-v8_enable_gdbjit = false
-v8_enable_handle_zapping = true
-v8_enable_i18n_support = true
-v8_enable_verify_heap = false
-v8_interpreted_regexp = false
-v8_object_print = false
-v8_postmortem_support = false
 v8_random_seed = "314159265"
 v8_toolset_for_d8 = "host"
 
@@ -107,31 +130,34 @@ config("features") {
 
   defines = []
 
-  if (v8_enable_disassembler == true) {
+  if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
   }
-  if (v8_enable_gdbjit == true) {
+  if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
-  if (v8_object_print == true) {
+  if (v8_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
-  if (v8_enable_verify_heap == true) {
+  if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
   }
-  if (v8_interpreted_regexp == true) {
+  if (v8_interpreted_regexp) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
   }
-  if (v8_deprecation_warnings == true) {
+  if (v8_deprecation_warnings) {
     defines += [ "V8_DEPRECATION_WARNINGS" ]
   }
-  if (v8_enable_i18n_support == true) {
+  if (v8_imminent_deprecation_warnings) {
+    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_enable_i18n_support) {
     defines += [ "V8_I18N_SUPPORT" ]
   }
-  if (v8_enable_handle_zapping == true) {
+  if (v8_enable_handle_zapping) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]
   }
-  if (v8_use_external_startup_data == true) {
+  if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
   }
 }
