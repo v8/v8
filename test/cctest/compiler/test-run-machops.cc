@@ -28,6 +28,39 @@ TEST(RunInt32Add) {
   CHECK_EQ(1, m.Call());
 }
 
+static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
+                            int32_t shift_left, int32_t shit_right) {
+  RawMachineAssemblerTester<int32_t> m;
+  Node* shift =
+      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shit_right));
+  Node* add = m.Int32Add(m.Int32Constant(add_left), m.Int32Constant(add_right));
+  Node* lsa = is_left ? m.Int32Add(shift, add) : m.Int32Add(add, shift);
+  m.Return(lsa);
+  return m.Call();
+}
+
+TEST(RunInt32AddShift) {
+  struct Test_case {
+    int32_t add_left, add_right, shift_left, shit_right, expected;
+  };
+
+  Test_case tc[] = {
+      {20, 22, 4, 2, 58},
+      {20, 22, 4, 1, 50},
+      {20, 22, 1, 6, 106},
+      {INT_MAX - 2, 1, 1, 1, INT_MIN},  // INT_MAX - 2 + 1 + (1 << 1), overflow.
+  };
+  const size_t tc_size = sizeof(tc) / sizeof(Test_case);
+
+  for (size_t i = 0; i < tc_size; ++i) {
+    CHECK_EQ(tc[i].expected,
+             RunInt32AddShift(false, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shit_right));
+    CHECK_EQ(tc[i].expected,
+             RunInt32AddShift(true, tc[i].add_left, tc[i].add_right,
+                              tc[i].shift_left, tc[i].shit_right));
+  }
+}
 
 TEST(RunWord32ReverseBits) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
@@ -636,6 +669,38 @@ TEST(RunInt64SubWithOverflowInBranchP) {
   }
 }
 
+static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
+                                int64_t add_right, int64_t shift_left,
+                                int64_t shit_right) {
+  RawMachineAssemblerTester<int64_t> m;
+  Node* shift = m.Word64Shl(m.Int64Constant(4), m.Int64Constant(2));
+  Node* add = m.Int64Add(m.Int64Constant(20), m.Int64Constant(22));
+  Node* dlsa = is_left ? m.Int64Add(shift, add) : m.Int64Add(add, shift);
+  m.Return(dlsa);
+  return m.Call();
+}
+
+TEST(RunInt64AddShift) {
+  struct Test_case {
+    int64_t add_left, add_right, shift_left, shit_right, expected;
+  };
+
+  Test_case tc[] = {
+      {20, 22, 4, 2, 58},
+      {20, 22, 4, 1, 50},
+      {20, 22, 1, 6, 106},
+      {INT64_MAX - 2, 1, 1, 1,
+       INT64_MIN},  // INT64_MAX - 2 + 1 + (1 << 1), overflow.
+  };
+  const size_t tc_size = sizeof(tc) / sizeof(Test_case);
+
+  for (size_t i = 0; i < tc_size; ++i) {
+    CHECK_EQ(58, RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
+                                  tc[i].shift_left, tc[i].shit_right));
+    CHECK_EQ(58, RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
+                                  tc[i].shift_left, tc[i].shit_right));
+  }
+}
 
 // TODO(titzer): add tests that run 64-bit integer operations.
 #endif  // V8_TARGET_ARCH_64_BIT
