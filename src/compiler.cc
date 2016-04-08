@@ -60,7 +60,8 @@ PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
                                Handle<JSFunction>::null())
 PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
-PARSE_INFO_GETTER(Handle<Context>, context)
+PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
+                               Handle<Context>::null())
 PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 
 #undef PARSE_INFO_GETTER
@@ -107,11 +108,6 @@ class CompilationInfoWithZone : public CompilationInfo {
 
 bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
-}
-
-
-bool CompilationInfo::has_context() const {
-  return parse_info_ && !parse_info_->context().is_null();
 }
 
 
