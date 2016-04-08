@@ -4,37 +4,31 @@
 
 // Flags: --harmony-types
 
-function CheckValid(type) {
-  // print("V:", type);
-  assertDoesNotThrow("'use types'; var x: " + type + ";");
-}
 
-function CheckInvalid(type) {
-  // print("I:", type);
-  assertThrows("'use types'; var x: " + type + ";", SyntaxError);
-}
+load("test/mjsunit/harmony/typesystem/testgen.js");
+
 
 (function TestParametricFunctionTypes() {
-  CheckValid("<A> (x: A) => A");
-  CheckValid("<A extends string> (x: A) => A");
-  CheckValid("<A, B> (x: A, y: B) => A");
-  CheckValid("<A, B extends number[], C> (x: A, y: B) => C");
-  CheckValid("<A, B, C, D> (x: A, y: B, z: C[], d: (e: D) => D) => A");
+  CheckValidType("<A> (x: A) => A");
+  CheckValidType("<A extends string> (x: A) => A");
+  CheckValidType("<A, B> (x: A, y: B) => A");
+  CheckValidType("<A, B extends number[], C> (x: A, y: B) => C");
+  CheckValidType("<A, B, C, D> (x: A, y: B, z: C[], d: (e: D) => D) => A");
   // Type parameter lists in non-function types.
-  CheckInvalid("<A> A[]");
+  CheckInvalidType("<A> A[]");
   // Empty type parameter list is disallowed.
-  CheckInvalid("<> (x: number) => number");
+  CheckInvalidType("<> (x: number) => number");
   // Invalid type in extends.
-  CheckInvalid("<A extends ()> (x: A) => A");
+  CheckInvalidType("<A extends ()> (x: A) => A");
 })();
 
 (function TestParametricTypeReferences() {
-  CheckValid("Tree<number>");
-  CheckValid("Map<string, number>");
+  CheckValidType("Tree<number>");
+  CheckValidType("Map<string, number>");
   // Invalid types as arguments.
-  CheckInvalid("Map<string, (number, void)>");
+  CheckInvalidType("Map<string, (number, void)>");
   // Type arguments not in type references.
-  CheckInvalid("number<string>");
+  CheckInvalidType("number<string>");
   // Empty type argument list is disallowed.
-  CheckInvalid("Foo<>");
+  CheckInvalidType("Foo<>");
 })();

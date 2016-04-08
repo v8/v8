@@ -4,14 +4,22 @@
 
 var debug = false;
 
-function CheckValid(type) {
-  if (debug) { print("V:", type); }
-  assertDoesNotThrow("'use types'; var x: " + type + ";");
+function CheckValid(script) {
+  if (debug) { print("V:", script); }
+  assertDoesNotThrow("'use types'; " + script);
 }
 
-function CheckInvalid(type) {
-  if (debug) { print("I:", type); }
-  assertThrows("'use types'; var x: " + type + ";", SyntaxError);
+function CheckInvalid(script, exception=SyntaxError) {
+  if (debug) { print("I:", script); }
+  assertThrows("'use types'; " + script, exception);
+}
+
+function CheckValidType(type) {
+  CheckValid("var x: " + type + ";");
+}
+
+function CheckInvalidType(type, exception=SyntaxError) {
+  CheckInvalid("var x: " + type + ";", exception);
 }
 
 // Parameters:
@@ -115,8 +123,8 @@ function* Generate(size, generators) {
 //
 // This function will generate all tests yielded by Generate and will
 // discard the results.  It will normally be called with test generators
-// whose transformation functions test for validity (e.g. CheckValid or
-// CheckInvalid) and do not return anything interesting.
+// whose transformation functions test for validity (e.g. CheckValidType
+// or CheckInvalidType) and do not return anything interesting.
 function Test(size, generators) {
   for (let attempt of Generate(size, generators)) continue;
 }

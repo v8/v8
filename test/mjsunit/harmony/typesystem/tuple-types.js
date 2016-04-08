@@ -16,7 +16,7 @@ let test_size = 1000;
 
 (function TestTupleTypes(size) {
   Test(size, [
-    new TestGen(4, ValidTupleTypes, [CheckValid]),
-    new TestGen(1, InvalidTupleTypes, [CheckInvalid])
+    new TestGen(4, ValidTupleTypes, [CheckValidType]),
+    new TestGen(1, InvalidTupleTypes, [CheckInvalidType])
   ]);
 })(test_size);

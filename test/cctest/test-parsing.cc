@@ -7395,13 +7395,51 @@ TEST(TypedVariableDeclarations) {
   const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
 
   const char* untyped_data[] = {
-    "var x = 42",
     NULL
   };
 
   const char* typed_data[] = {
     "var x: number = 42",
     "var s: string = 'hello world'",
+    "var x : any",
+    "let x : any",
+    "var x : any = undefined",
+    "let x : any = undefined",
+    "const x : any = undefined",
+    "var [x, y, ...rest] : any[] = []",
+    "let [x, y, ...rest] : any[] = []",
+    "const [x, y, ...rest] : any[] = []",
+    "var [x,, z] : [any] = [undefined,, undefined]",
+    "let [x,, z] : [any] = [undefined,, undefined]",
+    "const [x,, z] : [any] = [undefined,, undefined]",
+    "var {a: x, b: y} : {a: number, b: string} = {a: 17, b: 'hello'}",
+    "let {a: x, b: y} : {a: number, b: string} = {a: 17, b: 'hello'}",
+    "const {a: x, b: y} : {a: number, b: string} = {a: 17, b: 'hello'}",
+    NULL
+  };
+
+  const char* typed_error_data[] = {
+    "var x : ()",
+    "let x : ()",
+    "var x : () = undefined",
+    "let x : () = undefined",
+    "const x : () = undefined",
+    "var [x, y, ...rest] : ()[]",
+    "let [x, y, ...rest] : ()[]",
+    "const [x, y, ...rest] : ()[] = []",
+    "var [x,, z] : [any, (), any]",
+    "let [x,, z] : [any, (), any]",
+    "const [x,, z] : [any, (), any] = [1, 2, 3]",
+    "var {a: x, b: y} : {a: (), b: number}",
+    "let {a: x, b: y} : {a: (), b: number}",
+    "const {a: x, b: y} : {a: (), b: number} = {a: 17, b: 42}",
+    "var [x, y]: number[];",
+    "var {a: x, b: y}: {a: number, b: string};",
+    "let [x, y]: number[];",
+    "let {a: x, b: y}: {a: number, b: string};",
+    "const x: number;",
+    "const [x, y]: [number, string];",
+    "const {a: x, b: y}: {a: number, b: string};",
     NULL
   };
 
@@ -7413,6 +7451,10 @@ TEST(TypedVariableDeclarations) {
   RunParserSyncTest(untyped_context_data, typed_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(typed_context_data, typed_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, typed_error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, typed_error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
 

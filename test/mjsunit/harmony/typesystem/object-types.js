@@ -16,7 +16,7 @@ let test_size = 1000;
 
 (function TestObjectTypes(size) {
   Test(size, [
-    new TestGen(4, ValidObjectTypes, [CheckValid]),
-    new TestGen(1, InvalidObjectTypes, [CheckInvalid])
+    new TestGen(4, ValidObjectTypes, [CheckValidType]),
+    new TestGen(1, InvalidObjectTypes, [CheckInvalidType])
   ]);
 })(test_size);
