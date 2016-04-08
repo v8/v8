@@ -414,7 +414,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   Zone zone(info_->isolate()->allocator());
   ParseInfo parse_info(&zone, function);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) {

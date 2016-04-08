@@ -57,8 +57,6 @@ PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
 PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
-PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
-                               Handle<JSFunction>::null())
 PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
                                Handle<Context>::null())
@@ -86,7 +84,7 @@ class CompilationHandleScope BASE_EMBEDDED {
 class CompilationInfoWithZone : public CompilationInfo {
  public:
   explicit CompilationInfoWithZone(Handle<JSFunction> function)
-      : CompilationInfo(new ParseInfo(&zone_, function)),
+      : CompilationInfo(new ParseInfo(&zone_, function), function),
         zone_(function->GetIsolate()->allocator()) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
@@ -110,10 +108,12 @@ bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }
 
-
-CompilationInfo::CompilationInfo(ParseInfo* parse_info)
+CompilationInfo::CompilationInfo(ParseInfo* parse_info,
+                                 Handle<JSFunction> closure)
     : CompilationInfo(parse_info, nullptr, Code::ComputeFlags(Code::FUNCTION),
                       BASE, parse_info->isolate(), parse_info->zone()) {
+  closure_ = closure;
+
   // Compiling for the snapshot typically results in different code than
   // compiling later on. This means that code recompiled with deoptimization
   // support won't be "equivalent" (as defined by SharedFunctionInfo::
@@ -1116,7 +1116,7 @@ bool CompileEvalForDebugging(Handle<JSFunction> function,
 
   Zone zone(function->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   Isolate* isolate = info.isolate();
 
   parse_info.set_eval();
@@ -1377,7 +1377,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   DCHECK(!IsEvalToplevel(shared));
   Zone zone(shared->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, shared);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   return CompileForDebugging(&info);
 }
 
@@ -1429,7 +1429,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
   Zone zone(script->GetIsolate()->allocator());
   ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
@@ -1471,7 +1471,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     script->set_origin_options(options);
     Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
-    CompilationInfo info(&parse_info);
+    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
     parse_info.set_eval();
     if (context->IsNativeContext()) parse_info.set_global();
     parse_info.set_language_mode(language_mode);
@@ -1595,7 +1595,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // Compile the function and add it to the cache.
     Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
-    CompilationInfo info(&parse_info);
+    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
     if (is_module) {
       parse_info.set_module();
     } else {
@@ -1652,7 +1652,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
   parse_info->set_language_mode(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
 
-  CompilationInfo compile_info(parse_info);
+  CompilationInfo compile_info(parse_info, Handle<JSFunction>::null());
 
   // The source was parsed lazily, so compiling for debugging is not possible.
   DCHECK(!compile_info.is_debug());
@@ -1699,7 +1699,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   parse_info.set_literal(literal);
   parse_info.set_shared_info(result);
   parse_info.set_scope(literal->scope());

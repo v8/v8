@@ -1126,7 +1126,6 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
 
-  i::CompilationInfo compilation_info(&info);
   CHECK(i::Compiler::ParseAndAnalyze(&info));
 
   CHECK(info.scope()->declarations()->length() == 1);

@@ -17,7 +17,7 @@ static void RunPipeline(Zone* zone, const char* source) {
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ParseInfo parse_info(zone, function);
   CHECK(Compiler::ParseAndAnalyze(&parse_info));
-  CompilationInfo info(&parse_info);
+  CompilationInfo info(&parse_info, function);
   info.SetOptimizing();
 
   Pipeline pipeline(&info);

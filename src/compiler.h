@@ -163,7 +163,7 @@ class CompilationInfo {
     kBailoutOnUninitialized = 1 << 19,
   };
 
-  explicit CompilationInfo(ParseInfo* parse_info);
+  CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
   CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
   virtual ~CompilationInfo();
@@ -178,7 +178,6 @@ class CompilationInfo {
   bool is_native() const;
   bool is_module() const;
   LanguageMode language_mode() const;
-  Handle<JSFunction> closure() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
   Handle<Context> context() const;
@@ -191,6 +190,7 @@ class CompilationInfo {
   }
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_ast_id_.IsNone(); }
+  Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
@@ -378,7 +378,7 @@ class CompilationInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    // Empty for now but will be needed once fields move from ParseInfo.
+    closure_ = Handle<JSFunction>(*closure_);
   }
 
   void AbortOptimization(BailoutReason reason) {
@@ -521,6 +521,8 @@ class CompilationInfo {
   unsigned flags_;
 
   Code::Flags code_flags_;
+
+  Handle<JSFunction> closure_;
 
   // The compiled code.
   Handle<Code> code_;

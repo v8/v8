@@ -125,7 +125,7 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(zone_, function);
 
-    CompilationInfo compilation_info(&parse_info);
+    CompilationInfo compilation_info(&parse_info, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compiler::Pipeline pipeline(&compilation_info);
