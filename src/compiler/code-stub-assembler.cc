@@ -436,12 +436,6 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset,
                               IntPtrConstant(offset - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
-    Node* object, int offset, Node* value, MachineRepresentation rep) {
-  return StoreNoWriteBarrier(rep, object,
-                             IntPtrConstant(offset - kHeapObjectTag), value);
-}
-
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return Load(MachineType::Float64(), object,
               IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
@@ -495,11 +489,6 @@ Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
   Node* scaled_index = WordShl(int32_index, IntPtrConstant(kPointerSizeLog2));
   Node* offset = IntPtrAdd(scaled_index, header_size);
   return Load(MachineType::AnyTagged(), object, offset);
-}
-
-Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
-  return Load(MachineType::Uint8(), map,
-              IntPtrConstant(Map::kInstanceSizeOffset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
@@ -669,10 +658,6 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
 
   return AllocateRawUnaligned(IntPtrConstant(size_in_bytes), flags, top_address,
                               limit_address);
-}
-
-Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
-  return IntPtrAdd(previous, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber() {
