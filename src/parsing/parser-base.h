@@ -113,9 +113,6 @@ class ParserBase : public Traits {
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
-        allow_harmony_sloppy_(false),
-        allow_harmony_sloppy_function_(false),
-        allow_harmony_sloppy_let_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_name_(false),
@@ -134,9 +131,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
-  ALLOW_ACCESSORS(harmony_sloppy);
-  ALLOW_ACCESSORS(harmony_sloppy_function);
-  ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_name);
@@ -564,14 +558,6 @@ class ParserBase : public Traits {
   LanguageMode language_mode() { return scope_->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
-  bool allow_const() {
-    return is_strict(language_mode()) || allow_harmony_sloppy();
-  }
-
-  bool allow_let() {
-    return is_strict(language_mode()) || allow_harmony_sloppy_let();
-  }
-
   // Report syntax errors.
   void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
                      ParseErrorType error_type = kSyntaxError) {
@@ -926,9 +912,6 @@ class ParserBase : public Traits {
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
-  bool allow_harmony_sloppy_;
-  bool allow_harmony_sloppy_function_;
-  bool allow_harmony_sloppy_let_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_name_;
@@ -1329,11 +1312,6 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::CLASS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::CLASS);
-      if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
-        ReportMessage(MessageTemplate::kSloppyLexical);
-        *ok = false;
-        return this->EmptyExpression();
-      }
       int class_token_position = position();
       IdentifierT name = this->EmptyIdentifier();
       bool is_strict_reserved_name = false;
@@ -2787,9 +2765,6 @@ void ParserBase<Traits>::CheckArityRestrictions(int param_count,
 template <class Traits>
 bool ParserBase<Traits>::IsNextLetKeyword() {
   DCHECK(peek() == Token::LET);
-  if (!allow_let()) {
-    return false;
-  }
   Token::Value next_next = PeekAhead();
   switch (next_next) {
     case Token::LBRACE:
@@ -2890,9 +2865,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       CheckStrictOctalLiteral(formal_parameters.scope->start_position(),
                               scanner()->location().end_pos, CHECK_OK);
     }
-    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
-      this->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
-    }
+    this->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
 
     Traits::RewriteDestructuringAssignments();
   }

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
-
 // Test temporal dead zone semantics of let bound variables in
 // function and block scopes.
 

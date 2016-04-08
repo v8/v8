@@ -430,9 +430,6 @@ class CallSite {
   T(SloppyFunction,                                                            \
     "In non-strict mode code, functions can only be declared at top level, "   \
     "inside a block, or as the body of an if statement.")                      \
-  T(SloppyLexical,                                                             \
-    "Block-scoped declarations (let, const, function, class) not yet "         \
-    "supported outside strict mode")                                           \
   T(SpeciesNotConstructor,                                                     \
     "object.constructor[Symbol.species] is not a constructor")                 \
   T(StrictDelete, "Delete of an unqualified identifier in strict mode.")       \

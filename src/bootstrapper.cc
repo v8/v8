@@ -2379,9 +2379,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
 
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_function)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_let)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
@@ -2918,9 +2915,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
 bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_iterator_close_natives[] = {nullptr};
-  static const char* harmony_sloppy_natives[] = {nullptr};
-  static const char* harmony_sloppy_function_natives[] = {nullptr};
-  static const char* harmony_sloppy_let_natives[] = {nullptr};
   static const char* harmony_species_natives[] = {"native harmony-species.js",
                                                   nullptr};
   static const char* harmony_tailcalls_natives[] = {nullptr};

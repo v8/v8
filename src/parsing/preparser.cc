@@ -182,10 +182,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
     case Token::CLASS:
       return ParseClassDeclaration(ok);
     case Token::CONST:
-      if (allow_const()) {
-        return ParseVariableStatement(kStatementListItem, ok);
-      }
-      break;
+      return ParseVariableStatement(kStatementListItem, ok);
     case Token::LET:
       if (IsNextLetKeyword()) {
         return ParseVariableStatement(kStatementListItem, ok);
@@ -403,11 +400,6 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
 
 PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   Expect(Token::CLASS, CHECK_OK);
-  if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
-    ReportMessage(MessageTemplate::kSloppyLexical);
-    *ok = false;
-    return Statement::Default();
-  }
 
   int pos = position();
   bool is_strict_reserved = false;
@@ -473,7 +465,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   bool is_pattern = false;
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
-  } else if (peek() == Token::CONST && allow_const()) {
+  } else if (peek() == Token::CONST) {
     // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
     //
     // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
@@ -485,12 +477,10 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // existing pages. Therefore we keep allowing const with the old
     // non-harmony semantics in sloppy mode.
     Consume(Token::CONST);
-    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
-      DCHECK(var_context != kStatement);
-      require_initializer = true;
-      lexical = true;
-    }
-  } else if (peek() == Token::LET && allow_let()) {
+    DCHECK(var_context != kStatement);
+    require_initializer = true;
+    lexical = true;
+  } else if (peek() == Token::LET) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
     lexical = true;
@@ -606,14 +596,6 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
     // accept "native function" in the preparser.
   }
   // Parsed expression statement.
-  // Detect attempts at 'let' declarations in sloppy mode.
-  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
-      is_sloppy(language_mode()) && expr.IsIdentifier() &&
-      expr.AsIdentifier().IsLet()) {
-    ReportMessage(MessageTemplate::kSloppyLexical, NULL);
-    *ok = false;
-    return Statement::Default();
-  }
   ExpectSemicolon(CHECK_OK);
   return Statement::ExpressionStatement(expr);
 }
@@ -790,10 +772,9 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  bool is_let_identifier_expression = false;
   if (peek() != Token::SEMICOLON) {
     ForEachStatement::VisitMode mode;
-    if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
+    if (peek() == Token::VAR || peek() == Token::CONST ||
         (peek() == Token::LET && IsNextLetKeyword())) {
       int decl_count;
       bool is_lexical;
@@ -839,8 +820,6 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       ExpressionClassifier classifier(this);
       Expression lhs = ParseExpression(false, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
-      is_let_identifier_expression =
-          lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
       bool is_for_each = CheckInOrOf(&mode, ok);
       if (!*ok) return Statement::Default();
       bool is_destructuring = is_for_each &&
@@ -875,13 +854,6 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   }
 
   // Parsed initializer at this point.
-  // Detect attempts at 'let' declarations in sloppy mode.
-  if (!allow_harmony_sloppy_let() && peek() == Token::IDENTIFIER &&
-      is_sloppy(language_mode()) && is_let_identifier_expression) {
-    ReportMessage(MessageTemplate::kSloppyLexical, NULL);
-    *ok = false;
-    return Statement::Default();
-  }
   Expect(Token::SEMICOLON, CHECK_OK);
 
   if (peek() != Token::SEMICOLON) {

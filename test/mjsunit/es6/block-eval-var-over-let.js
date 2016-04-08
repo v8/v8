@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
-
 // Var-let conflict in a function throws, even if the var is in an eval
 
 // Throws at the top level of a function

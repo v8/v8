@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --min-preparse-length=0
-// Flags: --harmony-sloppy --harmony-sloppy-let
 
 let xxx = 1;
 let f = undefined;

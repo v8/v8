@@ -4,8 +4,6 @@
 
 // Test for conflicting variable bindings.
 
-// Flags: --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
-
 function CheckException(e) {
   var string = e.toString();
   assertTrue(string.indexOf("has already been declared") >= 0 ||

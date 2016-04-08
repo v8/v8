@@ -219,9 +219,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_iterator_close, "harmony iterator finalization")          \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
   V(harmony_regexp_exec, "harmony RegExp exec override behavior")     \
-  V(harmony_sloppy, "harmony features in sloppy mode")                \
-  V(harmony_sloppy_let, "harmony let in sloppy mode")                 \
-  V(harmony_sloppy_function, "harmony sloppy function block scoping") \
   V(harmony_regexp_subclass, "harmony regexp subclassing")            \
   V(harmony_restrictive_declarations,                                 \
     "harmony limitations on sloppy mode function declarations")       \
@@ -249,11 +246,6 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
   DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, id)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
-
-
-// Feature dependencies.
-DEFINE_IMPLICATION(harmony_sloppy_let, harmony_sloppy)
-DEFINE_IMPLICATION(harmony_sloppy_function, harmony_sloppy)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,

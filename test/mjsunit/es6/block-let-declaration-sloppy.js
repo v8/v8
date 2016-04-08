@@ -27,8 +27,6 @@
 
 // Test let declarations in various settings.
 
-// Flags: --harmony-sloppy --harmony-sloppy-let
-
 // Global
 let x;
 let y = 2;
