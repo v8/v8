@@ -1637,19 +1637,21 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       Consume(Token::FUNCTION);
       int pos = position();
       bool is_generator = Check(Token::MUL);
-      if (peek() == Token::LPAREN || (scope_->typed() && Check(Token::LT))) {
+      if (peek() == Token::LPAREN || (scope_->typed() && peek() == Token::LT)) {
         // FunctionDeclaration[+Default] ::
         //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
         //
         // GeneratorDeclaration[+Default] ::
         //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
+        typesystem::TypeFlags type_flags =
+            ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
         default_export = ParseFunctionLiteral(
             default_string, Scanner::Location::invalid(),
             kSkipFunctionNameCheck,
             is_generator ? FunctionKind::kGeneratorFunction
                          : FunctionKind::kNormalFunction,
-            pos, FunctionLiteral::kDeclaration, language_mode(),
-            typesystem::kAllowSignature, CHECK_OK);
+            pos, FunctionLiteral::kDeclaration, language_mode(), type_flags,
+            CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, ambient,
@@ -1729,14 +1731,15 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 
   Statement* result = NULL;
   ZoneList<const AstRawString*> names(1, zone());
+  if (ambient && (peek() == Token::DEFAULT || peek() == Token::MUL ||
+                  peek() == Token::LBRACE)) {
+    *ok = false;
+    ReportMessageAt(scanner()->peek_location(),
+                    MessageTemplate::kBadAmbientDeclaration);
+    return nullptr;
+  }
   switch (peek()) {
     case Token::DEFAULT:
-      if (ambient) {
-        *ok = false;
-        ReportMessageAt(scanner()->peek_location(),
-                        MessageTemplate::kBadAmbientDeclaration);
-        return nullptr;
-      }
       return ParseExportDefault(ok);
 
     case Token::MUL: {
