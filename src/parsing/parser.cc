@@ -1645,13 +1645,13 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
         typesystem::TypeFlags type_flags =
             ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
-        default_export = ParseFunctionLiteral(
-            default_string, Scanner::Location::invalid(),
-            kSkipFunctionNameCheck,
-            is_generator ? FunctionKind::kGeneratorFunction
-                         : FunctionKind::kNormalFunction,
-            pos, FunctionLiteral::kDeclaration, language_mode(), type_flags,
-            CHECK_OK);
+        default_export =
+            ParseFunctionLiteral(default_string, Scanner::Location::invalid(),
+                                 kSkipFunctionNameCheck,
+                                 is_generator ? FunctionKind::kGeneratorFunction
+                                              : FunctionKind::kNormalFunction,
+                                 pos, FunctionLiteral::kDeclaration,
+                                 language_mode(), type_flags, CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, ambient,
