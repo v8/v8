@@ -119,6 +119,11 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
     return FAILED;
   }
 
+  // Check the whitelist for Crankshaft.
+  if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
+    return AbortOptimization(kHydrogenFilter);
+  }
+
   Scope* scope = info()->scope();
   if (LUnallocated::TooManyParameters(scope->num_parameters())) {
     // Crankshaft would require too many Lithium operands.

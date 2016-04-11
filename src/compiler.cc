@@ -326,11 +326,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortOptimization(kOptimizedTooManyTimes);
   }
 
-  // Check the whitelist for Crankshaft.
-  if (!info()->shared_info()->PassesFilter(FLAG_hydrogen_filter)) {
-    return AbortOptimization(kHydrogenFilter);
-  }
-
   // Optimization requires a version of fullcode with deoptimization support.
   // Recompile the unoptimized version of the code if the current version
   // doesn't have deoptimization support already.
