@@ -138,9 +138,19 @@
             'compiler/ia32/instruction-selector-ia32-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="mips"', {
+          'sources': [  ### gcmole(arch:mips) ###
+            'compiler/mips/instruction-selector-mips-unittest.cc',
+          ],
+        }],
         ['v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             'compiler/mips/instruction-selector-mips-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="mips64"', {
+          'sources': [  ### gcmole(arch:mips64) ###
+            'compiler/mips64/instruction-selector-mips64-unittest.cc',
           ],
         }],
         ['v8_target_arch=="mips64el"', {

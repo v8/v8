@@ -2048,7 +2048,7 @@ TEST(movz_movn) {
                         v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
-      int64_t rt;
+      int32_t rt;
       double a;
       double b;
       double bold;

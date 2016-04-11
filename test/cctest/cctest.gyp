@@ -269,6 +269,15 @@
             'test-disasm-ppc.cc'
           ],
         }],
+        ['v8_target_arch=="mips"', {
+          'sources': [  ### gcmole(arch:mips) ###
+            'test-assembler-mips.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips.cc',
+            'test-disasm-mips.cc',
+            'test-macro-assembler-mips.cc'
+          ],
+        }],
         ['v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             'test-assembler-mips.cc',
@@ -278,8 +287,17 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
+        ['v8_target_arch=="mips64"', {
+          'sources': [  ### gcmole(arch:mips64) ###
+            'test-assembler-mips64.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips64.cc',
+            'test-disasm-mips64.cc',
+            'test-macro-assembler-mips64.cc'
+          ],
+        }],
         ['v8_target_arch=="mips64el"', {
-          'sources': [
+          'sources': [  ### gcmole(arch:mips64el) ###
             'test-assembler-mips64.cc',
             'test-code-stubs.cc',
             'test-code-stubs-mips64.cc',
