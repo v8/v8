@@ -936,21 +936,15 @@ void Heap::ReportExternalMemoryPressure(const char* gc_reason) {
 
 
 void Heap::EnsureFillerObjectAtTop() {
-  // There may be an allocation memento behind every object in new space.
-  // If we evacuate a not full new space or if we are on the last page of
-  // the new space, then there may be uninitialized memory behind the top
-  // pointer of the new space page. We store a filler object there to
-  // identify the unused space.
-  Address from_top = new_space_.top();
-  // Check that from_top is inside its page (i.e., not at the end).
-  Address space_end = new_space_.ToSpaceEnd();
-  if (from_top < space_end) {
-    Page* page = Page::FromAddress(from_top);
-    if (page->Contains(from_top)) {
-      int remaining_in_page = static_cast<int>(page->area_end() - from_top);
-      CreateFillerObjectAt(from_top, remaining_in_page,
-                           ClearRecordedSlots::kNo);
-    }
+  // There may be an allocation memento behind objects in new space. Upon
+  // evacuation of a non-full new space (or if we are on the last page) there
+  // may be uninitialized memory behind top. We fill the remainder of the page
+  // with a filler.
+  Address to_top = new_space_.top();
+  NewSpacePage* page = NewSpacePage::FromAddress(to_top - kPointerSize);
+  if (page->Contains(to_top)) {
+    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
+    CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
   }
 }
 
