@@ -4,6 +4,7 @@
 
 #include "src/interpreter/interpreter-assembler.h"
 
+#include <limits>
 #include <ostream>
 
 #include "src/code-factory.h"
@@ -554,6 +555,10 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
     target_bytecode = ChangeUint32ToUint64(target_bytecode);
   }
 
+  if (FLAG_trace_ignition_dispatches) {
+    TraceBytecodeDispatch(target_bytecode);
+  }
+
   // TODO(rmcilroy): Create a code target dispatch table to avoid conversion
   // from code object on every dispatch.
   Node* target_code_object =
@@ -590,6 +595,11 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   if (kPointerSize == 8) {
     next_bytecode = ChangeUint32ToUint64(next_bytecode);
   }
+
+  if (FLAG_trace_ignition_dispatches) {
+    TraceBytecodeDispatch(next_bytecode);
+  }
+
   Node* base_index;
   switch (operand_scale) {
     case OperandScale::kDouble:
@@ -671,6 +681,35 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
               SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
+}
+
+void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
+  Node* counters_table = ExternalConstant(
+      ExternalReference::interpreter_dispatch_counters(isolate()));
+  Node* source_bytecode_table_index = IntPtrConstant(
+      static_cast<int>(bytecode_) * (static_cast<int>(Bytecode::kLast) + 1));
+
+  Node* counter_offset =
+      WordShl(IntPtrAdd(source_bytecode_table_index, target_bytecode),
+              IntPtrConstant(kPointerSizeLog2));
+  Node* old_counter =
+      Load(MachineType::IntPtr(), counters_table, counter_offset);
+
+  CodeStubAssembler::Label counter_ok(this);
+  CodeStubAssembler::Label counter_saturated(this);
+  CodeStubAssembler::Label end(this);
+
+  Node* counter_reached_max = WordEqual(
+      old_counter, IntPtrConstant(std::numeric_limits<uintptr_t>::max()));
+  Branch(counter_reached_max, &counter_saturated, &counter_ok);
+  Bind(&counter_ok);
+  Node* new_counter = IntPtrAdd(old_counter, IntPtrConstant(1));
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), counters_table,
+                      counter_offset, new_counter);
+  Goto(&end);
+  Bind(&counter_saturated);
+  Goto(&end);
+  Bind(&end);
 }
 
 // static

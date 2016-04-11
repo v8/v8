@@ -1072,6 +1072,12 @@ ExternalReference ExternalReference::interpreter_dispatch_table_address(
   return ExternalReference(isolate->interpreter()->dispatch_table_address());
 }
 
+ExternalReference ExternalReference::interpreter_dispatch_counters(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->interpreter()->bytecode_dispatch_count_table());
+}
+
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
 

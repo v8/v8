@@ -59,6 +59,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
+  Add(ExternalReference::interpreter_dispatch_counters(isolate).address(),
+      "Interpreter::interpreter_dispatch_counters");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),

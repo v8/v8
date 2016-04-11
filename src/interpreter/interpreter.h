@@ -49,8 +49,14 @@ class Interpreter {
   void TraceCodegen(Handle<Code> code);
   const char* LookupNameOfBytecodeHandler(Code* code);
 
+  void WriteDispatchCounters();
+
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
+  }
+
+  uintptr_t* bytecode_dispatch_count_table() {
+    return bytecode_dispatch_count_table_.get();
   }
 
  private:
@@ -141,6 +147,7 @@ class Interpreter {
 
   Isolate* isolate_;
   Code* dispatch_table_[kDispatchTableSize];
+  v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_count_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

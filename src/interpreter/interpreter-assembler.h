@@ -173,6 +173,9 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   void CallPrologue() override;
   void CallEpilogue() override;
 
+  // Increment the dispatch counter for the (current, next) bytecode pair.
+  void TraceBytecodeDispatch(compiler::Node* target_index);
+
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
 
