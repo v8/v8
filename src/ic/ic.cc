@@ -1637,6 +1637,14 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
 
+  for (int i = 0; i < target_receiver_maps.length(); i++) {
+    if (!target_receiver_maps.at(i).is_null() &&
+        target_receiver_maps.at(i)->instance_type() == JS_VALUE_TYPE) {
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "JSValue");
+      return;
+    }
+  }
+
   // There are several special cases where an IC that is MONOMORPHIC can still
   // transition to a different GetNonTransitioningStoreMode IC that handles a
   // superset of the original IC. Handle those here if the receiver map hasn't
