@@ -14585,7 +14585,9 @@ bool Code::CanDeoptAt(Address pc) {
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i)->value();
-    if (address == pc) return true;
+    if (address == pc && deopt_data->AstId(i) != BailoutId::None()) {
+      return true;
+    }
   }
   return false;
 }
