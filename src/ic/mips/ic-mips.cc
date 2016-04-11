@@ -740,7 +740,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags =
       Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, name, a3, t0, t1, t2);
+                                               receiver, name, t1, t2, t3, t4);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
