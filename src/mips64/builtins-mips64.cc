@@ -721,10 +721,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Branch(&skip_flooding, eq, t1, Operand(zero_reg));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a1, a2, t0);
+    __ Push(a1, a2, a4);
     __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
     __ Pop(a1, a2);
-    __ ld(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
+    __ ld(a4, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
   }
   __ bind(&skip_flooding);
 
@@ -770,7 +770,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ ld(a3, FieldMemOperand(a0, FixedArray::kLengthOffset));
   __ SmiUntag(a3);
   __ Daddu(a0, a0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ Lsa(a3, a0, a3, kPointerSizeLog2);
+  __ Dlsa(a3, a0, a3, kPointerSizeLog2);
   {
     Label done_loop, loop;
     __ bind(&loop);
