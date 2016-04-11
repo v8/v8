@@ -1334,8 +1334,9 @@ class PreParser : public ParserBase<PreParserTraits> {
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseLazyFunction(
-      LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-      ParserRecorder* log, Scanner::BookmarkScope* bookmark = nullptr);
+      LanguageMode language_mode, bool is_typed, FunctionKind kind,
+      bool has_simple_parameters, ParserRecorder* log,
+      Scanner::BookmarkScope* bookmark = nullptr);
 
  private:
   friend class PreParserTraits;
