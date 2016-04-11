@@ -132,14 +132,6 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
     return AbortOptimization(kTooManyParametersLocals);
   }
 
-  if (FLAG_trace_opt) {
-    OFStream os(stdout);
-    os << "[compiling method " << Brief(*info()->closure())
-       << " using Crankshaft";
-    if (info()->is_osr()) os << " OSR";
-    os << "]" << std::endl;
-  }
-
   if (FLAG_trace_hydrogen) {
     isolate()->GetHTracer()->TraceCompilation(info());
   }

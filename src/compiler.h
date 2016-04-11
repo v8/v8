@@ -581,8 +581,8 @@ class CompilationInfo {
 // be checked using {last_status()} as well.
 class OptimizedCompileJob: public ZoneObject {
  public:
-  explicit OptimizedCompileJob(CompilationInfo* info)
-      : info_(info), last_status_(SUCCEEDED) {}
+  explicit OptimizedCompileJob(CompilationInfo* info, const char* compiler_name)
+      : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
   virtual ~OptimizedCompileJob() {}
 
   enum Status {
@@ -622,6 +622,7 @@ class OptimizedCompileJob: public ZoneObject {
   base::TimeDelta time_taken_to_create_graph_;
   base::TimeDelta time_taken_to_optimize_;
   base::TimeDelta time_taken_to_codegen_;
+  const char* compiler_name_;
   Status last_status_;
 
   MUST_USE_RESULT Status SetLastStatus(Status status) {

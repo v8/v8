@@ -480,7 +480,7 @@ class PipelineRunScope {
 class PipelineCompilationJob : public OptimizedCompileJob {
  public:
   explicit PipelineCompilationJob(CompilationInfo* info)
-      : OptimizedCompileJob(info) {}
+      : OptimizedCompileJob(info, "TurboFan") {}
 
  protected:
   virtual Status CreateGraphImpl();
@@ -489,14 +489,6 @@ class PipelineCompilationJob : public OptimizedCompileJob {
 };
 
 PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
-  if (FLAG_trace_opt) {
-    OFStream os(stdout);
-    os << "[compiling method " << Brief(*info()->closure())
-       << " using TurboFan";
-    if (info()->is_osr()) os << " OSR";
-    os << "]" << std::endl;
-  }
-
   if (info()->shared_info()->asm_function()) {
     if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
     info()->MarkAsFunctionContextSpecializing();

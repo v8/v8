@@ -354,6 +354,14 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->shared_info()->has_deoptimization_support());
   DCHECK(!info()->is_first_compile());
 
+  if (FLAG_trace_opt) {
+    OFStream os(stdout);
+    os << "[compiling method " << Brief(*info()->closure()) << " using "
+       << compiler_name_;
+    if (info()->is_osr()) os << " OSR";
+    os << "]" << std::endl;
+  }
+
   // Delegate to the underlying implementation.
   DCHECK_EQ(SUCCEEDED, last_status());
   ScopedTimer t(&time_taken_to_create_graph_);

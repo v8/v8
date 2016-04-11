@@ -33,7 +33,9 @@ class LiveRange;
 class HCompilationJob final : public OptimizedCompileJob {
  public:
   explicit HCompilationJob(CompilationInfo* info)
-      : OptimizedCompileJob(info), graph_(nullptr), chunk_(nullptr) {}
+      : OptimizedCompileJob(info, "Crankshaft"),
+        graph_(nullptr),
+        chunk_(nullptr) {}
 
  protected:
   virtual Status CreateGraphImpl();
