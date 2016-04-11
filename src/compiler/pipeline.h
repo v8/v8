@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+class OptimizedCompileJob;
 class RegisterConfiguration;
 
 namespace compiler {
@@ -26,7 +27,7 @@ class Schedule;
 
 class Pipeline {
  public:
-  explicit Pipeline(CompilationInfo* info) : info_(info) {}
+  explicit Pipeline(CompilationInfo* info) : info_(info), data_(nullptr) {}
 
   // Run the entire pipeline and generate a handle to a code object.
   Handle<Code> GenerateCode();
@@ -56,6 +57,9 @@ class Pipeline {
                                              CallDescriptor* call_descriptor,
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
+
+  // Returns a new compilation job for the given compilation info.
+  static OptimizedCompileJob* NewCompilationJob(CompilationInfo* info);
 
  private:
   // Helpers for executing pipeline phases.

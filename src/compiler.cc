@@ -15,13 +15,10 @@
 #include "src/compilation-cache.h"
 #include "src/compiler/pipeline.h"
 #include "src/crankshaft/hydrogen.h"
-#include "src/crankshaft/lithium.h"
-#include "src/crankshaft/typing.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
-#include "src/gdb-jit.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
@@ -99,6 +96,19 @@ class CompilationInfoWithZone : public CompilationInfo {
 
  private:
   Zone zone_;
+};
+
+// Helper that times a scoped region and records the elapsed time.
+struct ScopedTimer {
+  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
+    DCHECK(location_ != NULL);
+    timer_.Start();
+  }
+
+  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
+
+  base::ElapsedTimer timer_;
+  base::TimeDelta* location_;
 };
 
 // ----------------------------------------------------------------------------
@@ -302,51 +312,6 @@ void CompilationInfo::PrintAstForTesting() {
 // ----------------------------------------------------------------------------
 // Implementation of OptimizedCompileJob
 
-class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
- public:
-  explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
-      : HOptimizedGraphBuilder(info) {
-  }
-
-#define DEF_VISIT(type)                                      \
-  void Visit##type(type* node) override {                    \
-    SourcePosition old_position = SourcePosition::Unknown(); \
-    if (node->position() != RelocInfo::kNoPosition) {        \
-      old_position = source_position();                      \
-      SetSourcePosition(node->position());                   \
-    }                                                        \
-    HOptimizedGraphBuilder::Visit##type(node);               \
-    if (!old_position.IsUnknown()) {                         \
-      set_source_position(old_position);                     \
-    }                                                        \
-  }
-  EXPRESSION_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
-#define DEF_VISIT(type)                                      \
-  void Visit##type(type* node) override {                    \
-    SourcePosition old_position = SourcePosition::Unknown(); \
-    if (node->position() != RelocInfo::kNoPosition) {        \
-      old_position = source_position();                      \
-      SetSourcePosition(node->position());                   \
-    }                                                        \
-    HOptimizedGraphBuilder::Visit##type(node);               \
-    if (!old_position.IsUnknown()) {                         \
-      set_source_position(old_position);                     \
-    }                                                        \
-  }
-  STATEMENT_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
-#define DEF_VISIT(type)                        \
-  void Visit##type(type* node) override {      \
-    HOptimizedGraphBuilder::Visit##type(node); \
-  }
-  DECLARATION_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-};
-
-
 OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->IsOptimizing());
 
@@ -389,126 +354,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->shared_info()->has_deoptimization_support());
   DCHECK(!info()->is_first_compile());
 
-  bool optimization_disabled = info()->shared_info()->optimization_disabled();
-  bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
-
-  // Check the enabling conditions for Turbofan.
-  // 1. "use asm" code.
-  bool is_turbofanable_asm = FLAG_turbo_asm &&
-                             info()->shared_info()->asm_function() &&
-                             !optimization_disabled;
-
-  // 2. Fallback for features unsupported by Crankshaft.
-  bool is_unsupported_by_crankshaft_but_turbofanable =
-      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
-      !optimization_disabled;
-
-  // 3. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter =
-      info()->shared_info()->PassesFilter(FLAG_turbo_filter);
-
-  // If this is OSR request, OSR must be enabled by Turbofan.
-  bool passes_osr_test = FLAG_turbo_osr || !info()->is_osr();
-
-  if ((is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
-       passes_turbo_filter) &&
-      passes_osr_test) {
-    // Use TurboFan for the compilation.
-    if (FLAG_trace_opt) {
-      OFStream os(stdout);
-      os << "[compiling method " << Brief(*info()->closure())
-         << " using TurboFan";
-      if (info()->is_osr()) os << " OSR";
-      os << "]" << std::endl;
-    }
-
-    if (info()->shared_info()->asm_function()) {
-      if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
-      info()->MarkAsFunctionContextSpecializing();
-    } else {
-      if (!FLAG_always_opt) {
-        info()->MarkAsBailoutOnUninitialized();
-      }
-      if (FLAG_native_context_specialization) {
-        info()->MarkAsNativeContextSpecializing();
-        info()->MarkAsTypingEnabled();
-      }
-    }
-    if (!info()->shared_info()->asm_function() ||
-        FLAG_turbo_asm_deoptimization) {
-      info()->MarkAsDeoptimizationEnabled();
-    }
-
-    Timer t(this, &time_taken_to_create_graph_);
-    compiler::Pipeline pipeline(info());
-    pipeline.GenerateCode();
-    if (!info()->code().is_null()) {
-      return SetLastStatus(SUCCEEDED);
-    }
-  }
-
-  if (!isolate()->use_crankshaft() || dont_crankshaft) {
-    // Crankshaft is entirely disabled.
-    return SetLastStatus(FAILED);
-  }
-
-  Scope* scope = info()->scope();
-  if (LUnallocated::TooManyParameters(scope->num_parameters())) {
-    // Crankshaft would require too many Lithium operands.
-    return AbortOptimization(kTooManyParameters);
-  }
-
-  if (info()->is_osr() &&
-      LUnallocated::TooManyParametersOrStackSlots(scope->num_parameters(),
-                                                  scope->num_stack_slots())) {
-    // Crankshaft would require too many Lithium operands.
-    return AbortOptimization(kTooManyParametersLocals);
-  }
-
-  if (FLAG_trace_opt) {
-    OFStream os(stdout);
-    os << "[compiling method " << Brief(*info()->closure())
-       << " using Crankshaft";
-    if (info()->is_osr()) os << " OSR";
-    os << "]" << std::endl;
-  }
-
-  if (FLAG_trace_hydrogen) {
-    isolate()->GetHTracer()->TraceCompilation(info());
-  }
-
-  // Type-check the function.
-  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
-           info()->scope(), info()->osr_ast_id(), info()->literal())
-      .Run();
-
-  // Optimization could have been disabled by the parser. Note that this check
-  // is only needed because the Hydrogen graph builder is missing some bailouts.
-  if (info()->shared_info()->optimization_disabled()) {
-    return AbortOptimization(
-        info()->shared_info()->disable_optimization_reason());
-  }
-
-  HOptimizedGraphBuilder* graph_builder =
-      (info()->is_tracking_positions() || FLAG_trace_ic)
-          ? new (info()->zone()) HOptimizedGraphBuilderWithPositions(info())
-          : new (info()->zone()) HOptimizedGraphBuilder(info());
-
-  Timer t(this, &time_taken_to_create_graph_);
-  graph_ = graph_builder->CreateGraph();
-
-  if (isolate()->has_pending_exception()) {
-    return SetLastStatus(FAILED);
-  }
-
-  if (graph_ == NULL) return SetLastStatus(BAILED_OUT);
-
-  if (info()->dependencies()->HasAborted()) {
-    // Dependency has changed during graph creation. Let's try again later.
-    return RetryOptimization(kBailedOutDueToDependencyChange);
-  }
-
-  return SetLastStatus(SUCCEEDED);
+  // Delegate to the underlying implementation.
+  DCHECK_EQ(SUCCEEDED, last_status());
+  ScopedTimer t(&time_taken_to_create_graph_);
+  return SetLastStatus(CreateGraphImpl());
 }
 
 
@@ -518,24 +367,21 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
   DisallowHandleDereference no_deref;
   DisallowCodeDependencyChange no_dependency_change;
 
-  DCHECK(last_status() == SUCCEEDED);
-  // TODO(turbofan): Currently everything is done in the first phase.
-  if (!info()->code().is_null()) {
-    return last_status();
-  }
+  // Delegate to the underlying implementation.
+  DCHECK_EQ(SUCCEEDED, last_status());
+  ScopedTimer t(&time_taken_to_optimize_);
+  return SetLastStatus(OptimizeGraphImpl());
+}
 
-  Timer t(this, &time_taken_to_optimize_);
-  DCHECK(graph_ != NULL);
-  BailoutReason bailout_reason = kNoReason;
+OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
+  DisallowCodeDependencyChange no_dependency_change;
+  DisallowJavascriptExecution no_js(isolate());
+  DCHECK(!info()->dependencies()->HasAborted());
 
-  if (graph_->Optimize(&bailout_reason)) {
-    chunk_ = LChunk::NewChunk(graph_);
-    if (chunk_ != NULL) return SetLastStatus(SUCCEEDED);
-  } else if (bailout_reason != kNoReason) {
-    info_->AbortOptimization(bailout_reason);
-  }
-
-  return SetLastStatus(BAILED_OUT);
+  // Delegate to the underlying implementation.
+  DCHECK_EQ(SUCCEEDED, last_status());
+  ScopedTimer t(&time_taken_to_codegen_);
+  return SetLastStatus(GenerateCodeImpl());
 }
 
 
@@ -550,8 +396,10 @@ void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
   heap->AddWeakObjectToCodeDependency(object, dep);
 }
 
+}  // namespace
 
-void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
+void OptimizedCompileJob::RegisterWeakObjectsInOptimizedCode(
+    Handle<Code> code) {
   // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
   Isolate* const isolate = code->GetIsolate();
   DCHECK(code->is_optimized_code());
@@ -589,51 +437,6 @@ void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
     AddWeakObjectToCodeDependency(isolate, object, code);
   }
   code->set_can_have_weak_objects(true);
-}
-
-}  // namespace
-
-
-OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
-  DCHECK(last_status() == SUCCEEDED);
-  // TODO(turbofan): Currently everything is done in the first phase.
-  if (!info()->code().is_null()) {
-    info()->dependencies()->Commit(info()->code());
-    if (info()->is_deoptimization_enabled()) {
-      info()->parse_info()->context()->native_context()->AddOptimizedCode(
-          *info()->code());
-      RegisterWeakObjectsInOptimizedCode(info()->code());
-    }
-    RecordOptimizationStats();
-    return last_status();
-  }
-
-  DCHECK(!info()->dependencies()->HasAborted());
-  DisallowCodeDependencyChange no_dependency_change;
-  DisallowJavascriptExecution no_js(isolate());
-  {  // Scope for timer.
-    Timer timer(this, &time_taken_to_codegen_);
-    DCHECK(chunk_ != NULL);
-    DCHECK(graph_ != NULL);
-    // Deferred handles reference objects that were accessible during
-    // graph creation.  To make sure that we don't encounter inconsistencies
-    // between graph creation and code generation, we disallow accessing
-    // objects through deferred handles during the latter, with exceptions.
-    DisallowDeferredHandleDereference no_deferred_handle_deref;
-    Handle<Code> optimized_code = chunk_->Codegen();
-    if (optimized_code.is_null()) {
-      if (info()->bailout_reason() == kNoReason) {
-        return AbortOptimization(kCodeGenerationFailed);
-      }
-      return SetLastStatus(BAILED_OUT);
-    }
-    RegisterWeakObjectsInOptimizedCode(optimized_code);
-    info()->SetCode(optimized_code);
-  }
-  RecordOptimizationStats();
-  // Add to the weak list of optimized code objects.
-  info()->context()->native_context()->AddOptimizedCode(*info()->code());
-  return SetLastStatus(SUCCEEDED);
 }
 
 
@@ -935,6 +738,34 @@ bool Renumber(ParseInfo* parse_info) {
   return true;
 }
 
+bool UseTurboFan(CompilationInfo* info) {
+  bool optimization_disabled = info->shared_info()->optimization_disabled();
+  bool dont_crankshaft = info->shared_info()->dont_crankshaft();
+
+  // Check the enabling conditions for Turbofan.
+  // 1. "use asm" code.
+  bool is_turbofanable_asm = FLAG_turbo_asm &&
+                             info->shared_info()->asm_function() &&
+                             !optimization_disabled;
+
+  // 2. Fallback for features unsupported by Crankshaft.
+  bool is_unsupported_by_crankshaft_but_turbofanable =
+      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
+      !optimization_disabled;
+
+  // 3. Explicitly enabled by the command-line filter.
+  bool passes_turbo_filter =
+      info->shared_info()->PassesFilter(FLAG_turbo_filter);
+
+  // If this is OSR request, OSR must be enabled by Turbofan.
+  bool passes_osr_test = FLAG_turbo_osr || !info->is_osr();
+
+  return (is_turbofanable_asm ||
+          is_unsupported_by_crankshaft_but_turbofanable ||
+          passes_turbo_filter) &&
+         passes_osr_test;
+}
+
 bool GetOptimizedCodeNow(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   CanonicalHandleScope canonical(isolate);
@@ -946,10 +777,12 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  OptimizedCompileJob job(info);
-  if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
-      job.OptimizeGraph() != OptimizedCompileJob::SUCCEEDED ||
-      job.GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
+  OptimizedCompileJob* job = UseTurboFan(info)
+                                 ? compiler::Pipeline::NewCompilationJob(info)
+                                 : new (info->zone()) HCompilationJob(info);
+  if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
+      job->OptimizeGraph() != OptimizedCompileJob::SUCCEEDED ||
+      job->GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
       PrintF("[aborted optimizing ");
       info->closure()->ShortPrint();
@@ -959,6 +792,7 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   }
 
   // Success!
+  job->RecordOptimizationStats();
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
@@ -991,7 +825,9 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  OptimizedCompileJob* job = new (info->zone()) OptimizedCompileJob(info);
+  OptimizedCompileJob* job = UseTurboFan(info)
+                                 ? compiler::Pipeline::NewCompilationJob(info)
+                                 : new (info->zone()) HCompilationJob(info);
   OptimizedCompileJob::Status status = job->CreateGraph();
   if (status != OptimizedCompileJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -1841,6 +1677,7 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
     } else if (info->dependencies()->HasAborted()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+      job->RecordOptimizationStats();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
                                          info->osr_ast_id()).code == nullptr) {

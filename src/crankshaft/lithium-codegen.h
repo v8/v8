@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class HGraph;
+class LChunk;
 class LEnvironment;
 class LInstruction;
 class LPlatformChunk;

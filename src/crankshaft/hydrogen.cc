@@ -68,6 +68,153 @@
 namespace v8 {
 namespace internal {
 
+class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
+ public:
+  explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
+      : HOptimizedGraphBuilder(info) {}
+
+#define DEF_VISIT(type)                                      \
+  void Visit##type(type* node) override {                    \
+    SourcePosition old_position = SourcePosition::Unknown(); \
+    if (node->position() != RelocInfo::kNoPosition) {        \
+      old_position = source_position();                      \
+      SetSourcePosition(node->position());                   \
+    }                                                        \
+    HOptimizedGraphBuilder::Visit##type(node);               \
+    if (!old_position.IsUnknown()) {                         \
+      set_source_position(old_position);                     \
+    }                                                        \
+  }
+  EXPRESSION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                                      \
+  void Visit##type(type* node) override {                    \
+    SourcePosition old_position = SourcePosition::Unknown(); \
+    if (node->position() != RelocInfo::kNoPosition) {        \
+      old_position = source_position();                      \
+      SetSourcePosition(node->position());                   \
+    }                                                        \
+    HOptimizedGraphBuilder::Visit##type(node);               \
+    if (!old_position.IsUnknown()) {                         \
+      set_source_position(old_position);                     \
+    }                                                        \
+  }
+  STATEMENT_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+#define DEF_VISIT(type)                        \
+  void Visit##type(type* node) override {      \
+    HOptimizedGraphBuilder::Visit##type(node); \
+  }
+  DECLARATION_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+};
+
+HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
+  bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
+
+  if (!isolate()->use_crankshaft() || dont_crankshaft) {
+    // Crankshaft is entirely disabled.
+    return FAILED;
+  }
+
+  Scope* scope = info()->scope();
+  if (LUnallocated::TooManyParameters(scope->num_parameters())) {
+    // Crankshaft would require too many Lithium operands.
+    return AbortOptimization(kTooManyParameters);
+  }
+
+  if (info()->is_osr() &&
+      LUnallocated::TooManyParametersOrStackSlots(scope->num_parameters(),
+                                                  scope->num_stack_slots())) {
+    // Crankshaft would require too many Lithium operands.
+    return AbortOptimization(kTooManyParametersLocals);
+  }
+
+  if (FLAG_trace_opt) {
+    OFStream os(stdout);
+    os << "[compiling method " << Brief(*info()->closure())
+       << " using Crankshaft";
+    if (info()->is_osr()) os << " OSR";
+    os << "]" << std::endl;
+  }
+
+  if (FLAG_trace_hydrogen) {
+    isolate()->GetHTracer()->TraceCompilation(info());
+  }
+
+  // Type-check the function.
+  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
+           info()->scope(), info()->osr_ast_id(), info()->literal())
+      .Run();
+
+  // Optimization could have been disabled by the parser. Note that this check
+  // is only needed because the Hydrogen graph builder is missing some bailouts.
+  if (info()->shared_info()->optimization_disabled()) {
+    return AbortOptimization(
+        info()->shared_info()->disable_optimization_reason());
+  }
+
+  HOptimizedGraphBuilder* graph_builder =
+      (info()->is_tracking_positions() || FLAG_trace_ic)
+          ? new (info()->zone()) HOptimizedGraphBuilderWithPositions(info())
+          : new (info()->zone()) HOptimizedGraphBuilder(info());
+
+  graph_ = graph_builder->CreateGraph();
+
+  if (isolate()->has_pending_exception()) {
+    return FAILED;
+  }
+
+  if (graph_ == NULL) return BAILED_OUT;
+
+  if (info()->dependencies()->HasAborted()) {
+    // Dependency has changed during graph creation. Let's try again later.
+    return RetryOptimization(kBailedOutDueToDependencyChange);
+  }
+
+  return SUCCEEDED;
+}
+
+HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
+  DCHECK(graph_ != NULL);
+  BailoutReason bailout_reason = kNoReason;
+
+  if (graph_->Optimize(&bailout_reason)) {
+    chunk_ = LChunk::NewChunk(graph_);
+    if (chunk_ != NULL) return SUCCEEDED;
+  } else if (bailout_reason != kNoReason) {
+    info()->AbortOptimization(bailout_reason);
+  }
+
+  return BAILED_OUT;
+}
+
+HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
+  DCHECK(chunk_ != NULL);
+  DCHECK(graph_ != NULL);
+  {
+    // Deferred handles reference objects that were accessible during
+    // graph creation.  To make sure that we don't encounter inconsistencies
+    // between graph creation and code generation, we disallow accessing
+    // objects through deferred handles during the latter, with exceptions.
+    DisallowDeferredHandleDereference no_deferred_handle_deref;
+    Handle<Code> optimized_code = chunk_->Codegen();
+    if (optimized_code.is_null()) {
+      if (info()->bailout_reason() == kNoReason) {
+        return AbortOptimization(kCodeGenerationFailed);
+      }
+      return BAILED_OUT;
+    }
+    RegisterWeakObjectsInOptimizedCode(optimized_code);
+    info()->SetCode(optimized_code);
+  }
+  // Add to the weak list of optimized code objects.
+  info()->context()->native_context()->AddOptimizedCode(*info()->code());
+  return SUCCEEDED;
+}
+
 HBasicBlock::HBasicBlock(HGraph* graph)
     : block_id_(graph->GetNextBlockID()),
       graph_(graph),

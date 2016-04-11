@@ -569,20 +569,21 @@ class CompilationInfo {
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
-
-class HGraph;
-class LChunk;
-
-// A helper class that calls the three compilation phases in
-// Crankshaft and keeps track of its state.  The three phases
-// CreateGraph, OptimizeGraph and GenerateAndInstallCode can either
-// fail, bail-out to the full code generator or succeed.  Apart from
-// their return value, the status of the phase last run can be checked
-// using last_status().
+// A base class for compilation jobs intended to run concurrent to the main
+// thread. The job is split into three phases which are called in sequence on
+// different threads and with different limitations:
+//  1) CreateGraph:   Runs on main thread. No major limitations.
+//  2) OptimizeGraph: Runs concurrently. No heap allocation or handle derefs.
+//  3) GenerateCode:  Runs on main thread. No dependency changes.
+//
+// Each of the three phases can either fail, bail-out to full code generator or
+// succeed. Apart from their return value, the status of the phase last run can
+// be checked using {last_status()} as well.
 class OptimizedCompileJob: public ZoneObject {
  public:
   explicit OptimizedCompileJob(CompilationInfo* info)
-      : info_(info), graph_(NULL), chunk_(NULL), last_status_(FAILED) {}
+      : info_(info), last_status_(SUCCEEDED) {}
+  virtual ~OptimizedCompileJob() {}
 
   enum Status {
     FAILED, BAILED_OUT, SUCCEEDED
@@ -606,10 +607,18 @@ class OptimizedCompileJob: public ZoneObject {
     return SetLastStatus(BAILED_OUT);
   }
 
+  void RecordOptimizationStats();
+
+ protected:
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
+
+  // Overridden by the actual implementation.
+  virtual Status CreateGraphImpl() = 0;
+  virtual Status OptimizeGraphImpl() = 0;
+  virtual Status GenerateCodeImpl() = 0;
+
  private:
   CompilationInfo* info_;
-  HGraph* graph_;
-  LChunk* chunk_;
   base::TimeDelta time_taken_to_create_graph_;
   base::TimeDelta time_taken_to_optimize_;
   base::TimeDelta time_taken_to_codegen_;
@@ -619,23 +628,6 @@ class OptimizedCompileJob: public ZoneObject {
     last_status_ = status;
     return last_status_;
   }
-  void RecordOptimizationStats();
-
-  struct Timer {
-    Timer(OptimizedCompileJob* job, base::TimeDelta* location)
-        : job_(job), location_(location) {
-      DCHECK(location_ != NULL);
-      timer_.Start();
-    }
-
-    ~Timer() {
-      *location_ += timer_.Elapsed();
-    }
-
-    OptimizedCompileJob* job_;
-    base::ElapsedTimer timer_;
-    base::TimeDelta* location_;
-  };
 };
 
 }  // namespace internal

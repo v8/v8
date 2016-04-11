@@ -19,15 +19,15 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/dead-code-elimination.h"
-#include "src/compiler/escape-analysis.h"
 #include "src/compiler/escape-analysis-reducer.h"
+#include "src/compiler/escape-analysis.h"
 #include "src/compiler/frame-elider.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/greedy-allocator.h"
-#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-context-specialization.h"
@@ -48,20 +48,21 @@
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/register-allocator.h"
 #include "src/compiler/register-allocator-verifier.h"
+#include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
 #include "src/compiler/zone-pool.h"
+#include "src/isolate-inl.h"
 #include "src/ostreams.h"
 #include "src/register-configuration.h"
 #include "src/type-info.h"
@@ -475,6 +476,67 @@ class PipelineRunScope {
   PhaseScope phase_scope_;
   ZonePool::Scope zone_scope_;
 };
+
+class PipelineCompilationJob : public OptimizedCompileJob {
+ public:
+  explicit PipelineCompilationJob(CompilationInfo* info)
+      : OptimizedCompileJob(info) {}
+
+ protected:
+  virtual Status CreateGraphImpl();
+  virtual Status OptimizeGraphImpl();
+  virtual Status GenerateCodeImpl();
+};
+
+PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
+  if (FLAG_trace_opt) {
+    OFStream os(stdout);
+    os << "[compiling method " << Brief(*info()->closure())
+       << " using TurboFan";
+    if (info()->is_osr()) os << " OSR";
+    os << "]" << std::endl;
+  }
+
+  if (info()->shared_info()->asm_function()) {
+    if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
+    info()->MarkAsFunctionContextSpecializing();
+  } else {
+    if (!FLAG_always_opt) {
+      info()->MarkAsBailoutOnUninitialized();
+    }
+    if (FLAG_native_context_specialization) {
+      info()->MarkAsNativeContextSpecializing();
+      info()->MarkAsTypingEnabled();
+    }
+  }
+  if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
+    info()->MarkAsDeoptimizationEnabled();
+  }
+
+  Pipeline pipeline(info());
+  pipeline.GenerateCode();
+  if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
+  if (info()->code().is_null()) return AbortOptimization(kGraphBuildingFailed);
+
+  return SUCCEEDED;
+}
+
+PipelineCompilationJob::Status PipelineCompilationJob::OptimizeGraphImpl() {
+  // TODO(turbofan): Currently everything is done in the first phase.
+  DCHECK(!info()->code().is_null());
+  return SUCCEEDED;
+}
+
+PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
+  // TODO(turbofan): Currently everything is done in the first phase.
+  DCHECK(!info()->code().is_null());
+  info()->dependencies()->Commit(info()->code());
+  if (info()->is_deoptimization_enabled()) {
+    info()->context()->native_context()->AddOptimizedCode(*info()->code());
+    RegisterWeakObjectsInOptimizedCode(info()->code());
+  }
+  return SUCCEEDED;
+}
 
 }  // namespace
 
@@ -1313,6 +1375,9 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 
+OptimizedCompileJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
+  return new (info->zone()) PipelineCompilationJob(info);
+}
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
