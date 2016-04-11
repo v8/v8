@@ -466,12 +466,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 }
 
 
-Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
-  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect);
-  return Changed(node);
-}
-
-
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
                                       int stack_parameter_count) {
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
