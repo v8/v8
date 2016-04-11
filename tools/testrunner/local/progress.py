@@ -54,9 +54,6 @@ class ProgressIndicator(object):
   def Done(self):
     pass
 
-  def AboutToRun(self, test):
-    pass
-
   def HasRun(self, test, has_unexpected_output):
     pass
 
@@ -147,10 +144,6 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
-  def AboutToRun(self, test):
-    print 'Starting %s...' % test.GetLabel()
-    sys.stdout.flush()
-
   def HasRun(self, test, has_unexpected_output):
     if has_unexpected_output:
       if test.output.HasCrashed():
@@ -201,10 +194,8 @@ class CompactProgressIndicator(ProgressIndicator):
     self.PrintProgress('Done')
     print ""  # Line break.
 
-  def AboutToRun(self, test):
-    self.PrintProgress(test.GetLabel())
-
   def HasRun(self, test, has_unexpected_output):
+    self.PrintProgress(test.GetLabel())
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
