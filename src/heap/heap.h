@@ -162,7 +162,6 @@ using v8::MemoryPressureLevel;
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
-  V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -975,11 +974,6 @@ class Heap {
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void SetRootCodeStubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
-  }
-
-  // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void SetRootNonMonomorphicCache(UnseededNumberDictionary* value) {
-    roots_[kNonMonomorphicCacheRootIndex] = value;
   }
 
   void SetRootMaterializedObjects(FixedArray* objects) {

@@ -353,13 +353,6 @@ class KeyedLoadIC : public LoadIC {
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
 
-  // Bit mask to be tested against bit field for the cases when
-  // generic stub should go into slow case.
-  // Access check is necessary explicitly since generic stub does not perform
-  // map checks.
-  static const int kSlowCaseBitFieldMask =
-      (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
-
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, State initialization_state, ExtraICState extra_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,

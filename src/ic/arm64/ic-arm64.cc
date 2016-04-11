@@ -729,14 +729,14 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(!AreAliased(receiver, name, StoreDescriptor::ValueRegister(), x3, x4,
-                     x5, x6));
+  DCHECK(!AreAliased(receiver, name, StoreDescriptor::ValueRegister(), x5, x6,
+                     x7, x8));
 
   // Probe the stub cache.
   Code::Flags flags =
       Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, name, x3, x4, x5, x6);
+                                               receiver, name, x5, x6, x7, x8);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
