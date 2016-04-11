@@ -43,32 +43,87 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   return stub;
 }
 
+
 Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
-    Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
+    Handle<Map> receiver_map, LanguageMode language_mode,
+    KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_map->GetIsolate();
+  ExtraICState extra_state =
+      KeyedStoreIC::ComputeExtraICState(language_mode, store_mode);
 
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
-  PropertyICCompiler compiler(isolate);
+  PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   Handle<Code> code =
       compiler.CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
   return code;
 }
 
+
+static void FillCache(Isolate* isolate, Handle<Code> code) {
+  Handle<UnseededNumberDictionary> dictionary = UnseededNumberDictionary::Set(
+      isolate->factory()->non_monomorphic_cache(), code->flags(), code);
+  isolate->heap()->SetRootNonMonomorphicCache(*dictionary);
+}
+
+
+Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
+                                              InlineCacheState ic_state,
+                                              ExtraICState extra_state) {
+  DCHECK_EQ(MEGAMORPHIC, ic_state);
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC, ic_state, extra_state);
+  Handle<UnseededNumberDictionary> cache =
+      isolate->factory()->non_monomorphic_cache();
+  int entry = cache->FindEntry(isolate, flags);
+  if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
+
+  PropertyICCompiler compiler(isolate, Code::STORE_IC);
+  Handle<Code> code = compiler.CompileStoreMegamorphic(flags);
+
+  FillCache(isolate, code);
+  return code;
+}
+
+
 void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
     MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
-    CodeHandleList* handlers, KeyedAccessStoreMode store_mode) {
+    CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
+    LanguageMode language_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
-  PropertyICCompiler compiler(isolate);
+  ExtraICState extra_state =
+      KeyedStoreIC::ComputeExtraICState(language_mode, store_mode);
+  PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   compiler.CompileKeyedStorePolymorphicHandlers(
       receiver_maps, transitioned_maps, handlers, store_mode);
+}
+
+
+Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
+  StoreIC::GenerateMegamorphic(masm());
+  Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG,
+                                     AbstractCode::cast(*code), 0));
+  return code;
+}
+
+Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Handle<Name> name,
+                                         InlineCacheState state) {
+  Code::Flags flags =
+      Code::ComputeFlags(kind, state, extra_ic_state_, cache_holder());
+  Handle<Code> code = GetCodeWithFlags(flags, name);
+  PROFILE(isolate(),
+          CodeCreateEvent(log_kind(code), AbstractCode::cast(*code), *name));
+#ifdef DEBUG
+  code->VerifyEmbeddedObjects();
+#endif
+  return code;
 }
 
 

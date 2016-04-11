@@ -177,7 +177,13 @@ void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
       return;
     }
   }
-  UNREACHABLE();
+  // The IC may also just be a piece of code kept in the non_monomorphic_cache.
+  // In that case, just serialize as a normal code object.
+  if (FLAG_trace_serializer) {
+    PrintF(" %s has no special handling\n", Code::Kind2String(ic->kind()));
+  }
+  DCHECK(ic->kind() == Code::LOAD_IC || ic->kind() == Code::STORE_IC);
+  SerializeGeneric(ic, how_to_code, where_to_point);
 }
 
 int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
