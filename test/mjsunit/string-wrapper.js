@@ -39,3 +39,24 @@ function testStringWrapper(string) {
   testStringWrapper(string);
   assertEquals(undefined, string[limit]);
 })();
+
+
+(function testReconfigureStringWrapperElements() {
+  var s = new String('abc');
+  // Can't reconfigure string contents.
+  assertThrows(() => Object.defineProperty(s, '1', {value: "value"}), TypeError);
+
+  // Configure a property outside the string range
+  var value = 'v1';
+  Object.defineProperty(s, '3', {
+    get: () => {return value},
+    configurable:true
+  });
+  assertEquals('v1', s[3]);
+  value = 'v2';
+  assertEquals('v2', s[3]);
+
+  Object.defineProperty(s, '3', {value: 'v3', configurable: false});
+  assertEquals('v3', s[3]);
+  assertThrows(() => Object.defineProperty(s, '3', {value:2}), TypeError);
+})();
