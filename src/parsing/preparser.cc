@@ -102,8 +102,9 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
 
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-    ParserRecorder* log, Scanner::BookmarkScope* bookmark) {
+    LanguageMode language_mode, bool is_typed, FunctionKind kind,
+    bool has_simple_parameters, ParserRecorder* log,
+    Scanner::BookmarkScope* bookmark) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   Scope* top_scope = NewScope(scope_, SCRIPT_SCOPE);
@@ -111,6 +112,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   FunctionState top_state(&function_state_, &scope_, top_scope, kNormalFunction,
                           &top_factory);
   scope_->SetLanguageMode(language_mode);
+  if (is_typed) scope_->SetTyped();
   Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   PreParserFactory function_factory(NULL);

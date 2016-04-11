@@ -4712,8 +4712,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
-      language_mode(), function_state_->kind(), scope_->has_simple_parameters(),
-      logger, bookmark);
+      language_mode(), typed(), function_state_->kind(),
+      scope_->has_simple_parameters(), logger, bookmark);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

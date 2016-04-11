@@ -7486,6 +7486,29 @@ TEST(TypedModeChecks) {
                     always_flags, arraysize(always_flags));
 }
 
+TEST(TypedModeLazy) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* typed_data[] = {
+    "function p() { var n: number; }; p()",
+    "function p() { function q() { var n: number; }; q(); }; p()",
+    NULL
+  };
+
+  // Allow lazy parsing for small scripts.
+  i::FLAG_min_preparse_length = 0;
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  static const ParserFlag varying_flags[] = {kAllowLazy};
+  RunParserSyncTest(untyped_context_data, typed_data, kError, varying_flags,
+                    arraysize(varying_flags), always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, typed_data, kSuccess, varying_flags,
+                    arraysize(varying_flags), always_flags,
+                    arraysize(always_flags));
+}
+
 TEST(TypedModeIllegalInFunctionScope) {
   const char* context_data[][2] = {
     { "", "" },
