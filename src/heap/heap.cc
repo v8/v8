@@ -343,58 +343,60 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintIsolate(isolate_, "Memory allocator,   used: %6" V8PRIdPTR
-                         " KB, available: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "Memory allocator,   used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX "d KB\n",
                memory_allocator()->Size() / KB,
                memory_allocator()->Available() / KB);
-  PrintIsolate(isolate_, "New space,          used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "New space,          used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                new_space_.Size() / KB, new_space_.Available() / KB,
                new_space_.CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Old space,          used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "Old space,          used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
                old_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Code space,         used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "Code space,         used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Map space,          used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "Map space,          used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
                map_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Large object space, used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "Large object space, used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "All spaces,         used: %6" V8PRIdPTR
-                         " KB"
-                         ", available: %6" V8PRIdPTR
-                         " KB"
-                         ", committed: %6" V8PRIdPTR " KB\n",
+  PrintIsolate(isolate_, "All spaces,         used: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", available: %6" V8_PTR_PREFIX
+                         "d KB"
+                         ", committed: %6" V8_PTR_PREFIX "d KB\n",
                this->SizeOfObjects() / KB, this->Available() / KB,
                this->CommittedMemory() / KB);
   PrintIsolate(
-      isolate_, "External memory reported: %6" V8PRIdPTR " KB\n",
+      isolate_, "External memory reported: %6" V8_PTR_PREFIX "d KB\n",
       static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB));
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
                total_gc_time_ms_);
 }
+
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
@@ -4482,7 +4484,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   USE(title);
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n", title,
          gc_count_);
-  PrintF("old_generation_allocation_limit_ %" V8PRIdPTR "\n",
+  PrintF("old_generation_allocation_limit_ %" V8_PTR_PREFIX "d\n",
          old_generation_allocation_limit_);
 
   PrintF("\n");
@@ -5149,8 +5151,8 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);
 
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate_, "Grow: old size: %" V8PRIdPTR
-                           " KB, new limit: %" V8PRIdPTR " KB (%.1f)\n",
+    PrintIsolate(isolate_, "Grow: old size: %" V8_PTR_PREFIX
+                           "d KB, new limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
                  old_gen_size / KB, old_generation_allocation_limit_ / KB,
                  factor);
   }
@@ -5164,10 +5166,10 @@ void Heap::DampenOldGenerationAllocationLimit(intptr_t old_gen_size,
   intptr_t limit = CalculateOldGenerationAllocationLimit(factor, old_gen_size);
   if (limit < old_generation_allocation_limit_) {
     if (FLAG_trace_gc_verbose) {
-      PrintIsolate(isolate_,
-                   "Dampen: old size: %" V8PRIdPTR " KB, old limit: %" V8PRIdPTR
-                   " KB, "
-                   "new limit: %" V8PRIdPTR " KB (%.1f)\n",
+      PrintIsolate(isolate_, "Dampen: old size: %" V8_PTR_PREFIX
+                             "d KB, old limit: %" V8_PTR_PREFIX
+                             "d KB, "
+                             "new limit: %" V8_PTR_PREFIX "d KB (%.1f)\n",
                    old_gen_size / KB, old_generation_allocation_limit_ / KB,
                    limit / KB, factor);
     }
@@ -5392,7 +5394,7 @@ void Heap::TearDown() {
     PrintF("max_gc_pause=%.1f ", get_max_gc_pause());
     PrintF("total_gc_time=%.1f ", total_gc_time_ms_);
     PrintF("min_in_mutator=%.1f ", get_min_in_mutator());
-    PrintF("max_alive_after_gc=%" V8PRIdPTR " ", get_max_alive_after_gc());
+    PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ", get_max_alive_after_gc());
     PrintF("total_marking_time=%.1f ", tracer()->cumulative_marking_duration());
     PrintF("total_sweeping_time=%.1f ",
            tracer()->cumulative_sweeping_duration());
@@ -5401,17 +5403,17 @@ void Heap::TearDown() {
 
   if (FLAG_print_max_heap_committed) {
     PrintF("\n");
-    PrintF("maximum_committed_by_heap=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_heap=%" V8_PTR_PREFIX "d ",
            MaximumCommittedMemory());
-    PrintF("maximum_committed_by_new_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_new_space=%" V8_PTR_PREFIX "d ",
            new_space_.MaximumCommittedMemory());
-    PrintF("maximum_committed_by_old_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_old_space=%" V8_PTR_PREFIX "d ",
            old_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_code_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_code_space=%" V8_PTR_PREFIX "d ",
            code_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_map_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_map_space=%" V8_PTR_PREFIX "d ",
            map_space_->MaximumCommittedMemory());
-    PrintF("maximum_committed_by_lo_space=%" V8PRIdPTR " ",
+    PrintF("maximum_committed_by_lo_space=%" V8_PTR_PREFIX "d ",
            lo_space_->MaximumCommittedMemory());
     PrintF("\n\n");
   }

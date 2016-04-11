@@ -5,11 +5,9 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
-#include "src/base/compiler-specific.h"
 #include "src/base/smart-pointers.h"
 #include "src/flags.h"
 #include "src/signature.h"
-#include "src/utils.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone-containers.h"
 
@@ -49,7 +47,7 @@ class Decoder {
   inline bool check(const byte* base, int offset, int length, const char* msg) {
     DCHECK_GE(base, start_);
     if ((base + offset + length) > limit_) {
-      error(base, base + offset, "%s", msg);
+      error(base, base + offset, msg);
       return false;
     }
     return true;
@@ -260,13 +258,12 @@ class Decoder {
     }
   }
 
-  void error(const char* msg) { error(pc_, nullptr, "%s", msg); }
+  void error(const char* msg) { error(pc_, nullptr, msg); }
 
-  void error(const byte* pc, const char* msg) { error(pc, nullptr, "%s", msg); }
+  void error(const byte* pc, const char* msg) { error(pc, nullptr, msg); }
 
   // Sets internal error state.
-  void PRINTF_FORMAT(4, 5)
-      error(const byte* pc, const byte* pt, const char* format, ...) {
+  void error(const byte* pc, const byte* pt, const char* format, ...) {
     if (ok()) {
 #if DEBUG
       if (FLAG_wasm_break_on_decoder_error) {
@@ -395,7 +392,7 @@ class Decoder {
         return 0;
       }
       if ((b & 0x80) != 0) {
-        error(base, ptr, "%s", msg);
+        error(base, ptr, msg);
         return 0;
       }
     }

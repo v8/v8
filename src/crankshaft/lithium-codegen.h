@@ -35,7 +35,7 @@ class LCodeGenBase BASE_EMBEDDED {
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const;
 
-  void PRINTF_FORMAT(2, 3) Comment(const char* format, ...);
+  void FPRINTF_CHECKING Comment(const char* format, ...);
   void DeoptComment(const Deoptimizer::DeoptInfo& deopt_info);
   static Deoptimizer::DeoptInfo MakeDeoptInfo(
       LInstruction* instr, Deoptimizer::DeoptReason deopt_reason);

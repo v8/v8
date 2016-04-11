@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
-#include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/globals.h"
@@ -384,7 +383,7 @@ class GCTracer {
 
   // Prints a line and also adds it to the heap's ring buffer so that
   // it can be included in later crash dumps.
-  void PRINTF_FORMAT(2, 3) Output(const char* format, ...) const;
+  void Output(const char* format, ...) const;
 
   void ClearMarkCompactStatistics() {
     cumulative_incremental_marking_steps_ = 0;
