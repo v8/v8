@@ -57,7 +57,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 REPLACE_BINARY_OP_IC_CALL(JSShiftLeft, Token::SHL)
 REPLACE_BINARY_OP_IC_CALL(JSShiftRight, Token::SAR)
 REPLACE_BINARY_OP_IC_CALL(JSShiftRightLogical, Token::SHR)
-REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
 #undef REPLACE_BINARY_OP_IC_CALL
 
 #define REPLACE_RUNTIME_CALL(op, fun)             \
@@ -79,6 +78,7 @@ REPLACE_STUB_CALL(Add)
 REPLACE_STUB_CALL(Subtract)
 REPLACE_STUB_CALL(Multiply)
 REPLACE_STUB_CALL(Divide)
+REPLACE_STUB_CALL(Modulus)
 REPLACE_STUB_CALL(BitwiseAnd)
 REPLACE_STUB_CALL(BitwiseOr)
 REPLACE_STUB_CALL(BitwiseXor)

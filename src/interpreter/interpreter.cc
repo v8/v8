@@ -734,7 +734,7 @@ void Interpreter::DoDiv(InterpreterAssembler* assembler) {
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kModulus, assembler);
+  DoBinaryOp(CodeFactory::Modulus(isolate_), assembler);
 }
 
 

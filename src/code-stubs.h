@@ -114,6 +114,7 @@ namespace internal {
   V(Subtract)                               \
   V(Multiply)                               \
   V(Divide)                                 \
+  V(Modulus)                                \
   V(BitwiseAnd)                             \
   V(BitwiseOr)                              \
   V(BitwiseXor)                             \
@@ -702,6 +703,14 @@ class DivideStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_TURBOFAN_CODE_STUB(Divide, TurboFanCodeStub);
+};
+
+class ModulusStub final : public TurboFanCodeStub {
+ public:
+  explicit ModulusStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
+  DEFINE_TURBOFAN_CODE_STUB(Modulus, TurboFanCodeStub);
 };
 
 class BitwiseAndStub final : public TurboFanCodeStub {
