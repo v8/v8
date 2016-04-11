@@ -7715,24 +7715,39 @@ TEST(TypedModeObjectTypes) {
     "var x: {f(a: number, b: string)}",
     "var x: {f(a: number, b: string) : boolean}",
     "var x: {f?(a: number, b: string) : boolean}",
+    "var x: {f<A>(a: A, b: string) : boolean}",
+    "var x: {f<A, B>(a: A, b: B) : boolean}",
     "var x: {f<A extends number>(a: A, b: string) : boolean}",
+    "var x: {f<A extends number, B extends string>(a: A, b: B) : boolean}",
+    "var x: {f?<A>(a: A, b: string) : boolean}",
+    "var x: {f?<A, B>(a: A, b: B) : boolean}",
     "var x: {f?<A extends number>(a: A, b: string) : boolean}",
+    "var x: {f?<A extends number, B extends string>(a: A, b: B) : boolean}",
     "var x: {()}",
     "var x: {() : number}",
     "var x: {(a, b)}",
     "var x: {(a: number, b: string)}",
     "var x: {(a: number, b: string) : boolean}",
+    "var x: {<A>(a: A, b: string) : boolean}",
+    "var x: {<A, B>(a: A, b: B) : boolean}",
     "var x: {<A extends number>(a: A, b: string) : boolean}",
+    "var x: {<A extends number, B extends string>(a: A, b: B) : boolean}",
     "var x: {new (a, b)}",
     "var x: {new (a: number, b: string)}",
     "var x: {new (a: number, b: string) : boolean}",
+    "var x: {new <A>(a: A, b: string) : boolean}",
+    "var x: {new <A, B>(a: A, b: B) : boolean}",
     "var x: {new <A extends number>(a: A, b: string) : boolean}",
+    "var x: {new <A extends number, B extends string>(a: A, b: B) : boolean}",
     NULL
   };
 
   const char* error_data[] = {
     "var z: {a: ()}",  // Not valid in general.
     "var z: {a: []}",  // Valid as a binding pattern, not as a type.
+    "var z: {f<>()}",  // Invalid type parameters
+    "var z: {f<A>}",
+    "var z: {f<A>: A}",
     NULL
   };
 

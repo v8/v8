@@ -6892,6 +6892,9 @@ class SharedFunctionInfo: public HeapObject {
   inline LanguageMode language_mode();
   inline void set_language_mode(LanguageMode language_mode);
 
+  inline bool typed();
+  inline void set_typed(bool typed);
+
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
 
@@ -7233,6 +7236,7 @@ class SharedFunctionInfo: public HeapObject {
     // byte 3
     kDeserialized,
     kIsDeclaration,
+    kTypedFunction,
     kCompilerHintsCount,  // Pseudo entry
   };
   // Add hints for other modes when they're added.

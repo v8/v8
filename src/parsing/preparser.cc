@@ -94,10 +94,11 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
+    LanguageMode language_mode, bool is_typed, typesystem::TypeFlags type_flags,
+    bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, type_flags, ok);
+      function_token_position, type, language_mode, is_typed, type_flags, ok);
 }
 
 
@@ -442,7 +443,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool ambient,
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
-                       type_flags, CHECK_OK);
+                       typed(), type_flags, CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
@@ -1042,7 +1043,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
+    LanguageMode language_mode, bool is_typed, typesystem::TypeFlags type_flags,
+    bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -1050,6 +1052,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   bool outer_is_script_scope = scope_->is_script_scope();
   Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   function_scope->SetLanguageMode(language_mode);
+  if (is_typed) function_scope->SetTyped();
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);

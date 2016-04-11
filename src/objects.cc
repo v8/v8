@@ -13735,6 +13735,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_allows_lazy_compilation_without_context(
       lit->AllowsLazyCompilationWithoutContext());
   shared_info->set_language_mode(lit->language_mode());
+  shared_info->set_typed(lit->typed());
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   shared_info->set_ast_node_count(lit->ast_node_count());

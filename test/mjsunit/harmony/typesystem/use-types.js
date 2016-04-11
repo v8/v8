@@ -22,6 +22,30 @@ function CheckValidInTypedMode(code, exception) {
         eval(\'" + code + "\')\
       })()\
     })()");
+  assertDoesNotThrow("\
+    'use types';\
+    function lazy() {" + code + "};\
+    lazy()");
+  assertDoesNotThrow("\
+    'use types';\
+    var arrow = () => {" + code + "};\
+    arrow()");
+  assertDoesNotThrow("\
+    'use types';\
+    var lazy = (function outer() {\
+      return (function inner() {\
+        return function () {" + code + "};\
+      })()\
+    })();\
+    lazy()");
+  assertDoesNotThrow("\
+    'use types';\
+    var arrow = (function outer() {\
+      return (function inner() {\
+        return () => {" + code + "};\
+      })()\
+    })();\
+    arrow()");
 }
 
 function CheckInvalidInTypedMode(code, exception) {
@@ -42,6 +66,30 @@ function CheckInvalidInTypedMode(code, exception) {
         eval(\'" + code + "\')\
       })()\
     })()", exception);
+  assertThrows("\
+    'use types';\
+    function lazy() {" + code + "};\
+    lazy()", exception);
+  assertThrows("\
+    'use types';\
+    var arrow = () => {" + code + "};\
+    arrow()", exception);
+  assertThrows("\
+    'use types';\
+    var lazy = (function outer() {\
+      return (function inner() {\
+        return function () {" + code + "};\
+      })()\
+    })();\
+    lazy()", exception);
+  assertThrows("\
+    'use types';\
+    var arrow = (function outer() {\
+      return (function inner() {\
+        return () => {" + code + "};\
+      })()\
+    })();\
+    arrow()", exception);
 }
 
 (function UseTypesWorks() {

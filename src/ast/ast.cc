@@ -234,6 +234,9 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
+bool FunctionLiteral::typed() const { return scope()->typed(); }
+
+
 bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
   DCHECK_NOT_NULL(expr->AsFunctionLiteral()->scope());
