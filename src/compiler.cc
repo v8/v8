@@ -136,7 +136,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
-  if (FLAG_turbo_types) MarkAsTypingEnabled();
 
   if (has_shared_info()) {
     if (shared_info()->never_compiled()) MarkAsFirstCompile();

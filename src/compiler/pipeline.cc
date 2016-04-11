@@ -498,7 +498,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     }
     if (FLAG_native_context_specialization) {
       info()->MarkAsNativeContextSpecializing();
-      info()->MarkAsTypingEnabled();
     }
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
@@ -873,8 +872,7 @@ struct GenericLoweringPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSGenericLowering generic_lowering(data->info()->is_typing_enabled(),
-                                       data->jsgraph());
+    JSGenericLowering generic_lowering(data->jsgraph());
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
@@ -1124,9 +1122,8 @@ struct VerifyGraphPhase {
   static const char* phase_name() { return nullptr; }
 
   void Run(PipelineData* data, Zone* temp_zone, const bool untyped) {
-    Verifier::Run(data->graph(), FLAG_turbo_types && !untyped
-                                     ? Verifier::TYPED
-                                     : Verifier::UNTYPED);
+    Verifier::Run(data->graph(),
+                  !untyped ? Verifier::TYPED : Verifier::UNTYPED);
   }
 };
 
@@ -1201,9 +1198,7 @@ Handle<Code> Pipeline::GenerateCode() {
     Run<LoopAssignmentAnalysisPhase>();
   }
 
-  if (info()->is_typing_enabled()) {
-    Run<TypeHintAnalysisPhase>();
-  }
+  Run<TypeHintAnalysisPhase>();
 
   Run<GraphBuilderPhase>();
   if (data.compilation_failed()) return Handle<Code>::null();
@@ -1228,53 +1223,49 @@ Handle<Code> Pipeline::GenerateCode() {
     GraphReplayPrinter::PrintReplay(data.graph());
   }
 
+  // Type the graph.
   base::SmartPointer<Typer> typer;
-  if (info()->is_typing_enabled()) {
-    // Type the graph.
-    typer.Reset(new Typer(isolate(), data.graph(),
-                          info()->is_deoptimization_enabled()
-                              ? Typer::kDeoptimizationEnabled
-                              : Typer::kNoFlags,
-                          info()->dependencies()));
-    Run<TyperPhase>(typer.get());
-    RunPrintAndVerify("Typed");
-  }
+  typer.Reset(new Typer(isolate(), data.graph(),
+                        info()->is_deoptimization_enabled()
+                            ? Typer::kDeoptimizationEnabled
+                            : Typer::kNoFlags,
+                        info()->dependencies()));
+  Run<TyperPhase>(typer.get());
+  RunPrintAndVerify("Typed");
 
   BeginPhaseKind("lowering");
 
-  if (info()->is_typing_enabled()) {
-    // Lower JSOperators where we can determine types.
-    Run<TypedLoweringPhase>();
-    RunPrintAndVerify("Lowered typed");
+  // Lower JSOperators where we can determine types.
+  Run<TypedLoweringPhase>();
+  RunPrintAndVerify("Lowered typed");
 
-    if (FLAG_turbo_stress_loop_peeling) {
-      Run<StressLoopPeelingPhase>();
-      RunPrintAndVerify("Loop peeled");
-    }
-
-    if (FLAG_turbo_escape) {
-      Run<EscapeAnalysisPhase>();
-      RunPrintAndVerify("Escape Analysed");
-    }
-
-    // Lower simplified operators and insert changes.
-    Run<SimplifiedLoweringPhase>();
-    RunPrintAndVerify("Lowered simplified");
-
-    Run<BranchEliminationPhase>();
-    RunPrintAndVerify("Branch conditions eliminated");
-
-    // Optimize control flow.
-    if (FLAG_turbo_cf_optimization) {
-      Run<ControlFlowOptimizationPhase>();
-      RunPrintAndVerify("Control flow optimized");
-    }
-
-    // Lower changes that have been inserted before.
-    Run<ChangeLoweringPhase>();
-    // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-    RunPrintAndVerify("Lowered changes", true);
+  if (FLAG_turbo_stress_loop_peeling) {
+    Run<StressLoopPeelingPhase>();
+    RunPrintAndVerify("Loop peeled");
   }
+
+  if (FLAG_turbo_escape) {
+    Run<EscapeAnalysisPhase>();
+    RunPrintAndVerify("Escape Analysed");
+  }
+
+  // Lower simplified operators and insert changes.
+  Run<SimplifiedLoweringPhase>();
+  RunPrintAndVerify("Lowered simplified");
+
+  Run<BranchEliminationPhase>();
+  RunPrintAndVerify("Branch conditions eliminated");
+
+  // Optimize control flow.
+  if (FLAG_turbo_cf_optimization) {
+    Run<ControlFlowOptimizationPhase>();
+    RunPrintAndVerify("Control flow optimized");
+  }
+
+  // Lower changes that have been inserted before.
+  Run<ChangeLoweringPhase>();
+  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+  RunPrintAndVerify("Lowered changes", true);
 
   // Lower any remaining generic JSOperators.
   Run<GenericLoweringPhase>();

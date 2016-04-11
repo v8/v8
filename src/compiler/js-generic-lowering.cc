@@ -28,10 +28,7 @@ static CallDescriptor::Flags AdjustFrameStatesForCall(Node* node) {
                    : CallDescriptor::kNoFlags;
 }
 
-
-JSGenericLowering::JSGenericLowering(bool is_typing_enabled, JSGraph* jsgraph)
-    : is_typing_enabled_(is_typing_enabled), jsgraph_(jsgraph) {}
-
+JSGenericLowering::JSGenericLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
 
 JSGenericLowering::~JSGenericLowering() {}
 
@@ -44,19 +41,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       break;
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
-    case IrOpcode::kBranch:
-    case IrOpcode::kDeoptimizeIf:
-    case IrOpcode::kDeoptimizeUnless:
-      // TODO(mstarzinger): If typing is enabled then simplified lowering will
-      // have inserted the correct ChangeBoolToBit, otherwise we need to perform
-      // poor-man's representation inference here and insert manual change.
-      if (!is_typing_enabled_) {
-        Node* condition = node->InputAt(0);
-        Node* test = graph()->NewNode(machine()->WordEqual(), condition,
-                                      jsgraph()->TrueConstant());
-        node->ReplaceInput(0, test);
-      }
-      // Fall-through.
     default:
       // Nothing to see.
       return NoChange();

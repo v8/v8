@@ -154,13 +154,12 @@ class CompilationInfo {
     kFrameSpecializing = 1 << 9,
     kNativeContextSpecializing = 1 << 10,
     kInliningEnabled = 1 << 11,
-    kTypingEnabled = 1 << 12,
-    kDisableFutureOptimization = 1 << 13,
-    kSplittingEnabled = 1 << 14,
-    kDeoptimizationEnabled = 1 << 16,
-    kSourcePositionsEnabled = 1 << 17,
-    kFirstCompile = 1 << 18,
-    kBailoutOnUninitialized = 1 << 19,
+    kDisableFutureOptimization = 1 << 12,
+    kSplittingEnabled = 1 << 13,
+    kDeoptimizationEnabled = 1 << 14,
+    kSourcePositionsEnabled = 1 << 15,
+    kFirstCompile = 1 << 16,
+    kBailoutOnUninitialized = 1 << 17,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -288,10 +287,6 @@ class CompilationInfo {
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
-
-  void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
-
-  bool is_typing_enabled() const { return GetFlag(kTypingEnabled); }
 
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
