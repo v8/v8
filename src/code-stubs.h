@@ -884,6 +884,8 @@ class StoreInterceptorStub : public TurboFanCodeStub {
   void GenerateAssembly(compiler::CodeStubAssembler* assember) const override;
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
+  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
@@ -895,6 +897,8 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::KEYED_LOAD_IC; }
+  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);

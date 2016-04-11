@@ -54,8 +54,6 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
-  static Callable StoreInterceptor(Isolate* isolate);
-
   static Callable ResumeGenerator(Isolate* isolate);
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);

@@ -380,12 +380,6 @@ Callable CodeFactory::SubString(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::StoreInterceptor(Isolate* isolate) {
-  StoreInterceptorStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-// static
 Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
   return Callable(isolate->builtins()->ResumeGeneratorTrampoline(),
                   ResumeGeneratorDescriptor(isolate));
