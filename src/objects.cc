@@ -13405,6 +13405,32 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   }
 }
 
+namespace {
+
+// Sets the expected number of properties based on estimate from parser.
+void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
+                                          FunctionLiteral* literal) {
+  int estimate = literal->expected_property_count();
+
+  // If no properties are added in the constructor, they are more likely
+  // to be added later.
+  if (estimate == 0) estimate = 2;
+
+  // TODO(yangguo): check whether those heuristics are still up-to-date.
+  // We do not shrink objects that go into a snapshot (yet), so we adjust
+  // the estimate conservatively.
+  if (shared->GetIsolate()->serializer_enabled()) {
+    estimate += 2;
+  } else {
+    // Inobject slack tracking will reclaim redundant inobject space later,
+    // so we can afford to adjust the estimate generously.
+    estimate += 8;
+  }
+
+  shared->set_expected_nof_properties(estimate);
+}
+
+}  // namespace
 
 void SharedFunctionInfo::InitFromFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info, FunctionLiteral* lit) {
@@ -13437,6 +13463,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
+  SetExpectedNofPropertiesFromEstimate(shared_info, lit);
 }
 
 
