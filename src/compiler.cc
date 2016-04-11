@@ -744,11 +744,9 @@ void EnsureFeedbackVector(CompilationInfo* info) {
   if (!info->has_shared_info()) return;
 
   // If no type feedback vector exists, we create one now. At this point the
-  // AstNumbering pass has already run. Note the snapshot can contain outdated
-  // vectors for a different configuration, hence we also recreate a new vector
-  // when the function is not compiled (i.e. no code was serialized).
-  if (info->shared_info()->feedback_vector()->is_empty() ||
-      !info->shared_info()->is_compiled()) {
+  // AstNumbering pass has already run. Note that we should reuse any existing
+  // feedback vector rather than creating a new one.
+  if (info->shared_info()->feedback_vector()->is_empty()) {
     Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
         info->isolate(), info->literal()->feedback_vector_spec());
     Handle<TypeFeedbackVector> feedback_vector =
