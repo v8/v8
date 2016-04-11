@@ -2577,6 +2577,16 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::PERIOD: {
+        // In typed mode, we want to allow type instantiation with the notation
+        // f.<A, B> that must be handled separately.
+        if (scope_->typed() && PeekAhead() == Token::LT) {
+          Consume(Token::PERIOD);
+          typename TypeSystem::TypeList type_arguments =
+              ParseTypeArguments(CHECK_OK);
+          USE(type_arguments);  // TODO(nikolaos): really use them!
+          break;
+        }
+
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2644,7 +2654,17 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
       result = this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);
     }
     Traits::RewriteNonPattern(classifier, CHECK_OK);
-    if (peek() == Token::LPAREN) {
+    // In typed mode, we want to allow type instantiation with the notation
+    // new f.<A, B> that must be handled separately.
+    if (peek() == Token::LPAREN ||
+        (scope_->typed() && peek() == Token::PERIOD &&
+         PeekAhead() == Token::LT)) {
+      // Parse optional type arguments.
+      if (Check(Token::PERIOD)) {
+        typename TypeSystem::TypeList type_arguments =
+            ParseTypeArguments(CHECK_OK);
+        USE(type_arguments);  // TODO(nikolaos): really use them!
+      }
       // NewExpression with arguments.
       Scanner::Location spread_pos;
       typename Traits::Type::ExpressionList args =
@@ -2827,6 +2847,10 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
         break;
       }
       case Token::PERIOD: {
+        // In typed mode, we want to allow type instantiation with the notation
+        // f.<A, B> and, in that case, the PERIOD will be consumed later.
+        if (scope_->typed() && PeekAhead() == Token::LT) return expression;
+
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
