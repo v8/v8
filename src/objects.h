@@ -7313,6 +7313,10 @@ class JSGeneratorObject: public JSObject {
   // [input]: The most recent input value.
   DECL_ACCESSORS(input, Object)
 
+  // [resume_mode]: The most recent resume mode.
+  enum ResumeMode { kNext, kReturn, kThrow };
+  DECL_INT_ACCESSORS(resume_mode)
+
   // [continuation]: Offset into code of continuation.
   //
   // A positive offset indicates a suspended generator.  The special
@@ -7342,12 +7346,10 @@ class JSGeneratorObject: public JSObject {
   static const int kContextOffset = kFunctionOffset + kPointerSize;
   static const int kReceiverOffset = kContextOffset + kPointerSize;
   static const int kInputOffset = kReceiverOffset + kPointerSize;
-  static const int kContinuationOffset = kInputOffset + kPointerSize;
+  static const int kResumeModeOffset = kInputOffset + kPointerSize;
+  static const int kContinuationOffset = kResumeModeOffset + kPointerSize;
   static const int kOperandStackOffset = kContinuationOffset + kPointerSize;
   static const int kSize = kOperandStackOffset + kPointerSize;
-
-  // Resume mode, for use by runtime functions.
-  enum ResumeMode { kNext, kReturn, kThrow };
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);

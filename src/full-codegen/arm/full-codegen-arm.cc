@@ -1844,11 +1844,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
   __ jmp(&suspend);
   __ bind(&continuation);
-  // When we arrive here, the stack top is the resume mode and
-  // result_register() holds the input value (the argument given to the
-  // respective resume operation).
+  // When we arrive here, r0 holds the generator object.
   __ RecordGeneratorContinuation();
-  __ pop(r1);
+  __ ldr(r1, FieldMemOperand(r0, JSGeneratorObject::kResumeModeOffset));
+  __ ldr(r0, FieldMemOperand(r0, JSGeneratorObject::kInputOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ cmp(r1, Operand(Smi::FromInt(JSGeneratorObject::kReturn)));

@@ -479,6 +479,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ RecordWriteField(rbx, JSGeneratorObject::kInputOffset, rax, rcx,
                       kDontSaveFPRegs);
 
+  // Store resume mode into generator object.
+  __ movp(FieldOperand(rbx, JSGeneratorObject::kResumeModeOffset), rdx);
+
   // Load suspended function and context.
   __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
   __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
@@ -559,16 +562,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Push resume mode (consumed in continuation).
-  __ Push(rdx);
-
   // Reset operand stack so we don't leak.
   __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
               Heap::kEmptyFixedArrayRootIndex);
 
-  // Restore context and value.
+  // Restore context.
   __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
-  __ movp(rax, FieldOperand(rbx, JSGeneratorObject::kInputOffset));
 
   // Resume the generator function at the continuation.
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -578,6 +577,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
   __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
           Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+  __ movp(rax, rbx);  // Continuation expects generator object in rax.
   __ jmp(rdx);
 }
 

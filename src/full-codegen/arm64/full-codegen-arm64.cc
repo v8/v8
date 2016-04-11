@@ -3751,11 +3751,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // looks at its pos(). Is it possible to do something more efficient here,
   // perhaps using Adr?
   __ Bind(&continuation);
-  // When we arrive here, the stack top is the resume mode and
-  // result_register() holds the input value (the argument given to the
-  // respective resume operation).
+  // When we arrive here, x0 holds the generator object.
   __ RecordGeneratorContinuation();
-  __ Pop(x1);
+  __ Ldr(x1, FieldMemOperand(x0, JSGeneratorObject::kResumeModeOffset));
+  __ Ldr(x0, FieldMemOperand(x0, JSGeneratorObject::kInputOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ Cmp(x1, Operand(Smi::FromInt(JSGeneratorObject::kReturn)));
