@@ -345,6 +345,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is a number.
       CheckUpperIs(node, Type::Number());
       break;
+    case IrOpcode::kRelocatableInt32Constant:
+    case IrOpcode::kRelocatableInt64Constant:
+      CHECK_EQ(0, input_count);
+      break;
     case IrOpcode::kHeapConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);

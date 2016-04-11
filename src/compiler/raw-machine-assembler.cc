@@ -35,6 +35,12 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
   graph->SetEnd(graph->NewNode(common_.End(0)));
 }
 
+Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
+                                                     RelocInfo::Mode rmode) {
+  return kPointerSize == 8
+             ? RelocatableInt64Constant(value, rmode)
+             : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
 
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.

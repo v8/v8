@@ -947,8 +947,11 @@ class Constant final {
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
+  explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
+
+  RelocInfo::Mode rmode() const { return rmode_; }
 
   int32_t ToInt32() const {
     DCHECK(type() == kInt32 || type() == kInt64);
@@ -992,6 +995,7 @@ class Constant final {
  private:
   Type type_;
   int64_t value_;
+  RelocInfo::Mode rmode_;
 };
 
 

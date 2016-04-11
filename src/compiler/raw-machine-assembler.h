@@ -76,6 +76,7 @@ class RawMachineAssembler {
     return kPointerSize == 8 ? Int64Constant(value)
                              : Int32Constant(static_cast<int>(value));
   }
+  Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode rmode);
   Node* Int32Constant(int32_t value) {
     return AddNode(common()->Int32Constant(value));
   }
@@ -103,6 +104,12 @@ class RawMachineAssembler {
   }
   Node* ExternalConstant(ExternalReference address) {
     return AddNode(common()->ExternalConstant(address));
+  }
+  Node* RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
+    return AddNode(common()->RelocatableInt32Constant(value, rmode));
+  }
+  Node* RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode) {
+    return AddNode(common()->RelocatableInt64Constant(value, rmode));
   }
 
   Node* Projection(int index, Node* a) {
