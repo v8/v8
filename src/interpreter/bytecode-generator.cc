@@ -1970,11 +1970,15 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
           // Break here because the value should not be stored unconditionally.
           break;
         } else if (mode == CONST_LEGACY && op != Token::INIT) {
-          DCHECK(!is_strict(language_mode()));
-          // Ensure accumulator is in the correct state.
-          builder()->LoadAccumulatorWithRegister(value_temp);
-          // Break here, non-initializing assignments to legacy constants are
-          // ignored.
+          if (is_strict(language_mode())) {
+            builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                   0);
+          } else {
+            // Ensure accumulator is in the correct state.
+            builder()->LoadAccumulatorWithRegister(value_temp);
+          }
+          // Non-initializing assignments to legacy constants are ignored
+          // in sloppy mode. Break here to avoid storing into variable.
           break;
         } else {
           BuildHoleCheckForVariableAssignment(variable, op);
@@ -2037,11 +2041,15 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
           // The above code performs the store conditionally.
           break;
         } else if (mode == CONST_LEGACY && op != Token::INIT) {
-          DCHECK(!is_strict(language_mode()));
-          // Ensure accumulator is in the correct state.
-          builder()->LoadAccumulatorWithRegister(value_temp);
-          // Break here, non-initializing assignments to legacy constants are
-          // ignored.
+          if (is_strict(language_mode())) {
+            builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                   0);
+          } else {
+            // Ensure accumulator is in the correct state.
+            builder()->LoadAccumulatorWithRegister(value_temp);
+          }
+          // Non-initializing assignments to legacy constants are ignored
+          // in sloppy mode. Break here to avoid storing into variable.
           break;
         } else {
           BuildHoleCheckForVariableAssignment(variable, op);
@@ -2068,9 +2076,6 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
             .LoadLiteral(variable->name())
             .StoreAccumulatorInRegister(name)
             .CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, value, 3);
-      } else if (mode == CONST_LEGACY && op != Token::INIT) {
-        // Non-intializing assignments to legacy constants are ignored.
-        DCHECK(!is_strict(language_mode()));
       } else {
         builder()->StoreLookupSlot(variable->name(), language_mode());
       }

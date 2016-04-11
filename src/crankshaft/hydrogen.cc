@@ -7154,7 +7154,11 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
           case CONST:
             return Bailout(kNonInitializerAssignmentToConst);
           case CONST_LEGACY:
-            return ast_context()->ReturnValue(Pop());
+            if (is_strict(function_language_mode())) {
+              return Bailout(kNonInitializerAssignmentToConst);
+            } else {
+              return ast_context()->ReturnValue(Pop());
+            }
           default:
             mode = HStoreContextSlot::kNoCheck;
         }
@@ -7222,7 +7226,9 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         return Bailout(kNonInitializerAssignmentToConst);
       }
     } else if (var->mode() == CONST_LEGACY) {
-      if (expr->op() != Token::INIT) {
+      if (expr->op() != Token::INIT && is_strict(function_language_mode())) {
+        return Bailout(kNonInitializerAssignmentToConst);
+      } else if (expr->op() != Token::INIT) {
         CHECK_ALIVE(VisitForValue(expr->value()));
         return ast_context()->ReturnValue(Pop());
       }
