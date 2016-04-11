@@ -888,7 +888,7 @@ void ObjectGroupsTracer::PrintInternalFields(JSObject* js_object) {
 }
 
 void ObjectGroupsTracer::PrintObjectGroup(ObjectGroup* group) {
-  PrintIsolate(isolate_, "ObjectGroup (size: %lu)\n", group->length);
+  PrintIsolate(isolate_, "ObjectGroup (size: %" PRIuS ")\n", group->length);
   Object*** objects = group->objects;
 
   for (size_t i = 0; i < group->length; ++i) {
@@ -898,7 +898,7 @@ void ObjectGroupsTracer::PrintObjectGroup(ObjectGroup* group) {
 }
 
 void ObjectGroupsTracer::PrintImplicitRefGroup(ImplicitRefGroup* group) {
-  PrintIsolate(isolate_, "ImplicitRefGroup (children count: %lu)\n",
+  PrintIsolate(isolate_, "ImplicitRefGroup (children count: %" PRIuS ")\n",
                group->length);
   PrintIsolate(isolate_, "  - Parent: ");
   PrintObject(*(group->parent));
@@ -1223,8 +1223,7 @@ void GlobalHandles::PrintStats() {
   }
 
   PrintF("Global Handle Statistics:\n");
-  PrintF("  allocated memory = %" V8_SIZET_PREFIX V8_PTR_PREFIX "dB\n",
-         total * sizeof(Node));
+  PrintF("  allocated memory = %" PRIuS "B\n", total * sizeof(Node));
   PrintF("  # weak       = %d\n", weak);
   PrintF("  # pending    = %d\n", pending);
   PrintF("  # near_death = %d\n", near_death);
