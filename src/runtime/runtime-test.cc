@@ -135,6 +135,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
                  !function->shared()->optimization_disabled());
 
+  // If function is interpreted, just return. OSR is not supported.
+  // TODO(4764): Remove this check when OSR is enabled in the interpreter.
+  if (function->shared()->HasBytecodeArray()) {
+    return isolate->heap()->undefined_value();
+  }
+
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
