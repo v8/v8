@@ -528,9 +528,6 @@
   # code.
   'test-api/TurboAsmDisablesNeuter': [FAIL],
 
-  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
-  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
-
   # TODO(rmcilroy,4837): We don't set a LoadContextSlot for a function as
   # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
   'test-run-inlining/InlineLoopGuardedTwice': [FAIL],

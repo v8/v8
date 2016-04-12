@@ -3688,7 +3688,11 @@ ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
   return VectorStoreTransitionDescriptor(isolate());
 }
 
-void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
+
+void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kNewClosure)->entry);
+}
+
 
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 

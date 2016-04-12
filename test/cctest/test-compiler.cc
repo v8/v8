@@ -364,7 +364,9 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   CHECK(!f->shared()->feedback_vector()->is_empty());
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run in the same context.
 TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
@@ -383,8 +385,8 @@ TEST(OptimizedCodeSharing1) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -401,7 +403,9 @@ TEST(OptimizedCodeSharing1) {
   }
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run different contexts.
 TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -452,8 +456,8 @@ TEST(OptimizedCodeSharing2) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -471,7 +475,9 @@ TEST(OptimizedCodeSharing2) {
   }
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub without context-dependent entries.
 TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -525,8 +531,8 @@ TEST(OptimizedCodeSharing3) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
