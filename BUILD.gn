@@ -246,8 +246,11 @@ config("toolchain") {
       "OBJECT_PRINT",
       "VERIFY_HEAP",
       "DEBUG",
-      "OPTIMIZED_DEBUG",
+      "TRACE_MAPS",
     ]
+    if (!v8_optimized_debug) {
+      defines += [ "ENABLE_SLOW_DCHECKS" ]
+    }
   }
 }
 
@@ -583,6 +586,10 @@ source_set("v8_nosnapshot") {
     ":features",
     ":toolchain",
   ]
+  if (!is_debug || v8_optimized_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
 }
 
 source_set("v8_snapshot") {
@@ -621,6 +628,10 @@ source_set("v8_snapshot") {
     ":features",
     ":toolchain",
   ]
+  if (!is_debug || v8_optimized_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
 }
 
 if (v8_use_external_startup_data) {
@@ -651,6 +662,10 @@ if (v8_use_external_startup_data) {
       ":features",
       ":toolchain",
     ]
+    if (!is_debug || v8_optimized_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
+    }
   }
 }
 
@@ -1734,7 +1749,7 @@ source_set("v8_base") {
     ":toolchain",
   ]
 
-  if (!is_debug) {
+  if (!is_debug || v8_optimized_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
@@ -1836,7 +1851,7 @@ source_set("v8_libbase") {
     ":toolchain",
   ]
 
-  if (!is_debug) {
+  if (!is_debug || v8_optimized_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
@@ -1907,7 +1922,7 @@ source_set("v8_libplatform") {
     ":toolchain",
   ]
 
-  if (!is_debug) {
+  if (!is_debug || v8_optimized_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
