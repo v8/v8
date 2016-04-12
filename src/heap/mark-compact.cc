@@ -3026,10 +3026,17 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
     success = collector_->VisitLiveObjects(p, visitor, kClearMarkbits);
   }
   if (FLAG_trace_evacuation) {
+    const char age_mark_tag =
+        !p->InNewSpace()
+            ? 'x'
+            : !p->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)
+                  ? '>'
+                  : !p->ContainsLimit(heap()->new_space()->age_mark()) ? '<'
+                                                                       : '#';
     PrintIsolate(heap()->isolate(),
-                 "evacuation[%p]: page=%p new_space=%d executable=%d "
-                 "live_bytes=%d time=%f\n",
-                 this, p, p->InNewSpace(),
+                 "evacuation[%p]: page=%p new_space=%d age_mark_tag=%c "
+                 "executable=%d live_bytes=%d time=%f\n",
+                 this, p, p->InNewSpace(), age_mark_tag,
                  p->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
                  evacuation_time);
   }
