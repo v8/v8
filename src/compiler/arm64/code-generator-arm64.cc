@@ -185,7 +185,11 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case Constant::kInt32:
         return Operand(constant.ToInt32());
       case Constant::kInt64:
-        return Operand(constant.ToInt64());
+        if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+          return Operand(constant.ToInt64(), constant.rmode());
+        } else {
+          return Operand(constant.ToInt64());
+        }
       case Constant::kFloat32:
         return Operand(
             isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
