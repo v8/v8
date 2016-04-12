@@ -1394,19 +1394,15 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
 template <>
-HValue* CodeStubGraphBuilder<AllocateInNewSpaceStub>::BuildCodeStub() {
-  HValue* result = Add<HAllocate>(GetParameter(0), HType::Tagged(), NOT_TENURED,
-                                  JS_OBJECT_TYPE);
+HValue* CodeStubGraphBuilder<AllocateStub>::BuildCodeStub() {
+  HValue* result =
+      Add<HAllocate>(GetParameter(0), HType::Tagged(),
+                     casted_stub()->pretenure_flag(), JS_OBJECT_TYPE);
   return result;
 }
 
-
-Handle<Code> AllocateInNewSpaceStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
+Handle<Code> AllocateStub::GenerateCode() { return DoGenerateCode(this); }
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     ElementsKind kind,

@@ -3770,8 +3770,7 @@ void AllocateMutableHeapNumberStub::InitializeDescriptor(
 SIMD128_TYPES(SIMD128_INIT_DESC)
 #undef SIMD128_INIT_DESC
 
-void AllocateInNewSpaceStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
+void AllocateStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize();
 }
 
