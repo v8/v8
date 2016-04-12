@@ -549,6 +549,7 @@ class Heap {
 
   STATIC_ASSERT(kUndefinedValueRootIndex ==
                 Internals::kUndefinedValueRootIndex);
+  STATIC_ASSERT(kTheHoleValueRootIndex == Internals::kTheHoleValueRootIndex);
   STATIC_ASSERT(kNullValueRootIndex == Internals::kNullValueRootIndex);
   STATIC_ASSERT(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
   STATIC_ASSERT(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
