@@ -56,12 +56,13 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadInternalField(
   CodeStubAssembler::Variable result(assembler_.get(),
                                      MachineRepresentation::kTagged);
   CodeStubAssembler::Label is_jsobject(assembler_.get());
+  CodeStubAssembler::Label maybe_api_object(assembler_.get());
   CodeStubAssembler::Label is_not_jsobject(assembler_.get());
   CodeStubAssembler::Label merge(assembler_.get(), &result);
   assembler_->Branch(
       assembler_->WordEqual(
           instance_type, assembler_->IntPtrConstant(Internals::kJSObjectType)),
-      &is_jsobject, &is_not_jsobject);
+      &is_jsobject, &maybe_api_object);
 
   // JSObject? Then load the internal field field_no.
   assembler_->Bind(&is_jsobject);
@@ -70,6 +71,12 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::LoadInternalField(
       MachineType::Pointer());
   result.Bind(internal_field);
   assembler_->Goto(&merge);
+
+  assembler_->Bind(&maybe_api_object);
+  assembler_->Branch(
+      assembler_->WordEqual(instance_type, assembler_->IntPtrConstant(
+                                               Internals::kJSApiObjectType)),
+      &is_jsobject, &is_not_jsobject);
 
   // No JSObject? Return undefined.
   // TODO(vogelheim): Check whether this is the appropriate action, or whether

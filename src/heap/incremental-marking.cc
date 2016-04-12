@@ -598,6 +598,7 @@ void IncrementalMarking::MarkRoots() {
 
 
 void IncrementalMarking::MarkObjectGroups() {
+  DCHECK(!heap_->UsingEmbedderHeapTracer());
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
@@ -728,7 +729,9 @@ void IncrementalMarking::FinalizeIncrementally() {
   // 4) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
-  MarkObjectGroups();
+  if (!heap_->UsingEmbedderHeapTracer()) {
+    MarkObjectGroups();
+  }
   if (incremental_marking_finalization_rounds_ == 0) {
     // Map retaining is needed for perfromance, not correctness,
     // so we can do it only once at the beginning of the finalization.

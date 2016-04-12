@@ -115,7 +115,6 @@ Heap::Heap()
       inline_allocation_disabled_(false),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
-      embedder_heap_tracer_(nullptr),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       promotion_ratio_(0),
@@ -1544,15 +1543,12 @@ static bool IsUnmodifiedHeapObject(Object** p) {
   if (object->IsSmi()) return false;
   HeapObject* heap_object = HeapObject::cast(object);
   if (!object->IsJSObject()) return false;
-  Object* obj_constructor = (JSObject::cast(object))->map()->GetConstructor();
-  if (!obj_constructor->IsJSFunction()) return false;
-  JSFunction* constructor = JSFunction::cast(obj_constructor);
-  if (!constructor->shared()->IsApiFunction()) return false;
-  if (constructor != nullptr &&
-      constructor->initial_map() == heap_object->map()) {
-    return true;
-  }
-  return false;
+  JSObject* js_object = JSObject::cast(object);
+  if (!js_object->WasConstructedFromApiFunction()) return false;
+  JSFunction* constructor =
+      JSFunction::cast(js_object->map()->GetConstructor());
+
+  return constructor->initial_map() == heap_object->map();
 }
 
 
@@ -3574,6 +3570,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   CHECK(map->instance_type() == JS_REGEXP_TYPE ||
         map->instance_type() == JS_OBJECT_TYPE ||
         map->instance_type() == JS_ARRAY_TYPE ||
+        map->instance_type() == JS_API_OBJECT_TYPE ||
         map->instance_type() == JS_SPECIAL_API_OBJECT_TYPE);
 
   int object_size = map->instance_size();
@@ -5370,12 +5367,20 @@ void Heap::NotifyDeserializationComplete() {
 #endif  // DEBUG
 }
 
+void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
+  mark_compact_collector()->SetEmbedderHeapTracer(tracer);
+}
+
+bool Heap::UsingEmbedderHeapTracer() {
+  return mark_compact_collector()->UsingEmbedderHeapTracer();
+}
+
+void Heap::TracePossibleWrapper(JSObject* js_object) {
+  mark_compact_collector()->TracePossibleWrapper(js_object);
+}
+
 void Heap::RegisterExternallyReferencedObject(Object** object) {
-  DCHECK(mark_compact_collector()->in_use());
-  HeapObject* heap_object = HeapObject::cast(*object);
-  DCHECK(Contains(heap_object));
-  MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
-  mark_compact_collector()->MarkObject(heap_object, mark_bit);
+  mark_compact_collector()->RegisterExternallyReferencedObject(object);
 }
 
 void Heap::TearDown() {
@@ -5543,12 +5548,6 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
     }
   }
   UNREACHABLE();
-}
-
-void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_NOT_NULL(tracer);
-  CHECK_NULL(embedder_heap_tracer_);
-  embedder_heap_tracer_ = tracer;
 }
 
 // TODO(ishell): Find a better place for this.

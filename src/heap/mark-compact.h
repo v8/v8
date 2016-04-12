@@ -577,6 +577,20 @@ class MarkCompactCollector {
     return nullptr;
   }
 
+  std::vector<std::pair<void*, void*>>& wrappers_to_trace() {
+    return wrappers_to_trace_;
+  }
+
+  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+
+  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
+
+  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
+
+  void TracePossibleWrapper(JSObject* js_object);
+
+  void RegisterExternallyReferencedObject(Object** object);
+
  private:
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
@@ -678,8 +692,8 @@ class MarkCompactCollector {
   // or overflowed in the heap.  This respects references only considered in
   // the final atomic marking pause including the following:
   //    - Processing of objects reachable through Harmony WeakMaps.
-  //    - Objects reachable due to host application logic like object groups
-  //      or implicit references' groups.
+  //    - Objects reachable due to host application logic like object groups,
+  //      implicit references' groups, or embedder heap tracing.
   void ProcessEphemeralMarking(ObjectVisitor* visitor,
                                bool only_process_harmony_weak_collections);
 
@@ -813,7 +827,12 @@ class MarkCompactCollector {
   base::VirtualMemory* marking_deque_memory_;
   size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
+  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
+
   CodeFlusher* code_flusher_;
+
+  EmbedderHeapTracer* embedder_heap_tracer_;
+
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;

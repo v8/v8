@@ -16045,6 +16045,24 @@ void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
   }
 }
 
+bool JSObject::WasConstructedFromApiFunction() {
+  auto instance_type = map()->instance_type();
+  bool is_api_object = instance_type == JS_API_OBJECT_TYPE ||
+                       instance_type == JS_SPECIAL_API_OBJECT_TYPE;
+#ifdef ENABLE_SLOW_DCHECKS
+  if (FLAG_enable_slow_asserts) {
+    Object* maybe_constructor = map()->GetConstructor();
+    if (!maybe_constructor->IsJSFunction()) return false;
+    JSFunction* constructor = JSFunction::cast(maybe_constructor);
+    if (constructor->shared()->IsApiFunction()) {
+      DCHECK(is_api_object);
+    } else {
+      DCHECK(!is_api_object);
+    }
+  }
+#endif
+  return is_api_object;
+}
 
 int JSObject::NumberOfOwnElements(PropertyFilter filter) {
   // Fast case for objects with no elements.

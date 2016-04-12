@@ -59,6 +59,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
       code_flusher_(nullptr),
+      embedder_heap_tracer_(nullptr),
       have_code_to_deoptimize_(false),
       compacting_(false),
       sweeping_in_progress_(false),
@@ -1961,7 +1962,6 @@ void MarkCompactCollector::ProcessMarkingDeque() {
   }
 }
 
-
 // Mark all objects reachable (transitively) from objects on the marking
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
@@ -1969,7 +1969,11 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   bool work_to_do = true;
   DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
   while (work_to_do) {
-    if (!only_process_harmony_weak_collections) {
+    if (UsingEmbedderHeapTracer()) {
+      embedder_heap_tracer()->TraceWrappableFrom(
+          reinterpret_cast<v8::Isolate*>(isolate()), wrappers_to_trace_);
+      wrappers_to_trace_.clear();
+    } else if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
           visitor, &IsUnmarkedHeapObjectWithHeap);
       MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
@@ -1979,7 +1983,6 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     ProcessMarkingDeque();
   }
 }
-
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
@@ -2079,6 +2082,30 @@ void MarkingDeque::Uninitialize(bool aborting) {
   in_use_ = false;
 }
 
+void MarkCompactCollector::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
+  DCHECK_NOT_NULL(tracer);
+  CHECK_NULL(embedder_heap_tracer_);
+  embedder_heap_tracer_ = tracer;
+}
+
+void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
+  DCHECK(js_object->WasConstructedFromApiFunction());
+  if (js_object->GetInternalFieldCount() >= 2 &&
+      js_object->GetInternalField(0) != heap_->undefined_value() &&
+      js_object->GetInternalField(1) != heap_->undefined_value()) {
+    wrappers_to_trace().push_back(std::pair<void*, void*>(
+        reinterpret_cast<void*>(js_object->GetInternalField(0)),
+        reinterpret_cast<void*>(js_object->GetInternalField(1))));
+  }
+}
+
+void MarkCompactCollector::RegisterExternallyReferencedObject(Object** object) {
+  DCHECK(in_use());
+  HeapObject* heap_object = HeapObject::cast(*object);
+  DCHECK(heap_->Contains(heap_object));
+  MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+  MarkObject(heap_object, mark_bit);
+}
 
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
@@ -2135,6 +2162,10 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
+      if (UsingEmbedderHeapTracer()) {
+        embedder_heap_tracer()->TraceRoots(
+            reinterpret_cast<v8::Isolate*>(isolate()));
+      }
       ProcessEphemeralMarking(&root_visitor, false);
       ProcessMarkingDeque();
     }
@@ -2171,6 +2202,10 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
       ProcessMarkingDeque();
+      if (UsingEmbedderHeapTracer()) {
+        embedder_heap_tracer()->ClearTracingMarks(
+            reinterpret_cast<v8::Isolate*>(isolate()));
+      }
     }
   }
 

@@ -202,6 +202,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
+    case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       if (map->is_undetectable()) return kOtherUndetectable;
       return kOtherObject;
