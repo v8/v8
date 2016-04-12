@@ -3420,21 +3420,50 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
         // bits instruction. RS field is always equal to 0.
         // Sign-extend the 32-bit result.
         alu_out = static_cast<int32_t>(static_cast<uint32_t>(rt_u()) >> sa());
-      } else {
+      } else if (rs_reg() == 1) {
         // Logical right-rotate of a word by a fixed number of bits. This
         // is special case of SRL instruction, added in MIPS32 Release 2.
         // RS field is equal to 00001.
         alu_out = static_cast<int32_t>(
             base::bits::RotateRight32(static_cast<const uint32_t>(rt_u()),
                                       static_cast<const uint32_t>(sa())));
+      } else {
+        UNREACHABLE();
       }
       SetResult(rd_reg(), alu_out);
       break;
     case DSRL:
-      SetResult(rd_reg(), rt_u() >> sa());
+      if (rs_reg() == 0) {
+        // Regular logical right shift of a word by a fixed number of
+        // bits instruction. RS field is always equal to 0.
+        // Sign-extend the 64-bit result.
+        alu_out = static_cast<int64_t>(rt_u() >> sa());
+      } else if (rs_reg() == 1) {
+        // Logical right-rotate of a word by a fixed number of bits. This
+        // is special case of SRL instruction, added in MIPS32 Release 2.
+        // RS field is equal to 00001.
+        alu_out = static_cast<int64_t>(base::bits::RotateRight64(rt_u(), sa()));
+      } else {
+        UNREACHABLE();
+      }
+      SetResult(rd_reg(), alu_out);
       break;
     case DSRL32:
-      SetResult(rd_reg(), rt_u() >> sa() >> 32);
+      if (rs_reg() == 0) {
+        // Regular logical right shift of a word by a fixed number of
+        // bits instruction. RS field is always equal to 0.
+        // Sign-extend the 64-bit result.
+        alu_out = static_cast<int64_t>(rt_u() >> sa() >> 32);
+      } else if (rs_reg() == 1) {
+        // Logical right-rotate of a word by a fixed number of bits. This
+        // is special case of SRL instruction, added in MIPS32 Release 2.
+        // RS field is equal to 00001.
+        alu_out =
+            static_cast<int64_t>(base::bits::RotateRight64(rt_u(), sa() + 32));
+      } else {
+        UNREACHABLE();
+      }
+      SetResult(rd_reg(), alu_out);
       break;
     case SRA:
       SetResult(rd_reg(), (int32_t)rt() >> sa());
@@ -3470,12 +3499,13 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       if (sa() == 0) {
         // Regular logical right-shift of a word by a variable number of
         // bits instruction. SA field is always equal to 0.
-        alu_out = rt_u() >> rs();
+        alu_out = static_cast<int64_t>(rt_u() >> rs());
       } else {
         // Logical right-rotate of a word by a variable number of bits.
         // This is special case od SRLV instruction, added in MIPS32
         // Release 2. SA field is equal to 00001.
-        alu_out = base::bits::RotateRight64(rt_u(), rs_u());
+        alu_out =
+            static_cast<int64_t>(base::bits::RotateRight64(rt_u(), rs_u()));
       }
       SetResult(rd_reg(), alu_out);
       break;

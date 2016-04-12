@@ -1162,26 +1162,22 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       if (instr->RsValue() == 0) {
         Format(instr, "srl     'rd, 'rt, 'sa");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "rotr    'rd, 'rt, 'sa");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "rotr    'rd, 'rt, 'sa");
       }
       break;
     case DSRL:
       if (instr->RsValue() == 0) {
         Format(instr, "dsrl    'rd, 'rt, 'sa");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "drotr   'rd, 'rt, 'sa");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "drotr   'rd, 'rt, 'sa");
       }
       break;
     case DSRL32:
-      Format(instr, "dsrl32  'rd, 'rt, 'sa");
+      if (instr->RsValue() == 0) {
+        Format(instr, "dsrl32  'rd, 'rt, 'sa");
+      } else {
+        Format(instr, "drotr32 'rd, 'rt, 'sa");
+      }
       break;
     case SRA:
       Format(instr, "sra     'rd, 'rt, 'sa");
@@ -1202,22 +1198,14 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
       if (instr->SaValue() == 0) {
         Format(instr, "srlv    'rd, 'rt, 'rs");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "rotrv   'rd, 'rt, 'rs");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "rotrv   'rd, 'rt, 'rs");
       }
       break;
     case DSRLV:
       if (instr->SaValue() == 0) {
         Format(instr, "dsrlv   'rd, 'rt, 'rs");
       } else {
-        if (kArchVariant == kMips64r2) {
-          Format(instr, "drotrv  'rd, 'rt, 'rs");
-        } else {
-          Unknown(instr);
-        }
+        Format(instr, "drotrv  'rd, 'rt, 'rs");
       }
       break;
     case SRAV:
