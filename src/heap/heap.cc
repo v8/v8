@@ -824,10 +824,10 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
     PrintF("[IncrementalMarking] (%s).\n", gc_reason);
   }
 
-  TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
   HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
+  TRACE_GC(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
 
   {
     GCCallbacksScope scope(this);
