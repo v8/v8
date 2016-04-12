@@ -845,8 +845,9 @@ bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
   } else if (accessors->IsAccessorPair()) {
     Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                           isolate);
-    if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo())
+    if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
       return false;
+    }
     Handle<JSObject> holder = lookup->GetHolder<JSObject>();
     Handle<Object> receiver = lookup->GetReceiver();
     if (holder->HasFastProperties()) {
@@ -1552,21 +1553,24 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
-        if (!setter->IsJSFunction()) {
+        if (!setter->IsJSFunction() && !setter->IsFunctionTemplateInfo()) {
           TRACE_GENERIC_IC(isolate(), "StoreIC", "setter not a function");
           break;
         }
-        Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
-        CallOptimization call_optimization(function);
+        CallOptimization call_optimization(setter);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-        if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(receiver, holder)) {
-          return compiler.CompileStoreCallback(receiver, lookup->name(),
-                                               call_optimization,
-                                               lookup->GetAccessorIndex());
+        if (call_optimization.is_simple_api_call()) {
+          if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
+            return compiler.CompileStoreCallback(receiver, lookup->name(),
+                                                 call_optimization,
+                                                 lookup->GetAccessorIndex());
+          }
+          TRACE_GENERIC_IC(isolate(), "StoreIC", "incompatible receiver");
+          break;
         }
-        int expected_arguments =
-            function->shared()->internal_formal_parameter_count();
+        int expected_arguments = JSFunction::cast(*setter)
+                                     ->shared()
+                                     ->internal_formal_parameter_count();
         return compiler.CompileStoreViaSetter(receiver, lookup->name(),
                                               lookup->GetAccessorIndex(),
                                               expected_arguments);
