@@ -397,7 +397,8 @@ RUNTIME_FUNCTION(Runtime_IsSharedIntegerTypedArray) {
   Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
   return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
                                     obj->type() != kExternalFloat32Array &&
-                                    obj->type() != kExternalFloat64Array);
+                                    obj->type() != kExternalFloat64Array &&
+                                    obj->type() != kExternalUint8ClampedArray);
 }
 
 

@@ -1276,6 +1276,11 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::TruncateFloat64ToInt32(Node* value) {
+  return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript,
+                                                value);
+}
+
 void CodeStubAssembler::BranchIf(Node* condition, Label* if_true,
                                  Label* if_false) {
   Label if_condition_is_true(this), if_condition_is_false(this);

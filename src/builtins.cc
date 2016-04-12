@@ -5145,6 +5145,143 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::kStackGuard);
 }
 
+namespace {
+
+void ValidateSharedTypedArray(compiler::CodeStubAssembler* a,
+                              compiler::Node* tagged, compiler::Node* context) {
+  using namespace compiler;
+  CodeStubAssembler::Label is_smi(a), not_smi(a), is_typed_array(a),
+      not_typed_array(a), is_shared(a), not_shared(a), is_float_or_clamped(a),
+      not_float_or_clamped(a), invalid(a);
+
+  // Fail if it is not a heap object.
+  a->Branch(a->WordIsSmi(tagged), &is_smi, &not_smi);
+  a->Bind(&is_smi);
+  a->Goto(&invalid);
+
+  // Fail if the array's instance type is not JSTypedArray.
+  a->Bind(&not_smi);
+  a->Branch(a->WordEqual(a->LoadInstanceType(tagged),
+                         a->Int32Constant(JS_TYPED_ARRAY_TYPE)),
+            &is_typed_array, &not_typed_array);
+  a->Bind(&not_typed_array);
+  a->Goto(&invalid);
+
+  // Fail if the array's JSArrayBuffer is not shared.
+  a->Bind(&is_typed_array);
+  Node* is_buffer_shared =
+      a->BitFieldDecode<JSArrayBuffer::IsShared>(a->LoadObjectField(
+          a->LoadObjectField(tagged, JSTypedArray::kBufferOffset),
+          JSArrayBuffer::kBitFieldOffset));
+  a->Branch(is_buffer_shared, &is_shared, &not_shared);
+  a->Bind(&not_shared);
+  a->Goto(&invalid);
+
+  // Fail if the array's element type is float32, float64 or clamped.
+  a->Bind(&is_shared);
+  Node* elements_instance_type = a->LoadInstanceType(
+      a->LoadObjectField(tagged, JSObject::kElementsOffset));
+  STATIC_ASSERT(FIXED_INT8_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  STATIC_ASSERT(FIXED_INT16_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  STATIC_ASSERT(FIXED_INT32_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  STATIC_ASSERT(FIXED_UINT8_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  STATIC_ASSERT(FIXED_UINT16_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  STATIC_ASSERT(FIXED_UINT32_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
+  a->Branch(a->Int32LessThan(elements_instance_type,
+                             a->Int32Constant(FIXED_FLOAT32_ARRAY_TYPE)),
+            &not_float_or_clamped, &is_float_or_clamped);
+  a->Bind(&is_float_or_clamped);
+  a->Goto(&invalid);
+
+  a->Bind(&invalid);
+  a->CallRuntime(Runtime::kThrowNotIntegerSharedTypedArrayError, context,
+                 tagged);
+  a->Return(a->UndefinedConstant());
+
+  a->Bind(&not_float_or_clamped);
+}
+
+// https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
+compiler::Node* ConvertTaggedAtomicIndexToWord32(compiler::CodeStubAssembler* a,
+                                                 compiler::Node* tagged,
+                                                 compiler::Node* context) {
+  using namespace compiler;
+  CodeStubAssembler::Variable var_result(a, MachineRepresentation::kWord32);
+
+  Callable to_number = CodeFactory::ToNumber(a->isolate());
+  Node* number_index = a->CallStub(to_number, context, tagged);
+  CodeStubAssembler::Label done(a, &var_result);
+
+  CodeStubAssembler::Label if_numberissmi(a), if_numberisnotsmi(a);
+  a->Branch(a->WordIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
+
+  a->Bind(&if_numberissmi);
+  {
+    var_result.Bind(a->SmiToWord32(number_index));
+    a->Goto(&done);
+  }
+
+  a->Bind(&if_numberisnotsmi);
+  {
+    Node* number_index_value = a->LoadHeapNumberValue(number_index);
+    Node* access_index = a->TruncateFloat64ToInt32(number_index_value);
+    Node* test_index = a->ChangeInt32ToFloat64(access_index);
+
+    CodeStubAssembler::Label if_indexesareequal(a), if_indexesarenotequal(a);
+    a->Branch(a->Float64Equal(number_index_value, test_index),
+              &if_indexesareequal, &if_indexesarenotequal);
+
+    a->Bind(&if_indexesareequal);
+    {
+      var_result.Bind(access_index);
+      a->Goto(&done);
+    }
+
+    a->Bind(&if_indexesarenotequal);
+    a->Return(
+        a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
+  }
+
+  a->Bind(&done);
+  return var_result.value();
+}
+
+void ValidateAtomicIndex(compiler::CodeStubAssembler* a,
+                         compiler::Node* index_word,
+                         compiler::Node* array_length_word,
+                         compiler::Node* context) {
+  using namespace compiler;
+  // Check if the index is in bounds. If not, throw RangeError.
+  CodeStubAssembler::Label if_inbounds(a), if_notinbounds(a);
+  a->Branch(
+      a->WordOr(a->Int32LessThan(index_word, a->Int32Constant(0)),
+                a->Int32GreaterThanOrEqual(index_word, array_length_word)),
+      &if_notinbounds, &if_inbounds);
+  a->Bind(&if_notinbounds);
+  a->Return(
+      a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
+  a->Bind(&if_inbounds);
+}
+
+}  // anonymous namespace
+
+void Builtins::Generate_AtomicsLoadCheck(compiler::CodeStubAssembler* a) {
+  using namespace compiler;
+  Isolate* isolate = a->isolate();
+  Node* array = a->Parameter(1);
+  Node* index = a->Parameter(2);
+  Node* context = a->Parameter(3 + 2);
+  ValidateSharedTypedArray(a, array, context);
+  Node* index_word = ConvertTaggedAtomicIndexToWord32(a, index, context);
+  Node* array_length_word = a->TruncateTaggedToWord32(
+      context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
+  ValidateAtomicIndex(a, index_word, array_length_word, context);
+
+  Callable atomics_load = CodeFactory::AtomicsLoad(isolate);
+  Node* target = a->HeapConstant(atomics_load.code());
+  a->Return(a->CallStub(atomics_load.descriptor(), target, context, array,
+                        index_word));
+}
 
 #define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)               \
 Handle<Code> Builtins::name() {                               \
