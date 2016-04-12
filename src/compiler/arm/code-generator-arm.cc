@@ -1448,11 +1448,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
-            __ mov(dst, Operand(src.ToInt32(), src.rmode()));
-          } else {
-            __ mov(dst, Operand(src.ToInt32()));
-          }
+          __ mov(dst, Operand(src.ToInt32()));
           break;
         case Constant::kInt64:
           UNREACHABLE();

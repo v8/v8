@@ -2078,25 +2078,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                                : kScratchRegister;
       switch (src.type()) {
         case Constant::kInt32: {
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
-            __ movq(dst, src.ToInt64(), src.rmode());
+          // TODO(dcarney): don't need scratch in this case.
+          int32_t value = src.ToInt32();
+          if (value == 0) {
+            __ xorl(dst, dst);
           } else {
-            // TODO(dcarney): don't need scratch in this case.
-            int32_t value = src.ToInt32();
-            if (value == 0) {
-              __ xorl(dst, dst);
-            } else {
-              __ movl(dst, Immediate(value));
-            }
+            __ movl(dst, Immediate(value));
           }
           break;
         }
         case Constant::kInt64:
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
-            __ movq(dst, src.ToInt64(), src.rmode());
-          } else {
-            __ Set(dst, src.ToInt64());
-          }
+          __ Set(dst, src.ToInt64());
           break;
         case Constant::kFloat32:
           __ Move(dst,

@@ -1116,6 +1116,15 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   }
 }
 
+void MacroAssembler::Set(Register dst, int64_t x, RelocInfo::Mode rmode) {
+  if (rmode == RelocInfo::WASM_MEMORY_REFERENCE) {
+    DCHECK(x != 0);
+    movq(dst, x, rmode);
+  } else {
+    DCHECK(RelocInfo::IsNone(rmode));
+  }
+}
+
 void MacroAssembler::Set(const Operand& dst, intptr_t x) {
   if (kPointerSize == kInt64Size) {
     if (is_int32(x)) {
