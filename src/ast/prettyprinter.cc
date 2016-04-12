@@ -1055,7 +1055,8 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     if (object->IsJSFunction()) {
       Print("JS-Function");
     } else if (object->IsJSArray()) {
-      Print("JS-array[%u]", JSArray::cast(object)->length());
+      Print("JS-array[%u]",
+            Smi::cast(JSArray::cast(object)->length())->value());
     } else if (object->IsJSObject()) {
       Print("JS-Object");
     } else {
@@ -1145,7 +1146,7 @@ void AstPrinter::PrintIndented(const char* txt) {
   for (int i = 0; i < indent_; i++) {
     Print(". ");
   }
-  Print(txt);
+  Print("%s", txt);
 }
 
 
@@ -1522,7 +1523,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
   buf[i] = '\0';
   PrintIndented("FLAGS ");
-  Print(buf.start());
+  Print("%s", buf.start());
   Print("\n");
 }
 

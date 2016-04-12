@@ -71,15 +71,15 @@ void Serializer::OutputStatistics(const char* name) {
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     size_t s = pending_chunk_[space];
     for (uint32_t chunk_size : completed_chunks_[space]) s += chunk_size;
-    PrintF("%16" V8_SIZET_PREFIX V8_PTR_PREFIX "d", s);
+    PrintF("%16" PRIuS, s);
   }
   PrintF("%16d\n", large_objects_total_size_);
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                         \
-  if (instance_type_count_[Name]) {                                       \
-    PrintF("%10d %10" V8_SIZET_PREFIX V8_PTR_PREFIX "d  %s\n",            \
-           instance_type_count_[Name], instance_type_size_[Name], #Name); \
+#define PRINT_INSTANCE_TYPE(Name)                                 \
+  if (instance_type_count_[Name]) {                               \
+    PrintF("%10d %10" PRIuS "  %s\n", instance_type_count_[Name], \
+           instance_type_size_[Name], #Name);                     \
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
