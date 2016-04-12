@@ -1255,22 +1255,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                    attribs);
       string_map->AppendDescriptor(&d);
     }
-
-    // Create the %StringPrototype%
-    Handle<JSValue> prototype =
-        Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));
-    prototype->set_value(isolate->heap()->empty_string());
-    Accessors::FunctionSetPrototype(string_fun, prototype).Assert();
-
-    // Install the "constructor" property on the {prototype}.
-    JSObject::AddProperty(prototype, factory->constructor_string(), string_fun,
-                          DONT_ENUM);
-
-    // Install the String.prototype methods.
-    SimpleInstallFunction(prototype, "charAt", Builtins::kStringPrototypeCharAt,
-                          1, true);
-    SimpleInstallFunction(prototype, "charCodeAt",
-                          Builtins::kStringPrototypeCharCodeAt, 1, true);
   }
 
   {

@@ -37,6 +37,7 @@ var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
+var StringCharAt;
 var StringIndexOf;
 var StringSubstring;
 var SymbolToString;
@@ -56,6 +57,7 @@ utils.Import(function(from) {
   Int8x16ToString = from.Int8x16ToString;
   ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
+  StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
   SymbolToString = from.SymbolToString;
@@ -253,7 +255,6 @@ function ScriptLineFromPosition(position) {
   return -1;
 }
 
-
 /**
  * Get information on a specific source position.
  * @param {number} position The source position
@@ -271,7 +272,7 @@ function ScriptLocationFromPosition(position,
   var line_ends = this.line_ends;
   var start = line == 0 ? 0 : line_ends[line - 1] + 1;
   var end = line_ends[line];
-  if (end > 0 && %_StringCharAt(this.source, end - 1) === '\r') {
+  if (end > 0 && %_Call(StringCharAt, this.source, end - 1) == '\r') {
     end--;
   }
   var column = position - start;
