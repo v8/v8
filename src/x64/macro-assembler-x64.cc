@@ -489,7 +489,7 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   // easier.
   DCHECK(js_function.is(rdi));
   DCHECK(code_entry.is(rcx));
-  DCHECK(scratch.is(r15));
+  DCHECK(scratch.is(rax));
 
   // Since a code entry (value) is always in old space, we don't need to update
   // remembered set. If incremental marking is off, there is nothing for us to
@@ -537,13 +537,13 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
     DCHECK(arg_reg_2.is(rdx) && arg_reg_3.is(r8));
 
     movp(arg_reg_1, js_function);  // rcx gets rdi.
-    movp(arg_reg_2, dst);          // rdx gets r15.
+    movp(arg_reg_2, dst);          // rdx gets rax.
   } else {
     // AMD64 calling convention.
     DCHECK(arg_reg_1.is(rdi) && arg_reg_2.is(rsi) && arg_reg_3.is(rdx));
 
     // rdi is already loaded with js_function.
-    movp(arg_reg_2, dst);  // rsi gets r15.
+    movp(arg_reg_2, dst);  // rsi gets rax.
   }
   Move(arg_reg_3, ExternalReference::isolate_address(isolate()));
 

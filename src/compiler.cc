@@ -893,16 +893,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   TRACE_EVENT0("v8", "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
-
-  if (FLAG_turbo_cache_shared_code) {
-    CodeAndLiterals result;
-    result = function->shared()->SearchOptimizedCodeMap(
-        *isolate->native_context(), BailoutId::None());
-    if (result.code != nullptr) {
-      return Handle<Code>(result.code);
-    }
-  }
-
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
   if (FLAG_turbo_asm && function->shared()->asm_function() &&
@@ -1133,7 +1123,6 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info) {
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
-
   MaybeHandle<Code> maybe_code = GetLazyCode(function);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
