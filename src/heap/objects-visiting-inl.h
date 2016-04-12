@@ -633,8 +633,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   }
 
   // We never flush code for API functions.
-  Object* function_data = shared_info->function_data();
-  if (function_data->IsFunctionTemplateInfo()) {
+  if (shared_info->IsApiFunction()) {
     return false;
   }
 
