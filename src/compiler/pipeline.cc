@@ -289,7 +289,7 @@ class PipelineData {
     if (descriptor != nullptr) {
       fixed_frame_size = CalculateFixedFrameSize(descriptor);
     }
-    frame_ = new (instruction_zone()) Frame(fixed_frame_size, descriptor);
+    frame_ = new (instruction_zone()) Frame(fixed_frame_size);
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,

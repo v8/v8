@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Frame::Frame(int fixed_frame_size_in_slots, const CallDescriptor* descriptor)
+Frame::Frame(int fixed_frame_size_in_slots)
     : frame_slot_count_(fixed_frame_size_in_slots),
       callee_saved_slot_count_(0),
       spill_slot_count_(0),

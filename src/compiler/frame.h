@@ -78,8 +78,7 @@ class CallDescriptor;
 //
 class Frame : public ZoneObject {
  public:
-  explicit Frame(int fixed_frame_size_in_slots,
-                 const CallDescriptor* descriptor);
+  explicit Frame(int fixed_frame_size_in_slots);
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
 
