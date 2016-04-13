@@ -240,7 +240,7 @@ class FixBrokenTag(Step):
     if commit:
       print "Found %s. Trying to repair tag and bail out." % self["version"]
       self.Git("tag %s %s" % (self["version"], commit))
-      self.Git("push origin %s" % self["version"])
+      self.Git("push origin refs/tags/%s" % self["version"])
       return True
 
 
