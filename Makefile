@@ -227,6 +227,11 @@ ifeq ($(no_omit_framepointer), on)
   GYPFLAGS += -Drelease_extra_cflags=-fno-omit-frame-pointer
 endif
 
+ifdef android_ndk_root
+  GYPFLAGS += -Dandroid_ndk_root=$(android_ndk_root)
+  export ANDROID_NDK_ROOT = $(android_ndk_root)
+endif
+
 # ----------------- available targets: --------------------
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
