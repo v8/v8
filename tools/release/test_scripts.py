@@ -970,6 +970,8 @@ Performance and stability improvements on all platforms."""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
+      Cmd("git log -1 --format=%H --grep=\"Version 3.22.5\" origin/3.22.5",
+          ""),
       Cmd("git push origin "
           "refs/heads/work-branch:refs/pending/heads/3.22.5 "
           "push_hash:refs/pending-tags/heads/3.22.5 "
