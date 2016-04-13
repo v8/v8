@@ -1542,6 +1542,54 @@ void ModulusStub::GenerateAssembly(
   }
 }
 
+void ShiftLeftStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Shl(lhs_value, shift_count);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  assembler->Return(result);
+}
+
+void ShiftRightStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Sar(lhs_value, shift_count);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  assembler->Return(result);
+}
+
+void ShiftRightLogicalStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Shr(lhs_value, shift_count);
+  Node* result = assembler->ChangeUint32ToTagged(value);
+  assembler->Return(result);
+}
+
 void BitwiseOrStub::GenerateAssembly(
     compiler::CodeStubAssembler* assembler) const {
   using compiler::Node;
