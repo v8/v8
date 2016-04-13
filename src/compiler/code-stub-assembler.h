@@ -389,6 +389,7 @@ class CodeStubAssembler {
   // Conversions.
   Node* ChangeFloat64ToTagged(Node* value);
   Node* ChangeInt32ToTagged(Node* value);
+  Node* ChangeUint32ToTagged(Node* value);
   Node* TruncateTaggedToFloat64(Node* context, Node* value);
   Node* TruncateTaggedToWord32(Node* context, Node* value);
   // Truncate to int32 using JavaScript truncation mode.

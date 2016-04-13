@@ -883,6 +883,41 @@ Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
+  Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
+      if_join(this);
+  Variable var_result(this, MachineRepresentation::kTagged);
+  // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
+  Branch(Int32LessThan(value, Int32Constant(0)), &if_overflow,
+         &if_not_overflow);
+  Bind(&if_not_overflow);
+  {
+    if (raw_assembler_->machine()->Is64()) {
+      var_result.Bind(SmiTag(ChangeUint32ToUint64(value)));
+    } else {
+      // If tagging {value} results in an overflow, we need to use a HeapNumber
+      // to represent it.
+      Node* pair = Int32AddWithOverflow(value, value);
+      Node* overflow = Projection(1, pair);
+      GotoIf(overflow, &if_overflow);
+
+      Node* result = Projection(0, pair);
+      var_result.Bind(result);
+    }
+  }
+  Goto(&if_join);
+
+  Bind(&if_overflow);
+  {
+    Node* float64_value = ChangeUint32ToFloat64(value);
+    var_result.Bind(AllocateHeapNumberWithValue(float64_value));
+  }
+  Goto(&if_join);
+
+  Bind(&if_join);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
   // We might need to loop once due to ToNumber conversion.
   Variable var_value(this, MachineRepresentation::kTagged),
