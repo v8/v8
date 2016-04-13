@@ -216,6 +216,13 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
 
 
 template <typename T>
+inline Object* DoLoad(Isolate* isolate, void* buffer, size_t index) {
+  T result = LoadSeqCst(static_cast<T*>(buffer) + index);
+  return ToObject(isolate, result);
+}
+
+
+template <typename T>
 inline Object* DoStore(Isolate* isolate, void* buffer, size_t index,
                        Handle<Object> obj) {
   T value = FromObject<T>(obj);
@@ -358,29 +365,6 @@ inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
   V(Uint32, uint32, UINT32, uint32_t, 4) \
   V(Int32, int32, INT32, int32_t, 4)
 
-RUNTIME_FUNCTION(Runtime_ThrowNotIntegerSharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kNotIntegerSharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowNotInt32SharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotInt32SharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex));
-}
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
@@ -417,6 +401,31 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
 
 
 RUNTIME_FUNCTION(Runtime_AtomicsLoad) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
+  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
+  case kExternal##Type##Array:                              \
+    return DoLoad<ctype>(isolate, source, index);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    case kExternalUint8ClampedArray:
+      return DoLoad<uint8_t>(isolate, source, index);
+
+    default:
+      break;
+  }
+
   UNREACHABLE();
   return isolate->heap()->undefined_value();
 }

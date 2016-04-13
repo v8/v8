@@ -392,8 +392,6 @@ class CodeStubAssembler {
   Node* ChangeUint32ToTagged(Node* value);
   Node* TruncateTaggedToFloat64(Node* context, Node* value);
   Node* TruncateTaggedToWord32(Node* context, Node* value);
-  // Truncate to int32 using JavaScript truncation mode.
-  Node* TruncateFloat64ToInt32(Node* value);
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,

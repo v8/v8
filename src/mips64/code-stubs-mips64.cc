@@ -5755,9 +5755,6 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                            return_value_operand, NULL);
 }
 
-void AtomicsLoadStub::Generate(MacroAssembler* masm) {
-  // TODO(binji)
-}
 
 #undef __
 

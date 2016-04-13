@@ -303,20 +303,19 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
-#define BUILTIN_LIST_T(V)         \
-  V(GeneratorPrototypeNext, 2)    \
-  V(GeneratorPrototypeReturn, 2)  \
-  V(GeneratorPrototypeThrow, 2)   \
-  V(MathCeil, 2)                  \
-  V(MathClz32, 2)                 \
-  V(MathFloor, 2)                 \
-  V(MathRound, 2)                 \
-  V(MathSqrt, 2)                  \
-  V(MathTrunc, 2)                 \
-  V(ObjectHasOwnProperty, 2)      \
-  V(StringPrototypeCharAt, 2)     \
-  V(StringPrototypeCharCodeAt, 2) \
-  V(AtomicsLoadCheck, 3)
+#define BUILTIN_LIST_T(V)        \
+  V(GeneratorPrototypeNext, 2)   \
+  V(GeneratorPrototypeReturn, 2) \
+  V(GeneratorPrototypeThrow, 2)  \
+  V(MathCeil, 2)                 \
+  V(MathClz32, 2)                \
+  V(MathFloor, 2)                \
+  V(MathRound, 2)                \
+  V(MathSqrt, 2)                 \
+  V(MathTrunc, 2)                \
+  V(ObjectHasOwnProperty, 2)     \
+  V(StringPrototypeCharAt, 2)    \
+  V(StringPrototypeCharCodeAt, 2)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -673,8 +672,6 @@ class Builtins {
   static void Generate_MarkCodeAsToBeExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
-
-  static void Generate_AtomicsLoadCheck(compiler::CodeStubAssembler* assembler);
 
   static void InitBuiltinFunctionTable();
 

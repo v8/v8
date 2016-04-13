@@ -62,6 +62,12 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
   return %_AtomicsCompareExchange(sta, index, oldValue, newValue);
 }
 
+function AtomicsLoadJS(sta, index) {
+  CheckSharedIntegerTypedArray(sta);
+  index = ValidateIndex(index, %_TypedArrayGetLength(sta));
+  return %_AtomicsLoad(sta, index);
+}
+
 function AtomicsStoreJS(sta, index, value) {
   CheckSharedIntegerTypedArray(sta);
   index = ValidateIndex(index, %_TypedArrayGetLength(sta));
@@ -155,9 +161,13 @@ function AtomicsFutexWakeOrRequeueJS(ia, index1, count, value, index2) {
 
 // -------------------------------------------------------------------
 
-var Atomics = global.Atomics;
+function AtomicsConstructor() {}
 
-// The Atomics global is defined by the bootstrapper.
+var Atomics = new AtomicsConstructor();
+
+%InternalSetPrototype(Atomics, GlobalObject.prototype);
+%AddNamedProperty(global, "Atomics", Atomics, DONT_ENUM);
+%FunctionSetInstanceClassName(AtomicsConstructor, 'Atomics');
 
 %AddNamedProperty(Atomics, toStringTagSymbol, "Atomics", READ_ONLY | DONT_ENUM);
 
@@ -169,9 +179,8 @@ utils.InstallConstants(Atomics, [
 ]);
 
 utils.InstallFunctions(Atomics, DONT_ENUM, [
-  // TODO(binji): remove the rest of the (non futex) Atomics functions as they
-  // become builtins.
   "compareExchange", AtomicsCompareExchangeJS,
+  "load", AtomicsLoadJS,
   "store", AtomicsStoreJS,
   "add", AtomicsAddJS,
   "sub", AtomicsSubJS,
