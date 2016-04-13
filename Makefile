@@ -432,7 +432,7 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean tags.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
@@ -497,11 +497,21 @@ gtags.files: $(GYPFILES) $(ENVFILE)
 
 # We need to manually set the stack limit here, to work around bugs in
 # gmake-3.81 and global-5.7.1 on recent 64-bit Linux systems.
-GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
+# Using $(wildcard ...) gracefully ignores non-existing files, so that stale
+# gtags.files after switching branches don't cause recipe failures.
+GPATH GRTAGS GSYMS GTAGS: gtags.files $(wildcard $(shell cat gtags.files 2> /dev/null))
 	@bash -c 'ulimit -s 10240 && GTAGSFORCECPP=yes gtags -i -q -f $<'
 
 gtags.clean:
 	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
+
+tags: gtags.files $(wildcard $(shell cat gtags.files 2> /dev/null))
+	@(ctags --version | grep 'Exuberant Ctags' >/dev/null) || \
+		(echo "Please install Exuberant Ctags (check 'ctags --version')" >&2; false)
+	ctags --fields=+l -L $<
+
+tags.clean:
+	rm -r tags
 
 dependencies builddeps:
 	$(error Use 'gclient sync' instead)
