@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
+#include <deque>
+
 #include "src/base/bits.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
@@ -409,7 +411,7 @@ class MarkCompactCollector {
     enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
     enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
 
-    typedef std::vector<Page*> SweepingList;
+    typedef std::deque<Page*> SweepingList;
     typedef List<Page*> SweptList;
 
     template <SweepingMode sweeping_mode, SweepingParallelism parallelism,
@@ -421,18 +423,14 @@ class MarkCompactCollector {
         : heap_(heap),
           pending_sweeper_tasks_semaphore_(0),
           sweeping_in_progress_(false),
-          num_sweeping_tasks_(0) {
-      ForAllSweepingSpaces([this](AllocationSpace space) {
-        late_sweeping_list_[space] = nullptr;
-        tmp_late_sweeping_list_[space] = nullptr;
-      });
-    }
+          late_pages_(false),
+          num_sweeping_tasks_(0) {}
 
     bool sweeping_in_progress() { return sweeping_in_progress_; }
+    bool contains_late_pages() { return late_pages_; }
 
     void AddPage(AllocationSpace space, Page* page);
     void AddLatePage(AllocationSpace space, Page* page);
-    void CommitLateList(AllocationSpace space);
 
     int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
                            int max_pages = 0);
@@ -457,21 +455,18 @@ class MarkCompactCollector {
       }
     }
 
-    SweepingList* GetLateSweepingListSafe(AllocationSpace space);
+    Page* GetSweepingPageSafe(AllocationSpace space);
+    void AddSweepingPageSafe(AllocationSpace space, Page* page);
 
     void PrepareToBeSweptPage(AllocationSpace space, Page* page);
-    void ParallelSweepList(SweepingList& list, AllocationSpace out_space,
-                           int required_freed_bytes, int max_pages,
-                           int* max_freed, int* pages_freed);
 
     Heap* heap_;
     base::Mutex mutex_;
     base::Semaphore pending_sweeper_tasks_semaphore_;
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
-    SweepingList* late_sweeping_list_[kAllocationSpaces];
-    SweepingList* tmp_late_sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
+    bool late_pages_;
     int num_sweeping_tasks_;
   };
 
