@@ -3029,6 +3029,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
     bytes_compacted_ += bytes_compacted;
   }
 
+  template <IterationMode mode>
   inline bool EvacuateSinglePage(MemoryChunk* p, HeapObjectVisitor* visitor);
 
   MarkCompactCollector* collector_;
@@ -3046,6 +3047,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
+template <MarkCompactCollector::IterationMode mode>
 bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
     MemoryChunk* p, HeapObjectVisitor* visitor) {
   bool success = false;
@@ -3055,7 +3057,7 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
-    success = collector_->VisitLiveObjects(p, visitor, kClearMarkbits);
+    success = collector_->VisitLiveObjects(p, visitor, mode);
   }
   if (FLAG_trace_evacuation) {
     const char age_mark_tag =
@@ -3083,13 +3085,13 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(MemoryChunk* chunk) {
   if (chunk->InNewSpace()) {
     DCHECK_EQ(chunk->concurrent_sweeping_state().Value(),
               NewSpacePage::kSweepingDone);
-    success = EvacuateSinglePage(chunk, &new_space_visitor_);
+    success = EvacuateSinglePage<kClearMarkbits>(chunk, &new_space_visitor_);
     DCHECK(success);
     USE(success);
   } else {
     DCHECK(chunk->IsEvacuationCandidate());
     DCHECK_EQ(chunk->concurrent_sweeping_state().Value(), Page::kSweepingDone);
-    success = EvacuateSinglePage(chunk, &old_space_visitor_);
+    success = EvacuateSinglePage<kClearMarkbits>(chunk, &old_space_visitor_);
   }
   return success;
 }
