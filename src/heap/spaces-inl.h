@@ -382,8 +382,10 @@ void Page::MarkEvacuationCandidate() {
 }
 
 void Page::ClearEvacuationCandidate() {
-  DCHECK_NULL(old_to_old_slots_);
-  DCHECK_NULL(typed_old_to_old_slots_);
+  if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
+    DCHECK_NULL(old_to_old_slots_);
+    DCHECK_NULL(typed_old_to_old_slots_);
+  }
   ClearFlag(EVACUATION_CANDIDATE);
   InitializeFreeListCategories();
 }
