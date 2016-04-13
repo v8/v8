@@ -5747,7 +5747,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   set_compiler_hints(hints);
 }
 
-
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
                kNeedsHomeObject)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)

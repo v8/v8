@@ -1546,10 +1546,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   Handle<Object> g_value =
       Object::GetProperty(isolate->global_object(), g_name).ToHandleChecked();
   Handle<JSFunction> g_function = Handle<JSFunction>::cast(g_value);
-  // TODO(mvstanton): change to check that g is *not* compiled when optimized
-  // cache
-  // map lookup moves to the compile lazy builtin.
-  CHECK(g_function->is_compiled());
+  CHECK(!g_function->is_compiled());
 
   SimulateIncrementalMarking(heap);
   CompileRun("%OptimizeFunctionOnNextCall(f); f();");
