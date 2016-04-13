@@ -1818,15 +1818,6 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
   }
 };
 
-class MarkCompactCollector::EvacuateRecordOnlyVisitor final
-    : public MarkCompactCollector::HeapObjectVisitor {
- public:
-  bool Visit(HeapObject* object) {
-    RecordMigratedSlotVisitor visitor;
-    object->IterateBodyFast(&visitor);
-    return true;
-  }
-};
 
 void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
   PageIterator it(space);
@@ -3101,17 +3092,6 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(MemoryChunk* chunk) {
     DCHECK(chunk->IsEvacuationCandidate());
     DCHECK_EQ(chunk->concurrent_sweeping_state().Value(), Page::kSweepingDone);
     success = EvacuateSinglePage<kClearMarkbits>(chunk, &old_space_visitor_);
-    if (!success) {
-      // Aborted compaction page. We can record slots here to have them
-      // processed in parallel later on.
-      EvacuateRecordOnlyVisitor record_visitor;
-      success = EvacuateSinglePage<kKeepMarking>(chunk, &record_visitor);
-      DCHECK(success);
-      USE(success);
-      // We need to return failure here to indicate that we want this page added
-      // to the sweeper.
-      return false;
-    }
   }
   return success;
 }
@@ -3172,8 +3152,8 @@ class EvacuationJobTraits {
     return evacuator->EvacuatePage(chunk);
   }
 
-  static void FinalizePageSequentially(Heap* heap, MemoryChunk* chunk,
-                                       bool success, PerPageData data) {
+  static void FinalizePageSequentially(Heap*, MemoryChunk* chunk, bool success,
+                                       PerPageData data) {
     if (chunk->InNewSpace()) {
       DCHECK(success);
     } else {
@@ -3185,12 +3165,17 @@ class EvacuationJobTraits {
       } else {
         // We have partially compacted the page, i.e., some objects may have
         // moved, others are still in place.
+        // We need to:
+        // - Leave the evacuation candidate flag for later processing of slots
+        //   buffer entries.
+        // - Leave the slots buffer there for processing of entries added by
+        //   the write barrier.
+        // - Rescan the page as slot recording in the migration buffer only
+        //   happens upon moving (which we potentially didn't do).
+        // - Leave the page in the list of pages of a space since we could not
+        //   fully evacuate it.
+        DCHECK(p->IsEvacuationCandidate());
         p->SetFlag(Page::COMPACTION_WAS_ABORTED);
-        p->ClearEvacuationCandidate();
-        // Slots have already been recorded so we just need to add it to the
-        // sweeper.
-        heap->mark_compact_collector()->sweeper().AddLatePage(
-            p->owner()->identity(), p);
         *data += 1;
       }
     }
@@ -3434,6 +3419,42 @@ void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
   swept_list_[space->identity()].Add(page);
 }
 
+void MarkCompactCollector::SweepAbortedPages() {
+  // Second pass on aborted pages.
+  for (Page* p : evacuation_candidates_) {
+    if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+      p->ClearFlag(MemoryChunk::COMPACTION_WAS_ABORTED);
+      p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
+      PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+      switch (space->identity()) {
+        case OLD_SPACE:
+          Sweeper::RawSweep<Sweeper::SWEEP_ONLY, Sweeper::SWEEP_ON_MAIN_THREAD,
+                            Sweeper::IGNORE_SKIP_LIST,
+                            Sweeper::IGNORE_FREE_SPACE>(space, p, nullptr);
+          break;
+        case CODE_SPACE:
+          if (FLAG_zap_code_space) {
+            Sweeper::RawSweep<
+                Sweeper::SWEEP_ONLY, Sweeper::SWEEP_ON_MAIN_THREAD,
+                Sweeper::REBUILD_SKIP_LIST, Sweeper::ZAP_FREE_SPACE>(space, p,
+                                                                     nullptr);
+          } else {
+            Sweeper::RawSweep<
+                Sweeper::SWEEP_ONLY, Sweeper::SWEEP_ON_MAIN_THREAD,
+                Sweeper::REBUILD_SKIP_LIST, Sweeper::IGNORE_FREE_SPACE>(
+                space, p, nullptr);
+          }
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      sweeper().AddSweptPageSafe(space, p);
+    }
+  }
+}
+
+
 void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
   Heap::RelocationLock relocation_lock(heap());
@@ -3458,6 +3479,9 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
+    // After updating all pointers, we can finally sweep the aborted pages,
+    // effectively overriding any forward pointers.
+    SweepAbortedPages();
 
     // EvacuateNewSpaceAndCandidates iterates over new space objects and for
     // ArrayBuffers either re-registers them as live or promotes them. This is
@@ -3615,15 +3639,18 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED);
     for (Page* p : evacuation_candidates_) {
-      if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-        p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
-      }
-      if (!p->IsEvacuationCandidate()) continue;
+      DCHECK(p->IsEvacuationCandidate());
       // Important: skip list should be cleared only after roots were updated
       // because root iteration traverses the stack and might have to find
       // code objects from non-updated pc pointing into evacuation candidate.
       SkipList* list = p->skip_list();
       if (list != NULL) list->Clear();
+
+      // First pass on aborted pages, fixing up all live objects.
+      if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+        p->ClearEvacuationCandidate();
+        VisitLiveObjectsBody(p, &updating_visitor);
+      }
     }
   }
 
