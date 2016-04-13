@@ -120,6 +120,7 @@
         'wasm/encoder-unittest.cc',
         'wasm/loop-assignment-analysis-unittest.cc',
         'wasm/module-decoder-unittest.cc',
+        'wasm/switch-logic-unittest.cc',
         'wasm/wasm-macro-gen-unittest.cc',
       ],
       'conditions': [

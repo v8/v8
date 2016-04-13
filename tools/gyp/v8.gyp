@@ -1116,6 +1116,8 @@
         '../../src/version.h',
         '../../src/vm-state-inl.h',
         '../../src/vm-state.h',
+        '../../src/wasm/switch-logic.h',
+        '../../src/wasm/switch-logic.cc',
         '../../src/wasm/asm-wasm-builder.cc',
         '../../src/wasm/asm-wasm-builder.h',
         '../../src/wasm/ast-decoder.cc',

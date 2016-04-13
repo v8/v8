@@ -11,6 +11,7 @@
 #include <math.h>
 
 #include "src/wasm/asm-wasm-builder.h"
+#include "src/wasm/switch-logic.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -99,6 +100,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitStatements(ZoneList<Statement*>* stmts) {
     for (int i = 0; i < stmts->length(); ++i) {
       Statement* stmt = stmts->at(i);
+      ExpressionStatement* e = stmt->AsExpressionStatement();
+      if (e != nullptr && e->expression()->IsUndefinedLiteral()) {
+        block_size_--;
+        continue;
+      }
       RECURSE(Visit(stmt));
       if (stmt->IsJump()) break;
     }
@@ -235,52 +241,123 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
 
-  void SetLocalTo(uint16_t index, int value) {
-    current_function_builder_->Emit(kExprSetLocal);
-    AddLeb128(index, true);
-    // TODO(bradnelson): variable size
+  void GenerateCaseComparisonCode(int value, WasmOpcode op,
+                                  VariableProxy* tag) {
+    current_function_builder_->Emit(kExprIfElse);
+    current_function_builder_->Emit(op);
+    VisitVariableProxy(tag);
     byte code[] = {WASM_I32V(value)};
     current_function_builder_->EmitCode(code, sizeof(code));
-    block_size_++;
   }
 
-  void CompileCase(CaseClause* clause, uint16_t fall_through,
-                   VariableProxy* tag) {
-    Literal* label = clause->label()->AsLiteral();
-    DCHECK_NOT_NULL(label);
-    block_size_++;
-    current_function_builder_->Emit(kExprIf);
-    current_function_builder_->Emit(kExprI32Ior);
-    current_function_builder_->Emit(kExprI32Eq);
-    VisitVariableProxy(tag);
-    VisitLiteral(label);
-    current_function_builder_->Emit(kExprGetLocal);
-    AddLeb128(fall_through, true);
-    BlockVisitor visitor(this, nullptr, kExprBlock, false, 0);
-    SetLocalTo(fall_through, 1);
-    ZoneList<Statement*>* stmts = clause->statements();
-    block_size_ += stmts->length();
-    RECURSE(VisitStatements(stmts));
+  void HandleCase(CaseNode* node,
+                  const ZoneMap<int, unsigned int>& case_to_block,
+                  VariableProxy* tag, int default_block) {
+    if (node->left != nullptr) {
+      GenerateCaseComparisonCode(node->begin, kExprI32LtS, tag);
+      HandleCase(node->left, case_to_block, tag, default_block);
+    }
+    if (node->right != nullptr) {
+      GenerateCaseComparisonCode(node->end, kExprI32GtS, tag);
+      HandleCase(node->right, case_to_block, tag, default_block);
+    }
+    if (node->begin == node->end) {
+      current_function_builder_->Emit(kExprIf);
+      current_function_builder_->Emit(kExprI32Eq);
+      VisitVariableProxy(tag);
+      byte code[] = {WASM_I32V(node->begin)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+      DCHECK(case_to_block.find(node->begin) != case_to_block.end());
+      current_function_builder_->EmitWithVarInt(kExprBr,
+                                                case_to_block.at(node->begin));
+      current_function_builder_->Emit(kExprNop);
+    } else {
+      current_function_builder_->Emit(kExprBrTable);
+      std::vector<uint8_t> count =
+          UnsignedLEB128From(node->end - node->begin + 1);
+      current_function_builder_->EmitCode(&count[0],
+                                          static_cast<uint32_t>(count.size()));
+      for (int v = node->begin; v <= node->end; v++) {
+        if (case_to_block.find(v) != case_to_block.end()) {
+          byte break_code[] = {BR_TARGET(case_to_block.at(v))};
+          current_function_builder_->EmitCode(break_code, sizeof(break_code));
+        } else {
+          byte break_code[] = {BR_TARGET(default_block)};
+          current_function_builder_->EmitCode(break_code, sizeof(break_code));
+        }
+        if (v == kMaxInt) {
+          break;
+        }
+      }
+      byte break_code[] = {BR_TARGET(default_block)};
+      current_function_builder_->EmitCode(break_code, sizeof(break_code));
+      // TODO(aseemgarg): remove the if once sub 0 is fixed
+      if (node->begin != 0) {
+        current_function_builder_->Emit(kExprI32Sub);
+        VisitVariableProxy(tag);
+        byte code[] = {WASM_I32V(node->begin)};
+        current_function_builder_->EmitCode(code, sizeof(code));
+      } else {
+        VisitVariableProxy(tag);
+      }
+    }
   }
 
   void VisitSwitchStatement(SwitchStatement* stmt) {
     VariableProxy* tag = stmt->tag()->AsVariableProxy();
     DCHECK_NOT_NULL(tag);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
-                         0);
-    uint16_t fall_through = current_function_builder_->AddLocal(kAstI32);
-    SetLocalTo(fall_through, 0);
-
     ZoneList<CaseClause*>* clauses = stmt->cases();
-    for (int i = 0; i < clauses->length(); ++i) {
+    int case_count = clauses->length();
+    if (case_count == 0) {
+      block_size_--;
+      return;
+    }
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
+                         1);
+    ZoneVector<BlockVisitor*> blocks(zone_);
+    ZoneVector<int32_t> cases(zone_);
+    ZoneMap<int, unsigned int> case_to_block(zone_);
+    bool has_default = false;
+    for (int i = case_count - 1; i >= 0; i--) {
       CaseClause* clause = clauses->at(i);
+      blocks.push_back(new BlockVisitor(this, nullptr, kExprBlock, false,
+                                        clause->statements()->length() + 1));
       if (!clause->is_default()) {
-        CompileCase(clause, fall_through, tag);
+        Literal* label = clause->label()->AsLiteral();
+        Handle<Object> value = label->value();
+        DCHECK(value->IsNumber() &&
+               label->bounds().upper->Is(cache_.kAsmSigned));
+        int32_t label_value;
+        if (!value->ToInt32(&label_value)) {
+          UNREACHABLE();
+        }
+        case_to_block[label_value] = i;
+        cases.push_back(label_value);
       } else {
-        ZoneList<Statement*>* stmts = clause->statements();
-        block_size_ += stmts->length();
-        RECURSE(VisitStatements(stmts));
+        DCHECK_EQ(i, case_count - 1);
+        has_default = true;
       }
+    }
+    if (!has_default || case_count > 1) {
+      int default_block = has_default ? case_count - 1 : case_count;
+      BlockVisitor switch_logic_block(this, nullptr, kExprBlock, false, 1);
+      CaseNode* root = OrderCases(&cases, zone_);
+      HandleCase(root, case_to_block, tag, default_block);
+      if (root->left != nullptr || root->right != nullptr ||
+          root->begin == root->end) {
+        block_size_++;
+        current_function_builder_->EmitWithVarInt(kExprBr, default_block);
+        current_function_builder_->Emit(kExprNop);
+      }
+    } else {
+      block_size_ = clauses->at(0)->statements()->length();
+    }
+    for (int i = 0; i < case_count; i++) {
+      CaseClause* clause = clauses->at(i);
+      RECURSE(VisitStatements(clause->statements()));
+      BlockVisitor* v = blocks.at(case_count - i - 1);
+      blocks.pop_back();
+      delete v;
     }
   }
 
