@@ -374,7 +374,10 @@ TEST(VisitYield) {
         CHECK_VAR(.generator_object, Bounds::Unbounded());
         CHECK_EXPR(Assignment, Bounds::Unbounded()) {
           CHECK_VAR(.generator_object, Bounds::Unbounded());
-          CHECK_EXPR(CallRuntime, Bounds::Unbounded());
+          CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {
+            CHECK_EXPR(ThisFunction, Bounds::Unbounded());
+            CHECK_EXPR(VariableProxy, Bounds::Unbounded());
+          }
         }
       }
       // Explicit yield (argument wrapped with CreateIterResultObject)

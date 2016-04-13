@@ -14,22 +14,18 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  Handle<JSFunction> function(frame->function());
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   RUNTIME_ASSERT(function->shared()->is_generator());
 
-  Handle<JSGeneratorObject> generator;
-  DCHECK(!frame->IsConstructor());
-  generator = isolate->factory()->NewJSGeneratorObject(function);
+  Handle<JSGeneratorObject> generator =
+      isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
-  generator->set_context(Context::cast(frame->context()));
-  generator->set_receiver(frame->receiver());
-  generator->set_continuation(0);
+  generator->set_context(isolate->context());
+  generator->set_receiver(*receiver);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
-
+  generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   return *generator;
 }
 

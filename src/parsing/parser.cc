@@ -4470,9 +4470,13 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
       {
         ZoneList<Expression*>* arguments =
-            new (zone()) ZoneList<Expression*>(0, zone());
+            new (zone()) ZoneList<Expression*>(2, zone());
+        arguments->Add(factory()->NewThisFunction(pos), zone());
+        arguments->Add(
+            ThisExpression(scope_, factory(), RelocInfo::kNoPosition), zone());
         CallRuntime* allocation = factory()->NewCallRuntime(
             Runtime::kCreateJSGeneratorObject, arguments, pos);
+
         VariableProxy* init_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
         Assignment* assignment = factory()->NewAssignment(
