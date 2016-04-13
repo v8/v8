@@ -83,7 +83,6 @@
         'compiler/opcodes-unittest.cc',
         'compiler/register-allocator-unittest.cc',
         'compiler/schedule-unittest.cc',
-        'compiler/select-lowering-unittest.cc',
         'compiler/scheduler-unittest.cc',
         'compiler/scheduler-rpo-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
