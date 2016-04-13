@@ -371,10 +371,17 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber(frame_state);
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
-  if (r.BothInputsAre(Type::String())) {
-    // JSAdd(x:string, y:string) => CallStub[StringAdd](x, y)
+  if (r.OneInputIs(Type::String())) {
+    StringAddFlags flags = STRING_ADD_CHECK_NONE;
+    if (!r.LeftInputIs(Type::String())) {
+      flags = STRING_ADD_CONVERT_LEFT;
+    } else if (!r.RightInputIs(Type::String())) {
+      flags = STRING_ADD_CONVERT_RIGHT;
+    }
+    // JSAdd(x:string, y) => CallStub[StringAdd](x, y)
+    // JSAdd(x, y:string) => CallStub[StringAdd](x, y)
     Callable const callable =
-        CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+        CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
