@@ -53,18 +53,19 @@ namespace internal {
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)
 
-#define FOR_EACH_INTRINSIC_ATOMICS(F) \
-  F(AtomicsCompareExchange, 4, 1)     \
-  F(AtomicsLoad, 2, 1)                \
-  F(AtomicsStore, 3, 1)               \
-  F(AtomicsAdd, 3, 1)                 \
-  F(AtomicsSub, 3, 1)                 \
-  F(AtomicsAnd, 3, 1)                 \
-  F(AtomicsOr, 3, 1)                  \
-  F(AtomicsXor, 3, 1)                 \
-  F(AtomicsExchange, 3, 1)            \
+#define FOR_EACH_INTRINSIC_ATOMICS(F)           \
+  F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
+  F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
+  F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
+  F(AtomicsCompareExchange, 4, 1)               \
+  F(AtomicsStore, 3, 1)                         \
+  F(AtomicsAdd, 3, 1)                           \
+  F(AtomicsSub, 3, 1)                           \
+  F(AtomicsAnd, 3, 1)                           \
+  F(AtomicsOr, 3, 1)                            \
+  F(AtomicsXor, 3, 1)                           \
+  F(AtomicsExchange, 3, 1)                      \
   F(AtomicsIsLockFree, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_FUTEX(F)  \
   F(AtomicsFutexWait, 4, 1)          \

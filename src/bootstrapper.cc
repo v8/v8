@@ -2442,9 +2442,24 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
 
   Handle<JSGlobalObject> global(native_context()->global_object());
+  Isolate* isolate = global->GetIsolate();
+  Factory* factory = isolate->factory();
+
   Handle<JSFunction> shared_array_buffer_fun =
       InstallArrayBuffer(global, "SharedArrayBuffer");
   native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
+
+  Handle<String> name = factory->InternalizeUtf8String("Atomics");
+  Handle<JSFunction> cons = factory->NewFunction(name);
+  JSFunction::SetInstancePrototype(
+      cons,
+      Handle<Object>(native_context()->initial_object_prototype(), isolate));
+  Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
+  DCHECK(atomics_object->IsJSObject());
+  JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
+
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("load"),
+                        Builtins::kAtomicsLoadCheck, 2, true);
 }
 
 

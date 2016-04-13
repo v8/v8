@@ -22,6 +22,7 @@ namespace internal {
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
   /* PlatformCodeStubs */                   \
   V(ArrayConstructor)                       \
+  V(AtomicsLoad)                            \
   V(BinaryOpICWithAllocationSite)           \
   V(CallApiCallback)                        \
   V(CallApiGetter)                          \
@@ -3147,6 +3148,14 @@ class ToObjectStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_HYDROGEN_CODE_STUB(ToObject, HydrogenCodeStub);
+};
+
+class AtomicsLoadStub : public PlatformCodeStub {
+ public:
+  explicit AtomicsLoadStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(AtomicsLoad);
+  DEFINE_PLATFORM_CODE_STUB(AtomicsLoad, PlatformCodeStub);
 };
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
