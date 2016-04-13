@@ -14,8 +14,9 @@ class Isolate;
 class Zone;
 
 namespace AstNumbering {
-// Assign type feedback IDs and bailout IDs to an AST node tree.
-//
+// Assign type feedback IDs and bailout IDs to an AST node tree.  For a
+// generator function, also annotate the function itself and any loops therein
+// with the number of contained yields.
 bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
 }
 

@@ -1192,6 +1192,10 @@ void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
 const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   Init();
   { IndentedScope indent(this, "FUNC", program->position());
+    PrintIndented("KIND");
+    Print(" %d\n", program->kind());
+    PrintIndented("YIELD COUNT");
+    Print(" %d\n", program->yield_count());
     PrintLiteralIndented("NAME", program->name(), true);
     PrintLiteralIndented("INFERRED NAME", program->inferred_name(), true);
     PrintParameters(program->scope());
@@ -1360,6 +1364,8 @@ void AstPrinter::VisitCaseClause(CaseClause* clause) {
 
 void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   IndentedScope indent(this, "DO", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("BODY", node->body());
   PrintIndentedVisit("COND", node->cond());
@@ -1368,6 +1374,8 @@ void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
 
 void AstPrinter::VisitWhileStatement(WhileStatement* node) {
   IndentedScope indent(this, "WHILE", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("COND", node->cond());
   PrintIndentedVisit("BODY", node->body());
@@ -1376,6 +1384,8 @@ void AstPrinter::VisitWhileStatement(WhileStatement* node) {
 
 void AstPrinter::VisitForStatement(ForStatement* node) {
   IndentedScope indent(this, "FOR", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintLabelsIndented(node->labels());
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
@@ -1386,6 +1396,8 @@ void AstPrinter::VisitForStatement(ForStatement* node) {
 
 void AstPrinter::VisitForInStatement(ForInStatement* node) {
   IndentedScope indent(this, "FOR IN", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("IN", node->enumerable());
   PrintIndentedVisit("BODY", node->body());
@@ -1394,6 +1406,8 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 
 void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
+  PrintIndented("YIELD COUNT");
+  Print(" %d\n", node->yield_count());
   PrintIndentedVisit("FOR", node->each());
   PrintIndentedVisit("OF", node->iterable());
   PrintIndentedVisit("BODY", node->body());

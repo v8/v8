@@ -647,6 +647,9 @@ class IterationStatement : public BreakableStatement {
   Statement* body() const { return body_; }
   void set_body(Statement* s) { body_ = s; }
 
+  int yield_count() { return yield_count_; }
+  void set_yield_count(int yield_count) { yield_count_ = yield_count; }
+
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId OsrEntryId() const { return BailoutId(local_id(0)); }
   virtual BailoutId ContinueId() const = 0;
@@ -658,7 +661,8 @@ class IterationStatement : public BreakableStatement {
  protected:
   IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
-        body_(NULL) {}
+        body_(NULL),
+        yield_count_(0) {}
   static int parent_num_ids() { return BreakableStatement::num_ids(); }
   void Initialize(Statement* body) { body_ = body; }
 
@@ -667,6 +671,7 @@ class IterationStatement : public BreakableStatement {
 
   Statement* body_;
   Label continue_target_;
+  int yield_count_;
 };
 
 
@@ -2686,6 +2691,9 @@ class FunctionLiteral final : public Expression {
     return is_anonymous_expression();
   }
 
+  int yield_count() { return yield_count_; }
+  void set_yield_count(int yield_count) { yield_count_ = yield_count; }
+
  protected:
   FunctionLiteral(Zone* zone, const AstString* name,
                   AstValueFactory* ast_value_factory, Scope* scope,
@@ -2705,7 +2713,8 @@ class FunctionLiteral final : public Expression {
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
-        function_token_position_(RelocInfo::kNoPosition) {
+        function_token_position_(RelocInfo::kNoPosition),
+        yield_count_(0) {
     bitfield_ =
         IsDeclaration::encode(function_type == kDeclaration) |
         IsNamedExpression::encode(function_type == kNamedExpression) |
@@ -2746,6 +2755,7 @@ class FunctionLiteral final : public Expression {
   int expected_property_count_;
   int parameter_count_;
   int function_token_position_;
+  int yield_count_;
 };
 
 
