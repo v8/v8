@@ -14,6 +14,17 @@ load("test/mjsunit/harmony/typesystem/typegen.js");
 let test_size = 1000;
 
 
+function CheckValidArrow(arrow, args = "") {
+  CheckValid("(" + arrow + ")(" + args + ")");
+  CheckValid("var f = " + arrow + "; f(" + args + ")");
+}
+
+function CheckInvalidArrow(arrow, args = "") {
+  CheckInvalid("(" + arrow + ")(" + args + ")");
+  CheckInvalid("var f = " + arrow + "; f(" + args + ")");
+}
+
+
 function ValidFormalParameters(size) {
   return Generate(size, [
     "()",
@@ -45,6 +56,7 @@ function ValidFormalParameters(size) {
 
 function InvalidFormalParameters(size) {
   return Generate(size, [
+    "x : number",
     new TestGen(1, InvalidTypes, [
       t => "(x : " + t + ")",
       t => "(x : " + t + "= undefined)",
@@ -57,7 +69,9 @@ function InvalidFormalParameters(size) {
     "(x? = 42)",
     "(x? : number = 42)",
     "(...rest?)",
-    "(...rest? : number)"
+    "(...rest? : number)",
+    "(first, ...rest?)",
+    "(first, ...rest? : number)"
   ]);
 }
 
@@ -86,65 +100,69 @@ function InvalidParameters(size) {
     ]),
     "<>(x : number)",
     "<A,>(s : string)",
-    "<A extends ()>()"
+    "<A extends ()>()",
+    "<number[]>()",
+    "<number[]>(x)",
+    "<number[]>(x, y)",
+    "<number[]>(x: number, y)",
   ]);
 }
 
-function ValidFunctionDeclarations(size) {
+function ValidArrowFunctions(size) {
   return Generate(size, [
+    "x => {}",
     new TestGen(1, ValidParameters, [
-      p => "function f " + p + " {}; f()",
-      p => "function* f " + p + " {}; f()",
-      p => "(function " + p + " {})()",
-      p => "(function* " + p + " {})()",
-      p => "function f " + p + " : number {}; f()",
-      p => "function* f " + p + " : string[] {}; f()",
-      p => "(function " + p + " : [any, number] {})()",
-      p => "(function* " + p + " : {a:number, b:string|boolean} {})()"
+      p => p + " => {}",
+      p => p + " : number => 42",
+      p => p + " : number => {}",
+      p => p + " : string[] => 42",
+      p => p + " : string[] => {}",
+      p => p + " : [any, number] => 42",
+      p => p + " : [any, number] => {}",
+      p => p + " : {a:number, b:string|boolean} => 42",
+      p => p + " : {a:number, b:string|boolean} => {}"
     ]),
-    "function f ([x, y] : [any, any]) {}; f([1, 2])",
-    "function f ([x, y] : [any, any]) : number {}; f([1, 2])",
-    "(function ([x, y] : [any, any]) {})([1,2])",
-    "(function ([x, y] : [any, any]) : number {})([1,2])",
-    "function f ([first, ...rest] : string[]) {}; f(['hello', 'world'])",
-    "function f ([first, ...rest] : string[]) : number {}; f(['hello', 'world'])",
-    "(function ([first, ...rest] : string[]) {})(['hello', 'world'])",
-    "(function ([first, ...rest] : string[]) : number {})(['hello', 'world'])",
-    "function f ([one,,three] : number[], ...rest : string[]) {}; f([1,2,3])",
-    "function f ([one,,three] : number[], ...rest : string[]) : number {}; f([1,2,3])",
-    "(function ([one,,three] : number[], ...rest : string[]) {})([1,2,3])",
-    "(function ([one,,three] : number[], ...rest : string[]) : number {})([1,2,3])",
-    "function f ({a:x, b:y}? : {a:number, b:string}) {}; f({})",
-    "function f ({a:x, b:y}? : {a:number, b:string}) : number {}; f({})",
-    "(function ({a:x, b:y}? : {a:number, b:string}) {})({})",
-    "(function ({a:x, b:y}? : {a:number, b:string}) : number {})({})"
   ]);
 }
 
-function InvalidFunctionDeclarations(size) {
+function InvalidArrowFunctions(size) {
   return Generate(size, [
     new TestGen(1, InvalidParameters, [
-      p => "function f " + p + " {}",
-      p => "function* f " + p + " {}",
-      p => "(function " + p + " {})()",
-      p => "(function* " + p + " {})()",
-      p => "function f " + p + " : number {}",
-      p => "function* f " + p + " : string[] {}",
-      p => "(function " + p + " : [any, number] {})()",
-      p => "(function* " + p + " : {a:number, b:string|boolean} {})()"
+      p => p + " => {}",
+      p => p + " : number => 42",
+      p => p + " : number => {}",
+      p => p + " : string[] => 42",
+      p => p + " : string[] => {}",
+      p => p + " : [any, number] => 42",
+      p => p + " : [any, number] => {}",
+      p => p + " : {a:number, b:string|boolean} => 42",
+      p => p + " : {a:number, b:string|boolean} => {}"
     ]),
     new TestGen(1, InvalidTypes, [
-      t => "function f() : " + t + " {}",
-      t => "function* f() : " + t + " {}",
-      t => "(function () : " + t + " {})()",
-      t => "(function* () : " + t + " {})()"
+      t => "() : " + t + " {}",
     ])
   ]);
 }
 
-(function TestFunctionDeclarations(size) {
+(function TestArrowFunctions(size) {
   Test(size, [
-    new TestGen(1, ValidFunctionDeclarations, [CheckValid]),
-    new TestGen(1, InvalidFunctionDeclarations, [CheckInvalid]),
+    new TestGen(1, ValidArrowFunctions, [CheckValidArrow]),
+    new TestGen(1, s => Generate(s, [
+      "([x, y] : [any, any]) => {}",
+      "([x, y] : [any, any]) : number => {}",
+    ]), [arrow => CheckValidArrow(arrow, "[1, 2]")]),
+    new TestGen(1, s => Generate(s, [
+      "([first, ...rest] : string[]) => {}",
+      "([first, ...rest] : string[]) : number => {}",
+    ]), [arrow => CheckValidArrow(arrow, "['hello', 'world']")]),
+    new TestGen(1, s => Generate(s, [
+      "([one,,three] : number[], ...rest : string[]) => {}",
+      "([one,,three] : number[], ...rest : string[]) : number => {}",
+    ]), [arrow => CheckValidArrow(arrow, "[1,2,3]")]),
+    new TestGen(1, s => Generate(s, [
+      "({a:x, b:y}? : {a:number, b:string}) => {}",
+      "({a:x, b:y}? : {a:number, b:string}) : number => {}"
+    ]), [arrow => CheckValidArrow(arrow, "{}")]),
+    new TestGen(1, InvalidArrowFunctions, [CheckInvalidArrow]),
   ]);
 })(test_size);
