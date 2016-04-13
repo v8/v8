@@ -62,8 +62,10 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   }
   cur_page = cur_page->next_page();
   if (cur_page == space_->anchor()) return false;
-  cur_page->heap()->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
-      cur_page);
+  cur_page->heap()
+      ->mark_compact_collector()
+      ->sweeper()
+      .SweepOrWaitUntilSweepingCompleted(cur_page);
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
   DCHECK(cur_page->SweepingDone());
@@ -1052,17 +1054,14 @@ void PagedSpace::RefillFreeList() {
     return;
   }
   MarkCompactCollector* collector = heap()->mark_compact_collector();
-  List<Page*>* swept_pages = collector->swept_pages(identity());
   intptr_t added = 0;
   {
-    base::LockGuard<base::Mutex> guard(collector->swept_pages_mutex());
-    for (int i = swept_pages->length() - 1; i >= 0; --i) {
-      Page* p = (*swept_pages)[i];
+    Page* p = nullptr;
+    while ((p = collector->sweeper().GetSweptPageSafe(this)) != nullptr) {
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
       if (is_local() && (p->owner() != this)) {
-        if (added > kCompactionMemoryWanted) break;
         base::LockGuard<base::Mutex> guard(
             reinterpret_cast<PagedSpace*>(p->owner())->mutex());
         p->Unlink();
@@ -1071,7 +1070,7 @@ void PagedSpace::RefillFreeList() {
       }
       added += RelinkFreeListCategories(p);
       added += p->wasted_memory();
-      swept_pages->Remove(i);
+      if (is_local() && (added > kCompactionMemoryWanted)) break;
     }
   }
   accounting_stats_.IncreaseCapacity(added);
@@ -2618,8 +2617,8 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     if (object != NULL) return object;
 
     // If sweeping is still in progress try to sweep pages on the main thread.
-    int max_freed = collector->SweepInParallel(heap()->paged_space(identity()),
-                                               size_in_bytes, kMaxPagesToSweep);
+    int max_freed = collector->sweeper().ParallelSweepSpace(
+        identity(), size_in_bytes, kMaxPagesToSweep);
     RefillFreeList();
     if (max_freed >= size_in_bytes) {
       object = free_list_.Allocate(size_in_bytes);

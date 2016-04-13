@@ -400,6 +400,81 @@ class MarkCompactCollector {
  public:
   class Evacuator;
 
+  class Sweeper {
+   public:
+    class SweeperTask;
+
+    enum SweepingMode { SWEEP_ONLY, SWEEP_AND_VISIT_LIVE_OBJECTS };
+    enum SkipListRebuildingMode { REBUILD_SKIP_LIST, IGNORE_SKIP_LIST };
+    enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
+    enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
+
+    typedef std::vector<Page*> SweepingList;
+    typedef List<Page*> SweptList;
+
+    template <SweepingMode sweeping_mode, SweepingParallelism parallelism,
+              SkipListRebuildingMode skip_list_mode,
+              FreeSpaceTreatmentMode free_space_mode>
+    static int RawSweep(PagedSpace* space, Page* p, ObjectVisitor* v);
+
+    explicit Sweeper(Heap* heap)
+        : heap_(heap),
+          pending_sweeper_tasks_semaphore_(0),
+          sweeping_in_progress_(false),
+          num_sweeping_tasks_(0) {
+      ForAllSweepingSpaces([this](AllocationSpace space) {
+        late_sweeping_list_[space] = nullptr;
+        tmp_late_sweeping_list_[space] = nullptr;
+      });
+    }
+
+    bool sweeping_in_progress() { return sweeping_in_progress_; }
+
+    void AddPage(AllocationSpace space, Page* page);
+    void AddLatePage(AllocationSpace space, Page* page);
+    void CommitLateList(AllocationSpace space);
+
+    int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
+                           int max_pages = 0);
+    int ParallelSweepPage(Page* page, PagedSpace* space);
+
+    void StartSweeping();
+    void StartSweepingHelper(AllocationSpace space_to_start);
+    void EnsureCompleted();
+    bool IsSweepingCompleted();
+    void SweepOrWaitUntilSweepingCompleted(Page* page);
+
+    void AddSweptPageSafe(PagedSpace* space, Page* page);
+    Page* GetSweptPageSafe(PagedSpace* space);
+
+   private:
+    static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
+
+    template <typename Callback>
+    void ForAllSweepingSpaces(Callback callback) {
+      for (int i = 0; i < kAllocationSpaces; i++) {
+        callback(static_cast<AllocationSpace>(i));
+      }
+    }
+
+    SweepingList* GetLateSweepingListSafe(AllocationSpace space);
+
+    void PrepareToBeSweptPage(AllocationSpace space, Page* page);
+    void ParallelSweepList(SweepingList& list, AllocationSpace out_space,
+                           int required_freed_bytes, int max_pages,
+                           int* max_freed, int* pages_freed);
+
+    Heap* heap_;
+    base::Mutex mutex_;
+    base::Semaphore pending_sweeper_tasks_semaphore_;
+    SweptList swept_list_[kAllocationSpaces];
+    SweepingList sweeping_list_[kAllocationSpaces];
+    SweepingList* late_sweeping_list_[kAllocationSpaces];
+    SweepingList* tmp_late_sweeping_list_[kAllocationSpaces];
+    bool sweeping_in_progress_;
+    int num_sweeping_tasks_;
+  };
+
   enum IterationMode {
     kKeepMarking,
     kClearMarkbits,
@@ -451,8 +526,6 @@ class MarkCompactCollector {
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
 
-  enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
-
 #ifdef VERIFY_HEAP
   void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
@@ -490,24 +563,10 @@ class MarkCompactCollector {
 
   MarkingParity marking_parity() { return marking_parity_; }
 
-  // Concurrent and parallel sweeping support. If required_freed_bytes was set
-  // to a value larger than 0, then sweeping returns after a block of at least
-  // required_freed_bytes was freed. If required_freed_bytes was set to zero
-  // then the whole given space is swept. It returns the size of the maximum
-  // continuous freed memory chunk.
-  int SweepInParallel(PagedSpace* space, int required_freed_bytes,
-                      int max_pages = 0);
-
-  // Sweeps a given page concurrently to the sweeper threads. It returns the
-  // size of the maximum continuous freed memory chunk.
-  int SweepInParallel(Page* page, PagedSpace* space);
-
   // Ensures that sweeping is finished.
   //
   // Note: Can only be called safely from main thread.
   void EnsureSweepingCompleted();
-
-  void SweepOrWaitUntilSweepingCompleted(Page* page);
 
   // Help out in sweeping the corresponding space and refill memory that has
   // been regained.
@@ -515,13 +574,8 @@ class MarkCompactCollector {
   // Note: Thread-safe.
   void SweepAndRefill(CompactionSpace* space);
 
-  // If sweeper threads are not active this method will return true. If
-  // this is a latency issue we should be smarter here. Otherwise, it will
-  // return true if the sweeper threads are done processing the pages.
-  bool IsSweepingCompleted();
-
   // Checks if sweeping is in progress right now on any space.
-  bool sweeping_in_progress() { return sweeping_in_progress_; }
+  bool sweeping_in_progress() { return sweeper().sweeping_in_progress(); }
 
   void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
@@ -562,20 +616,7 @@ class MarkCompactCollector {
   // address range.
   void RemoveObjectSlots(Address start_slot, Address end_slot);
 
-  base::Mutex* swept_pages_mutex() { return &swept_pages_mutex_; }
-  List<Page*>* swept_pages(AllocationSpace id) {
-    switch (id) {
-      case OLD_SPACE:
-        return &swept_old_space_pages_;
-      case CODE_SPACE:
-        return &swept_code_space_pages_;
-      case MAP_SPACE:
-        return &swept_map_space_pages_;
-      default:
-        UNREACHABLE();
-    }
-    return nullptr;
-  }
+  Sweeper& sweeper() { return sweeper_; }
 
   std::vector<std::pair<void*, void*>>& wrappers_to_trace() {
     return wrappers_to_trace_;
@@ -596,7 +637,6 @@ class MarkCompactCollector {
   class EvacuateOldSpaceVisitor;
   class EvacuateVisitorBase;
   class HeapObjectVisitor;
-  class SweeperTask;
 
   typedef std::vector<Page*> SweepingList;
 
@@ -604,8 +644,6 @@ class MarkCompactCollector {
 
   bool WillBeDeoptimized(Code* code);
   void ClearInvalidRememberedSetSlots();
-
-  void StartSweeperThreads();
 
   void ComputeEvacuationHeuristics(int area_size,
                                    int* target_fragmentation_percent,
@@ -775,8 +813,6 @@ class MarkCompactCollector {
   //          evacuation.
   //
 
-  inline SweepingList& sweeping_list(Space* space);
-
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
@@ -811,10 +847,6 @@ class MarkCompactCollector {
   // up other pages for sweeping.
   void StartSweepSpace(PagedSpace* space);
 
-  // Finalizes the parallel sweeping phase. Marks all the pages that were
-  // swept in parallel.
-  void ParallelSweepSpacesComplete();
-
 #ifdef DEBUG
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);
@@ -838,29 +870,16 @@ class MarkCompactCollector {
   List<Page*> evacuation_candidates_;
   List<NewSpacePage*> newspace_evacuation_candidates_;
 
-  base::Mutex swept_pages_mutex_;
-  List<Page*> swept_old_space_pages_;
-  List<Page*> swept_code_space_pages_;
-  List<Page*> swept_map_space_pages_;
-
-  SweepingList sweeping_list_old_space_;
-  SweepingList sweeping_list_code_space_;
-  SweepingList sweeping_list_map_space_;
-
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.
   bool compacting_;
-
-  // True if concurrent or parallel sweeping is currently in progress.
-  bool sweeping_in_progress_;
-
-  // Semaphore used to synchronize sweeper tasks.
-  base::Semaphore pending_sweeper_tasks_semaphore_;
 
   // Semaphore used to synchronize compaction tasks.
   base::Semaphore pending_compaction_tasks_semaphore_;
 
   bool black_allocation_;
+
+  Sweeper sweeper_;
 
   friend class Heap;
   friend class StoreBuffer;
