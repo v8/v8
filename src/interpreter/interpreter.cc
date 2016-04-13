@@ -769,7 +769,7 @@ void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftLeft(isolate_), assembler);
+  DoBinaryOp(Runtime::kShiftLeft, assembler);
 }
 
 
@@ -780,7 +780,7 @@ void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftRight(isolate_), assembler);
+  DoBinaryOp(Runtime::kShiftRight, assembler);
 }
 
 
@@ -791,7 +791,7 @@ void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftRightLogical(isolate_), assembler);
+  DoBinaryOp(Runtime::kShiftRightLogical, assembler);
 }
 
 void Interpreter::DoCountOp(Runtime::FunctionId function_id,

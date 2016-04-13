@@ -85,9 +85,6 @@ class CodeFactory final {
   static Callable Multiply(Isolate* isolate);
   static Callable Divide(Isolate* isolate);
   static Callable Modulus(Isolate* isolate);
-  static Callable ShiftRight(Isolate* isolate);
-  static Callable ShiftRightLogical(Isolate* isolate);
-  static Callable ShiftLeft(Isolate* isolate);
   static Callable BitwiseAnd(Isolate* isolate);
   static Callable BitwiseOr(Isolate* isolate);
   static Callable BitwiseXor(Isolate* isolate);

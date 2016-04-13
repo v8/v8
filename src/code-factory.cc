@@ -240,24 +240,6 @@ Callable CodeFactory::Modulus(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::ShiftRight(Isolate* isolate) {
-  ShiftRightStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-// static
-Callable CodeFactory::ShiftRightLogical(Isolate* isolate) {
-  ShiftRightLogicalStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-// static
-Callable CodeFactory::ShiftLeft(Isolate* isolate) {
-  ShiftLeftStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-// static
 Callable CodeFactory::BitwiseAnd(Isolate* isolate) {
   BitwiseAndStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
