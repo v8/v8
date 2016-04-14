@@ -11290,46 +11290,54 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
   // inline several instructions (including the two pushes) for every tagged
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
-    Runtime::FunctionId function_id;
+    HValue* values[] = {context(), left, right};
+#define GET_STUB(Name)                                \
+  do {                                                \
+    Callable callable = CodeFactory::Name(isolate()); \
+    HValue* stub = Add<HConstant>(callable.code());   \
+    instr = AddUncasted<HCallWithDescriptor>(         \
+        stub, 0, callable.descriptor(),               \
+        Vector<HValue*>(values, arraysize(values)));  \
+  } while (false)
+
     switch (op) {
       default:
         UNREACHABLE();
       case Token::ADD:
-        function_id = Runtime::kAdd;
+        GET_STUB(Add);
         break;
       case Token::SUB:
-        function_id = Runtime::kSubtract;
+        GET_STUB(Subtract);
         break;
       case Token::MUL:
-        function_id = Runtime::kMultiply;
+        GET_STUB(Multiply);
         break;
       case Token::DIV:
-        function_id = Runtime::kDivide;
+        GET_STUB(Divide);
         break;
       case Token::MOD:
-        function_id = Runtime::kModulus;
+        GET_STUB(Modulus);
         break;
       case Token::BIT_OR:
-        function_id = Runtime::kBitwiseOr;
+        GET_STUB(BitwiseOr);
         break;
       case Token::BIT_AND:
-        function_id = Runtime::kBitwiseAnd;
+        GET_STUB(BitwiseAnd);
         break;
       case Token::BIT_XOR:
-        function_id = Runtime::kBitwiseXor;
+        GET_STUB(BitwiseXor);
         break;
       case Token::SAR:
-        function_id = Runtime::kShiftRight;
+        GET_STUB(ShiftRight);
         break;
       case Token::SHR:
-        function_id = Runtime::kShiftRightLogical;
+        GET_STUB(ShiftRightLogical);
         break;
       case Token::SHL:
-        function_id = Runtime::kShiftLeft;
+        GET_STUB(ShiftLeft);
         break;
     }
-    Add<HPushArguments>(left, right);
-    instr = AddUncasted<HCallRuntime>(Runtime::FunctionForId(function_id), 2);
+#undef GET_STUB
   } else {
     switch (op) {
       case Token::ADD:
