@@ -47,6 +47,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeFloat64ToTagged: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceNumber(m.Value());
+      if (m.IsChangeTaggedToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kChangeInt32ToTagged: {
