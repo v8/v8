@@ -158,8 +158,7 @@ class CompilationInfo {
     kSplittingEnabled = 1 << 13,
     kDeoptimizationEnabled = 1 << 14,
     kSourcePositionsEnabled = 1 << 15,
-    kFirstCompile = 1 << 16,
-    kBailoutOnUninitialized = 1 << 17,
+    kBailoutOnUninitialized = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -291,12 +290,6 @@ class CompilationInfo {
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
 
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }
-
-  void MarkAsFirstCompile() { SetFlag(kFirstCompile); }
-
-  void MarkAsCompiled() { SetFlag(kFirstCompile, false); }
-
-  bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
 

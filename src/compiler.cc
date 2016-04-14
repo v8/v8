@@ -136,10 +136,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
   if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
-
-  if (has_shared_info()) {
-    if (shared_info()->never_compiled()) MarkAsFirstCompile();
-  }
 }
 
 
@@ -346,7 +342,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   }
 
   DCHECK(info()->shared_info()->has_deoptimization_support());
-  DCHECK(!info()->is_first_compile());
+  DCHECK(!info()->shared_info()->never_compiled());
 
   if (FLAG_trace_opt) {
     OFStream os(stdout);
@@ -1025,8 +1021,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     DCHECK(!info->is_debug() || !parse_info->allow_lazy_parsing());
 
-    info->MarkAsFirstCompile();
-
     FunctionLiteral* lit = parse_info->literal();
     LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
@@ -1212,8 +1206,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
 
     shared->EnableDeoptimizationSupport(*unoptimized.code());
 
-    info->MarkAsCompiled();
-
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
     if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
@@ -1236,8 +1228,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   PostponeInterruptsScope postpone(info.isolate());
   VMState<COMPILER> state(info.isolate());
 
-  // Get rid of old list of shared function infos.
-  info.MarkAsFirstCompile();
   info.MarkAsDebug();
   info.parse_info()->set_global();
   if (!Parser::ParseStatic(info.parse_info())) return;
@@ -1475,7 +1465,19 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Precondition: code has been parsed and scopes have been analyzed.
   Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
-  if (outer_info->is_first_compile()) {
+
+  // The only reason we ever get here without having a shared function info for
+  // the outer function, is when we are compiling for live edit. That is also
+  // the case in which we want to re-generate all inner shared function info
+  // objects by just assuming the top-most one has not been compiled yet.
+  DCHECK_IMPLIES(!outer_info->has_shared_info(),
+                 isolate->debug()->live_edit_enabled());
+  bool outer_function_was_never_compiled =
+      !outer_info->has_shared_info() ||
+      outer_info->shared_info()->never_compiled();
+
+  // Find any previously allocated shared function info for the given literal.
+  if (outer_function_was_never_compiled) {
     // On the first compile, there are no existing shared function info for
     // inner functions yet, so do not try to find them. All bets are off for
     // live edit though.
@@ -1484,6 +1486,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   } else {
     maybe_existing = script->FindSharedFunctionInfo(literal);
   }
+
   // We found an existing shared function info. If it's already compiled,
   // don't worry about compiling it, and simply return it. If it's not yet
   // compiled, continue to decide whether to eagerly compile.
@@ -1501,6 +1504,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (!maybe_existing.ToHandle(&result)) {
     result = NewSharedFunctionInfoForLiteral(isolate, literal, script);
     result->set_is_toplevel(false);
+
+    // If the outer function has been compiled before, we cannot be sure that
+    // shared function info for this function literal has been created for the
+    // first time. It may have already been compiled previously.
+    result->set_never_compiled(outer_function_was_never_compiled);
   }
 
   Zone zone(isolate->allocator());
@@ -1511,7 +1519,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
-  if (outer_info->is_first_compile()) info.MarkAsFirstCompile();
   if (outer_info->is_debug()) info.MarkAsDebug();
 
   LiveEditFunctionTracker live_edit_tracker(isolate, literal);
@@ -1562,11 +1569,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   if (maybe_existing.is_null()) {
-    // If the outer function has been compiled before, we cannot be sure that
-    // shared function info for this function literal has been created for the
-    // first time. It may have already been compiled previously.
-    result->set_never_compiled(outer_info->is_first_compile() && lazy);
-
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
   }

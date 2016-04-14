@@ -13471,6 +13471,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   }
   shared_info->set_dont_crankshaft(lit->flags() &
                                    AstProperties::kDontCrankshaft);
+  shared_info->set_never_compiled(true);
   shared_info->set_kind(lit->kind());
   if (!IsConstructable(lit->kind(), lit->language_mode())) {
     shared_info->set_construct_stub(
