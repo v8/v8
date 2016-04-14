@@ -479,13 +479,6 @@ void OptimizedCompileJob::RecordOptimizationStats() {
 
 namespace {
 
-void MaybeDisableOptimization(Handle<SharedFunctionInfo> shared_info,
-                              BailoutReason bailout_reason) {
-  if (bailout_reason != kNoReason) {
-    shared_info->DisableOptimization(bailout_reason);
-  }
-}
-
 void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                CompilationInfo* info,
                                Handle<SharedFunctionInfo> shared) {
@@ -631,9 +624,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   // Parse and update CompilationInfo with the results.
   if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  FunctionLiteral* lit = info->literal();
-  DCHECK_EQ(shared->language_mode(), lit->language_mode());
-  MaybeDisableOptimization(shared, lit->dont_optimize_reason());
+  DCHECK_EQ(shared->language_mode(), info->literal()->language_mode());
 
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
@@ -706,7 +697,9 @@ bool Renumber(ParseInfo* parse_info) {
   if (!shared_info.is_null()) {
     FunctionLiteral* lit = parse_info->literal();
     shared_info->set_ast_node_count(lit->ast_node_count());
-    MaybeDisableOptimization(shared_info, lit->dont_optimize_reason());
+    if (lit->dont_optimize_reason() != kNoReason) {
+      shared_info->DisableOptimization(lit->dont_optimize_reason());
+    }
     shared_info->set_dont_crankshaft(
         shared_info->dont_crankshaft() ||
         (lit->flags() & AstProperties::kDontCrankshaft));
