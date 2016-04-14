@@ -87,7 +87,7 @@
       'conditions': [
         ['OS=="win"', {
           'action': [
-            '--config-variable', 'msvs_version=<(MSVS_VERSION)',
+            '--config-variable', 'msvs_version=2013',
           ],
         }, {
           'action': [
