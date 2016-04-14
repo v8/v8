@@ -650,17 +650,27 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Number());
       break;
     case IrOpcode::kNumberEqual:
+      // (NumberOrUndefined, NumberOrUndefined) -> Boolean
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
+      CheckValueInputIs(node, 1, Type::NumberOrUndefined());
+      CheckUpperIs(node, Type::Boolean());
+      break;
     case IrOpcode::kNumberLessThan:
     case IrOpcode::kNumberLessThanOrEqual:
       // (Number, Number) -> Boolean
-      CheckValueInputIs(node, 0, Type::Number());
-      CheckValueInputIs(node, 1, Type::Number());
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
+      CheckValueInputIs(node, 1, Type::NumberOrUndefined());
       CheckUpperIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberAdd:
     case IrOpcode::kNumberSubtract:
     case IrOpcode::kNumberMultiply:
     case IrOpcode::kNumberDivide:
+      // (Number, Number) -> Number
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
+      CheckValueInputIs(node, 1, Type::NumberOrUndefined());
+      // CheckUpperIs(node, Type::Number());
+      break;
     case IrOpcode::kNumberModulus:
       // (Number, Number) -> Number
       CheckValueInputIs(node, 0, Type::Number());
@@ -704,12 +714,12 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kNumberToInt32:
       // Number -> Signed32
-      CheckValueInputIs(node, 0, Type::Number());
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
       CheckUpperIs(node, Type::Signed32());
       break;
     case IrOpcode::kNumberToUint32:
       // Number -> Unsigned32
-      CheckValueInputIs(node, 0, Type::Number());
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
       CheckUpperIs(node, Type::Unsigned32());
       break;
     case IrOpcode::kNumberIsHoleNaN:

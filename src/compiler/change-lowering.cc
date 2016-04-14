@@ -284,7 +284,8 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();
 
-  if (NodeProperties::GetType(value)->Is(Type::TaggedPointer())) {
+  if (NodeProperties::GetType(value)->Is(Type::TaggedPointer()) &&
+      NodeProperties::GetType(value)->Is(Type::Number())) {
     return Replace(graph()->NewNode(op, LoadHeapNumberValue(value, control)));
   }
 
@@ -292,15 +293,38 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = graph()->NewNode(op, LoadHeapNumberValue(value, if_true));
+  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = ChangeSmiToInt32(value);
+  Node* vnot_smi;
+  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
+    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
+                                             jsgraph()->UndefinedConstant());
+    Node* branch_undefined = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
+    Node* vundefined = jsgraph()->Int32Constant(0);
+
+    Node* if_not_undefined =
+        graph()->NewNode(common()->IfFalse(), branch_undefined);
+    Node* vheap_number =
+        graph()->NewNode(op, LoadHeapNumberValue(value, if_not_undefined));
+
+    if_not_smi =
+        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
+    vnot_smi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                         vundefined, vheap_number, if_not_smi);
+  } else {
+    vnot_smi = graph()->NewNode(op, LoadHeapNumberValue(value, if_not_smi));
+  }
+
+  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfrom_smi = ChangeSmiToInt32(value);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                               vtrue, vfalse, merge);
+                               vnot_smi, vfrom_smi, merge);
 
   return Replace(phi);
 }
@@ -389,15 +413,39 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = LoadHeapNumberValue(value, if_true);
+  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = ChangeSmiToFloat64(value);
+  Node* vnot_smi;
+  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
+    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
+                                             jsgraph()->UndefinedConstant());
+    Node* branch_undefined = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
 
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kFloat64, 2), vtrue, vfalse, merge);
+    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
+    Node* vundefined =
+        jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+
+    Node* if_not_undefined =
+        graph()->NewNode(common()->IfFalse(), branch_undefined);
+    Node* vheap_number = LoadHeapNumberValue(value, if_not_undefined);
+
+    if_not_smi =
+        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
+    vnot_smi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                         vundefined, vheap_number, if_not_smi);
+  } else {
+    vnot_smi = LoadHeapNumberValue(value, if_not_smi);
+  }
+
+  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfrom_smi = ChangeSmiToFloat64(value);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
+  Node* phi =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                       vnot_smi, vfrom_smi, merge);
 
   return Replace(phi);
 }

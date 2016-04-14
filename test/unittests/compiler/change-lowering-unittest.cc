@@ -151,9 +151,9 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedSigned) {
   EXPECT_THAT(r.replacement(), IsChangeSmiToInt32(value));
 }
 
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedPointer) {
-  Node* value = Parameter(Type::TaggedPointer());
+TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedNumber) {
+  Node* value =
+      Parameter(Type::Intersect(Type::TaggedPointer(), Type::Number(), zone()));
   Reduction r =
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToInt32(), value));
   ASSERT_TRUE(r.Changed());
@@ -172,7 +172,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedSigned) {
 
 
 TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedPointer) {
-  Node* value = Parameter(Type::TaggedPointer());
+  Node* value =
+      Parameter(Type::Intersect(Type::TaggedPointer(), Type::Number(), zone()));
   Reduction r =
       Reduce(graph()->NewNode(simplified()->ChangeTaggedToUint32(), value));
   ASSERT_TRUE(r.Changed());

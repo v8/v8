@@ -84,10 +84,10 @@ class UseInfo {
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
   }
-  static UseInfo Float32() {
+  static UseInfo TruncatingFloat32() {
     return UseInfo(MachineRepresentation::kFloat32, Truncation::Float32());
   }
-  static UseInfo Float64() {
+  static UseInfo TruncatingFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
   }
   static UseInfo PointerInt() {
@@ -122,15 +122,15 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kTagged:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
-    return UseInfo::Float64();
+      return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
-      return UseInfo::Float32();
+      return UseInfo::TruncatingFloat32();
     case MachineRepresentation::kWord64:
-    return UseInfo::TruncatingWord64();
+      return UseInfo::TruncatingWord64();
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
-    return UseInfo::TruncatingWord32();
+      return UseInfo::TruncatingWord32();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
     case MachineRepresentation::kSimd128:  // Fall through.
@@ -511,7 +511,8 @@ class RepresentationSelector {
 
   // Helpers for specific types of binops.
   void VisitFloat64Binop(Node* node) {
-    VisitBinop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+    VisitBinop(node, UseInfo::TruncatingFloat64(),
+               MachineRepresentation::kFloat64);
   }
   void VisitInt32Binop(Node* node) {
     VisitBinop(node, UseInfo::TruncatingWord32(),
@@ -534,7 +535,7 @@ class RepresentationSelector {
                MachineRepresentation::kWord64);
   }
   void VisitFloat64Cmp(Node* node) {
-    VisitBinop(node, UseInfo::Float64(), MachineRepresentation::kBit);
+    VisitBinop(node, UseInfo::TruncatingFloat64(), MachineRepresentation::kBit);
   }
   void VisitInt32Cmp(Node* node) {
     VisitBinop(node, UseInfo::TruncatingWord32(), MachineRepresentation::kBit);
@@ -562,6 +563,8 @@ class RepresentationSelector {
     } else if (type->Is(Type::Boolean())) {
       return MachineRepresentation::kBit;
     } else if (type->Is(Type::Number())) {
+      return MachineRepresentation::kFloat64;
+    } else if (use.TruncatesToFloat64()) {
       return MachineRepresentation::kFloat64;
     } else if (type->Is(Type::Internal())) {
       // We mark (u)int64 as Type::Internal.
@@ -969,22 +972,26 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberCeil: {
-        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Ceil(node));
         break;
       }
       case IrOpcode::kNumberFloor: {
-        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Floor(node));
         break;
       }
       case IrOpcode::kNumberRound: {
-        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Round(node));
         break;
       }
       case IrOpcode::kNumberTrunc: {
-        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kFloat64);
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Trunc(node));
         break;
       }
@@ -1003,7 +1010,8 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberIsHoleNaN: {
-        VisitUnop(node, UseInfo::Float64(), MachineRepresentation::kBit);
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kBit);
         if (lower()) {
           // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractLowWord32(x),
           //                                   #HoleNaNLower32)
@@ -1137,18 +1145,10 @@ class RepresentationSelector {
                 MachineRepresentation::kFloat32) {
               output = access.machine_type().representation();
             } else {
-              if (access.machine_type().representation() !=
-                  MachineRepresentation::kFloat64) {
-                // TODO(bmeurer): See comment on abort_compilation_.
-                if (lower()) lowering->abort_compilation_ = true;
-              }
               output = MachineRepresentation::kFloat64;
             }
           }
         } else {
-          // TODO(bmeurer): See comment on abort_compilation_.
-          if (lower()) lowering->abort_compilation_ = true;
-
           // If undefined is not truncated away, we need to have the tagged
           // representation.
           output = MachineRepresentation::kTagged;
@@ -1300,14 +1300,15 @@ class RepresentationSelector {
         return VisitUnop(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord64);
       case IrOpcode::kTruncateFloat64ToFloat32:
-        return VisitUnop(node, UseInfo::Float64(),
+        return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat32);
       case IrOpcode::kTruncateFloat64ToInt32:
-        return VisitUnop(node, UseInfo::Float64(),
+        return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kWord32);
 
       case IrOpcode::kChangeFloat32ToFloat64:
-        return VisitUnop(node, UseInfo::Float32(),
+        UNREACHABLE();
+        return VisitUnop(node, UseInfo::TruncatingFloat32(),
                          MachineRepresentation::kFloat64);
       case IrOpcode::kChangeInt32ToFloat64:
         return VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -1328,7 +1329,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64RoundTruncate:
       case IrOpcode::kFloat64RoundTiesAway:
       case IrOpcode::kFloat64RoundUp:
-        return VisitUnop(node, UseInfo::Float64(),
+        return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
@@ -1336,11 +1337,12 @@ class RepresentationSelector {
         return VisitFloat64Cmp(node);
       case IrOpcode::kFloat64ExtractLowWord32:
       case IrOpcode::kFloat64ExtractHighWord32:
-        return VisitUnop(node, UseInfo::Float64(),
+        return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kWord32);
       case IrOpcode::kFloat64InsertLowWord32:
       case IrOpcode::kFloat64InsertHighWord32:
-        return VisitBinop(node, UseInfo::Float64(), UseInfo::TruncatingWord32(),
+        return VisitBinop(node, UseInfo::TruncatingFloat64(),
+                          UseInfo::TruncatingWord32(),
                           MachineRepresentation::kFloat64);
       case IrOpcode::kLoadStackPointer:
       case IrOpcode::kLoadFramePointer:
@@ -1484,9 +1486,11 @@ void SimplifiedLowering::DoLoadBuffer(Node* node,
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* etrue = graph()->NewNode(machine()->Load(access_type), buffer, index,
                                    effect, if_true);
+    Type* element_type =
+        Type::Intersect(NodeProperties::GetType(node), Type::Number(), zone());
     Node* vtrue = changer->GetRepresentationFor(
-        etrue, access_type.representation(), NodeProperties::GetType(node),
-        output_rep, Truncation::None());
+        etrue, access_type.representation(), element_type, output_rep,
+        Truncation::None());
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* efalse = effect;

@@ -31,6 +31,9 @@ class Truncation final {
   bool TruncatesToWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
+  bool TruncatesToFloat64() const {
+    return LessGeneral(kind_, TruncationKind::kFloat64);
+  }
   bool TruncatesNaNToZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
            LessGeneral(kind_, TruncationKind::kBool);

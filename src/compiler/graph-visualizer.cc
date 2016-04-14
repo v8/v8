@@ -640,7 +640,13 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
         if (j++ > 0) os << ", ";
         os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
       }
-      os << ")" << std::endl;
+      os << ")";
+      if (NodeProperties::IsTyped(n)) {
+        os << "  [Type: ";
+        NodeProperties::GetType(n)->PrintTo(os);
+        os << "]";
+      }
+      os << std::endl;
     }
   }
   return os;

@@ -1949,9 +1949,9 @@ Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
   // TODO(bmeurer): This typing is not yet correct. Since we can still access
   // out of bounds, the type in the general case has to include Undefined.
   switch (BufferAccessOf(node->op()).external_array_type()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    return typer_->cache_.k##Type;
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
+  case kExternal##ElemType##Array:                          \
+    return Type::Union(typer_->cache_.k##ElemType, Type::Undefined(), zone());
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   }
