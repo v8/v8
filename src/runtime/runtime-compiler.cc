@@ -305,10 +305,11 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
+
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,
-                                 int eval_position) {
+                                 int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> native_context = Handle<Context>(context->native_context());
 
@@ -332,7 +333,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
       Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
-                                    restriction, eval_position),
+                                    restriction, scope_position),
       isolate->heap()->exception());
   return *compiled;
 }

@@ -552,7 +552,7 @@ class FullCodeGenerator: public AstVisitor {
   bool NeedsHoleCheckForLoad(VariableProxy* proxy);
 
   // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(Call* expr);
+  void EmitResolvePossiblyDirectEval(int arg_count);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.

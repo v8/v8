@@ -1233,9 +1233,8 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
-    ParseRestriction restriction, int eval_position, int line_offset,
-    int column_offset, Handle<Object> script_name,
-    ScriptOriginOptions options) {
+    ParseRestriction restriction, int line_offset, int column_offset,
+    Handle<Object> script_name, ScriptOriginOptions options) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -1244,7 +1243,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<SharedFunctionInfo> maybe_shared_info =
       compilation_cache->LookupEval(source, outer_info, context, language_mode,
-                                    eval_position);
+                                    line_offset);
   Handle<SharedFunctionInfo> shared_info;
 
   Handle<Script> script;
@@ -1256,10 +1255,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       script->set_column_offset(column_offset);
     }
     script->set_origin_options(options);
-    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
-    script->set_eval_from_shared(*outer_info);
-    script->set_eval_from_position(eval_position);
-
     Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
@@ -1268,6 +1263,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
     parse_info.set_context(context);
+
+    Debug::RecordEvalCaller(script);
 
     shared_info = CompileToplevel(&info);
 
@@ -1284,7 +1281,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       DCHECK(is_sloppy(language_mode) ||
              is_strict(shared_info->language_mode()));
       compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 eval_position);
+                                 line_offset);
     }
   }
 
