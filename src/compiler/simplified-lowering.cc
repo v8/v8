@@ -1017,23 +1017,6 @@ class RepresentationSelector {
         }
         break;
       }
-      case IrOpcode::kPlainPrimitiveToNumber: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          // PlainPrimitiveToNumber(x) => Call(ToNumberStub, x, no-context)
-          Operator::Properties properties = node->op()->properties();
-          Callable callable = CodeFactory::ToNumber(jsgraph_->isolate());
-          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
-        }
-        break;
-      }
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {

@@ -152,8 +152,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberToUint32();
   const Operator* NumberIsHoleNaN();
 
-  const Operator* PlainPrimitiveToNumber();
-
   const Operator* ReferenceEqual(Type* type);
 
   const Operator* StringEqual();

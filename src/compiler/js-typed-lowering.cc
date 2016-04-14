@@ -247,7 +247,6 @@ class JSBinopReduction final {
     // Avoid inserting too many eager ToNumber() operations.
     Reduction const reduction = lowering_->ReduceJSToNumberInput(node);
     if (reduction.Changed()) return reduction.replacement();
-    // TODO(jarin) Use PlainPrimitiveToNumber once we have it.
     return graph()->NewNode(
         javascript()->ToNumber(), node, jsgraph()->NoContextConstant(),
         jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());

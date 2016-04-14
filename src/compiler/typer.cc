@@ -1799,12 +1799,6 @@ Type* Typer::Visitor::TypeNumberIsHoleNaN(Node* node) {
   return Type::Boolean();
 }
 
-
-Type* Typer::Visitor::TypePlainPrimitiveToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
-}
-
-
 // static
 Type* Typer::Visitor::ReferenceEqualTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->IsConstant() && rhs->Is(lhs)) {

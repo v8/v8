@@ -56,7 +56,6 @@ const PureOperator kPureOperators[] = {
     PURE(NumberShiftRightLogical, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
-    PURE(PlainPrimitiveToNumber, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToUint32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToFloat64, Operator::kNoProperties, 1),
