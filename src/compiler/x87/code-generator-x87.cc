@@ -337,6 +337,15 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ bind(&done);                                          \
   } while (false)
 
+void CodeGenerator::AssembleDeconstructFrame() {
+  __ mov(esp, ebp);
+  __ pop(ebp);
+}
+
+// For insert fninit/fld1 instructions after the Prologue
+thread_local bool is_block_0 = false;
+
+void CodeGenerator::AssembleSetupStackPointer() { is_block_0 = true; }
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
@@ -353,7 +362,7 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
     __ sub(esp, Immediate(-sp_slot_delta * kPointerSize));
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     __ mov(ebp, MemOperand(ebp, 0));
   }
   frame_access_state()->SetFrameAccessToSP();
@@ -402,6 +411,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X87OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+
+  // Workaround for CL #35139 (https://codereview.chromium.org/1775323002)
+  if (is_block_0) {
+    __ fninit();
+    __ fld1();
+    is_block_0 = false;
+  }
+
   switch (arch_opcode) {
     case kArchCallCodeObject: {
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
@@ -599,7 +616,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ mov(i.OutputRegister(), esp);
       break;
     case kArchParentFramePointer:
-      if (frame_access_state()->frame()->needs_frame()) {
+      if (frame_access_state()->has_frame()) {
         __ mov(i.OutputRegister(), Operand(ebp, 0));
       } else {
         __ mov(i.OutputRegister(), ebp);
@@ -2081,7 +2098,7 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
       __ push(ebp);
       __ mov(ebp, esp);
@@ -2090,11 +2107,7 @@ void CodeGenerator::AssemblePrologue() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
-  } else {
-    frame()->SetElidedFrameSizeInSlots(kPCOnStackSize / kPointerSize);
   }
-  frame_access_state()->SetFrameAccessToDefault();
-
   int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2107,6 +2120,10 @@ void CodeGenerator::AssemblePrologue() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
+
+    // Initailize FPU state.
+    __ fninit();
+    __ fld1();
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
@@ -2124,10 +2141,6 @@ void CodeGenerator::AssemblePrologue() {
     }
     frame()->AllocateSavedCalleeRegisterSlots(pushed);
   }
-
-  // Initailize FPU state.
-  __ fninit();
-  __ fld1();
 }
 
 
@@ -2160,17 +2173,15 @@ void CodeGenerator::AssembleReturn() {
   }
 
   if (descriptor->IsCFunctionCall()) {
-    __ mov(esp, ebp);  // Move stack pointer back to frame pointer.
-    __ pop(ebp);       // Pop caller's frame pointer.
-  } else if (frame()->needs_frame()) {
+    AssembleDeconstructFrame();
+  } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ jmp(&return_label_);
       return;
     } else {
       __ bind(&return_label_);
-      __ mov(esp, ebp);  // Move stack pointer back to frame pointer.
-      __ pop(ebp);       // Pop caller's frame pointer.
+      AssembleDeconstructFrame();
     }
   }
   if (pop_count == 0) {
