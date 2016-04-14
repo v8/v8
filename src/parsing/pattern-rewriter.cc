@@ -272,15 +272,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
           factory()->NewExpressionStatement(initialize, initialize->position()),
           zone());
     }
-  } else if (value != nullptr && (descriptor_->mode == CONST_LEGACY ||
-                                  IsLexicalVariableMode(descriptor_->mode))) {
-    // Constant initializations always assign to the declared constant which
-    // is always at the function scope level. This is only relevant for
-    // dynamically looked-up variables and constants (the
-    // start context for constant lookups is always the function context,
-    // while it is the top context for var declared variables). Sigh...
-    // For 'let' and 'const' declared variables in harmony mode the
-    // initialization also always assigns to the declared variable.
+  } else if (value != nullptr && IsLexicalVariableMode(descriptor_->mode)) {
+    // For 'let' and 'const' declared variables the initialization always
+    // assigns to the declared variable.
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
