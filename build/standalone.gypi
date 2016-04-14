@@ -796,6 +796,11 @@
               '_HAS_EXCEPTIONS=0',
             ],
           }],
+          ['component=="shared_library"', {
+            'msvs_disabled_warnings': [
+              4251,  # class 'std::xx' needs to have dll-interface.
+            ],
+          }],
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
         'msvs_disabled_warnings': [

@@ -24,8 +24,8 @@ json_data_file = os.path.join(script_dir, 'win_toolchain.json')
 import gyp
 
 
-# Use MSVS2013 as the default toolchain.
-CURRENT_DEFAULT_TOOLCHAIN_VERSION = '2013'
+# Use MSVS2015 as the default toolchain.
+CURRENT_DEFAULT_TOOLCHAIN_VERSION = '2015'
 
 
 def SetEnvironmentAndGetRuntimeDllDirs():
