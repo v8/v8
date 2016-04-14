@@ -3780,7 +3780,8 @@ void TranslatedState::StoreMaterializedValuesAndDeopt() {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
     CHECK(frames_[0].kind() == TranslatedFrame::kFunction ||
-          frames_[0].kind() == TranslatedFrame::kInterpretedFunction);
+          frames_[0].kind() == TranslatedFrame::kInterpretedFunction ||
+          frames_[0].kind() == TranslatedFrame::kTailCallerFunction);
     Object* const function = frames_[0].front().GetRawValue();
     Deoptimizer::DeoptimizeFunction(JSFunction::cast(function));
   }
