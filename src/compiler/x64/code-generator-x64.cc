@@ -800,10 +800,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
       auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
-      __ Cvttsd2si(result, input);
-      __ cmpl(result, Immediate(1));
+      // We use Cvttsd2siq instead of Cvttsd2si due to performance reasons. The
+      // use of Cvttsd2siq requires the movl below to avoid sign extension.
+      __ Cvttsd2siq(result, input);
+      __ cmpq(result, Immediate(1));
       __ j(overflow, ool->entry());
       __ bind(ool->exit());
+      __ movl(result, result);
       break;
     }
     case kArchStoreWithWriteBarrier: {
