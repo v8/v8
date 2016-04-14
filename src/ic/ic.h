@@ -301,12 +301,7 @@ class LoadIC : public IC {
 
  protected:
   Handle<Code> slow_stub() const {
-    if (kind() == Code::LOAD_IC) {
-      return isolate()->builtins()->LoadIC_Slow();
-    } else {
-      DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-      return isolate()->builtins()->KeyedLoadIC_Slow();
-    }
+    return isolate()->builtins()->LoadIC_Slow();
   }
 
   // Update the inline cache and the global stub cache based on the

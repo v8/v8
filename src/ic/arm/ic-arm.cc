@@ -685,7 +685,7 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags =
       Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, Code::STORE_IC, flags, receiver, key, r5, temporary2, r6, r9);
+      masm, Code::KEYED_STORE_IC, flags, receiver, key, r5, temporary2, r6, r9);
   // Cache miss.
   __ b(&miss);
 

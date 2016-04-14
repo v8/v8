@@ -1437,12 +1437,7 @@ Handle<Code> StoreIC::initialize_stub_in_optimized_code(
 }
 
 Handle<Code> StoreIC::slow_stub() const {
-  if (kind() == Code::STORE_IC) {
-    return isolate()->builtins()->StoreIC_Slow();
-  } else {
-    DCHECK(kind() == Code::KEYED_STORE_IC);
-    return isolate()->builtins()->KeyedStoreIC_Slow();
-  }
+  return isolate()->builtins()->StoreIC_Slow();
 }
 
 
