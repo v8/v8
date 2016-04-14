@@ -935,44 +935,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-bool CompileEvalForDebugging(Handle<JSFunction> function,
-                             Handle<SharedFunctionInfo> shared) {
-  Handle<Script> script(Script::cast(shared->script()));
-  Handle<Context> context(function->context());
-
-  Zone zone(function->GetIsolate()->allocator());
-  ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  Isolate* isolate = info.isolate();
-
-  parse_info.set_eval();
-  parse_info.set_context(context);
-  if (context->IsNativeContext()) parse_info.set_global();
-  parse_info.set_toplevel();
-  parse_info.set_allow_lazy_parsing(false);
-  parse_info.set_language_mode(shared->language_mode());
-  parse_info.set_parse_restriction(NO_PARSE_RESTRICTION);
-  info.MarkAsDebug();
-
-  VMState<COMPILER> state(info.isolate());
-
-  if (!Parser::ParseStatic(&parse_info)) {
-    isolate->clear_pending_exception();
-    return false;
-  }
-
-  FunctionLiteral* lit = parse_info.literal();
-  LiveEditFunctionTracker live_edit_tracker(isolate, lit);
-
-  if (!CompileUnoptimizedCode(&info)) {
-    isolate->clear_pending_exception();
-    return false;
-  }
-  shared->ReplaceCode(*info.code());
-  return true;
-}
-
-
 bool CompileForDebugging(CompilationInfo* info) {
   info->MarkAsDebug();
   if (GetUnoptimizedCode(info).is_null()) {
@@ -1186,7 +1148,22 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   if (IsEvalToplevel(shared)) {
-    return CompileEvalForDebugging(function, shared);
+    Handle<Script> script(Script::cast(shared->script()));
+    Handle<Context> context(function->context());
+
+    Zone zone(function->GetIsolate()->allocator());
+    ParseInfo parse_info(&zone, script);
+    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
+
+    parse_info.set_eval();
+    parse_info.set_context(context);
+    parse_info.set_shared_info(shared);
+    if (context->IsNativeContext()) parse_info.set_global();
+    parse_info.set_toplevel();
+    parse_info.set_allow_lazy_parsing(false);
+    parse_info.set_language_mode(shared->language_mode());
+    parse_info.set_parse_restriction(NO_PARSE_RESTRICTION);
+    return CompileForDebugging(&info);
   } else {
     CompilationInfoWithZone info(function);
     return CompileForDebugging(&info);
