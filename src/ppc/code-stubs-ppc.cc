@@ -5908,6 +5908,17 @@ void ReturnAllocatedHeapNumber(MacroAssembler* masm, DoubleRegister value,
 
 }  // anonymous namespace
 
+#define ASSEMBLE_ATOMIC_LOAD(instr, dst, base, index) \
+  do {                                                \
+    Label not_taken;                                  \
+    __ sync();                                        \
+    __ instr(dst, MemOperand(base, index));           \
+    __ bind(&not_taken);                              \
+    __ cmp(dst, dst);                                 \
+    __ bne(&not_taken);                               \
+    __ isync();                                       \
+  } while (0)
+
 void AtomicsLoadStub::Generate(MacroAssembler* masm) {
   Register object = r4;
   Register index = r3;  // Index is an untagged word32.
@@ -5918,29 +5929,25 @@ void AtomicsLoadStub::Generate(MacroAssembler* masm) {
   TypedArrayJumpTablePrologue(masm, object, r6, r7, &table);
 
   __ bind(&i8);
-  __ lbzx(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lbzx, r3, backing_store, index);
   __ extsb(r3, r3);
   __ SmiTag(r3);
   __ blr();
 
   __ bind(&u8);
-  __ lbzx(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lbzx, r3, backing_store, index);
   __ SmiTag(r3);
   __ blr();
 
   __ bind(&i16);
   __ ShiftLeftImm(index, index, Operand(1));
-  __ lhax(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lhax, r3, backing_store, index);
   __ SmiTag(r3);
   __ blr();
 
   __ bind(&u16);
   __ ShiftLeftImm(index, index, Operand(1));
-  __ lhzx(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lhzx, r3, backing_store, index);
   __ SmiTag(r3);
   __ blr();
 
@@ -5948,8 +5955,7 @@ void AtomicsLoadStub::Generate(MacroAssembler* masm) {
 
   __ bind(&i32);
   __ ShiftLeftImm(index, index, Operand(2));
-  __ lwax(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lwax, r3, backing_store, index);
 #if V8_TARGET_ARCH_PPC64
   __ SmiTag(r3);
   __ blr();
@@ -5959,8 +5965,7 @@ void AtomicsLoadStub::Generate(MacroAssembler* masm) {
 
   __ bind(&u32);
   __ ShiftLeftImm(index, index, Operand(2));
-  __ lwzx(r3, MemOperand(backing_store, index));
-  __ lwsync();
+  ASSEMBLE_ATOMIC_LOAD(lwzx, r3, backing_store, index);
   ReturnUnsignedInteger32(masm, d0, r3, &use_heap_number);
 
   __ bind(&use_heap_number);
