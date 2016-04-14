@@ -3744,8 +3744,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
                                            Register input_reg) {
   Label done;
   Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  Cvttsd2siq(result_reg, xmm0);
-  cmpq(result_reg, Immediate(1));
+  Cvttsd2si(result_reg, xmm0);
+  cmpl(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
   // Slow case.
@@ -3767,8 +3767,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 void MacroAssembler::TruncateDoubleToI(Register result_reg,
                                        XMMRegister input_reg) {
   Label done;
-  Cvttsd2siq(result_reg, input_reg);
-  cmpq(result_reg, Immediate(1));
+  Cvttsd2si(result_reg, input_reg);
+  cmpl(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
   subp(rsp, Immediate(kDoubleSize));

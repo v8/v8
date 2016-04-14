@@ -791,8 +791,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
       auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
-      __ Cvttsd2siq(result, input);
-      __ cmpq(result, Immediate(1));
+      __ Cvttsd2si(result, input);
+      __ cmpl(result, Immediate(1));
       __ j(overflow, ool->entry());
       __ bind(ool->exit());
       break;
