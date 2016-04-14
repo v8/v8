@@ -599,8 +599,9 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   Emit(kX87MulPair, 2, outputs, 4, inputs, 1, temps);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) {
-  X87OperandGenerator g(this);
+void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
+                          Node* node) {
+  X87OperandGenerator g(selector);
 
   Node* shift = node->InputAt(2);
   InstructionOperand shift_operand;
@@ -617,49 +618,19 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
       g.DefineAsFixed(node, eax),
       g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
 
-  Emit(kX87ShlPair, 2, outputs, 3, inputs);
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitWord32PairShift(this, kX87ShlPair, node);
 }
 
 void InstructionSelector::VisitWord32PairShr(Node* node) {
-  X87OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kX87ShrPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kX87ShrPair, node);
 }
 
 void InstructionSelector::VisitWord32PairSar(Node* node) {
-  X87OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kX87SarPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kX87SarPair, node);
 }
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
