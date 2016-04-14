@@ -283,7 +283,7 @@ def _GetDesiredVsToolchainHashes():
     # Update 2.
     return ['95ddda401ec5678f15eeed01d2bee08fcbc5ee97']
   else:
-    return ['4087e065abebdca6dbd0caca2910c6718d2ec67f']
+    return ['03a4e939cd325d6bc5216af41b92d02dda1366a6']
 
 
 def ShouldUpdateToolchain():
