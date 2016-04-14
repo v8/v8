@@ -66,7 +66,7 @@ struct LocalTypePair {
                    {kLocalF32, kAstF32},
                    {kLocalF64, kAstF64}};
 
-class WasmModuleVerifyTest : public TestWithZone {
+class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
   ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
     // Add the WASM magic and version number automatically.
@@ -76,14 +76,14 @@ class WasmModuleVerifyTest : public TestWithZone {
     auto temp = new byte[total];
     memcpy(temp, header, sizeof(header));
     memcpy(temp + sizeof(header), module_start, size);
-    ModuleResult result = DecodeWasmModule(nullptr, zone(), temp, temp + total,
-                                           false, kWasmOrigin);
+    ModuleResult result = DecodeWasmModule(isolate(), zone(), temp,
+                                           temp + total, false, kWasmOrigin);
     delete[] temp;
     return result;
   }
   ModuleResult DecodeModuleNoHeader(const byte* module_start,
                                     const byte* module_end) {
-    return DecodeWasmModule(nullptr, zone(), module_start, module_end, false,
+    return DecodeWasmModule(isolate(), zone(), module_start, module_end, false,
                             kWasmOrigin);
   }
 };
@@ -901,9 +901,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type) {
   }
 }
 
-
-class WasmFunctionVerifyTest : public TestWithZone {};
-
+class WasmFunctionVerifyTest : public TestWithIsolateAndZone {};
 
 TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
   static const byte data[] = {
@@ -916,7 +914,7 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kExprNop              // body
   };
 
-  FunctionResult result = DecodeWasmFunction(nullptr, zone(), nullptr, data,
+  FunctionResult result = DecodeWasmFunction(isolate(), zone(), nullptr, data,
                                              data + arraysize(data));
   EXPECT_TRUE(result.ok());
 

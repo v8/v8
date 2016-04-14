@@ -767,14 +767,23 @@ class FunctionError : public FunctionResult {
 ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                               const byte* module_start, const byte* module_end,
                               bool verify_functions, ModuleOrigin origin) {
+  size_t decode_memory_start = zone->allocation_size();
+  HistogramTimerScope wasm_decode_module_time_scope(
+      isolate->counters()->wasm_decode_module_time());
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleError("start > end");
   if (size >= kMaxModuleSize) return ModuleError("size > maximum module size");
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  isolate->counters()->wasm_module_size_bytes()->AddSample(
+      static_cast<int>(size));
   WasmModule* module = new WasmModule();
   ModuleDecoder decoder(zone, module_start, module_end, origin);
-  return decoder.DecodeModule(module, verify_functions);
+  ModuleResult result = decoder.DecodeModule(module, verify_functions);
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  isolate->counters()->wasm_decode_peak_memory_bytes()->AddSample(
+      static_cast<int>(zone->allocation_size() - decode_memory_start));
+  return result;
 }
-
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
                                            const byte* end) {
@@ -787,10 +796,14 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   ModuleEnv* module_env,
                                   const byte* function_start,
                                   const byte* function_end) {
+  HistogramTimerScope wasm_decode_function_time_scope(
+      isolate->counters()->wasm_decode_function_time());
   size_t size = function_end - function_start;
   if (function_start > function_end) return FunctionError("start > end");
   if (size > kMaxFunctionSize)
     return FunctionError("size > maximum function size");
+  isolate->counters()->wasm_function_size_bytes()->AddSample(
+      static_cast<int>(size));
   WasmFunction* function = new WasmFunction();
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);

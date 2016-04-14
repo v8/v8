@@ -2677,6 +2677,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
                                  const wasm::WasmFunction& function) {
+  HistogramTimerScope wasm_compile_function_time_scope(
+      isolate->counters()->wasm_compile_function_time());
   if (FLAG_trace_wasm_compiler) {
     OFStream os(stdout);
     os << "Compiling WASM function "
@@ -2780,6 +2782,9 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
         static_cast<int>(function.code_end_offset - function.code_start_offset),
         decode_ms, static_cast<int>(graph.NodeCount()), compile_ms);
   }
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  isolate->counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
+      static_cast<int>(zone.allocation_size()));
   return code;
 }
 

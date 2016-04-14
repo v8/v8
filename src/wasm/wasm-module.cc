@@ -382,6 +382,8 @@ static MaybeHandle<JSFunction> LookupFunction(
 MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                               Handle<JSObject> ffi,
                                               Handle<JSArrayBuffer> memory) {
+  HistogramTimerScope wasm_instantiate_time_scope(
+      isolate->counters()->wasm_instantiate_time());
   this->shared_isolate = isolate;  // TODO(titzer): have a real shared isolate.
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
@@ -402,6 +404,10 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
   // Allocate and initialize the linear memory.
   //-------------------------------------------------------------------------
+  isolate->counters()->wasm_min_mem_pages_count()->AddSample(
+      instance.module->min_mem_pages);
+  isolate->counters()->wasm_max_mem_pages_count()->AddSample(
+      instance.module->max_mem_pages);
   if (memory.is_null()) {
     if (!AllocateMemory(&thrower, isolate, &instance)) {
       return MaybeHandle<JSObject>();
@@ -423,6 +429,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     instance.js_object->SetInternalField(kWasmGlobalsArrayBuffer,
                                          *instance.globals_buffer);
   }
+
+  HistogramTimerScope wasm_compile_time_scope(
+      isolate->counters()->wasm_compile_time());
 
   //-------------------------------------------------------------------------
   // Compile wrappers to imported functions.
@@ -457,89 +466,96 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
   // Compile all functions in the module.
   //-------------------------------------------------------------------------
+  {
+    isolate->counters()->wasm_functions_per_module()->AddSample(
+        static_cast<int>(functions.size()));
 
-  // First pass: compile each function and initialize the code table.
-  index = FLAG_skip_compiling_wasm_funcs;
-  while (index < functions.size()) {
-    const WasmFunction& func = functions[index];
-    if (thrower.error()) break;
-    DCHECK_EQ(index, func.func_index);
-
-    WasmName str = GetName(func.name_offset, func.name_length);
-    WasmName str_null = {nullptr, 0};
-    Handle<String> name = factory->InternalizeUtf8String(
-        Vector<const char>(str.name, str.length));
-    Handle<Code> code = Handle<Code>::null();
-    Handle<JSFunction> function = Handle<JSFunction>::null();
-    if (func.external) {
-      // Lookup external function in FFI object.
-      MaybeHandle<JSFunction> function =
-          LookupFunction(thrower, factory, ffi, index, str, str_null);
-      if (function.is_null()) return MaybeHandle<JSObject>();
-      code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
-                                              function.ToHandleChecked(),
-                                              func.sig, str, str_null);
-    } else {
-      // Compile the function.
-      code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
-      if (code.is_null()) {
-        thrower.Error("Compilation of #%d:%.*s failed.", index, str.length,
-                      str.name);
-        return MaybeHandle<JSObject>();
-      }
-      if (func.exported) {
-        function = compiler::CompileJSToWasmWrapper(
-            isolate, &module_env, name, code, instance.js_object, index);
-      }
-    }
-    if (!code.is_null()) {
-      // Install the code into the linker table.
-      linker.Finish(index, code);
-      code_table->set(index, *code);
-    }
-    if (func.exported) {
-      // Exported functions are installed as read-only properties on the module.
-      JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
-    }
-    index++;
-  }
-
-  // Second pass: patch all direct call sites.
-  linker.Link(instance.function_table, this->function_table);
-  instance.js_object->SetInternalField(kWasmModuleFunctionTable,
-                                       Smi::FromInt(0));
-
-  //-------------------------------------------------------------------------
-  // Create and populate the exports object.
-  //-------------------------------------------------------------------------
-  if (export_table.size() > 0 || mem_export) {
-    index = 0;
-    // Create the "exports" object.
-    Handle<JSFunction> object_function = Handle<JSFunction>(
-        isolate->native_context()->object_function(), isolate);
-    Handle<JSObject> exports_object =
-        factory->NewJSObject(object_function, TENURED);
-    Handle<String> exports_name = factory->InternalizeUtf8String("exports");
-    JSObject::AddProperty(instance.js_object, exports_name, exports_object,
-                          READ_ONLY);
-
-    // Compile wrappers and add them to the exports object.
-    for (const WasmExport& exp : export_table) {
+    // First pass: compile each function and initialize the code table.
+    index = FLAG_skip_compiling_wasm_funcs;
+    while (index < functions.size()) {
+      const WasmFunction& func = functions[index];
       if (thrower.error()) break;
-      WasmName str = GetName(exp.name_offset, exp.name_length);
+      DCHECK_EQ(index, func.func_index);
+
+      WasmName str = GetName(func.name_offset, func.name_length);
+      WasmName str_null = {nullptr, 0};
       Handle<String> name = factory->InternalizeUtf8String(
           Vector<const char>(str.name, str.length));
-      Handle<Code> code = linker.GetFunctionCode(exp.func_index);
-      Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
-          isolate, &module_env, name, code, instance.js_object, exp.func_index);
-      JSObject::AddProperty(exports_object, name, function, READ_ONLY);
+      Handle<Code> code = Handle<Code>::null();
+      Handle<JSFunction> function = Handle<JSFunction>::null();
+      if (func.external) {
+        // Lookup external function in FFI object.
+        MaybeHandle<JSFunction> function =
+            LookupFunction(thrower, factory, ffi, index, str, str_null);
+        if (function.is_null()) return MaybeHandle<JSObject>();
+        code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
+                                                function.ToHandleChecked(),
+                                                func.sig, str, str_null);
+      } else {
+        // Compile the function.
+        code =
+            compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
+        if (code.is_null()) {
+          thrower.Error("Compilation of #%d:%.*s failed.", index, str.length,
+                        str.name);
+          return MaybeHandle<JSObject>();
+        }
+        if (func.exported) {
+          function = compiler::CompileJSToWasmWrapper(
+              isolate, &module_env, name, code, instance.js_object, index);
+        }
+      }
+      if (!code.is_null()) {
+        // Install the code into the linker table.
+        linker.Finish(index, code);
+        code_table->set(index, *code);
+      }
+      if (func.exported) {
+        // Exported functions are installed as read-only properties on the
+        // module.
+        JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
+      }
+      index++;
     }
 
-    if (mem_export) {
-      // Export the memory as a named property.
-      Handle<String> name = factory->InternalizeUtf8String("memory");
-      JSObject::AddProperty(exports_object, name, instance.mem_buffer,
+    // Second pass: patch all direct call sites.
+    linker.Link(instance.function_table, this->function_table);
+    instance.js_object->SetInternalField(kWasmModuleFunctionTable,
+                                         Smi::FromInt(0));
+
+    //-------------------------------------------------------------------------
+    // Create and populate the exports object.
+    //-------------------------------------------------------------------------
+    if (export_table.size() > 0 || mem_export) {
+      index = 0;
+      // Create the "exports" object.
+      Handle<JSFunction> object_function = Handle<JSFunction>(
+          isolate->native_context()->object_function(), isolate);
+      Handle<JSObject> exports_object =
+          factory->NewJSObject(object_function, TENURED);
+      Handle<String> exports_name = factory->InternalizeUtf8String("exports");
+      JSObject::AddProperty(instance.js_object, exports_name, exports_object,
                             READ_ONLY);
+
+      // Compile wrappers and add them to the exports object.
+      for (const WasmExport& exp : export_table) {
+        if (thrower.error()) break;
+        WasmName str = GetName(exp.name_offset, exp.name_length);
+        Handle<String> name = factory->InternalizeUtf8String(
+            Vector<const char>(str.name, str.length));
+        Handle<Code> code = linker.GetFunctionCode(exp.func_index);
+        Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
+            isolate, &module_env, name, code, instance.js_object,
+            exp.func_index);
+        JSObject::AddProperty(exports_object, name, function, READ_ONLY);
+      }
+
+      if (mem_export) {
+        // Export the memory as a named property.
+        Handle<String> name = factory->InternalizeUtf8String("memory");
+        JSObject::AddProperty(exports_object, name, instance.mem_buffer,
+                              READ_ONLY);
+      }
     }
   }
 
