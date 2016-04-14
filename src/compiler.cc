@@ -1583,9 +1583,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     result->set_never_compiled(outer_info->is_first_compile() && lazy);
 
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
-    result->set_allows_lazy_compilation(literal->AllowsLazyCompilation());
-    result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
-
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
   }
 
