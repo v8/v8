@@ -107,6 +107,9 @@ class WasmGraphBuilder {
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSFunction> function,
                             wasm::FunctionSig* sig);
+
+  Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
+                                Node* control);
   Node* ToJS(Node* node, Node* context, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);

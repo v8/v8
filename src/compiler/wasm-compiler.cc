@@ -2100,15 +2100,28 @@ Node* WasmGraphBuilder::ToJS(Node* node, Node* context, wasm::LocalType type) {
   }
 }
 
+Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
+                                                Node* effect, Node* control) {
+  Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+
+  Node* result =
+      graph()->NewNode(jsgraph()->common()->Call(desc), stub_code, node,
+                       context, jsgraph()->EmptyFrameState(), effect, control);
+
+  *control_ = result;
+  *effect_ = result;
+
+  return result;
+}
 
 Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
                                wasm::LocalType type) {
   // Do a JavaScript ToNumber.
-  Node* num =
-      graph()->NewNode(jsgraph()->javascript()->ToNumber(), node, context,
-                       jsgraph()->EmptyFrameState(), *effect_, *control_);
-  *control_ = num;
-  *effect_ = num;
+  Node* num = BuildJavaScriptToNumber(node, context, *effect_, *control_);
 
   // Change representation.
   SimplifiedOperatorBuilder simplified(jsgraph()->zone());
@@ -2508,9 +2521,8 @@ Handle<JSFunction> CompileJSToWasmWrapper(
   Zone zone(isolate->allocator());
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
-  JSOperatorBuilder javascript(&zone);
   MachineOperatorBuilder machine(&zone);
-  JSGraph jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine);
+  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
@@ -2532,11 +2544,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
     typer.Run(roots);
 
     // Run generic and change lowering.
-    JSGenericLowering generic(&jsgraph);
     ChangeLowering changes(&jsgraph);
     GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
     graph_reducer.AddReducer(&changes);
-    graph_reducer.AddReducer(&generic);
     graph_reducer.ReduceGraph();
 
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
@@ -2600,9 +2610,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   Zone zone(isolate->allocator());
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
-  JSOperatorBuilder javascript(&zone);
   MachineOperatorBuilder machine(&zone);
-  JSGraph jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine);
+  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
@@ -2622,11 +2631,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     typer.Run(roots);
 
     // Run generic and change lowering.
-    JSGenericLowering generic(&jsgraph);
     ChangeLowering changes(&jsgraph);
     GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
     graph_reducer.AddReducer(&changes);
-    graph_reducer.AddReducer(&generic);
     graph_reducer.ReduceGraph();
 
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
