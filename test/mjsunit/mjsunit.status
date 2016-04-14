@@ -801,8 +801,8 @@
   # objects.
   'es6/mirror-collections': [FAIL],
 
-  # TODO(mythria, 4680): Fails with context_register_count_ > 0 (0 vs. 0) when
-  # trying to get a context register in BytecodeGenerator.
+  # TODO(mythria, 4904): Parser bug. It creates incorrectly nested scopes
+  # for do expressions in arrow functions.
   'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
 
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
@@ -818,14 +818,6 @@
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 }],  # ignition == True
-
-['ignition == True and system == windows', {
-  # TODO(rmcilroy,4680): Crash on windows nosnap shared.
-  'regress/regress-crbug-352058': [PASS, ['no_snap == True', SKIP]],
-
-  # TODO(rmcilroy,4680): Fails on win32 debug.
-  'div-mod': [PASS, ['arch == ia32', SKIP]],
-}],  # ignition == True and system == windows
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific timeouts.
