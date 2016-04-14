@@ -4807,41 +4807,33 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
   if (v8::internal::FLAG_check_icache) {
     CheckICache(isolate_->simulator_i_cache(), instr);
   }
+
   pc_modified_ = false;
+
   if (::v8::internal::FLAG_trace_sim) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
-#ifdef V8_TARGET_ARCH_S390X
-    PrintF("%05ld  %08" V8PRIxPTR "  %s\n", icount_,
+    PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
            reinterpret_cast<intptr_t>(instr), buffer.start());
-#else
-    PrintF("%05lld  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.start());
-#endif
+
     // Flush stdout to prevent incomplete file output during abnormal exits
     // This is caused by the output being buffered before being written to file
     fflush(stdout);
   }
 
-  // Try to simulate as S390 Instruction first.
-  bool processed = true;
-
   int instrLength = instr->InstructionLength();
   if (instrLength == 2)
-    processed = DecodeTwoByte(instr);
+    DecodeTwoByte(instr);
   else if (instrLength == 4)
-    processed = DecodeFourByte(instr);
-  else if (instrLength == 6)
-    processed = DecodeSixByte(instr);
+    DecodeFourByte(instr);
+  else
+    DecodeSixByte(instr);
 
-  if (processed) {
-    if (!pc_modified_ && auto_incr_pc) {
-      set_pc(reinterpret_cast<intptr_t>(instr) + instrLength);
-    }
-    return;
+  if (!pc_modified_ && auto_incr_pc) {
+    set_pc(reinterpret_cast<intptr_t>(instr) + instrLength);
   }
 }
 
