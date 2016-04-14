@@ -2405,6 +2405,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
@@ -2948,6 +2949,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_iterator_close_natives[] = {nullptr};
   static const char* harmony_species_natives[] = {"native harmony-species.js",
                                                   nullptr};
+  static const char* harmony_explicit_tailcalls_natives[] = {nullptr};
   static const char* harmony_tailcalls_natives[] = {nullptr};
   static const char* harmony_unicode_regexps_natives[] = {
       "native harmony-unicode-regexps.js", nullptr};
