@@ -104,7 +104,6 @@ INTERESTING_OLD_GEN_KEYS="\
   evacuate.clean_up \
   evacuate.copy \
   evacuate.update_pointers \
-  evacuate.update_pointers.between_evacuated \
   evacuate.update_pointers.to_evacuated \
   evacuate.update_pointers.to_new \
   evacuate.update_pointers.weak \

@@ -630,6 +630,7 @@ class MarkCompactCollector {
  private:
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
+  class EvacuateRecordOnlyVisitor;
   class EvacuateVisitorBase;
   class HeapObjectVisitor;
 
@@ -833,8 +834,6 @@ class MarkCompactCollector {
   void VisitLiveObjectsBody(Page* page, ObjectVisitor* visitor);
 
   void RecomputeLiveBytes(MemoryChunk* page);
-
-  void SweepAbortedPages();
 
   void ReleaseEvacuationCandidates();
 
