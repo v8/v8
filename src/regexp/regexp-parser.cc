@@ -130,6 +130,7 @@ bool RegExpParser::IsSyntaxCharacterOrSlash(uc32 c) {
 
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
+  if (failed_) return NULL;  // Do not overwrite any existing error.
   failed_ = true;
   *error_ = isolate()->factory()->NewStringFromAscii(message).ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
@@ -511,9 +512,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         break;
       case '{': {
         int dummy;
-        if (ParseIntervalQuantifier(&dummy, &dummy)) {
-          return ReportError(CStrVector("Nothing to repeat"));
-        }
+        bool parsed = ParseIntervalQuantifier(&dummy, &dummy CHECK_FAILED);
+        if (parsed) return ReportError(CStrVector("Nothing to repeat"));
         // fallthrough
       }
       case '}':
