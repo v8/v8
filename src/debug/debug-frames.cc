@@ -72,8 +72,7 @@ int FrameInspector::GetSourcePosition() {
     return deoptimized_frame_->GetSourcePosition();
   } else if (is_interpreted_) {
     InterpretedFrame* frame = reinterpret_cast<InterpretedFrame*>(frame_);
-    BytecodeArray* bytecode_array =
-        frame->function()->shared()->bytecode_array();
+    BytecodeArray* bytecode_array = frame->GetBytecodeArray();
     return bytecode_array->SourcePosition(frame->GetBytecodeOffset());
   } else {
     Code* code = frame_->LookupCode();

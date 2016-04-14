@@ -498,9 +498,6 @@ class Debug {
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
 
-  // Record function from which eval was called.
-  static void RecordEvalCaller(Handle<Script> script);
-
   bool CheckExecutionState(int id) {
     return is_active() && !debug_context().is_null() && break_id() != 0 &&
            break_id() == id;

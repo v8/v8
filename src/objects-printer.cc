@@ -1144,8 +1144,7 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
   os << "\n - eval from shared: " << Brief(eval_from_shared());
-  os << "\n - eval from instructions offset: "
-     << eval_from_instructions_offset();
+  os << "\n - eval from position: " << eval_from_position();
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }

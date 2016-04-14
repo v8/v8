@@ -2473,8 +2473,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         .MoveRegister(Register::function_closure(), function)
         .LoadLiteral(Smi::FromInt(language_mode()))
         .StoreAccumulatorInRegister(language)
-        .LoadLiteral(
-            Smi::FromInt(execution_context()->scope()->start_position()))
+        .LoadLiteral(Smi::FromInt(expr->position()))
         .StoreAccumulatorInRegister(position);
 
     // Call ResolvePossiblyDirectEval and modify the callee.

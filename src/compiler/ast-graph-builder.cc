@@ -2456,7 +2456,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     // provide a fully resolved callee to patch into the environment.
     Node* function = GetFunctionClosure();
     Node* language = jsgraph()->Constant(language_mode());
-    Node* position = jsgraph()->Constant(current_scope()->start_position());
+    Node* position = jsgraph()->Constant(expr->position());
     const Operator* op =
         javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval);
     Node* new_callee =
