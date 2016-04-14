@@ -556,6 +556,9 @@
   'test-run-inlining/InlineBuiltin': [FAIL],
   'test-run-inlining/InlineTwiceDependent': [FAIL],
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
+
+  # BUG(4751). Flaky with ignition and tsan.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],
 }],  # ignition == True
 
 ]
