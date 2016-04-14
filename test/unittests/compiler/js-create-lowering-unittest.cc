@@ -172,6 +172,24 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
 }
 
 // -----------------------------------------------------------------------------
+// JSCreateClosure
+
+TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
+                              context, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(IsAllocate(IsNumberConstant(JSFunction::kSize),
+                                        IsBeginRegion(_), control),
+                             _));
+}
+
+// -----------------------------------------------------------------------------
 // JSCreateFunctionContext
 
 TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
