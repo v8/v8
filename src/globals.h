@@ -137,7 +137,7 @@ const int kRegisterSize  = kPointerSize;
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
 #else
 const int kElidedFrameSlots = 0;
