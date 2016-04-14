@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var AddIndexedProperty;
 var ExpandReplacement;
 var GlobalArray = global.Array;
 var GlobalObject = global.Object;
@@ -29,7 +28,6 @@ var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
 
 utils.Import(function(from) {
-  AddIndexedProperty = from.AddIndexedProperty;
   ExpandReplacement = from.ExpandReplacement;
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
@@ -502,7 +500,7 @@ function RegExpSubclassSplit(string, limit) {
   var result;
   if (size === 0) {
     result = RegExpSubclassExec(splitter, string);
-    if (IS_NULL(result)) AddIndexedProperty(array, 0, string);
+    if (IS_NULL(result)) %AddElement(array, 0, string);
     return array;
   }
   var stringIndex = prevStringIndex;
@@ -518,7 +516,7 @@ function RegExpSubclassSplit(string, limit) {
       if (end === stringIndex) {
         stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
       } else {
-        AddIndexedProperty(
+        %AddElement(
             array, arrayIndex,
             %_SubString(string, prevStringIndex, stringIndex));
         arrayIndex++;
@@ -526,7 +524,7 @@ function RegExpSubclassSplit(string, limit) {
         prevStringIndex = end;
         var numberOfCaptures = MaxSimple(TO_LENGTH(result.length), 0);
         for (var i = 1; i < numberOfCaptures; i++) {
-          AddIndexedProperty(array, arrayIndex, result[i]);
+          %AddElement(array, arrayIndex, result[i]);
           arrayIndex++;
           if (arrayIndex === lim) return array;
         }
@@ -534,7 +532,7 @@ function RegExpSubclassSplit(string, limit) {
       }
     }
   }
-  AddIndexedProperty(array, arrayIndex,
+  %AddElement(array, arrayIndex,
                      %_SubString(string, prevStringIndex, size));
   return array;
 }

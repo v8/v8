@@ -438,7 +438,8 @@ namespace internal {
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
   F(ObjectDefineProperties, 2, 1)                    \
-  F(ObjectDefineProperty, 3, 1)
+  F(ObjectDefineProperty, 3, 1)                      \
+  F(CreateDataProperty, 3, 1)
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \
   F(IsObserved, 1, 1)                            \

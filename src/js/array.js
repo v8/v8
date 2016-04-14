@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var AddIndexedProperty;
 var FLAG_harmony_species;
 var GetIterator;
 var GetMethod;
@@ -31,7 +30,6 @@ var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
-  AddIndexedProperty = from.AddIndexedProperty;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
   MakeTypeError = from.MakeTypeError;
@@ -61,17 +59,6 @@ function ArraySpeciesCreate(array, length) {
   return new constructor(length);
 }
 
-
-function DefineIndexedProperty(array, i, value) {
-  if (FLAG_harmony_species) {
-    var result = ObjectDefineProperty(array, i, {
-      value: value, writable: true, configurable: true, enumerable: true
-    });
-    if (!result) throw MakeTypeError(kStrictCannotAssign, i);
-  } else {
-    AddIndexedProperty(array, i, value);
-  }
-}
 
 function KeySortCompare(a, b) {
   return a - b;
@@ -265,7 +252,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     for (var i = start_i; i < limit; ++i) {
       var current = array[i];
       if (!IS_UNDEFINED(current) || i in array) {
-        DefineIndexedProperty(deleted_elements, i - start_i, current);
+        %CreateDataProperty(deleted_elements, i - start_i, current);
       }
     }
   } else {
@@ -275,7 +262,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
       if (key >= start_i) {
         var current = array[key];
         if (!IS_UNDEFINED(current) || key in array) {
-          DefineIndexedProperty(deleted_elements, key - start_i, current);
+          %CreateDataProperty(deleted_elements, key - start_i, current);
         }
       }
     }
@@ -352,7 +339,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
     var index = start_i + i;
     if (HAS_INDEX(array, index, is_array)) {
       var current = array[index];
-      DefineIndexedProperty(deleted_elements, i, current);
+      %CreateDataProperty(deleted_elements, i, current);
     }
   }
 }
@@ -1211,7 +1198,7 @@ function InnerArrayFilter(f, receiver, array, length, result) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       if (%_Call(f, receiver, element, i, array)) {
-        DefineIndexedProperty(result, result_length, element);
+        %CreateDataProperty(result, result_length, element);
         result_length++;
       }
     }
@@ -1331,7 +1318,7 @@ function ArrayMap(f, receiver) {
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
-      DefineIndexedProperty(result, i, %_Call(f, receiver, element, i, array));
+      %CreateDataProperty(result, i, %_Call(f, receiver, element, i, array));
     }
   }
   return result;
@@ -1736,17 +1723,6 @@ function ArrayIncludes(searchElement, fromIndex) {
 }
 
 
-function AddArrayElement(constructor, array, i, value) {
-  if (constructor === GlobalArray) {
-    AddIndexedProperty(array, i, value);
-  } else {
-    ObjectDefineProperty(array, i, {
-      value: value, writable: true, configurable: true, enumerable: true
-    });
-  }
-}
-
-
 // ES6, draft 10-14-14, section 22.1.2.1
 function ArrayFrom(arrayLike, mapfn, receiver) {
   var items = TO_OBJECT(arrayLike);
@@ -1775,7 +1751,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      AddArrayElement(this, result, k, mappedValue);
+      %CreateDataProperty(result, k, mappedValue);
       k++;
     }
     result.length = k;
@@ -1791,7 +1767,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       } else {
         mappedValue = nextValue;
       }
-      AddArrayElement(this, result, k, mappedValue);
+      %CreateDataProperty(result, k, mappedValue);
     }
 
     result.length = k;
@@ -1807,7 +1783,7 @@ function ArrayOf(...args) {
   // TODO: Implement IsConstructor (ES6 section 7.2.5)
   var array = %IsConstructor(constructor) ? new constructor(length) : [];
   for (var i = 0; i < length; i++) {
-    AddArrayElement(constructor, array, i, args[i]);
+    %CreateDataProperty(array, i, args[i]);
   }
   array.length = length;
   return array;
