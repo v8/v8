@@ -946,6 +946,31 @@
               }],
             ],
           },
+          'conditions': [
+            ['clang==1', {
+              'VCCLCompilerTool': {
+                'AdditionalOptions': [
+                  # Don't warn about unused function parameters.
+                  # (This is also used on other platforms.)
+                  '-Wno-unused-parameter',
+                  # Don't warn about the "struct foo f = {0};" initialization
+                  # pattern.
+                  '-Wno-missing-field-initializers',
+
+                  # Many files use intrinsics without including this header.
+                  # TODO(hans): Fix those files, or move this to sub-GYPs.
+                  '/FIIntrin.h',
+
+                  # TODO(hans): Make this list shorter eventually, http://crbug.com/504657
+                  '-Wno-microsoft-enum-value',  # http://crbug.com/505296
+                  '-Wno-unknown-pragmas',  # http://crbug.com/505314
+                  '-Wno-microsoft-cast',  # http://crbug.com/550065
+
+                  '-fmsc-version=1900',
+                ],
+              },
+            }],
+          ],
         },
       },
     }],  # OS=="win"
