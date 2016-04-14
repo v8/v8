@@ -1547,15 +1547,13 @@ Node* CodeStubAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
-Node* CodeStubAssembler::TailCall(
-    const CallInterfaceDescriptor& interface_descriptor, Node* code_target,
-    Node** args, size_t result_size) {
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+Node* CodeStubAssembler::TailCallBytecodeDispatch(
+    const CallInterfaceDescriptor& interface_descriptor,
+    Node* code_target_address, Node** args) {
+  CallDescriptor* descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
       isolate(), zone(), interface_descriptor,
-      interface_descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-  return raw_assembler_->TailCallN(descriptor, code_target, args);
+      interface_descriptor.GetStackParameterCount());
+  return raw_assembler_->TailCallN(descriptor, code_target_address, args);
 }
 
 void CodeStubAssembler::Goto(CodeStubAssembler::Label* label) {

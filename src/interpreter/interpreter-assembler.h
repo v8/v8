@@ -137,8 +137,6 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   void Dispatch();
 
   // Dispatch to bytecode handler.
-  void DispatchToBytecodeHandler(compiler::Node* handler,
-                                 compiler::Node* bytecode_offset);
   void DispatchToBytecodeHandler(compiler::Node* handler) {
     DispatchToBytecodeHandler(handler, BytecodeOffset());
   }
@@ -216,6 +214,14 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
 
   // Starts next instruction dispatch at |new_bytecode_offset|.
   void DispatchTo(compiler::Node* new_bytecode_offset);
+
+  // Dispatch to the bytecode handler with code offset |handler|.
+  void DispatchToBytecodeHandler(compiler::Node* handler,
+                                 compiler::Node* bytecode_offset);
+
+  // Dispatch to the bytecode handler with code entry point |handler_entry|.
+  void DispatchToBytecodeHandlerEntry(compiler::Node* handler_entry,
+                                      compiler::Node* bytecode_offset);
 
   // Abort operations for debug code.
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,

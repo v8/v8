@@ -54,7 +54,7 @@ void Interpreter::Initialize() {
       Do##Name(&assembler);                                                    \
       Handle<Code> code = assembler.GenerateCode();                            \
       size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
-      dispatch_table_[index] = *code;                                          \
+      dispatch_table_[index] = code->entry();                                  \
       TraceCodegen(code);                                                      \
       LOG_CODE_EVENT(                                                          \
           isolate_,                                                            \
@@ -82,7 +82,8 @@ Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
   DCHECK(IsDispatchTableInitialized());
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  return dispatch_table_[index];
+  Address code_entry = dispatch_table_[index];
+  return Code::GetCodeFromTargetAddress(code_entry);
 }
 
 // static
@@ -99,9 +100,17 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
 }
 
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
-  v->VisitPointers(
-      reinterpret_cast<Object**>(&dispatch_table_[0]),
-      reinterpret_cast<Object**>(&dispatch_table_[0] + kDispatchTableSize));
+  for (int i = 0; i < kDispatchTableSize; i++) {
+    Address code_entry = dispatch_table_[i];
+    Object* code = code_entry == nullptr
+                       ? nullptr
+                       : Code::GetCodeFromTargetAddress(code_entry);
+    Object* old_code = code;
+    v->VisitPointer(&code);
+    if (code != old_code) {
+      dispatch_table_[i] = reinterpret_cast<Code*>(code)->entry();
+    }
+  }
 }
 
 // static
@@ -179,9 +188,10 @@ void Interpreter::TraceCodegen(Handle<Code> code) {
 
 const char* Interpreter::LookupNameOfBytecodeHandler(Code* code) {
 #ifdef ENABLE_DISASSEMBLER
-#define RETURN_NAME(Name, ...)                                         \
-  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code) { \
-    return #Name;                                                      \
+#define RETURN_NAME(Name, ...)                                 \
+  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == \
+      code->entry()) {                                         \
+    return #Name;                                              \
   }
   BYTECODE_LIST(RETURN_NAME)
 #undef RETURN_NAME

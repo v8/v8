@@ -1047,9 +1047,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                          kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x1, LSL, kPointerSizeLog2));
   __ Ldr(ip0, MemOperand(kInterpreterDispatchTableRegister, x1));
-  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
-  // and header removal.
-  __ Add(ip0, ip0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Call(ip0);
 
   // Even though the first bytecode handler was called, we will never return.
@@ -1123,7 +1120,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
                          kInterpreterBytecodeOffsetRegister));
   __ Mov(x1, Operand(x1, LSL, kPointerSizeLog2));
   __ Ldr(ip0, MemOperand(kInterpreterDispatchTableRegister, x1));
-  __ Add(ip0, ip0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(ip0);
 }
 

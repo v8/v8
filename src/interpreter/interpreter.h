@@ -146,7 +146,7 @@ class Interpreter {
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);
 
   Isolate* isolate_;
-  Code* dispatch_table_[kDispatchTableSize];
+  Address dispatch_table_[kDispatchTableSize];
   v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_count_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);

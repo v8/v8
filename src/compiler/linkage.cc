@@ -404,6 +404,55 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.DebugName(isolate));
 }
 
+CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
+    Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+    int stack_parameter_count) {
+  const int register_parameter_count = descriptor.GetRegisterParameterCount();
+  const int parameter_count = register_parameter_count + stack_parameter_count;
+  const int context_count = 1;
+  const size_t parameter_and_context_count =
+      static_cast<size_t>(parameter_count + context_count);
+
+  LocationSignature::Builder locations(zone, 0, parameter_and_context_count);
+  MachineSignature::Builder types(zone, 0, parameter_and_context_count);
+
+  // Add parameters in registers and on the stack.
+  for (int i = 0; i < parameter_count; i++) {
+    if (i < register_parameter_count) {
+      // The first parameters go in registers.
+      Register reg = descriptor.GetRegisterParameter(i);
+      Representation rep =
+          RepresentationFromType(descriptor.GetParameterType(i));
+      locations.AddParam(regloc(reg));
+      types.AddParam(reptyp(rep));
+    } else {
+      // The rest of the parameters go on the stack.
+      int stack_slot = i - register_parameter_count - stack_parameter_count;
+      locations.AddParam(LinkageLocation::ForCallerFrameSlot(stack_slot));
+      types.AddParam(MachineType::AnyTagged());
+    }
+  }
+  // Add context.
+  locations.AddParam(regloc(kContextRegister));
+  types.AddParam(MachineType::AnyTagged());
+
+  // The target for interpreter dispatches is a code entry address.
+  MachineType target_type = MachineType::Pointer();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  return new (zone) CallDescriptor(            // --
+      CallDescriptor::kCallAddress,            // kind
+      target_type,                             // target MachineType
+      target_loc,                              // target location
+      types.Build(),                           // machine_sig
+      locations.Build(),                       // location_sig
+      stack_parameter_count,                   // stack_parameter_count
+      Operator::kNoProperties,                 // properties
+      kNoCalleeSaved,                          // callee-saved registers
+      kNoCalleeSaved,                          // callee-saved fp
+      CallDescriptor::kCanUseRoots |           // flags
+          CallDescriptor::kSupportsTailCalls,  // flags
+      descriptor.DebugName(isolate));
+}
 
 LinkageLocation Linkage::GetOsrValueLocation(int index) const {
   CHECK(incoming_->IsJSFunctionCall());

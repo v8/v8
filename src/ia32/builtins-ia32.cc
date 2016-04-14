@@ -612,9 +612,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(rmcilroy): Remove this once we move the dispatch table back into a
   // register.
   __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
-  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
-  // and header removal.
-  __ add(ebx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(ebx);
 
   // Even though the first bytecode handler was called, we will never return.
@@ -782,10 +779,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ mov(kContextRegister,
          Operand(kInterpreterRegisterFileRegister,
                  InterpreterFrameConstants::kContextFromRegisterPointer));
-
-  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
-  // and header removal.
-  __ add(ebx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(ebx);
 }
 

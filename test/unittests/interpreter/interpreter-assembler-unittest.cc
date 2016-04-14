@@ -464,10 +464,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
 
     Handle<HeapObject> exit_trampoline =
         isolate()->builtins()->InterpreterExitTrampoline();
+    Matcher<Node*> exit_trampoline_entry_matcher =
+        IsIntPtrAdd(IsHeapConstant(exit_trampoline),
+                    IsIntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
     EXPECT_THAT(
         tail_call_node,
         IsTailCall(
-            _, IsHeapConstant(exit_trampoline),
+            _, exit_trampoline_entry_matcher,
             IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
             IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
             IsParameter(

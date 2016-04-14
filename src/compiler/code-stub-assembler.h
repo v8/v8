@@ -263,13 +263,12 @@ class CodeStubAssembler {
 
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      Node* arg2, size_t result_size = 1);
-
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2,
                      size_t result_size = 1);
 
-  Node* TailCall(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node** args, size_t result_size = 1);
+  Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
+                                 Node* code_target_address, Node** args);
 
   // ===========================================================================
   // Macros

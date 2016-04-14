@@ -1019,9 +1019,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ lbu(a0, MemOperand(a0));
   __ Dlsa(at, kInterpreterDispatchTableRegister, a0, kPointerSizeLog2);
   __ ld(at, MemOperand(at));
-  // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
-  // and header removal.
-  __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Call(at);
 
   // Even though the first bytecode handler was called, we will never return.
@@ -1161,7 +1158,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ lbu(a1, MemOperand(a1));
   __ Dlsa(a1, kInterpreterDispatchTableRegister, a1, kPointerSizeLog2);
   __ ld(a1, MemOperand(a1));
-  __ Daddu(a1, a1, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(a1);
 }
 

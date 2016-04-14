@@ -823,7 +823,8 @@ class Instruction final {
     return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
            arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
            arch_opcode() == ArchOpcode::kArchTailCallJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction;
+           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction ||
+           arch_opcode() == ArchOpcode::kArchTailCallAddress;
   }
   bool IsThrow() const {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;

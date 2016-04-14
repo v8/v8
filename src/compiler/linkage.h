@@ -304,10 +304,11 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // representing the architecture-specific location. The following call node
 // layouts are supported (where {n} is the number of value inputs):
 //
-//                  #0          #1     #2     #3     [...]             #n
-// Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...], new, #arg, context
-// Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
+//                        #0          #1     #2     [...]             #n
+// Call[CodeStub]         code,       arg 1, arg 2, [...],            context
+// Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
+// Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
+// Call[BytecodeDispatch] address,    arg 1, arg 2, [...],            context
 class Linkage : public ZoneObject {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
@@ -331,6 +332,10 @@ class Linkage : public ZoneObject {
       Operator::Properties properties = Operator::kNoProperties,
       MachineType return_type = MachineType::AnyTagged(),
       size_t return_count = 1);
+
+  static CallDescriptor* GetBytecodeDispatchCallDescriptor(
+      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      int stack_parameter_count);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports

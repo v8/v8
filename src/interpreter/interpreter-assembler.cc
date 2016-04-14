@@ -559,17 +559,22 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
     TraceBytecodeDispatch(target_bytecode);
   }
 
-  // TODO(rmcilroy): Create a code target dispatch table to avoid conversion
-  // from code object on every dispatch.
-  Node* target_code_object =
+  Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            WordShl(target_bytecode, IntPtrConstant(kPointerSizeLog2)));
 
-  DispatchToBytecodeHandler(target_code_object, new_bytecode_offset);
+  DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset);
 }
 
 void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
                                                      Node* bytecode_offset) {
+  Node* handler_entry =
+      IntPtrAdd(handler, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+  DispatchToBytecodeHandlerEntry(handler_entry, bytecode_offset);
+}
+
+void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
+    Node* handler_entry, Node* bytecode_offset) {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
   }
@@ -578,7 +583,7 @@ void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
   Node* args[] = {GetAccumulatorUnchecked(), RegisterFileRawPointer(),
                   bytecode_offset,           BytecodeArrayTaggedPointer(),
                   DispatchTableRawPointer(), GetContext()};
-  TailCall(descriptor, handler, args, 0);
+  TailCallBytecodeDispatch(descriptor, handler_entry, args);
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -613,11 +618,11 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
       base_index = nullptr;
   }
   Node* target_index = IntPtrAdd(base_index, next_bytecode);
-  Node* target_code_object =
+  Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            WordShl(target_index, kPointerSizeLog2));
 
-  DispatchToBytecodeHandler(target_code_object, next_bytecode_offset);
+  DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
 }
 
 void InterpreterAssembler::InterpreterReturn() {
