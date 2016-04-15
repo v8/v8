@@ -500,8 +500,8 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   // Save caller-saved registers.  js_function and code_entry are in the
   // caller-saved register list.
   DCHECK(kJSCallerSaved & js_function.bit());
-  DCHECK(kJSCallerSaved & code_entry.bit());
-  MultiPush(kJSCallerSaved | r14.bit());
+  // DCHECK(kJSCallerSaved & code_entry.bit());
+  MultiPush(kJSCallerSaved | code_entry.bit() | r14.bit());
 
   int argument_count = 3;
   PrepareCallCFunction(argument_count, code_entry);
@@ -519,7 +519,7 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   }
 
   // Restore caller-saved registers (including js_function and code_entry).
-  MultiPop(kJSCallerSaved | r14.bit());
+  MultiPop(kJSCallerSaved | code_entry.bit() | r14.bit());
 
   bind(&done);
 }
@@ -4974,6 +4974,14 @@ void MacroAssembler::LoadB(Register dst, const MemOperand& mem) {
   lgb(dst, mem);
 #else
   lb(dst, mem);
+#endif
+}
+
+void MacroAssembler::LoadB(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  lgbr(dst, src);
+#else
+  lbr(dst, src);
 #endif
 }
 

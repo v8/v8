@@ -1214,6 +1214,146 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r2 : argument count (preserved for callee)
+  //  -- r5 : new target (preserved for callee)
+  //  -- r3 : target function (preserved for callee)
+  // -----------------------------------
+  // First lookup code, maybe we don't need to compile!
+  Label gotta_call_runtime;
+  Label maybe_call_runtime;
+  Label try_shared;
+  Label loop_top, loop_bottom;
+
+  Register closure = r3;
+  Register map = r8;
+  Register index = r4;
+  __ LoadP(map,
+           FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(map,
+           FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
+  __ LoadP(index, FieldMemOperand(map, FixedArray::kLengthOffset));
+  __ CmpSmiLiteral(index, Smi::FromInt(2), r0);
+  __ blt(&gotta_call_runtime);
+
+  // Find literals.
+  // r9 : native context
+  // r4  : length / index
+  // r8  : optimized code map
+  // r5  : new target
+  // r3  : closure
+  Register native_context = r9;
+  __ LoadP(native_context, NativeContextMemOperand());
+
+  __ bind(&loop_top);
+  Register temp = r1;
+  Register array_pointer = r7;
+
+  // Does the native context match?
+  __ SmiToPtrArrayOffset(array_pointer, index);
+  __ AddP(array_pointer, map, array_pointer);
+  __ LoadP(temp, FieldMemOperand(array_pointer,
+                                 SharedFunctionInfo::kOffsetToPreviousContext));
+  __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
+  __ CmpP(temp, native_context);
+  __ bne(&loop_bottom, Label::kNear);
+  // OSR id set to none?
+  __ LoadP(temp,
+           FieldMemOperand(array_pointer,
+                           SharedFunctionInfo::kOffsetToPreviousOsrAstId));
+  const int bailout_id = BailoutId::None().ToInt();
+  __ CmpSmiLiteral(temp, Smi::FromInt(bailout_id), r0);
+  __ bne(&loop_bottom, Label::kNear);
+  // Literals available?
+  __ LoadP(temp,
+           FieldMemOperand(array_pointer,
+                           SharedFunctionInfo::kOffsetToPreviousLiterals));
+  __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
+  __ JumpIfSmi(temp, &gotta_call_runtime);
+
+  // Save the literals in the closure.
+  __ StoreP(temp, FieldMemOperand(closure, JSFunction::kLiteralsOffset), r0);
+  __ RecordWriteField(closure, JSFunction::kLiteralsOffset, temp, r6,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+
+  // Code available?
+  Register entry = r6;
+  __ LoadP(entry,
+           FieldMemOperand(array_pointer,
+                           SharedFunctionInfo::kOffsetToPreviousCachedCode));
+  __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
+  __ JumpIfSmi(entry, &maybe_call_runtime);
+
+  // Found literals and code. Get them into the closure and return.
+  // Store code entry in the closure.
+  __ AddP(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  Label install_optimized_code_and_tailcall;
+  __ bind(&install_optimized_code_and_tailcall);
+  __ StoreP(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset), r0);
+  __ RecordWriteCodeEntryField(closure, entry, r7);
+
+  // Link the closure into the optimized function list.
+  // r6 : code entry
+  // r9: native context
+  // r3 : closure
+  __ LoadP(
+      r7, ContextMemOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST));
+  __ StoreP(r7, FieldMemOperand(closure, JSFunction::kNextFunctionLinkOffset),
+            r0);
+  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, r7, temp,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  const int function_list_offset =
+      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST);
+  __ StoreP(
+      closure,
+      ContextMemOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST), r0);
+  // Save closure before the write barrier.
+  __ LoadRR(r7, closure);
+  __ RecordWriteContextSlot(native_context, function_list_offset, r7, temp,
+                            kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ JumpToJSEntry(entry);
+
+  __ bind(&loop_bottom);
+  __ SubSmiLiteral(index, index, Smi::FromInt(SharedFunctionInfo::kEntryLength),
+                   r0);
+  __ CmpSmiLiteral(index, Smi::FromInt(1), r0);
+  __ bgt(&loop_top);
+
+  // We found neither literals nor code.
+  __ b(&gotta_call_runtime);
+
+  __ bind(&maybe_call_runtime);
+
+  // Last possibility. Check the context free optimized code map entry.
+  __ LoadP(entry,
+           FieldMemOperand(map, FixedArray::kHeaderSize +
+                                    SharedFunctionInfo::kSharedCodeIndex));
+  __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
+  __ JumpIfSmi(entry, &try_shared);
+
+  // Store code entry in the closure.
+  __ AddP(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ b(&install_optimized_code_and_tailcall);
+
+  __ bind(&try_shared);
+  // Is the full code valid?
+  __ LoadP(entry,
+           FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
+  __ LoadlW(r7, FieldMemOperand(entry, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(r7);
+  __ CmpP(r7, Operand(Code::BUILTIN));
+  __ beq(&gotta_call_runtime);
+  // Yes, install the full code.
+  __ AddP(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ StoreP(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset), r0);
+  __ RecordWriteCodeEntryField(closure, entry, r7);
+  __ JumpToJSEntry(entry);
+
+  __ bind(&gotta_call_runtime);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 }
 
