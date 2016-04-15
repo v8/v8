@@ -794,10 +794,6 @@
   # objects.
   'es6/mirror-collections': [FAIL],
 
-  # TODO(mythria, 4904): Parser bug. It creates incorrectly nested scopes
-  # for do expressions in arrow functions.
-  'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
-
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
   # eager compile of the whole script instead of during lazy compile of the function
   # f(), so we can't catch the exception in the try/catch. Skip because on some
