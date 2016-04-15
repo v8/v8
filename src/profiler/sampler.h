@@ -92,6 +92,11 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return base::NoBarrier_Load(&active_); }
 
+  // CpuProfiler collects samples by calling DoSample directly
+  // without calling Start. To keep it working, we register the sampler
+  // with the CpuProfiler.
+  bool IsRegistered() const { return base::NoBarrier_Load(&registered_); }
+
   void DoSample();
   // If true next sample must be initiated on the profiler event processor
   // thread right after latest sample is processed.
@@ -119,11 +124,14 @@ class Sampler {
  private:
   void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
 
+  void SetRegistered(bool value) { base::NoBarrier_Store(&registered_, value); }
+
   Isolate* isolate_;
   const int interval_;
   base::Atomic32 profiling_;
   base::Atomic32 has_processing_thread_;
   base::Atomic32 active_;
+  base::Atomic32 registered_;
   PlatformData* data_;  // Platform specific data.
   // Counts stack samples taken in various VM states.
   bool is_counting_samples_;
