@@ -282,7 +282,7 @@ class DisassemblerIA32 {
   bool vex_128() {
     DCHECK(vex_byte0_ == 0xc4 || vex_byte0_ == 0xc5);
     byte checked = vex_byte0_ == 0xc4 ? vex_byte2_ : vex_byte1_;
-    return (checked & 4) != 1;
+    return (checked & 4) == 0;
   }
 
   bool vex_none() {
