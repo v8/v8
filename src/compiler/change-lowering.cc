@@ -175,12 +175,9 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
   Type* const value_type = NodeProperties::GetType(value);
   Node* const value32 = graph()->NewNode(
       machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
-  // TODO(bmeurer): This fast case must be disabled until we kill the asm.js
-  // support in the generic JavaScript pipeline, because LoadBuffer is lying
-  // about its result.
-  // if (value_type->Is(Type::Signed32())) {
-  //   return ChangeInt32ToTagged(value32, control);
-  // }
+  if (value_type->Is(Type::Signed32())) {
+    return ChangeInt32ToTagged(value32, control);
+  }
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
