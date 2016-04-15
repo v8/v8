@@ -523,11 +523,6 @@ Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
   return Load(MachineType::AnyTagged(), object, offset);
 }
 
-Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
-  return Load(MachineType::Uint8(), map,
-              IntPtrConstant(Map::kInstanceSizeOffset - kHeapObjectTag));
-}
-
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
                                                        Node* smi_index,
                                                        int additional_offset) {
@@ -707,10 +702,6 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
 
   return AllocateRawUnaligned(IntPtrConstant(size_in_bytes), flags, top_address,
                               limit_address);
-}
-
-Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
-  return IntPtrAdd(previous, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber() {

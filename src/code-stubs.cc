@@ -3623,82 +3623,6 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
                              slot, vector);
 }
 
-void FastCloneShallowObjectStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  Label call_runtime(assembler);
-  Node* closure = assembler->Parameter(0);
-  Node* literals_index = assembler->Parameter(1);
-
-  Node* undefined = assembler->UndefinedConstant();
-  Node* literals_array =
-      assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* allocation_site = assembler->LoadFixedArrayElementSmiIndex(
-      literals_array, literals_index,
-      LiteralsArray::kFirstLiteralIndex * kPointerSize);
-  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    &call_runtime);
-
-  Node* boilerplate = assembler->LoadObjectField(
-      allocation_site, AllocationSite::kTransitionInfoOffset);
-
-  int length = this->length();
-  if (length == 0) {
-    length = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
-  }
-  int size = JSObject::kHeaderSize + length * kPointerSize;
-  int object_size = size;
-  if (FLAG_allocation_site_pretenuring) {
-    size += AllocationMemento::kSize;
-  }
-
-  Node* boilerplate_map = assembler->LoadMap(boilerplate);
-  Node* instance_size = assembler->LoadMapInstanceSize(boilerplate_map);
-  Node* size_in_words =
-      assembler->Int32Constant(object_size >> kPointerSizeLog2);
-  assembler->GotoUnless(assembler->Word32Equal(instance_size, size_in_words),
-                        &call_runtime);
-
-  Node* copy = assembler->Allocate(size);
-
-  for (int i = 0; i < size; i += kPointerSize) {
-    // The Allocate above guarantees that the copy lies in new space. This
-    // allows us to skip write barriers. This is necessary since we may also be
-    // copying unboxed doubles.
-    Node* field =
-        assembler->LoadObjectField(boilerplate, i, MachineType::IntPtr());
-    assembler->StoreObjectFieldNoWriteBarrier(
-        copy, i, field, MachineType::PointerRepresentation());
-  }
-
-  if (FLAG_allocation_site_pretenuring) {
-    Node* memento = assembler->InnerAllocate(copy, object_size);
-    assembler->StoreObjectFieldNoWriteBarrier(
-        memento, HeapObject::kMapOffset,
-        assembler->LoadRoot(Heap::kAllocationMementoMapRootIndex));
-    assembler->StoreObjectFieldNoWriteBarrier(
-        memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
-    Node* memento_create_count = assembler->LoadObjectField(
-        allocation_site, AllocationSite::kPretenureCreateCountOffset);
-    memento_create_count = assembler->SmiAdd(
-        memento_create_count, assembler->SmiConstant(Smi::FromInt(1)));
-    assembler->StoreObjectFieldNoWriteBarrier(
-        allocation_site, AllocationSite::kPretenureCreateCountOffset,
-        memento_create_count);
-  }
-
-  // TODO(verwaest): Allocate and fill in double boxes.
-  assembler->Return(copy);
-
-  assembler->Bind(&call_runtime);
-  Node* constant_properties = assembler->Parameter(2);
-  Node* flags = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
-  assembler->TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                             literals_index, constant_properties, flags);
-}
-
 template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a
@@ -3838,6 +3762,14 @@ void FastCloneShallowArrayStub::InitializeDescriptor(
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
+}
+
+
+void FastCloneShallowObjectStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  FastCloneShallowObjectDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
