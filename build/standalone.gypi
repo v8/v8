@@ -389,12 +389,14 @@
   'target_defaults': {
     'variables': {
       'v8_code%': '<(v8_code)',
+      'clang_warning_flags': [],
       'conditions':[
         ['OS=="android"', {
           'host_os%': '<(host_os)',
         }],
       ],
     },
+    'includes': [ 'set_clang_warning_flags.gypi', ],
     'default_configuration': 'Debug',
     'configurations': {
       'DebugBaseCommon': {
@@ -957,10 +959,23 @@
                   '/FIIntrin.h',
 
                   # TODO(hans): Make this list shorter eventually, http://crbug.com/504657
+                  '-Qunused-arguments',  # http://crbug.com/504658
                   '-Wno-microsoft-enum-value',  # http://crbug.com/505296
                   '-Wno-unknown-pragmas',  # http://crbug.com/505314
                   '-Wno-microsoft-cast',  # http://crbug.com/550065
-
+                ],
+              },
+            }],
+            ['clang==1 and MSVS_VERSION == "2013"', {
+              'VCCLCompilerTool': {
+                'AdditionalOptions': [
+                  '-fmsc-version=1800',
+                ],
+              },
+            }],
+            ['clang==1 and MSVS_VERSION == "2015"', {
+              'VCCLCompilerTool': {
+                'AdditionalOptions': [
                   '-fmsc-version=1900',
                 ],
               },
