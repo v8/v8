@@ -33,13 +33,11 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       operand_scale_(operand_scale),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
-      context_(this, MachineRepresentation::kTagged),
       bytecode_array_(this, MachineRepresentation::kTagged),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
   accumulator_.Bind(
       Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
-  context_.Bind(Parameter(InterpreterDispatchDescriptor::kContextParameter));
   bytecode_array_.Bind(
       Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter));
   if (FLAG_trace_ignition) {
@@ -70,11 +68,12 @@ void InterpreterAssembler::SetAccumulator(Node* value) {
   accumulator_.Bind(value);
 }
 
-Node* InterpreterAssembler::GetContext() { return context_.value(); }
+Node* InterpreterAssembler::GetContext() {
+  return LoadRegister(Register::current_context());
+}
 
 void InterpreterAssembler::SetContext(Node* value) {
   StoreRegister(value, Register::current_context());
-  context_.Bind(value);
 }
 
 Node* InterpreterAssembler::BytecodeOffset() {
@@ -103,7 +102,7 @@ Node* InterpreterAssembler::LoadRegister(int offset) {
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return LoadRegister(IntPtrConstant(-reg.index()));
+  return LoadRegister(-reg.index() << kPointerSizeLog2);
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
@@ -581,8 +580,8 @@ void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
 
   InterpreterDispatchDescriptor descriptor(isolate());
   Node* args[] = {GetAccumulatorUnchecked(), RegisterFileRawPointer(),
-                  bytecode_offset,           BytecodeArrayTaggedPointer(),
-                  DispatchTableRawPointer(), GetContext()};
+                  bytecode_offset, BytecodeArrayTaggedPointer(),
+                  DispatchTableRawPointer()};
   TailCallBytecodeDispatch(descriptor, handler_entry, args);
 }
 

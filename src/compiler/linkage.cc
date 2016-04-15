@@ -409,12 +409,9 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
     int stack_parameter_count) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int parameter_count = register_parameter_count + stack_parameter_count;
-  const int context_count = 1;
-  const size_t parameter_and_context_count =
-      static_cast<size_t>(parameter_count + context_count);
 
-  LocationSignature::Builder locations(zone, 0, parameter_and_context_count);
-  MachineSignature::Builder types(zone, 0, parameter_and_context_count);
+  LocationSignature::Builder locations(zone, 0, parameter_count);
+  MachineSignature::Builder types(zone, 0, parameter_count);
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < parameter_count; i++) {
@@ -432,9 +429,6 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       types.AddParam(MachineType::AnyTagged());
     }
   }
-  // Add context.
-  locations.AddParam(regloc(kContextRegister));
-  types.AddParam(MachineType::AnyTagged());
 
   // The target for interpreter dispatches is a code entry address.
   MachineType target_type = MachineType::Pointer();

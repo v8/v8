@@ -346,8 +346,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
             next_bytecode_offset_matcher,
             IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
             IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-            IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-            _));
+            _, _));
   }
 }
 
@@ -390,8 +389,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
               next_bytecode_offset_matcher, _,
               IsParameter(
                   InterpreterDispatchDescriptor::kDispatchTableParameter),
-              IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-              _));
+              _, _));
     }
   }
 }
@@ -441,8 +439,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
               next_bytecode_offset_matcher, _,
               IsParameter(
                   InterpreterDispatchDescriptor::kDispatchTableParameter),
-              IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-              _));
+              _, _));
     }
 
     // TODO(oth): test control flow paths.
@@ -477,8 +474,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
                 InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
             _,
             IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-            IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-            _));
+            _, _));
   }
 }
 
@@ -570,12 +566,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, GetSetContext) {
+TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    Node* context_node = m.Int32Constant(100);
-    m.SetContext(context_node);
-    EXPECT_THAT(m.GetContext(), context_node);
+    EXPECT_THAT(
+        m.GetContext(),
+        m.IsLoad(
+            MachineType::AnyTagged(),
+            IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
+            IsIntPtrConstant(-Register::current_context().index()
+                             << kPointerSizeLog2)));
   }
 }
 

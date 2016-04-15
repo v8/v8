@@ -308,7 +308,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Call[CodeStub]         code,       arg 1, arg 2, [...],            context
 // Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
 // Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
-// Call[BytecodeDispatch] address,    arg 1, arg 2, [...],            context
+// Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class Linkage : public ZoneObject {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}

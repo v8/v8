@@ -600,21 +600,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ mov(ebx, Immediate(ExternalReference::interpreter_dispatch_table_address(
-                  masm->isolate())));
-
-  // Push dispatch table as a stack located parameter to the bytecode handler.
-  DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
-  __ push(ebx);
+  __ mov(kInterpreterDispatchTableRegister,
+         Immediate(ExternalReference::interpreter_dispatch_table_address(
+             masm->isolate())));
 
   // Dispatch to the first bytecode handler for the function.
-  __ movzx_b(eax, Operand(kInterpreterBytecodeArrayRegister,
+  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(ebx, Operand(ebx, eax, times_pointer_size, 0));
-  // Restore undefined_value in accumulator (eax)
-  // TODO(rmcilroy): Remove this once we move the dispatch table back into a
-  // register.
-  __ mov(eax, Immediate(masm->isolate()->factory()->undefined_value()));
+  __ mov(ebx, Operand(kInterpreterDispatchTableRegister, ebx,
+                      times_pointer_size, 0));
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.
   __ add(ebx, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -743,10 +737,13 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
 
 
 static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
-  // Initialize register file register.
+  // Initialize register file register and dispatch table register.
   __ mov(kInterpreterRegisterFileRegister, ebp);
   __ add(kInterpreterRegisterFileRegister,
          Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
+  __ mov(kInterpreterDispatchTableRegister,
+         Immediate(ExternalReference::interpreter_dispatch_table_address(
+             masm->isolate())));
 
   // Get the bytecode array pointer from the frame.
   __ mov(kInterpreterBytecodeArrayRegister,
@@ -768,23 +765,11 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
               InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  // Push dispatch table as a stack located parameter to the bytecode handler.
-  __ mov(ebx, Immediate(ExternalReference::interpreter_dispatch_table_address(
-                  masm->isolate())));
-  DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
-  __ Pop(esi);
-  __ Push(ebx);
-  __ Push(esi);
-
   // Dispatch to the target bytecode.
-  __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
+  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(ebx, Operand(ebx, esi, times_pointer_size, 0));
-
-  // Get the context from the frame.
-  __ mov(kContextRegister,
-         Operand(kInterpreterRegisterFileRegister,
-                 InterpreterFrameConstants::kContextFromRegisterPointer));
+  __ mov(ebx, Operand(kInterpreterDispatchTableRegister, ebx,
+                      times_pointer_size, 0));
 
   // TODO(rmcilroy): Make dispatch table point to code entrys to avoid untagging
   // and header removal.

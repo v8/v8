@@ -1150,11 +1150,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
 
-  // Get the context from the frame.
-  __ LoadP(kContextRegister,
-           MemOperand(kInterpreterRegisterFileRegister,
-                      InterpreterFrameConstants::kContextFromRegisterPointer));
-
   // Get the bytecode array pointer from the frame.
   __ LoadP(
       kInterpreterBytecodeArrayRegister,

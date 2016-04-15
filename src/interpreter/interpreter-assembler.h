@@ -233,7 +233,6 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   OperandScale operand_scale_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
-  CodeStubAssembler::Variable context_;
   CodeStubAssembler::Variable bytecode_array_;
 
   bool disable_stack_check_across_call_;
