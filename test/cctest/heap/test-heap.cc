@@ -1587,8 +1587,22 @@ TEST(CompilationCacheCachingBehavior) {
     CompileRun(raw_source);
   }
 
-  // The script should be in the cache now.
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
+      source, Handle<Object>(), 0, 0,
+      v8::ScriptOriginOptions(false, true, false), native_context,
+      language_mode);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On second compilation, the hash is replaced by a real cache entry mapping
+  // the source to the shared function info containing the code.
+  info = compilation_cache->LookupScript(
       source, Handle<Object>(), 0, 0,
       v8::ScriptOriginOptions(false, true, false), native_context,
       language_mode);
@@ -1618,6 +1632,36 @@ TEST(CompilationCacheCachingBehavior) {
 
   heap->CollectAllGarbage();
   // Ensure code aging cleared the entry from the cache.
+  info = compilation_cache->LookupScript(
+      source, Handle<Object>(), 0, 0,
+      v8::ScriptOriginOptions(false, true, false), native_context,
+      language_mode);
+  CHECK(info.is_null());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // On first compilation, only a hash is inserted in the code cache. We can't
+  // find that value.
+  info = compilation_cache->LookupScript(
+      source, Handle<Object>(), 0, 0,
+      v8::ScriptOriginOptions(false, true, false), native_context,
+      language_mode);
+  CHECK(info.is_null());
+
+  for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
+    compilation_cache->MarkCompactPrologue();
+  }
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(raw_source);
+  }
+
+  // If we aged the cache before caching the script, ensure that we didn't cache
+  // on next compilation.
   info = compilation_cache->LookupScript(
       source, Handle<Object>(), 0, 0,
       v8::ScriptOriginOptions(false, true, false), native_context,
