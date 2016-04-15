@@ -760,8 +760,6 @@ class RuntimeCallTimerScope {
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
-  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)            \
-  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized)    \
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(string_add_native, V8.StringAddNative)                                    \
   SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
@@ -774,7 +772,6 @@ class RuntimeCallTimerScope {
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
   SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
-  SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \
