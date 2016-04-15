@@ -64,6 +64,7 @@ class ChangeLowering final : public Reducer {
   Reduction ObjectIsNumber(Node* node);
   Reduction ObjectIsReceiver(Node* node);
   Reduction ObjectIsSmi(Node* node);
+  Reduction ObjectIsString(Node* node);
   Reduction ObjectIsUndetectable(Node* node);
 
   Node* ComputeIndex(const ElementAccess& access, Node* const key);

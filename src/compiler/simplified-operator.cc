@@ -193,6 +193,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ObjectIsNumber, Operator::kNoProperties, 1)          \
   V(ObjectIsReceiver, Operator::kNoProperties, 1)        \
   V(ObjectIsSmi, Operator::kNoProperties, 1)             \
+  V(ObjectIsString, Operator::kNoProperties, 1)          \
   V(ObjectIsUndetectable, Operator::kNoProperties, 1)
 
 #define NO_THROW_OP_LIST(V)                 \

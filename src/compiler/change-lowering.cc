@@ -49,12 +49,14 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return StoreElement(node);
     case IrOpcode::kAllocate:
       return Allocate(node);
+    case IrOpcode::kObjectIsNumber:
+      return ObjectIsNumber(node);
     case IrOpcode::kObjectIsReceiver:
       return ObjectIsReceiver(node);
     case IrOpcode::kObjectIsSmi:
       return ObjectIsSmi(node);
-    case IrOpcode::kObjectIsNumber:
-      return ObjectIsNumber(node);
+    case IrOpcode::kObjectIsString:
+      return ObjectIsString(node);
     case IrOpcode::kObjectIsUndetectable:
       return ObjectIsUndetectable(node);
     default:
@@ -753,6 +755,25 @@ Reduction ChangeLowering::ObjectIsSmi(Node* node) {
                                       jsgraph()->IntPtrConstant(kSmiTagMask)));
   node->AppendInput(graph()->zone(), jsgraph()->IntPtrConstant(kSmiTag));
   NodeProperties::ChangeOp(node, machine()->WordEqual());
+  return Changed(node);
+}
+
+Reduction ChangeLowering::ObjectIsString(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Node* check = IsSmi(input);
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(0);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse =
+      graph()->NewNode(machine()->Uint32LessThan(),
+                       LoadMapInstanceType(LoadHeapObjectMap(input, if_false)),
+                       jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
   return Changed(node);
 }
 

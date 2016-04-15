@@ -214,6 +214,7 @@
   V(ObjectIsNumber)                \
   V(ObjectIsReceiver)              \
   V(ObjectIsSmi)                   \
+  V(ObjectIsString)                \
   V(ObjectIsUndetectable)
 
 // Opcodes for Machine-level operators.
