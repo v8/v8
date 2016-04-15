@@ -1482,6 +1482,7 @@ bool NewSpace::AddFreshPage() {
   int remaining_in_page = static_cast<int>(limit - top);
   heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   pages_used_++;
+  allocated_since_last_gc_ += NewSpacePage::kAllocatableMemory;
   UpdateAllocationInfo();
 
   return true;

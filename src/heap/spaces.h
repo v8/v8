@@ -542,6 +542,10 @@ class MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
 
+  static intptr_t OffsetInPage(Address a) {
+    return reinterpret_cast<intptr_t>(a) & kPageAlignmentMask;
+  }
+
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   static inline void UpdateHighWaterMark(Address mark) {
@@ -2582,6 +2586,7 @@ class NewSpace : public Space {
         from_space_(heap, kFromSpace),
         reservation_(),
         pages_used_(0),
+        allocated_since_last_gc_(0),
         top_on_previous_step_(0),
         allocated_histogram_(nullptr),
         promoted_histogram_(nullptr) {}
@@ -2653,42 +2658,7 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
-  size_t AllocatedSinceLastGC() {
-    bool seen_age_mark = false;
-    Address age_mark = to_space_.age_mark();
-    NewSpacePage* current_page = to_space_.first_page();
-    NewSpacePage* age_mark_page = NewSpacePage::FromAddress(age_mark);
-    NewSpacePage* last_page = NewSpacePage::FromAddress(top() - kPointerSize);
-    if (age_mark_page == last_page) {
-      if (top() - age_mark >= 0) {
-        return top() - age_mark;
-      }
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    while (current_page != last_page) {
-      if (current_page == age_mark_page) {
-        seen_age_mark = true;
-        break;
-      }
-      current_page = current_page->next_page();
-    }
-    if (!seen_age_mark) {
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    intptr_t allocated = age_mark_page->area_end() - age_mark;
-    DCHECK_EQ(current_page, age_mark_page);
-    current_page = age_mark_page->next_page();
-    while (current_page != last_page) {
-      allocated += NewSpacePage::kAllocatableMemory;
-      current_page = current_page->next_page();
-    }
-    allocated += top() - current_page->area_start();
-    DCHECK_LE(0, allocated);
-    DCHECK_LE(allocated, Size());
-    return static_cast<size_t>(allocated);
-  }
+  inline size_t AllocatedSinceLastGC();
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -2722,7 +2692,10 @@ class NewSpace : public Space {
   // Get the age mark of the inactive semispace.
   Address age_mark() { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
-  void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
+  void set_age_mark(Address mark) {
+    to_space_.set_age_mark(mark);
+    allocated_since_last_gc_ = 0;
+  }
 
   // The allocation top and limit address.
   Address* allocation_top_address() { return allocation_info_.top_address(); }
@@ -2843,6 +2816,7 @@ class NewSpace : public Space {
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
   int pages_used_;
+  intptr_t allocated_since_last_gc_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.

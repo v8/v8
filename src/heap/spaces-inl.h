@@ -243,6 +243,25 @@ bool NewSpace::FromSpaceContainsSlow(Address a) {
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
+size_t NewSpace::AllocatedSinceLastGC() {
+  const intptr_t age_mark_offset =
+      NewSpacePage::OffsetInPage(to_space_.age_mark());
+  const intptr_t top_offset =
+      NewSpacePage::OffsetInPage(allocation_info_.top());
+  const intptr_t age_mark_delta =
+      age_mark_offset >= NewSpacePage::kObjectStartOffset
+          ? age_mark_offset - NewSpacePage::kObjectStartOffset
+          : NewSpacePage::kAllocatableMemory;
+  const intptr_t top_delta = top_offset >= NewSpacePage::kObjectStartOffset
+                                 ? top_offset - NewSpacePage::kObjectStartOffset
+                                 : NewSpacePage::kAllocatableMemory;
+  DCHECK((allocated_since_last_gc_ > 0) ||
+         (NewSpacePage::FromLimit(allocation_info_.top()) ==
+          NewSpacePage::FromLimit(to_space_.age_mark())));
+  return static_cast<size_t>(allocated_since_last_gc_ + top_delta -
+                             age_mark_delta);
+}
+
 // --------------------------------------------------------------------------
 // AllocationResult
 
