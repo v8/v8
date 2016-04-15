@@ -16860,6 +16860,16 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
       }
     }
   }
+  // Wipe deleted entries.
+  Heap* heap = GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* undefined = heap->undefined_value();
+  for (uint32_t current = 0; current < capacity; current++) {
+    if (get(EntryToIndex(current)) == the_hole) {
+      set(EntryToIndex(current), undefined);
+    }
+  }
+  SetNumberOfDeletedElements(0);
 }
 
 
