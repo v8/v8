@@ -21947,29 +21947,39 @@ THREADED_TEST(Regress260106) {
   CHECK(function->IsFunction());
 }
 
-
 THREADED_TEST(JSONParseObject) {
   LocalContext context;
   HandleScope scope(context->GetIsolate());
   Local<Value> obj =
-      v8::JSON::Parse(context->GetIsolate(), v8_str("{\"x\":42}"))
-          .ToLocalChecked();
+      v8::JSON::Parse(context.local(), v8_str("{\"x\":42}")).ToLocalChecked();
   Local<Object> global = context->Global();
   global->Set(context.local(), v8_str("obj"), obj).FromJust();
   ExpectString("JSON.stringify(obj)", "{\"x\":42}");
 }
 
-
 THREADED_TEST(JSONParseNumber) {
   LocalContext context;
   HandleScope scope(context->GetIsolate());
   Local<Value> obj =
-      v8::JSON::Parse(context->GetIsolate(), v8_str("42")).ToLocalChecked();
+      v8::JSON::Parse(context.local(), v8_str("42")).ToLocalChecked();
   Local<Object> global = context->Global();
   global->Set(context.local(), v8_str("obj"), obj).FromJust();
   ExpectString("JSON.stringify(obj)", "42");
 }
 
+THREADED_TEST(JSONStringifyObject) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> value =
+      v8::JSON::Parse(context.local(), v8_str("{\"x\":42}")).ToLocalChecked();
+  Local<Object> obj = value->ToObject(context.local()).ToLocalChecked();
+  Local<Object> global = context->Global();
+  global->Set(context.local(), v8_str("obj"), obj).FromJust();
+  Local<String> json =
+      v8::JSON::Stringify(context.local(), obj).ToLocalChecked();
+  v8::String::Utf8Value utf8(json);
+  ExpectString("JSON.stringify(obj)", *utf8);
+}
 
 #if V8_OS_POSIX && !V8_OS_NACL
 class ThreadInterruptTest {

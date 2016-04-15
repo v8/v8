@@ -8,6 +8,7 @@
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
+#include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/property-descriptor.h"
 #include "src/runtime/runtime.h"
@@ -225,6 +226,15 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   return value;
 }
 
+MaybeHandle<Object> Runtime::BasicJsonStringify(Isolate* isolate,
+                                                Handle<Object> object) {
+  return BasicJsonStringifier(isolate).Stringify(object);
+}
+
+MaybeHandle<Object> Runtime::BasicJsonStringifyString(Isolate* isolate,
+                                                      Handle<String> string) {
+  return BasicJsonStringifier::StringifyString(isolate, string);
+}
 
 RUNTIME_FUNCTION(Runtime_GetPrototype) {
   HandleScope scope(isolate);

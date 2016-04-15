@@ -1110,6 +1110,12 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
+  MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringify(
+      Isolate* isolate, Handle<Object> object);
+
+  MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringifyString(
+      Isolate* isolate, Handle<String> string);
+
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
     ARRAY_ID_UINT8 = 1,
