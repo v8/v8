@@ -3137,7 +3137,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // we still do it.
   CreateFillerObjectAt(object->address(), bytes_to_trim,
                        ClearRecordedSlots::kYes);
-
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.
@@ -3148,6 +3147,11 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   former_start[new_start_index + 1] = Smi::FromInt(len - elements_to_trim);
   FixedArrayBase* new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
+
+  // Remove recorded slots for the new map and length offset.
+  ClearRecordedSlot(new_object, HeapObject::RawField(object, 0));
+  ClearRecordedSlot(
+      new_object, HeapObject::RawField(object, FixedArrayBase::kLengthOffset));
 
   // Maintain consistency of live bytes during incremental marking
   Marking::TransferMark(this, object->address(), new_start);
