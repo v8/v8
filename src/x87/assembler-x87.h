@@ -288,6 +288,9 @@ class Immediate BASE_EMBEDDED {
   bool is_int16() const {
     return -32768 <= x_ && x_ < 32768 && RelocInfo::IsNone(rmode_);
   }
+  bool is_uint16() const {
+    return v8::internal::is_uint16(x_) && RelocInfo::IsNone(rmode_);
+  }
 
  private:
   inline explicit Immediate(Label* value);
@@ -764,10 +767,18 @@ class Assembler : public AssemblerBase {
   void test(Register reg, const Immediate& imm);
   void test(Register reg0, Register reg1) { test(reg0, Operand(reg1)); }
   void test(Register reg, const Operand& op);
-  void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
+  void test(const Operand& op, Register reg) { test(reg, op); }
+  void test_b(Register reg, const Operand& op);
   void test_b(Register reg, Immediate imm8);
   void test_b(const Operand& op, Immediate imm8);
+  void test_b(const Operand& op, Register reg) { test_b(reg, op); }
+  void test_b(Register dst, Register src) { test_b(dst, Operand(src)); }
+  void test_w(Register reg, const Operand& op);
+  void test_w(Register reg, Immediate imm16);
+  void test_w(const Operand& op, Immediate imm16);
+  void test_w(const Operand& op, Register reg) { test_w(reg, op); }
+  void test_w(Register dst, Register src) { test_w(dst, Operand(src)); }
 
   void xor_(Register dst, int32_t imm32);
   void xor_(Register dst, Register src) { xor_(dst, Operand(src)); }
