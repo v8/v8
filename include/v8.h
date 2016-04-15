@@ -6641,8 +6641,6 @@ class V8_EXPORT V8 {
   static internal::Object** CopyPersistent(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
   typedef WeakCallbackData<Value, void>::Callback WeakCallback;
-  static void RegisterExternallyReferencedObject(internal::Object** object,
-                                                 internal::Isolate* isolate);
   static void MakeWeak(internal::Object** global_handle, void* data,
                        WeakCallback weak_callback);
   static void MakeWeak(internal::Object** global_handle, void* data,
@@ -6659,6 +6657,11 @@ class V8_EXPORT V8 {
                          Value* handle,
                          int* index);
   static Local<Value> GetEternal(Isolate* isolate, int index);
+
+  static void RegisterExternallyReferencedObject(internal::Object** object,
+                                                 internal::Isolate* isolate);
+  template <class K, class V, class T>
+  friend class PersistentValueMapBase;
 
   static void FromJustIsNothing();
   static void ToLocalEmpty();
