@@ -999,13 +999,10 @@ class ElementsAccessorBase : public ElementsAccessor {
                        &array_length) &&
                    array_length <= Smi::kMaxValue)) {
         // Since we use std::sort above, the GC will no longer know where the
-        // HeapNumbers are, hence we have to write them again.
-        // For Arrays with valid Smi length, we are sure to have no HeapNumber
-        // indices and thus we can skip this step.
-        for (uint32_t i = 0; i < nof_indices; i++) {
-          Object* index = combined_keys->get(i);
-          combined_keys->set(i, index);
-        }
+        // HeapNumbers are.  For Arrays with valid Smi length, we are sure to
+        // have no HeapNumber indices and thus we can skip this step.
+        FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(isolate->heap(), *combined_keys, 0,
+                                           nof_indices);
       }
     }
 

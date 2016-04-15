@@ -1080,6 +1080,8 @@ class Heap {
 
   // Write barrier support for object[offset] = o;
   inline void RecordWrite(Object* object, int offset, Object* o);
+  inline void RecordFixedArrayElements(FixedArray* array, int offset,
+                                       int length);
 
   Address* store_buffer_top_address() { return store_buffer()->top_address(); }
 

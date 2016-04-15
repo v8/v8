@@ -405,9 +405,20 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  Page* page = Page::FromAddress(reinterpret_cast<Address>(object));
-  Address slot = HeapObject::cast(object)->address() + offset;
-  RememberedSet<OLD_TO_NEW>::Insert(page, slot);
+  RememberedSet<OLD_TO_NEW>::Insert(
+      Page::FromAddress(reinterpret_cast<Address>(object)),
+      HeapObject::cast(object)->address() + offset);
+}
+
+void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
+  if (InNewSpace(array)) return;
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(array));
+  for (int i = 0; i < length; i++) {
+    if (!InNewSpace(array->get(offset + i))) continue;
+    RememberedSet<OLD_TO_NEW>::Insert(
+        page,
+        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+  }
 }
 
 

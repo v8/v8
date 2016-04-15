@@ -1145,6 +1145,12 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
       object, HeapObject::RawField(object, offset), value); \
   heap->RecordWrite(object, offset, value);
 
+#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
+  do {                                                                 \
+    heap->RecordFixedArrayElements(array, start, length);              \
+    heap->incremental_marking()->IterateBlackObject(array);            \
+  } while (false)
+
 #define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
   if (mode != SKIP_WRITE_BARRIER) {                                  \
     if (mode == UPDATE_WRITE_BARRIER) {                              \
