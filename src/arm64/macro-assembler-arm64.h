@@ -865,7 +865,6 @@ class MacroAssembler : public Assembler {
   inline void InitializeRootRegister();
 
   void AssertFPCRState(Register fpcr = NoReg);
-  void ConfigureFPCR();
   void CanonicalizeNaN(const FPRegister& dst, const FPRegister& src);
   void CanonicalizeNaN(const FPRegister& reg) {
     CanonicalizeNaN(reg, reg);

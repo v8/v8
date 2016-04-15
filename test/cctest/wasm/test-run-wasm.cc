@@ -2631,8 +2631,7 @@ TEST(Run_Wasm_F64Max) {
 }
 
 // TODO(ahaas): Fix on arm and mips and reenable.
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 TEST(Run_Wasm_F32Min_Snan) {
   // Test that the instruction does not return a signalling NaN.
