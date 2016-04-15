@@ -1502,7 +1502,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   int filler_size = Heap::GetFillToAlign(old_top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (old_top + aligned_size_in_bytes >= high) {
+  if (old_top + aligned_size_in_bytes > high) {
     // Not enough room in the page, try to allocate a new one.
     if (!AddFreshPage()) {
       return false;
@@ -1513,10 +1513,9 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     old_top = allocation_info_.top();
     high = to_space_.page_high();
     filler_size = Heap::GetFillToAlign(old_top, alignment);
-    aligned_size_in_bytes = size_in_bytes + filler_size;
   }
 
-  DCHECK(old_top + aligned_size_in_bytes < high);
+  DCHECK(old_top + aligned_size_in_bytes <= high);
 
   if (allocation_info_.limit() < high) {
     // Either the limit has been lowered because linear allocation was disabled
