@@ -308,19 +308,8 @@ void CompilationInfo::PrintAstForTesting() {
 // Implementation of OptimizedCompileJob
 
 OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
+  DisallowJavascriptExecution no_js(isolate());
   DCHECK(info()->IsOptimizing());
-
-  // Do not use Crankshaft/TurboFan if we need to be able to set break points.
-  if (info()->shared_info()->HasDebugInfo()) {
-    return AbortOptimization(kFunctionBeingDebugged);
-  }
-
-  // Limit the number of times we try to optimize functions.
-  const int kMaxOptCount =
-      FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
-  if (info()->shared_info()->opt_count() > kMaxOptCount) {
-    return AbortOptimization(kOptimizedTooManyTimes);
-  }
 
   if (FLAG_trace_opt) {
     OFStream os(stdout);
@@ -832,6 +821,20 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   PostponeInterruptsScope postpone(isolate);
 
   info->SetOptimizingForOsr(osr_ast_id);
+
+  // Do not use Crankshaft/TurboFan if we need to be able to set break points.
+  if (info->shared_info()->HasDebugInfo()) {
+    info->AbortOptimization(kFunctionBeingDebugged);
+    return MaybeHandle<Code>();
+  }
+
+  // Limit the number of times we try to optimize functions.
+  const int kMaxOptCount =
+      FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
+  if (info->shared_info()->opt_count() > kMaxOptCount) {
+    info->AbortOptimization(kOptimizedTooManyTimes);
+    return MaybeHandle<Code>();
+  }
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(info.get())) {
