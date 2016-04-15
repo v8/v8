@@ -698,11 +698,12 @@ const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
 
 const Operator* CommonOperatorBuilder::RelocatableInt64Constant(
     int64_t value, RelocInfo::Mode rmode) {
-  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
-      IrOpcode::kRelocatableInt64Constant, Operator::kPure,   // opcode
-      "RelocatableInt64Constant",                             // name
-      0, 0, 0, 1, 0, 0,                                       // counts
-      RelocatablePtrConstantInfo(value, rmode));              // parameter
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(    // --
+      IrOpcode::kRelocatableInt64Constant, Operator::kPure,     // opcode
+      "RelocatableInt64Constant",                               // name
+      0, 0, 0, 1, 0, 0,                                         // counts
+      RelocatablePtrConstantInfo(static_cast<intptr_t>(value),  // parameter
+                                 rmode));
 }
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,

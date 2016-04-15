@@ -950,30 +950,12 @@ void MacroAssembler::Strd(Register src1, Register src2,
   }
 }
 
-
-void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
-  // If needed, restore wanted bits of FPSCR.
-  Label fpscr_done;
-  vmrs(scratch);
-  if (emit_debug_code()) {
-    Label rounding_mode_correct;
-    tst(scratch, Operand(kVFPRoundingModeMask));
-    b(eq, &rounding_mode_correct);
-    // Don't call Assert here, since Runtime_Abort could re-enter here.
-    stop("Default rounding mode not set");
-    bind(&rounding_mode_correct);
-  }
-  tst(scratch, Operand(kVFPDefaultNaNModeControlBit));
-  b(ne, &fpscr_done);
-  orr(scratch, scratch, Operand(kVFPDefaultNaNModeControlBit));
-  vmsr(scratch);
-  bind(&fpscr_done);
-}
-
-
 void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
                                         const DwVfpRegister src,
                                         const Condition cond) {
+  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
+  // become quiet NaNs. We use vsub rather than vadd because vsub preserves -0.0
+  // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
   vsub(dst, src, kDoubleRegZero, cond);
 }
 
@@ -2414,12 +2396,6 @@ void MacroAssembler::StoreNumberToDoubleElements(
            DONT_DO_SMI_CHECK);
 
   vldr(double_scratch, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
-  // Force a canonical NaN.
-  if (emit_debug_code()) {
-    vmrs(ip);
-    tst(ip, Operand(kVFPDefaultNaNModeControlBit));
-    Assert(ne, kDefaultNaNModeNotSet);
-  }
   VFPCanonicalizeNaN(double_scratch);
   b(&store);
 
