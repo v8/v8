@@ -1412,11 +1412,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ fld_d(i.InputOperand(0));
       }
       __ fild_s(Operand(esp, 0));
-      __ fadd(1);
-      __ fstp(0);
+      __ fld(1);
+      __ faddp();
       __ TruncateX87TOSToI(i.OutputRegister(0));
       __ add(esp, Immediate(kInt32Size));
       __ add(i.OutputRegister(), Immediate(0x80000000));
+      __ fstp(0);
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         __ fstp(0);
       }
