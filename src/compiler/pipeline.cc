@@ -1242,7 +1242,7 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Loop peeled");
   }
 
-  if (FLAG_turbo_escape) {
+  if (FLAG_experimental_turbo_escape) {
     Run<EscapeAnalysisPhase>();
     RunPrintAndVerify("Escape Analysed");
   }
