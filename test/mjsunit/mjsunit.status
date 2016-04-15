@@ -759,7 +759,6 @@
   'es6/debug-promises/stepin-constructor': [FAIL],
   'es6/debug-stepin-proxies': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
-  'regress/regress-opt-after-debug-deopt': [FAIL],
 
   # TODO(yangguo,4690): flaky failures on the bots.
   'debug-stepin-builtin-callback-opt': [SKIP],

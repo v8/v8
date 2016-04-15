@@ -504,6 +504,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     info()->MarkAsDeoptimizationEnabled();
   }
 
+  if (!info()->shared_info()->HasBytecodeArray()) {
+    if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
+  }
+
   Pipeline pipeline(info());
   pipeline.GenerateCode();
   if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.

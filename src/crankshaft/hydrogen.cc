@@ -114,6 +114,27 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
   bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
 
+  // Optimization requires a version of fullcode with deoptimization support.
+  // Recompile the unoptimized version of the code if the current version
+  // doesn't have deoptimization support already.
+  // Otherwise, if we are gathering compilation time and space statistics
+  // for hydrogen, gather baseline statistics for a fullcode compilation.
+  bool should_recompile = !info()->shared_info()->has_deoptimization_support();
+  if (should_recompile || FLAG_hydrogen_stats) {
+    base::ElapsedTimer timer;
+    if (FLAG_hydrogen_stats) {
+      timer.Start();
+    }
+    if (!Compiler::EnsureDeoptimizationSupport(info())) {
+      return FAILED;
+    }
+    if (FLAG_hydrogen_stats) {
+      isolate()->GetHStatistics()->IncrementFullCodeGen(timer.Elapsed());
+    }
+  }
+  DCHECK(info()->shared_info()->has_deoptimization_support());
+  DCHECK(!info()->shared_info()->never_compiled());
+
   if (!isolate()->use_crankshaft() || dont_crankshaft) {
     // Crankshaft is entirely disabled.
     return FAILED;
