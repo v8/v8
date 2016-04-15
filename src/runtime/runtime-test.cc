@@ -16,7 +16,16 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  // This function is used by fuzzers to get coverage in compiler.
+  // Ignore calls on non-function objects to avoid runtime errors.
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  // If it is not a JSFunction, just return.
+  if (!function_object->IsJSFunction()) {
+    return isolate->heap()->undefined_value();
+  }
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
@@ -84,7 +93,16 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  // This function is used by fuzzers to get coverage for optimizations
+  // in compiler. Ignore calls on non-function objects to avoid runtime errors.
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  // If it is not a JSFunction, just return.
+  if (!function_object->IsJSFunction()) {
+    return isolate->heap()->undefined_value();
+  }
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
   // The following assertion was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
   RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
