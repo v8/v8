@@ -2479,6 +2479,8 @@ class SemiSpace : public Space {
 #endif
 
  private:
+  void RewindPages(NewSpacePage* start, int num_pages);
+
   inline NewSpacePage* anchor() { return &anchor_; }
 
   // Copies the flags into the masked positions on all pages in the space.

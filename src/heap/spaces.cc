@@ -1689,13 +1689,17 @@ bool SemiSpace::Commit() {
   DCHECK(!is_committed());
   NewSpacePage* current = anchor();
   const int num_pages = current_capacity_ / Page::kPageSize;
-  for (int i = 0; i < num_pages; i++) {
+  for (int pages_added = 0; pages_added < num_pages; pages_added++) {
     NewSpacePage* new_page =
         heap()
             ->isolate()
             ->memory_allocator()
             ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
                 NewSpacePage::kAllocatableMemory, this, executable());
+    if (new_page == nullptr) {
+      RewindPages(current, pages_added);
+      return false;
+    }
     new_page->InsertAfter(current);
     current = new_page;
   }
@@ -1747,26 +1751,41 @@ bool SemiSpace::GrowTo(int new_capacity) {
   int delta_pages = delta / NewSpacePage::kPageSize;
   NewSpacePage* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
-  while (delta_pages > 0) {
+  for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     NewSpacePage* new_page =
         heap()
             ->isolate()
             ->memory_allocator()
             ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
                 NewSpacePage::kAllocatableMemory, this, executable());
+    if (new_page == nullptr) {
+      RewindPages(last_page, pages_added);
+      return false;
+    }
     new_page->InsertAfter(last_page);
     Bitmap::Clear(new_page);
     // Duplicate the flags that was set on the old page.
     new_page->SetFlags(last_page->GetFlags(),
                        NewSpacePage::kCopyOnFlipFlagsMask);
     last_page = new_page;
-    delta_pages--;
   }
   AccountCommitted(static_cast<intptr_t>(delta));
   current_capacity_ = new_capacity;
   return true;
 }
 
+void SemiSpace::RewindPages(NewSpacePage* start, int num_pages) {
+  NewSpacePage* new_last_page = nullptr;
+  NewSpacePage* last_page = start;
+  while (num_pages > 0) {
+    DCHECK_NE(last_page, anchor());
+    new_last_page = last_page->prev_page();
+    last_page->prev_page()->set_next_page(last_page->next_page());
+    last_page->next_page()->set_prev_page(last_page->prev_page());
+    last_page = new_last_page;
+    num_pages--;
+  }
+}
 
 bool SemiSpace::ShrinkTo(int new_capacity) {
   DCHECK_EQ(new_capacity & NewSpacePage::kPageAlignmentMask, 0);
