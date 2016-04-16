@@ -91,8 +91,7 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)                        \
-  V(ResumeGenerator)                          \
-  V(AtomicsLoad)
+  V(ResumeGenerator)
 
 class CallInterfaceDescriptorData {
  public:
@@ -826,11 +825,6 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
-};
-
-class AtomicsLoadDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(AtomicsLoadDescriptor, CallInterfaceDescriptor)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE

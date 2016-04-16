@@ -350,7 +350,8 @@
   V(Int32PairMul)               \
   V(Word32PairShl)              \
   V(Word32PairShr)              \
-  V(Word32PairSar)
+  V(Word32PairSar)              \
+  V(AtomicLoad)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \
