@@ -150,8 +150,7 @@
   'allocation-site-info': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): The escape analysis needs some investigation.
-  'compiler/escape-analysis-deopt-5': [PASS, NO_VARIANTS],
-  'compiler/escape-analysis-9': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-*': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

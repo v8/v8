@@ -1044,7 +1044,7 @@ class RepresentationSelector {
               flags, properties);
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
-          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
         break;
@@ -1061,7 +1061,7 @@ class RepresentationSelector {
               flags, properties);
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
-          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
         break;
@@ -1080,7 +1080,7 @@ class RepresentationSelector {
               flags, properties);
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
-          node->InsertInput(jsgraph_->zone(), 3, jsgraph_->NoContextConstant());
+          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
         break;

@@ -107,32 +107,6 @@ class JSBinopReduction final {
     return lowering_->Changed(node_);
   }
 
-  Reduction ChangeToStringComparisonOperator(const Operator* op,
-                                             bool invert = false) {
-    if (node_->op()->ControlInputCount() > 0) {
-      lowering_->RelaxControls(node_);
-    }
-    // String comparison operators need effect and control inputs, so copy them
-    // over.
-    Node* effect = NodeProperties::GetEffectInput(node_);
-    Node* control = NodeProperties::GetControlInput(node_);
-    node_->ReplaceInput(2, effect);
-    node_->ReplaceInput(3, control);
-
-    node_->TrimInputCount(4);
-    NodeProperties::ChangeOp(node_, op);
-
-    if (invert) {
-      // Insert a boolean-not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
-      node_->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node_);
-      return lowering_->Replace(value);
-    }
-    return lowering_->Changed(node_);
-  }
-
   Reduction ChangeToPureOperator(const Operator* op, Type* type) {
     return ChangeToPureOperator(op, false, type);
   }
@@ -477,7 +451,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       default:
         return NoChange();
     }
-    r.ChangeToStringComparisonOperator(stringOp);
+    r.ChangeToPureOperator(stringOp);
     return Changed(node);
   }
   if (r.OneInputCannotBe(Type::StringOrReceiver())) {
@@ -531,8 +505,7 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToStringComparisonOperator(simplified()->StringEqual(),
-                                              invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   if (r.BothInputsAre(Type::Boolean())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(Type::Boolean()),
@@ -611,8 +584,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                   invert);
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToStringComparisonOperator(simplified()->StringEqual(),
-                                              invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
   if (r.BothInputsAre(Type::NumberOrUndefined())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
@@ -625,10 +597,8 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
 Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
   Node* const input = node->InputAt(0);
   Type* const input_type = NodeProperties::GetType(input);
-  Node* const effect = NodeProperties::GetEffectInput(node);
   if (input_type->Is(Type::Boolean())) {
     // JSToBoolean(x:boolean) => x
-    ReplaceWithValue(node, input, effect);
     return Replace(input);
   } else if (input_type->Is(Type::OrderedNumber())) {
     // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
@@ -642,11 +612,10 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     // JSToBoolean(x:string) => NumberLessThan(#0,x.length)
     FieldAccess const access = AccessBuilder::ForStringLength();
     Node* length = graph()->NewNode(simplified()->LoadField(access), input,
-                                    effect, graph()->start());
+                                    graph()->start(), graph()->start());
     ReplaceWithValue(node, node, length);
     node->ReplaceInput(0, jsgraph()->ZeroConstant());
     node->ReplaceInput(1, length);
-    node->TrimInputCount(2);
     NodeProperties::ChangeOp(node, simplified()->NumberLessThan());
     return Changed(node);
   }
