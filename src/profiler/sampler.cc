@@ -42,7 +42,6 @@
 
 #endif
 
-#include "src/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
@@ -237,50 +236,6 @@ bool IsNoFrameRegion(Address address) {
   return false;
 }
 
-typedef List<Sampler*> SamplerList;
-
-#if defined(USE_SIGNALS)
-class AtomicGuard {
- public:
-  explicit AtomicGuard(AtomicValue<int>* atomic, bool is_block = true)
-      : atomic_(atomic),
-        is_success_(false) {
-    do {
-      is_success_ = atomic_->TrySetValue(0, 1);
-    } while (is_block && !is_success_);
-  }
-
-  bool is_success() { return is_success_; }
-
-  ~AtomicGuard() {
-    if (is_success_) {
-      atomic_->SetValue(0);
-    }
-    atomic_ = NULL;
-  }
-
- private:
-  AtomicValue<int>* atomic_;
-  bool is_success_;
-};
-
-
-// Returns key for hash map.
-void* ThreadKey(pthread_t thread_id) {
-  return reinterpret_cast<void*>(thread_id);
-}
-
-
-// Returns hash value for hash map.
-uint32_t ThreadHash(pthread_t thread_id) {
-#if V8_OS_MACOSX
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(thread_id));
-#else
-  return static_cast<uint32_t>(thread_id);
-#endif
-}
-#endif  // USE_SIGNALS
-
 }  // namespace
 
 #if defined(USE_SIGNALS)
@@ -419,10 +374,6 @@ class SignalHandler : public AllStatic {
     return signal_handler_installed_;
   }
 
-#if !V8_OS_NACL
-  static void CollectSample(void* context, Sampler* sampler);
-#endif
-
  private:
   static void Install() {
 #if !V8_OS_NACL
@@ -467,20 +418,22 @@ bool SignalHandler::signal_handler_installed_ = false;
 
 // As Native Client does not support signal handling, profiling is disabled.
 #if !V8_OS_NACL
-void SignalHandler::CollectSample(void* context, Sampler* sampler) {
-  if (sampler == NULL || (!sampler->IsProfiling() &&
-                          !sampler->IsRegistered())) {
+void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
+                                         void* context) {
+  USE(info);
+  if (signal != SIGPROF) return;
+  Isolate* isolate = Isolate::UnsafeCurrent();
+  if (isolate == NULL || !isolate->IsInUse()) {
+    // We require a fully initialized and entered isolate.
     return;
   }
-  Isolate* isolate = sampler->isolate();
-
-  // We require a fully initialized and entered isolate.
-  if (isolate == NULL || !isolate->IsInUse()) return;
-
   if (v8::Locker::IsActive() &&
       !isolate->thread_manager()->IsLockedByCurrentThread()) {
     return;
   }
+
+  Sampler* sampler = isolate->logger()->sampler();
+  if (sampler == NULL) return;
 
   v8::RegisterState state;
 
@@ -629,7 +582,7 @@ void SignalHandler::CollectSample(void* context, Sampler* sampler) {
 }
 #endif  // V8_OS_NACL
 
-#endif  // USE_SIGNALS
+#endif
 
 
 class SamplerThread : public base::Thread {
@@ -654,46 +607,19 @@ class SamplerThread : public base::Thread {
     }
 
     DCHECK(sampler->IsActive());
-    DCHECK(instance_->interval_ == sampler->interval());
-
-#if defined(USE_SIGNALS)
-    AddSampler(sampler);
-#else
     DCHECK(!instance_->active_samplers_.Contains(sampler));
+    DCHECK(instance_->interval_ == sampler->interval());
     instance_->active_samplers_.Add(sampler);
-#endif  // USE_SIGNALS
 
     if (need_to_start) instance_->StartSynchronously();
   }
 
-  static void RemoveSampler(Sampler* sampler) {
+  static void RemoveActiveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
       base::LockGuard<base::Mutex> lock_guard(mutex_);
 
-      DCHECK(sampler->IsActive() || sampler->IsRegistered());
-#if defined(USE_SIGNALS)
-      {
-        AtomicGuard atomic_guard(&sampler_list_access_counter_);
-        // Remove sampler from map.
-        pthread_t thread_id = sampler->platform_data()->vm_tid();
-        void* thread_key = ThreadKey(thread_id);
-        uint32_t thread_hash = ThreadHash(thread_id);
-        HashMap::Entry* entry =
-            thread_id_to_samplers_.Get().Lookup(thread_key, thread_hash);
-        DCHECK(entry != NULL);
-        SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-        samplers->RemoveElement(sampler);
-        if (samplers->is_empty()) {
-          thread_id_to_samplers_.Pointer()->Remove(thread_key, thread_hash);
-          delete samplers;
-        }
-        if (thread_id_to_samplers_.Get().occupancy() == 0) {
-          instance_to_remove = instance_;
-          instance_ = NULL;
-        }
-      }
-#else
+      DCHECK(sampler->IsActive());
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
       DCHECK(removed);
       USE(removed);
@@ -704,7 +630,6 @@ class SamplerThread : public base::Thread {
         instance_to_remove = instance_;
         instance_ = NULL;
       }
-#endif  // USE_SIGNALS
     }
 
     if (!instance_to_remove) return;
@@ -712,30 +637,11 @@ class SamplerThread : public base::Thread {
     delete instance_to_remove;
   }
 
-  // Unlike AddActiveSampler, this method only adds a sampler,
-  // but won't start the sampler thread.
-  static void RegisterSampler(Sampler* sampler) {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
-#if defined(USE_SIGNALS)
-    AddSampler(sampler);
-#endif  // USE_SIGNALS
-  }
-
   // Implement Thread::Run().
   virtual void Run() {
     while (true) {
       {
         base::LockGuard<base::Mutex> lock_guard(mutex_);
-#if defined(USE_SIGNALS)
-        if (thread_id_to_samplers_.Get().occupancy() == 0) break;
-        if (SignalHandler::Installed()) {
-          for (HashMap::Entry *p = thread_id_to_samplers_.Get().Start();
-               p != NULL; p = thread_id_to_samplers_.Get().Next(p)) {
-            pthread_t thread_id = reinterpret_cast<pthread_t>(p->key);
-            pthread_kill(thread_id, SIGPROF);
-          }
-        }
-#else
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.
@@ -744,7 +650,6 @@ class SamplerThread : public base::Thread {
           if (!sampler->IsProfiling()) continue;
           sampler->DoSample();
         }
-#endif  // USE_SIGNALS
       }
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
     }
@@ -756,38 +661,7 @@ class SamplerThread : public base::Thread {
   static SamplerThread* instance_;
 
   const int interval_;
-
-#if defined(USE_SIGNALS)
-  struct HashMapCreateTrait {
-    static void Construct(HashMap* allocated_ptr) {
-      new (allocated_ptr) HashMap(HashMap::PointersMatch);
-    }
-  };
-  friend class SignalHandler;
-  static base::LazyInstance<HashMap, HashMapCreateTrait>::type
-      thread_id_to_samplers_;
-  static AtomicValue<int> sampler_list_access_counter_;
-  static void AddSampler(Sampler* sampler) {
-    AtomicGuard atomic_guard(&sampler_list_access_counter_);
-    // Add sampler into map if needed.
-    pthread_t thread_id = sampler->platform_data()->vm_tid();
-    HashMap::Entry *entry =
-        thread_id_to_samplers_.Pointer()->LookupOrInsert(ThreadKey(thread_id),
-                                                         ThreadHash(thread_id));
-    if (entry->value == NULL) {
-      SamplerList* samplers = new SamplerList();
-      samplers->Add(sampler);
-      entry->value = samplers;
-    } else {
-      SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-      if (!samplers->Contains(sampler)) {
-        samplers->Add(sampler);
-      }
-    }
-  }
-#else
-  SamplerList active_samplers_;
-#endif  // USE_SIGNALS
+  List<Sampler*> active_samplers_;
 
   DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
@@ -795,33 +669,6 @@ class SamplerThread : public base::Thread {
 
 base::Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
-#if defined(USE_SIGNALS)
-base::LazyInstance<HashMap, SamplerThread::HashMapCreateTrait>::type
-    SamplerThread::thread_id_to_samplers_ = LAZY_INSTANCE_INITIALIZER;
-AtomicValue<int> SamplerThread::sampler_list_access_counter_(0);
-
-// As Native Client does not support signal handling, profiling is disabled.
-#if !V8_OS_NACL
-void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
-                                         void* context) {
-  USE(info);
-  if (signal != SIGPROF) return;
-  AtomicGuard atomic_guard(&SamplerThread::sampler_list_access_counter_, false);
-  if (!atomic_guard.is_success()) return;
-  pthread_t thread_id = pthread_self();
-  HashMap::Entry* entry =
-      SamplerThread::thread_id_to_samplers_.Pointer()->Lookup(
-          ThreadKey(thread_id), ThreadHash(thread_id));
-  if (entry == NULL)
-    return;
-  SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-  for (int i = 0; i < samplers->length(); ++i) {
-    Sampler* sampler = samplers->at(i);
-    CollectSample(context, sampler);
-  }
-}
-#endif  // !V8_OS_NACL
-#endif  // USE_SIGNALs
 
 
 //
@@ -942,7 +789,6 @@ Sampler::Sampler(Isolate* isolate, int interval)
       profiling_(false),
       has_processing_thread_(false),
       active_(false),
-      registered_(false),
       is_counting_samples_(false),
       js_sample_count_(0),
       external_sample_count_(0) {
@@ -951,9 +797,6 @@ Sampler::Sampler(Isolate* isolate, int interval)
 
 Sampler::~Sampler() {
   DCHECK(!IsActive());
-  if (IsRegistered()) {
-    SamplerThread::RemoveSampler(this);
-  }
   delete data_;
 }
 
@@ -966,9 +809,8 @@ void Sampler::Start() {
 
 void Sampler::Stop() {
   DCHECK(IsActive());
-  SamplerThread::RemoveSampler(this);
+  SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
-  SetRegistered(false);
 }
 
 
@@ -1008,10 +850,6 @@ void Sampler::SampleStack(const v8::RegisterState& state) {
 
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
-  if (!IsActive() && !IsRegistered()) {
-    SamplerThread::RegisterSampler(this);
-    SetRegistered(true);
-  }
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 
