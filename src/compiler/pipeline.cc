@@ -771,12 +771,6 @@ struct SimplifiedLoweringPhase {
                                 data->source_positions());
     lowering.LowerAllNodes();
 
-    // TODO(bmeurer): See comment on SimplifiedLowering::abort_compilation_.
-    if (lowering.abort_compilation_) {
-      data->set_compilation_failed();
-      return;
-    }
-
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
@@ -1286,9 +1280,6 @@ Handle<Code> Pipeline::GenerateCode() {
 
   // Kill the Typer and thereby uninstall the decorator (if any).
   typer.Reset(nullptr);
-
-  // TODO(bmeurer): See comment on SimplifiedLowering::abort_compilation_.
-  if (data.compilation_failed()) return Handle<Code>::null();
 
   return ScheduleAndGenerateCode(
       Linkage::ComputeIncoming(data.instruction_zone(), info()));
