@@ -254,13 +254,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
 
-    case kAtomicLoadInt8:
-    case kAtomicLoadUint8:
-    case kAtomicLoadInt16:
-    case kAtomicLoadUint16:
-    case kAtomicLoadWord32:
-      return kIsLoadOperation;
-
 #define CASE(Name) case k##Name:
     TARGET_ARCH_OPCODE_LIST(CASE)
 #undef CASE

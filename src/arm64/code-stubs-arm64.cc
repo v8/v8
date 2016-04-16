@@ -5934,6 +5934,145 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                            return_value_operand, NULL);
 }
 
+namespace {
+
+void GetTypedArrayBackingStore(MacroAssembler* masm, Register backing_store,
+                               Register object, Register scratch,
+                               FPRegister double_scratch) {
+  Label offset_is_not_smi, done;
+  __ Ldr(scratch, FieldMemOperand(object, JSTypedArray::kBufferOffset));
+  __ Ldr(backing_store,
+         FieldMemOperand(scratch, JSArrayBuffer::kBackingStoreOffset));
+  __ Ldr(scratch,
+         FieldMemOperand(object, JSArrayBufferView::kByteOffsetOffset));
+  __ JumpIfNotSmi(scratch, &offset_is_not_smi);
+  // offset is smi
+  __ Add(backing_store, backing_store, Operand::UntagSmi(scratch));
+  __ B(&done);
+
+  // offset is a heap number
+  __ Bind(&offset_is_not_smi);
+  __ Ldr(double_scratch, FieldMemOperand(scratch, HeapNumber::kValueOffset));
+  __ Fcvtzu(scratch, double_scratch);
+  __ Add(backing_store, backing_store, scratch);
+  __ Bind(&done);
+}
+
+void TypedArrayJumpTable(MacroAssembler* masm, Register object,
+                         Register scratch, Register scratch2, Label* i8,
+                         Label* u8, Label* i16, Label* u16, Label* i32,
+                         Label* u32, Label* u8c) {
+  STATIC_ASSERT(FIXED_UINT8_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 1);
+  STATIC_ASSERT(FIXED_INT16_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 2);
+  STATIC_ASSERT(FIXED_UINT16_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 3);
+  STATIC_ASSERT(FIXED_INT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 4);
+  STATIC_ASSERT(FIXED_UINT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 5);
+  STATIC_ASSERT(FIXED_FLOAT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 6);
+  STATIC_ASSERT(FIXED_FLOAT64_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 7);
+  STATIC_ASSERT(FIXED_UINT8_CLAMPED_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 8);
+
+  __ Ldr(scratch, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ Ldr(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
+  __ Ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ Subs(scratch, scratch,
+          Operand(static_cast<uint8_t>(FIXED_INT8_ARRAY_TYPE)));
+  __ Assert(ge, kOffsetOutOfRange);
+
+  Label abort;
+  Label table;
+
+  __ Adr(scratch2, &table);
+  __ Add(scratch, scratch2, Operand(scratch, UXTW, 2));
+  __ Br(scratch);
+
+  __ StartBlockPools();
+  __ Bind(&table);
+  __ B(i8);      // Int8Array
+  __ B(u8);      // Uint8Array
+  __ B(i16);     // Int16Array
+  __ B(u16);     // Uint16Array
+  __ B(i32);     // Int32Array
+  __ B(u32);     // Uint32Array
+  __ B(&abort);  // Float32Array
+  __ B(&abort);  // Float64Array
+  __ B(u8c);     // Uint8ClampedArray
+  __ EndBlockPools();
+
+  __ Bind(&abort);
+  __ Abort(kNoReason);
+}
+
+void ReturnUnsignedInteger32(MacroAssembler* masm, FPRegister dst,
+                             Register value, Register scratch,
+                             Register scratch2) {
+  Label not_smi, call_runtime;
+  __ Tbnz(value, 31, &not_smi);
+  __ SmiTag(x0, value);
+  __ Ret();
+
+  __ Bind(&not_smi);
+  __ Ucvtf(dst, value);
+  __ AllocateHeapNumber(x0, &call_runtime, scratch, scratch2, dst);
+  __ Ret();
+
+  __ Bind(&call_runtime);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    __ Str(value, FieldMemOperand(x0, HeapNumber::kValueOffset));
+  }
+  __ Ret();
+}
+
+}  // anonymous namespace
+
+void AtomicsLoadStub::Generate(MacroAssembler* masm) {
+  Register object = x1;
+  Register index = x0;  // Index is an untagged word32.
+  Register backing_store = x2;
+  Label i8, u8, i16, u16, i32, u32;
+
+  GetTypedArrayBackingStore(masm, backing_store, object, x3, d0);
+  TypedArrayJumpTable(masm, object, x3, x4, &i8, &u8, &i16, &u16, &i32, &u32,
+                      &u8);
+
+  __ Bind(&i8);
+  __ Ldrsb(x0, MemOperand(backing_store, index));
+  __ Dmb(InnerShareable, BarrierAll);
+  __ SmiTag(x0);
+  __ Ret();
+
+  __ Bind(&u8);
+  __ Ldrb(x0, MemOperand(backing_store, index));
+  __ Dmb(InnerShareable, BarrierAll);
+  __ SmiTag(x0);
+  __ Ret();
+
+  __ Bind(&i16);
+  __ Ldrsh(x0, MemOperand(backing_store, index, UXTW, 1));
+  __ Dmb(InnerShareable, BarrierAll);
+  __ SmiTag(x0);
+  __ Ret();
+
+  __ Bind(&u16);
+  __ Ldrh(x0, MemOperand(backing_store, index, UXTW, 1));
+  __ Dmb(InnerShareable, BarrierAll);
+  __ SmiTag(x0);
+  __ Ret();
+
+  __ Bind(&i32);
+  __ Ldrsw(x0, MemOperand(backing_store, index, UXTW, 2));
+  __ Dmb(InnerShareable, BarrierAll);
+  DCHECK(SmiValuesAre32Bits());
+  __ SmiTag(x0);
+  __ Ret();
+
+  __ Bind(&u32);
+  __ Ldr(w0, MemOperand(backing_store, index, UXTW, 2));
+  __ Dmb(InnerShareable, BarrierAll);
+  ReturnUnsignedInteger32(masm, d0, x0, x1, x2);
+}
+
 #undef __
 
 }  // namespace internal

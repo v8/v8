@@ -146,6 +146,8 @@ class CodeFactory final {
                                              TailCallMode tail_call_mode);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
+
+  static Callable AtomicsLoad(Isolate* isolate);
 };
 
 }  // namespace internal

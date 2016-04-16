@@ -69,8 +69,7 @@ std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
 
 
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
-  DCHECK(IrOpcode::kLoad == op->opcode() ||
-         IrOpcode::kAtomicLoad == op->opcode());
+  DCHECK_EQ(IrOpcode::kLoad, op->opcode());
   return OpParameter<LoadRepresentation>(op);
 }
 
@@ -251,14 +250,6 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(kWord64)                           \
   V(kTagged)
 
-#define ATOMIC_TYPE_LIST(V) \
-  V(Int8)                   \
-  V(Uint8)                  \
-  V(Int16)                  \
-  V(Uint16)                 \
-  V(Int32)                  \
-  V(Uint32)
-
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -362,18 +353,6 @@ struct MachineOperatorGlobalCache {
   CheckedStore##Type##Operator kCheckedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
-
-#define ATOMIC(Type)                                                          \
-  struct AtomicLoad##Type##Operator final                                     \
-      : public Operator1<LoadRepresentation> {                                \
-    AtomicLoad##Type##Operator()                                              \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kAtomicLoad, Operator::kNoThrow | Operator::kNoWrite, \
-              "AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
-  };                                                                          \
-  AtomicLoad##Type##Operator kAtomicLoad##Type;
-  ATOMIC_TYPE_LIST(ATOMIC)
-#undef ATOMIC
 };
 
 
@@ -508,18 +487,6 @@ const Operator* MachineOperatorBuilder::Word64PopcntPlaceholder() {
 const Operator* MachineOperatorBuilder::Word64CtzPlaceholder() {
   return &cache_.kWord64Ctz;
 }
-
-const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {
-#define LOAD(Type)                    \
-  if (rep == MachineType::Type()) {   \
-    return &cache_.kAtomicLoad##Type; \
-  }
-  ATOMIC_TYPE_LIST(LOAD)
-#undef LOAD
-  UNREACHABLE();
-  return nullptr;
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

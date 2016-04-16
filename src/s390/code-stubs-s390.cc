@@ -5698,6 +5698,182 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                            kStackUnwindSpace, NULL, return_value_operand, NULL);
 }
 
+namespace {
+
+void GetTypedArrayBackingStore(MacroAssembler* masm, Register backing_store,
+                               Register object, Register scratch,
+                               DoubleRegister double_scratch) {
+  Label offset_is_not_smi, done_offset;
+  __ LoadP(scratch, FieldMemOperand(object, JSTypedArray::kBufferOffset));
+  __ LoadP(backing_store,
+           FieldMemOperand(scratch, JSArrayBuffer::kBackingStoreOffset));
+  __ LoadP(scratch,
+           FieldMemOperand(object, JSArrayBufferView::kByteOffsetOffset));
+  __ JumpIfNotSmi(scratch, &offset_is_not_smi);
+  // offset is smi
+  __ SmiUntag(scratch);
+  __ b(&done_offset, Label::kNear);
+
+  // offset is a heap number
+  __ bind(&offset_is_not_smi);
+  __ LoadDouble(double_scratch,
+                FieldMemOperand(scratch, HeapNumber::kValueOffset));
+  __ ConvertDoubleToInt64(double_scratch,
+#if !V8_TARGET_ARCH_S390X
+                          r0,
+#endif
+                          scratch, double_scratch);
+  __ bind(&done_offset);
+  __ AddP(backing_store, backing_store, scratch);
+}
+
+void TypedArrayJumpTablePrologue(MacroAssembler* masm, Register object,
+                                 Register scratch, Register scratch2,
+                                 Label* table) {
+  __ LoadP(scratch, FieldMemOperand(object, JSObject::kElementsOffset));
+  __ LoadP(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
+  __ LoadlB(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ SubP(scratch, scratch,
+          Operand(static_cast<uint8_t>(FIXED_INT8_ARRAY_TYPE)));
+  if (__ emit_debug_code()) {
+    __ CmpP(scratch, Operand::Zero());
+    __ Check(ge, kOffsetOutOfRange);
+  }
+  __ ShiftLeftP(scratch, scratch, Operand(kPointerSizeLog2));
+  __ larl(scratch2, table);
+  __ LoadP(scratch, MemOperand(scratch2, scratch));
+  __ Jump(scratch);
+}
+
+void TypedArrayJumpTableEpilogue(MacroAssembler* masm, Label* table, Label* i8,
+                                 Label* u8, Label* i16, Label* u16, Label* i32,
+                                 Label* u32, Label* u8c) {
+  STATIC_ASSERT(FIXED_UINT8_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 1);
+  STATIC_ASSERT(FIXED_INT16_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 2);
+  STATIC_ASSERT(FIXED_UINT16_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 3);
+  STATIC_ASSERT(FIXED_INT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 4);
+  STATIC_ASSERT(FIXED_UINT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 5);
+  STATIC_ASSERT(FIXED_FLOAT32_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 6);
+  STATIC_ASSERT(FIXED_FLOAT64_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 7);
+  STATIC_ASSERT(FIXED_UINT8_CLAMPED_ARRAY_TYPE == FIXED_INT8_ARRAY_TYPE + 8);
+
+  Label abort;
+  __ bind(table);
+  __ emit_label_addr(i8);      // Int8Array
+  __ emit_label_addr(u8);      // Uint8Array
+  __ emit_label_addr(i16);     // Int16Array
+  __ emit_label_addr(u16);     // Uint16Array
+  __ emit_label_addr(i32);     // Int32Array
+  __ emit_label_addr(u32);     // Uint32Array
+  __ emit_label_addr(&abort);  // Float32Array
+  __ emit_label_addr(&abort);  // Float64Array
+  __ emit_label_addr(u8c);     // Uint8ClampedArray
+
+  __ bind(&abort);
+  __ Abort(kNoReason);
+}
+
+#if !V8_TARGET_ARCH_S390X
+void ReturnInteger32(MacroAssembler* masm, DoubleRegister dst, Register value,
+                     Label* use_heap_number) {
+  Label not_smi;
+  __ JumpIfNotSmiCandidate(value, r0, &not_smi);
+  __ SmiTag(r2, value);
+  __ Ret();
+
+  __ bind(&not_smi);
+  __ ConvertIntToDouble(value, dst);
+  __ b(use_heap_number);
+}
+#endif
+
+void ReturnUnsignedInteger32(MacroAssembler* masm, DoubleRegister dst,
+                             Register value, Label* use_heap_number) {
+  Label not_smi;
+  __ JumpIfNotUnsignedSmiCandidate(value, r0, &not_smi);
+  __ SmiTag(r2, value);
+  __ Ret();
+
+  __ bind(&not_smi);
+  __ ConvertUnsignedIntToDouble(value, dst);
+  __ b(use_heap_number);
+}
+
+void ReturnAllocatedHeapNumber(MacroAssembler* masm, DoubleRegister value,
+                               Register scratch, Register scratch2,
+                               Register scratch3) {
+  Label call_runtime;
+  __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r2, scratch, scratch2, scratch3, &call_runtime);
+  __ StoreDouble(value, FieldMemOperand(r2, HeapNumber::kValueOffset));
+  __ Ret();
+
+  __ bind(&call_runtime);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+    __ StoreDouble(value, FieldMemOperand(r2, HeapNumber::kValueOffset));
+  }
+  __ Ret();
+}
+
+}  // anonymous namespace
+
+void AtomicsLoadStub::Generate(MacroAssembler* masm) {
+  Register object = r3;
+  Register index = r2;  // Index is an untagged word32.
+  Register backing_store = r4;
+  Label table, i8, u8, i16, u16, i32, u32;
+
+  GetTypedArrayBackingStore(masm, backing_store, object, r5, d0);
+  TypedArrayJumpTablePrologue(masm, object, r5, r6, &table);
+
+  __ bind(&i8);
+  __ LoadB(r2, MemOperand(index, backing_store));
+  __ SmiTag(r2);
+  __ Ret();
+
+  __ bind(&u8);
+  __ LoadlB(r2, MemOperand(index, backing_store));
+  __ SmiTag(r2);
+  __ Ret();
+
+  __ bind(&i16);
+  __ ShiftLeftP(index, index, Operand(1));
+  __ LoadHalfWordP(r2, MemOperand(index, backing_store));
+  __ SmiTag(r2);
+  __ Ret();
+
+  __ bind(&u16);
+  __ ShiftLeftP(index, index, Operand(1));
+  __ LoadHalfWordP(r2, MemOperand(index, backing_store));
+  __ SmiTag(r2);
+  __ Ret();
+
+  Label use_heap_number;
+
+  __ bind(&i32);
+  __ ShiftLeftP(index, index, Operand(2));
+  __ LoadW(r2, MemOperand(index, backing_store));
+#if V8_TARGET_ARCH_S390X
+  __ SmiTag(r2);
+  __ Ret();
+#else
+  ReturnInteger32(masm, d0, r2, &use_heap_number);
+#endif
+
+  __ bind(&u32);
+  __ ShiftLeftP(index, index, Operand(2));
+  __ LoadW(r2, MemOperand(index, backing_store));
+  ReturnUnsignedInteger32(masm, d0, r2, &use_heap_number);
+
+  __ bind(&use_heap_number);
+  ReturnAllocatedHeapNumber(masm, d0, r3, r4, r5);
+
+  TypedArrayJumpTableEpilogue(masm, &table, &i8, &u8, &i16, &u16, &i32, &u32,
+                              &u8);
+}
+
 #undef __
 
 }  // namespace internal

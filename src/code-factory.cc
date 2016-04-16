@@ -563,5 +563,10 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   return Callable(stub.GetCode(), InterpreterCEntryDescriptor(isolate));
 }
 
+Callable CodeFactory::AtomicsLoad(Isolate* isolate) {
+  AtomicsLoadStub stub(isolate);
+  return Callable(stub.GetCode(), AtomicsLoadDescriptor(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

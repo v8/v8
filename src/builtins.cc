@@ -5148,9 +5148,7 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 namespace {
 
 void ValidateSharedTypedArray(compiler::CodeStubAssembler* a,
-                              compiler::Node* tagged, compiler::Node* context,
-                              compiler::Node** out_instance_type,
-                              compiler::Node** out_backing_store) {
+                              compiler::Node* tagged, compiler::Node* context) {
   using namespace compiler;
   CodeStubAssembler::Label is_smi(a), not_smi(a), is_typed_array(a),
       not_typed_array(a), is_shared(a), not_shared(a), is_float_or_clamped(a),
@@ -5171,9 +5169,10 @@ void ValidateSharedTypedArray(compiler::CodeStubAssembler* a,
 
   // Fail if the array's JSArrayBuffer is not shared.
   a->Bind(&is_typed_array);
-  Node* array_buffer = a->LoadObjectField(tagged, JSTypedArray::kBufferOffset);
-  Node* is_buffer_shared = a->BitFieldDecode<JSArrayBuffer::IsShared>(
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldOffset));
+  Node* is_buffer_shared =
+      a->BitFieldDecode<JSArrayBuffer::IsShared>(a->LoadObjectField(
+          a->LoadObjectField(tagged, JSTypedArray::kBufferOffset),
+          JSArrayBuffer::kBitFieldOffset));
   a->Branch(is_buffer_shared, &is_shared, &not_shared);
   a->Bind(&not_shared);
   a->Goto(&invalid);
@@ -5200,14 +5199,6 @@ void ValidateSharedTypedArray(compiler::CodeStubAssembler* a,
   a->Return(a->UndefinedConstant());
 
   a->Bind(&not_float_or_clamped);
-  *out_instance_type = elements_instance_type;
-
-  Node* backing_store =
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBackingStoreOffset);
-  Node* byte_offset = a->ChangeUint32ToWord(a->TruncateTaggedToWord32(
-      context,
-      a->LoadObjectField(tagged, JSArrayBufferView::kByteOffsetOffset)));
-  *out_backing_store = a->IntPtrAdd(backing_store, byte_offset);
 }
 
 // https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
@@ -5274,61 +5265,22 @@ void ValidateAtomicIndex(compiler::CodeStubAssembler* a,
 
 }  // anonymous namespace
 
-void Builtins::Generate_AtomicsLoad(compiler::CodeStubAssembler* a) {
+void Builtins::Generate_AtomicsLoadCheck(compiler::CodeStubAssembler* a) {
   using namespace compiler;
+  Isolate* isolate = a->isolate();
   Node* array = a->Parameter(1);
   Node* index = a->Parameter(2);
   Node* context = a->Parameter(3 + 2);
-
-  Node* instance_type;
-  Node* backing_store;
-  ValidateSharedTypedArray(a, array, context, &instance_type, &backing_store);
-
-  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(a, index, context);
-  Node* array_length_word32 = a->TruncateTaggedToWord32(
+  ValidateSharedTypedArray(a, array, context);
+  Node* index_word = ConvertTaggedAtomicIndexToWord32(a, index, context);
+  Node* array_length_word = a->TruncateTaggedToWord32(
       context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
-  ValidateAtomicIndex(a, index_word32, array_length_word32, context);
-  Node* index_word = a->ChangeUint32ToWord(index_word32);
+  ValidateAtomicIndex(a, index_word, array_length_word, context);
 
-  CodeStubAssembler::Label i8(a), u8(a), i16(a), u16(a), i32(a), u32(a),
-      other(a);
-  int32_t case_values[] = {
-      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
-      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
-  };
-  CodeStubAssembler::Label* case_labels[] = {
-      &i8, &u8, &i16, &u16, &i32, &u32,
-  };
-  a->Switch(instance_type, &other, case_values, case_labels,
-            arraysize(case_labels));
-
-  a->Bind(&i8);
-  a->Return(
-      a->SmiTag(a->AtomicLoad(MachineType::Int8(), backing_store, index_word)));
-
-  a->Bind(&u8);
-  a->Return(a->SmiTag(
-      a->AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
-
-  a->Bind(&i16);
-  a->Return(a->SmiTag(a->AtomicLoad(MachineType::Int16(), backing_store,
-                                    a->WordShl(index_word, 1))));
-
-  a->Bind(&u16);
-  a->Return(a->SmiTag(a->AtomicLoad(MachineType::Uint16(), backing_store,
-                                    a->WordShl(index_word, 1))));
-
-  a->Bind(&i32);
-  a->Return(a->ChangeInt32ToTagged(a->AtomicLoad(
-      MachineType::Int32(), backing_store, a->WordShl(index_word, 2))));
-
-  a->Bind(&u32);
-  a->Return(a->ChangeUint32ToTagged(a->AtomicLoad(
-      MachineType::Uint32(), backing_store, a->WordShl(index_word, 2))));
-
-  // This shouldn't happen, we've already validated the type.
-  a->Bind(&other);
-  a->Return(a->Int32Constant(0));
+  Callable atomics_load = CodeFactory::AtomicsLoad(isolate);
+  Node* target = a->HeapConstant(atomics_load.code());
+  a->Return(a->CallStub(atomics_load.descriptor(), target, context, array,
+                        index_word));
 }
 
 #define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)               \

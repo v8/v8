@@ -195,7 +195,6 @@ class CodeStubAssembler {
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
   Node* Load(MachineType rep, Node* base, Node* index);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index);
 
   // Store value to raw memory location.
   Node* Store(MachineRepresentation rep, Node* base, Node* value);
@@ -394,8 +393,6 @@ class CodeStubAssembler {
   Node* TruncateTaggedToWord32(Node* context, Node* value);
   // Truncate to int32 using JavaScript truncation mode.
   Node* TruncateFloat64ToInt32(Node* value);
-  // No-op on 32-bit, otherwise zero extend.
-  Node* ChangeUint32ToWord(Node* value);
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,

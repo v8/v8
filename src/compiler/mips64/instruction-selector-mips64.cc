@@ -1963,9 +1963,6 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
-void InstructionSelector::VisitAtomicLoad(Node* node) {
-  // TODO(binji)
-}
 
 // static
 MachineOperatorBuilder::Flags

@@ -744,10 +744,6 @@ Node* CodeStubAssembler::Load(MachineType rep, Node* base, Node* index) {
   return raw_assembler_->Load(rep, base, index);
 }
 
-Node* CodeStubAssembler::AtomicLoad(MachineType rep, Node* base, Node* index) {
-  return raw_assembler_->AtomicLoad(rep, base, index);
-}
-
 Node* CodeStubAssembler::Store(MachineRepresentation rep, Node* base,
                                Node* value) {
   return raw_assembler_->Store(rep, base, value, kFullWriteBarrier);
@@ -1318,13 +1314,6 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
 Node* CodeStubAssembler::TruncateFloat64ToInt32(Node* value) {
   return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript,
                                                 value);
-}
-
-Node* CodeStubAssembler::ChangeUint32ToWord(Node* value) {
-  if (raw_assembler_->machine()->Is64()) {
-    value = raw_assembler_->ChangeUint32ToUint64(value);
-  }
-  return value;
 }
 
 void CodeStubAssembler::BranchIf(Node* condition, Label* if_true,

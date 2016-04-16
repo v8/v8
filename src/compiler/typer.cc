@@ -2512,7 +2512,6 @@ Type* Typer::Visitor::TypeLoadParentFramePointer(Node* node) {
 
 Type* Typer::Visitor::TypeCheckedLoad(Node* node) { return Type::Any(); }
 
-Type* Typer::Visitor::TypeAtomicLoad(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeCheckedStore(Node* node) {
   UNREACHABLE();

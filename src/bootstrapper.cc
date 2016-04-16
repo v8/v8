@@ -2460,7 +2460,7 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
 
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("load"),
-                        Builtins::kAtomicsLoad, 2, true);
+                        Builtins::kAtomicsLoadCheck, 2, true);
 }
 
 

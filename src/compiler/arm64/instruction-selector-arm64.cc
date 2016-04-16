@@ -2246,33 +2246,6 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
-void InstructionSelector::VisitAtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  Arm64OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  ArchOpcode opcode = kArchNop;
-  ImmediateMode immediate_mode = kNoImmediate;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
-      immediate_mode = kLoadStoreImm8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
-      immediate_mode = kLoadStoreImm16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kAtomicLoadWord32;
-      immediate_mode = kLoadStoreImm32;
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-  Emit(opcode | AddressingModeField::encode(kMode_MRR),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
-}
 
 // static
 MachineOperatorBuilder::Flags
