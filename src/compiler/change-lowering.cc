@@ -654,101 +654,66 @@ Node* ChangeLowering::LoadMapInstanceType(Node* map) {
 
 Reduction ChangeLowering::ObjectIsNumber(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
-  if (input_type->Is(Type::TaggedPointer())) {
-    node->ReplaceInput(0, LoadHeapObjectMap(input, graph()->start()));
-    node->AppendInput(
-        graph()->zone(),
-        jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
-    NodeProperties::ChangeOp(node, machine()->WordEqual());
-  } else {
-    Node* check = IsSmi(input);
-    Node* branch =
-        graph()->NewNode(common()->Branch(), check, graph()->start());
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* vtrue = jsgraph()->Int32Constant(1);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* vfalse = graph()->NewNode(
-        machine()->WordEqual(), LoadHeapObjectMap(input, if_false),
-        jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
-    Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    node->ReplaceInput(0, vtrue);
-    node->AppendInput(graph()->zone(), vfalse);
-    node->AppendInput(graph()->zone(), control);
-    NodeProperties::ChangeOp(node,
-                             common()->Phi(MachineRepresentation::kBit, 2));
-  }
+  // TODO(bmeurer): Optimize somewhat based on input type.
+  Node* check = IsSmi(input);
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(
+      machine()->WordEqual(), LoadHeapObjectMap(input, if_false),
+      jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
   return Changed(node);
 }
 
 Reduction ChangeLowering::ObjectIsReceiver(Node* node) {
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
-  if (input_type->Is(Type::TaggedPointer())) {
-    node->ReplaceInput(0, jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE));
-    node->AppendInput(graph()->zone(), LoadMapInstanceType(LoadHeapObjectMap(
-                                           input, graph()->start())));
-    NodeProperties::ChangeOp(node, machine()->Uint32LessThanOrEqual());
-  } else {
-    Node* check = IsSmi(input);
-    Node* branch =
-        graph()->NewNode(common()->Branch(), check, graph()->start());
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* vtrue = jsgraph()->Int32Constant(0);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* vfalse = graph()->NewNode(
-        machine()->Uint32LessThanOrEqual(),
-        jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE),
-        LoadMapInstanceType(LoadHeapObjectMap(input, if_false)));
-    Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    node->ReplaceInput(0, vtrue);
-    node->AppendInput(graph()->zone(), vfalse);
-    node->AppendInput(graph()->zone(), control);
-    NodeProperties::ChangeOp(node,
-                             common()->Phi(MachineRepresentation::kBit, 2));
-  }
+  // TODO(bmeurer): Optimize somewhat based on input type.
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  Node* check = IsSmi(input);
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(0);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse =
+      graph()->NewNode(machine()->Uint32LessThanOrEqual(),
+                       jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE),
+                       LoadMapInstanceType(LoadHeapObjectMap(input, if_false)));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
   return Changed(node);
 }
 
 Reduction ChangeLowering::ObjectIsUndetectable(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
-  Type* input_type = NodeProperties::GetType(input);
-  if (input_type->Is(Type::TaggedPointer())) {
-    node->ReplaceInput(
-        0, graph()->NewNode(
-               machine()->Word32Equal(),
-               graph()->NewNode(
-                   machine()->Word32And(),
-                   jsgraph()->Uint32Constant(1 << Map::kIsUndetectable),
-                   LoadMapBitField(LoadHeapObjectMap(input, graph()->start()))),
-               jsgraph()->Int32Constant(0)));
-    node->AppendInput(graph()->zone(), jsgraph()->Int32Constant(0));
-    NodeProperties::ChangeOp(node, machine()->Word32Equal());
-  } else {
-    Node* check = IsSmi(input);
-    Node* branch =
-        graph()->NewNode(common()->Branch(), check, graph()->start());
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* vtrue = jsgraph()->Int32Constant(0);
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* vfalse = graph()->NewNode(
-        machine()->Word32Equal(),
-        graph()->NewNode(
-            machine()->Word32Equal(),
-            graph()->NewNode(
-                machine()->Word32And(),
-                jsgraph()->Uint32Constant(1 << Map::kIsUndetectable),
-                LoadMapBitField(LoadHeapObjectMap(input, if_false))),
-            jsgraph()->Int32Constant(0)),
-        jsgraph()->Int32Constant(0));
-    Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    node->ReplaceInput(0, vtrue);
-    node->AppendInput(graph()->zone(), vfalse);
-    node->AppendInput(graph()->zone(), control);
-    NodeProperties::ChangeOp(node,
-                             common()->Phi(MachineRepresentation::kBit, 2));
-  }
+  // TODO(bmeurer): Optimize somewhat based on input type.
+  Node* check = IsSmi(input);
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(0);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(
+      machine()->Word32Equal(),
+      graph()->NewNode(
+          machine()->Word32Equal(),
+          graph()->NewNode(machine()->Word32And(),
+                           jsgraph()->Uint32Constant(1 << Map::kIsUndetectable),
+                           LoadMapBitField(LoadHeapObjectMap(input, if_false))),
+          jsgraph()->Int32Constant(0)),
+      jsgraph()->Int32Constant(0));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
   return Changed(node);
 }
 
