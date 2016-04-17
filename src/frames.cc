@@ -486,10 +486,10 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case INTERNAL:
     case CONSTRUCT:
     case ARGUMENTS_ADAPTOR:
-      return candidate;
-    case JS_TO_WASM:
     case WASM_TO_JS:
     case WASM:
+      return candidate;
+    case JS_TO_WASM:
     case JAVA_SCRIPT:
     case OPTIMIZED:
     case INTERPRETED:
