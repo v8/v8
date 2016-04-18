@@ -463,6 +463,9 @@
           }],
         ],
       }],
+      ['clang==1 and target_arch=="ia32"', {
+        'cflags': ['-mstack-alignment=16', '-mstackrealign'],
+      }],
       ['fastbuild!=0', {
         'conditions': [
           ['OS=="win" and fastbuild==1', {
