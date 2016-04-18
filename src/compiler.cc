@@ -1178,25 +1178,24 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   return true;
 }
 
-void Compiler::CompileForLiveEdit(Handle<Script> script) {
+bool Compiler::CompileForLiveEdit(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   // Start a compilation.
-  // TODO(635): support extensions.
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  PostponeInterruptsScope postpone(isolate);
-  VMState<COMPILER> state(isolate);
-
+  parse_info.set_global();
   info.MarkAsDebug();
-  info.parse_info()->set_global();
-  if (!Parser::ParseStatic(info.parse_info())) return;
+  // TODO(635): support extensions.
+  if (CompileToplevel(&info).is_null()) {
+    return false;
+  }
 
-  LiveEditFunctionTracker tracker(isolate, parse_info.literal());
-  if (!CompileBaselineCode(&info)) return;
-  tracker.RecordRootFunctionInfo(info.code());
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  return true;
 }
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could

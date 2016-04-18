@@ -716,16 +716,6 @@ class FunctionInfoListener {
     current_parent_index_ = info.GetParentIndex();
   }
 
-  // Saves only function code, because for a script function we
-  // may never create a SharedFunctionInfo object.
-  void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
-        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
-             .ToHandleChecked());
-    info.SetFunctionCode(function_code,
-                         Handle<HeapObject>(isolate()->heap()->null_value()));
-  }
-
   // Saves full information about a function: its code, its scope info
   // and a SharedFunctionInfo object.
   void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope,
@@ -2027,11 +2017,6 @@ void LiveEditFunctionTracker::RecordFunctionInfo(
     isolate_->active_function_info_listener()->FunctionInfo(info, lit->scope(),
                                                             zone);
   }
-}
-
-
-void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
-  isolate_->active_function_info_listener()->FunctionCode(code);
 }
 
 

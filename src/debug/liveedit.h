@@ -46,7 +46,6 @@ class LiveEditFunctionTracker {
   ~LiveEditFunctionTracker();
   void RecordFunctionInfo(Handle<SharedFunctionInfo> info,
                           FunctionLiteral* lit, Zone* zone);
-  void RecordRootFunctionInfo(Handle<Code> code);
 
   static bool IsActive(Isolate* isolate);
 
