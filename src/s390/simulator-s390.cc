@@ -10,6 +10,7 @@
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
+#include "src/base/once.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/runtime/runtime-utils.h"
@@ -748,7 +749,742 @@ void Simulator::Initialize(Isolate* isolate) {
   isolate->set_simulator_initialized(true);
   ::v8::internal::ExternalReference::set_redirector(isolate,
                                                     &RedirectExternalReference);
+  static base::OnceType once = V8_ONCE_INIT;
+  base::CallOnce(&once, &Simulator::EvalTableInit);
 }
+
+Simulator::EvaluateFuncType Simulator::EvalTable[] = {NULL};
+
+void Simulator::EvalTableInit() {
+  for (int i = 0; i < MAX_NUM_OPCODES; i++) {
+    EvalTable[i] = &Simulator::Evaluate_Unknown;
+  }
+
+  EvalTable[BKPT] = &Simulator::Evaluate_BKPT;
+  EvalTable[SPM] = &Simulator::Evaluate_SPM;
+  EvalTable[BALR] = &Simulator::Evaluate_BALR;
+  EvalTable[BCTR] = &Simulator::Evaluate_BCTR;
+  EvalTable[BCR] = &Simulator::Evaluate_BCR;
+  EvalTable[SVC] = &Simulator::Evaluate_SVC;
+  EvalTable[BSM] = &Simulator::Evaluate_BSM;
+  EvalTable[BASSM] = &Simulator::Evaluate_BASSM;
+  EvalTable[BASR] = &Simulator::Evaluate_BASR;
+  EvalTable[MVCL] = &Simulator::Evaluate_MVCL;
+  EvalTable[CLCL] = &Simulator::Evaluate_CLCL;
+  EvalTable[LPR] = &Simulator::Evaluate_LPR;
+  EvalTable[LNR] = &Simulator::Evaluate_LNR;
+  EvalTable[LTR] = &Simulator::Evaluate_LTR;
+  EvalTable[LCR] = &Simulator::Evaluate_LCR;
+  EvalTable[NR] = &Simulator::Evaluate_NR;
+  EvalTable[CLR] = &Simulator::Evaluate_CLR;
+  EvalTable[OR] = &Simulator::Evaluate_OR;
+  EvalTable[XR] = &Simulator::Evaluate_XR;
+  EvalTable[LR] = &Simulator::Evaluate_LR;
+  EvalTable[CR] = &Simulator::Evaluate_CR;
+  EvalTable[AR] = &Simulator::Evaluate_AR;
+  EvalTable[SR] = &Simulator::Evaluate_SR;
+  EvalTable[MR] = &Simulator::Evaluate_MR;
+  EvalTable[DR] = &Simulator::Evaluate_DR;
+  EvalTable[ALR] = &Simulator::Evaluate_ALR;
+  EvalTable[SLR] = &Simulator::Evaluate_SLR;
+  EvalTable[LDR] = &Simulator::Evaluate_LDR;
+  EvalTable[CDR] = &Simulator::Evaluate_CDR;
+  EvalTable[LER] = &Simulator::Evaluate_LER;
+  EvalTable[STH] = &Simulator::Evaluate_STH;
+  EvalTable[LA] = &Simulator::Evaluate_LA;
+  EvalTable[STC] = &Simulator::Evaluate_STC;
+  EvalTable[IC_z] = &Simulator::Evaluate_IC_z;
+  EvalTable[EX] = &Simulator::Evaluate_EX;
+  EvalTable[BAL] = &Simulator::Evaluate_BAL;
+  EvalTable[BCT] = &Simulator::Evaluate_BCT;
+  EvalTable[BC] = &Simulator::Evaluate_BC;
+  EvalTable[LH] = &Simulator::Evaluate_LH;
+  EvalTable[CH] = &Simulator::Evaluate_CH;
+  EvalTable[AH] = &Simulator::Evaluate_AH;
+  EvalTable[SH] = &Simulator::Evaluate_SH;
+  EvalTable[MH] = &Simulator::Evaluate_MH;
+  EvalTable[BAS] = &Simulator::Evaluate_BAS;
+  EvalTable[CVD] = &Simulator::Evaluate_CVD;
+  EvalTable[CVB] = &Simulator::Evaluate_CVB;
+  EvalTable[ST] = &Simulator::Evaluate_ST;
+  EvalTable[LAE] = &Simulator::Evaluate_LAE;
+  EvalTable[N] = &Simulator::Evaluate_N;
+  EvalTable[CL] = &Simulator::Evaluate_CL;
+  EvalTable[O] = &Simulator::Evaluate_O;
+  EvalTable[X] = &Simulator::Evaluate_X;
+  EvalTable[L] = &Simulator::Evaluate_L;
+  EvalTable[C] = &Simulator::Evaluate_C;
+  EvalTable[A] = &Simulator::Evaluate_A;
+  EvalTable[S] = &Simulator::Evaluate_S;
+  EvalTable[M] = &Simulator::Evaluate_M;
+  EvalTable[D] = &Simulator::Evaluate_D;
+  EvalTable[AL] = &Simulator::Evaluate_AL;
+  EvalTable[SL] = &Simulator::Evaluate_SL;
+  EvalTable[STD] = &Simulator::Evaluate_STD;
+  EvalTable[LD] = &Simulator::Evaluate_LD;
+  EvalTable[CD] = &Simulator::Evaluate_CD;
+  EvalTable[STE] = &Simulator::Evaluate_STE;
+  EvalTable[MS] = &Simulator::Evaluate_MS;
+  EvalTable[LE] = &Simulator::Evaluate_LE;
+  EvalTable[BRXH] = &Simulator::Evaluate_BRXH;
+  EvalTable[BRXLE] = &Simulator::Evaluate_BRXLE;
+  EvalTable[BXH] = &Simulator::Evaluate_BXH;
+  EvalTable[BXLE] = &Simulator::Evaluate_BXLE;
+  EvalTable[SRL] = &Simulator::Evaluate_SRL;
+  EvalTable[SLL] = &Simulator::Evaluate_SLL;
+  EvalTable[SRA] = &Simulator::Evaluate_SRA;
+  EvalTable[SLA] = &Simulator::Evaluate_SLA;
+  EvalTable[SRDL] = &Simulator::Evaluate_SRDL;
+  EvalTable[SLDL] = &Simulator::Evaluate_SLDL;
+  EvalTable[SRDA] = &Simulator::Evaluate_SRDA;
+  EvalTable[SLDA] = &Simulator::Evaluate_SLDA;
+  EvalTable[STM] = &Simulator::Evaluate_STM;
+  EvalTable[TM] = &Simulator::Evaluate_TM;
+  EvalTable[MVI] = &Simulator::Evaluate_MVI;
+  EvalTable[TS] = &Simulator::Evaluate_TS;
+  EvalTable[NI] = &Simulator::Evaluate_NI;
+  EvalTable[CLI] = &Simulator::Evaluate_CLI;
+  EvalTable[OI] = &Simulator::Evaluate_OI;
+  EvalTable[XI] = &Simulator::Evaluate_XI;
+  EvalTable[LM] = &Simulator::Evaluate_LM;
+  EvalTable[MVCLE] = &Simulator::Evaluate_MVCLE;
+  EvalTable[CLCLE] = &Simulator::Evaluate_CLCLE;
+  EvalTable[MC] = &Simulator::Evaluate_MC;
+  EvalTable[CDS] = &Simulator::Evaluate_CDS;
+  EvalTable[STCM] = &Simulator::Evaluate_STCM;
+  EvalTable[ICM] = &Simulator::Evaluate_ICM;
+  EvalTable[BPRP] = &Simulator::Evaluate_BPRP;
+  EvalTable[BPP] = &Simulator::Evaluate_BPP;
+  EvalTable[TRTR] = &Simulator::Evaluate_TRTR;
+  EvalTable[MVN] = &Simulator::Evaluate_MVN;
+  EvalTable[MVC] = &Simulator::Evaluate_MVC;
+  EvalTable[MVZ] = &Simulator::Evaluate_MVZ;
+  EvalTable[NC] = &Simulator::Evaluate_NC;
+  EvalTable[CLC] = &Simulator::Evaluate_CLC;
+  EvalTable[OC] = &Simulator::Evaluate_OC;
+  EvalTable[XC] = &Simulator::Evaluate_XC;
+  EvalTable[MVCP] = &Simulator::Evaluate_MVCP;
+  EvalTable[TR] = &Simulator::Evaluate_TR;
+  EvalTable[TRT] = &Simulator::Evaluate_TRT;
+  EvalTable[ED] = &Simulator::Evaluate_ED;
+  EvalTable[EDMK] = &Simulator::Evaluate_EDMK;
+  EvalTable[PKU] = &Simulator::Evaluate_PKU;
+  EvalTable[UNPKU] = &Simulator::Evaluate_UNPKU;
+  EvalTable[MVCIN] = &Simulator::Evaluate_MVCIN;
+  EvalTable[PKA] = &Simulator::Evaluate_PKA;
+  EvalTable[UNPKA] = &Simulator::Evaluate_UNPKA;
+  EvalTable[PLO] = &Simulator::Evaluate_PLO;
+  EvalTable[LMD] = &Simulator::Evaluate_LMD;
+  EvalTable[SRP] = &Simulator::Evaluate_SRP;
+  EvalTable[MVO] = &Simulator::Evaluate_MVO;
+  EvalTable[PACK] = &Simulator::Evaluate_PACK;
+  EvalTable[UNPK] = &Simulator::Evaluate_UNPK;
+  EvalTable[ZAP] = &Simulator::Evaluate_ZAP;
+  EvalTable[AP] = &Simulator::Evaluate_AP;
+  EvalTable[SP] = &Simulator::Evaluate_SP;
+  EvalTable[MP] = &Simulator::Evaluate_MP;
+  EvalTable[DP] = &Simulator::Evaluate_DP;
+  EvalTable[UPT] = &Simulator::Evaluate_UPT;
+  EvalTable[PFPO] = &Simulator::Evaluate_PFPO;
+  EvalTable[IIHH] = &Simulator::Evaluate_IIHH;
+  EvalTable[IIHL] = &Simulator::Evaluate_IIHL;
+  EvalTable[IILH] = &Simulator::Evaluate_IILH;
+  EvalTable[IILL] = &Simulator::Evaluate_IILL;
+  EvalTable[NIHH] = &Simulator::Evaluate_NIHH;
+  EvalTable[NIHL] = &Simulator::Evaluate_NIHL;
+  EvalTable[NILH] = &Simulator::Evaluate_NILH;
+  EvalTable[NILL] = &Simulator::Evaluate_NILL;
+  EvalTable[OIHH] = &Simulator::Evaluate_OIHH;
+  EvalTable[OIHL] = &Simulator::Evaluate_OIHL;
+  EvalTable[OILH] = &Simulator::Evaluate_OILH;
+  EvalTable[OILL] = &Simulator::Evaluate_OILL;
+  EvalTable[LLIHH] = &Simulator::Evaluate_LLIHH;
+  EvalTable[LLIHL] = &Simulator::Evaluate_LLIHL;
+  EvalTable[LLILH] = &Simulator::Evaluate_LLILH;
+  EvalTable[LLILL] = &Simulator::Evaluate_LLILL;
+  EvalTable[TMLH] = &Simulator::Evaluate_TMLH;
+  EvalTable[TMLL] = &Simulator::Evaluate_TMLL;
+  EvalTable[TMHH] = &Simulator::Evaluate_TMHH;
+  EvalTable[TMHL] = &Simulator::Evaluate_TMHL;
+  EvalTable[BRC] = &Simulator::Evaluate_BRC;
+  EvalTable[BRAS] = &Simulator::Evaluate_BRAS;
+  EvalTable[BRCT] = &Simulator::Evaluate_BRCT;
+  EvalTable[BRCTG] = &Simulator::Evaluate_BRCTG;
+  EvalTable[LHI] = &Simulator::Evaluate_LHI;
+  EvalTable[LGHI] = &Simulator::Evaluate_LGHI;
+  EvalTable[AHI] = &Simulator::Evaluate_AHI;
+  EvalTable[AGHI] = &Simulator::Evaluate_AGHI;
+  EvalTable[MHI] = &Simulator::Evaluate_MHI;
+  EvalTable[MGHI] = &Simulator::Evaluate_MGHI;
+  EvalTable[CHI] = &Simulator::Evaluate_CHI;
+  EvalTable[CGHI] = &Simulator::Evaluate_CGHI;
+  EvalTable[LARL] = &Simulator::Evaluate_LARL;
+  EvalTable[LGFI] = &Simulator::Evaluate_LGFI;
+  EvalTable[BRCL] = &Simulator::Evaluate_BRCL;
+  EvalTable[BRASL] = &Simulator::Evaluate_BRASL;
+  EvalTable[XIHF] = &Simulator::Evaluate_XIHF;
+  EvalTable[XILF] = &Simulator::Evaluate_XILF;
+  EvalTable[IIHF] = &Simulator::Evaluate_IIHF;
+  EvalTable[IILF] = &Simulator::Evaluate_IILF;
+  EvalTable[NIHF] = &Simulator::Evaluate_NIHF;
+  EvalTable[NILF] = &Simulator::Evaluate_NILF;
+  EvalTable[OIHF] = &Simulator::Evaluate_OIHF;
+  EvalTable[OILF] = &Simulator::Evaluate_OILF;
+  EvalTable[LLIHF] = &Simulator::Evaluate_LLIHF;
+  EvalTable[LLILF] = &Simulator::Evaluate_LLILF;
+  EvalTable[MSGFI] = &Simulator::Evaluate_MSGFI;
+  EvalTable[MSFI] = &Simulator::Evaluate_MSFI;
+  EvalTable[SLGFI] = &Simulator::Evaluate_SLGFI;
+  EvalTable[SLFI] = &Simulator::Evaluate_SLFI;
+  EvalTable[AGFI] = &Simulator::Evaluate_AGFI;
+  EvalTable[AFI] = &Simulator::Evaluate_AFI;
+  EvalTable[ALGFI] = &Simulator::Evaluate_ALGFI;
+  EvalTable[ALFI] = &Simulator::Evaluate_ALFI;
+  EvalTable[CGFI] = &Simulator::Evaluate_CGFI;
+  EvalTable[CFI] = &Simulator::Evaluate_CFI;
+  EvalTable[CLGFI] = &Simulator::Evaluate_CLGFI;
+  EvalTable[CLFI] = &Simulator::Evaluate_CLFI;
+  EvalTable[LLHRL] = &Simulator::Evaluate_LLHRL;
+  EvalTable[LGHRL] = &Simulator::Evaluate_LGHRL;
+  EvalTable[LHRL] = &Simulator::Evaluate_LHRL;
+  EvalTable[LLGHRL] = &Simulator::Evaluate_LLGHRL;
+  EvalTable[STHRL] = &Simulator::Evaluate_STHRL;
+  EvalTable[LGRL] = &Simulator::Evaluate_LGRL;
+  EvalTable[STGRL] = &Simulator::Evaluate_STGRL;
+  EvalTable[LGFRL] = &Simulator::Evaluate_LGFRL;
+  EvalTable[LRL] = &Simulator::Evaluate_LRL;
+  EvalTable[LLGFRL] = &Simulator::Evaluate_LLGFRL;
+  EvalTable[STRL] = &Simulator::Evaluate_STRL;
+  EvalTable[EXRL] = &Simulator::Evaluate_EXRL;
+  EvalTable[PFDRL] = &Simulator::Evaluate_PFDRL;
+  EvalTable[CGHRL] = &Simulator::Evaluate_CGHRL;
+  EvalTable[CHRL] = &Simulator::Evaluate_CHRL;
+  EvalTable[CGRL] = &Simulator::Evaluate_CGRL;
+  EvalTable[CGFRL] = &Simulator::Evaluate_CGFRL;
+  EvalTable[ECTG] = &Simulator::Evaluate_ECTG;
+  EvalTable[CSST] = &Simulator::Evaluate_CSST;
+  EvalTable[LPD] = &Simulator::Evaluate_LPD;
+  EvalTable[LPDG] = &Simulator::Evaluate_LPDG;
+  EvalTable[BRCTH] = &Simulator::Evaluate_BRCTH;
+  EvalTable[AIH] = &Simulator::Evaluate_AIH;
+  EvalTable[ALSIH] = &Simulator::Evaluate_ALSIH;
+  EvalTable[ALSIHN] = &Simulator::Evaluate_ALSIHN;
+  EvalTable[CIH] = &Simulator::Evaluate_CIH;
+  EvalTable[STCK] = &Simulator::Evaluate_STCK;
+  EvalTable[CFC] = &Simulator::Evaluate_CFC;
+  EvalTable[IPM] = &Simulator::Evaluate_IPM;
+  EvalTable[HSCH] = &Simulator::Evaluate_HSCH;
+  EvalTable[MSCH] = &Simulator::Evaluate_MSCH;
+  EvalTable[SSCH] = &Simulator::Evaluate_SSCH;
+  EvalTable[STSCH] = &Simulator::Evaluate_STSCH;
+  EvalTable[TSCH] = &Simulator::Evaluate_TSCH;
+  EvalTable[TPI] = &Simulator::Evaluate_TPI;
+  EvalTable[SAL] = &Simulator::Evaluate_SAL;
+  EvalTable[RSCH] = &Simulator::Evaluate_RSCH;
+  EvalTable[STCRW] = &Simulator::Evaluate_STCRW;
+  EvalTable[STCPS] = &Simulator::Evaluate_STCPS;
+  EvalTable[RCHP] = &Simulator::Evaluate_RCHP;
+  EvalTable[SCHM] = &Simulator::Evaluate_SCHM;
+  EvalTable[CKSM] = &Simulator::Evaluate_CKSM;
+  EvalTable[SAR] = &Simulator::Evaluate_SAR;
+  EvalTable[EAR] = &Simulator::Evaluate_EAR;
+  EvalTable[MSR] = &Simulator::Evaluate_MSR;
+  EvalTable[MVST] = &Simulator::Evaluate_MVST;
+  EvalTable[CUSE] = &Simulator::Evaluate_CUSE;
+  EvalTable[SRST] = &Simulator::Evaluate_SRST;
+  EvalTable[XSCH] = &Simulator::Evaluate_XSCH;
+  EvalTable[STCKE] = &Simulator::Evaluate_STCKE;
+  EvalTable[STCKF] = &Simulator::Evaluate_STCKF;
+  EvalTable[SRNM] = &Simulator::Evaluate_SRNM;
+  EvalTable[STFPC] = &Simulator::Evaluate_STFPC;
+  EvalTable[LFPC] = &Simulator::Evaluate_LFPC;
+  EvalTable[TRE] = &Simulator::Evaluate_TRE;
+  EvalTable[CUUTF] = &Simulator::Evaluate_CUUTF;
+  EvalTable[CUTFU] = &Simulator::Evaluate_CUTFU;
+  EvalTable[STFLE] = &Simulator::Evaluate_STFLE;
+  EvalTable[SRNMB] = &Simulator::Evaluate_SRNMB;
+  EvalTable[SRNMT] = &Simulator::Evaluate_SRNMT;
+  EvalTable[LFAS] = &Simulator::Evaluate_LFAS;
+  EvalTable[PPA] = &Simulator::Evaluate_PPA;
+  EvalTable[ETND] = &Simulator::Evaluate_ETND;
+  EvalTable[TEND] = &Simulator::Evaluate_TEND;
+  EvalTable[NIAI] = &Simulator::Evaluate_NIAI;
+  EvalTable[TABORT] = &Simulator::Evaluate_TABORT;
+  EvalTable[TRAP4] = &Simulator::Evaluate_TRAP4;
+  EvalTable[LPEBR] = &Simulator::Evaluate_LPEBR;
+  EvalTable[LNEBR] = &Simulator::Evaluate_LNEBR;
+  EvalTable[LTEBR] = &Simulator::Evaluate_LTEBR;
+  EvalTable[LCEBR] = &Simulator::Evaluate_LCEBR;
+  EvalTable[LDEBR] = &Simulator::Evaluate_LDEBR;
+  EvalTable[LXDBR] = &Simulator::Evaluate_LXDBR;
+  EvalTable[LXEBR] = &Simulator::Evaluate_LXEBR;
+  EvalTable[MXDBR] = &Simulator::Evaluate_MXDBR;
+  EvalTable[KEBR] = &Simulator::Evaluate_KEBR;
+  EvalTable[CEBR] = &Simulator::Evaluate_CEBR;
+  EvalTable[AEBR] = &Simulator::Evaluate_AEBR;
+  EvalTable[SEBR] = &Simulator::Evaluate_SEBR;
+  EvalTable[MDEBR] = &Simulator::Evaluate_MDEBR;
+  EvalTable[DEBR] = &Simulator::Evaluate_DEBR;
+  EvalTable[MAEBR] = &Simulator::Evaluate_MAEBR;
+  EvalTable[MSEBR] = &Simulator::Evaluate_MSEBR;
+  EvalTable[LPDBR] = &Simulator::Evaluate_LPDBR;
+  EvalTable[LNDBR] = &Simulator::Evaluate_LNDBR;
+  EvalTable[LTDBR] = &Simulator::Evaluate_LTDBR;
+  EvalTable[LCDBR] = &Simulator::Evaluate_LCDBR;
+  EvalTable[SQEBR] = &Simulator::Evaluate_SQEBR;
+  EvalTable[SQDBR] = &Simulator::Evaluate_SQDBR;
+  EvalTable[SQXBR] = &Simulator::Evaluate_SQXBR;
+  EvalTable[MEEBR] = &Simulator::Evaluate_MEEBR;
+  EvalTable[KDBR] = &Simulator::Evaluate_KDBR;
+  EvalTable[CDBR] = &Simulator::Evaluate_CDBR;
+  EvalTable[ADBR] = &Simulator::Evaluate_ADBR;
+  EvalTable[SDBR] = &Simulator::Evaluate_SDBR;
+  EvalTable[MDBR] = &Simulator::Evaluate_MDBR;
+  EvalTable[DDBR] = &Simulator::Evaluate_DDBR;
+  EvalTable[MADBR] = &Simulator::Evaluate_MADBR;
+  EvalTable[MSDBR] = &Simulator::Evaluate_MSDBR;
+  EvalTable[LPXBR] = &Simulator::Evaluate_LPXBR;
+  EvalTable[LNXBR] = &Simulator::Evaluate_LNXBR;
+  EvalTable[LTXBR] = &Simulator::Evaluate_LTXBR;
+  EvalTable[LCXBR] = &Simulator::Evaluate_LCXBR;
+  EvalTable[LEDBRA] = &Simulator::Evaluate_LEDBRA;
+  EvalTable[LDXBRA] = &Simulator::Evaluate_LDXBRA;
+  EvalTable[LEXBRA] = &Simulator::Evaluate_LEXBRA;
+  EvalTable[FIXBRA] = &Simulator::Evaluate_FIXBRA;
+  EvalTable[KXBR] = &Simulator::Evaluate_KXBR;
+  EvalTable[CXBR] = &Simulator::Evaluate_CXBR;
+  EvalTable[AXBR] = &Simulator::Evaluate_AXBR;
+  EvalTable[SXBR] = &Simulator::Evaluate_SXBR;
+  EvalTable[MXBR] = &Simulator::Evaluate_MXBR;
+  EvalTable[DXBR] = &Simulator::Evaluate_DXBR;
+  EvalTable[TBEDR] = &Simulator::Evaluate_TBEDR;
+  EvalTable[TBDR] = &Simulator::Evaluate_TBDR;
+  EvalTable[DIEBR] = &Simulator::Evaluate_DIEBR;
+  EvalTable[FIEBRA] = &Simulator::Evaluate_FIEBRA;
+  EvalTable[THDER] = &Simulator::Evaluate_THDER;
+  EvalTable[THDR] = &Simulator::Evaluate_THDR;
+  EvalTable[DIDBR] = &Simulator::Evaluate_DIDBR;
+  EvalTable[FIDBRA] = &Simulator::Evaluate_FIDBRA;
+  EvalTable[LXR] = &Simulator::Evaluate_LXR;
+  EvalTable[LPDFR] = &Simulator::Evaluate_LPDFR;
+  EvalTable[LNDFR] = &Simulator::Evaluate_LNDFR;
+  EvalTable[LCDFR] = &Simulator::Evaluate_LCDFR;
+  EvalTable[LZER] = &Simulator::Evaluate_LZER;
+  EvalTable[LZDR] = &Simulator::Evaluate_LZDR;
+  EvalTable[LZXR] = &Simulator::Evaluate_LZXR;
+  EvalTable[SFPC] = &Simulator::Evaluate_SFPC;
+  EvalTable[SFASR] = &Simulator::Evaluate_SFASR;
+  EvalTable[EFPC] = &Simulator::Evaluate_EFPC;
+  EvalTable[CELFBR] = &Simulator::Evaluate_CELFBR;
+  EvalTable[CDLFBR] = &Simulator::Evaluate_CDLFBR;
+  EvalTable[CXLFBR] = &Simulator::Evaluate_CXLFBR;
+  EvalTable[CEFBRA] = &Simulator::Evaluate_CEFBRA;
+  EvalTable[CDFBRA] = &Simulator::Evaluate_CDFBRA;
+  EvalTable[CXFBRA] = &Simulator::Evaluate_CXFBRA;
+  EvalTable[CFEBRA] = &Simulator::Evaluate_CFEBRA;
+  EvalTable[CFDBRA] = &Simulator::Evaluate_CFDBRA;
+  EvalTable[CFXBRA] = &Simulator::Evaluate_CFXBRA;
+  EvalTable[CLFEBR] = &Simulator::Evaluate_CLFEBR;
+  EvalTable[CLFDBR] = &Simulator::Evaluate_CLFDBR;
+  EvalTable[CLFXBR] = &Simulator::Evaluate_CLFXBR;
+  EvalTable[CELGBR] = &Simulator::Evaluate_CELGBR;
+  EvalTable[CDLGBR] = &Simulator::Evaluate_CDLGBR;
+  EvalTable[CXLGBR] = &Simulator::Evaluate_CXLGBR;
+  EvalTable[CEGBRA] = &Simulator::Evaluate_CEGBRA;
+  EvalTable[CDGBRA] = &Simulator::Evaluate_CDGBRA;
+  EvalTable[CXGBRA] = &Simulator::Evaluate_CXGBRA;
+  EvalTable[CGEBRA] = &Simulator::Evaluate_CGEBRA;
+  EvalTable[CGDBRA] = &Simulator::Evaluate_CGDBRA;
+  EvalTable[CGXBRA] = &Simulator::Evaluate_CGXBRA;
+  EvalTable[CLGEBR] = &Simulator::Evaluate_CLGEBR;
+  EvalTable[CLGDBR] = &Simulator::Evaluate_CLGDBR;
+  EvalTable[CFER] = &Simulator::Evaluate_CFER;
+  EvalTable[CFDR] = &Simulator::Evaluate_CFDR;
+  EvalTable[CFXR] = &Simulator::Evaluate_CFXR;
+  EvalTable[LDGR] = &Simulator::Evaluate_LDGR;
+  EvalTable[CGER] = &Simulator::Evaluate_CGER;
+  EvalTable[CGDR] = &Simulator::Evaluate_CGDR;
+  EvalTable[CGXR] = &Simulator::Evaluate_CGXR;
+  EvalTable[LGDR] = &Simulator::Evaluate_LGDR;
+  EvalTable[MDTR] = &Simulator::Evaluate_MDTR;
+  EvalTable[MDTRA] = &Simulator::Evaluate_MDTRA;
+  EvalTable[DDTRA] = &Simulator::Evaluate_DDTRA;
+  EvalTable[ADTRA] = &Simulator::Evaluate_ADTRA;
+  EvalTable[SDTRA] = &Simulator::Evaluate_SDTRA;
+  EvalTable[LDETR] = &Simulator::Evaluate_LDETR;
+  EvalTable[LEDTR] = &Simulator::Evaluate_LEDTR;
+  EvalTable[LTDTR] = &Simulator::Evaluate_LTDTR;
+  EvalTable[FIDTR] = &Simulator::Evaluate_FIDTR;
+  EvalTable[MXTRA] = &Simulator::Evaluate_MXTRA;
+  EvalTable[DXTRA] = &Simulator::Evaluate_DXTRA;
+  EvalTable[AXTRA] = &Simulator::Evaluate_AXTRA;
+  EvalTable[SXTRA] = &Simulator::Evaluate_SXTRA;
+  EvalTable[LXDTR] = &Simulator::Evaluate_LXDTR;
+  EvalTable[LDXTR] = &Simulator::Evaluate_LDXTR;
+  EvalTable[LTXTR] = &Simulator::Evaluate_LTXTR;
+  EvalTable[FIXTR] = &Simulator::Evaluate_FIXTR;
+  EvalTable[KDTR] = &Simulator::Evaluate_KDTR;
+  EvalTable[CGDTRA] = &Simulator::Evaluate_CGDTRA;
+  EvalTable[CUDTR] = &Simulator::Evaluate_CUDTR;
+  EvalTable[CDTR] = &Simulator::Evaluate_CDTR;
+  EvalTable[EEDTR] = &Simulator::Evaluate_EEDTR;
+  EvalTable[ESDTR] = &Simulator::Evaluate_ESDTR;
+  EvalTable[KXTR] = &Simulator::Evaluate_KXTR;
+  EvalTable[CGXTRA] = &Simulator::Evaluate_CGXTRA;
+  EvalTable[CUXTR] = &Simulator::Evaluate_CUXTR;
+  EvalTable[CSXTR] = &Simulator::Evaluate_CSXTR;
+  EvalTable[CXTR] = &Simulator::Evaluate_CXTR;
+  EvalTable[EEXTR] = &Simulator::Evaluate_EEXTR;
+  EvalTable[ESXTR] = &Simulator::Evaluate_ESXTR;
+  EvalTable[CDGTRA] = &Simulator::Evaluate_CDGTRA;
+  EvalTable[CDUTR] = &Simulator::Evaluate_CDUTR;
+  EvalTable[CDSTR] = &Simulator::Evaluate_CDSTR;
+  EvalTable[CEDTR] = &Simulator::Evaluate_CEDTR;
+  EvalTable[QADTR] = &Simulator::Evaluate_QADTR;
+  EvalTable[IEDTR] = &Simulator::Evaluate_IEDTR;
+  EvalTable[RRDTR] = &Simulator::Evaluate_RRDTR;
+  EvalTable[CXGTRA] = &Simulator::Evaluate_CXGTRA;
+  EvalTable[CXUTR] = &Simulator::Evaluate_CXUTR;
+  EvalTable[CXSTR] = &Simulator::Evaluate_CXSTR;
+  EvalTable[CEXTR] = &Simulator::Evaluate_CEXTR;
+  EvalTable[QAXTR] = &Simulator::Evaluate_QAXTR;
+  EvalTable[IEXTR] = &Simulator::Evaluate_IEXTR;
+  EvalTable[RRXTR] = &Simulator::Evaluate_RRXTR;
+  EvalTable[LPGR] = &Simulator::Evaluate_LPGR;
+  EvalTable[LNGR] = &Simulator::Evaluate_LNGR;
+  EvalTable[LTGR] = &Simulator::Evaluate_LTGR;
+  EvalTable[LCGR] = &Simulator::Evaluate_LCGR;
+  EvalTable[LGR] = &Simulator::Evaluate_LGR;
+  EvalTable[LGBR] = &Simulator::Evaluate_LGBR;
+  EvalTable[LGHR] = &Simulator::Evaluate_LGHR;
+  EvalTable[AGR] = &Simulator::Evaluate_AGR;
+  EvalTable[SGR] = &Simulator::Evaluate_SGR;
+  EvalTable[ALGR] = &Simulator::Evaluate_ALGR;
+  EvalTable[SLGR] = &Simulator::Evaluate_SLGR;
+  EvalTable[MSGR] = &Simulator::Evaluate_MSGR;
+  EvalTable[DSGR] = &Simulator::Evaluate_DSGR;
+  EvalTable[LRVGR] = &Simulator::Evaluate_LRVGR;
+  EvalTable[LPGFR] = &Simulator::Evaluate_LPGFR;
+  EvalTable[LNGFR] = &Simulator::Evaluate_LNGFR;
+  EvalTable[LTGFR] = &Simulator::Evaluate_LTGFR;
+  EvalTable[LCGFR] = &Simulator::Evaluate_LCGFR;
+  EvalTable[LGFR] = &Simulator::Evaluate_LGFR;
+  EvalTable[LLGFR] = &Simulator::Evaluate_LLGFR;
+  EvalTable[LLGTR] = &Simulator::Evaluate_LLGTR;
+  EvalTable[AGFR] = &Simulator::Evaluate_AGFR;
+  EvalTable[SGFR] = &Simulator::Evaluate_SGFR;
+  EvalTable[ALGFR] = &Simulator::Evaluate_ALGFR;
+  EvalTable[SLGFR] = &Simulator::Evaluate_SLGFR;
+  EvalTable[MSGFR] = &Simulator::Evaluate_MSGFR;
+  EvalTable[DSGFR] = &Simulator::Evaluate_DSGFR;
+  EvalTable[KMAC] = &Simulator::Evaluate_KMAC;
+  EvalTable[LRVR] = &Simulator::Evaluate_LRVR;
+  EvalTable[CGR] = &Simulator::Evaluate_CGR;
+  EvalTable[CLGR] = &Simulator::Evaluate_CLGR;
+  EvalTable[LBR] = &Simulator::Evaluate_LBR;
+  EvalTable[LHR] = &Simulator::Evaluate_LHR;
+  EvalTable[KMF] = &Simulator::Evaluate_KMF;
+  EvalTable[KMO] = &Simulator::Evaluate_KMO;
+  EvalTable[PCC] = &Simulator::Evaluate_PCC;
+  EvalTable[KMCTR] = &Simulator::Evaluate_KMCTR;
+  EvalTable[KM] = &Simulator::Evaluate_KM;
+  EvalTable[KMC] = &Simulator::Evaluate_KMC;
+  EvalTable[CGFR] = &Simulator::Evaluate_CGFR;
+  EvalTable[KIMD] = &Simulator::Evaluate_KIMD;
+  EvalTable[KLMD] = &Simulator::Evaluate_KLMD;
+  EvalTable[CFDTR] = &Simulator::Evaluate_CFDTR;
+  EvalTable[CLGDTR] = &Simulator::Evaluate_CLGDTR;
+  EvalTable[CLFDTR] = &Simulator::Evaluate_CLFDTR;
+  EvalTable[BCTGR] = &Simulator::Evaluate_BCTGR;
+  EvalTable[CFXTR] = &Simulator::Evaluate_CFXTR;
+  EvalTable[CLFXTR] = &Simulator::Evaluate_CLFXTR;
+  EvalTable[CDFTR] = &Simulator::Evaluate_CDFTR;
+  EvalTable[CDLGTR] = &Simulator::Evaluate_CDLGTR;
+  EvalTable[CDLFTR] = &Simulator::Evaluate_CDLFTR;
+  EvalTable[CXFTR] = &Simulator::Evaluate_CXFTR;
+  EvalTable[CXLGTR] = &Simulator::Evaluate_CXLGTR;
+  EvalTable[CXLFTR] = &Simulator::Evaluate_CXLFTR;
+  EvalTable[CGRT] = &Simulator::Evaluate_CGRT;
+  EvalTable[NGR] = &Simulator::Evaluate_NGR;
+  EvalTable[OGR] = &Simulator::Evaluate_OGR;
+  EvalTable[XGR] = &Simulator::Evaluate_XGR;
+  EvalTable[FLOGR] = &Simulator::Evaluate_FLOGR;
+  EvalTable[LLGCR] = &Simulator::Evaluate_LLGCR;
+  EvalTable[LLGHR] = &Simulator::Evaluate_LLGHR;
+  EvalTable[MLGR] = &Simulator::Evaluate_MLGR;
+  EvalTable[DLGR] = &Simulator::Evaluate_DLGR;
+  EvalTable[ALCGR] = &Simulator::Evaluate_ALCGR;
+  EvalTable[SLBGR] = &Simulator::Evaluate_SLBGR;
+  EvalTable[EPSW] = &Simulator::Evaluate_EPSW;
+  EvalTable[TRTT] = &Simulator::Evaluate_TRTT;
+  EvalTable[TRTO] = &Simulator::Evaluate_TRTO;
+  EvalTable[TROT] = &Simulator::Evaluate_TROT;
+  EvalTable[TROO] = &Simulator::Evaluate_TROO;
+  EvalTable[LLCR] = &Simulator::Evaluate_LLCR;
+  EvalTable[LLHR] = &Simulator::Evaluate_LLHR;
+  EvalTable[MLR] = &Simulator::Evaluate_MLR;
+  EvalTable[DLR] = &Simulator::Evaluate_DLR;
+  EvalTable[ALCR] = &Simulator::Evaluate_ALCR;
+  EvalTable[SLBR] = &Simulator::Evaluate_SLBR;
+  EvalTable[CU14] = &Simulator::Evaluate_CU14;
+  EvalTable[CU24] = &Simulator::Evaluate_CU24;
+  EvalTable[CU41] = &Simulator::Evaluate_CU41;
+  EvalTable[CU42] = &Simulator::Evaluate_CU42;
+  EvalTable[TRTRE] = &Simulator::Evaluate_TRTRE;
+  EvalTable[SRSTU] = &Simulator::Evaluate_SRSTU;
+  EvalTable[TRTE] = &Simulator::Evaluate_TRTE;
+  EvalTable[AHHHR] = &Simulator::Evaluate_AHHHR;
+  EvalTable[SHHHR] = &Simulator::Evaluate_SHHHR;
+  EvalTable[ALHHHR] = &Simulator::Evaluate_ALHHHR;
+  EvalTable[SLHHHR] = &Simulator::Evaluate_SLHHHR;
+  EvalTable[CHHR] = &Simulator::Evaluate_CHHR;
+  EvalTable[AHHLR] = &Simulator::Evaluate_AHHLR;
+  EvalTable[SHHLR] = &Simulator::Evaluate_SHHLR;
+  EvalTable[ALHHLR] = &Simulator::Evaluate_ALHHLR;
+  EvalTable[SLHHLR] = &Simulator::Evaluate_SLHHLR;
+  EvalTable[CHLR] = &Simulator::Evaluate_CHLR;
+  EvalTable[POPCNT_Z] = &Simulator::Evaluate_POPCNT_Z;
+  EvalTable[LOCGR] = &Simulator::Evaluate_LOCGR;
+  EvalTable[NGRK] = &Simulator::Evaluate_NGRK;
+  EvalTable[OGRK] = &Simulator::Evaluate_OGRK;
+  EvalTable[XGRK] = &Simulator::Evaluate_XGRK;
+  EvalTable[AGRK] = &Simulator::Evaluate_AGRK;
+  EvalTable[SGRK] = &Simulator::Evaluate_SGRK;
+  EvalTable[ALGRK] = &Simulator::Evaluate_ALGRK;
+  EvalTable[SLGRK] = &Simulator::Evaluate_SLGRK;
+  EvalTable[LOCR] = &Simulator::Evaluate_LOCR;
+  EvalTable[NRK] = &Simulator::Evaluate_NRK;
+  EvalTable[ORK] = &Simulator::Evaluate_ORK;
+  EvalTable[XRK] = &Simulator::Evaluate_XRK;
+  EvalTable[ARK] = &Simulator::Evaluate_ARK;
+  EvalTable[SRK] = &Simulator::Evaluate_SRK;
+  EvalTable[ALRK] = &Simulator::Evaluate_ALRK;
+  EvalTable[SLRK] = &Simulator::Evaluate_SLRK;
+  EvalTable[LTG] = &Simulator::Evaluate_LTG;
+  EvalTable[LG] = &Simulator::Evaluate_LG;
+  EvalTable[CVBY] = &Simulator::Evaluate_CVBY;
+  EvalTable[AG] = &Simulator::Evaluate_AG;
+  EvalTable[SG] = &Simulator::Evaluate_SG;
+  EvalTable[ALG] = &Simulator::Evaluate_ALG;
+  EvalTable[SLG] = &Simulator::Evaluate_SLG;
+  EvalTable[MSG] = &Simulator::Evaluate_MSG;
+  EvalTable[DSG] = &Simulator::Evaluate_DSG;
+  EvalTable[CVBG] = &Simulator::Evaluate_CVBG;
+  EvalTable[LRVG] = &Simulator::Evaluate_LRVG;
+  EvalTable[LT] = &Simulator::Evaluate_LT;
+  EvalTable[LGF] = &Simulator::Evaluate_LGF;
+  EvalTable[LGH] = &Simulator::Evaluate_LGH;
+  EvalTable[LLGF] = &Simulator::Evaluate_LLGF;
+  EvalTable[LLGT] = &Simulator::Evaluate_LLGT;
+  EvalTable[AGF] = &Simulator::Evaluate_AGF;
+  EvalTable[SGF] = &Simulator::Evaluate_SGF;
+  EvalTable[ALGF] = &Simulator::Evaluate_ALGF;
+  EvalTable[SLGF] = &Simulator::Evaluate_SLGF;
+  EvalTable[MSGF] = &Simulator::Evaluate_MSGF;
+  EvalTable[DSGF] = &Simulator::Evaluate_DSGF;
+  EvalTable[LRV] = &Simulator::Evaluate_LRV;
+  EvalTable[LRVH] = &Simulator::Evaluate_LRVH;
+  EvalTable[CG] = &Simulator::Evaluate_CG;
+  EvalTable[CLG] = &Simulator::Evaluate_CLG;
+  EvalTable[STG] = &Simulator::Evaluate_STG;
+  EvalTable[NTSTG] = &Simulator::Evaluate_NTSTG;
+  EvalTable[CVDY] = &Simulator::Evaluate_CVDY;
+  EvalTable[CVDG] = &Simulator::Evaluate_CVDG;
+  EvalTable[STRVG] = &Simulator::Evaluate_STRVG;
+  EvalTable[CGF] = &Simulator::Evaluate_CGF;
+  EvalTable[CLGF] = &Simulator::Evaluate_CLGF;
+  EvalTable[LTGF] = &Simulator::Evaluate_LTGF;
+  EvalTable[CGH] = &Simulator::Evaluate_CGH;
+  EvalTable[PFD] = &Simulator::Evaluate_PFD;
+  EvalTable[STRV] = &Simulator::Evaluate_STRV;
+  EvalTable[STRVH] = &Simulator::Evaluate_STRVH;
+  EvalTable[BCTG] = &Simulator::Evaluate_BCTG;
+  EvalTable[STY] = &Simulator::Evaluate_STY;
+  EvalTable[MSY] = &Simulator::Evaluate_MSY;
+  EvalTable[NY] = &Simulator::Evaluate_NY;
+  EvalTable[CLY] = &Simulator::Evaluate_CLY;
+  EvalTable[OY] = &Simulator::Evaluate_OY;
+  EvalTable[XY] = &Simulator::Evaluate_XY;
+  EvalTable[LY] = &Simulator::Evaluate_LY;
+  EvalTable[CY] = &Simulator::Evaluate_CY;
+  EvalTable[AY] = &Simulator::Evaluate_AY;
+  EvalTable[SY] = &Simulator::Evaluate_SY;
+  EvalTable[MFY] = &Simulator::Evaluate_MFY;
+  EvalTable[ALY] = &Simulator::Evaluate_ALY;
+  EvalTable[SLY] = &Simulator::Evaluate_SLY;
+  EvalTable[STHY] = &Simulator::Evaluate_STHY;
+  EvalTable[LAY] = &Simulator::Evaluate_LAY;
+  EvalTable[STCY] = &Simulator::Evaluate_STCY;
+  EvalTable[ICY] = &Simulator::Evaluate_ICY;
+  EvalTable[LAEY] = &Simulator::Evaluate_LAEY;
+  EvalTable[LB] = &Simulator::Evaluate_LB;
+  EvalTable[LGB] = &Simulator::Evaluate_LGB;
+  EvalTable[LHY] = &Simulator::Evaluate_LHY;
+  EvalTable[CHY] = &Simulator::Evaluate_CHY;
+  EvalTable[AHY] = &Simulator::Evaluate_AHY;
+  EvalTable[SHY] = &Simulator::Evaluate_SHY;
+  EvalTable[MHY] = &Simulator::Evaluate_MHY;
+  EvalTable[NG] = &Simulator::Evaluate_NG;
+  EvalTable[OG] = &Simulator::Evaluate_OG;
+  EvalTable[XG] = &Simulator::Evaluate_XG;
+  EvalTable[LGAT] = &Simulator::Evaluate_LGAT;
+  EvalTable[MLG] = &Simulator::Evaluate_MLG;
+  EvalTable[DLG] = &Simulator::Evaluate_DLG;
+  EvalTable[ALCG] = &Simulator::Evaluate_ALCG;
+  EvalTable[SLBG] = &Simulator::Evaluate_SLBG;
+  EvalTable[STPQ] = &Simulator::Evaluate_STPQ;
+  EvalTable[LPQ] = &Simulator::Evaluate_LPQ;
+  EvalTable[LLGC] = &Simulator::Evaluate_LLGC;
+  EvalTable[LLGH] = &Simulator::Evaluate_LLGH;
+  EvalTable[LLC] = &Simulator::Evaluate_LLC;
+  EvalTable[LLH] = &Simulator::Evaluate_LLH;
+  EvalTable[ML] = &Simulator::Evaluate_ML;
+  EvalTable[DL] = &Simulator::Evaluate_DL;
+  EvalTable[ALC] = &Simulator::Evaluate_ALC;
+  EvalTable[SLB] = &Simulator::Evaluate_SLB;
+  EvalTable[LLGTAT] = &Simulator::Evaluate_LLGTAT;
+  EvalTable[LLGFAT] = &Simulator::Evaluate_LLGFAT;
+  EvalTable[LAT] = &Simulator::Evaluate_LAT;
+  EvalTable[LBH] = &Simulator::Evaluate_LBH;
+  EvalTable[LLCH] = &Simulator::Evaluate_LLCH;
+  EvalTable[STCH] = &Simulator::Evaluate_STCH;
+  EvalTable[LHH] = &Simulator::Evaluate_LHH;
+  EvalTable[LLHH] = &Simulator::Evaluate_LLHH;
+  EvalTable[STHH] = &Simulator::Evaluate_STHH;
+  EvalTable[LFHAT] = &Simulator::Evaluate_LFHAT;
+  EvalTable[LFH] = &Simulator::Evaluate_LFH;
+  EvalTable[STFH] = &Simulator::Evaluate_STFH;
+  EvalTable[CHF] = &Simulator::Evaluate_CHF;
+  EvalTable[MVCDK] = &Simulator::Evaluate_MVCDK;
+  EvalTable[MVHHI] = &Simulator::Evaluate_MVHHI;
+  EvalTable[MVGHI] = &Simulator::Evaluate_MVGHI;
+  EvalTable[MVHI] = &Simulator::Evaluate_MVHI;
+  EvalTable[CHHSI] = &Simulator::Evaluate_CHHSI;
+  EvalTable[CGHSI] = &Simulator::Evaluate_CGHSI;
+  EvalTable[CHSI] = &Simulator::Evaluate_CHSI;
+  EvalTable[CLFHSI] = &Simulator::Evaluate_CLFHSI;
+  EvalTable[TBEGIN] = &Simulator::Evaluate_TBEGIN;
+  EvalTable[TBEGINC] = &Simulator::Evaluate_TBEGINC;
+  EvalTable[LMG] = &Simulator::Evaluate_LMG;
+  EvalTable[SRAG] = &Simulator::Evaluate_SRAG;
+  EvalTable[SLAG] = &Simulator::Evaluate_SLAG;
+  EvalTable[SRLG] = &Simulator::Evaluate_SRLG;
+  EvalTable[SLLG] = &Simulator::Evaluate_SLLG;
+  EvalTable[CSY] = &Simulator::Evaluate_CSY;
+  EvalTable[RLLG] = &Simulator::Evaluate_RLLG;
+  EvalTable[RLL] = &Simulator::Evaluate_RLL;
+  EvalTable[STMG] = &Simulator::Evaluate_STMG;
+  EvalTable[STMH] = &Simulator::Evaluate_STMH;
+  EvalTable[STCMH] = &Simulator::Evaluate_STCMH;
+  EvalTable[STCMY] = &Simulator::Evaluate_STCMY;
+  EvalTable[CDSY] = &Simulator::Evaluate_CDSY;
+  EvalTable[CDSG] = &Simulator::Evaluate_CDSG;
+  EvalTable[BXHG] = &Simulator::Evaluate_BXHG;
+  EvalTable[BXLEG] = &Simulator::Evaluate_BXLEG;
+  EvalTable[ECAG] = &Simulator::Evaluate_ECAG;
+  EvalTable[TMY] = &Simulator::Evaluate_TMY;
+  EvalTable[MVIY] = &Simulator::Evaluate_MVIY;
+  EvalTable[NIY] = &Simulator::Evaluate_NIY;
+  EvalTable[CLIY] = &Simulator::Evaluate_CLIY;
+  EvalTable[OIY] = &Simulator::Evaluate_OIY;
+  EvalTable[XIY] = &Simulator::Evaluate_XIY;
+  EvalTable[ASI] = &Simulator::Evaluate_ASI;
+  EvalTable[ALSI] = &Simulator::Evaluate_ALSI;
+  EvalTable[AGSI] = &Simulator::Evaluate_AGSI;
+  EvalTable[ALGSI] = &Simulator::Evaluate_ALGSI;
+  EvalTable[ICMH] = &Simulator::Evaluate_ICMH;
+  EvalTable[ICMY] = &Simulator::Evaluate_ICMY;
+  EvalTable[MVCLU] = &Simulator::Evaluate_MVCLU;
+  EvalTable[CLCLU] = &Simulator::Evaluate_CLCLU;
+  EvalTable[STMY] = &Simulator::Evaluate_STMY;
+  EvalTable[LMH] = &Simulator::Evaluate_LMH;
+  EvalTable[LMY] = &Simulator::Evaluate_LMY;
+  EvalTable[TP] = &Simulator::Evaluate_TP;
+  EvalTable[SRAK] = &Simulator::Evaluate_SRAK;
+  EvalTable[SLAK] = &Simulator::Evaluate_SLAK;
+  EvalTable[SRLK] = &Simulator::Evaluate_SRLK;
+  EvalTable[SLLK] = &Simulator::Evaluate_SLLK;
+  EvalTable[LOCG] = &Simulator::Evaluate_LOCG;
+  EvalTable[STOCG] = &Simulator::Evaluate_STOCG;
+  EvalTable[LANG] = &Simulator::Evaluate_LANG;
+  EvalTable[LAOG] = &Simulator::Evaluate_LAOG;
+  EvalTable[LAXG] = &Simulator::Evaluate_LAXG;
+  EvalTable[LAAG] = &Simulator::Evaluate_LAAG;
+  EvalTable[LAALG] = &Simulator::Evaluate_LAALG;
+  EvalTable[LOC] = &Simulator::Evaluate_LOC;
+  EvalTable[STOC] = &Simulator::Evaluate_STOC;
+  EvalTable[LAN] = &Simulator::Evaluate_LAN;
+  EvalTable[LAO] = &Simulator::Evaluate_LAO;
+  EvalTable[LAX] = &Simulator::Evaluate_LAX;
+  EvalTable[LAA] = &Simulator::Evaluate_LAA;
+  EvalTable[LAAL] = &Simulator::Evaluate_LAAL;
+  EvalTable[BRXHG] = &Simulator::Evaluate_BRXHG;
+  EvalTable[BRXLG] = &Simulator::Evaluate_BRXLG;
+  EvalTable[RISBLG] = &Simulator::Evaluate_RISBLG;
+  EvalTable[RNSBG] = &Simulator::Evaluate_RNSBG;
+  EvalTable[RISBG] = &Simulator::Evaluate_RISBG;
+  EvalTable[ROSBG] = &Simulator::Evaluate_ROSBG;
+  EvalTable[RXSBG] = &Simulator::Evaluate_RXSBG;
+  EvalTable[RISBGN] = &Simulator::Evaluate_RISBGN;
+  EvalTable[RISBHG] = &Simulator::Evaluate_RISBHG;
+  EvalTable[CGRJ] = &Simulator::Evaluate_CGRJ;
+  EvalTable[CGIT] = &Simulator::Evaluate_CGIT;
+  EvalTable[CIT] = &Simulator::Evaluate_CIT;
+  EvalTable[CLFIT] = &Simulator::Evaluate_CLFIT;
+  EvalTable[CGIJ] = &Simulator::Evaluate_CGIJ;
+  EvalTable[CIJ] = &Simulator::Evaluate_CIJ;
+  EvalTable[AHIK] = &Simulator::Evaluate_AHIK;
+  EvalTable[AGHIK] = &Simulator::Evaluate_AGHIK;
+  EvalTable[ALHSIK] = &Simulator::Evaluate_ALHSIK;
+  EvalTable[ALGHSIK] = &Simulator::Evaluate_ALGHSIK;
+  EvalTable[CGRB] = &Simulator::Evaluate_CGRB;
+  EvalTable[CGIB] = &Simulator::Evaluate_CGIB;
+  EvalTable[CIB] = &Simulator::Evaluate_CIB;
+  EvalTable[LDEB] = &Simulator::Evaluate_LDEB;
+  EvalTable[LXDB] = &Simulator::Evaluate_LXDB;
+  EvalTable[LXEB] = &Simulator::Evaluate_LXEB;
+  EvalTable[MXDB] = &Simulator::Evaluate_MXDB;
+  EvalTable[KEB] = &Simulator::Evaluate_KEB;
+  EvalTable[CEB] = &Simulator::Evaluate_CEB;
+  EvalTable[AEB] = &Simulator::Evaluate_AEB;
+  EvalTable[SEB] = &Simulator::Evaluate_SEB;
+  EvalTable[MDEB] = &Simulator::Evaluate_MDEB;
+  EvalTable[DEB] = &Simulator::Evaluate_DEB;
+  EvalTable[MAEB] = &Simulator::Evaluate_MAEB;
+  EvalTable[MSEB] = &Simulator::Evaluate_MSEB;
+  EvalTable[TCEB] = &Simulator::Evaluate_TCEB;
+  EvalTable[TCDB] = &Simulator::Evaluate_TCDB;
+  EvalTable[TCXB] = &Simulator::Evaluate_TCXB;
+  EvalTable[SQEB] = &Simulator::Evaluate_SQEB;
+  EvalTable[SQDB] = &Simulator::Evaluate_SQDB;
+  EvalTable[MEEB] = &Simulator::Evaluate_MEEB;
+  EvalTable[KDB] = &Simulator::Evaluate_KDB;
+  EvalTable[CDB] = &Simulator::Evaluate_CDB;
+  EvalTable[ADB] = &Simulator::Evaluate_ADB;
+  EvalTable[SDB] = &Simulator::Evaluate_SDB;
+  EvalTable[MDB] = &Simulator::Evaluate_MDB;
+  EvalTable[DDB] = &Simulator::Evaluate_DDB;
+  EvalTable[MADB] = &Simulator::Evaluate_MADB;
+  EvalTable[MSDB] = &Simulator::Evaluate_MSDB;
+  EvalTable[SLDT] = &Simulator::Evaluate_SLDT;
+  EvalTable[SRDT] = &Simulator::Evaluate_SRDT;
+  EvalTable[SLXT] = &Simulator::Evaluate_SLXT;
+  EvalTable[SRXT] = &Simulator::Evaluate_SRXT;
+  EvalTable[TDCET] = &Simulator::Evaluate_TDCET;
+  EvalTable[TDGET] = &Simulator::Evaluate_TDGET;
+  EvalTable[TDCDT] = &Simulator::Evaluate_TDCDT;
+  EvalTable[TDGDT] = &Simulator::Evaluate_TDGDT;
+  EvalTable[TDCXT] = &Simulator::Evaluate_TDCXT;
+  EvalTable[TDGXT] = &Simulator::Evaluate_TDGXT;
+  EvalTable[LEY] = &Simulator::Evaluate_LEY;
+  EvalTable[LDY] = &Simulator::Evaluate_LDY;
+  EvalTable[STEY] = &Simulator::Evaluate_STEY;
+  EvalTable[STDY] = &Simulator::Evaluate_STDY;
+  EvalTable[CZDT] = &Simulator::Evaluate_CZDT;
+  EvalTable[CZXT] = &Simulator::Evaluate_CZXT;
+  EvalTable[CDZT] = &Simulator::Evaluate_CDZT;
+  EvalTable[CXZT] = &Simulator::Evaluate_CXZT;
+}  // NOLINT
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
@@ -2587,6 +3323,7 @@ bool Simulator::DecodeFourByteArithmetic64Bit(Instruction* instr) {
         SetS390OverflowCode(isOF);
         set_register(r1, r2_val - r3_val);
       }
+      break;
     }
     case AGHI:
     case MGHI: {
@@ -4802,6 +5539,24 @@ int32_t Simulator::ByteReverse(int32_t word) {
   return result;
 }
 
+int Simulator::DecodeInstructionOriginal(Instruction* instr) {
+  int instrLength = instr->InstructionLength();
+  bool processed = true;
+  if (instrLength == 2)
+    processed = DecodeTwoByte(instr);
+  else if (instrLength == 4)
+    processed = DecodeFourByte(instr);
+  else if (instrLength == 6)
+    processed = DecodeSixByte(instr);
+  return instrLength;
+}
+
+int Simulator::DecodeInstruction(Instruction* instr) {
+  Opcode op = instr->S390OpcodeValue();
+  DCHECK(EvalTable[op] != NULL);
+  return (this->*EvalTable[op])(instr);
+}
+
 // Executes the current instruction.
 void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
   if (v8::internal::FLAG_check_icache) {
@@ -4824,17 +5579,14 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
     fflush(stdout);
   }
 
-  int instrLength = instr->InstructionLength();
-  if (instrLength == 2)
-    DecodeTwoByte(instr);
-  else if (instrLength == 4)
-    DecodeFourByte(instr);
-  else
-    DecodeSixByte(instr);
+  // Try to simulate as S390 Instruction first.
+  int length = DecodeInstruction(instr);
 
   if (!pc_modified_ && auto_incr_pc) {
-    set_pc(reinterpret_cast<intptr_t>(instr) + instrLength);
+    DCHECK(length == instr->InstructionLength());
+    set_pc(reinterpret_cast<intptr_t>(instr) + length);
   }
+  return;
 }
 
 void Simulator::DebugStart() {
@@ -5112,6 +5864,1780 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
+
+#define EVALUATE(name) \
+  int Simulator::Evaluate_##name(Instruction* instr)
+
+#define DCHECK_OPCODE(op) DCHECK(instr->S390OpcodeValue() == op)
+
+#define AS(type) reinterpret_cast<type*>(instr)
+
+#define DECODE_RIL_C_INSTRUCTION(m1, ri2)                               \
+  Condition m1 = static_cast<Condition>(AS(RILInstruction)->R1Value()); \
+  uint64_t ri2 = AS(RILInstruction)->I2Value();                         \
+  int length = 6;
+
+#define DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2) \
+  int r1 = AS(RXYInstruction)->R1Value();        \
+  int x2 = AS(RXYInstruction)->X2Value();        \
+  int b2 = AS(RXYInstruction)->B2Value();        \
+  int d2 = AS(RXYInstruction)->D2Value();        \
+  int length = 6;
+
+#define DECODE_RRE_INSTRUCTION(r1, r2)    \
+  int r1 = AS(RREInstruction)->R1Value(); \
+  int r2 = AS(RREInstruction)->R2Value(); \
+  int length = 4;
+
+#define DECODE_RR_INSTRUCTION(r1, r2)    \
+  int r1 = AS(RRInstruction)->R1Value(); \
+  int r2 = AS(RRInstruction)->R2Value(); \
+  int length = 2;
+
+#define DECODE_RIE_D_INSTRUCTION(r1, r2, i2)  \
+  int r1 = AS(RIEInstruction)->R1Value();     \
+  int r2 = AS(RIEInstruction)->R2Value();     \
+  int32_t i2 = AS(RIEInstruction)->I6Value(); \
+  int length = 6;
+
+#define DECODE_RIE_F_INSTRUCTION(r1, r2, i3, i4, i5) \
+  int r1 = AS(RIEInstruction)->R1Value();            \
+  int r2 = AS(RIEInstruction)->R2Value();            \
+  uint32_t i3 = AS(RIEInstruction)->I3Value();       \
+  uint32_t i4 = AS(RIEInstruction)->I4Value();       \
+  uint32_t i5 = AS(RIEInstruction)->I5Value();       \
+  int length = 6;
+
+#define DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2) \
+  int r1 = AS(RSYInstruction)->R1Value();        \
+  int r3 = AS(RSYInstruction)->R3Value();        \
+  int b2 = AS(RSYInstruction)->B2Value();        \
+  intptr_t d2 = AS(RSYInstruction)->D2Value();   \
+  int length = 6;
+
+#define DECODE_RI_A_INSTRUCTION(instr, r1, i2) \
+  int32_t r1 = AS(RIInstruction)->R1Value();   \
+  int16_t i2 = AS(RIInstruction)->I2Value();   \
+  int length = 4;
+
+#define DECODE_RI_C_INSTRUCTION(instr, m1, i2)                         \
+  Condition m1 = static_cast<Condition>(AS(RIInstruction)->R1Value()); \
+  int16_t i2 = AS(RIInstruction)->I2Value();                           \
+  int length = 4;
+
+#define GET_ADDRESS(index_reg, base_reg, offset)       \
+  (((index_reg) == 0) ? 0 : get_register(index_reg)) + \
+      (((base_reg) == 0) ? 0 : get_register(base_reg)) + offset
+
+int Simulator::Evaluate_Unknown(Instruction* instr) {
+  UNREACHABLE();
+  return 0;
+}
+
+EVALUATE(CLR) {
+  DCHECK_OPCODE(CLR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  uint32_t r1_val = get_low_register<uint32_t>(r1);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  SetS390ConditionCode<uint32_t>(r1_val, r2_val);
+  return length;
+}
+
+EVALUATE(LR) {
+  DCHECK_OPCODE(LR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  set_low_register(r1, get_low_register<int32_t>(r2));
+  return length;
+}
+
+EVALUATE(AR) {
+  DCHECK_OPCODE(AR);
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  bool isOF = CheckOverflowForIntAdd(r1_val, r2_val, int32_t);
+  r1_val += r2_val;
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(L) {
+  DCHECK_OPCODE(L);
+  RXInstruction* rxinst = reinterpret_cast<RXInstruction*>(instr);
+  int b2 = rxinst->B2Value();
+  int x2 = rxinst->X2Value();
+  int32_t r1 = rxinst->R1Value();
+  int length = 4;
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = rxinst->D2Value();
+  intptr_t addr = b2_val + x2_val + d2_val;
+  int32_t mem_val = ReadW(addr, instr);
+  set_low_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(BRC) {
+  DCHECK_OPCODE(BRC);
+  DECODE_RI_C_INSTRUCTION(instr, m1, i2);
+
+  if (TestConditionCode(m1)) {
+    intptr_t offset = 2 * i2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(AHI) {
+  DCHECK_OPCODE(AHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  bool isOF = CheckOverflowForIntAdd(r1_val, i2, int32_t);
+  r1_val += i2;
+  set_low_register(r1, r1_val);
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(AGHI) {
+  DCHECK_OPCODE(AGHI);
+  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
+  int64_t r1_val = get_register(r1);
+  bool isOF = false;
+  isOF = CheckOverflowForIntAdd(r1_val, i2, int64_t);
+  r1_val += i2;
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int64_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(BRCL) {
+  DCHECK_OPCODE(BRCL);
+  DECODE_RIL_C_INSTRUCTION(m1, ri2);
+
+  if (TestConditionCode(m1)) {
+    intptr_t offset = 2 * ri2;
+    set_pc(get_pc() + offset);
+  }
+  return length;
+}
+
+EVALUATE(IIHF) {
+  DCHECK_OPCODE(IIHF);
+  RILInstruction* rilInstr = reinterpret_cast<RILInstruction*>(instr);
+  int r1 = rilInstr->R1Value();
+  uint32_t imm = rilInstr->I2UnsignedValue();
+  int length = 6;
+  set_high_register(r1, imm);
+  return length;
+}
+
+EVALUATE(IILF) {
+  DCHECK_OPCODE(IILF);
+  RILInstruction* rilInstr = reinterpret_cast<RILInstruction*>(instr);
+  int r1 = rilInstr->R1Value();
+  uint32_t imm = rilInstr->I2UnsignedValue();
+  int length = 6;
+  set_low_register(r1, imm);
+  return length;
+}
+
+EVALUATE(LGR) {
+  DCHECK_OPCODE(LGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  set_register(r1, get_register(r2));
+  return length;
+}
+
+EVALUATE(LG) {
+  DCHECK_OPCODE(LG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int64_t mem_val = ReadDW(addr);
+  set_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(AGR) {
+  DCHECK_OPCODE(AGR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r1_val = get_register(r1);
+  int64_t r2_val = get_register(r2);
+  bool isOF = CheckOverflowForIntAdd(r1_val, r2_val, int64_t);
+  r1_val += r2_val;
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int64_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(LGFR) {
+  DCHECK_OPCODE(LGFR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int64_t result = static_cast<int64_t>(r2_val);
+  set_register(r1, result);
+
+  return length;
+}
+
+EVALUATE(LBR) {
+  DCHECK_OPCODE(LBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r2_val <<= 24;
+  r2_val >>= 24;
+  set_low_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LGF) {
+  DCHECK_OPCODE(LGF);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int64_t mem_val = static_cast<int64_t>(ReadW(addr, instr));
+  set_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(ST) {
+  DCHECK_OPCODE(ST);
+  RXInstruction* rxinst = reinterpret_cast<RXInstruction*>(instr);
+  int b2 = rxinst->B2Value();
+  int x2 = rxinst->X2Value();
+  int length = 4;
+  int32_t r1_val = get_low_register<int32_t>(rxinst->R1Value());
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = rxinst->D2Value();
+  intptr_t addr = b2_val + x2_val + d2_val;
+  WriteW(addr, r1_val, instr);
+  return length;
+}
+
+EVALUATE(STG) {
+  DCHECK_OPCODE(STG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint64_t value = get_register(r1);
+  WriteDW(addr, value);
+  return length;
+}
+
+EVALUATE(STY) {
+  DCHECK_OPCODE(STY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint32_t value = get_low_register<uint32_t>(r1);
+  WriteW(addr, value, instr);
+  return length;
+}
+
+EVALUATE(LY) {
+  DCHECK_OPCODE(LY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint32_t mem_val = ReadWU(addr, instr);
+  set_low_register(r1, mem_val);
+  return length;
+}
+
+EVALUATE(LLGC) {
+  DCHECK_OPCODE(LLGC);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint8_t mem_val = ReadBU(GET_ADDRESS(x2, b2, d2));
+  set_register(r1, static_cast<uint64_t>(mem_val));
+  return length;
+}
+
+EVALUATE(LLC) {
+  DCHECK_OPCODE(LLC);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint8_t mem_val = ReadBU(GET_ADDRESS(x2, b2, d2));
+  set_low_register(r1, static_cast<uint32_t>(mem_val));
+  return length;
+}
+
+EVALUATE(RLL) {
+  DCHECK_OPCODE(RLL);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int shiftBits = GET_ADDRESS(0, b2, d2) & 0x3F;
+  // unsigned
+  uint32_t r3_val = get_low_register<uint32_t>(r3);
+  uint32_t alu_out = 0;
+  uint32_t rotateBits = r3_val >> (32 - shiftBits);
+  alu_out = (r3_val << shiftBits) | (rotateBits);
+  set_low_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(RISBG) {
+  DCHECK_OPCODE(RISBG);
+  DECODE_RIE_F_INSTRUCTION(r1, r2, i3, i4, i5);
+  // Starting Bit Position is Bits 2-7 of I3 field
+  uint32_t start_bit = i3 & 0x3F;
+  // Ending Bit Position is Bits 2-7 of I4 field
+  uint32_t end_bit = i4 & 0x3F;
+  // Shift Amount is Bits 2-7 of I5 field
+  uint32_t shift_amount = i5 & 0x3F;
+  // Zero out Remaining (unslected) bits if Bit 0 of I4 is 1.
+  bool zero_remaining = (0 != (i4 & 0x80));
+
+  uint64_t src_val = get_register(r2);
+
+  // Rotate Left by Shift Amount first
+  uint64_t rotated_val =
+      (src_val << shift_amount) | (src_val >> (64 - shift_amount));
+  int32_t width = end_bit - start_bit + 1;
+
+  uint64_t selection_mask = 0;
+  if (width < 64) {
+    selection_mask = (static_cast<uint64_t>(1) << width) - 1;
+  } else {
+    selection_mask = static_cast<uint64_t>(static_cast<int64_t>(-1));
+  }
+  selection_mask = selection_mask << (63 - end_bit);
+
+  uint64_t selected_val = rotated_val & selection_mask;
+
+  if (!zero_remaining) {
+    // Merged the unselected bits from the original value
+    selected_val = (src_val & ~selection_mask) | selected_val;
+  }
+
+  // Condition code is set by treating result as 64-bit signed int
+  SetS390ConditionCode<int64_t>(selected_val, 0);
+  set_register(r1, selected_val);
+  return length;
+}
+
+EVALUATE(AHIK) {
+  DCHECK_OPCODE(AHIK);
+  DECODE_RIE_D_INSTRUCTION(r1, r2, i2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int32_t imm = static_cast<int32_t>(i2);
+  bool isOF = CheckOverflowForIntAdd(r2_val, imm, int32_t);
+  set_low_register(r1, r2_val + imm);
+  SetS390ConditionCode<int32_t>(r2_val + imm, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(AGHIK) {
+  // 64-bit Add
+  DCHECK_OPCODE(AGHIK);
+  DECODE_RIE_D_INSTRUCTION(r1, r2, i2);
+  int64_t r2_val = get_register(r2);
+  int64_t imm = static_cast<int64_t>(i2);
+  bool isOF = CheckOverflowForIntAdd(r2_val, imm, int64_t);
+  set_register(r1, r2_val + imm);
+  SetS390ConditionCode<int64_t>(r2_val + imm, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(BKPT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SPM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BALR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SVC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BASSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BASR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IC_z) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EX) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BAS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(N) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(O) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(X) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(C) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(A) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(S) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(M) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(D) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRDL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLDL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRDA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLDA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BPRP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BPP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVZ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ED) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EDMK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PKU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPKU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCIN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PKA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPKA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PLO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PACK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UNPK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ZAP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(UPT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFPO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLIHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLIHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLILH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLILL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMLH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMLL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMHL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRAS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRCT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRCTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MGHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LARL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRASL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XIHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XILF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NILF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OILF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLIHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLILF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EXRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFDRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGFRL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ECTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRCTH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSIHN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IPM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(HSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TPI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCRW) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCPS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RCHP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SCHM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CKSM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SAR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EAR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUSE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRST) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XSCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCKE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCKF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUUTF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUTFU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFLE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNMB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRNMT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFAS) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PPA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ETND) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TEND) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIAI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TABORT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRAP4) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MAEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MEEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MADBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DIEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(THDER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(THDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DIDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCDFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LZXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SFASR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EFPC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CELFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLFBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXFBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFXBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CELGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXGBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGEBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXBRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGEBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGDBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGER) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGDR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDETR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FIXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGDTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ESDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGXTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CUXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ESXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDGTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDUTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(QADTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IEDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RRDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXGTRA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXUTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXSTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(QAXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(IEXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RRXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LNGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LCGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMAC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PCC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMCTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KM) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KMC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGFR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KIMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KLMD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFDTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CFXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFXTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDLFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLGTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXLFTR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(FLOGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(EPSW) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TROT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TROO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU14) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU24) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU41) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CU42) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTRE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRSTU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TRTE) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLHHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHHR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLHHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHLR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(POPCNT_Z) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCGR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCR) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ORK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ARK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLRK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVBY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DSGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRV) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LRVH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NTSTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CVDG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRVG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LTGF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(PFD) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRV) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STRVH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BCTG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MFY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MHY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LGAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STPQ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LPQ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ML) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGTAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLGFAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LBH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LLHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STHH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFHAT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LFH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STFH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHF) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCDK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVHHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVGHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVHI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFHSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEGIN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TBEGINC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RLLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STCMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDSG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BXLEG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ECAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(NIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(OIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(XIY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ASI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AGSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGSI) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ICMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MVCLU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLCLU) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMH) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LMY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TP) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRAK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLAK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRLK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLLK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STOCG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LANG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAOG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAXG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAAG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAALG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LOC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STOC) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAO) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAX) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAA) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LAAL) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(BRXLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBLG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RNSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ROSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RXSBG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBGN) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(RISBHG) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CLFIT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIJ) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALHSIK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ALGHSIK) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGRB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CGIB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CIB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LXEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MXDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(AEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MAEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TCXB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SQDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MEEB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(KDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(ADB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(DDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MADB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(MSDB) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SLXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(SRXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCET) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGET) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDCXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(TDGXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(LDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STEY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(STDY) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CZDT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CZXT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CDZT) { return DecodeInstructionOriginal(instr); }
+
+EVALUATE(CXZT) { return DecodeInstructionOriginal(instr); }
+
+#undef EVALUATE
 
 }  // namespace internal
 }  // namespace v8
