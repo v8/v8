@@ -708,14 +708,21 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   TRACE_EVENT0("v8", "V8.OptimizeCode");
 
-  if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+  bool use_turbofan = UseTurboFan(info);
+  OptimizedCompileJob* job = use_turbofan
+                                 ? compiler::Pipeline::NewCompilationJob(info)
+                                 : new (info->zone()) HCompilationJob(info);
+
+  // Parsing is not required when optimizing from existing bytecode.
+  if (!use_turbofan || !info->shared_info()->HasBytecodeArray()) {
+    if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+  } else {
+    info->MarkAsOptimizeFromBytecode();
+  }
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  OptimizedCompileJob* job = UseTurboFan(info)
-                                 ? compiler::Pipeline::NewCompilationJob(info)
-                                 : new (info->zone()) HCompilationJob(info);
   if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
       job->OptimizeGraph() != OptimizedCompileJob::SUCCEEDED ||
       job->GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
@@ -751,8 +758,21 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
     return false;
   }
 
+  bool use_turbofan = UseTurboFan(info);
+  OptimizedCompileJob* job = use_turbofan
+                                 ? compiler::Pipeline::NewCompilationJob(info)
+                                 : new (info->zone()) HCompilationJob(info);
+
+  // All handles below this point will be allocated in a deferred handle scope
+  // that is detached and handed off to the background thread when we return.
   CompilationHandleScope handle_scope(info);
-  if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+
+  // Parsing is not required when optimizing from existing bytecode.
+  if (!use_turbofan || !info->shared_info()->HasBytecodeArray()) {
+    if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+  } else {
+    info->MarkAsOptimizeFromBytecode();
+  }
 
   // Reopen handles in the new CompilationHandleScope.
   info->ReopenHandlesInNewHandleScope();
@@ -761,11 +781,7 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  OptimizedCompileJob* job = UseTurboFan(info)
-                                 ? compiler::Pipeline::NewCompilationJob(info)
-                                 : new (info->zone()) HCompilationJob(info);
-  OptimizedCompileJob::Status status = job->CreateGraph();
-  if (status != OptimizedCompileJob::SUCCEEDED) return false;
+  if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {

@@ -561,9 +561,11 @@ struct LoopAssignmentAnalysisPhase {
   static const char* phase_name() { return "loop assignment analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    AstLoopAssignmentAnalyzer analyzer(data->graph_zone(), data->info());
-    LoopAssignmentAnalysis* loop_assignment = analyzer.Analyze();
-    data->set_loop_assignment(loop_assignment);
+    if (!data->info()->is_optimizing_from_bytecode()) {
+      AstLoopAssignmentAnalyzer analyzer(data->graph_zone(), data->info());
+      LoopAssignmentAnalysis* loop_assignment = analyzer.Analyze();
+      data->set_loop_assignment(loop_assignment);
+    }
   }
 };
 
@@ -572,10 +574,12 @@ struct TypeHintAnalysisPhase {
   static const char* phase_name() { return "type hint analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    TypeHintAnalyzer analyzer(data->graph_zone());
-    Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
-    TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
-    data->set_type_hint_analysis(type_hint_analysis);
+    if (!data->info()->is_optimizing_from_bytecode()) {
+      TypeHintAnalyzer analyzer(data->graph_zone());
+      Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
+      TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
+      data->set_type_hint_analysis(type_hint_analysis);
+    }
   }
 };
 
@@ -587,7 +591,7 @@ struct GraphBuilderPhase {
     bool stack_check = !data->info()->IsStub();
     bool succeeded = false;
 
-    if (data->info()->shared_info()->HasBytecodeArray()) {
+    if (data->info()->is_optimizing_from_bytecode()) {
       BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
                                          data->jsgraph());
       succeeded = graph_builder.CreateGraph();

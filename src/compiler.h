@@ -160,6 +160,7 @@ class CompilationInfo {
     kSourcePositionsEnabled = 1 << 15,
     kEffectSchedulingEnabled = 1 << 16,
     kBailoutOnUninitialized = 1 << 17,
+    kOptimizeFromBytecode = 1 << 18,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -302,6 +303,12 @@ class CompilationInfo {
 
   bool is_bailout_on_uninitialized() const {
     return GetFlag(kBailoutOnUninitialized);
+  }
+
+  void MarkAsOptimizeFromBytecode() { SetFlag(kOptimizeFromBytecode); }
+
+  bool is_optimizing_from_bytecode() const {
+    return GetFlag(kOptimizeFromBytecode);
   }
 
   bool GeneratePreagedPrologue() const {

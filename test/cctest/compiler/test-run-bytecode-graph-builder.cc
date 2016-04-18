@@ -128,6 +128,7 @@ class BytecodeGraphTester {
     CompilationInfo compilation_info(&parse_info, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
+    compilation_info.MarkAsOptimizeFromBytecode();
     compiler::Pipeline pipeline(&compilation_info);
     Handle<Code> code = pipeline.GenerateCode();
     function->ReplaceCode(*code);
