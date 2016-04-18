@@ -2187,7 +2187,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       } else if (IsFalse()) {
         os << "<false>";
       } else {
-        os << "<Odd Oddball>";
+        os << "<Odd Oddball: ";
+        os << Oddball::cast(this)->to_string()->ToCString().get();
+        os << ">";
       }
       break;
     }

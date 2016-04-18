@@ -340,6 +340,8 @@ class CodeStubAssembler {
 
   // Load the hash field of a name.
   Node* LoadNameHash(Node* name);
+  // Load the instance size of a Map.
+  Node* LoadMapInstanceSize(Node* map);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElementInt32Index(Node* object, Node* int32_index,

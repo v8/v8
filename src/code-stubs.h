@@ -70,7 +70,6 @@ namespace internal {
   V(FastArrayPush)                          \
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
-  V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
   V(FastNewObject)                          \
@@ -122,6 +121,7 @@ namespace internal {
   V(BitwiseAnd)                             \
   V(BitwiseOr)                              \
   V(BitwiseXor)                             \
+  V(FastCloneShallowObject)                 \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
   V(GreaterThan)                            \
@@ -1106,26 +1106,25 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(FastCloneShallowArray, HydrogenCodeStub);
 };
 
-
-class FastCloneShallowObjectStub : public HydrogenCodeStub {
+class FastCloneShallowObjectStub : public TurboFanCodeStub {
  public:
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
 
   FastCloneShallowObjectStub(Isolate* isolate, int length)
-      : HydrogenCodeStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     DCHECK_GE(length, 0);
     DCHECK_LE(length, kMaximumClonedProperties);
-    set_sub_minor_key(LengthBits::encode(length));
+    minor_key_ = LengthBits::encode(LengthBits::encode(length));
   }
 
-  int length() const { return LengthBits::decode(sub_minor_key()); }
+  int length() const { return LengthBits::decode(minor_key_); }
 
  private:
   class LengthBits : public BitField<int, 0, 4> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowObject);
-  DEFINE_HYDROGEN_CODE_STUB(FastCloneShallowObject, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowObject, TurboFanCodeStub);
 };
 
 
