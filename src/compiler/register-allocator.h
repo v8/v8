@@ -46,6 +46,14 @@ class LifetimePosition final {
     return LifetimePosition(index * kStep + kHalfStep);
   }
 
+  static bool ExistsGapPositionBetween(LifetimePosition pos1,
+                                       LifetimePosition pos2) {
+    if (pos1 > pos2) std::swap(pos1, pos2);
+    LifetimePosition next(pos1.value_ + 1);
+    if (next.IsGapPosition()) return next < pos2;
+    return next.NextFullStart() < pos2;
+  }
+
   // Returns a numeric representation of this lifetime position.
   int value() const { return value_; }
 

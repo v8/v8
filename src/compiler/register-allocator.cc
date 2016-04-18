@@ -2947,9 +2947,13 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
   LifetimePosition pos = use_pos[reg];
 
   if (pos < register_use->pos()) {
-    // All registers are blocked before the first use that requires a register.
-    // Spill starting part of live range up to that use.
-    SpillBetween(current, current->Start(), register_use->pos());
+    if (LifetimePosition::ExistsGapPositionBetween(current->Start(),
+                                                   register_use->pos())) {
+      SpillBetween(current, current->Start(), register_use->pos());
+    } else {
+      SetLiveRangeAssignedRegister(current, reg);
+      SplitAndSpillIntersecting(current);
+    }
     return;
   }
 
@@ -2994,6 +2998,8 @@ void LinearScanAllocator::SplitAndSpillIntersecting(LiveRange* current) {
         // live-ranges: ranges are allocated in order of their start positions,
         // ranges are retired from active/inactive when the start of the
         // current live-range is larger than their end.
+        DCHECK(LifetimePosition::ExistsGapPositionBetween(current->Start(),
+                                                          next_pos->pos()));
         SpillBetweenUntil(range, spill_pos, current->Start(), next_pos->pos());
       }
       ActiveToHandled(range);
