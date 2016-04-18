@@ -1331,8 +1331,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     timer.Start();
   }
 
-  if (!maybe_result.ToHandle(&result)) {
-    // No cache entry found. Compile the script.
+  if (!maybe_result.ToHandle(&result) ||
+      (FLAG_serialize_toplevel &&
+       compile_options == ScriptCompiler::kProduceCodeCache)) {
+    // No cache entry found, or embedder wants a code cache. Compile the script.
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
