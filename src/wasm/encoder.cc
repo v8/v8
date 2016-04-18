@@ -150,6 +150,15 @@ void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
   EmitCode(code, code_size, nullptr, 0);
 }
 
+void WasmFunctionBuilder::EmitGetLocal(uint32_t local_index) {
+  local_indices_.push_back(static_cast<uint32_t>(body_.size() + 1));
+  EmitWithVarInt(kExprGetLocal, local_index);
+}
+
+void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
+  local_indices_.push_back(static_cast<uint32_t>(body_.size() + 1));
+  EmitWithVarInt(kExprSetLocal, local_index);
+}
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size,
                                    const uint32_t* local_indices,

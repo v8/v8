@@ -510,29 +510,27 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitVariableProxy(VariableProxy* expr) {
     if (in_function_) {
       Variable* var = expr->var();
+      LocalType var_type = TypeOf(expr);
       if (is_set_op_) {
-        if (var->IsContextSlot()) {
-          current_function_builder_->Emit(kExprStoreGlobal);
-        } else {
-          current_function_builder_->Emit(kExprSetLocal);
-        }
         is_set_op_ = false;
+        if (var->IsContextSlot()) {
+          return current_function_builder_->EmitWithVarInt(
+              kExprStoreGlobal, LookupOrInsertGlobal(var, var_type));
+        } else {
+          return current_function_builder_->EmitSetLocal(
+              LookupOrInsertLocal(var, var_type));
+        }
       } else {
         if (VisitStdlibConstant(var)) {
           return;
         }
         if (var->IsContextSlot()) {
-          current_function_builder_->Emit(kExprLoadGlobal);
+          return current_function_builder_->EmitWithVarInt(
+              kExprLoadGlobal, LookupOrInsertGlobal(var, var_type));
         } else {
-          current_function_builder_->Emit(kExprGetLocal);
+          return current_function_builder_->EmitGetLocal(
+              LookupOrInsertLocal(var, var_type));
         }
-      }
-      LocalType var_type = TypeOf(expr);
-      DCHECK_NE(kAstStmt, var_type);
-      if (var->IsContextSlot()) {
-        AddLeb128(LookupOrInsertGlobal(var, var_type), false);
-      } else {
-        AddLeb128(LookupOrInsertLocal(var, var_type), true);
       }
     }
   }
@@ -1384,19 +1382,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
       RECURSE(Visit(expr->left()));
       RECURSE(Visit(expr->right()));
-    }
-  }
-
-  void AddLeb128(uint32_t index, bool is_local) {
-    std::vector<uint8_t> index_vec = UnsignedLEB128From(index);
-    if (is_local) {
-      uint32_t pos_of_index[1] = {0};
-      current_function_builder_->EmitCode(
-          &index_vec[0], static_cast<uint32_t>(index_vec.size()), pos_of_index,
-          1);
-    } else {
-      current_function_builder_->EmitCode(
-          &index_vec[0], static_cast<uint32_t>(index_vec.size()));
     }
   }
 
