@@ -88,6 +88,7 @@ std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
 SelectParameters const& SelectParametersOf(const Operator* const);
 
+CallDescriptor const* CallDescriptorOf(const Operator* const);
 
 size_t ProjectionIndexOf(const Operator* const);
 

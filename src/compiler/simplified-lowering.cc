@@ -633,7 +633,7 @@ class RepresentationSelector {
   }
 
   void VisitCall(Node* node, SimplifiedLowering* lowering) {
-    const CallDescriptor* desc = OpParameter<const CallDescriptor*>(node->op());
+    const CallDescriptor* desc = CallDescriptorOf(node->op());
     const MachineSignature* sig = desc->GetMachineSignature();
     int params = static_cast<int>(sig->parameter_count());
     // Propagate representation information from call descriptor.

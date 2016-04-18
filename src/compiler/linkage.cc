@@ -88,7 +88,7 @@ bool CallDescriptor::HasSameReturnLocationsAs(
 
 bool CallDescriptor::CanTailCall(const Node* node,
                                  int* stack_param_delta) const {
-  CallDescriptor const* other = OpParameter<CallDescriptor const*>(node);
+  CallDescriptor const* other = CallDescriptorOf(node->op());
   size_t current_input = 0;
   size_t other_input = 0;
   *stack_param_delta = 0;
@@ -112,7 +112,7 @@ bool CallDescriptor::CanTailCall(const Node* node,
     ++current_input;
     ++other_input;
   }
-  return HasSameReturnLocationsAs(OpParameter<CallDescriptor const*>(node));
+  return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
 }
 
 

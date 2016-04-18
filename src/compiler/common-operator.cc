@@ -98,6 +98,11 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
   return OpParameter<SelectParameters>(op);
 }
 
+CallDescriptor const* CallDescriptorOf(const Operator* const op) {
+  DCHECK(op->opcode() == IrOpcode::kCall ||
+         op->opcode() == IrOpcode::kTailCall);
+  return OpParameter<CallDescriptor const*>(op);
+}
 
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
