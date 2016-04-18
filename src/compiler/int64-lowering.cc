@@ -223,7 +223,9 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kCall: {
-      CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
+      // TODO(turbofan): Make WASM code const-correct wrt. CallDescriptor.
+      CallDescriptor* descriptor =
+          const_cast<CallDescriptor*>(OpParameter<const CallDescriptor*>(node));
       if (DefaultLowering(node) ||
           (descriptor->ReturnCount() == 1 &&
            descriptor->GetReturnType(0) == MachineType::Int64())) {
