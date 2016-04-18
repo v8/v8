@@ -5413,16 +5413,16 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  * trace through its heap and call PersistentBase::RegisterExternalReference on
  * each js object reachable from any of the given wrappers.
  *
- * Before the first call to the TraceWrappableFrom function v8 will call
- * TraceRoots. When the v8 garbage collection is finished, v8 will call
- * ClearTracingMarks.
+ * Before the first call to the TraceWrappersFrom function v8 will call
+ * TracePrologue. When the v8 garbage collection is finished, v8 will call
+ * TraceEpilogue.
  */
 class EmbedderHeapTracer {
  public:
   /**
    * V8 will call this method at the beginning of the gc cycle.
    */
-  virtual void TraceRoots(Isolate* isolate) = 0;
+  virtual void TracePrologue(Isolate* isolate) = 0;
 
   /**
    * V8 will call this method with internal fields of a potential wrappers.
@@ -5430,14 +5430,14 @@ class EmbedderHeapTracer {
    * PersistentBase::RegisterExternalReference() on all wrappers reachable from
    * any of the given wrappers.
    */
-  virtual void TraceWrappableFrom(
+  virtual void TraceWrappersFrom(
       Isolate* isolate,
       const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
   /**
    * V8 will call this method at the end of the gc cycle. Allocation is *not*
-   * allowed in the ClearTracingMarks.
+   * allowed in the TraceEpilogue.
    */
-  virtual void ClearTracingMarks(Isolate* isolate) = 0;
+  virtual void TraceEpilogue(Isolate* isolate) = 0;
 
  protected:
   virtual ~EmbedderHeapTracer() = default;
