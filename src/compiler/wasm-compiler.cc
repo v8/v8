@@ -2105,12 +2105,11 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
   Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
-      CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
-  Node* result =
-      graph()->NewNode(jsgraph()->common()->Call(desc), stub_code, node,
-                       context, jsgraph()->EmptyFrameState(), effect, control);
+  Node* result = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
+                                  node, context, effect, control);
 
   *control_ = result;
   *effect_ = result;
