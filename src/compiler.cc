@@ -1129,28 +1129,17 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 }
 
 bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  if (IsEvalToplevel(shared)) {
-    Handle<Script> script(Script::cast(shared->script()));
-    Handle<Context> context(function->context());
-
-    Zone zone(function->GetIsolate()->allocator());
-    ParseInfo parse_info(&zone, script);
-    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-
+  Zone zone(function->GetIsolate()->allocator());
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
+  if (IsEvalToplevel(handle(function->shared()))) {
     parse_info.set_eval();
-    parse_info.set_context(context);
-    parse_info.set_shared_info(shared);
-    if (context->IsNativeContext()) parse_info.set_global();
+    if (function->context()->IsNativeContext()) parse_info.set_global();
     parse_info.set_toplevel();
     parse_info.set_allow_lazy_parsing(false);
-    parse_info.set_language_mode(shared->language_mode());
-    parse_info.set_parse_restriction(NO_PARSE_RESTRICTION);
-    return CompileForDebugging(&info);
-  } else {
-    CompilationInfoWithZone info(function);
-    return CompileForDebugging(&info);
+    parse_info.set_lazy(false);
   }
+  return CompileForDebugging(&info);
 }
 
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
