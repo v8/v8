@@ -8,7 +8,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
-#include "src/compiler/code-stub-assembler.h"
+#include "src/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
@@ -448,14 +448,14 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator());
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
-                                        GetCodeFlags(), name);
+  CodeStubAssembler assembler(isolate(), &zone, descriptor, GetCodeFlags(),
+                              name);
   GenerateAssembly(&assembler);
   return assembler.GenerateCode();
 }
 
 void AllocateHeapNumberStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* result = assembler->AllocateHeapNumber();
@@ -463,7 +463,7 @@ void AllocateHeapNumberStub::GenerateAssembly(
 }
 
 void AllocateMutableHeapNumberStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* result = assembler->Allocate(HeapNumber::kSize);
@@ -474,10 +474,10 @@ void AllocateMutableHeapNumberStub::GenerateAssembly(
 }
 
 #define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)            \
-  void Allocate##Type##Stub::GenerateAssembly(                              \
-      compiler::CodeStubAssembler* assembler) const {                       \
-    compiler::Node* result = assembler->Allocate(                           \
-        Simd128Value::kSize, compiler::CodeStubAssembler::kNone);           \
+  void Allocate##Type##Stub::GenerateAssembly(CodeStubAssembler* assembler) \
+      const {                                                               \
+    compiler::Node* result =                                                \
+        assembler->Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
     compiler::Node* map_offset =                                            \
         assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag); \
     compiler::Node* map = assembler->IntPtrAdd(result, map_offset);         \
@@ -489,8 +489,7 @@ void AllocateMutableHeapNumberStub::GenerateAssembly(
 SIMD128_TYPES(SIMD128_GEN_ASM)
 #undef SIMD128_GEN_ASM
 
-void StringLengthStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   compiler::Node* value = assembler->Parameter(0);
   compiler::Node* string =
       assembler->LoadObjectField(value, JSValue::kValueOffset);
@@ -499,10 +498,10 @@ void StringLengthStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -855,11 +854,10 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
   }
 }
 
-void SubtractStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1022,11 +1020,10 @@ void SubtractStub::GenerateAssembly(
   }
 }
 
-void MultiplyStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
-  typedef compiler::CodeStubAssembler::Label Label;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1169,11 +1166,10 @@ void MultiplyStub::GenerateAssembly(
   }
 }
 
-void DivideStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
-  typedef compiler::CodeStubAssembler::Label Label;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1379,8 +1375,7 @@ void DivideStub::GenerateAssembly(
   }
 }
 
-void BitwiseAndStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void BitwiseAndStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1393,11 +1388,10 @@ void BitwiseAndStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void ModulusStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
-  typedef compiler::CodeStubAssembler::Label Label;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1542,8 +1536,7 @@ void ModulusStub::GenerateAssembly(
   }
 }
 
-void ShiftLeftStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ShiftLeftStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1558,8 +1551,7 @@ void ShiftLeftStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void ShiftRightStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ShiftRightStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1575,7 +1567,7 @@ void ShiftRightStub::GenerateAssembly(
 }
 
 void ShiftRightLogicalStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1590,8 +1582,7 @@ void ShiftRightLogicalStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void BitwiseOrStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void BitwiseOrStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1604,8 +1595,7 @@ void BitwiseOrStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void BitwiseXorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void BitwiseXorStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1627,11 +1617,11 @@ enum RelationalComparisonMode {
   kGreaterThanOrEqual
 };
 
-void GenerateAbstractRelationalComparison(
-    compiler::CodeStubAssembler* assembler, RelationalComparisonMode mode) {
-  typedef compiler::CodeStubAssembler::Label Label;
+void GenerateAbstractRelationalComparison(CodeStubAssembler* assembler,
+                                          RelationalComparisonMode mode) {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1970,17 +1960,16 @@ void GenerateAbstractRelationalComparison(
 
 enum ResultMode { kDontNegateResult, kNegateResult };
 
-void GenerateEqual_Same(compiler::CodeStubAssembler* assembler,
-                        compiler::Node* value,
-                        compiler::CodeStubAssembler::Label* if_equal,
-                        compiler::CodeStubAssembler::Label* if_notequal) {
+void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
+                        CodeStubAssembler::Label* if_equal,
+                        CodeStubAssembler::Label* if_notequal) {
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
   // left and the right hand side reference exactly the same value.
   // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
   // seems to be what is tested in the current SIMD.js testsuite.
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   // Check if {value} is a Smi or a HeapObject.
@@ -2017,11 +2006,10 @@ void GenerateEqual_Same(compiler::CodeStubAssembler* assembler,
 }
 
 void GenerateEqual_Simd128Value_HeapObject(
-    compiler::CodeStubAssembler* assembler, compiler::Node* lhs,
-    compiler::Node* lhs_map, compiler::Node* rhs, compiler::Node* rhs_map,
-    compiler::CodeStubAssembler::Label* if_equal,
-    compiler::CodeStubAssembler::Label* if_notequal) {
-  typedef compiler::CodeStubAssembler::Label Label;
+    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* lhs_map,
+    compiler::Node* rhs, compiler::Node* rhs_map,
+    CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal) {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   // Check if {lhs} and {rhs} have the same map.
@@ -2096,14 +2084,14 @@ void GenerateEqual_Simd128Value_HeapObject(
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
+void GenerateEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // This is a slightly optimized version of Object::Equals represented as
   // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
   // change something functionality wise in here, remember to update the
   // Object::Equals method as well.
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -2624,8 +2612,7 @@ void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
   assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
 }
 
-void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
-                         ResultMode mode) {
+void GenerateStrictEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -2674,7 +2661,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   //   }
   // }
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -2881,11 +2868,11 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
 }
 
-void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
+void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
                                         RelationalComparisonMode mode) {
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* lhs = assembler->Parameter(0);
   Node* rhs = assembler->Parameter(1);
@@ -3064,8 +3051,7 @@ void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
   }
 }
 
-void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
-                         ResultMode mode) {
+void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -3082,9 +3068,9 @@ void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
   // }
   // return %StringEqual(lhs, rhs);
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* lhs = assembler->Parameter(0);
   Node* rhs = assembler->Parameter(1);
@@ -3243,80 +3229,70 @@ void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
 
 }  // namespace
 
-void LessThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void LessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kLessThan);
 }
 
-void LessThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void LessThanOrEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kLessThanOrEqual);
 }
 
-void GreaterThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void GreaterThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kGreaterThan);
 }
 
 void GreaterThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
-void EqualStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
+void EqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateEqual(assembler, kDontNegateResult);
 }
 
-void NotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void NotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateEqual(assembler, kNegateResult);
 }
 
-void StrictEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StrictEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStrictEqual(assembler, kDontNegateResult);
 }
 
-void StrictNotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StrictNotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStrictEqual(assembler, kNegateResult);
 }
 
-void StringEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringEqual(assembler, kDontNegateResult);
 }
 
-void StringNotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringNotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringEqual(assembler, kNegateResult);
 }
 
-void StringLessThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringLessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kLessThan);
 }
 
 void StringLessThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
 }
 
 void StringGreaterThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kGreaterThan);
 }
 
 void StringGreaterThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
-void ToLengthStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(1);
 
@@ -3389,10 +3365,9 @@ void ToLengthStub::GenerateAssembly(
   }
 }
 
-void ToBooleanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
 
   Node* value = assembler->Parameter(0);
   Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
@@ -3528,11 +3503,10 @@ void ToBooleanStub::GenerateAssembly(
   }
 }
 
-void ToIntegerStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(1);
 
@@ -3591,7 +3565,7 @@ void ToIntegerStub::GenerateAssembly(
 }
 
 void StoreInterceptorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
   Node* receiver = assembler->Parameter(0);
   Node* name = assembler->Parameter(1);
@@ -3602,9 +3576,9 @@ void StoreInterceptorStub::GenerateAssembly(
 }
 
 void LoadIndexedInterceptorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   Node* receiver = assembler->Parameter(0);
   Node* key = assembler->Parameter(1);
   Node* slot = assembler->Parameter(2);
@@ -3624,8 +3598,8 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
 }
 
 void FastCloneShallowObjectStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   Label call_runtime(assembler);
   Node* closure = assembler->Parameter(0);

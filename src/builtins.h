@@ -11,12 +11,8 @@
 namespace v8 {
 namespace internal {
 
-namespace compiler {
-
 // Forward declarations.
 class CodeStubAssembler;
-
-}  // namespace compiler
 
 // Specifies extra arguments required by a C++ builtin.
 enum class BuiltinExtraArguments : uint8_t {
@@ -591,11 +587,11 @@ class Builtins {
   static void Generate_ArrayCode(MacroAssembler* masm);
 
   // ES6 section 20.2.2.10 Math.ceil ( x )
-  static void Generate_MathCeil(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathCeil(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.11 Math.clz32 ( x )
-  static void Generate_MathClz32(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathClz32(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
-  static void Generate_MathFloor(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathFloor(CodeStubAssembler* assembler);
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
   // ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values )
@@ -607,11 +603,11 @@ class Builtins {
     Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
   }
   // ES6 section 20.2.2.28 Math.round ( x )
-  static void Generate_MathRound(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathRound(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.32 Math.sqrt ( x )
-  static void Generate_MathSqrt(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathSqrt(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.35 Math.trunc ( x )
-  static void Generate_MathTrunc(compiler::CodeStubAssembler* assembler);
+  static void Generate_MathTrunc(CodeStubAssembler* assembler);
 
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
   static void Generate_NumberConstructor(MacroAssembler* masm);
@@ -619,25 +615,19 @@ class Builtins {
   static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
 
   // ES6 section 25.3.1.2 Generator.prototype.next ( value )
-  static void Generate_GeneratorPrototypeNext(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_GeneratorPrototypeNext(CodeStubAssembler* assembler);
   // ES6 section 25.3.1.3 Generator.prototype.return ( value )
-  static void Generate_GeneratorPrototypeReturn(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_GeneratorPrototypeReturn(CodeStubAssembler* assembler);
   // ES6 section 25.3.1.4 Generator.prototype.throw ( exception )
-  static void Generate_GeneratorPrototypeThrow(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_GeneratorPrototypeThrow(CodeStubAssembler* assembler);
 
   // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
-  static void Generate_ObjectHasOwnProperty(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler);
 
   // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
-  static void Generate_StringPrototypeCharAt(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_StringPrototypeCharAt(CodeStubAssembler* assembler);
   // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
-  static void Generate_StringPrototypeCharCodeAt(
-      compiler::CodeStubAssembler* assembler);
+  static void Generate_StringPrototypeCharCodeAt(CodeStubAssembler* assembler);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);
@@ -674,7 +664,7 @@ class Builtins {
   static void Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm);
   static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 
-  static void Generate_AtomicsLoadCheck(compiler::CodeStubAssembler* assembler);
+  static void Generate_AtomicsLoadCheck(CodeStubAssembler* assembler);
 
   static void InitBuiltinFunctionTable();
 

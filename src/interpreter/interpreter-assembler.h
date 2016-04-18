@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/base/smart-pointers.h"
 #include "src/builtins.h"
-#include "src/compiler/code-stub-assembler.h"
+#include "src/code-stub-assembler.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class InterpreterAssembler : public compiler::CodeStubAssembler {
+class InterpreterAssembler : public CodeStubAssembler {
  public:
   InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode,
                        OperandScale operand_scale);

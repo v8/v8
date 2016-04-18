@@ -5,12 +5,12 @@
 #include "src/fast-accessor-assembler.h"
 
 #include "src/base/logging.h"
+#include "src/code-stub-assembler.h"
 #include "src/code-stubs.h"  // For CallApiCallbackStub.
-#include "src/compiler/code-stub-assembler.h"
 #include "src/handles-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
-using v8::internal::compiler::CodeStubAssembler;
+using v8::internal::CodeStubAssembler;
 using v8::internal::compiler::Node;
 
 namespace v8 {

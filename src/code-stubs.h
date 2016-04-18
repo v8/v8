@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/code-stub-assembler.h"
 #include "src/codegen.h"
-#include "src/compiler/code-stub-assembler.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
@@ -396,10 +396,9 @@ class CodeStub BASE_EMBEDDED {
   Handle<Code> GenerateCode() override;                               \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                  \
- public:                                                        \
-  void GenerateAssembly(compiler::CodeStubAssembler* assembler) \
-      const override;                                           \
+#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                        \
+ public:                                                              \
+  void GenerateAssembly(CodeStubAssembler* assembler) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
@@ -588,8 +587,7 @@ class TurboFanCodeStub : public CodeStub {
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
 
-  virtual void GenerateAssembly(
-      compiler::CodeStubAssembler* assembler) const = 0;
+  virtual void GenerateAssembly(CodeStubAssembler* assembler) const = 0;
 
  private:
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
@@ -910,7 +908,7 @@ class StoreInterceptorStub : public TurboFanCodeStub {
  public:
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  void GenerateAssembly(compiler::CodeStubAssembler* assember) const override;
+  void GenerateAssembly(CodeStubAssembler* assember) const override;
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
@@ -2677,7 +2675,7 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const override;
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
   DEFINE_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
@@ -2689,7 +2687,7 @@ class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const override;
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateMutableHeapNumber);
   DEFINE_CODE_STUB(AllocateMutableHeapNumber, TurboFanCodeStub);
@@ -2702,8 +2700,7 @@ class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
         : TurboFanCodeStub(isolate) {}                                  \
                                                                         \
     void InitializeDescriptor(CodeStubDescriptor* descriptor) override; \
-    void GenerateAssembly(                                              \
-        compiler::CodeStubAssembler* assembler) const override;         \
+    void GenerateAssembly(CodeStubAssembler* assembler) const override; \
                                                                         \
     DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                   \
     DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                 \
