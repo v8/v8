@@ -55,7 +55,6 @@ class EffectControlLinearizer {
   Node* ChangeInt32ToFloat64(Node* value);
   Node* ChangeUint32ToFloat64(Node* value);
 
-  Node* HeapNumberValueIndexConstant();
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
 
@@ -70,7 +69,6 @@ class EffectControlLinearizer {
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
-  SetOncePointer<const Operator> allocate_heap_number_operator_;
 };
 
 }  // namespace compiler

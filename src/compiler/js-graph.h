@@ -41,6 +41,7 @@ class JSGraph : public ZoneObject {
   // Canonicalized global constants.
   Node* CEntryStubConstant(int result_size);
   Node* EmptyFixedArrayConstant();
+  Node* HeapNumberMapConstant();
   Node* OptimizedOutConstant();
   Node* UndefinedConstant();
   Node* TheHoleConstant();
@@ -141,6 +142,7 @@ class JSGraph : public ZoneObject {
   enum CachedNode {
     kCEntryStubConstant,
     kEmptyFixedArrayConstant,
+    kHeapNumberMapConstant,
     kOptimizedOutConstant,
     kUndefinedConstant,
     kTheHoleConstant,

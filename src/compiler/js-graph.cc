@@ -29,6 +29,11 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
+Node* JSGraph::HeapNumberMapConstant() {
+  return CACHED(kHeapNumberMapConstant,
+                HeapConstant(factory()->heap_number_map()));
+}
+
 Node* JSGraph::OptimizedOutConstant() {
   return CACHED(kOptimizedOutConstant,
                 HeapConstant(factory()->optimized_out()));

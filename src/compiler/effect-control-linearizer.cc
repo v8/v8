@@ -433,24 +433,18 @@ EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node, Node* effect,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
                                                      Node* control) {
-  // The AllocateHeapNumberStub does not use the context, so we can safely pass
-  // in Smi zero here.
-  Callable callable = CodeFactory::AllocateHeapNumber(jsgraph()->isolate());
-  Node* target = jsgraph()->HeapConstant(callable.code());
-  Node* context = jsgraph()->NoContextConstant();
-  if (!allocate_heap_number_operator_.is_set()) {
-    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-        jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags, Operator::kNoThrow);
-    allocate_heap_number_operator_.set(common()->Call(descriptor));
-  }
-  Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
-                                       target, context, effect, control);
-  Node* store = graph()->NewNode(
-      machine()->Store(StoreRepresentation(MachineRepresentation::kFloat64,
-                                           kNoWriteBarrier)),
-      heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
-  return ValueEffectControl(heap_number, store, control);
+  effect = graph()->NewNode(common()->BeginRegion(), effect);
+  Node* result = effect =
+      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                       jsgraph()->Constant(HeapNumber::kSize), effect, control);
+  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                            result, jsgraph()->HeapNumberMapConstant(), effect,
+                            control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForHeapNumberValue()), result,
+      value, effect, control);
+  result = effect = graph()->NewNode(common()->FinishRegion(), result, effect);
+  return ValueEffectControl(result, effect, control);
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
@@ -473,10 +467,6 @@ Node* EffectControlLinearizer::ChangeInt32ToFloat64(Node* value) {
 
 Node* EffectControlLinearizer::ChangeUint32ToFloat64(Node* value) {
   return graph()->NewNode(machine()->ChangeUint32ToFloat64(), value);
-}
-
-Node* EffectControlLinearizer::HeapNumberValueIndexConstant() {
-  return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
 Node* EffectControlLinearizer::SmiMaxValueConstant() {
