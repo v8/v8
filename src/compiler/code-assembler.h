@@ -221,6 +221,7 @@ class CodeAssembler {
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
   Node* Load(MachineType rep, Node* base, Node* index);
+  Node* AtomicLoad(MachineType rep, Node* base, Node* index);
 
   // Store value to raw memory location.
   Node* Store(MachineRepresentation rep, Node* base, Node* value);
@@ -243,6 +244,8 @@ class CodeAssembler {
 
   Node* TruncateFloat64ToInt32RoundToZero(Node* a);
   Node* TruncateFloat64ToInt32JavaScript(Node* a);
+  // No-op on 32-bit, otherwise zero extend.
+  Node* ChangeUint32ToWord(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);

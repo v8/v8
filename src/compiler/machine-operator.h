@@ -335,6 +335,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   // checked-store heap, index, length, value
   const Operator* CheckedStore(CheckedStoreRepresentation);
 
+  // atomic-load [base + index]
+  const Operator* AtomicLoad(LoadRepresentation rep);
+
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }
   bool Is64() const { return word() == MachineRepresentation::kWord64; }

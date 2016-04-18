@@ -995,6 +995,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
+    case IrOpcode::kAtomicLoad:
       // TODO(rossberg): Check.
       break;
   }

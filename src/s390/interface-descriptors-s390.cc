@@ -377,14 +377,6 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void AtomicsLoadDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      r3,  // the typedarray object
-      r2   // the index to load (untagged)
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
 }  // namespace internal
 }  // namespace v8
 

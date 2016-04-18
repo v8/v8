@@ -1180,6 +1180,11 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsWord32(NodeProperties::FindProjection(node, 0));
       MarkAsWord32(NodeProperties::FindProjection(node, 1));
       return VisitWord32PairSar(node);
+    case IrOpcode::kAtomicLoad: {
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitAtomicLoad(node);
+    }
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());

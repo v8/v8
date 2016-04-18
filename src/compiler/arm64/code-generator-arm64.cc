@@ -472,6 +472,13 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     }                                                                       \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
+  do {                                                                \
+    __ asm_instr(i.OutputRegister(),                                  \
+                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
+    __ Dmb(InnerShareable, BarrierAll);                               \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   const CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->IsCFunctionCall() || descriptor->UseNativeStack()) {
@@ -1403,6 +1410,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kCheckedStoreFloat64:
       ASSEMBLE_CHECKED_STORE_FLOAT(64);
+      break;
+    case kAtomicLoadInt8:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrsb);
+      break;
+    case kAtomicLoadUint8:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrb);
+      break;
+    case kAtomicLoadInt16:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrsh);
+      break;
+    case kAtomicLoadUint16:
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldrh);
+      break;
+    case kAtomicLoadWord32:
+      __ Ldr(i.OutputRegister32(),
+             MemOperand(i.InputRegister(0), i.InputRegister(1)));
+      __ Dmb(InnerShareable, BarrierAll);
       break;
   }
 }  // NOLINT(readability/fn_size)

@@ -201,6 +201,13 @@ Node* CodeAssembler::TruncateFloat64ToInt32JavaScript(Node* a) {
   return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript, a);
 }
 
+Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    value = raw_assembler_->ChangeUint32ToUint64(value);
+  }
+  return value;
+}
+
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
   Node* CodeAssembler::name(Node* a) { return raw_assembler_->name(a); }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
@@ -353,6 +360,10 @@ Node* CodeAssembler::Load(MachineType rep, Node* base) {
 
 Node* CodeAssembler::Load(MachineType rep, Node* base, Node* index) {
   return raw_assembler_->Load(rep, base, index);
+}
+
+Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* index) {
+  return raw_assembler_->AtomicLoad(rep, base, index);
 }
 
 Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* value) {
