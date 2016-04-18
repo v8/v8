@@ -7456,6 +7456,18 @@ TEST(TypedVariableDeclarations) {
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(typed_context_data, typed_error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(untyped_context_data, untyped_data, kSuccess, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(typed_context_data, untyped_data, kSuccess, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(untyped_context_data, typed_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(typed_context_data, typed_data, kSuccess, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(untyped_context_data, typed_error_data, kError, NULL,
+                          0, always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(typed_context_data, typed_error_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
 }
 
 TEST(TypedModeChecks) {
@@ -7484,6 +7496,10 @@ TEST(TypedModeChecks) {
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(strict_context_data, typed_data, kSuccess, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(strict_context_data, strict_error_data, kError, NULL,
+                          0, always_flags, arraysize(always_flags));
 }
 
 TEST(TypedModeIllegalInFunctionScope) {
@@ -7501,10 +7517,13 @@ TEST(TypedModeIllegalInFunctionScope) {
   };
 
   RunParserSyncTest(context_data, error_data, kSuccess);
+  RunModuleParserSyncTest(context_data, error_data, kSuccess);
 
   static const ParserFlag typed_flags[] = {kAllowTypes};
   RunParserSyncTest(context_data, error_data, kError, NULL, 0,
                     typed_flags, arraysize(typed_flags));
+  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0,
+                          typed_flags, arraysize(typed_flags));
 }
 
 TEST(TypedModeSimpleTypes) {

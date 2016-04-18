@@ -1326,11 +1326,52 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
   DCHECK(scope_->is_module_scope());
   RaiseLanguageMode(STRICT);
 
+  bool directive_prologue = true;  // Parsing directive prologue.
+
   while (peek() != Token::EOS) {
-    Statement* stat = ParseModuleItem(CHECK_OK);
-    if (stat && !stat->IsEmpty()) {
-      body->Add(stat, zone());
+    if (directive_prologue && peek() != Token::STRING) {
+      directive_prologue = false;
     }
+
+    Scanner::Location token_loc = scanner()->peek_location();
+    Statement* stat = ParseModuleItem(CHECK_OK);
+    if (stat == NULL || stat->IsEmpty()) {
+      directive_prologue = false;  // End of directive prologue.
+      continue;
+    }
+
+    if (directive_prologue) {
+      // A shot at a directive.
+      ExpressionStatement* e_stat;
+      Literal* literal;
+      // Still processing directive prologue?
+      if ((e_stat = stat->AsExpressionStatement()) != NULL &&
+          (literal = e_stat->expression()->AsLiteral()) != NULL &&
+          literal->raw_value()->IsString()) {
+        // Ignore "use strict" directive in a module, check "use asm".
+        if (literal->raw_value()->AsString() ==
+                ast_value_factory()->use_asm_string() &&
+            token_loc.end_pos - token_loc.beg_pos ==
+                ast_value_factory()->use_asm_string()->length() + 2) {
+          // Store the usage count; The actual use counter on the isolate is
+          // incremented after parsing is done.
+          ++use_counts_[v8::Isolate::kUseAsm];
+          scope_->SetAsmModule();
+        // Check "use types".
+        } else if (allow_harmony_types() &&
+                   literal->raw_value()->AsString() ==
+                       ast_value_factory()->use_types_string() &&
+                   token_loc.end_pos - token_loc.beg_pos ==
+                       ast_value_factory()->use_types_string()->length() + 2) {
+          scope_->SetTyped();
+        }
+      } else {
+        // End of the directive prologue.
+        directive_prologue = false;
+      }
+    }
+
+    body->Add(stat, zone());
   }
 
   // Check that all exports are bound.
