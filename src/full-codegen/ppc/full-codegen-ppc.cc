@@ -2557,7 +2557,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
 }
 
 
-void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(Call* expr) {
+  int arg_count = expr->arguments()->length();
   // r7: copy of the first argument or undefined if it doesn't exist.
   if (arg_count > 0) {
     __ LoadP(r7, MemOperand(sp, arg_count * kPointerSize), r0);
@@ -2574,8 +2575,11 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   // r4: the start position of the scope the calls resides in.
   __ LoadSmiLiteral(r4, Smi::FromInt(scope()->start_position()));
 
+  // r3: the source position of the eval call.
+  __ LoadSmiLiteral(r3, Smi::FromInt(expr->position()));
+
   // Do the runtime call.
-  __ Push(r7, r6, r5, r4);
+  __ Push(r7, r6, r5, r4, r3);
   __ CallRuntime(Runtime::kResolvePossiblyDirectEval);
 }
 
@@ -2623,9 +2627,9 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
 
 
 void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
-  // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
-  // to resolve the function we need to call.  Then we call the resolved
-  // function using the given arguments.
+  // In a call to eval, we first call
+  // Runtime_ResolvePossiblyDirectEval to resolve the function we need
+  // to call.  Then we call the resolved function using the given arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
@@ -2640,7 +2644,7 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
   // resolve eval.
   __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
   __ push(r4);
-  EmitResolvePossiblyDirectEval(arg_count);
+  EmitResolvePossiblyDirectEval(expr);
 
   // Touch up the stack with the resolved function.
   __ StoreP(r3, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
