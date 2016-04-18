@@ -305,11 +305,10 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
-
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,
-                                 int scope_position) {
+                                 int eval_scope_position, int eval_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
   Handle<Context> native_context = Handle<Context>(context->native_context());
 
@@ -331,9 +330,9 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, compiled,
-      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
-                                    restriction, scope_position),
+      isolate, compiled, Compiler::GetFunctionFromEval(
+                             source, outer_info, context, language_mode,
+                             restriction, eval_scope_position, eval_position),
       isolate->heap()->exception());
   return *compiled;
 }
@@ -341,7 +340,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
 
 RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 6);
 
   Handle<Object> callee = args.at<Object>(0);
 
@@ -362,7 +361,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<String>(1), outer_info,
-                           language_mode, args.smi_at(4));
+                           language_mode, args.smi_at(4), args.smi_at(5));
 }
 }  // namespace internal
 }  // namespace v8

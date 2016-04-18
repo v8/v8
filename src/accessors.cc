@@ -661,11 +661,8 @@ void Accessors::ScriptEvalFromScriptPositionGetter(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
   if (script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-    Handle<Code> code(SharedFunctionInfo::cast(
-        script->eval_from_shared())->code());
-    result = Handle<Object>(Smi::FromInt(code->SourcePosition(
-                                script->eval_from_instructions_offset())),
-                            isolate);
+    result =
+        Handle<Object>(Smi::FromInt(script->eval_from_position()), isolate);
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

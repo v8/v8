@@ -11,9 +11,9 @@ wrap: yes
 snippet: "
   g = function(){}; eval(''); return g();
 "
-frame size: 9
+frame size: 10
 parameter count: 1
-bytecode array length: 85
+bytecode array length: 89
 bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(0),
@@ -38,7 +38,9 @@ bytecodes: [
   B(Star), R(7),
   B(LdaSmi), U8(30),
   B(Star), R(8),
-  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(5),
+  B(LdaSmi), U8(52),
+  B(Star), R(9),
+  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
   B(Star), R(1),
   B(Call), R(1), R(2), U8(2), U8(0),
   B(LdaConstant), U8(1),

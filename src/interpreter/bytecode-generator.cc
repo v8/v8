@@ -2457,12 +2457,14 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // callee value.
   if (call_type == Call::POSSIBLY_EVAL_CALL && args->length() > 0) {
     RegisterAllocationScope inner_register_scope(this);
-    register_allocator()->PrepareForConsecutiveAllocations(5);
+    register_allocator()->PrepareForConsecutiveAllocations(6);
     Register callee_for_eval = register_allocator()->NextConsecutiveRegister();
     Register source = register_allocator()->NextConsecutiveRegister();
     Register function = register_allocator()->NextConsecutiveRegister();
     Register language = register_allocator()->NextConsecutiveRegister();
-    Register position = register_allocator()->NextConsecutiveRegister();
+    Register eval_scope_position =
+        register_allocator()->NextConsecutiveRegister();
+    Register eval_position = register_allocator()->NextConsecutiveRegister();
 
     // Set up arguments for ResolvePossiblyDirectEval by copying callee, source
     // strings and function closure, and loading language and
@@ -2475,11 +2477,13 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         .StoreAccumulatorInRegister(language)
         .LoadLiteral(
             Smi::FromInt(execution_context()->scope()->start_position()))
-        .StoreAccumulatorInRegister(position);
+        .StoreAccumulatorInRegister(eval_scope_position)
+        .LoadLiteral(Smi::FromInt(expr->position()))
+        .StoreAccumulatorInRegister(eval_position);
 
     // Call ResolvePossiblyDirectEval and modify the callee.
     builder()
-        ->CallRuntime(Runtime::kResolvePossiblyDirectEval, callee_for_eval, 5)
+        ->CallRuntime(Runtime::kResolvePossiblyDirectEval, callee_for_eval, 6)
         .StoreAccumulatorInRegister(callee);
   }
 
