@@ -211,6 +211,7 @@
   V(StoreField)                    \
   V(StoreBuffer)                   \
   V(StoreElement)                  \
+  V(ObjectIsCallable)              \
   V(ObjectIsNumber)                \
   V(ObjectIsReceiver)              \
   V(ObjectIsSmi)                   \

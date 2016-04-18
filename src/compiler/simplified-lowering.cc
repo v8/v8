@@ -1189,6 +1189,7 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kNone);
         break;
       }
+      case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsSmi:

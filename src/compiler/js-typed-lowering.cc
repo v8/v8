@@ -495,9 +495,53 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   return NoChange();  // Keep a generic comparison.
 }
 
+Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
+  HeapObjectBinopMatcher m(node);
+  if (m.left().IsJSTypeOf() && m.right().HasValue() &&
+      m.right().Value()->IsString()) {
+    Node* replacement;
+    Node* input = m.left().InputAt(0);
+    Handle<String> value = Handle<String>::cast(m.right().Value());
+    if (String::Equals(value, factory()->boolean_string())) {
+      replacement = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged),
+          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
+                           jsgraph()->TrueConstant()),
+          jsgraph()->TrueConstant(),
+          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
+                           jsgraph()->FalseConstant()));
+    } else if (String::Equals(value, factory()->function_string())) {
+      replacement = graph()->NewNode(simplified()->ObjectIsCallable(), input);
+    } else if (String::Equals(value, factory()->number_string())) {
+      replacement = graph()->NewNode(simplified()->ObjectIsNumber(), input);
+    } else if (String::Equals(value, factory()->string_string())) {
+      replacement = graph()->NewNode(simplified()->ObjectIsString(), input);
+    } else if (String::Equals(value, factory()->undefined_string())) {
+      replacement = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged),
+          graph()->NewNode(simplified()->ReferenceEqual(Type::Any()), input,
+                           jsgraph()->NullConstant()),
+          jsgraph()->FalseConstant(),
+          graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+    } else {
+      return NoChange();
+    }
+    if (invert) {
+      replacement = graph()->NewNode(simplified()->BooleanNot(), replacement);
+    }
+    return Replace(replacement);
+  }
+  return NoChange();
+}
 
 Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
+
+  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+  if (reduction.Changed()) {
+    ReplaceWithValue(node, reduction.replacement());
+    return reduction;
+  }
 
   JSBinopReduction r(this, node);
 
@@ -554,6 +598,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
       ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
+  }
+  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+  if (reduction.Changed()) {
+    return reduction;
   }
   if (r.OneInputIs(the_hole_type_)) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(the_hole_type_),

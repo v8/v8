@@ -61,6 +61,7 @@ class ChangeLowering final : public Reducer {
   Node* LoadMapBitField(Node* map);
   Node* LoadMapInstanceType(Node* map);
 
+  Reduction ObjectIsCallable(Node* node);
   Reduction ObjectIsNumber(Node* node);
   Reduction ObjectIsReceiver(Node* node);
   Reduction ObjectIsSmi(Node* node);

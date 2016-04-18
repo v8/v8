@@ -49,6 +49,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return StoreElement(node);
     case IrOpcode::kAllocate:
       return Allocate(node);
+    case IrOpcode::kObjectIsCallable:
+      return ObjectIsCallable(node);
     case IrOpcode::kObjectIsNumber:
       return ObjectIsNumber(node);
     case IrOpcode::kObjectIsReceiver:
@@ -650,6 +652,29 @@ Node* ChangeLowering::LoadMapInstanceType(Node* map) {
       machine()->Load(MachineType::Uint8()), map,
       jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
       graph()->start(), graph()->start());
+}
+
+Reduction ChangeLowering::ObjectIsCallable(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  // TODO(bmeurer): Optimize somewhat based on input type.
+  Node* check = IsSmi(input);
+  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->Int32Constant(0);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(
+      machine()->Word32Equal(),
+      jsgraph()->Uint32Constant(1 << Map::kIsCallable),
+      graph()->NewNode(machine()->Word32And(),
+                       LoadMapBitField(LoadHeapObjectMap(input, if_false)),
+                       jsgraph()->Uint32Constant((1 << Map::kIsCallable) |
+                                                 (1 << Map::kIsUndetectable))));
+  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  node->ReplaceInput(0, vtrue);
+  node->AppendInput(graph()->zone(), vfalse);
+  node->AppendInput(graph()->zone(), control);
+  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
+  return Changed(node);
 }
 
 Reduction ChangeLowering::ObjectIsNumber(Node* node) {
