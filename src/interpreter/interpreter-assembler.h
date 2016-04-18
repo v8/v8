@@ -233,7 +233,7 @@ class InterpreterAssembler : public CodeStubAssembler {
   OperandScale operand_scale_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
-  CodeStubAssembler::Variable bytecode_array_;
+  bool made_call_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;

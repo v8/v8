@@ -32,13 +32,11 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       operand_scale_(operand_scale),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
-      bytecode_array_(this, MachineRepresentation::kTagged),
+      made_call_(false),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
   accumulator_.Bind(
       Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
-  bytecode_array_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -84,7 +82,14 @@ Node* InterpreterAssembler::RegisterFileRawPointer() {
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
-  return bytecode_array_.value();
+  if (made_call_) {
+    // If we have made a call, restore bytecode array from stack frame in case
+    // the debugger has swapped us to the patched debugger bytecode array.
+    return LoadRegister(
+        InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer);
+  } else {
+    return Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter);
+  }
 }
 
 Node* InterpreterAssembler::DispatchTableRawPointer() {
@@ -423,6 +428,7 @@ void InterpreterAssembler::CallPrologue() {
     DCHECK(stack_pointer_before_call_ == nullptr);
     stack_pointer_before_call_ = LoadStackPointer();
   }
+  made_call_ = true;
 }
 
 void InterpreterAssembler::CallEpilogue() {
@@ -433,11 +439,6 @@ void InterpreterAssembler::CallEpilogue() {
     AbortIfWordNotEqual(stack_pointer_before_call, stack_pointer_after_call,
                         kUnexpectedStackPointer);
   }
-
-  // Restore bytecode array from stack frame in case the debugger has swapped us
-  // to the patched debugger bytecode array.
-  bytecode_array_.Bind(LoadRegister(
-      InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer));
 }
 
 Node* InterpreterAssembler::CallJS(Node* function, Node* context,
