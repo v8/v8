@@ -5324,7 +5324,7 @@ void MacroAssembler::Popcnt32(Register dst, Register src) {
   ar(dst, r0);
   ShiftRight(r0, dst, Operand(8));
   ar(dst, r0);
-  lbr(dst, dst);
+  LoadB(dst, dst);
 }
 
 #ifdef V8_TARGET_ARCH_S390X
@@ -5339,7 +5339,7 @@ void MacroAssembler::Popcnt64(Register dst, Register src) {
   AddP(dst, r0);
   ShiftRightP(r0, dst, Operand(8));
   AddP(dst, r0);
-  lbr(dst, dst);
+  LoadB(dst, dst);
 }
 #endif
 
