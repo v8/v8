@@ -115,7 +115,7 @@ def collapsed_callchains_generator(perf_stream, show_all=False,
     elif symbol == "Builtin:InterpreterEntryTrampoline":
       if len(current_chain) == 1:
         yield ["[entry trampoline]"]
-      elif show_all:
+      else:
         # If we see an InterpreterEntryTrampoline which is not at the top of the
         # chain and doesn't have a BytecodeHandler above it, then we have
         # skipped the top BytecodeHandler due to the top-level stub not building
