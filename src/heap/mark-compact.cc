@@ -2148,7 +2148,7 @@ void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
       js_object->GetInternalField(0) &&
       js_object->GetInternalField(0) != heap_->undefined_value() &&
       js_object->GetInternalField(1) != heap_->undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 1);
+    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
     wrappers_to_trace().push_back(std::pair<void*, void*>(
         reinterpret_cast<void*>(js_object->GetInternalField(0)),
         reinterpret_cast<void*>(js_object->GetInternalField(1))));
