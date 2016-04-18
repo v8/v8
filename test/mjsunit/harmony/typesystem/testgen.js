@@ -4,6 +4,11 @@
 
 var debug = false;
 
+// The default test size parameter (positive integer) denotes how many
+// test cases will be tried, unless overriden in separate test files.
+// It controls execution time of all tests.  It should not be set too high.
+var default_test_size = 1000;
+
 function CheckValid(script) {
   if (debug) { print("V:", script); }
   assertDoesNotThrow("'use types'; " + script);

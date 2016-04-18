@@ -11,7 +11,7 @@ load("test/mjsunit/harmony/typesystem/typegen.js");
 // In all the following functions, the size parameter (positive integer)
 // denotes how many test cases will be tried.  The variable test_size
 // controls execution time of this test.  It should not be too high.
-let test_size = 1000;
+let test_size = default_test_size;
 
 
 function ValidFormalParameters(size) {
