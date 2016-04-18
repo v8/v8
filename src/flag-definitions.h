@@ -209,8 +209,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
-    "harmony Object.getOwnPropertyDescriptors()")                            \
-  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
+    "harmony Object.getOwnPropertyDescriptors()")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                           \
@@ -223,7 +222,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_regexp_subclass, "harmony regexp subclassing")            \
   V(harmony_restrictive_declarations,                                 \
     "harmony limitations on sloppy mode function declarations")       \
-  V(harmony_species, "harmony Symbol.species")
+  V(harmony_species, "harmony Symbol.species")                        \
+  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
