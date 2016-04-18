@@ -1029,13 +1029,13 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto value_obj = Utils::OpenHandle(*value);
+  CHECK(!value_obj->IsJSReceiver() || value_obj->IsTemplateInfo());
   if (value_obj->IsObjectTemplateInfo()) {
     templ->set_serial_number(i::Smi::FromInt(0));
     if (templ->IsFunctionTemplateInfo()) {
       i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
     }
   }
-  // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  value_obj,
                                  static_cast<i::PropertyAttributes>(attribute));
