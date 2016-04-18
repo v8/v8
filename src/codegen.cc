@@ -161,6 +161,9 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     bool print_source =
         info->parse_info() && (code->kind() == Code::OPTIMIZED_FUNCTION ||
                                code->kind() == Code::FUNCTION);
+    // TODO(mstarzinger): Switch this over to use SharedFunctionInfo instead of
+    // the FunctionLiteral, once we have a SharedFunctionInfo for live edit.
+    print_source = print_source && info->literal() != nullptr;
     if (print_source) {
       FunctionLiteral* literal = info->literal();
       Handle<Script> script = info->script();
