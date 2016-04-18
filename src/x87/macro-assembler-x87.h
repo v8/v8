@@ -500,6 +500,23 @@ class MacroAssembler: public Assembler {
     j(not_zero, not_smi_label, distance);
   }
 
+  // Jump if the value cannot be represented by a smi.
+  inline void JumpIfNotValidSmiValue(Register value, Register scratch,
+                                     Label* on_invalid,
+                                     Label::Distance distance = Label::kFar) {
+    mov(scratch, value);
+    add(scratch, Immediate(0x40000000U));
+    j(sign, on_invalid, distance);
+  }
+
+  // Jump if the unsigned integer value cannot be represented by a smi.
+  inline void JumpIfUIntNotValidSmiValue(
+      Register value, Label* on_invalid,
+      Label::Distance distance = Label::kFar) {
+    cmp(value, Immediate(0x40000000U));
+    j(above_equal, on_invalid, distance);
+  }
+
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
