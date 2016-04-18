@@ -498,18 +498,14 @@ void EnsureFeedbackVector(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool CompileUnoptimizedCode(CompilationInfo* info) {
-  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  if (!Compiler::Analyze(info->parse_info()) ||
-      !(EnsureFeedbackVector(info), FullCodeGenerator::MakeCode(info))) {
-    Isolate* isolate = info->isolate();
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+bool UseIgnition(CompilationInfo* info) {
+  // We only get here without a shared function info is when compiling a script
+  // for live edit. We cannot (yet) use Ignition to compile for live edit.
+  if (!info->has_shared_info()) {
+    DCHECK(info->isolate()->debug()->live_edit_enabled());
     return false;
   }
-  return true;
-}
 
-bool UseIgnition(CompilationInfo* info) {
   // TODO(4681): Generator functions are not yet supported.
   if (info->shared_info()->is_generator()) {
     return false;
@@ -1073,7 +1069,10 @@ bool Compiler::Analyze(ParseInfo* info) {
 
 bool Compiler::ParseAndAnalyze(ParseInfo* info) {
   if (!Parser::ParseStatic(info)) return false;
-  return Compiler::Analyze(info);
+  if (!Compiler::Analyze(info)) return false;
+  DCHECK_NOT_NULL(info->literal());
+  DCHECK_NOT_NULL(info->scope());
+  return true;
 }
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
@@ -1206,7 +1205,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   if (!Parser::ParseStatic(info.parse_info())) return;
 
   LiveEditFunctionTracker tracker(info.isolate(), parse_info.literal());
-  if (!CompileUnoptimizedCode(&info)) return;
+  if (!CompileBaselineCode(&info)) return;
   tracker.RecordRootFunctionInfo(info.code());
 }
 
