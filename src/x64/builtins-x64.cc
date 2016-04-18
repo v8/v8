@@ -537,48 +537,72 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ PushReturnAddressFrom(rax);  // Return address.
-  __ Push(rbp);                   // Caller's frame pointer.
-  __ Move(rbp, rsp);
-  __ Push(rsi);  // Callee's context.
-  __ Push(rdi);  // Callee's JS Function.
+  // Dispatch on the kind of generator object.
+  Label old_generator;
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kFunctionDataOffset));
+  __ CmpObjectType(rcx, BYTECODE_ARRAY_TYPE, rcx);
+  __ j(not_equal, &old_generator);
 
-  // Restore the operand stack.
-  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
-  __ SmiToInteger32(rax, FieldOperand(rsi, FixedArray::kLengthOffset));
+  // New-style (ignition/turbofan) generator object.
   {
-    Label done_loop, loop;
-    __ Set(rcx, 0);
-    __ bind(&loop);
-    __ cmpl(rcx, rax);
-    __ j(equal, &done_loop, Label::kNear);
-    __ Push(
-        FieldOperand(rsi, rcx, times_pointer_size, FixedArray::kHeaderSize));
-    __ addl(rcx, Immediate(1));
-    __ jmp(&loop);
-    __ bind(&done_loop);
+    __ PushReturnAddressFrom(rax);
+    __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadSharedFunctionInfoSpecialField(
+        rax, rax, SharedFunctionInfo::kFormalParameterCountOffset);
+    // We abuse new.target both to indicate that this is a resume call and to
+    // pass in the generator object.  In ordinary calls, new.target is always
+    // undefined because generator functions are non-constructable.
+    __ movp(rdx, rbx);
+    __ jmp(FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   }
 
-  // Reset operand stack so we don't leak.
-  __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
-              Heap::kEmptyFixedArrayRootIndex);
+  // Old-style (full-codegen) generator object.
+  __ bind(&old_generator);
+  {
+    // Enter a new JavaScript frame, and initialize its slots as they were when
+    // the generator was suspended.
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PushReturnAddressFrom(rax);  // Return address.
+    __ Push(rbp);                   // Caller's frame pointer.
+    __ Move(rbp, rsp);
+    __ Push(rsi);  // Callee's context.
+    __ Push(rdi);  // Callee's JS Function.
 
-  // Restore context.
-  __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
+    // Restore the operand stack.
+    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset));
+    __ SmiToInteger32(rax, FieldOperand(rsi, FixedArray::kLengthOffset));
+    {
+      Label done_loop, loop;
+      __ Set(rcx, 0);
+      __ bind(&loop);
+      __ cmpl(rcx, rax);
+      __ j(equal, &done_loop, Label::kNear);
+      __ Push(
+          FieldOperand(rsi, rcx, times_pointer_size, FixedArray::kHeaderSize));
+      __ addl(rcx, Immediate(1));
+      __ jmp(&loop);
+      __ bind(&done_loop);
+    }
 
-  // Resume the generator function at the continuation.
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ SmiToInteger64(rcx,
-                    FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
-  __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
-  __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
-          Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-  __ movp(rax, rbx);  // Continuation expects generator object in rax.
-  __ jmp(rdx);
+    // Reset operand stack so we don't leak.
+    __ LoadRoot(FieldOperand(rbx, JSGeneratorObject::kOperandStackOffset),
+                Heap::kEmptyFixedArrayRootIndex);
+
+    // Restore context.
+    __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
+
+    // Resume the generator function at the continuation.
+    __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+    __ SmiToInteger64(
+        rcx, FieldOperand(rbx, JSGeneratorObject::kContinuationOffset));
+    __ leap(rdx, FieldOperand(rdx, rcx, times_1, Code::kHeaderSize));
+    __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
+            Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+    __ movp(rax, rbx);  // Continuation expects generator object in rax.
+    __ jmp(rdx);
+  }
 }
 
 // Generate code for entering a JS function with the interpreter.

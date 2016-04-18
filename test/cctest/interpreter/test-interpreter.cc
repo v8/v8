@@ -4139,6 +4139,37 @@ TEST(InterpreterIllegalConstDeclaration) {
   }
 }
 
+TEST(InterpreterGenerators) {
+  bool old_flag = FLAG_ignition_generators;
+  FLAG_ignition_generators = true;
+
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> tests[] = {
+      {"function* f() { }; return f().next().value",
+       factory->undefined_value()},
+      {"function* f() { yield 42 }; return f().next().value",
+       factory->NewNumberFromInt(42)},
+      {"function* f() { for (let x of [42]) yield x}; return f().next().value",
+       factory->NewNumberFromInt(42)},
+  };
+
+  for (size_t i = 0; i < arraysize(tests); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(tests[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*tests[i].second));
+  }
+
+  FLAG_ignition_generators = old_flag;
+}
+
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -767,54 +767,75 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // values have already been copied into the context and these dummy values
   // will never be used.
   __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-
-  // Push holes for arguments to generator function. Since the parser forced
-  // context allocation for any variables in generators, the actual argument
-  // values have already been copied into the context and these dummy values
-  // will never be used.
   __ Ldr(w10,
          FieldMemOperand(x10, SharedFunctionInfo::kFormalParameterCountOffset));
   __ LoadRoot(x11, Heap::kTheHoleValueRootIndex);
   __ PushMultipleTimes(x11, w10);
 
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ Push(lr, fp);
-  __ Move(fp, jssp);
-  __ Push(cp, x4);
+  // Dispatch on the kind of generator object.
+  Label old_generator;
+  __ Ldr(x3, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x3, FieldMemOperand(x3, SharedFunctionInfo::kFunctionDataOffset));
+  __ CompareObjectType(x3, x3, x3, BYTECODE_ARRAY_TYPE);
+  __ B(ne, &old_generator);
 
-  // Restore the operand stack.
-  __ Ldr(x0, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
-  __ Ldr(w3, UntagSmiFieldMemOperand(x0, FixedArray::kLengthOffset));
-  __ Add(x0, x0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ Add(x3, x0, Operand(x3, LSL, kPointerSizeLog2));
+  // New-style (ignition/turbofan) generator object
   {
-    Label done_loop, loop;
-    __ Bind(&loop);
-    __ Cmp(x0, x3);
-    __ B(eq, &done_loop);
-    __ Ldr(x10, MemOperand(x0, kPointerSize, PostIndex));
-    __ Push(x10);
-    __ B(&loop);
-    __ Bind(&done_loop);
+    __ Ldr(x0, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(x0,
+         FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ SmiUntag(x0);
+    // We abuse new.target both to indicate that this is a resume call and to
+    // pass in the generator object.  In ordinary calls, new.target is always
+    // undefined because generator functions are non-constructable.
+    __ Move(x3, x1);
+    __ Move(x1, x4);
+    __ Ldr(x5, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+    __ Jump(x5);
   }
 
-  // Reset operand stack so we don't leak.
-  __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
-  __ Str(x10, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
+  // Old-style (full-codegen) generator object
+  __ bind(&old_generator);
+  {
+    // Enter a new JavaScript frame, and initialize its slots as they were when
+    // the generator was suspended.
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ Push(lr, fp);
+    __ Move(fp, jssp);
+    __ Push(cp, x4);
 
-  // Resume the generator function at the continuation.
-  __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(x10, FieldMemOperand(x10, SharedFunctionInfo::kCodeOffset));
-  __ Add(x10, x10, Code::kHeaderSize - kHeapObjectTag);
-  __ Ldrsw(x11,
-           UntagSmiFieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
-  __ Add(x10, x10, x11);
-  __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-  __ Str(x12, FieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
-  __ Move(x0, x1);  // Continuation expects generator object in x0.
-  __ Br(x10);
+    // Restore the operand stack.
+    __ Ldr(x0, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
+    __ Ldr(w3, UntagSmiFieldMemOperand(x0, FixedArray::kLengthOffset));
+    __ Add(x0, x0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Add(x3, x0, Operand(x3, LSL, kPointerSizeLog2));
+    {
+      Label done_loop, loop;
+      __ Bind(&loop);
+      __ Cmp(x0, x3);
+      __ B(eq, &done_loop);
+      __ Ldr(x10, MemOperand(x0, kPointerSize, PostIndex));
+      __ Push(x10);
+      __ B(&loop);
+      __ Bind(&done_loop);
+    }
+
+    // Reset operand stack so we don't leak.
+    __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
+    __ Str(x10, FieldMemOperand(x1, JSGeneratorObject::kOperandStackOffset));
+
+    // Resume the generator function at the continuation.
+    __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+    __ Ldr(x10, FieldMemOperand(x10, SharedFunctionInfo::kCodeOffset));
+    __ Add(x10, x10, Code::kHeaderSize - kHeapObjectTag);
+    __ Ldrsw(x11,
+        UntagSmiFieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
+    __ Add(x10, x10, x11);
+    __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+    __ Str(x12, FieldMemOperand(x1, JSGeneratorObject::kContinuationOffset));
+    __ Move(x0, x1);  // Continuation expects generator object in x0.
+    __ Br(x10);
+  }
 }
 
 enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };

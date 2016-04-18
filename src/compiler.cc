@@ -506,8 +506,7 @@ bool UseIgnition(CompilationInfo* info) {
     return false;
   }
 
-  // TODO(4681): Generator functions are not yet supported.
-  if (info->shared_info()->is_generator()) {
+  if (info->shared_info()->is_generator() && !FLAG_ignition_generators) {
     return false;
   }
 
@@ -837,6 +836,13 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (info->shared_info()->HasDebugInfo()) {
     info->AbortOptimization(kFunctionBeingDebugged);
+    return MaybeHandle<Code>();
+  }
+
+  // Do not use Crankshaft/TurboFan on a generator function.
+  // TODO(neis): Eventually enable for Turbofan.
+  if (IsGeneratorFunction(info->shared_info()->kind())) {
+    info->AbortOptimization(kGenerator);
     return MaybeHandle<Code>();
   }
 

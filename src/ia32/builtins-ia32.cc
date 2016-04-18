@@ -463,44 +463,68 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ PushReturnAddressFrom(eax);  // Return address.
-  __ Push(ebp);                   // Caller's frame pointer.
-  __ Move(ebp, esp);
-  __ Push(esi);  // Callee's context.
-  __ Push(edi);  // Callee's JS Function.
+  // Dispatch on the kind of generator object.
+  Label old_generator;
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFunctionDataOffset));
+  __ CmpObjectType(ecx, BYTECODE_ARRAY_TYPE, ecx);
+  __ j(not_equal, &old_generator);
 
-  // Restore the operand stack.
-  __ mov(eax, FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset));
+  // New-style (ignition/turbofan) generator object
   {
-    Label done_loop, loop;
-    __ Move(ecx, Smi::FromInt(0));
-    __ bind(&loop);
-    __ cmp(ecx, FieldOperand(eax, FixedArray::kLengthOffset));
-    __ j(equal, &done_loop, Label::kNear);
-    __ Push(FieldOperand(eax, ecx, times_half_pointer_size,
-                         FixedArray::kHeaderSize));
-    __ add(ecx, Immediate(Smi::FromInt(1)));
-    __ jmp(&loop);
-    __ bind(&done_loop);
+    __ PushReturnAddressFrom(eax);
+    __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(eax,
+         FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+    // We abuse new.target both to indicate that this is a resume call and to
+    // pass in the generator object.  In ordinary calls, new.target is always
+    // undefined because generator functions are non-constructable.
+    __ mov(edx, ebx);
+    __ jmp(FieldOperand(edi, JSFunction::kCodeEntryOffset));
   }
 
-  // Reset operand stack so we don't leak.
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset),
-         Immediate(masm->isolate()->factory()->empty_fixed_array()));
+  // Old-style (full-codegen) generator object
+  __ bind(&old_generator);
+  {
+    // Enter a new JavaScript frame, and initialize its slots as they were when
+    // the generator was suspended.
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PushReturnAddressFrom(eax);  // Return address.
+    __ Push(ebp);                   // Caller's frame pointer.
+    __ Move(ebp, esp);
+    __ Push(esi);  // Callee's context.
+    __ Push(edi);  // Callee's JS Function.
 
-  // Resume the generator function at the continuation.
-  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-  __ mov(ecx, FieldOperand(ebx, JSGeneratorObject::kContinuationOffset));
-  __ SmiUntag(ecx);
-  __ lea(edx, FieldOperand(edx, ecx, times_1, Code::kHeaderSize));
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kContinuationOffset),
-         Immediate(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-  __ mov(eax, ebx);  // Continuation expects generator object in eax.
-  __ jmp(edx);
+    // Restore the operand stack.
+    __ mov(eax, FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset));
+    {
+      Label done_loop, loop;
+      __ Move(ecx, Smi::FromInt(0));
+      __ bind(&loop);
+      __ cmp(ecx, FieldOperand(eax, FixedArray::kLengthOffset));
+      __ j(equal, &done_loop, Label::kNear);
+      __ Push(FieldOperand(eax, ecx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+      __ add(ecx, Immediate(Smi::FromInt(1)));
+      __ jmp(&loop);
+      __ bind(&done_loop);
+    }
+
+    // Reset operand stack so we don't leak.
+    __ mov(FieldOperand(ebx, JSGeneratorObject::kOperandStackOffset),
+           Immediate(masm->isolate()->factory()->empty_fixed_array()));
+
+    // Resume the generator function at the continuation.
+    __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+    __ mov(ecx, FieldOperand(ebx, JSGeneratorObject::kContinuationOffset));
+    __ SmiUntag(ecx);
+    __ lea(edx, FieldOperand(edx, ecx, times_1, Code::kHeaderSize));
+    __ mov(FieldOperand(ebx, JSGeneratorObject::kContinuationOffset),
+           Immediate(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+    __ mov(eax, ebx);  // Continuation expects generator object in eax.
+    __ jmp(edx);
+  }
 }
 
 // Generate code for entering a JS function with the interpreter.

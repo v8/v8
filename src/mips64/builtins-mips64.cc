@@ -758,45 +758,71 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ Push(ra, fp);
-  __ Move(fp, sp);
-  __ Push(cp, a4);
+  // Dispatch on the kind of generator object.
+  Label old_generator;
+  __ ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
+  __ ld(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
+  __ GetObjectType(a3, a3, a3);
+  __ Branch(&old_generator, ne, a3, Operand(BYTECODE_ARRAY_TYPE));
 
-  // Restore the operand stack.
-  __ ld(a0, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
-  __ ld(a3, FieldMemOperand(a0, FixedArray::kLengthOffset));
-  __ SmiUntag(a3);
-  __ Daddu(a0, a0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ Dlsa(a3, a0, a3, kPointerSizeLog2);
+  // New-style (ignition/turbofan) generator object.
   {
-    Label done_loop, loop;
-    __ bind(&loop);
-    __ Branch(&done_loop, eq, a0, Operand(a3));
-    __ ld(a5, MemOperand(a0));
-    __ Push(a5);
-    __ Branch(USE_DELAY_SLOT, &loop);
-    __ daddiu(a0, a0, kPointerSize);  // In delay slot.
-    __ bind(&done_loop);
+    __ ld(a0, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(a0,
+         FieldMemOperand(a0, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ SmiUntag(a0);
+    // We abuse new.target both to indicate that this is a resume call and to
+    // pass in the generator object.  In ordinary calls, new.target is always
+    // undefined because generator functions are non-constructable.
+    __ Move(a3, a1);
+    __ Move(a1, a4);
+    __ ld(a2, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    __ Jump(a2);
   }
 
-  // Reset operand stack so we don't leak.
-  __ LoadRoot(a5, Heap::kEmptyFixedArrayRootIndex);
-  __ sd(a5, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+  // Old-style (full-codegen) generator object
+  __ bind(&old_generator);
+  {
+    // Enter a new JavaScript frame, and initialize its slots as they were when
+    // the generator was suspended.
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ Push(ra, fp);
+    __ Move(fp, sp);
+    __ Push(cp, a4);
 
-  // Resume the generator function at the continuation.
-  __ ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
-  __ ld(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
-  __ Daddu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ ld(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
-  __ SmiUntag(a2);
-  __ Daddu(a3, a3, Operand(a2));
-  __ li(a2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-  __ sd(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
-  __ Move(v0, a1);  // Continuation expects generator object in v0.
-  __ Jump(a3);
+    // Restore the operand stack.
+    __ ld(a0, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+    __ ld(a3, FieldMemOperand(a0, FixedArray::kLengthOffset));
+    __ SmiUntag(a3);
+    __ Daddu(a0, a0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Dlsa(a3, a0, a3, kPointerSizeLog2);
+    {
+      Label done_loop, loop;
+      __ bind(&loop);
+      __ Branch(&done_loop, eq, a0, Operand(a3));
+      __ ld(a5, MemOperand(a0));
+      __ Push(a5);
+      __ Branch(USE_DELAY_SLOT, &loop);
+      __ daddiu(a0, a0, kPointerSize);  // In delay slot.
+      __ bind(&done_loop);
+    }
+
+    // Reset operand stack so we don't leak.
+    __ LoadRoot(a5, Heap::kEmptyFixedArrayRootIndex);
+    __ sd(a5, FieldMemOperand(a1, JSGeneratorObject::kOperandStackOffset));
+
+    // Resume the generator function at the continuation.
+    __ ld(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
+    __ ld(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
+    __ Daddu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ ld(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+    __ SmiUntag(a2);
+    __ Daddu(a3, a3, Operand(a2));
+    __ li(a2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+    __ sd(a2, FieldMemOperand(a1, JSGeneratorObject::kContinuationOffset));
+    __ Move(v0, a1);  // Continuation expects generator object in v0.
+    __ Jump(a3);
+  }
 }
 
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {

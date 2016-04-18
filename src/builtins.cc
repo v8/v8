@@ -2340,7 +2340,8 @@ void Generate_GeneratorPrototypeResume(
   Node* receiver = assembler->Parameter(0);
   Node* value = assembler->Parameter(1);
   Node* context = assembler->Parameter(4);
-  Node* zero = assembler->SmiConstant(Smi::FromInt(0));
+  Node* closed = assembler->SmiConstant(
+      Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
 
   // Check if the {receiver} is actually a JSGeneratorObject.
   Label if_receiverisincompatible(assembler, Label::kDeferred);
@@ -2356,9 +2357,11 @@ void Generate_GeneratorPrototypeResume(
       receiver, JSGeneratorObject::kContinuationOffset);
   Label if_receiverisclosed(assembler, Label::kDeferred),
       if_receiverisrunning(assembler, Label::kDeferred);
-  assembler->GotoIf(assembler->SmiEqual(receiver_continuation, zero),
+  assembler->GotoIf(assembler->SmiEqual(receiver_continuation, closed),
                     &if_receiverisclosed);
-  assembler->GotoIf(assembler->SmiLessThan(receiver_continuation, zero),
+  DCHECK_LT(JSGeneratorObject::kGeneratorExecuting,
+            JSGeneratorObject::kGeneratorClosed);
+  assembler->GotoIf(assembler->SmiLessThan(receiver_continuation, closed),
                     &if_receiverisrunning);
 
   // Resume the {receiver} using our trampoline.

@@ -237,7 +237,10 @@ namespace internal {
   F(GeneratorGetReceiver, 1, 1)         \
   F(GeneratorGetInput, 1, 1)            \
   F(GeneratorGetContinuation, 1, 1)     \
-  F(GeneratorGetSourcePosition, 1, 1)
+  F(GeneratorGetSourcePosition, 1, 1)   \
+  F(GeneratorGetResumeMode, 1, 1)       \
+  F(SuspendIgnitionGenerator, 2, 1)     \
+  F(ResumeIgnitionGenerator, 1, 1)
 
 #ifdef V8_I18N_SUPPORT
 #define FOR_EACH_INTRINSIC_I18N(F)           \

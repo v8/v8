@@ -230,6 +230,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();
 
+  BytecodeArrayBuilder& Illegal();
+
   // Debugger.
   BytecodeArrayBuilder& Debugger();
 

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --ignition-generators --harmony-do-expressions
+
 
 { // yield in try-catch
 
@@ -269,4 +271,307 @@
     assertEquals({value: 2, done: false}, x.next());
     assertEquals({value: 42, done: true}, x.return(42));
   }
+}
+
+
+// More or less random tests from here on.
+
+
+{
+  function* foo() { }
+  let g = foo();
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { return new.target }
+  let g = foo();
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { throw 666; return 42}
+  let g = foo();
+  assertThrowsEquals(() => g.next(), 666);
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo(a) { return a; }
+  let g = foo(42);
+  assertEquals({value: 42, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo(a) { a.iwashere = true; return a; }
+  let x = {};
+  let g = foo(x);
+  assertEquals({value: {iwashere: true}, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  let a = 42;
+  function* foo() { return a; }
+  let g = foo();
+  assertEquals({value: 42, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  let a = 40;
+  function* foo(b) { return a + b; }
+  let g = foo(2);
+  assertEquals({value: 42, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  let a = 40;
+  function* foo(b) { a--; b++; return a + b; }
+  let g = foo(2);
+  assertEquals({value: 42, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  let g;
+  function* foo() { g.next() }
+  g = foo();
+  assertThrows(() => g.next(), TypeError);
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { yield 2; yield 3; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { yield 2; if (true) { yield 3 }; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { yield 2; if (true) { yield 3; yield 4 } }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { yield 2; if (false) { yield 3 }; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() { yield 2; while (true) { yield 3 }; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+}
+
+{
+  function* foo() { yield 2; (yield 3) + 42; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+}
+
+{
+  function* foo() { yield 2; (do {yield 3}) + 42; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+}
+
+{
+  function* foo() { yield 2; return (yield 3) + 42; yield 4 }
+  g = foo();
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 42, done: true}, g.next(0));
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  let x = 42;
+  function* foo() {
+    yield x;
+    for (let x in {a: 1, b: 2}) {
+      let i = 2;
+      yield x;
+      yield i;
+      do {
+        yield i;
+      } while (i-- > 0);
+    }
+    yield x;
+    return 5;
+  }
+  g = foo();
+  assertEquals({value: 42, done: false}, g.next());
+  assertEquals({value: 'a', done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 1, done: false}, g.next());
+  assertEquals({value: 0, done: false}, g.next());
+  assertEquals({value: 'b', done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 1, done: false}, g.next());
+  assertEquals({value: 0, done: false}, g.next());
+  assertEquals({value: 42, done: false}, g.next());
+  assertEquals({value: 5, done: true}, g.next());
+}
+
+{
+  let a = 3;
+  function* foo() {
+    let b = 4;
+    yield 1;
+    { let c = 5; yield 2; yield a; yield b; yield c; }
+  }
+  g = foo();
+  assertEquals({value: 1, done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 3, done: false}, g.next());
+  assertEquals({value: 4, done: false}, g.next());
+  assertEquals({value: 5, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
+
+{
+  function* foo() {
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+    yield 42;
+  }
+  g = foo();
+  for (let i = 0; i < 100; ++i) {
+    assertEquals({value: 42, done: false}, g.next());
+  }
+  assertEquals({value: undefined, done: true}, g.next());
 }

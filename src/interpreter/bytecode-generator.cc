@@ -565,8 +565,10 @@ BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
       execution_context_(nullptr),
       execution_result_(nullptr),
       register_allocator_(nullptr),
+      generator_resume_points_(0, zone),
       try_catch_nesting_level_(0),
-      try_finally_nesting_level_(0) {
+      try_finally_nesting_level_(0),
+      generator_yields_seen_(0) {
   InitializeAstVisitor(isolate);
 }
 
@@ -585,6 +587,10 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
+
+  if (IsGeneratorFunction(info->literal()->kind())) {
+    VisitGeneratorPrologue();
+  }
 
   // Build function context only if there are context allocated variables.
   if (scope()->NeedsContext()) {
@@ -634,6 +640,40 @@ void BytecodeGenerator::MakeBytecodeBody() {
   VisitStatements(info()->literal()->body());
 }
 
+void BytecodeGenerator::VisitGeneratorPrologue() {
+  generator_resume_points_.clear();
+  generator_resume_points_.resize(info()->literal()->yield_count());
+
+  BytecodeLabel regular_call;
+  builder()
+      ->LoadAccumulatorWithRegister(Register::new_target())
+      .JumpIfUndefined(&regular_call);
+
+  // This is a resume call. Restore registers and perform state dispatch.
+  // (The current context has already been restored by the trampoline.)
+  {
+    RegisterAllocationScope register_scope(this);
+    Register state = register_allocator()->NewRegister();
+    builder()
+        ->CallRuntime(Runtime::kResumeIgnitionGenerator, Register::new_target(),
+                      1)
+        .StoreAccumulatorInRegister(state);
+
+    // TODO(neis): Optimize this by using a proper jump table.
+    for (size_t i = 0; i < generator_resume_points_.size(); ++i) {
+      builder()
+          ->LoadLiteral(Smi::FromInt(static_cast<int>(i)))
+          .CompareOperation(Token::Value::EQ_STRICT, state)
+          .JumpIfTrue(&(generator_resume_points_[i]));
+    }
+    builder()->Illegal();  // Should never get here.
+  }
+
+  builder()->Bind(&regular_call);
+  // This is a regular call. Fall through to the ordinary function prologue,
+  // after which we will run into the generator object creation and the initial
+  // yield (both inserted by the parser).
+}
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {
   // Visit declarations and statements.
@@ -2229,16 +2269,86 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   execution_result()->SetResultInAccumulator();
 }
 
+void BytecodeGenerator::VisitYield(Yield* expr) {
+  int id = generator_yields_seen_++;
 
-void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
+  builder()->SetExpressionPosition(expr);
+  Register value = VisitForRegisterValue(expr->expression());
 
+  register_allocator()->PrepareForConsecutiveAllocations(2);
+  Register generator = register_allocator()->NextConsecutiveRegister();
+  Register state = register_allocator()->NextConsecutiveRegister();
+
+  // Save context, registers, and state. Then return.
+  VisitForRegisterValue(expr->generator_object(), generator);
+  builder()
+      ->LoadLiteral(Smi::FromInt(id))
+      .StoreAccumulatorInRegister(state)
+      .CallRuntime(Runtime::kSuspendIgnitionGenerator, generator, 2)
+      .LoadAccumulatorWithRegister(value)
+      .Return();  // Hard return (ignore any finally blocks).
+
+  builder()->Bind(&(generator_resume_points_[id]));
+  // Upon resume, we continue here.
+
+  {
+    RegisterAllocationScope register_scope(this);
+
+    Register input = register_allocator()->NewRegister();
+    builder()
+        ->CallRuntime(Runtime::kGeneratorGetInput, generator, 1)
+        .StoreAccumulatorInRegister(input);
+
+    Register resume_mode = register_allocator()->NewRegister();
+    builder()
+        ->CallRuntime(Runtime::kGeneratorGetResumeMode, generator, 1)
+        .StoreAccumulatorInRegister(resume_mode);
+
+    // Now dispatch on resume mode.
+
+    BytecodeLabel resume_with_next;
+    BytecodeLabel resume_with_return;
+    BytecodeLabel resume_with_throw;
+
+    builder()
+        ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kNext))
+        .CompareOperation(Token::EQ_STRICT, resume_mode)
+        .JumpIfTrue(&resume_with_next)
+        .LoadLiteral(Smi::FromInt(JSGeneratorObject::kThrow))
+        .CompareOperation(Token::EQ_STRICT, resume_mode)
+        .JumpIfTrue(&resume_with_throw)
+        .Jump(&resume_with_return);
+
+    builder()->Bind(&resume_with_return);
+    {
+      register_allocator()->PrepareForConsecutiveAllocations(2);
+      Register value = register_allocator()->NextConsecutiveRegister();
+      Register done = register_allocator()->NextConsecutiveRegister();
+      builder()
+          ->MoveRegister(input, value)
+          .LoadTrue()
+          .StoreAccumulatorInRegister(done)
+          .CallRuntime(Runtime::kCreateIterResultObject, value, 2);
+      execution_control()->ReturnAccumulator();
+    }
+
+    builder()->Bind(&resume_with_throw);
+    builder()
+        ->LoadAccumulatorWithRegister(input)
+        .Throw();
+
+    builder()->Bind(&resume_with_next);
+    builder()->LoadAccumulatorWithRegister(input);
+  }
+  execution_result()->SetResultInAccumulator();
+}
 
 void BytecodeGenerator::VisitThrow(Throw* expr) {
   VisitForAccumulatorValue(expr->exception());
   builder()->SetExpressionPosition(expr);
   builder()->Throw();
-  // Throw statments are modeled as expression instead of statments. These are
-  // converted from assignment statements in Rewriter::ReWrite pass. An
+  // Throw statements are modeled as expressions instead of statements. These
+  // are converted from assignment statements in Rewriter::ReWrite pass. An
   // assignment statement expects a value in the accumulator. This is a hack to
   // avoid DCHECK fails assert accumulator has been set.
   execution_result()->SetResultInAccumulator();

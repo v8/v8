@@ -109,6 +109,8 @@ class BytecodeGenerator final : public AstVisitor {
   void BuildHoleCheckForVariableLoad(VariableMode mode, Handle<String> name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
+  void VisitGeneratorPrologue();
+
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
@@ -204,8 +206,10 @@ class BytecodeGenerator final : public AstVisitor {
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
   RegisterAllocationScope* register_allocator_;
+  ZoneVector<BytecodeLabel> generator_resume_points_;
   int try_catch_nesting_level_;
   int try_finally_nesting_level_;
+  int generator_yields_seen_;
 };
 
 }  // namespace interpreter

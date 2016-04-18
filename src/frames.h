@@ -907,7 +907,8 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeArray(BytecodeArray* bytecode_array);
 
   // Access to the interpreter register file for this frame.
-  Object* GetInterpreterRegister(int register_index) const;
+  Object* ReadInterpreterRegister(int register_index) const;
+  void WriteInterpreterRegister(int register_index, Object* value);
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(List<FrameSummary>* frames) const override;
