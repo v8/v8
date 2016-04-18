@@ -861,27 +861,6 @@ struct ChangeLoweringPhase {
   }
 };
 
-struct ComputeEffectSchedulePhase {
-  static const char* phase_name() { return "effect scheduling"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
-                                                    Scheduler::kNoFlags);
-    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-    data->set_schedule(schedule);
-  }
-};
-
-struct EffectScheduleTrimmingPhase {
-  static const char* phase_name() { return "effect schedule graph trimming"; }
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-  }
-};
-
 struct EarlyGraphTrimmingPhase {
   static const char* phase_name() { return "early graph trimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
