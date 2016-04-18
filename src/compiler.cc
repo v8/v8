@@ -916,15 +916,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 }
 
 
-bool CompileForDebugging(CompilationInfo* info) {
-  info->MarkAsDebug();
-  if (GetUnoptimizedCode(info).is_null()) {
-    info->isolate()->clear_pending_exception();
-    return false;
-  }
-  return true;
-}
-
 inline bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
   return shared->is_toplevel() && shared->script()->IsScript() &&
          Script::cast(shared->script())->compilation_type() ==
@@ -1077,58 +1068,65 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info) {
 
 bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
+  Isolate* isolate = function->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  MaybeHandle<Code> maybe_code = GetLazyCode(function);
+  // Start a compilation.
   Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
+  if (!GetLazyCode(function).ToHandle(&code)) {
     if (flag == CLEAR_EXCEPTION) {
-      function->GetIsolate()->clear_pending_exception();
+      isolate->clear_pending_exception();
     }
     return false;
   }
 
+  // Install code on closure.
   function->ReplaceCode(*code);
+
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(function->shared()->is_compiled());
   DCHECK(function->is_compiled());
   return true;
 }
 
 bool Compiler::CompileOptimized(Handle<JSFunction> function,
                                 ConcurrencyMode mode) {
+  if (function->IsOptimized()) return true;
+  Isolate* isolate = function->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  // Start a compilation.
   Handle<Code> code;
-  if (GetOptimizedCode(function, mode).ToHandle(&code)) {
-    // Optimization succeeded, return optimized code.
-    function->ReplaceCode(*code);
-  } else {
+  if (!GetOptimizedCode(function, mode).ToHandle(&code)) {
     // Optimization failed, get unoptimized code.
-    Isolate* isolate = function->GetIsolate();
-    if (isolate->has_pending_exception()) {  // Possible stack overflow.
-      return false;
-    }
-    code = Handle<Code>(function->shared()->code(), isolate);
-    if (code->kind() != Code::FUNCTION &&
-        code->kind() != Code::OPTIMIZED_FUNCTION) {
-      DCHECK(!isolate->has_pending_exception());
-      DCHECK(!function->is_compiled());
-      if (!function->shared()->is_compiled()) {
-        CompilationInfoWithZone info(function);
-        if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
-          return false;
-        }
+    DCHECK(!isolate->has_pending_exception());
+    if (function->shared()->is_compiled()) {
+      code = handle(function->shared()->code(), isolate);
+    } else {
+      CompilationInfoWithZone info(function);
+      if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
+        return false;
       }
     }
-    function->ReplaceCode(*code);
   }
 
-  DCHECK(function->code()->kind() == Code::FUNCTION ||
-         function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
-         (function->code()->is_interpreter_entry_trampoline() &&
-          function->shared()->HasBytecodeArray()) ||
-         function->IsInOptimizationQueue());
+  // Install code on closure.
+  function->ReplaceCode(*code);
+
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->is_compiled());
   return true;
 }
 
 bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
-  Zone zone(function->GetIsolate()->allocator());
+  Isolate* isolate = function->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  // Start a compilation.
+  Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (IsEvalToplevel(handle(function->shared()))) {
@@ -1138,16 +1136,61 @@ bool Compiler::CompileDebugCode(Handle<JSFunction> function) {
     parse_info.set_allow_lazy_parsing(false);
     parse_info.set_lazy(false);
   }
-  return CompileForDebugging(&info);
+  info.MarkAsDebug();
+  if (GetUnoptimizedCode(&info).is_null()) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->shared()->HasDebugCode());
+  return true;
 }
 
 bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
-  DCHECK(shared->allows_lazy_compilation_without_context());
-  DCHECK(!IsEvalToplevel(shared));
-  Zone zone(shared->GetIsolate()->allocator());
+  Isolate* isolate = shared->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  // Start a compilation.
+  Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  return CompileForDebugging(&info);
+  DCHECK(shared->allows_lazy_compilation_without_context());
+  DCHECK(!IsEvalToplevel(shared));
+  info.MarkAsDebug();
+  if (GetUnoptimizedCode(&info).is_null()) {
+    isolate->clear_pending_exception();
+    return false;
+  }
+
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(shared->is_compiled());
+  DCHECK(shared->HasDebugCode());
+  return true;
+}
+
+void Compiler::CompileForLiveEdit(Handle<Script> script) {
+  Isolate* isolate = script->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  // Start a compilation.
+  // TODO(635): support extensions.
+  Zone zone(isolate->allocator());
+  ParseInfo parse_info(&zone, script);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
+  PostponeInterruptsScope postpone(isolate);
+  VMState<COMPILER> state(isolate);
+
+  info.MarkAsDebug();
+  info.parse_info()->set_global();
+  if (!Parser::ParseStatic(info.parse_info())) return;
+
+  LiveEditFunctionTracker tracker(isolate, parse_info.literal());
+  if (!CompileBaselineCode(&info)) return;
+  tracker.RecordRootFunctionInfo(info.code());
 }
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
@@ -1190,23 +1233,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
   }
   return true;
-}
-
-void Compiler::CompileForLiveEdit(Handle<Script> script) {
-  // TODO(635): support extensions.
-  Zone zone(script->GetIsolate()->allocator());
-  ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  PostponeInterruptsScope postpone(info.isolate());
-  VMState<COMPILER> state(info.isolate());
-
-  info.MarkAsDebug();
-  info.parse_info()->set_global();
-  if (!Parser::ParseStatic(info.parse_info())) return;
-
-  LiveEditFunctionTracker tracker(info.isolate(), parse_info.literal());
-  if (!CompileBaselineCode(&info)) return;
-  tracker.RecordRootFunctionInfo(info.code());
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
