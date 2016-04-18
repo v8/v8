@@ -812,6 +812,8 @@ source_set("v8_base") {
     "src/compiler/dead-code-elimination.cc",
     "src/compiler/dead-code-elimination.h",
     "src/compiler/diamond.h",
+    "src/compiler/effect-control-linearizer.cc",
+    "src/compiler/effect-control-linearizer.h",
     "src/compiler/escape-analysis-reducer.cc",
     "src/compiler/escape-analysis-reducer.h",
     "src/compiler/escape-analysis.cc",

@@ -510,6 +510,8 @@
         '../../src/compiler/dead-code-elimination.cc',
         '../../src/compiler/dead-code-elimination.h',
         '../../src/compiler/diamond.h',
+        '../../src/compiler/effect-control-linearizer.cc',
+        '../../src/compiler/effect-control-linearizer.h',
         '../../src/compiler/escape-analysis.cc',
         '../../src/compiler/escape-analysis.h',
         "../../src/compiler/escape-analysis-reducer.cc",

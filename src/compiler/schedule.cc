@@ -199,11 +199,28 @@ void Schedule::AddGoto(BasicBlock* block, BasicBlock* succ) {
   AddSuccessor(block, succ);
 }
 
+#if DEBUG
+namespace {
+
+bool IsPotentiallyThrowingCall(IrOpcode::Value opcode) {
+  switch (opcode) {
+#define BUILD_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+    JS_OP_LIST(BUILD_BLOCK_JS_CASE)
+#undef BUILD_BLOCK_JS_CASE
+    case IrOpcode::kCall:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+#endif  // DEBUG
 
 void Schedule::AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
                        BasicBlock* exception_block) {
   DCHECK_EQ(BasicBlock::kNone, block->control());
-  DCHECK_EQ(IrOpcode::kCall, call->opcode());
+  DCHECK(IsPotentiallyThrowingCall(call->opcode()));
   block->set_control(BasicBlock::kCall);
   AddSuccessor(block, success_block);
   AddSuccessor(block, exception_block);

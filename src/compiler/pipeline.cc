@@ -19,6 +19,7 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/dead-code-elimination.h"
+#include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/frame-elider.h"
@@ -225,6 +226,7 @@ class PipelineData {
     DCHECK(!schedule_);
     schedule_ = schedule;
   }
+  void reset_schedule() { schedule_ = nullptr; }
 
   Zone* instruction_zone() const { return instruction_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
@@ -502,6 +504,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   }
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
+  }
+  if (!info()->shared_info()->asm_function()) {
+    info()->MarkAsEffectSchedulingEnabled();
   }
 
   if (!info()->shared_info()->HasBytecodeArray()) {
@@ -799,6 +804,35 @@ struct ControlFlowOptimizationPhase {
   }
 };
 
+struct EffectControlLinearizationPhase {
+  static const char* phase_name() { return "effect linearization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    // The scheduler requires the graphs to be trimmed, so trim now.
+    // TODO(jarin) Remove the trimming once the scheduler can handle untrimmed
+    // graphs.
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+
+    // Schedule the graph without node splitting so that we can
+    // fix the effect and control flow for nodes with low-level side
+    // effects (such as changing representation to tagged or
+    // 'floating' allocation regions.)
+    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
+                                                    Scheduler::kNoFlags);
+    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
+
+    // Post-pass for wiring the control/effects
+    // - connect allocating representation changes into the control&effect
+    //   chains and lower them,
+    // - get rid of the region markers,
+    // - introduce effect phis and rewire effects to get SSA again.
+    EffectControlLinearizer introducer(data->jsgraph(), schedule, temp_zone);
+    introducer.Run();
+  }
+};
 
 struct ChangeLoweringPhase {
   static const char* phase_name() { return "change lowering"; }
@@ -823,6 +857,26 @@ struct ChangeLoweringPhase {
   }
 };
 
+struct ComputeEffectSchedulePhase {
+  static const char* phase_name() { return "effect scheduling"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
+                                                    Scheduler::kNoFlags);
+    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
+    data->set_schedule(schedule);
+  }
+};
+
+struct EffectScheduleTrimmingPhase {
+  static const char* phase_name() { return "effect schedule graph trimming"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+  }
+};
 
 struct EarlyGraphTrimmingPhase {
   static const char* phase_name() { return "early graph trimming"; }
@@ -1250,6 +1304,12 @@ Handle<Code> Pipeline::GenerateCode() {
   // Lower simplified operators and insert changes.
   Run<SimplifiedLoweringPhase>();
   RunPrintAndVerify("Lowered simplified");
+
+  if (info()->is_effect_scheduling_enabled()) {
+    // TODO(jarin) Run value numbering for the representation changes.
+    Run<EffectControlLinearizationPhase>();
+    RunPrintAndVerify("Effect and control linearized");
+  }
 
   Run<BranchEliminationPhase>();
   RunPrintAndVerify("Branch conditions eliminated");

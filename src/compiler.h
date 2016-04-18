@@ -158,7 +158,8 @@ class CompilationInfo {
     kSplittingEnabled = 1 << 13,
     kDeoptimizationEnabled = 1 << 14,
     kSourcePositionsEnabled = 1 << 15,
-    kBailoutOnUninitialized = 1 << 16,
+    kEffectSchedulingEnabled = 1 << 16,
+    kBailoutOnUninitialized = 1 << 17,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -275,6 +276,12 @@ class CompilationInfo {
 
   bool is_deoptimization_enabled() const {
     return GetFlag(kDeoptimizationEnabled);
+  }
+
+  void MarkAsEffectSchedulingEnabled() { SetFlag(kEffectSchedulingEnabled); }
+
+  bool is_effect_scheduling_enabled() const {
+    return GetFlag(kEffectSchedulingEnabled);
   }
 
   void MarkAsSourcePositionsEnabled() { SetFlag(kSourcePositionsEnabled); }
