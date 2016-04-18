@@ -31,12 +31,14 @@ function ValidFormalParameters(size) {
       t => "(x? : " + t + ", y)",
       t => "(x? : " + t + ", y : " + t + ")"
     ]),
+    "(...rest)",
     "(x, ...rest)",
     "(x, y, ...rest)",
     "(x?, ...rest)",
     "(x?, y, ...rest)",
     "(x, y?, ...rest)",
     new TestGen(1, ValidTypes, [
+      t => "(...rest : (" + t + ")[])",
       t => "(x : " + t + ", ...rest : (" + t + ")[])",
       t => "(x? : " + t + ", y : " + t + ", ...rest : (" + t + ")[])"
     ]),
@@ -57,7 +59,9 @@ function InvalidFormalParameters(size) {
     "(x? = 42)",
     "(x? : number = 42)",
     "(...rest?)",
-    "(...rest? : number)"
+    "(...rest? : number)",
+    "(first, ...rest?)",
+    "(first, ...rest? : number)"
   ]);
 }
 

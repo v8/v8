@@ -42,39 +42,39 @@ function ValidTypeAssertions(size) {
   return Generate(size, [
     new TestGen(1, ValidTypes, [
       // With primary expressions.
-      t => "< " + t + "> 42",
-      t => "< " + t + "> x",
-      t => "< " + t + "> (x+42)",
-      t => "< " + t + "> [1,2,3]",
-      t => "< " + t + "> {a: 42}",
-      t => "< " + t + "> function() {}",
-      t => "< " + t + "> function*() {}",
-      t => "< " + t + "> class C {}",
+      t => "< " + t + " > 42",
+      t => "< " + t + " > x",
+      t => "< " + t + " > (x+42)",
+      t => "< " + t + " > [1,2,3]",
+      t => "< " + t + " > {a: 42}",
+      t => "< " + t + " > function() {}",
+      t => "< " + t + " > function*() {}",
+      t => "< " + t + " > class C {}",
       // With expressions of lower precedence.
-      t => "< " + t + "> x + 42",
-      t => "< " + t + "> x ? 1 : 0",
+      t => "< " + t + " > x + 42",
+      t => "< " + t + " > x ? 1 : 0",
       // With other unary expressions.
-      t => "< " + t + "> + x",
-      t => "< " + t + "> ! x",
-      t => "< " + t + "> typeof x",
-      t => "< " + t + "> void x",
+      t => "< " + t + " > + x",
+      t => "< " + t + " > ! x",
+      t => "< " + t + " > typeof x",
+      t => "< " + t + " > void x",
       // With expressions of higher precedence.
-      t => "< " + t + "> x++",
-      t => "< " + t + "> (fo().x)++",
-      t => "< " + t + "> ++x",
-      t => "< " + t + "> ++(fo().x)",
-      t => "< " + t + "> fo(42)",
-      t => "< " + t + "> ff(42)(17)",
-      t => "< " + t + "> fa(42)[0]",
-      t => "< " + t + "> fo(42).x",
-      t => "< " + t + "> a[0]",
-      t => "< " + t + "> o.a",
-      t => "< " + t + "> new fo(42)",
-      t => "< " + t + "> new fa(42)[0]",
-      t => "< " + t + "> new fo(42).x",
-      t => "< " + t + "> new new ff(42)",
-      t => "< " + t + "> new new ffa(42)[0]",
-      t => "< " + t + "> new new ffo(42).x"
+      t => "< " + t + " > x++",
+      t => "< " + t + " > (fo().x)++",
+      t => "< " + t + " > ++x",
+      t => "< " + t + " > ++(fo().x)",
+      t => "< " + t + " > fo(42)",
+      t => "< " + t + " > ff(42)(17)",
+      t => "< " + t + " > fa(42)[0]",
+      t => "< " + t + " > fo(42).x",
+      t => "< " + t + " > a[0]",
+      t => "< " + t + " > o.a",
+      t => "< " + t + " > new fo(42)",
+      t => "< " + t + " > new fa(42)[0]",
+      t => "< " + t + " > new fo(42).x",
+      t => "< " + t + " > new new ff(42)",
+      t => "< " + t + " > new new ffa(42)[0]",
+      t => "< " + t + " > new new ffo(42).x"
     ])
   ]);
 }
@@ -93,47 +93,51 @@ function InvalidTypeAssertions(size) {
     "<> (x)",
     new TestGen(1, ValidTypes, [
       // With assignment expressions (lower precedence).
-      t => "< " + t + "> yield",
-      t => "< " + t + "> yield 42"
+      t => "< " + t + " > yield",
+      t => "< " + t + " > yield 42"
     ]),
     new TestGen(1, InvalidTypes, [
       // With primary expressions.
-      t => "< " + t + "> 42",
-      t => "< " + t + "> x",
-      t => "< " + t + "> (x+42)",
-      t => "< " + t + "> [1,2,3]",
-      t => "< " + t + "> {a: 42}",
-      t => "< " + t + "> function() {}",
-      t => "< " + t + "> function*() {}",
-      t => "< " + t + "> class C() {}",
+      t => "< " + t + " > 42",
+      t => "< " + t + " > x",
+      t => "< " + t + " > (x+42)",
+      t => "< " + t + " > [1,2,3]",
+      t => "< " + t + " > {a: 42}",
+      t => "< " + t + " > function() {}",
+      t => "< " + t + " > function*() {}",
+      t => "< " + t + " > class C() {}",
       // With expressions of lower precedence.
-      t => "< " + t + "> x + 42",
-      t => "< " + t + "> x ? 1 : 0",
+      t => "< " + t + " > x + 42",
+      t => "< " + t + " > x ? 1 : 0",
       // With other unary expressions.
-      t => "< " + t + "> + x",
-      t => "< " + t + "> ! x",
-      t => "< " + t + "> typeof x",
-      t => "< " + t + "> void x",
+      t => "< " + t + " > + x",
+      t => "< " + t + " > ! x",
+      t => "< " + t + " > typeof x",
+      t => "< " + t + " > void x",
       // With expressions of higher precedence.
-      t => "< " + t + "> x++",
-      t => "< " + t + "> (fo().x)++",
-      t => "< " + t + "> ++x",
-      t => "< " + t + "> ++(fo().x)",
-      t => "< " + t + "> fo(42)",
-      t => "< " + t + "> ff(42)(17)",
-      t => "< " + t + "> fa(42)[0]",
-      t => "< " + t + "> fo(42).x",
-      t => "< " + t + "> a[0]",
-      t => "< " + t + "> o.a",
-      t => "< " + t + "> new fo(42)",
-      t => "< " + t + "> new fa(42)[0]",
-      t => "< " + t + "> new fo(42).x",
-      t => "< " + t + "> new new ff(42)",
-      t => "< " + t + "> new new ffa(42)[0]",
-      t => "< " + t + "> new new ffo(42).x"
+      t => "< " + t + " > x++",
+      t => "< " + t + " > (fo().x)++",
+      t => "< " + t + " > ++x",
+      t => "< " + t + " > ++(fo().x)",
+      t => "< " + t + " > fo(42)",
+      t => "< " + t + " > ff(42)(17)",
+      t => "< " + t + " > fa(42)[0]",
+      t => "< " + t + " > fo(42).x",
+      t => "< " + t + " > a[0]",
+      t => "< " + t + " > o.a",
+      t => "< " + t + " > new fo(42)",
+      t => "< " + t + " > new fa(42)[0]",
+      t => "< " + t + " > new fo(42).x",
+      t => "< " + t + " > new new ff(42)",
+      t => "< " + t + " > new new ffa(42)[0]",
+      t => "< " + t + " > new new ffo(42).x"
     ]),
-    // This should be a syntax error (token << is an operator).
-    "<<A>(x: A) : A> 42"
+    // This should be a syntax error (tokens << and >> are operators).
+    "<<A>(x: A) : A> 42",
+    "<I<number>> 42",
+    "<I<J<number>>> 42",
+    "<I<J<K<number>>>> 42",
+    "<<A>(x: A) : I<A>> 42"
   ]);
 }
 
@@ -141,8 +145,8 @@ function InvalidReferenceTypeAssertions(size) {
   return Generate(size, [
     new TestGen(1, ValidTypes, [
       // With assignment expressions (lower precedence).
-      t => "< " + t + "> x = 42",
-      t => "< " + t + "> x += 42",
+      t => "< " + t + " > x = 42",
+      t => "< " + t + " > x += 42",
     ])
   ]);
 }
