@@ -2024,8 +2024,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
   while (work_to_do) {
     if (UsingEmbedderHeapTracer()) {
-      embedder_heap_tracer()->TraceWrappersFrom(
-          reinterpret_cast<v8::Isolate*>(isolate()), wrappers_to_trace_);
+      embedder_heap_tracer()->TraceWrappersFrom(wrappers_to_trace_);
       wrappers_to_trace_.clear();
     } else if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
@@ -2219,8 +2218,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
       if (UsingEmbedderHeapTracer()) {
-        embedder_heap_tracer()->TracePrologue(
-            reinterpret_cast<v8::Isolate*>(isolate()));
+        embedder_heap_tracer()->TracePrologue();
       }
       ProcessEphemeralMarking(&root_visitor, false);
       ProcessMarkingDeque();
@@ -2259,8 +2257,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       ProcessEphemeralMarking(&root_visitor, true);
       ProcessMarkingDeque();
       if (UsingEmbedderHeapTracer()) {
-        embedder_heap_tracer()->TraceEpilogue(
-            reinterpret_cast<v8::Isolate*>(isolate()));
+        embedder_heap_tracer()->TraceEpilogue();
       }
     }
   }
