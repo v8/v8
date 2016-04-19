@@ -474,7 +474,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info("wasm compile", this->isolate(), this->zone());
+    CompilationInfo info("wasm compile", this->isolate(), this->zone(),
+                         Code::ComputeFlags(Code::WASM_FUNCTION));
     Handle<Code> result =
         Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
 #ifdef ENABLE_DISASSEMBLER
