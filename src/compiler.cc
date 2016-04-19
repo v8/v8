@@ -1198,14 +1198,8 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
   if (!shared->has_deoptimization_support()) {
-    // TODO(titzer): just reuse the ParseInfo for the unoptimized compile.
-    CompilationInfoWithZone unoptimized(info->closure());
-    // Note that we use the same AST that we will use for generating the
-    // optimized code.
-    ParseInfo* parse_info = unoptimized.parse_info();
-    parse_info->set_literal(info->literal());
-    parse_info->set_scope(info->scope());
-    parse_info->set_context(info->context());
+    Zone zone(info->isolate()->allocator());
+    CompilationInfo unoptimized(info->parse_info(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
     // If the current code has reloc info for serialization, also include
     // reloc info for serialization for the new code, so that deopt support
