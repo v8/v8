@@ -197,7 +197,7 @@ bool CompilationInfo::ShouldSelfOptimize() {
          !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
          !literal()->dont_optimize() &&
          literal()->scope()->AllowsLazyCompilation() &&
-         (!has_shared_info() || !shared_info()->optimization_disabled());
+         !shared_info()->optimization_disabled();
 }
 
 
@@ -477,7 +477,7 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 }
 
 void EnsureFeedbackVector(CompilationInfo* info) {
-  if (!info->has_shared_info()) return;
+  DCHECK(info->has_shared_info());
 
   // If no type feedback vector exists, we create one now. At this point the
   // AstNumbering pass has already run. Note the snapshot can contain outdated
@@ -499,13 +499,6 @@ void EnsureFeedbackVector(CompilationInfo* info) {
 }
 
 bool UseIgnition(CompilationInfo* info) {
-  // We only get here without a shared function info is when compiling a script
-  // for live edit. We cannot (yet) use Ignition to compile for live edit.
-  if (!info->has_shared_info()) {
-    DCHECK(info->isolate()->debug()->live_edit_enabled());
-    return false;
-  }
-
   if (info->shared_info()->is_generator() && !FLAG_ignition_generators) {
     return false;
   }
@@ -1471,18 +1464,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
 
-  // The only reason we ever get here without having a shared function info for
-  // the outer function, is when we are compiling for live edit. That is also
-  // the case in which we want to re-generate all inner shared function info
-  // objects by just assuming the top-most one has not been compiled yet.
-  DCHECK_IMPLIES(!outer_info->has_shared_info(),
-                 isolate->debug()->live_edit_enabled());
-  bool outer_function_was_never_compiled =
-      !outer_info->has_shared_info() ||
-      outer_info->shared_info()->never_compiled();
-
   // Find any previously allocated shared function info for the given literal.
-  if (outer_function_was_never_compiled) {
+  if (outer_info->shared_info()->never_compiled()) {
     // On the first compile, there are no existing shared function info for
     // inner functions yet, so do not try to find them. All bets are off for
     // live edit though.
@@ -1513,7 +1496,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // If the outer function has been compiled before, we cannot be sure that
     // shared function info for this function literal has been created for the
     // first time. It may have already been compiled previously.
-    result->set_never_compiled(outer_function_was_never_compiled);
+    result->set_never_compiled(outer_info->shared_info()->never_compiled());
   }
 
   Zone zone(isolate->allocator());
