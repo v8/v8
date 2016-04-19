@@ -193,6 +193,7 @@
         'wasm/test-run-wasm-js.cc',
         'wasm/test-run-wasm-module.cc',
         'wasm/test-signatures.h',
+        'wasm/test-wasm-stack.cc',
         'wasm/wasm-run-utils.h',
       ],
       'conditions': [
