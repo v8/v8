@@ -198,7 +198,7 @@ class WasmTrapHelper : public ZoneObject {
 
   void BuildTrapCode(wasm::TrapReason reason) {
     Node* exception =
-        builder_->String(wasm::WasmOpcodes::TrapReasonName(reason));
+        builder_->String(wasm::WasmOpcodes::TrapReasonMessage(reason));
     Node* end;
     Node** control_ptr = builder_->control_;
     Node** effect_ptr = builder_->effect_;

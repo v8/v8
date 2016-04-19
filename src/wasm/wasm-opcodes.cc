@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-opcodes.h"
+#include "src/messages.h"
 #include "src/signature.h"
 
 namespace v8 {
@@ -144,6 +145,22 @@ bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
 #else
   return true;
 #endif
+}
+
+int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
+  switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case k##name:                     \
+    return MessageTemplate::kWasm##name;
+    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+    default:
+      return MessageTemplate::kNone;
+  }
+}
+
+const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
+  return MessageTemplate::TemplateString(TrapReasonToMessageId(reason));
 }
 }  // namespace wasm
 }  // namespace internal
