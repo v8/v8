@@ -1091,6 +1091,22 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   return ReadAbsentProperty(isolate, receiver, it->GetName());
 }
 
+#ifdef USE_SIMULATOR
+// static
+Address AccessorInfo::redirect(Isolate* isolate, Address address,
+                               AccessorComponent component) {
+  ApiFunction fun(address);
+  DCHECK_EQ(ACCESSOR_GETTER, component);
+  ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
+  return ExternalReference(&fun, type, isolate).address();
+}
+
+Address AccessorInfo::redirected_getter() const {
+  Address accessor = v8::ToCData<Address>(getter());
+  if (accessor == nullptr) return nullptr;
+  return redirect(GetIsolate(), accessor, ACCESSOR_GETTER);
+}
+#endif
 
 bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
                                            Handle<AccessorInfo> info,

@@ -301,22 +301,16 @@ void VectorStoreICTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType* ApiGetterDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 1, zone)->AsFunction();
-  function->InitParameter(0, ExternalPointer(zone));
-  return function;
+const Register ApiGetterDescriptor::ReceiverRegister() {
+  return LoadDescriptor::ReceiverRegister();
 }
-
 
 void ApiGetterDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {function_address()};
+  Register registers[] = {ReceiverRegister(), HolderRegister(),
+                          CallbackRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
-
 
 void ContextOnlyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

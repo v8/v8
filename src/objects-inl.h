@@ -5424,6 +5424,7 @@ ACCESSORS(AccessorInfo, expected_receiver_type, Object,
 
 ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
+ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)

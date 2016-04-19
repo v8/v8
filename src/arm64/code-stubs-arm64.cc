@@ -5890,15 +5890,34 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- sp[0]                         : name
-  //  -- sp[8 .. (8 + kArgsLength*8)]  : v8::PropertyCallbackInfo::args_
-  //  -- ...
-  //  -- x2                            : api_function_address
-  // -----------------------------------
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
 
-  Register api_function_address = ApiGetterDescriptor::function_address();
-  DCHECK(api_function_address.is(x2));
+  Register receiver = ApiGetterDescriptor::ReceiverRegister();
+  Register holder = ApiGetterDescriptor::HolderRegister();
+  Register callback = ApiGetterDescriptor::CallbackRegister();
+  Register scratch = x4;
+  Register scratch2 = x5;
+  Register scratch3 = x6;
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
+
+  __ Push(receiver);
+
+  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
+  __ Mov(scratch2, Operand(ExternalReference::isolate_address(isolate())));
+  __ Ldr(scratch3, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ Push(scratch3, scratch, scratch, scratch2, holder);
+  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
+  __ Push(scratch);
 
   // v8::PropertyCallbackInfo::args_ array and name handle.
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
@@ -5924,6 +5943,11 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
+
+  Register api_function_address = x2;
+  __ Ldr(scratch, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+  __ Ldr(api_function_address,
+         FieldMemOperand(scratch, Foreign::kForeignAddressOffset));
 
   const int spill_offset = 1 + kApiStackSpace;
   // +3 is to skip prolog, return address and name handle.

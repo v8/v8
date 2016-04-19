@@ -39,6 +39,13 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   Handle<Object> set = v8::FromCData(isolate, setter);
   info->set_getter(*get);
   info->set_setter(*set);
+#ifdef USE_SIMULATOR
+  Address redirected = info->redirected_getter();
+  if (redirected != nullptr) {
+    Handle<Object> js_get = v8::FromCData(isolate, redirected);
+    info->set_js_getter(*js_get);
+  }
+#endif
   return info;
 }
 
