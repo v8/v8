@@ -6217,6 +6217,7 @@ void DescriptorLookupCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].source = NULL;
 }
 
+
 void Heap::ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
@@ -6250,6 +6251,7 @@ void Heap::ExternalStringTable::CleanUp() {
   }
 #endif
 }
+
 
 void Heap::ExternalStringTable::TearDown() {
   for (int i = 0; i < new_space_strings_.length(); ++i) {

@@ -253,9 +253,6 @@ DEFINE_BOOL(compiled_keyed_generic_loads, false,
             "use optimizing compiler to generate keyed generic load stubs")
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
-DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
-DEFINE_INT(page_promotion_threshold, 70,
-           "min percentage of live bytes on a page to enable fast evacuation")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,

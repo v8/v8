@@ -287,7 +287,6 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, MemoryChunk* chunk,
 // --------------------------------------------------------------------------
 // PagedSpace
 
-template <Page::InitializationMode mode>
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
@@ -300,23 +299,9 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
 
   // Make sure that categories are initialized before freeing the area.
   page->InitializeFreeListCategories();
-  // In the case we do not free the memory, we effectively account for the whole
-  // page as allocated memory that cannot be used for further allocations.
-  if (mode == kFreeMemory) {
-    owner->Free(page->area_start(), page->area_size());
-  }
+  owner->Free(page->area_start(), page->area_size());
 
   return page;
-}
-
-Page* Page::Convert(NewSpacePage* old_page, PagedSpace* new_owner) {
-  old_page->set_owner(new_owner);
-  old_page->SetFlags(0, ~0);
-  new_owner->AccountCommitted(old_page->size());
-  Page* new_page = Page::Initialize<kDoNotFreeMemory>(
-      old_page->heap(), old_page, NOT_EXECUTABLE, new_owner);
-  new_page->InsertAfter(new_owner->anchor()->prev_page());
-  return new_page;
 }
 
 void Page::InitializeFreeListCategories() {

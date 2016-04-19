@@ -628,12 +628,13 @@ class MarkCompactCollector {
   void RegisterExternallyReferencedObject(Object** object);
 
  private:
-  class EvacuateNewSpacePageVisitor;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
   class EvacuateRecordOnlyVisitor;
   class EvacuateVisitorBase;
   class HeapObjectVisitor;
+
+  typedef std::vector<Page*> SweepingList;
 
   explicit MarkCompactCollector(Heap* heap);
 
@@ -827,8 +828,7 @@ class MarkCompactCollector {
 
   // Iterates through all live objects on a page using marking information.
   // Returns whether all objects have successfully been visited.
-  template <class Visitor>
-  bool VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
+  bool VisitLiveObjects(MemoryChunk* page, HeapObjectVisitor* visitor,
                         IterationMode mode);
 
   void VisitLiveObjectsBody(Page* page, ObjectVisitor* visitor);
