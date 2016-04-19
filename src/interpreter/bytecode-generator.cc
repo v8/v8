@@ -554,41 +554,35 @@ class BytecodeGenerator::RegisterResultScope final
   Register result_register_;
 };
 
-BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
-    : isolate_(isolate),
-      zone_(zone),
-      builder_(nullptr),
-      info_(nullptr),
-      scope_(nullptr),
-      globals_(0, zone),
+BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
+    : isolate_(info->isolate()),
+      zone_(info->zone()),
+      builder_(new (zone()) BytecodeArrayBuilder(
+          info->isolate(), info->zone(), info->num_parameters_including_this(),
+          info->scope()->MaxNestedContextChainLength(),
+          info->scope()->num_stack_slots(), info->literal())),
+      info_(info),
+      scope_(info->scope()),
+      globals_(0, info->zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
       register_allocator_(nullptr),
-      generator_resume_points_(0, zone),
+      generator_resume_points_(info->literal()->yield_count(), info->zone()),
       try_catch_nesting_level_(0),
       try_finally_nesting_level_(0),
       generator_yields_seen_(0) {
-  InitializeAstVisitor(isolate);
+  InitializeAstVisitor(isolate());
 }
 
-Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
-  set_info(info);
-  set_scope(info->scope());
-
-  // Initialize bytecode array builder.
-  set_builder(new (zone()) BytecodeArrayBuilder(
-      isolate(), zone(), info->num_parameters_including_this(),
-      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots(),
-      info->literal()));
-
+Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
 
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
 
-  if (IsGeneratorFunction(info->literal()->kind())) {
+  if (IsGeneratorFunction(info()->literal()->kind())) {
     VisitGeneratorPrologue();
   }
 
@@ -604,8 +598,6 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   }
 
   builder()->EnsureReturn();
-  set_scope(nullptr);
-  set_info(nullptr);
   return builder()->ToBytecodeArray();
 }
 
@@ -641,9 +633,6 @@ void BytecodeGenerator::MakeBytecodeBody() {
 }
 
 void BytecodeGenerator::VisitGeneratorPrologue() {
-  generator_resume_points_.clear();
-  generator_resume_points_.resize(info()->literal()->yield_count());
-
   BytecodeLabel regular_call;
   builder()
       ->LoadAccumulatorWithRegister(Register::new_target())

@@ -17,9 +17,9 @@ class LoopBuilder;
 
 class BytecodeGenerator final : public AstVisitor {
  public:
-  BytecodeGenerator(Isolate* isolate, Zone* zone);
+  explicit BytecodeGenerator(CompilationInfo* info);
 
-  Handle<BytecodeArray> MakeBytecode(CompilationInfo* info);
+  Handle<BytecodeArray> MakeBytecode();
 
 #define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
@@ -161,16 +161,11 @@ class BytecodeGenerator final : public AstVisitor {
   template <size_t N>
   void InitializeWithConsecutiveRegisters(Register (&registers)[N]);
 
-  inline void set_builder(BytecodeArrayBuilder* builder) { builder_ = builder; }
   inline BytecodeArrayBuilder* builder() const { return builder_; }
-
   inline Isolate* isolate() const { return isolate_; }
   inline Zone* zone() const { return zone_; }
-
   inline Scope* scope() const { return scope_; }
-  inline void set_scope(Scope* scope) { scope_ = scope; }
   inline CompilationInfo* info() const { return info_; }
-  inline void set_info(CompilationInfo* info) { info_ = info; }
 
   inline ControlScope* execution_control() const { return execution_control_; }
   inline void set_execution_control(ControlScope* scope) {
