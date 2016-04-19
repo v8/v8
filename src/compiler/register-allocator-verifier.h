@@ -62,25 +62,6 @@ class Assessment : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(Assessment);
 };
 
-// FinalAssessmens are associated to operands that we know to be a certain
-// virtual register.
-class FinalAssessment final : public Assessment {
- public:
-  explicit FinalAssessment(int virtual_register)
-      : Assessment(Final), virtual_register_(virtual_register) {}
-
-  int virtual_register() const { return virtual_register_; }
-  static const FinalAssessment* cast(const Assessment* assessment) {
-    CHECK(assessment->kind() == Final);
-    return static_cast<const FinalAssessment*>(assessment);
-  }
-
- private:
-  int virtual_register_;
-
-  DISALLOW_COPY_AND_ASSIGN(FinalAssessment);
-};
-
 // PendingAssessments are associated to operands coming from the multiple
 // predecessors of a block. We only record the operand and the block, and
 // will determine if the way the operand is defined (from the predecessors)
@@ -106,6 +87,33 @@ class PendingAssessment final : public Assessment {
   InstructionOperand operand_;
 
   DISALLOW_COPY_AND_ASSIGN(PendingAssessment);
+};
+
+// FinalAssessmens are associated to operands that we know to be a certain
+// virtual register.
+class FinalAssessment final : public Assessment {
+ public:
+  explicit FinalAssessment(int virtual_register,
+                           const PendingAssessment* original_pending = nullptr)
+      : Assessment(Final),
+        virtual_register_(virtual_register),
+        original_pending_assessment_(original_pending) {}
+
+  int virtual_register() const { return virtual_register_; }
+  static const FinalAssessment* cast(const Assessment* assessment) {
+    CHECK(assessment->kind() == Final);
+    return static_cast<const FinalAssessment*>(assessment);
+  }
+
+  const PendingAssessment* original_pending_assessment() const {
+    return original_pending_assessment_;
+  }
+
+ private:
+  int virtual_register_;
+  const PendingAssessment* original_pending_assessment_;
+
+  DISALLOW_COPY_AND_ASSIGN(FinalAssessment);
 };
 
 struct OperandAsKeyLess {
@@ -231,8 +239,13 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   BlockAssessments* CreateForBlock(const InstructionBlock* block);
 
   void ValidatePendingAssessment(RpoNumber block_id, InstructionOperand op,
-                                 PendingAssessment* assessment,
+                                 BlockAssessments* current_assessments,
+                                 const PendingAssessment* assessment,
                                  int virtual_register);
+  void ValidateFinalAssessment(RpoNumber block_id, InstructionOperand op,
+                               BlockAssessments* current_assessments,
+                               const FinalAssessment* assessment,
+                               int virtual_register);
   void ValidateUse(RpoNumber block_id, BlockAssessments* current_assessments,
                    InstructionOperand op, int virtual_register);
 
@@ -242,11 +255,6 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   Constraints constraints_;
   ZoneMap<RpoNumber, BlockAssessments*> assessments_;
   ZoneMap<RpoNumber, DelayedAssessments*> outstanding_assessments_;
-
-  // Cached structures, to avoid memory churn. Needed solely in
-  // ValidatePendingAssessment.
-  ZoneQueue<std::pair<PendingAssessment*, int>> worklist_;
-  ZoneSet<RpoNumber> seen_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocatorVerifier);
 };

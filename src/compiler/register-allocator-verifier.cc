@@ -52,9 +52,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
       sequence_(sequence),
       constraints_(zone),
       assessments_(zone),
-      outstanding_assessments_(zone),
-      worklist_(zone),
-      seen_(zone) {
+      outstanding_assessments_(zone) {
   constraints_.reserve(sequence->instructions().size());
   // TODO(dcarney): model unique constraints.
   // Construct OperandConstraints for all InstructionOperands, eliminating
@@ -347,24 +345,25 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
 }
 
 void RegisterAllocatorVerifier::ValidatePendingAssessment(
-    RpoNumber block_id, InstructionOperand op, PendingAssessment* assessment,
+    RpoNumber block_id, InstructionOperand op,
+    BlockAssessments* current_assessments, const PendingAssessment* assessment,
     int virtual_register) {
   // When validating a pending assessment, it is possible some of the
   // assessments
   // for the original operand (the one where the assessment was created for
   // first) are also pending. To avoid recursion, we use a work list. To
   // deal with cycles, we keep a set of seen nodes.
-  CHECK(worklist_.empty());
-  CHECK(seen_.empty());
-  worklist_.push(std::make_pair(assessment, virtual_register));
-  seen_.insert(block_id);
+  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(zone());
+  ZoneSet<RpoNumber> seen(zone());
+  worklist.push(std::make_pair(assessment, virtual_register));
+  seen.insert(block_id);
 
-  while (!worklist_.empty()) {
-    auto work = worklist_.front();
-    PendingAssessment* current_assessment = work.first;
+  while (!worklist.empty()) {
+    auto work = worklist.front();
+    const PendingAssessment* current_assessment = work.first;
     int current_virtual_register = work.second;
     InstructionOperand current_operand = current_assessment->operand();
-    worklist_.pop();
+    worklist.pop();
 
     const InstructionBlock* origin = current_assessment->origin();
     CHECK(origin->PredecessorCount() > 1 || origin->phis().size() > 0);
@@ -410,16 +409,17 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
 
       switch (contribution->kind()) {
         case Final:
-          CHECK_EQ(FinalAssessment::cast(contribution)->virtual_register(),
-                   expected);
+          ValidateFinalAssessment(
+              block_id, current_operand, current_assessments,
+              FinalAssessment::cast(contribution), expected);
           break;
         case Pending: {
           // This happens if we have a diamond feeding into another one, and
           // the inner one never being used - other than for carrying the value.
           PendingAssessment* next = PendingAssessment::cast(contribution);
-          if (seen_.find(pred) == seen_.end()) {
-            worklist_.push({next, expected});
-            seen_.insert(pred);
+          if (seen.find(pred) == seen.end()) {
+            worklist.push({next, expected});
+            seen.insert(pred);
           }
           // Note that we do not want to finalize pending assessments at the
           // beginning of a block - which is the information we'd have
@@ -431,8 +431,26 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
       }
     }
   }
-  seen_.clear();
-  CHECK(worklist_.empty());
+  // If everything checks out, we may make the assessment.
+  current_assessments->map()[op] =
+      new (zone()) FinalAssessment(virtual_register, assessment);
+}
+
+void RegisterAllocatorVerifier::ValidateFinalAssessment(
+    RpoNumber block_id, InstructionOperand op,
+    BlockAssessments* current_assessments, const FinalAssessment* assessment,
+    int virtual_register) {
+  if (assessment->virtual_register() == virtual_register) return;
+  // If we have 2 phis with the exact same operand list, and the first phi is
+  // used before the second one, via the operand incoming to the block,
+  // and the second one's operand is defined (via a parallel move) after the
+  // use, then the original operand will be assigned to the first phi. We
+  // then look at the original pending assessment to ascertain if op
+  // is virtual_register.
+  const PendingAssessment* old = assessment->original_pending_assessment();
+  CHECK_NOT_NULL(old);
+  ValidatePendingAssessment(block_id, op, current_assessments, old,
+                            virtual_register);
 }
 
 void RegisterAllocatorVerifier::ValidateUse(
@@ -445,16 +463,14 @@ void RegisterAllocatorVerifier::ValidateUse(
 
   switch (assessment->kind()) {
     case Final:
-      // The virtual registers should match.
-      CHECK_EQ(FinalAssessment::cast(assessment)->virtual_register(),
-               virtual_register);
+      ValidateFinalAssessment(block_id, op, current_assessments,
+                              FinalAssessment::cast(assessment),
+                              virtual_register);
       break;
     case Pending: {
-      ValidatePendingAssessment(
-          block_id, op, PendingAssessment::cast(assessment), virtual_register);
-      // If everything checks out, we may make the assessment.
-      current_assessments->map()[op] =
-          new (zone()) FinalAssessment(virtual_register);
+      const PendingAssessment* pending = PendingAssessment::cast(assessment);
+      ValidatePendingAssessment(block_id, op, current_assessments, pending,
+                                virtual_register);
       break;
     }
   }
@@ -522,14 +538,17 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
       CHECK(found_op != block_assessments->map().end());
       switch (found_op->second->kind()) {
         case Final:
-          CHECK(FinalAssessment::cast(found_op->second)->virtual_register() ==
-                vreg);
+          ValidateFinalAssessment(block->rpo_number(), op, block_assessments,
+                                  FinalAssessment::cast(found_op->second),
+                                  vreg);
           break;
         case Pending:
-          ValidatePendingAssessment(block->rpo_number(), op,
-                                    PendingAssessment::cast(found_op->second),
-                                    vreg);
-          block_assessments->map()[op] = new (zone()) FinalAssessment(vreg);
+          const PendingAssessment* pending =
+              PendingAssessment::cast(found_op->second);
+          ValidatePendingAssessment(block->rpo_number(), op, block_assessments,
+                                    pending, vreg);
+          block_assessments->map()[op] =
+              new (zone()) FinalAssessment(vreg, pending);
           break;
       }
     }
