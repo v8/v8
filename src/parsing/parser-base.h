@@ -802,9 +802,10 @@ class ParserBase : public Traits {
                                    ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
-  void ParseFormalParameter(FormalParametersT* parameters,
+  void ParseFormalParameter(FormalParametersT* parameters, bool allow_optional,
                             ExpressionClassifier* classifier, bool* ok);
   void ParseFormalParameterList(FormalParametersT* parameters,
+                                bool allow_optional,
                                 ExpressionClassifier* classifier, bool* ok);
   void CheckArityRestrictions(int param_count, FunctionKind function_type,
                               bool has_rest, int formals_start_pos,
@@ -1758,7 +1759,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
       Scanner::Location(next_beg_pos, scanner()->location().end_pos),
       MessageTemplate::kInvalidDestructuringTarget);
 
-  if (is_generator || peek() == Token::LPAREN) {
+  if (is_generator || peek() == Token::LPAREN ||
+      (scope_->typed() && peek() == Token::LT)) {
     // MethodDefinition
     //    PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
     //    '*' PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'
@@ -1770,17 +1772,20 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
+    typesystem::TypeFlags type_flags = typesystem::kNormalTypes;
 
     if (in_class && !is_static && this->IsConstructor(*name)) {
       *has_seen_constructor = true;
       kind = has_extends ? FunctionKind::kSubclassConstructor
                          : FunctionKind::kBaseConstructor;
+      type_flags = typesystem::kConstructorTypes;
     }
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), type_flags,
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -1820,7 +1825,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        language_mode(), typesystem::kDisallowTypeParameters,
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
     // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
@@ -2605,7 +2611,8 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, language_mode(), CHECK_OK);
+        function_token_position, function_type, language_mode(),
+        typesystem::kNormalTypes, CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, classifier, CHECK_OK);
@@ -2755,8 +2762,10 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
 
 
 template <class Traits>
-void ParserBase<Traits>::ParseFormalParameter(
-    FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
+void ParserBase<Traits>::ParseFormalParameter(FormalParametersT* parameters,
+                                              bool allow_optional,
+                                              ExpressionClassifier* classifier,
+                                              bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
@@ -2774,8 +2783,20 @@ void ParserBase<Traits>::ParseFormalParameter(
     classifier->RecordNonSimpleParameter();
   }
 
+  // Parse optional question mark.
+  bool optional = false;
+  if (scope_->typed() && allow_optional) optional = Check(Token::CONDITIONAL);
+
+  // Parse optional type annotation.
+  typename TypeSystem::Type type = this->EmptyType();
+  if (scope_->typed() && Check(Token::COLON)) {
+    type = ParseValidType(ok);
+    if (!*ok) return;
+  }
+  USE(type);  // TODO(nikolaos): really use it!
+
   ExpressionT initializer = Traits::EmptyExpression();
-  if (!is_rest && Check(Token::ASSIGN)) {
+  if (!is_rest && !optional && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, &init_classifier, ok);
     if (!*ok) return;
@@ -2798,7 +2819,8 @@ void ParserBase<Traits>::ParseFormalParameter(
 
 template <class Traits>
 void ParserBase<Traits>::ParseFormalParameterList(
-    FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
+    FormalParametersT* parameters, bool allow_optional,
+    ExpressionClassifier* classifier, bool* ok) {
   // FormalParameters[Yield,GeneratorParameter] :
   //   [empty]
   //   FormalParameterList[?Yield, ?GeneratorParameter]
@@ -2823,7 +2845,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
         return;
       }
       parameters->has_rest = Check(Token::ELLIPSIS);
-      ParseFormalParameter(parameters, classifier, ok);
+      ParseFormalParameter(parameters, allow_optional, classifier, ok);
       if (!*ok) return;
     } while (!parameters->has_rest && Check(Token::COMMA));
 

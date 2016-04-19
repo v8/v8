@@ -2936,6 +2936,14 @@ class EmptyParentheses final : public Expression {
 // Nodes for the optional type system.
 namespace typesystem {
 
+enum TypeFlags {
+  kNormalTypes = 0,
+  kDisallowTypeParameters = 1 << 0,
+  kDisallowTypeAnnotation = 1 << 1,
+  kAllowSignature = 1 << 2,
+  kConstructorTypes = kDisallowTypeParameters | kDisallowTypeAnnotation
+};
+
 class FormalParameter;
 
 

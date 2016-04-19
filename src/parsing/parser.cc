@@ -750,10 +750,10 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
   return parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, ok);
+      function_token_position, type, language_mode, type_flags, ok);
 }
 
 
@@ -1095,11 +1095,11 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         BlockState block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
-          ParseFormalParameterList(&formals, &formals_classifier, &ok);
+          ParseFormalParameterList(&formals, true, &formals_classifier, &ok);
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
-          ParseFormalParameter(&formals, &formals_classifier, &ok);
+          ParseFormalParameter(&formals, false, &formals_classifier, &ok);
           if (ok) {
             DeclareFormalParameter(formals.scope, formals.at(0),
                                    &formals_classifier);
@@ -1136,10 +1136,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           shared_info->start_position(), shared_info->end_position(),
           shared_info->language_mode());
     } else {
-      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
-                                    kSkipFunctionNameCheck, shared_info->kind(),
-                                    RelocInfo::kNoPosition, function_type,
-                                    shared_info->language_mode(), &ok);
+      result = ParseFunctionLiteral(
+          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
+          shared_info->kind(), RelocInfo::kNoPosition, function_type,
+          shared_info->language_mode(), typesystem::kNormalTypes, &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != NULL));
@@ -1606,7 +1606,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       Consume(Token::FUNCTION);
       int pos = position();
       bool is_generator = Check(Token::MUL);
-      if (peek() == Token::LPAREN) {
+      if (peek() == Token::LPAREN || (scope_->typed() && Check(Token::LT))) {
         // FunctionDeclaration[+Default] ::
         //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
         //
@@ -1617,7 +1617,8 @@ Statement* Parser::ParseExportDefault(bool* ok) {
             kSkipFunctionNameCheck,
             is_generator ? FunctionKind::kGeneratorFunction
                          : FunctionKind::kNormalFunction,
-            pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
+            pos, FunctionLiteral::kDeclaration, language_mode(),
+            typesystem::kAllowSignature, CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, CHECK_OK);
@@ -2152,13 +2153,17 @@ Statement* Parser::ParseFunctionDeclaration(
 
   FuncNameInferrer::State fni_state(fni_);
   if (fni_ != NULL) fni_->PushEnclosingName(name);
-  FunctionLiteral* fun = ParseFunctionLiteral(
-      name, scanner()->location(),
-      is_strict_reserved ? kFunctionNameIsStrictReserved
-                         : kFunctionNameValidityUnknown,
-      is_generator ? FunctionKind::kGeneratorFunction
-                   : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
+  FunctionLiteral* fun =
+      ParseFunctionLiteral(name, scanner()->location(),
+                           is_strict_reserved ? kFunctionNameIsStrictReserved
+                                              : kFunctionNameValidityUnknown,
+                           is_generator ? FunctionKind::kGeneratorFunction
+                                        : FunctionKind::kNormalFunction,
+                           pos, FunctionLiteral::kDeclaration, language_mode(),
+                           typesystem::kAllowSignature, CHECK_OK);
+  // Return no function declaration if just the signature was given.
+  EmptyStatement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+  if (fun == nullptr) return empty;
 
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
@@ -2175,7 +2180,6 @@ Statement* Parser::ParseFunctionDeclaration(
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   if (names) names->Add(name, zone());
-  EmptyStatement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
   if (is_sloppy(language_mode()) && allow_harmony_sloppy_function() &&
       !scope_->is_declaration_scope()) {
     SloppyBlockFunctionStatement* delegate =
@@ -2377,11 +2381,12 @@ Block* Parser::ParseVariableDeclarations(
       }
     }
 
-    // Optional type annotation.
-    if (scope_->typed() && Check(Token::COLON)) {
-      typename TypeSystem::Type type = ParseValidType(CHECK_OK);
-      USE(type);
+    // Parse optional type annotation.
+    typename TypeSystem::Type type = this->EmptyType();
+    if (scope_->typed() && Check(Token::COLON)) {  // Braces required here.
+      type = ParseValidType(CHECK_OK);
     }
+    USE(type);  // TODO(nikolaos): really use it!
 
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
@@ -4078,11 +4083,13 @@ void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
 }
 
 
+// This function may return a nullptr with *ok==true in typed mode,
+// if (type_flags & kAllowSignature) and a function signature is parsed.
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   //
@@ -4177,17 +4184,46 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       function_state.set_generator_object_variable(temp);
     }
 
+    // Parse optional type parameters.
+    typename TypeSystem::TypeParameters type_parameters =
+        this->NullTypeParameters();
+    if (scope_->typed() &&
+        !(type_flags & typesystem::kDisallowTypeParameters) &&
+        peek() == Token::LT) {  // Braces required here.
+      type_parameters = ParseTypeParameters(CHECK_OK);
+    }
+    USE(type_parameters);  // TODO(nikolaos): really use them!
+
     Expect(Token::LPAREN, CHECK_OK);
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
     ParserFormalParameters formals(scope);
-    ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+    ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
+                             &formals_classifier, CHECK_OK);
     arity = formals.Arity();
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
     CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
                            formals_end_position, CHECK_OK);
+
+    // Parse optional type annotation.
+    typename TypeSystem::Type result_type = this->EmptyType();
+    if (scope_->typed() &&
+        !(type_flags & typesystem::kDisallowTypeAnnotation) &&
+        Check(Token::COLON)) {  // Braces required here.
+      result_type = ParseValidType(CHECK_OK);
+    }
+    USE(result_type);  // TODO(nikolaos): really use it!
+
+    // Allow for a function signature (i.e., a literal without body).
+    // In that case, return a nullptr instead of a function literal.
+    if (peek() != Token::LBRACE && scope_->typed() &&
+        (type_flags & typesystem::kAllowSignature)) {
+      ExpectSemicolon(CHECK_OK);
+      return nullptr;
+    }
+
     Expect(Token::LBRACE, CHECK_OK);
 
     // Don't include the rest parameter into the function's formal parameter
