@@ -751,68 +751,89 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // will never be used.
   __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
   __ LoadW(
-      r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
+      r2, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
   {
     Label loop, done_loop;
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
 #if V8_TARGET_ARCH_S390X
-    __ CmpP(r5, Operand::Zero());
+    __ CmpP(r2, Operand::Zero());
     __ beq(&done_loop);
 #else
-    __ SmiUntag(r5);
-    __ LoadAndTestP(r5, r5);
+    __ SmiUntag(r2);
+    __ LoadAndTestP(r2, r2);
     __ beq(&done_loop);
 #endif
-    __ LoadRR(r1, r5);
+    __ LoadRR(r1, r2);
     __ bind(&loop);
     __ push(ip);
     __ BranchOnCount(r1, &loop);
     __ bind(&done_loop);
   }
 
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(r6);
+  // Dispatch on the kind of generator object.
+  Label old_generator;
+  __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kFunctionDataOffset));
+  __ CompareObjectType(r5, r5, r5, BYTECODE_ARRAY_TYPE);
+  __ bne(&old_generator, Label::kNear);
 
-  // Restore the operand stack.
-  __ LoadP(r2, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset));
-  __ LoadP(r5, FieldMemOperand(r2, FixedArray::kLengthOffset));
-  __ AddP(r2, r2,
-          Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
+  // New-style (ignition/turbofan) generator object
   {
-    Label loop, done_loop;
-    __ SmiUntag(r5);
-    __ LoadAndTestP(r5, r5);
-    __ beq(&done_loop);
-    __ LoadRR(r1, r5);
-    __ bind(&loop);
-    __ LoadP(ip, MemOperand(r2, kPointerSize));
-    __ la(r2, MemOperand(r2, kPointerSize));
-    __ Push(ip);
-    __ BranchOnCount(r1, &loop);
-    __ bind(&done_loop);
+    // We abuse new.target both to indicate that this is a resume call and to
+    // pass in the generator object.  In ordinary calls, new.target is always
+    // undefined because generator functions are non-constructable.
+    __ LoadRR(r5, r3);
+    __ LoadRR(r3, r6);
+    __ LoadP(ip, FieldMemOperand(r3, JSFunction::kCodeEntryOffset));
+    __ JumpToJSEntry(ip);
   }
-
-  // Reset operand stack so we don't leak.
-  __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(ip, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset),
-            r0);
-
-  // Resume the generator function at the continuation.
-  __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kCodeOffset));
-  __ AddP(r5, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
+  // Old-style (full-codegen) generator object
+  __ bind(&old_generator);
   {
-    ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-    __ LoadP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset));
-    __ SmiUntag(r4);
-    __ AddP(r5, r5, r4);
-    __ LoadSmiLiteral(r4, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-    __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset),
+    // Enter a new JavaScript frame, and initialize its slots as they were when
+    // the generator was suspended.
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PushStandardFrame(r6);
+
+    // Restore the operand stack.
+    __ LoadP(r2, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset));
+    __ LoadP(r5, FieldMemOperand(r2, FixedArray::kLengthOffset));
+    __ AddP(r2, r2,
+            Operand(FixedArray::kHeaderSize - kHeapObjectTag - kPointerSize));
+    {
+      Label loop, done_loop;
+      __ SmiUntag(r5);
+      __ LoadAndTestP(r5, r5);
+      __ beq(&done_loop);
+      __ LoadRR(r1, r5);
+      __ bind(&loop);
+      __ LoadP(ip, MemOperand(r2, kPointerSize));
+      __ la(r2, MemOperand(r2, kPointerSize));
+      __ Push(ip);
+      __ BranchOnCount(r1, &loop);
+      __ bind(&done_loop);
+    }
+
+    // Reset operand stack so we don't leak.
+    __ LoadRoot(ip, Heap::kEmptyFixedArrayRootIndex);
+    __ StoreP(ip, FieldMemOperand(r3, JSGeneratorObject::kOperandStackOffset),
               r0);
-    __ LoadRR(r2, r3);  // Continuation expects generator object in r2.
-    __ Jump(r5);
+
+    // Resume the generator function at the continuation.
+    __ LoadP(r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kCodeOffset));
+    __ AddP(r5, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
+    {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+      __ LoadP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset));
+      __ SmiUntag(r4);
+      __ AddP(r5, r5, r4);
+      __ LoadSmiLiteral(r4,
+                        Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+      __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kContinuationOffset),
+                r0);
+      __ LoadRR(r2, r3);  // Continuation expects generator object in r2.
+      __ Jump(r5);
+    }
   }
 }
 
