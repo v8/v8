@@ -7926,6 +7926,8 @@ TEST(TypedModeInterfaceDeclarations) {
 
   const char* error_data[] = {
     "interface I { x: () }",
+    "interface {}",
+    "interface extends I {}",
     "interface I { f(a: ()) }",
     "interface I<> {}",
     NULL
