@@ -13601,12 +13601,6 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
                     : LiteralsArray::cast(literals_cell->value())};
     }
   }
-  if (FLAG_trace_opt && !OptimizedCodeMapIsCleared() &&
-      result.code == nullptr) {
-    PrintF("[didn't find optimized code in optimized code map for ");
-    ShortPrint();
-    PrintF("]\n");
-  }
   return result;
 }
 
