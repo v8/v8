@@ -1333,6 +1333,16 @@ JSFunction* WasmFrame::function() const {
   return *fun;
 }
 
+void WasmFrame::Summarize(List<FrameSummary>* functions) const {
+  DCHECK(functions->length() == 0);
+  Code* code = LookupCode();
+  int offset = static_cast<int>(pc() - code->instruction_start());
+  AbstractCode* abstract_code = AbstractCode::cast(code);
+  Handle<JSFunction> fun(function(), isolate());
+  FrameSummary summary(receiver(), *fun, abstract_code, offset, false);
+  functions->Add(summary);
+}
+
 void WasmFrame::Iterate(ObjectVisitor* v) const { IterateCompiledFrame(v); }
 
 Address WasmFrame::GetCallerStackPointer() const {

@@ -547,57 +547,65 @@ class CaptureStackTraceHelper {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
 
-    Handle<Script> script(Script::cast(fun->shared()->script()));
+    // TODO(clemensh): this can be changed to a DCHECK once also WASM frames
+    // define a script
+    if (!fun->shared()->script()->IsUndefined()) {
+      Handle<Script> script(Script::cast(fun->shared()->script()));
 
-    if (!line_key_.is_null()) {
-      int script_line_offset = script->line_offset();
-      int line_number = Script::GetLineNumber(script, position);
-      // line_number is already shifted by the script_line_offset.
-      int relative_line_number = line_number - script_line_offset;
-      if (!column_key_.is_null() && relative_line_number >= 0) {
-        Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-        int start = (relative_line_number == 0) ? 0 :
-            Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
-        int column_offset = position - start;
-        if (relative_line_number == 0) {
-          // For the case where the code is on the same line as the script
-          // tag.
-          column_offset += script->column_offset();
+      if (!line_key_.is_null()) {
+        int script_line_offset = script->line_offset();
+        int line_number = Script::GetLineNumber(script, position);
+        // line_number is already shifted by the script_line_offset.
+        int relative_line_number = line_number - script_line_offset;
+        if (!column_key_.is_null() && relative_line_number >= 0) {
+          Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+          int start = (relative_line_number == 0)
+                          ? 0
+                          : Smi::cast(line_ends->get(relative_line_number - 1))
+                                    ->value() +
+                                1;
+          int column_offset = position - start;
+          if (relative_line_number == 0) {
+            // For the case where the code is on the same line as the script
+            // tag.
+            column_offset += script->column_offset();
+          }
+          JSObject::AddProperty(
+              stack_frame, column_key_,
+              handle(Smi::FromInt(column_offset + 1), isolate_), NONE);
         }
-        JSObject::AddProperty(stack_frame, column_key_,
-                              handle(Smi::FromInt(column_offset + 1), isolate_),
+        JSObject::AddProperty(stack_frame, line_key_,
+                              handle(Smi::FromInt(line_number + 1), isolate_),
                               NONE);
       }
-      JSObject::AddProperty(stack_frame, line_key_,
-                            handle(Smi::FromInt(line_number + 1), isolate_),
-                            NONE);
-    }
 
-    if (!script_id_key_.is_null()) {
-      JSObject::AddProperty(stack_frame, script_id_key_,
-                            handle(Smi::FromInt(script->id()), isolate_), NONE);
-    }
+      if (!script_id_key_.is_null()) {
+        JSObject::AddProperty(stack_frame, script_id_key_,
+                              handle(Smi::FromInt(script->id()), isolate_),
+                              NONE);
+      }
 
-    if (!script_name_key_.is_null()) {
-      JSObject::AddProperty(stack_frame, script_name_key_,
-                            handle(script->name(), isolate_), NONE);
-    }
+      if (!script_name_key_.is_null()) {
+        JSObject::AddProperty(stack_frame, script_name_key_,
+                              handle(script->name(), isolate_), NONE);
+      }
 
-    if (!script_name_or_source_url_key_.is_null()) {
-      Handle<Object> result = Script::GetNameOrSourceURL(script);
-      JSObject::AddProperty(stack_frame, script_name_or_source_url_key_, result,
-                            NONE);
+      if (!script_name_or_source_url_key_.is_null()) {
+        Handle<Object> result = Script::GetNameOrSourceURL(script);
+        JSObject::AddProperty(stack_frame, script_name_or_source_url_key_,
+                              result, NONE);
+      }
+
+      if (!eval_key_.is_null()) {
+        Handle<Object> is_eval = factory()->ToBoolean(
+            script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+        JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
+      }
     }
 
     if (!function_key_.is_null()) {
       Handle<Object> fun_name = JSFunction::GetDebugName(fun);
       JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
-    }
-
-    if (!eval_key_.is_null()) {
-      Handle<Object> is_eval = factory()->ToBoolean(
-          script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-      JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
     }
 
     if (!constructor_key_.is_null()) {

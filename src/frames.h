@@ -976,6 +976,8 @@ class WasmFrame : public StandardFrame {
 
   JSFunction* function() const override;
 
+  void Summarize(List<FrameSummary>* frames) const override;
+
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
