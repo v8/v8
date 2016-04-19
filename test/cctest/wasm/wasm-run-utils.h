@@ -159,7 +159,7 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  int AddFunction(FunctionSig* sig, Handle<Code> code) {
+  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code) {
     if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
@@ -171,6 +171,30 @@ class TestingModule : public ModuleEnv {
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
+  }
+
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source) {
+    Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+    uint32_t index = AddFunction(sig, Handle<Code>::null());
+    Isolate* isolate = module->shared_isolate;
+    WasmName module_name = {"test", 4};
+    WasmName function_name = {nullptr, 0};
+    Handle<Code> code = CompileWasmToJSWrapper(isolate, this, jsfunc, sig,
+                                               module_name, function_name);
+    instance->function_code[index] = code;
+    return index;
+  }
+
+  Handle<JSFunction> WrapCode(uint32_t index) {
+    Isolate* isolate = module->shared_isolate;
+    // Wrap the code so it can be called as a JS function.
+    Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
+    Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
+    Handle<Code> code = instance->function_code[index];
+    WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
+    return compiler::CompileJSToWasmWrapper(isolate, this, name, code,
+                                            module_object, index);
   }
 
   void SetFunctionCode(uint32_t index, Handle<Code> code) {
