@@ -1254,8 +1254,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_origin_options(options);
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
-    script->set_eval_from_shared(*outer_info);
-    script->set_eval_from_position(eval_position);
+    Script::SetEvalOrigin(script, outer_info, eval_position);
 
     Zone zone(isolate->allocator());
     ParseInfo parse_info(&zone, script);

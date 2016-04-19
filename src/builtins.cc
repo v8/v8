@@ -2067,19 +2067,9 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
   }
 
   // Compile source string in the native context.
-  StackTraceFrameIterator it(isolate);
   int eval_scope_position = 0;
   int eval_position = RelocInfo::kNoPosition;
-  Handle<SharedFunctionInfo> outer_info;
-  if (!it.done() && it.is_javascript()) {
-    FrameSummary summary = FrameSummary::GetFirst(it.javascript_frame());
-    eval_position =
-        summary.abstract_code()->SourcePosition(summary.code_offset());
-    outer_info = Handle<SharedFunctionInfo>(summary.function()->shared());
-  } else {
-    outer_info =
-        Handle<SharedFunctionInfo>(native_context->closure()->shared());
-  }
+  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
   return Compiler::GetFunctionFromEval(source, outer_info, native_context,
                                        SLOPPY, restriction, eval_scope_position,
                                        eval_position);
