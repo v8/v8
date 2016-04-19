@@ -380,6 +380,10 @@ def BuildbotToV8Mode(config):
 
 def SetupEnvironment(options):
   """Setup additional environment variables."""
+
+  # Many tests assume an English interface.
+  os.environ['LANG'] = 'en_US.UTF-8'
+
   symbolizer = 'external_symbolizer_path=%s' % (
       os.path.join(
           BASE_DIR, 'third_party', 'llvm-build', 'Release+Asserts', 'bin',
