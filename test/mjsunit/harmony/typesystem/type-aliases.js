@@ -44,4 +44,8 @@ function InvalidTypeAliases(size) {
     new TestGen(3, ValidTypeAliases, [CheckValid]),
     new TestGen(1, InvalidTypeAliases, [CheckInvalid]),
   ]);
+  CheckValid("var type; type");
+  CheckValid("var type, number=10; type = number+1");
+  CheckValid("function type() {}; type(1, 2, 3)");
+  CheckValid("var type; type\n42");
 })(test_size);

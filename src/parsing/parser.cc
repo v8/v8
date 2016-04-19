@@ -1292,7 +1292,9 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
     case Token::IDENTIFIER: {
       if (!scope_->typed()) break;
       int pos = peek_position();
-      if (CheckContextualKeyword(CStrVector("type"))) {
+      if (PeekContextualKeyword(CStrVector("type")) &&
+          PeekAhead() == Token::IDENTIFIER) {
+        Consume(Token::IDENTIFIER);
         return ParseTypeAliasDeclaration(pos, ok);
       }
       break;
