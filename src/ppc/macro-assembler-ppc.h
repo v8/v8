@@ -20,7 +20,6 @@ const Register kReturnRegister2 = {Register::kCode_r5};
 const Register kJSFunctionRegister = {Register::kCode_r4};
 const Register kContextRegister = {Register::kCode_r30};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r3};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r14};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
