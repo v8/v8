@@ -17,17 +17,20 @@ import struct
 __DESCRIPTION = """
 Process v8.ignition_dispatches_counters.json and list top counters,
 or plot a dispatch heatmap.
+
+Please note that those handlers that may not or will never dispatch
+(e.g. Return or Throw) do not show up in the results.
 """
 
 
 __HELP_EPILOGUE = """
 examples:
-  # Print the top 10 counters, reading from default filename
-  # v8.ignition_dispatches_counters.json (default mode)
+  # Print the hottest bytecodes in descending order, reading from
+  # default filename v8.ignition_dispatches_counters.json (default mode)
   $ tools/ignition/bytecode_dispatches_report.py
 
-  # Print the top 15 counters reading from data.json
-  $ tools/ignition/bytecode_dispatches_report.py -t 15 data.json
+  # Print the hottest 15 bytecode dispatch pairs reading from data.json
+  $ tools/ignition/bytecode_dispatches_report.py -t -n 15 data.json
 
   # Save heatmap to default filename v8.ignition_dispatches_counters.svg
   $ tools/ignition/bytecode_dispatches_report.py -p
@@ -51,7 +54,7 @@ def warn_if_counter_may_have_saturated(dispatches_table):
                                                              destination)
 
 
-def find_top_counters(dispatches_table, top_count):
+def find_top_bytecode_dispatch_pairs(dispatches_table, top_count):
   def flattened_counters_generator():
     for source, counters_from_source in dispatches_table.items():
       for destination, counter in counters_from_source.items():
@@ -61,11 +64,27 @@ def find_top_counters(dispatches_table, top_count):
                         key=lambda x: x[2])
 
 
-def print_top_counters(dispatches_table, top_count):
-  top_counters = find_top_counters(dispatches_table, top_count)
-  print "Top {} dispatch counters:".format(top_count)
-  for source, destination, counter in top_counters:
+def print_top_bytecode_dispatch_pairs(dispatches_table, top_count):
+  top_bytecode_dispatch_pairs = (
+    find_top_bytecode_dispatch_pairs(dispatches_table, top_count))
+  print "Top {} bytecode dispatch pairs:".format(top_count)
+  for source, destination, counter in top_bytecode_dispatch_pairs:
     print "{:>12d}\t{} -> {}".format(counter, source, destination)
+
+
+def find_top_bytecodes(dispatches_table):
+  top_bytecodes = []
+  for bytecode, counters_from_bytecode in dispatches_table.items():
+    top_bytecodes.append((bytecode, sum(counters_from_bytecode.values())))
+  top_bytecodes.sort(key=lambda x: x[1], reverse=True)
+  return top_bytecodes
+
+
+def print_top_bytecodes(dispatches_table):
+  top_bytecodes = find_top_bytecodes(dispatches_table)
+  print "Top bytecodes:"
+  for bytecode, counter in top_bytecodes:
+    print "{:>12d}\t{}".format(counter, bytecode)
 
 
 def build_counters_matrix(dispatches_table):
@@ -90,10 +109,10 @@ def plot_dispatches_table(dispatches_table, figure, axis):
 
   image = axis.pcolor(
     counters_matrix,
-    cmap='jet',
+    cmap="jet",
     norm=colors.LogNorm(),
-    edgecolor='grey',
-    linestyle='dotted',
+    edgecolor="grey",
+    linestyle="dotted",
     linewidth=0.5
   )
 
@@ -103,7 +122,7 @@ def plot_dispatches_table(dispatches_table, figure, axis):
   )
   axis.xaxis.tick_top()
   axis.set_xlim(0, len(xlabels))
-  axis.set_xticklabels(xlabels, rotation='vertical')
+  axis.set_xticklabels(xlabels, rotation="vertical")
 
   axis.yaxis.set(
     ticks=numpy.arange(0.5, len(ylabels)),
@@ -127,30 +146,35 @@ def parse_command_line():
     epilog=__HELP_EPILOGUE
   )
   command_line_parser.add_argument(
-    "--plot_size", "-s",
+    "--plot-size", "-s",
     metavar="N",
     default=30,
-    help="shorter side, in inches, of the output plot (default 30)"
+    help="shorter side in inches of the output plot (default 30)"
   )
   command_line_parser.add_argument(
     "--plot", "-p",
     action="store_true",
-    help="plot dispatches table heatmap"
+    help="plot dispatch pairs heatmap"
   )
   command_line_parser.add_argument(
     "--interactive", "-i",
     action="store_true",
-    help="open an interactive viewer, rather than writing to file"
+    help="open the heatmap in an interactive viewer, instead of writing to file"
   )
   command_line_parser.add_argument(
-    "--top_count", "-t",
+    "--top-bytecode-dispatch-pairs", "-t",
+    action="store_true",
+    help="print the top bytecode dispatch pairs"
+  )
+  command_line_parser.add_argument(
+    "--top-bytecode-dispatch-pairs-number", "-n",
     metavar="N",
     type=int,
     default=10,
-    help="print the top N counters (default 10)"
+    help="print N top bytecode dispatch pairs when running with -t (default 10)"
   )
   command_line_parser.add_argument(
-    "--output_filename", "-o",
+    "--output-filename", "-o",
     metavar="<output filename>",
     default="v8.ignition_dispatches_table.svg",
     help=("file to save the plot file to. File type is deduced from the "
@@ -185,8 +209,11 @@ def main():
       figure.set_size_inches(program_options.plot_size,
                              program_options.plot_size)
       pyplot.savefig(program_options.output_filename)
+  elif program_options.top_bytecode_dispatch_pairs:
+    print_top_bytecode_dispatch_pairs(
+      dispatches_table, program_options.top_bytecode_dispatch_pairs_number)
   else:
-    print_top_counters(dispatches_table, program_options.top_count)
+    print_top_bytecodes(dispatches_table)
 
 
 if __name__ == "__main__":
