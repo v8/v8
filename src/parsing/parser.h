@@ -350,6 +350,7 @@ class ParserTraits {
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
     typedef ParserFormalParameters::Parameter FormalParameter;
     typedef ParserFormalParameters FormalParameters;
+    typedef v8::internal::Statement* Statement;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     struct TypeSystem {

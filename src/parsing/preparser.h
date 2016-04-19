@@ -672,6 +672,9 @@ class PreParserFactory {
                                      int pos) {
     return PreParserExpression::Default();
   }
+  PreParserStatement NewEmptyStatement(int pos) {
+    return PreParserStatement::Default();
+  }
   PreParserStatement NewReturnStatement(PreParserExpression expression,
                                         int pos) {
     return PreParserStatement::Default();
@@ -849,6 +852,7 @@ class PreParserTraits {
     typedef PreParserExpressionList PropertyList;
     typedef PreParserIdentifier FormalParameter;
     typedef PreParserFormalParameters FormalParameters;
+    typedef PreParserStatement Statement;
     typedef PreParserStatementList StatementList;
 
     struct TypeSystem {

@@ -7796,3 +7796,45 @@ TEST(TypedModeBindingPatterns) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeTypeAliases) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    "type NumArray = number[]",
+    "type Fun = (x: number) => number",
+    "type Tree<A> = A | Tree<A>[]",
+    NULL
+  };
+
+  const char* error_data[] = {
+    "type Err<> = number",
+    "type Err",
+    "type Err =",
+    "type Err = ()",
+    NULL
+  };
+
+  const char* type_as_identifier_data[] = {
+    "type",
+    "type = number+1",
+    "type(1, 2, 3)",
+    "type\n42",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, type_as_identifier_data, kSuccess,
+                    NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, type_as_identifier_data, kSuccess,
+                    NULL, 0, always_flags, arraysize(always_flags));
+}
