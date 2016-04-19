@@ -3229,6 +3229,23 @@ void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
 
 }  // namespace
 
+void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* context = assembler->Parameter(3);
+  Node* receiver = assembler->Parameter(0);
+  // For now we only support receiver_is_holder.
+  DCHECK(receiver_is_holder());
+  Node* holder = receiver;
+  Node* map = assembler->LoadMap(receiver);
+  Node* descriptors = assembler->LoadMapDescriptors(map);
+  Node* offset =
+      assembler->Int32Constant(DescriptorArray::ToValueIndex(index()));
+  Node* callback =
+      assembler->LoadFixedArrayElementInt32Index(descriptors, offset);
+  assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
+                          holder, callback);
+}
+
 void LessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kLessThan);
 }

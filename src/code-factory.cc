@@ -17,6 +17,11 @@ Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode) {
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::ApiGetter(Isolate* isolate) {
+  CallApiGetterStub stub(isolate);
+  return Callable(stub.GetCode(), ApiGetterDescriptor(isolate));
+}
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(

@@ -140,15 +140,16 @@ namespace internal {
   V(ToLength)                               \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
+  V(KeyedLoadSloppyArguments)               \
+  V(KeyedStoreSloppyArguments)              \
+  V(LoadApiGetter)                          \
   V(LoadConstant)                           \
   V(LoadFastElement)                        \
   V(LoadField)                              \
   V(LoadIndexedInterceptor)                 \
-  V(KeyedLoadSloppyArguments)               \
-  V(KeyedStoreSloppyArguments)              \
   V(StoreField)                             \
-  V(StoreInterceptor)                       \
   V(StoreGlobal)                            \
+  V(StoreInterceptor)                       \
   V(StoreTransition)
 
 // List of code stubs only used on ARM 32 bits platforms.
@@ -1456,6 +1457,30 @@ class LoadConstantStub : public HandlerStub {
   DEFINE_HANDLER_CODE_STUB(LoadConstant, HandlerStub);
 };
 
+class LoadApiGetterStub : public TurboFanCodeStub {
+ public:
+  LoadApiGetterStub(Isolate* isolate, bool receiver_is_holder, int index)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = IndexBits::encode(index) |
+                 ReceiverIsHolderBits::encode(receiver_is_holder);
+  }
+
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
+  InlineCacheState GetICState() const override { return MONOMORPHIC; }
+
+  int index() const { return IndexBits::decode(minor_key_); }
+  bool receiver_is_holder() const {
+    return ReceiverIsHolderBits::decode(minor_key_);
+  }
+
+ private:
+  class ReceiverIsHolderBits : public BitField<bool, 0, 1> {};
+  class IndexBits : public BitField<int, 1, kDescriptorIndexBitCount> {};
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  DEFINE_TURBOFAN_CODE_STUB(LoadApiGetter, TurboFanCodeStub);
+};
 
 class StoreFieldStub : public HandlerStub {
  public:

@@ -61,6 +61,8 @@ class CodeFactory final {
 
   static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
 
+  static Callable ApiGetter(Isolate* isolate);
+
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
