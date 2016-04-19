@@ -1,3 +1,94 @@
+2016-04-18: Version 5.2.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.64
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.62
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.61
+
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.59
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.50
+
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.49
+
+        [api] Bring back finalizers on global handles.
+
+        Performance and stability improvements on all platforms.
+
+
 2016-02-17: Sentinel
 
         The ChangeLog file is no longer maintained on master. This
