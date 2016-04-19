@@ -1094,11 +1094,11 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         BlockState block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
-          ParseFormalParameterList(&formals, &formals_classifier, &ok);
+          ParseFormalParameterList(&formals, true, &formals_classifier, &ok);
           if (ok) ok = Check(Token::RPAREN);
         } else {
           // BindingIdentifier
-          ParseFormalParameter(&formals, &formals_classifier, &ok);
+          ParseFormalParameter(&formals, false, &formals_classifier, &ok);
           if (ok) {
             DeclareFormalParameter(formals.scope, formals.at(0),
                                    &formals_classifier);
@@ -4099,6 +4099,8 @@ void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
 }
 
 
+// This function may return a nullptr with *ok==true in typed mode,
+// if (type_flags & kAllowSignature) and a function signature is parsed.
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
@@ -4212,7 +4214,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     int start_position = scanner()->location().beg_pos;
     scope_->set_start_position(start_position);
     ParserFormalParameters formals(scope);
-    ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+    ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
+                             &formals_classifier, CHECK_OK);
     arity = formals.Arity();
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;

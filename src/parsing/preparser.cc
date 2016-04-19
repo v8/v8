@@ -1033,7 +1033,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int start_position = scanner()->location().beg_pos;
   function_scope->set_start_position(start_position);
   PreParserFormalParameters formals(function_scope);
-  ParseFormalParameterList(&formals, &formals_classifier, CHECK_OK);
+  ParseFormalParameterList(&formals, kind != FunctionKind::kSetterFunction,
+                           &formals_classifier, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 

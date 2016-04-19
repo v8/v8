@@ -46,23 +46,39 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckValid("class C { get x () : number { return 42; } }");
   // Setters.
   CheckValid("class C { set x (a) {} }");
+  CheckValid("class C { set x (a = 42) {} }");
   CheckValid("class C { set x (a) : void {} }");
+  CheckValid("class C { set x (a = 42) : void {} }");
   CheckValid("class C { set x (a : number) {} }");
+  CheckValid("class C { set x (a : number = 42) {} }");
   CheckValid("class C { set x (a : number) : void {} }");
+  CheckValid("class C { set x (a : number = 42) : void {} }");
   // Invalid constructors.
   CheckInvalid("class C { constructor (a : number) : boolean {} }");
   CheckInvalid("class C { constructor <A>(a : A) {} }");
   // Invalid getters.
   CheckInvalid("class C { get x (a) { return 42; } }");
+  CheckInvalid("class C { get x (a?) { return 42; } }");
   CheckInvalid("class C { get x (a) : number { return 42; } }");
+  CheckInvalid("class C { get x (a?) : number { return 42; } }");
   CheckInvalid("class C { get x (a, b) { return 42; } }");
   CheckInvalid("class C { get x (a, b) : number { return 42; } }");
   CheckInvalid("class C { get x (a : number) { return 42; } }");
+  CheckInvalid("class C { get x (a? : number) { return 42; } }");
   CheckInvalid("class C { get x (a : number) : number { return 42; } }");
+  CheckInvalid("class C { get x (a? : number) : number { return 42; } }");
+  CheckInvalid("class C { get x (...rest) { return 42; } }");
+  CheckInvalid("class C { get x (...rest : number[]) { return 42; } }");
+  CheckInvalid("class C { get x (...rest) : number { return 42; } }");
+  CheckInvalid("class C { get x (...rest : number[]) : number { return 42; } }");
   CheckInvalid("class C { get x <A>() { return 42; } }");
   // Invalid setters.
   CheckInvalid("class C { set x () {} }");
   CheckInvalid("class C { set x () : void {} }");
+  CheckInvalid("class C { set x (a?) {} }");
+  CheckInvalid("class C { set x (a? : number) : void {} }");
+  CheckInvalid("class C { set x (a? = 42) {} }");
+  CheckInvalid("class C { set x (a? = 42 : number) : void {} }");
   CheckInvalid("class C { set x (a : number, b : number) {} }");
   CheckInvalid("class C { set x (a : number, b : number) : void {} }");
   CheckInvalid("class C { set x (...rest) {} }");

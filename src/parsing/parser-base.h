@@ -795,9 +795,10 @@ class ParserBase : public Traits {
                                    ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
-  void ParseFormalParameter(FormalParametersT* parameters,
+  void ParseFormalParameter(FormalParametersT* parameters, bool allow_optional,
                             ExpressionClassifier* classifier, bool* ok);
   void ParseFormalParameterList(FormalParametersT* parameters,
+                                bool allow_optional,
                                 ExpressionClassifier* classifier, bool* ok);
   void CheckArityRestrictions(int param_count, FunctionKind function_type,
                               bool has_rest, int formals_start_pos,
@@ -1759,9 +1760,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
-    typesystem::TypeFlags type_flags = (is_get || is_set)
-                                           ? typesystem::kDisallowTypeParameters
-                                           : typesystem::kNormalTypes;
+    typesystem::TypeFlags type_flags = typesystem::kNormalTypes;
 
     if (in_class && !is_static && this->IsConstructor(*name)) {
       *has_seen_constructor = true;
@@ -2751,8 +2750,10 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
 
 
 template <class Traits>
-void ParserBase<Traits>::ParseFormalParameter(
-    FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
+void ParserBase<Traits>::ParseFormalParameter(FormalParametersT* parameters,
+                                              bool allow_optional,
+                                              ExpressionClassifier* classifier,
+                                              bool* ok) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
@@ -2772,7 +2773,7 @@ void ParserBase<Traits>::ParseFormalParameter(
 
   // Parse optional question mark.
   bool optional = false;
-  if (scope_->typed()) optional = Check(Token::CONDITIONAL);
+  if (scope_->typed() && allow_optional) optional = Check(Token::CONDITIONAL);
 
   // Parse optional type annotation.
   typename TypeSystem::Type type = this->EmptyType();
@@ -2806,7 +2807,8 @@ void ParserBase<Traits>::ParseFormalParameter(
 
 template <class Traits>
 void ParserBase<Traits>::ParseFormalParameterList(
-    FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
+    FormalParametersT* parameters, bool allow_optional,
+    ExpressionClassifier* classifier, bool* ok) {
   // FormalParameters[Yield,GeneratorParameter] :
   //   [empty]
   //   FormalParameterList[?Yield, ?GeneratorParameter]
@@ -2831,7 +2833,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
         return;
       }
       parameters->has_rest = Check(Token::ELLIPSIS);
-      ParseFormalParameter(parameters, classifier, ok);
+      ParseFormalParameter(parameters, allow_optional, classifier, ok);
       if (!*ok) return;
     } while (!parameters->has_rest && Check(Token::COMMA));
 
