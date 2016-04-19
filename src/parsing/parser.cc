@@ -2085,7 +2085,9 @@ Statement* Parser::ParseFunctionDeclaration(
   // initial value upon entering the corresponding scope.
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
-  VariableMode mode = !scope_->is_declaration_scope() ? LET : VAR;
+  VariableMode mode =
+      (!scope_->is_declaration_scope() || scope_->is_module_scope()) ? LET
+                                                                     : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode);
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);

@@ -5628,6 +5628,43 @@ TEST(ImportExportParsingErrors) {
   }
 }
 
+TEST(ModuleTopLevelFunctionDecl) {
+  // clang-format off
+  const char* kErrorSources[] = {
+      "function f() {} function f() {}",
+      "var f; function f() {}",
+      "function f() {} var f;",
+      "function* f() {} function* f() {}",
+      "var f; function* f() {}",
+      "function* f() {} var f;",
+      "function f() {} function* f() {}",
+      "function* f() {} function f() {}",
+  };
+  // clang-format on
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned i = 0; i < arraysize(kErrorSources); ++i) {
+    i::Handle<i::String> source =
+        factory->NewStringFromAsciiChecked(kErrorSources[i]);
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::Zone zone(CcTest::i_isolate()->allocator());
+    i::ParseInfo info(&zone, script);
+    i::Parser parser(&info);
+    info.set_module();
+    CHECK(!parser.Parse(&info));
+  }
+}
+
 
 TEST(ModuleParsingInternals) {
   i::Isolate* isolate = CcTest::i_isolate();
