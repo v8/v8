@@ -717,12 +717,6 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
-  if (input->opcode() == IrOpcode::kJSToNumber) {
-    // Recursively try to reduce the input first.
-    Reduction result = ReduceJSToNumber(input);
-    if (result.Changed()) return result;
-    return Changed(input);  // JSToNumber(JSToNumber(x)) => JSToNumber(x)
-  }
   // Check for ToNumber truncation of signaling NaN to undefined mapping.
   if (input->opcode() == IrOpcode::kSelect) {
     Node* check = NodeProperties::GetValueInput(input, 0);
