@@ -692,7 +692,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   VariableMode mode = decl->mode();
   // Const and let variables are initialized with the hole so that we can
   // check that they are only assigned once.
-  bool hole_init = mode == CONST || mode == CONST_LEGACY || mode == LET;
+  bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -1782,10 +1782,7 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableLoad(VariableMode mode,
                                                       Handle<String> name) {
-  if (mode == CONST_LEGACY) {
-    BytecodeLabel end_label;
-    builder()->JumpIfNotHole(&end_label).LoadUndefined().Bind(&end_label);
-  } else if (mode == LET || mode == CONST) {
+  if (mode == LET || mode == CONST) {
     BuildThrowIfHole(name);
   }
 }
@@ -1969,7 +1966,7 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
   RegisterAllocationScope assignment_register_scope(this);
   BytecodeLabel end_label;
   bool hole_check_required =
-      (mode == CONST_LEGACY) || (mode == LET && op != Token::INIT) ||
+      (mode == LET && op != Token::INIT) ||
       (mode == CONST && op != Token::INIT) ||
       (mode == CONST && op == Token::INIT && variable->is_this());
   switch (variable->location()) {
@@ -1982,6 +1979,16 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         destination = Register(variable->index());
       }
 
+      if (mode == CONST_LEGACY && op != Token::INIT) {
+        if (is_strict(language_mode())) {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                 0);
+        }
+        // Non-initializing assignments to legacy constants are ignored
+        // in sloppy mode. Break here to avoid storing into variable.
+        break;
+      }
+
       if (hole_check_required) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
@@ -1989,32 +1996,9 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
             ->StoreAccumulatorInRegister(value_temp)
             .LoadAccumulatorWithRegister(destination);
 
-        if (mode == CONST_LEGACY && op == Token::INIT) {
-          // Perform an intialization check for legacy constants.
-          builder()
-              ->JumpIfNotHole(&end_label)
-              .MoveRegister(value_temp, destination)
-              .Bind(&end_label)
-              .LoadAccumulatorWithRegister(value_temp);
-          // Break here because the value should not be stored unconditionally.
-          break;
-        } else if (mode == CONST_LEGACY && op != Token::INIT) {
-          if (is_strict(language_mode())) {
-            builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                   0);
-          } else {
-            // Ensure accumulator is in the correct state.
-            builder()->LoadAccumulatorWithRegister(value_temp);
-          }
-          // Non-initializing assignments to legacy constants are ignored
-          // in sloppy mode. Break here to avoid storing into variable.
-          break;
-        } else {
-          BuildHoleCheckForVariableAssignment(variable, op);
-          builder()->LoadAccumulatorWithRegister(value_temp);
-        }
+        BuildHoleCheckForVariableAssignment(variable, op);
+        builder()->LoadAccumulatorWithRegister(value_temp);
       }
-
       builder()->StoreAccumulatorInRegister(destination);
       break;
     }
@@ -2051,6 +2035,16 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
+      if (mode == CONST_LEGACY && op != Token::INIT) {
+        if (is_strict(language_mode())) {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
+                                 0);
+        }
+        // Non-initializing assignments to legacy constants are ignored
+        // in sloppy mode. Break here to avoid storing into variable.
+        break;
+      }
+
       if (hole_check_required) {
         // Load destination to check for hole.
         Register value_temp = register_allocator()->NewRegister();
@@ -2058,56 +2052,16 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
             ->StoreAccumulatorInRegister(value_temp)
             .LoadContextSlot(context_reg, variable->index());
 
-        if (mode == CONST_LEGACY && op == Token::INIT) {
-          // Perform an intialization check for legacy constants.
-          builder()
-              ->JumpIfNotHole(&end_label)
-              .LoadAccumulatorWithRegister(value_temp)
-              .StoreContextSlot(context_reg, variable->index())
-              .Bind(&end_label);
-          builder()->LoadAccumulatorWithRegister(value_temp);
-          // Break here because the value should not be stored unconditionally.
-          // The above code performs the store conditionally.
-          break;
-        } else if (mode == CONST_LEGACY && op != Token::INIT) {
-          if (is_strict(language_mode())) {
-            builder()->CallRuntime(Runtime::kThrowConstAssignError, Register(),
-                                   0);
-          } else {
-            // Ensure accumulator is in the correct state.
-            builder()->LoadAccumulatorWithRegister(value_temp);
-          }
-          // Non-initializing assignments to legacy constants are ignored
-          // in sloppy mode. Break here to avoid storing into variable.
-          break;
-        } else {
-          BuildHoleCheckForVariableAssignment(variable, op);
-          builder()->LoadAccumulatorWithRegister(value_temp);
-        }
+        BuildHoleCheckForVariableAssignment(variable, op);
+        builder()->LoadAccumulatorWithRegister(value_temp);
       }
 
       builder()->StoreContextSlot(context_reg, variable->index());
       break;
     }
     case VariableLocation::LOOKUP: {
-      if (mode == CONST_LEGACY && op == Token::INIT) {
-        register_allocator()->PrepareForConsecutiveAllocations(3);
-        Register value = register_allocator()->NextConsecutiveRegister();
-        Register context = register_allocator()->NextConsecutiveRegister();
-        Register name = register_allocator()->NextConsecutiveRegister();
-
-        // InitializeLegacyConstLookupSlot runtime call returns the 'value'
-        // passed to it. So, accumulator will have its original contents when
-        // runtime call returns.
-        builder()
-            ->StoreAccumulatorInRegister(value)
-            .MoveRegister(execution_context()->reg(), context)
-            .LoadLiteral(variable->name())
-            .StoreAccumulatorInRegister(name)
-            .CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, value, 3);
-      } else {
-        builder()->StoreLookupSlot(variable->name(), language_mode());
-      }
+      DCHECK_NE(CONST_LEGACY, variable->mode());
+      builder()->StoreLookupSlot(variable->name(), language_mode());
       break;
     }
   }

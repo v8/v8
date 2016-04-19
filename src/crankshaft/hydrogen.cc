@@ -5916,9 +5916,6 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         case CONST:
           mode = HLoadContextSlot::kCheckDeoptimize;
           break;
-        case CONST_LEGACY:
-          mode = HLoadContextSlot::kCheckReturnUndefined;
-          break;
         default:
           mode = HLoadContextSlot::kNoCheck;
           break;
@@ -7244,13 +7241,17 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
         return Bailout(kNonInitializerAssignmentToConst);
       }
     } else if (var->mode() == CONST_LEGACY) {
-      if (expr->op() != Token::INIT && is_strict(function_language_mode())) {
-        return Bailout(kNonInitializerAssignmentToConst);
-      } else if (expr->op() != Token::INIT) {
-        CHECK_ALIVE(VisitForValue(expr->value()));
-        return ast_context()->ReturnValue(Pop());
+      if (expr->op() != Token::INIT) {
+        if (is_strict(function_language_mode())) {
+          return Bailout(kNonInitializerAssignmentToConst);
+        } else {
+          CHECK_ALIVE(VisitForValue(expr->value()));
+          return ast_context()->ReturnValue(Pop());
+        }
       }
 
+      // TODO(adamk): Is this required? Legacy const variables are always
+      // initialized before use.
       if (var->IsStackAllocated()) {
         // We insert a use of the old value to detect unsupported uses of const
         // variables (e.g. initialization inside a loop).
@@ -7322,11 +7323,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
           }
         } else {
           DCHECK_EQ(Token::INIT, expr->op());
-          if (var->mode() == CONST_LEGACY) {
-            mode = HStoreContextSlot::kCheckIgnoreAssignment;
-          } else {
-            mode = HStoreContextSlot::kNoCheck;
-          }
+          mode = HStoreContextSlot::kNoCheck;
         }
 
         HValue* context = BuildContextChainWalk(var);
@@ -12288,7 +12285,7 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
   VariableProxy* proxy = declaration->proxy();
   VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == LET || mode == CONST || mode == CONST_LEGACY;
+  bool hole_init = mode == LET || mode == CONST;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED:

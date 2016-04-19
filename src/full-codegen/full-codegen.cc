@@ -1934,7 +1934,7 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
   DCHECK(var->initializer_position() != RelocInfo::kNoPosition);
   DCHECK(proxy->position() != RelocInfo::kNoPosition);
 
-  return var->mode() == CONST_LEGACY || var->scope()->is_nonlinear() ||
+  return var->scope()->is_nonlinear() ||
          var->initializer_position() >= proxy->position();
 }
 

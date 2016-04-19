@@ -598,7 +598,7 @@ class ImportDeclaration final : public Declaration {
   ImportDeclaration(Zone* zone, VariableProxy* proxy,
                     const AstRawString* import_name,
                     const AstRawString* module_specifier, Scope* scope, int pos)
-      : Declaration(zone, proxy, IMPORT, scope, pos),
+      : Declaration(zone, proxy, CONST, scope, pos),
         import_name_(import_name),
         module_specifier_(module_specifier) {}
 

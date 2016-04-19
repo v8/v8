@@ -30,43 +30,33 @@ enum ContextLookupFlags {
 // their state is changed by the InitializeImmutableBinding method. The
 // BindingFlags enum represents information if a binding has definitely been
 // initialized. A mutable binding does not need to be checked and thus has
-// the BindingFlag MUTABLE_IS_INITIALIZED.
+// the BindingFlag BINDING_IS_INITIALIZED.
 //
-// There are two possibilities for immutable bindings
-//  * 'const' declared variables. They are initialized when evaluating the
-//    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag IMMUTABLE_CHECK_INITIALIZED.
+// There is one possibility for legacy immutable bindings:
 //  * The function name of a named function literal. The binding is immediately
 //    initialized when entering the function and thus does not need to be
-//    checked. it gets the BindingFlag IMMUTABLE_IS_INITIALIZED.
-// Accessing an uninitialized binding produces the undefined value.
+//    checked. it gets the BindingFlag BINDING_IS_INITIALIZED.
 //
 // The harmony proposal for block scoped bindings also introduces the
 // uninitialized state for mutable bindings.
 //  * A 'let' declared variable. They are initialized when evaluating the
 //    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag MUTABLE_CHECK_INITIALIZED.
+//    initialized and thus get the flag BINDING_CHECK_INITIALIZED.
 //  * A 'var' declared variable. It is initialized immediately upon creation
 //    and thus doesn't need to be checked. It gets the flag
-//    MUTABLE_IS_INITIALIZED.
+//    BINDING_IS_INITIALIZED.
 //  * Catch bound variables, function parameters and variables introduced by
 //    function declarations are initialized immediately and do not need to be
-//    checked. Thus they get the flag MUTABLE_IS_INITIALIZED.
-// Immutable bindings in harmony mode get the _HARMONY flag variants. Accessing
-// an uninitialized binding produces a reference error.
+//    checked. Thus they get the flag BINDING_IS_INITIALIZED.
+// Accessing an uninitialized binding produces a reference error.
 //
 // In V8 uninitialized bindings are set to the hole value upon creation and set
 // to a different value upon initialization.
 enum BindingFlags {
-  MUTABLE_IS_INITIALIZED,
-  MUTABLE_CHECK_INITIALIZED,
-  IMMUTABLE_IS_INITIALIZED,
-  IMMUTABLE_CHECK_INITIALIZED,
-  IMMUTABLE_IS_INITIALIZED_HARMONY,
-  IMMUTABLE_CHECK_INITIALIZED_HARMONY,
+  BINDING_IS_INITIALIZED,
+  BINDING_CHECK_INITIALIZED,
   MISSING_BINDING
 };
-
 
 // Heap-allocated activation contexts.
 //

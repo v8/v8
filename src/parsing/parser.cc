@@ -1416,7 +1416,7 @@ ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
       ReportMessage(MessageTemplate::kStrictEvalArguments);
       return NULL;
     }
-    VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+    VariableProxy* proxy = NewUnresolved(local_name, CONST);
     ImportDeclaration* declaration =
         factory()->NewImportDeclaration(proxy, import_name, NULL, scope_, pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
@@ -1464,7 +1464,7 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   if (tok != Token::MUL && tok != Token::LBRACE) {
     const AstRawString* local_name =
         ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
-    VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+    VariableProxy* proxy = NewUnresolved(local_name, CONST);
     import_default_declaration = factory()->NewImportDeclaration(
         proxy, ast_value_factory()->default_string(), NULL, scope_, pos);
     Declare(import_default_declaration, DeclarationDescriptor::NORMAL, true,
@@ -1870,6 +1870,7 @@ Variable* Parser::Declare(Declaration* declaration,
   DCHECK(proxy->raw_name() != NULL);
   const AstRawString* name = proxy->raw_name();
   VariableMode mode = declaration->mode();
+  DCHECK(IsDeclaredVariableMode(mode) && mode != CONST_LEGACY);
   bool is_function_declaration = declaration->IsFunctionDeclaration();
   if (scope == nullptr) scope = scope_;
   Scope* declaration_scope =
