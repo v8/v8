@@ -631,6 +631,8 @@ class RelocInfo {
   INLINE(void WipeOut());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
+
+  template <typename ObjectVisitor>
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
   // Check whether this debug break slot has been patched with a call to the

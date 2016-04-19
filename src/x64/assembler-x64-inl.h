@@ -540,7 +540,7 @@ void RelocInfo::set_debug_call_address(Address target) {
   }
 }
 
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
