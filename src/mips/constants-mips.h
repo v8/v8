@@ -409,6 +409,7 @@ enum SecondaryField : uint32_t {
   MOVZ = ((1U << 3) + 2),
   MOVN = ((1U << 3) + 3),
   BREAK = ((1U << 3) + 5),
+  SYNC = ((1U << 3) + 7),
 
   MFHI = ((2U << 3) + 0),
   CLZ_R6 = ((2U << 3) + 0),
@@ -619,7 +620,6 @@ enum SecondaryField : uint32_t {
 
   NULLSF = 0U
 };
-
 
 // ----- Emulated conditions.
 // On MIPS we use this enum to abstract from conditional branch instructions.
@@ -928,8 +928,7 @@ class Instruction {
       FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
       FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
-      FunctionFieldToBitNumber(SELNEZ_S);
-
+      FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
   // Get the encoding type of the instruction.
   inline Type InstructionType(TypeChecks checks = NORMAL) const;

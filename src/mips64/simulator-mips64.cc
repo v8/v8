@@ -3819,6 +3819,9 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case TNE:
       do_interrupt = rs() != rt();
       break;
+    case SYNC:
+      // TODO(palfia): Ignore sync instruction for now.
+      break;
     // Conditional moves.
     case MOVN:
       if (rt()) {

@@ -799,6 +799,9 @@ class Assembler : public AssemblerBase {
   void teq(Register rs, Register rt, uint16_t code);
   void tne(Register rs, Register rt, uint16_t code);
 
+  // Memory barrier instruction.
+  void sync();
+
   // Move from HI/LO register.
   void mfhi(Register rd);
   void mflo(Register rd);

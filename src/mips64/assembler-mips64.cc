@@ -2255,6 +2255,10 @@ void Assembler::tne(Register rs, Register rt, uint16_t code) {
   emit(instr);
 }
 
+void Assembler::sync() {
+  Instr sync_instr = SPECIAL | SYNC;
+  emit(sync_instr);
+}
 
 // Move from HI/LO register.
 

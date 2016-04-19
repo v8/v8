@@ -1983,8 +1983,17 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  Emit(opcode | AddressingModeField::encode(kMode_MRI),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMips64Dadd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
 }
 
 // static

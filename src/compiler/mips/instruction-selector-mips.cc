@@ -1454,7 +1454,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  OperandGenerator g(this);
+  MipsOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   ArchOpcode opcode = kArchNop;
@@ -1472,8 +1472,17 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  Emit(opcode | AddressingModeField::encode(kMode_MRI),
-       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
 }
 
 // static
