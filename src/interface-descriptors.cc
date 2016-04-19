@@ -522,9 +522,8 @@ InterpreterDispatchDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
+      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
   function->InitParameter(kAccumulatorParameter, AnyTagged(zone));
-  function->InitParameter(kRegisterFileParameter, ExternalPointer(zone));
   function->InitParameter(kBytecodeOffsetParameter, UntaggedIntegral32(zone));
   function->InitParameter(kBytecodeArrayParameter, AnyTagged(zone));
   function->InitParameter(kDispatchTableParameter, AnyTagged(zone));

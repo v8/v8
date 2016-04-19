@@ -171,10 +171,10 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(Ldar), R(127),
+  B(Wide), B(Ldar), R16(127),
   B(Star), R(0),
   B(Return),
 ]
@@ -347,11 +347,11 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 10
 bytecodes: [
   B(StackCheck),
-  B(Ldar), R(126),
-  B(Star), R(127),
+  B(Wide), B(Ldar), R16(126),
+  B(Wide), B(Star), R16(127),
   B(Return),
 ]
 constant pool: [
@@ -523,7 +523,7 @@ snippet: "
 "
 frame size: 158
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 25
 bytecodes: [
   B(StackCheck),
   B(Ldar), R(2),
@@ -533,7 +533,7 @@ bytecodes: [
   B(JumpIfFalse), U8(7),
   B(Wide), B(Ldar), R16(129),
   B(Return),
-  B(Ldar), R(128),
+  B(Wide), B(Ldar), R16(128),
   B(Return),
 ]
 constant pool: [
@@ -899,7 +899,7 @@ snippet: "
 "
 frame size: 158
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 66
 bytecodes: [
   B(StackCheck),
   B(LdaZero),
@@ -907,25 +907,25 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(1),
   B(LdaZero),
-  B(Star), R(128),
-  B(Ldar), R(128),
+  B(Wide), B(Star), R16(128),
+  B(Wide), B(Ldar), R16(128),
   B(Wide), B(Star), R16(157),
   B(LdaSmi), U8(64),
   B(Wide), B(TestLessThan), R16(157),
-  B(JumpIfFalse), U8(29),
+  B(JumpIfFalse), U8(35),
   B(StackCheck),
   B(Ldar), R(1),
   B(Wide), B(Star), R16(157),
-  B(Ldar), R(128),
+  B(Wide), B(Ldar), R16(128),
   B(Wide), B(Add), R16(157),
   B(Star), R(1),
-  B(Ldar), R(128),
+  B(Wide), B(Ldar), R16(128),
   B(ToNumber),
   B(Wide), B(Star), R16(157),
   B(Inc),
-  B(Star), R(128),
-  B(Jump), U8(-39),
-  B(Ldar), R(128),
+  B(Wide), B(Star), R16(128),
+  B(Jump), U8(-47),
+  B(Wide), B(Ldar), R16(128),
   B(Return),
 ]
 constant pool: [
@@ -1098,7 +1098,7 @@ snippet: "
 "
 frame size: 163
 parameter count: 1
-bytecode array length: 80
+bytecode array length: 84
 bytecodes: [
   B(StackCheck),
   B(Wide), B(LdaSmi), U16(1234),
@@ -1106,27 +1106,27 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(1),
   B(Ldar), R(0),
-  B(JumpIfUndefined), U8(65),
-  B(JumpIfNull), U8(63),
+  B(JumpIfUndefined), U8(69),
+  B(JumpIfNull), U8(67),
   B(ToObject),
   B(Wide), B(Star), R16(157),
   B(Wide), B(ForInPrepare), R16(158),
   B(LdaZero),
   B(Wide), B(Star), R16(161),
   B(Wide), B(ForInDone), R16(161), R16(160),
-  B(JumpIfTrue), U8(41),
+  B(JumpIfTrue), U8(45),
   B(Wide), B(ForInNext), R16(157), R16(161), R16(158), U16(1),
-  B(JumpIfUndefined), U8(19),
-  B(Star), R(128),
+  B(JumpIfUndefined), U8(23),
+  B(Wide), B(Star), R16(128),
   B(StackCheck),
   B(Ldar), R(1),
   B(Wide), B(Star), R16(162),
-  B(Ldar), R(128),
+  B(Wide), B(Ldar), R16(128),
   B(Wide), B(Add), R16(162),
   B(Star), R(1),
   B(Wide), B(ForInStep), R16(161),
   B(Wide), B(Star), R16(161),
-  B(Jump), U8(-45),
+  B(Jump), U8(-49),
   B(Ldar), R(1),
   B(Return),
 ]

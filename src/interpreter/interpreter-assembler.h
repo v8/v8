@@ -51,10 +51,8 @@ class InterpreterAssembler : public CodeStubAssembler {
   void SetContext(compiler::Node* value);
 
   // Loads from and stores to the interpreter register file.
-  compiler::Node* LoadRegister(int offset);
   compiler::Node* LoadRegister(Register reg);
   compiler::Node* LoadRegister(compiler::Node* reg_index);
-  compiler::Node* StoreRegister(compiler::Node* value, int offset);
   compiler::Node* StoreRegister(compiler::Node* value, Register reg);
   compiler::Node* StoreRegister(compiler::Node* value,
                                 compiler::Node* reg_index);
@@ -152,8 +150,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   static bool TargetSupportsUnalignedAccess();
 
  private:
-  // Returns a raw pointer to start of the register file on the stack.
-  compiler::Node* RegisterFileRawPointer();
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.

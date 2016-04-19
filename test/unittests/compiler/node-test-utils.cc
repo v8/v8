@@ -2204,6 +2204,10 @@ Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
 
+Matcher<Node*> IsLoadParentFramePointer() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kLoadParentFramePointer));
+}
+
 #define IS_QUADOP_MATCHER(Name)                                               \
   Matcher<Node*> Is##Name(                                                    \
       const Matcher<Node*>& a_matcher, const Matcher<Node*>& b_matcher,       \

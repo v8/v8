@@ -9,6 +9,7 @@
 
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter here!
+#include "src/frames.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -335,8 +336,6 @@ class Register {
   int index() const { return index_; }
   bool is_parameter() const { return index() < 0; }
   bool is_valid() const { return index_ != kInvalidIndex; }
-  bool is_byte_operand() const;
-  bool is_short_operand() const;
 
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
@@ -356,8 +355,20 @@ class Register {
   static Register new_target();
   bool is_new_target() const;
 
-  int32_t ToOperand() const { return -index_; }
-  static Register FromOperand(int32_t operand) { return Register(-operand); }
+  // Returns the register for the bytecode array.
+  static Register bytecode_array();
+  bool is_bytecode_array() const;
+
+  // Returns the register for the saved bytecode offset.
+  static Register bytecode_offset();
+  bool is_bytecode_offset() const;
+
+  OperandSize SizeOfOperand() const;
+
+  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
+  static Register FromOperand(int32_t operand) {
+    return Register(kRegisterFileStartOffset - operand);
+  }
 
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),
@@ -387,6 +398,8 @@ class Register {
 
  private:
   static const int kInvalidIndex = kMaxInt;
+  static const int kRegisterFileStartOffset =
+      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
 
   void* operator new(size_t size);
   void operator delete(void* p);

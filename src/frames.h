@@ -324,31 +324,22 @@ class InterpreterFrameConstants : public AllStatic {
       StandardFrameConstants::kFixedFrameSizeFromFp + 3 * kPointerSize;
 
   // FP-relative.
+  static const int kLastParamFromFp = StandardFrameConstants::kCallerSPOffset;
   static const int kNewTargetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
   static const int kBytecodeArrayFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
   static const int kBytecodeOffsetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
-  static const int kRegisterFilePointerFromFp =
+  static const int kRegisterFileFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
 
-  static const int kExpressionsOffset = kRegisterFilePointerFromFp;
+  static const int kExpressionsOffset = kRegisterFileFromFp;
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
   static const int kBytecodeArrayExpressionIndex = -2;
   static const int kBytecodeOffsetExpressionIndex = -1;
   static const int kRegisterFileExpressionIndex = 0;
-
-  // Register file pointer relative.
-  static const int kLastParamFromRegisterPointer =
-      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
-
-  static const int kBytecodeOffsetFromRegisterPointer = 1 * kPointerSize;
-  static const int kBytecodeArrayFromRegisterPointer = 2 * kPointerSize;
-  static const int kNewTargetFromRegisterPointer = 3 * kPointerSize;
-  static const int kFunctionFromRegisterPointer = 4 * kPointerSize;
-  static const int kContextFromRegisterPointer = 5 * kPointerSize;
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

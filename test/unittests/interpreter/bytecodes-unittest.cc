@@ -31,15 +31,6 @@ TEST(OperandConversion, Registers) {
     Register reg2 = Register::FromOperand(operand2);
     CHECK_EQ(i, reg2.index());
   }
-
-  for (int i = 0; i <= kMaxUInt8; i++) {
-    Register reg = Register::FromOperand(i);
-    if (i > 0) {
-      CHECK(reg.is_parameter());
-    } else {
-      CHECK(!reg.is_parameter());
-    }
-  }
 }
 
 TEST(OperandConversion, Parameters) {
@@ -200,9 +191,9 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
      6,
      0,
      "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), 0xfb}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), 0x78, 0xff}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), 0x7a, 0xff, 0x79, 0xff, 0x02, 0x00, 0xb1, 0x00},
+    {{B(Star), 0xf5}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), 0x72, 0xff}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), 0x74, 0xff, 0x73, 0xff, 0x02, 0x00, 0xb1, 0x00},
      10,
      0,
      "Call.Wide r134, r135, #2, [177]"},
@@ -232,9 +223,9 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
      6,
      0,
      "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), 0xfb}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), 0xff, 0x78}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), 0xff, 0x7a, 0xff, 0x79, 0x00, 0x02, 0x00, 0xb1},
+    {{B(Star), 0xf5}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), 0xff, 0x72}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), 0xff, 0x74, 0xff, 0x73, 0x00, 0x02, 0x00, 0xb1},
      10,
      0,
      "Call.Wide r134, r135, #2, [177]"},

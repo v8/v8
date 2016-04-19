@@ -77,16 +77,11 @@ Node* InterpreterAssembler::BytecodeOffset() {
   return Parameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter);
 }
 
-Node* InterpreterAssembler::RegisterFileRawPointer() {
-  return Parameter(InterpreterDispatchDescriptor::kRegisterFileParameter);
-}
-
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
   if (made_call_) {
     // If we have made a call, restore bytecode array from stack frame in case
     // the debugger has swapped us to the patched debugger bytecode array.
-    return LoadRegister(
-        InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer);
+    return LoadRegister(Register::bytecode_array());
   } else {
     return Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter);
   }
@@ -97,40 +92,32 @@ Node* InterpreterAssembler::DispatchTableRawPointer() {
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return IntPtrAdd(RegisterFileRawPointer(), RegisterFrameOffset(reg_index));
-}
-
-Node* InterpreterAssembler::LoadRegister(int offset) {
-  return Load(MachineType::AnyTagged(), RegisterFileRawPointer(),
-              IntPtrConstant(offset));
-}
-
-Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return LoadRegister(-reg.index() << kPointerSizeLog2);
+  return IntPtrAdd(LoadParentFramePointer(), RegisterFrameOffset(reg_index));
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
   return WordShl(index, kPointerSizeLog2);
 }
 
+Node* InterpreterAssembler::LoadRegister(Register reg) {
+  return Load(MachineType::AnyTagged(), LoadParentFramePointer(),
+              IntPtrConstant(reg.ToOperand() << kPointerSizeLog2));
+}
+
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
-  return Load(MachineType::AnyTagged(), RegisterFileRawPointer(),
+  return Load(MachineType::AnyTagged(), LoadParentFramePointer(),
               RegisterFrameOffset(reg_index));
 }
 
-Node* InterpreterAssembler::StoreRegister(Node* value, int offset) {
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                             RegisterFileRawPointer(), IntPtrConstant(offset),
-                             value);
-}
-
 Node* InterpreterAssembler::StoreRegister(Node* value, Register reg) {
-  return StoreRegister(value, IntPtrConstant(-reg.index()));
+  return StoreNoWriteBarrier(
+      MachineRepresentation::kTagged, LoadParentFramePointer(),
+      IntPtrConstant(reg.ToOperand() << kPointerSizeLog2), value);
 }
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
   return StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                             RegisterFileRawPointer(),
+                             LoadParentFramePointer(),
                              RegisterFrameOffset(reg_index), value);
 }
 
@@ -410,9 +397,7 @@ Node* InterpreterAssembler::StoreContextSlot(Node* context, Node* slot_index,
 }
 
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
-  Node* function = Load(
-      MachineType::AnyTagged(), RegisterFileRawPointer(),
-      IntPtrConstant(InterpreterFrameConstants::kFunctionFromRegisterPointer));
+  Node* function = LoadRegister(Register::function_closure());
   Node* shared_info =
       LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
   Node* vector =
@@ -421,8 +406,7 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 }
 
 void InterpreterAssembler::CallPrologue() {
-  StoreRegister(SmiTag(BytecodeOffset()),
-                InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer);
+  StoreRegister(SmiTag(BytecodeOffset()), Register::bytecode_offset());
 
   if (FLAG_debug_code && !disable_stack_check_across_call_) {
     DCHECK(stack_pointer_before_call_ == nullptr);
@@ -579,9 +563,8 @@ void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
   }
 
   InterpreterDispatchDescriptor descriptor(isolate());
-  Node* args[] = {GetAccumulatorUnchecked(), RegisterFileRawPointer(),
-                  bytecode_offset, BytecodeArrayTaggedPointer(),
-                  DispatchTableRawPointer()};
+  Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
+                  BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
   TailCallBytecodeDispatch(descriptor, handler_entry, args);
 }
 

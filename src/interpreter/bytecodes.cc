@@ -645,21 +645,29 @@ std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
 }
 
 static const int kLastParamRegisterIndex =
-    -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kLastParamFromFp) /
+    kPointerSize;
 static const int kFunctionClosureRegisterIndex =
-    -InterpreterFrameConstants::kFunctionFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     StandardFrameConstants::kFunctionOffset) /
+    kPointerSize;
 static const int kCurrentContextRegisterIndex =
-    -InterpreterFrameConstants::kContextFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     StandardFrameConstants::kContextOffset) /
+    kPointerSize;
 static const int kNewTargetRegisterIndex =
-    -InterpreterFrameConstants::kNewTargetFromRegisterPointer / kPointerSize;
-
-bool Register::is_byte_operand() const {
-  return index_ >= -kMaxInt8 && index_ <= -kMinInt8;
-}
-
-bool Register::is_short_operand() const {
-  return index_ >= -kMaxInt16 && index_ <= -kMinInt16;
-}
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kNewTargetFromFp) /
+    kPointerSize;
+static const int kBytecodeArrayRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kBytecodeArrayFromFp) /
+    kPointerSize;
+static const int kBytecodeOffsetRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kBytecodeOffsetFromFp) /
+    kPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
@@ -669,38 +677,58 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
   return Register(register_index);
 }
 
-
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
   return index() - kLastParamRegisterIndex + parameter_count - 1;
 }
 
-
 Register Register::function_closure() {
   return Register(kFunctionClosureRegisterIndex);
 }
-
 
 bool Register::is_function_closure() const {
   return index() == kFunctionClosureRegisterIndex;
 }
 
-
 Register Register::current_context() {
   return Register(kCurrentContextRegisterIndex);
 }
-
 
 bool Register::is_current_context() const {
   return index() == kCurrentContextRegisterIndex;
 }
 
-
 Register Register::new_target() { return Register(kNewTargetRegisterIndex); }
-
 
 bool Register::is_new_target() const {
   return index() == kNewTargetRegisterIndex;
+}
+
+Register Register::bytecode_array() {
+  return Register(kBytecodeArrayRegisterIndex);
+}
+
+bool Register::is_bytecode_array() const {
+  return index() == kBytecodeArrayRegisterIndex;
+}
+
+Register Register::bytecode_offset() {
+  return Register(kBytecodeOffsetRegisterIndex);
+}
+
+bool Register::is_bytecode_offset() const {
+  return index() == kBytecodeOffsetRegisterIndex;
+}
+
+OperandSize Register::SizeOfOperand() const {
+  int32_t operand = ToOperand();
+  if (operand >= kMinInt8 && operand <= kMaxInt8) {
+    return OperandSize::kByte;
+  } else if (index_ >= kMinInt16 && index_ <= kMaxInt16) {
+    return OperandSize::kShort;
+  } else {
+    return OperandSize::kQuad;
+  }
 }
 
 bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
