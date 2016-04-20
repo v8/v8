@@ -531,7 +531,7 @@ int CodeAndMetadataSize(CompilationInfo* info) {
   return size;
 }
 
-bool GenerateBaselineCode(CompilationInfo* info) {
+bool GenerateUnoptimizedCode(CompilationInfo* info) {
   bool success;
   EnsureFeedbackVector(info);
   if (FLAG_ignition && UseIgnition(info)) {
@@ -542,15 +542,17 @@ bool GenerateBaselineCode(CompilationInfo* info) {
   if (success) {
     Isolate* isolate = info->isolate();
     Counters* counters = isolate->counters();
+    // TODO(4280): Rename counters from "baseline" to "unoptimized" eventually.
     counters->total_baseline_code_size()->Increment(CodeAndMetadataSize(info));
     counters->total_baseline_compile_count()->Increment(1);
   }
   return success;
 }
 
-bool CompileBaselineCode(CompilationInfo* info) {
+bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  if (!Compiler::Analyze(info->parse_info()) || !GenerateBaselineCode(info)) {
+  if (!Compiler::Analyze(info->parse_info()) ||
+      !GenerateUnoptimizedCode(info)) {
     Isolate* isolate = info->isolate();
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
@@ -587,7 +589,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   DCHECK_EQ(shared->language_mode(), info->literal()->language_mode());
 
   // Compile either unoptimized code or bytecode for the interpreter.
-  if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
+  if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
 
   // Update the shared function info with the scope info.
@@ -1012,7 +1014,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     parse_info->set_shared_info(result);
 
     // Compile the code.
-    if (!CompileBaselineCode(info)) {
+    if (!CompileUnoptimizedCode(info)) {
       return Handle<SharedFunctionInfo>::null();
     }
 
@@ -1530,7 +1532,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   TRACE_EVENT0("v8", "V8.CompileCode");
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
-  } else if (Renumber(info.parse_info()) && GenerateBaselineCode(&info)) {
+  } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
