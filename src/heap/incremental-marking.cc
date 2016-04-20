@@ -577,12 +577,9 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(FLAG_black_allocation);
   DCHECK(IsMarking());
   black_allocation_ = true;
-  PagedSpaces spaces(heap());
-  for (PagedSpace* space = spaces.next(); space != NULL;
-       space = spaces.next()) {
-    space->EmptyAllocationInfo();
-    space->free_list()->Reset();
-  }
+  OldSpace* old_space = heap()->old_space();
+  old_space->EmptyAllocationInfo();
+  old_space->free_list()->Reset();
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Black allocation started\n");
   }
