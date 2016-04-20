@@ -79,6 +79,7 @@
         'compiler/test-run-jsexceptions.cc',
         'compiler/test-run-jsobjects.cc',
         'compiler/test-run-jsops.cc',
+        'compiler/test-run-load-store.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-native-calls.cc',
         'compiler/test-run-stackcheck.cc',

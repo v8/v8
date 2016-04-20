@@ -374,13 +374,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                  \
   } while (0)
 
-
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                               \
   do {                                                                       \
     auto result = i.OutputDoubleRegister();                                  \
     auto buffer = i.InputRegister(0);                                        \
     auto index1 = i.InputRegister(1);                                        \
-    auto index2 = i.InputInt32(2);                                           \
+    auto index2 = i.InputUint32(2);                                          \
     OutOfLineCode* ool;                                                      \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
@@ -388,9 +387,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ cmpl(index1, length);                                               \
       ool = new (zone()) OutOfLineLoadNaN(this, result);                     \
     } else {                                                                 \
-      auto length = i.InputInt32(3);                                         \
+      auto length = i.InputUint32(3);                                        \
       DCHECK_LE(index2, length);                                             \
-      __ cmpq(index1, Immediate(length - index2));                           \
+      __ cmpl(index1, Immediate(length - index2));                           \
       class OutOfLineLoadFloat final : public OutOfLineCode {                \
        public:                                                               \
         OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result,           \
@@ -427,13 +426,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ bind(ool->exit());                                                    \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                               \
   do {                                                                         \
     auto result = i.OutputRegister();                                          \
     auto buffer = i.InputRegister(0);                                          \
     auto index1 = i.InputRegister(1);                                          \
-    auto index2 = i.InputInt32(2);                                             \
+    auto index2 = i.InputUint32(2);                                            \
     OutOfLineCode* ool;                                                        \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
@@ -441,9 +439,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ cmpl(index1, length);                                                 \
       ool = new (zone()) OutOfLineLoadZero(this, result);                      \
     } else {                                                                   \
-      auto length = i.InputInt32(3);                                           \
+      auto length = i.InputUint32(3);                                          \
       DCHECK_LE(index2, length);                                               \
-      __ cmpq(index1, Immediate(length - index2));                             \
+      __ cmpl(index1, Immediate(length - index2));                             \
       class OutOfLineLoadInteger final : public OutOfLineCode {                \
        public:                                                                 \
         OutOfLineLoadInteger(CodeGenerator* gen, Register result,              \
@@ -483,12 +481,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ bind(ool->exit());                                                      \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_STORE_FLOAT(asm_instr)                              \
   do {                                                                       \
     auto buffer = i.InputRegister(0);                                        \
     auto index1 = i.InputRegister(1);                                        \
-    auto index2 = i.InputInt32(2);                                           \
+    auto index2 = i.InputUint32(2);                                          \
     auto value = i.InputDoubleRegister(4);                                   \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
@@ -499,9 +496,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ asm_instr(Operand(buffer, index1, times_1, index2), value);         \
       __ bind(&done);                                                        \
     } else {                                                                 \
-      auto length = i.InputInt32(3);                                         \
+      auto length = i.InputUint32(3);                                        \
       DCHECK_LE(index2, length);                                             \
-      __ cmpq(index1, Immediate(length - index2));                           \
+      __ cmpl(index1, Immediate(length - index2));                           \
       class OutOfLineStoreFloat final : public OutOfLineCode {               \
        public:                                                               \
         OutOfLineStoreFloat(CodeGenerator* gen, Register buffer,             \
@@ -537,12 +534,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                        \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_STORE_INTEGER_IMPL(asm_instr, Value)                  \
   do {                                                                         \
     auto buffer = i.InputRegister(0);                                          \
     auto index1 = i.InputRegister(1);                                          \
-    auto index2 = i.InputInt32(2);                                             \
+    auto index2 = i.InputUint32(2);                                            \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
       DCHECK_EQ(0, index2);                                                    \
@@ -552,9 +548,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ asm_instr(Operand(buffer, index1, times_1, index2), value);           \
       __ bind(&done);                                                          \
     } else {                                                                   \
-      auto length = i.InputInt32(3);                                           \
+      auto length = i.InputUint32(3);                                          \
       DCHECK_LE(index2, length);                                               \
-      __ cmpq(index1, Immediate(length - index2));                             \
+      __ cmpl(index1, Immediate(length - index2));                             \
       class OutOfLineStoreInteger final : public OutOfLineCode {               \
        public:                                                                 \
         OutOfLineStoreInteger(CodeGenerator* gen, Register buffer,             \
@@ -589,7 +585,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ bind(ool->exit());                                                    \
     }                                                                          \
   } while (false)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                \
   do {                                                           \
