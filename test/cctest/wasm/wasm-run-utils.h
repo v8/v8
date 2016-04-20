@@ -410,13 +410,15 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
 class WasmFunctionCompiler : public HandleAndZoneScope,
                              private GraphAndBuilders {
  public:
-  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module)
+  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module,
+                                const char* debug_name = "<WASM UNNAMED>")
       : GraphAndBuilders(main_zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
         sig(sig),
         descriptor_(nullptr),
-        testing_module_(module) {
+        testing_module_(module),
+        debug_name_(debug_name) {
     if (module) {
       // Get a new function from the testing module.
       function_ = nullptr;
@@ -438,6 +440,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModule* testing_module_;
+  const char* debug_name_;
   WasmFunction* function_;
   int function_index_;
   LocalDeclEncoder local_decls;
@@ -474,7 +477,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info("wasm compile", this->isolate(), this->zone(),
+    CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     Handle<Code> result =
         Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
@@ -499,6 +502,16 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   WasmFunction* function() {
     if (function_) return function_;
     return &testing_module_->module->functions[function_index_];
+  }
+
+  // Set the context, such that e.g. runtime functions can be called.
+  void SetModuleContext() {
+    if (!testing_module_->instance->context.is_null()) {
+      CHECK(testing_module_->instance->context.is_identical_to(
+          main_isolate()->native_context()));
+      return;
+    }
+    testing_module_->instance->context = main_isolate()->native_context();
   }
 };
 
