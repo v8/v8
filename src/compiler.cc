@@ -447,18 +447,18 @@ void OptimizedCompileJob::RecordOptimizationStats() {
 namespace {
 
 void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                               CompilationInfo* info,
-                               Handle<SharedFunctionInfo> shared) {
-  // SharedFunctionInfo is passed separately, because if CompilationInfo
-  // was created using Script object, it will not have it.
-
+                               CompilationInfo* info) {
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
   if (info->isolate()->logger()->is_logging_code_events() ||
       info->isolate()->cpu_profiler()->is_profiling()) {
+    Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<Script> script = info->parse_info()->script();
-    Handle<AbstractCode> abstract_code = info->abstract_code();
+    Handle<AbstractCode> abstract_code =
+        info->has_bytecode_array()
+            ? Handle<AbstractCode>::cast(info->bytecode_array())
+            : Handle<AbstractCode>::cast(info->code());
     if (abstract_code.is_identical_to(
             info->isolate()->builtins()->CompileLazy())) {
       return;
@@ -588,7 +588,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
 
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
 
   // Update the shared function info with the scope info.
   InstallSharedScopeInfo(info, shared);
@@ -729,8 +729,7 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   job->RecordOptimizationStats();
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
-                            info->shared_info());
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
   return true;
 }
 
@@ -1031,7 +1030,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         ? Logger::EVAL_TAG
         : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);
 
-    PROFILE(isolate, CodeCreateEvent(log_tag, *info->abstract_code(), *result,
+    PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
                                      info, *script_name));
 
     if (!script.is_null())
@@ -1220,7 +1219,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     }
 
     // The existing unoptimized code was replaced with the new one.
-    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
+    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized);
   }
   return true;
 }
@@ -1548,7 +1547,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   if (maybe_existing.is_null()) {
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
+    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info);
     live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
   }
 
@@ -1622,7 +1621,7 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
       job->RecordOptimizationStats();
-      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
+      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get());
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
                                          info->osr_ast_id()).code == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info.get());

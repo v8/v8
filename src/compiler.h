@@ -207,11 +207,6 @@ class CompilationInfo {
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
-  Handle<AbstractCode> abstract_code() const {
-    return has_bytecode_array() ? Handle<AbstractCode>::cast(bytecode_array())
-                                : Handle<AbstractCode>::cast(code());
-  }
-
   bool is_tracking_positions() const { return track_positions_; }
 
   bool is_calling() const {
