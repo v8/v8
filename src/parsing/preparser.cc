@@ -1137,11 +1137,24 @@ PreParserExpression PreParser::ParseClassLiteral(
   // TODO(marja): Make PreParser use scope names too.
   // scope_->SetScopeName(name);
 
+  // Parse optional type parameters.
+  if (scope_->typed() && peek() == Token::LT) {  // Braces required here.
+    ParseTypeParameters(CHECK_OK);
+  }
+
+  // Parse optional extends clause.
   bool has_extends = Check(Token::EXTENDS);
   if (has_extends) {
     ExpressionClassifier classifier(this);
     ParseLeftHandSideExpression(&classifier, CHECK_OK);
     ValidateExpression(&classifier, CHECK_OK);
+  }
+
+  // Parse optional implements clause.
+  if (scope_->typed() && CheckContextualKeyword(CStrVector("implements"))) {
+    do {
+      ParseTypeReference(CHECK_OK);
+    } while (Check(Token::COMMA));
   }
 
   ClassLiteralChecker checker(this);
