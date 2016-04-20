@@ -26,7 +26,7 @@ FieldAccess AccessBuilder::ForMap() {
 // static
 FieldAccess AccessBuilder::ForHeapNumberValue() {
   FieldAccess access = {kTaggedBase, HeapNumber::kValueOffset,
-                        MaybeHandle<Name>(), TypeCache().Get().kFloat64,
+                        MaybeHandle<Name>(), TypeCache::Get().kFloat64,
                         MachineType::Float64()};
   return access;
 }
