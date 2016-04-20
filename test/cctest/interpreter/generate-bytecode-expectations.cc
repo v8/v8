@@ -322,7 +322,7 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
     } else if (line.compare(0, 16, "do expressions: ") == 0) {
       do_expressions_ = ParseBoolean(line.c_str() + 16);
     } else if (line.compare(0, 21, "ignition generators: ") == 0) {
-      do_expressions_ = ParseBoolean(line.c_str() + 21);
+      ignition_generators_ = ParseBoolean(line.c_str() + 21);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
