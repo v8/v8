@@ -1238,10 +1238,8 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
   SET_FIELD_WRAPPED(obj, set_setter, setter);
-#ifdef USE_SIMULATOR
   i::Address redirected = obj->redirected_getter();
   if (redirected != nullptr) SET_FIELD_WRAPPED(obj, set_js_getter, redirected);
-#endif
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }

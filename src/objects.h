@@ -10259,11 +10259,9 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(js_getter, Object)
   DECL_ACCESSORS(data, Object)
 
-#ifdef USE_SIMULATOR
   static Address redirect(Isolate* isolate, Address address,
                           AccessorComponent component);
   Address redirected_getter() const;
-#endif
 
   // Dispatched behavior.
   DECLARE_PRINTER(AccessorInfo)
@@ -10302,11 +10300,7 @@ class AccessorInfo: public Struct {
   static const int kExpectedReceiverTypeOffset = kFlagOffset + kPointerSize;
   static const int kSetterOffset = kExpectedReceiverTypeOffset + kPointerSize;
   static const int kGetterOffset = kSetterOffset + kPointerSize;
-#ifdef USE_SIMULATOR
   static const int kJsGetterOffset = kGetterOffset + kPointerSize;
-#else
-  static const int kJsGetterOffset = kGetterOffset;
-#endif
   static const int kDataOffset = kJsGetterOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 

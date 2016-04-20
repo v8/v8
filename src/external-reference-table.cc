@@ -312,10 +312,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
     Add(getters[i].address, getters[i].name);
-#ifdef USE_SIMULATOR
     Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
-        getters[i].name);
-#endif
+        "");
   }
 
   for (unsigned i = 0; i < arraysize(setters); ++i) {
