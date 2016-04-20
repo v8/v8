@@ -10,7 +10,6 @@
 #include "src/base/platform/platform.h"
 
 #include "src/compiler/access-builder.h"
-#include "src/compiler/change-lowering.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
@@ -24,10 +23,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/simplified-lowering.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/compiler/source-position.h"
-#include "src/compiler/typer.h"
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -2074,24 +2070,148 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args) {
   return BuildWasmCall(sig, args);
 }
 
+Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
+  // Implement Rol by Ror since TurboFan does not have Rol opcode.
+  // TODO(weiliang): support Word32Rol opcode in TurboFan.
+  Int32Matcher m(right);
+  if (m.HasValue()) {
+    return Binop(wasm::kExprI32Ror, left,
+                 jsgraph()->Int32Constant(32 - m.Value()));
+  } else {
+    return Binop(wasm::kExprI32Ror, left,
+                 Binop(wasm::kExprI32Sub, jsgraph()->Int32Constant(32), right));
+  }
+}
+
+Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
+  // Implement Rol by Ror since TurboFan does not have Rol opcode.
+  // TODO(weiliang): support Word64Rol opcode in TurboFan.
+  Int64Matcher m(right);
+  if (m.HasValue()) {
+    return Binop(wasm::kExprI64Ror, left,
+                 jsgraph()->Int64Constant(64 - m.Value()));
+  } else {
+    return Binop(wasm::kExprI64Ror, left,
+                 Binop(wasm::kExprI64Sub, jsgraph()->Int64Constant(64), right));
+  }
+}
+
+Node* WasmGraphBuilder::Invert(Node* node) {
+  return Unop(wasm::kExprI32Eqz, node);
+}
+
+Node* WasmGraphBuilder::BuildChangeInt32ToTagged(Node* value) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  CommonOperatorBuilder* common = jsgraph()->common();
+
+  if (machine->Is64()) {
+    return BuildChangeInt32ToSmi(value);
+  }
+
+  Node* add = graph()->NewNode(machine->Int32AddWithOverflow(), value, value);
+
+  Node* ovf = graph()->NewNode(common->Projection(1), add);
+  Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), ovf,
+                                  graph()->start());
+
+  Node* if_true = graph()->NewNode(common->IfTrue(), branch);
+  Node* vtrue = BuildAllocateHeapNumberWithValue(
+      graph()->NewNode(machine->ChangeInt32ToFloat64(), value), if_true);
+
+  Node* if_false = graph()->NewNode(common->IfFalse(), branch);
+  Node* vfalse = graph()->NewNode(common->Projection(0), add);
+
+  Node* merge = graph()->NewNode(common->Merge(2), if_true, if_false);
+  Node* phi = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, merge);
+  return phi;
+}
+
+Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  CommonOperatorBuilder* common = jsgraph()->common();
+
+  Node* const value32 = graph()->NewNode(
+      machine->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  Node* check_same = graph()->NewNode(
+      machine->Float64Equal(), value,
+      graph()->NewNode(machine->ChangeInt32ToFloat64(), value32));
+  Node* branch_same =
+      graph()->NewNode(common->Branch(), check_same, graph()->start());
+
+  Node* if_smi = graph()->NewNode(common->IfTrue(), branch_same);
+  Node* vsmi;
+  Node* if_box = graph()->NewNode(common->IfFalse(), branch_same);
+  Node* vbox;
+
+  // We only need to check for -0 if the {value} can potentially contain -0.
+  Node* check_zero = graph()->NewNode(machine->Word32Equal(), value32,
+                                      jsgraph()->Int32Constant(0));
+  Node* branch_zero =
+      graph()->NewNode(common->Branch(BranchHint::kFalse), check_zero, if_smi);
+
+  Node* if_zero = graph()->NewNode(common->IfTrue(), branch_zero);
+  Node* if_notzero = graph()->NewNode(common->IfFalse(), branch_zero);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Node* check_negative = graph()->NewNode(
+      machine->Int32LessThan(),
+      graph()->NewNode(machine->Float64ExtractHighWord32(), value),
+      jsgraph()->Int32Constant(0));
+  Node* branch_negative = graph()->NewNode(common->Branch(BranchHint::kFalse),
+                                           check_negative, if_zero);
+
+  Node* if_negative = graph()->NewNode(common->IfTrue(), branch_negative);
+  Node* if_notnegative = graph()->NewNode(common->IfFalse(), branch_negative);
+
+  // We need to create a box for negative 0.
+  if_smi = graph()->NewNode(common->Merge(2), if_notzero, if_notnegative);
+  if_box = graph()->NewNode(common->Merge(2), if_box, if_negative);
+
+  // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
+  // machines we need to deal with potential overflow and fallback to boxing.
+  if (machine->Is64()) {
+    vsmi = BuildChangeInt32ToSmi(value32);
+  } else {
+    Node* smi_tag =
+        graph()->NewNode(machine->Int32AddWithOverflow(), value32, value32);
+
+    Node* check_ovf = graph()->NewNode(common->Projection(1), smi_tag);
+    Node* branch_ovf =
+        graph()->NewNode(common->Branch(BranchHint::kFalse), check_ovf, if_smi);
+
+    Node* if_ovf = graph()->NewNode(common->IfTrue(), branch_ovf);
+    if_box = graph()->NewNode(common->Merge(2), if_ovf, if_box);
+
+    if_smi = graph()->NewNode(common->IfFalse(), branch_ovf);
+    vsmi = graph()->NewNode(common->Projection(0), smi_tag);
+  }
+
+  // Allocate the box for the {value}.
+  vbox = BuildAllocateHeapNumberWithValue(value, if_box);
+
+  Node* control = graph()->NewNode(common->Merge(2), if_smi, if_box);
+  value = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2), vsmi,
+                           vbox, control);
+  return value;
+}
 
 Node* WasmGraphBuilder::ToJS(Node* node, Node* context, wasm::LocalType type) {
-  SimplifiedOperatorBuilder simplified(jsgraph()->zone());
   switch (type) {
     case wasm::kAstI32:
-      return graph()->NewNode(simplified.ChangeInt32ToTagged(), node);
+      return BuildChangeInt32ToTagged(node);
     case wasm::kAstI64:
       // TODO(titzer): i64->JS has no good solution right now. Using lower 32
       // bits.
       node =
           graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(), node);
-      return graph()->NewNode(simplified.ChangeInt32ToTagged(), node);
+      return BuildChangeInt32ToTagged(node);
     case wasm::kAstF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
                               node);
-      return graph()->NewNode(simplified.ChangeFloat64ToTagged(), node);
+      return BuildChangeFloat64ToTagged(node);
     case wasm::kAstF64:
-      return graph()->NewNode(simplified.ChangeFloat64ToTagged(), node);
+      return BuildChangeFloat64ToTagged(node);
     case wasm::kAstStmt:
       return jsgraph()->UndefinedConstant();
     default:
@@ -2117,6 +2237,117 @@ Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
   return result;
 }
 
+bool CanCover(Node* value, IrOpcode::Value opcode) {
+  if (value->opcode() != opcode) return false;
+  bool first = true;
+  for (Edge const edge : value->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) continue;
+    if (NodeProperties::IsEffectEdge(edge)) continue;
+    DCHECK(NodeProperties::IsValueEdge(edge));
+    if (!first) return false;
+    first = false;
+  }
+  return true;
+}
+
+Node* WasmGraphBuilder::BuildChangeTaggedToFloat64(Node* value) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  CommonOperatorBuilder* common = jsgraph()->common();
+
+  if (CanCover(value, IrOpcode::kJSToNumber)) {
+    // ChangeTaggedToFloat64(JSToNumber(x)) =>
+    //   if IsSmi(x) then ChangeSmiToFloat64(x)
+    //   else let y = JSToNumber(x) in
+    //     if IsSmi(y) then ChangeSmiToFloat64(y)
+    //     else BuildLoadHeapNumberValue(y)
+    Node* object = NodeProperties::GetValueInput(value, 0);
+    Node* context = NodeProperties::GetContextInput(value);
+    Node* frame_state = NodeProperties::GetFrameStateInput(value, 0);
+    Node* effect = NodeProperties::GetEffectInput(value);
+    Node* control = NodeProperties::GetControlInput(value);
+
+    const Operator* merge_op = common->Merge(2);
+    const Operator* ephi_op = common->EffectPhi(2);
+    const Operator* phi_op = common->Phi(MachineRepresentation::kFloat64, 2);
+
+    Node* check1 = BuildTestNotSmi(object);
+    Node* branch1 =
+        graph()->NewNode(common->Branch(BranchHint::kFalse), check1, control);
+
+    Node* if_true1 = graph()->NewNode(common->IfTrue(), branch1);
+    Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
+                                    effect, if_true1);
+    Node* etrue1 = vtrue1;
+
+    Node* check2 = BuildTestNotSmi(vtrue1);
+    Node* branch2 = graph()->NewNode(common->Branch(), check2, if_true1);
+
+    Node* if_true2 = graph()->NewNode(common->IfTrue(), branch2);
+    Node* vtrue2 = BuildLoadHeapNumberValue(vtrue1, if_true2);
+
+    Node* if_false2 = graph()->NewNode(common->IfFalse(), branch2);
+    Node* vfalse2 = BuildChangeSmiToFloat64(vtrue1);
+
+    if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
+    vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common->IfFalse(), branch1);
+    Node* vfalse1 = BuildChangeSmiToFloat64(object);
+    Node* efalse1 = effect;
+
+    Node* merge1 = graph()->NewNode(merge_op, if_true1, if_false1);
+    Node* ephi1 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
+    Node* phi1 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
+
+    // Wire the new diamond into the graph, {JSToNumber} can still throw.
+    NodeProperties::ReplaceUses(value, phi1, ephi1, etrue1, etrue1);
+
+    // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
+    // the node and places it inside the diamond. Come up with a helper method!
+    for (Node* use : etrue1->uses()) {
+      if (use->opcode() == IrOpcode::kIfSuccess) {
+        use->ReplaceUses(merge1);
+        NodeProperties::ReplaceControlInput(branch2, use);
+      }
+    }
+    return phi1;
+  }
+
+  Node* check = BuildTestNotSmi(value);
+  Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), check,
+                                  graph()->start());
+
+  Node* if_not_smi = graph()->NewNode(common->IfTrue(), branch);
+
+  Node* vnot_smi;
+  Node* check_undefined = graph()->NewNode(machine->WordEqual(), value,
+                                           jsgraph()->UndefinedConstant());
+  Node* branch_undefined = graph()->NewNode(common->Branch(BranchHint::kFalse),
+                                            check_undefined, if_not_smi);
+
+  Node* if_undefined = graph()->NewNode(common->IfTrue(), branch_undefined);
+  Node* vundefined =
+      jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+
+  Node* if_not_undefined =
+      graph()->NewNode(common->IfFalse(), branch_undefined);
+  Node* vheap_number = BuildLoadHeapNumberValue(value, if_not_undefined);
+
+  if_not_smi =
+      graph()->NewNode(common->Merge(2), if_undefined, if_not_undefined);
+  vnot_smi = graph()->NewNode(common->Phi(MachineRepresentation::kFloat64, 2),
+                              vundefined, vheap_number, if_not_smi);
+
+  Node* if_smi = graph()->NewNode(common->IfFalse(), branch);
+  Node* vfrom_smi = BuildChangeSmiToFloat64(value);
+
+  Node* merge = graph()->NewNode(common->Merge(2), if_not_smi, if_smi);
+  Node* phi = graph()->NewNode(common->Phi(MachineRepresentation::kFloat64, 2),
+                               vnot_smi, vfrom_smi, merge);
+
+  return phi;
+}
+
 Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
                                wasm::LocalType type) {
   // Do a JavaScript ToNumber.
@@ -2124,7 +2355,7 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
 
   // Change representation.
   SimplifiedOperatorBuilder simplified(jsgraph()->zone());
-  num = graph()->NewNode(simplified.ChangeTaggedToFloat64(), num);
+  num = BuildChangeTaggedToFloat64(num);
 
   switch (type) {
     case wasm::kAstI32: {
@@ -2156,36 +2387,75 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
   return num;
 }
 
-Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
-  // Implement Rol by Ror since TurboFan does not have Rol opcode.
-  // TODO(weiliang): support Word32Rol opcode in TurboFan.
-  Int32Matcher m(right);
-  if (m.HasValue()) {
-    return Binop(wasm::kExprI32Ror, left,
-                 jsgraph()->Int32Constant(32 - m.Value()));
-  } else {
-    return Binop(wasm::kExprI32Ror, left,
-                 Binop(wasm::kExprI32Sub, jsgraph()->Int32Constant(32), right));
+Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
+  if (jsgraph()->machine()->Is64()) {
+    value = graph()->NewNode(jsgraph()->machine()->ChangeInt32ToInt64(), value);
   }
+  return graph()->NewNode(jsgraph()->machine()->WordShl(), value,
+                          BuildSmiShiftBitsConstant());
 }
 
-Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
-  // Implement Rol by Ror since TurboFan does not have Rol opcode.
-  // TODO(weiliang): support Word64Rol opcode in TurboFan.
-  Int64Matcher m(right);
-  if (m.HasValue()) {
-    return Binop(wasm::kExprI64Ror, left,
-                 jsgraph()->Int64Constant(64 - m.Value()));
-  } else {
-    return Binop(wasm::kExprI64Ror, left,
-                 Binop(wasm::kExprI64Sub, jsgraph()->Int64Constant(64), right));
+Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
+  value = graph()->NewNode(jsgraph()->machine()->WordSar(), value,
+                           BuildSmiShiftBitsConstant());
+  if (jsgraph()->machine()->Is64()) {
+    value =
+        graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(), value);
   }
+  return value;
 }
 
-Node* WasmGraphBuilder::Invert(Node* node) {
-  return Unop(wasm::kExprI32Eqz, node);
+Node* WasmGraphBuilder::BuildChangeSmiToFloat64(Node* value) {
+  return graph()->NewNode(jsgraph()->machine()->ChangeInt32ToFloat64(),
+                          BuildChangeSmiToInt32(value));
 }
 
+Node* WasmGraphBuilder::BuildTestNotSmi(Node* value) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagMask == 1);
+  return graph()->NewNode(jsgraph()->machine()->WordAnd(), value,
+                          jsgraph()->IntPtrConstant(kSmiTagMask));
+}
+
+Node* WasmGraphBuilder::BuildSmiShiftBitsConstant() {
+  return jsgraph()->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+}
+
+Node* WasmGraphBuilder::BuildAllocateHeapNumberWithValue(Node* value,
+                                                         Node* control) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  CommonOperatorBuilder* common = jsgraph()->common();
+  // The AllocateHeapNumberStub does not use the context, so we can safely pass
+  // in Smi zero here.
+  Callable callable = CodeFactory::AllocateHeapNumber(jsgraph()->isolate());
+  Node* target = jsgraph()->HeapConstant(callable.code());
+  Node* context = jsgraph()->NoContextConstant();
+  Node* effect = graph()->NewNode(common->BeginRegion(), graph()->start());
+  if (!allocate_heap_number_operator_.is_set()) {
+    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+        jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNoFlags, Operator::kNoThrow);
+    allocate_heap_number_operator_.set(common->Call(descriptor));
+  }
+  Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
+                                       target, context, effect, control);
+  Node* store =
+      graph()->NewNode(machine->Store(StoreRepresentation(
+                           MachineRepresentation::kFloat64, kNoWriteBarrier)),
+                       heap_number, BuildHeapNumberValueIndexConstant(), value,
+                       heap_number, control);
+  return graph()->NewNode(common->FinishRegion(), heap_number, store);
+}
+
+Node* WasmGraphBuilder::BuildLoadHeapNumberValue(Node* value, Node* control) {
+  return graph()->NewNode(jsgraph()->machine()->Load(MachineType::Float64()),
+                          value, BuildHeapNumberValueIndexConstant(),
+                          graph()->start(), control);
+}
+
+Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
+  return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
+}
 
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             wasm::FunctionSig* sig) {
@@ -2536,18 +2806,6 @@ Handle<JSFunction> CompileJSToWasmWrapper(
   // Run the compilation pipeline.
   //----------------------------------------------------------------------------
   {
-    // Changes lowering requires types.
-    Typer typer(isolate, &graph);
-    NodeVector roots(&zone);
-    jsgraph.GetCachedNodes(&roots);
-    typer.Run(roots);
-
-    // Run generic and change lowering.
-    ChangeLowering changes(&jsgraph);
-    GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
-    graph_reducer.AddReducer(&changes);
-    graph_reducer.ReduceGraph();
-
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
       OFStream os(stdout);
       os << "-- Graph after change lowering -- " << std::endl;
@@ -2623,18 +2881,6 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 
   Handle<Code> code = Handle<Code>::null();
   {
-    // Changes lowering requires types.
-    Typer typer(isolate, &graph);
-    NodeVector roots(&zone);
-    jsgraph.GetCachedNodes(&roots);
-    typer.Run(roots);
-
-    // Run generic and change lowering.
-    ChangeLowering changes(&jsgraph);
-    GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
-    graph_reducer.AddReducer(&changes);
-    graph_reducer.ReduceGraph();
-
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
       OFStream os(stdout);
       os << "-- Graph after change lowering -- " << std::endl;
