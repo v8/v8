@@ -3724,17 +3724,19 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       RREInstruction* rrinst = reinterpret_cast<RREInstruction*>(instr);
       int r1 = rrinst->R1Value();
       int r2 = rrinst->R2Value();
-#ifdef V8_TARGET_ARCH_S390X
+      if (op == LGBR) {
       int64_t r2_val = get_low_register<int64_t>(r2);
       r2_val <<= 56;
       r2_val >>= 56;
       set_register(r1, r2_val);
-#else
+      } else if (op == LBR) {
       int32_t r2_val = get_low_register<int32_t>(r2);
       r2_val <<= 24;
       r2_val >>= 24;
       set_low_register(r1, r2_val);
-#endif
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case LGHR:
@@ -3742,17 +3744,19 @@ bool Simulator::DecodeFourByteArithmetic(Instruction* instr) {
       RREInstruction* rrinst = reinterpret_cast<RREInstruction*>(instr);
       int r1 = rrinst->R1Value();
       int r2 = rrinst->R2Value();
-#ifdef V8_TARGET_ARCH_S390X
+      if (op == LGHR) {
       int64_t r2_val = get_low_register<int64_t>(r2);
       r2_val <<= 48;
       r2_val >>= 48;
       set_register(r1, r2_val);
-#else
+      } else if (op == LHR) {
       int32_t r2_val = get_low_register<int32_t>(r2);
       r2_val <<= 16;
       r2_val >>= 16;
       set_low_register(r1, r2_val);
-#endif
+      } else {
+        UNREACHABLE();
+      }
       break;
     }
     case ALCR: {
@@ -6095,6 +6099,36 @@ EVALUATE(LBR) {
   return length;
 }
 
+EVALUATE(LGBR) {
+  DCHECK_OPCODE(LGBR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_low_register<int64_t>(r2);
+  r2_val <<= 56;
+  r2_val >>= 56;
+  set_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LHR) {
+  DCHECK_OPCODE(LHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  r2_val <<= 16;
+  r2_val >>= 16;
+  set_low_register(r1, r2_val);
+  return length;
+}
+
+EVALUATE(LGHR) {
+  DCHECK_OPCODE(LGHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_low_register<int64_t>(r2);
+  r2_val <<= 48;
+  r2_val >>= 48;
+  set_register(r1, r2_val);
+  return length;
+}
+
 EVALUATE(LGF) {
   DCHECK_OPCODE(LGF);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
@@ -7007,10 +7041,6 @@ EVALUATE(LTGR) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(LCGR) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LGBR) { return DecodeInstructionOriginal(instr); }
-
-EVALUATE(LGHR) { return DecodeInstructionOriginal(instr); }
-
 EVALUATE(SGR) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(ALGR) { return DecodeInstructionOriginal(instr); }
@@ -7054,8 +7084,6 @@ EVALUATE(LRVR) { return DecodeInstructionOriginal(instr); }
 EVALUATE(CGR) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(CLGR) { return DecodeInstructionOriginal(instr); }
-
-EVALUATE(LHR) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(KMF) { return DecodeInstructionOriginal(instr); }
 
