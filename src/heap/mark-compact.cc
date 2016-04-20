@@ -1666,7 +1666,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
         semispace_copied_size_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
-  bool Visit(HeapObject* object) override {
+  inline bool Visit(HeapObject* object) override {
     heap_->UpdateAllocationSite<Heap::kCached>(object,
                                                local_pretenuring_feedback_);
     int size = object->Size();
@@ -1798,6 +1798,33 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
   HashMap* local_pretenuring_feedback_;
 };
 
+class MarkCompactCollector::EvacuateNewSpacePageVisitor final
+    : public MarkCompactCollector::HeapObjectVisitor {
+ public:
+  EvacuateNewSpacePageVisitor() : promoted_size_(0) {}
+
+  static void MoveToOldSpace(NewSpacePage* page, PagedSpace* owner) {
+    page->heap()->new_space()->ReplaceWithEmptyPage(page);
+    Page* new_page = Page::Convert(page, owner);
+    new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+  }
+
+  inline bool Visit(HeapObject* object) {
+    if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
+      object->GetHeap()->array_buffer_tracker()->Promote(
+          JSArrayBuffer::cast(object));
+    }
+    RecordMigratedSlotVisitor visitor;
+    object->IterateBodyFast(&visitor);
+    promoted_size_ += object->Size();
+    return true;
+  }
+
+  intptr_t promoted_size() { return promoted_size_; }
+
+ private:
+  intptr_t promoted_size_;
+};
 
 class MarkCompactCollector::EvacuateOldSpaceVisitor final
     : public MarkCompactCollector::EvacuateVisitorBase {
@@ -1806,7 +1833,7 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
                           CompactionSpaceCollection* compaction_spaces)
       : EvacuateVisitorBase(heap, compaction_spaces) {}
 
-  bool Visit(HeapObject* object) override {
+  inline bool Visit(HeapObject* object) override {
     CompactionSpace* target_space = compaction_spaces_->Get(
         Page::FromAddress(object->address())->owner()->identity());
     HeapObject* target_object = nullptr;
@@ -3018,9 +3045,17 @@ void MarkCompactCollector::EvacuateNewSpaceEpilogue() {
   newspace_evacuation_candidates_.Rewind(0);
 }
 
-
 class MarkCompactCollector::Evacuator : public Malloced {
  public:
+  // NewSpacePages with more live bytes than this threshold qualify for fast
+  // evacuation.
+  static int PageEvacuationThreshold() {
+    if (FLAG_page_promotion)
+      return FLAG_page_promotion_threshold * NewSpacePage::kAllocatableMemory /
+             100;
+    return NewSpacePage::kAllocatableMemory + kPointerSize;
+  }
+
   explicit Evacuator(MarkCompactCollector* collector)
       : collector_(collector),
         compaction_spaces_(collector->heap()),
@@ -3028,6 +3063,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
                                     kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
                            &local_pretenuring_feedback_),
+        new_space_page_visitor(),
         old_space_visitor_(collector->heap(), &compaction_spaces_),
         duration_(0.0),
         bytes_compacted_(0) {}
@@ -3041,17 +3077,32 @@ class MarkCompactCollector::Evacuator : public Malloced {
   CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
 
  private:
+  enum EvacuationMode {
+    kObjectsNewToOld,
+    kPageNewToOld,
+    kObjectsOldToOld,
+  };
+
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
-  Heap* heap() { return collector_->heap(); }
+  inline Heap* heap() { return collector_->heap(); }
+
+  inline EvacuationMode ComputeEvacuationMode(MemoryChunk* chunk) {
+    // Note: The order of checks is important in this function.
+    if (chunk->InNewSpace()) return kObjectsNewToOld;
+    if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION))
+      return kPageNewToOld;
+    DCHECK(chunk->IsEvacuationCandidate());
+    return kObjectsOldToOld;
+  }
 
   void ReportCompactionProgress(double duration, intptr_t bytes_compacted) {
     duration_ += duration;
     bytes_compacted_ += bytes_compacted;
   }
 
-  template <IterationMode mode>
-  inline bool EvacuateSinglePage(MemoryChunk* p, HeapObjectVisitor* visitor);
+  template <IterationMode mode, class Visitor>
+  inline bool EvacuateSinglePage(MemoryChunk* p, Visitor* visitor);
 
   MarkCompactCollector* collector_;
 
@@ -3061,6 +3112,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
 
   // Visitors for the corresponding spaces.
   EvacuateNewSpaceVisitor new_space_visitor_;
+  EvacuateNewSpacePageVisitor new_space_page_visitor;
   EvacuateOldSpaceVisitor old_space_visitor_;
 
   // Book keeping info.
@@ -3068,17 +3120,18 @@ class MarkCompactCollector::Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-template <MarkCompactCollector::IterationMode mode>
-bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
-    MemoryChunk* p, HeapObjectVisitor* visitor) {
+template <MarkCompactCollector::IterationMode mode, class Visitor>
+bool MarkCompactCollector::Evacuator::EvacuateSinglePage(MemoryChunk* p,
+                                                         Visitor* visitor) {
   bool success = false;
-  DCHECK(p->IsEvacuationCandidate() || p->InNewSpace());
+  DCHECK(p->IsEvacuationCandidate() || p->InNewSpace() ||
+         p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   int saved_live_bytes = p->LiveBytes();
   double evacuation_time;
   {
     AlwaysAllocateScope always_allocate(heap()->isolate());
     TimedScope timed_scope(&evacuation_time);
-    success = collector_->VisitLiveObjects(p, visitor, mode);
+    success = collector_->VisitLiveObjects<Visitor>(p, visitor, mode);
   }
   if (FLAG_trace_evacuation) {
     const char age_mark_tag =
@@ -3090,8 +3143,9 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
                                                                        : '#';
     PrintIsolate(heap()->isolate(),
                  "evacuation[%p]: page=%p new_space=%d age_mark_tag=%c "
-                 "executable=%d live_bytes=%d time=%f\n",
+                 "page_evacuation=%d executable=%d live_bytes=%d time=%f\n",
                  this, p, p->InNewSpace(), age_mark_tag,
+                 p->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION),
                  p->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
                  evacuation_time);
   }
@@ -3102,30 +3156,38 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(
 }
 
 bool MarkCompactCollector::Evacuator::EvacuatePage(MemoryChunk* chunk) {
-  bool success = false;
-  if (chunk->InNewSpace()) {
-    DCHECK_EQ(chunk->concurrent_sweeping_state().Value(),
-              NewSpacePage::kSweepingDone);
-    success = EvacuateSinglePage<kClearMarkbits>(chunk, &new_space_visitor_);
-    DCHECK(success);
-    USE(success);
-  } else {
-    DCHECK(chunk->IsEvacuationCandidate());
-    DCHECK_EQ(chunk->concurrent_sweeping_state().Value(), Page::kSweepingDone);
-    success = EvacuateSinglePage<kClearMarkbits>(chunk, &old_space_visitor_);
-    if (!success) {
-      // Aborted compaction page. We can record slots here to have them
-      // processed in parallel later on.
-      EvacuateRecordOnlyVisitor record_visitor(chunk->owner()->identity());
-      success = EvacuateSinglePage<kKeepMarking>(chunk, &record_visitor);
-      DCHECK(success);
-      USE(success);
-      // We need to return failure here to indicate that we want this page added
-      // to the sweeper.
-      return false;
-    }
+  bool result = false;
+  DCHECK_EQ(chunk->concurrent_sweeping_state().Value(),
+            NewSpacePage::kSweepingDone);
+  switch (ComputeEvacuationMode(chunk)) {
+    case kObjectsNewToOld:
+      result = EvacuateSinglePage<kClearMarkbits>(chunk, &new_space_visitor_);
+      DCHECK(result);
+      USE(result);
+      break;
+    case kPageNewToOld:
+      result = EvacuateSinglePage<kKeepMarking>(chunk, &new_space_page_visitor);
+      DCHECK(result);
+      USE(result);
+      break;
+    case kObjectsOldToOld:
+      result = EvacuateSinglePage<kClearMarkbits>(chunk, &old_space_visitor_);
+      if (!result) {
+        // Aborted compaction page. We can record slots here to have them
+        // processed in parallel later on.
+        EvacuateRecordOnlyVisitor record_visitor(chunk->owner()->identity());
+        result = EvacuateSinglePage<kKeepMarking>(chunk, &record_visitor);
+        DCHECK(result);
+        USE(result);
+        // We need to return failure here to indicate that we want this page
+        // added to the sweeper.
+        return false;
+      }
+      break;
+    default:
+      UNREACHABLE();
   }
-  return success;
+  return result;
 }
 
 void MarkCompactCollector::Evacuator::Finalize() {
@@ -3133,12 +3195,14 @@ void MarkCompactCollector::Evacuator::Finalize() {
   heap()->code_space()->MergeCompactionSpace(
       compaction_spaces_.Get(CODE_SPACE));
   heap()->tracer()->AddCompactionEvent(duration_, bytes_compacted_);
-  heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size());
+  heap()->IncrementPromotedObjectsSize(new_space_visitor_.promoted_size() +
+                                       new_space_page_visitor.promoted_size());
   heap()->IncrementSemiSpaceCopiedObjectSize(
       new_space_visitor_.semispace_copied_size());
   heap()->IncrementYoungSurvivorsCounter(
       new_space_visitor_.promoted_size() +
-      new_space_visitor_.semispace_copied_size());
+      new_space_visitor_.semispace_copied_size() +
+      new_space_page_visitor.promoted_size());
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
 }
 
@@ -3188,6 +3252,14 @@ class EvacuationJobTraits {
                                        bool success, PerPageData data) {
     if (chunk->InNewSpace()) {
       DCHECK(success);
+    } else if (chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
+      DCHECK(success);
+      Page* p = static_cast<Page*>(chunk);
+      p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
+      p->ForAllFreeListCategories(
+          [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
+      heap->mark_compact_collector()->sweeper().AddLatePage(
+          p->owner()->identity(), p);
     } else {
       Page* p = static_cast<Page*>(chunk);
       if (success) {
@@ -3217,8 +3289,15 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     live_bytes += page->LiveBytes();
     job.AddPage(page, &abandoned_pages);
   }
+  const Address age_mark = heap()->new_space()->age_mark();
   for (NewSpacePage* page : newspace_evacuation_candidates_) {
     live_bytes += page->LiveBytes();
+    if (!page->NeverEvacuate() &&
+        (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
+        page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
+        !page->Contains(age_mark)) {
+      EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
+    }
     job.AddPage(page, &abandoned_pages);
   }
   DCHECK_GE(job.NumberOfPages(), 1);
@@ -3378,9 +3457,8 @@ static void VerifyAllBlackObjects(MemoryChunk* page) {
 }
 #endif  // VERIFY_HEAP
 
-
-bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
-                                            HeapObjectVisitor* visitor,
+template <class Visitor>
+bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
                                             IterationMode mode) {
 #ifdef VERIFY_HEAP
   VerifyAllBlackObjects(page);
@@ -3541,12 +3619,8 @@ class PointerUpdateJobTraits {
 
   static void UpdateOldToNewSlot(HeapObject** address, HeapObject* object) {
     MapWord map_word = object->map_word();
-    // Since we only filter invalid slots in old space, the store buffer can
-    // still contain stale pointers in large object and in map spaces. Ignore
-    // these pointers here.
-    DCHECK(map_word.IsForwardingAddress() ||
-           !object->GetHeap()->old_space()->Contains(
-               reinterpret_cast<Address>(address)));
+    // There could still be stale pointers in large object space, map space,
+    // and old space for pages that have been promoted.
     if (map_word.IsForwardingAddress()) {
       // Update the corresponding slot.
       *address = map_word.ToForwardingAddress();

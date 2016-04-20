@@ -1765,12 +1765,6 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    external_string_table_.Verify();
-  }
-#endif
-
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
   Object** start = &external_string_table_.new_space_strings_[0];
@@ -1778,7 +1772,6 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
   Object** last = start;
 
   for (Object** p = start; p < end; ++p) {
-    DCHECK(InFromSpace(*p));
     String* target = updater_func(this, p);
 
     if (target == NULL) continue;
@@ -6217,7 +6210,6 @@ void DescriptorLookupCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].source = NULL;
 }
 
-
 void Heap::ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
@@ -6251,7 +6243,6 @@ void Heap::ExternalStringTable::CleanUp() {
   }
 #endif
 }
-
 
 void Heap::ExternalStringTable::TearDown() {
   for (int i = 0; i < new_space_strings_.length(); ++i) {

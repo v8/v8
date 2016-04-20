@@ -419,6 +419,10 @@ class MemoryChunk {
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
 
+    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
+    // from new to old space during evacuation.
+    PAGE_NEW_OLD_PROMOTION,
+
     // A black page has all mark bits set to 1 (black). A black page currently
     // cannot be iterated because it is not swept. Moreover live bytes are also
     // not updated.
@@ -824,6 +828,8 @@ class MemoryChunk {
 //   Page* p = Page::FromAllocationTop(top);
 class Page : public MemoryChunk {
  public:
+  static inline Page* Convert(NewSpacePage* old_page, PagedSpace* new_owner);
+
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[
   // This only works if the object is in fact in a page.  See also MemoryChunk::
@@ -938,6 +944,9 @@ class Page : public MemoryChunk {
   inline void ClearEvacuationCandidate();
 
  private:
+  enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
+
+  template <InitializationMode mode = kFreeMemory>
   static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
                                  Executability executable, PagedSpace* owner);
 
@@ -1041,11 +1050,6 @@ class Space : public Malloced {
     }
   }
 
-#ifdef DEBUG
-  virtual void Print() = 0;
-#endif
-
- protected:
   void AccountCommitted(intptr_t bytes) {
     DCHECK_GE(bytes, 0);
     committed_ += bytes;
@@ -1060,6 +1064,11 @@ class Space : public Malloced {
     DCHECK_GE(committed_, 0);
   }
 
+#ifdef DEBUG
+  virtual void Print() = 0;
+#endif
+
+ protected:
   v8::base::SmartPointer<List<AllocationObserver*>> allocation_observers_;
   bool allocation_observers_paused_;
 
@@ -2355,6 +2364,8 @@ class NewSpacePage : public MemoryChunk {
       (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
+  static const intptr_t kCopyAllFlags = ~0;
+
   // Create a NewSpacePage object that is only used as anchor
   // for the doubly-linked list of real pages.
   explicit NewSpacePage(SemiSpace* owner) { InitializeAsAnchor(owner); }
@@ -2439,6 +2450,8 @@ class SemiSpace : public Space {
 
   // Resets the space to using the first page.
   void Reset();
+
+  void ReplaceWithEmptyPage(NewSpacePage* page);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -2659,6 +2672,12 @@ class NewSpace : public Space {
   intptr_t Available() override { return Capacity() - Size(); }
 
   inline size_t AllocatedSinceLastGC();
+
+  void ReplaceWithEmptyPage(NewSpacePage* page) {
+    // This method is called after flipping the semispace.
+    DCHECK(page->InFromSpace());
+    from_space_.ReplaceWithEmptyPage(page);
+  }
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {

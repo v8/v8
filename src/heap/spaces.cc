@@ -1161,7 +1161,7 @@ bool PagedSpace::Expand() {
 
   Page* p =
       heap()->memory_allocator()->AllocatePage<Page>(size, this, executable());
-  if (p == NULL) return false;
+  if (p == nullptr) return false;
 
   AccountCommitted(static_cast<intptr_t>(p->size()));
 
@@ -1817,6 +1817,19 @@ void SemiSpace::Reset() {
   current_page_ = anchor_.next_page();
 }
 
+void SemiSpace::ReplaceWithEmptyPage(NewSpacePage* old_page) {
+  NewSpacePage* new_page =
+      heap()->memory_allocator()->AllocatePage<NewSpacePage>(
+          NewSpacePage::kAllocatableMemory, this, executable());
+  Bitmap::Clear(new_page);
+  new_page->SetFlags(old_page->GetFlags(), NewSpacePage::kCopyAllFlags);
+  new_page->set_next_page(old_page->next_page());
+  new_page->set_prev_page(old_page->prev_page());
+  old_page->next_page()->set_prev_page(new_page);
+  old_page->prev_page()->set_next_page(new_page);
+  heap()->CreateFillerObjectAt(new_page->area_start(), new_page->area_size(),
+                               ClearRecordedSlots::kNo);
+}
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // We won't be swapping semispaces without data in them.

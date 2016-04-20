@@ -3524,6 +3524,8 @@ TEST(ReleaseOverReservedPages) {
   // Concurrent sweeping adds non determinism, depending on when memory is
   // available for further reuse.
   i::FLAG_concurrent_sweeping = false;
+  // Fast evacuation of pages may result in a different page count in old space.
+  i::FLAG_page_promotion = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6571,6 +6573,52 @@ HEAP_TEST(Regress589413) {
   // Force allocation from the free list.
   heap->set_force_oom(true);
   heap->CollectGarbage(OLD_SPACE);
+}
+
+UNINITIALIZED_TEST(PagePromotion) {
+  FLAG_page_promotion = true;
+  FLAG_page_promotion_threshold = 0;  // %
+  i::FLAG_min_semi_space_size = 8 * (Page::kPageSize / MB);
+  // We cannot optimize for size as we require a new space with more than one
+  // page.
+  i::FLAG_optimize_for_size = false;
+  // Set max_semi_space_size because it could've been initialized by an
+  // implication of optimize_for_size.
+  i::FLAG_max_semi_space_size = i::FLAG_min_semi_space_size;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    Heap* heap = i_isolate->heap();
+    std::vector<Handle<FixedArray>> handles;
+    SimulateFullSpace(heap->new_space(), &handles);
+    heap->CollectGarbage(NEW_SPACE);
+    CHECK_GT(handles.size(), 0u);
+    // First object in handle should be on the first page.
+    Handle<FixedArray> first_object = handles.front();
+    NewSpacePage* first_page =
+        NewSpacePage::FromAddress(first_object->address());
+    // The age mark should not be on the first page.
+    CHECK(!first_page->ContainsLimit(heap->new_space()->age_mark()));
+    // To perform a sanity check on live bytes we need to mark the heap.
+    SimulateIncrementalMarking(heap, true);
+    // Sanity check that the page meets the requirements for promotion.
+    const int threshold_bytes =
+        FLAG_page_promotion_threshold * NewSpacePage::kAllocatableMemory / 100;
+    CHECK_GE(first_page->LiveBytes(), threshold_bytes);
+
+    // Actual checks: The page is in new space first, but is moved to old space
+    // during a full GC.
+    CHECK(heap->new_space()->ContainsSlow(first_page->address()));
+    CHECK(!heap->old_space()->ContainsSlow(first_page->address()));
+    heap->CollectGarbage(OLD_SPACE);
+    CHECK(!heap->new_space()->ContainsSlow(first_page->address()));
+    CHECK(heap->old_space()->ContainsSlow(first_page->address()));
+  }
 }
 
 }  // namespace internal
