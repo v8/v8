@@ -907,7 +907,6 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(expected_receiver_type());
   VerifyPointer(getter());
   VerifyPointer(setter());
-  VerifyPointer(js_getter());
   VerifyPointer(data());
 }
 
