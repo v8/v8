@@ -558,14 +558,19 @@ bool CompileBaselineCode(CompilationInfo* info) {
   return true;
 }
 
-void InstallBaselineCompilationResult(CompilationInfo* info,
-                                      Handle<SharedFunctionInfo> shared,
-                                      Handle<ScopeInfo> scope_info) {
+void InstallSharedScopeInfo(CompilationInfo* info,
+                            Handle<SharedFunctionInfo> shared) {
+  Handle<ScopeInfo> scope_info =
+      ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
+  shared->set_scope_info(*scope_info);
+}
+
+void InstallSharedCompilationResult(CompilationInfo* info,
+                                    Handle<SharedFunctionInfo> shared) {
   // Assert that we are not overwriting (possibly patched) debug code.
   DCHECK(!shared->HasDebugCode());
   DCHECK(!info->code().is_null());
   shared->ReplaceCode(*info->code());
-  shared->set_scope_info(*scope_info);
   if (info->has_bytecode_array()) {
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
     shared->set_bytecode_array(*info->bytecode_array());
@@ -585,13 +590,11 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
-  // Update the shared function info with the scope info. Allocating the
-  // ScopeInfo object may cause a GC.
-  Handle<ScopeInfo> scope_info =
-      ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
+  // Update the shared function info with the scope info.
+  InstallSharedScopeInfo(info, shared);
 
   // Install compilation result on the shared function info
-  InstallBaselineCompilationResult(info, shared, scope_info);
+  InstallSharedCompilationResult(info, shared);
 
   return info->code();
 }
@@ -1014,10 +1017,11 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
       return Handle<SharedFunctionInfo>::null();
     }
 
+    // Update the shared function info with the scope info.
+    InstallSharedScopeInfo(info, result);
+
     // Install compilation result on the shared function info
-    Handle<ScopeInfo> scope_info =
-        ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
-    InstallBaselineCompilationResult(info, result, scope_info);
+    InstallSharedCompilationResult(info, result);
 
     Handle<String> script_name =
         script->name()->IsString()
@@ -1212,9 +1216,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
     if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
-      Handle<ScopeInfo> target_scope_info =
-          ScopeInfo::Create(info->isolate(), info->zone(), info->scope());
-      shared->set_scope_info(*target_scope_info);
+      InstallSharedScopeInfo(info, shared);
     }
 
     // The existing unoptimized code was replaced with the new one.
@@ -1533,14 +1535,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
-    Handle<ScopeInfo> scope_info =
-        ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
     if (literal->should_eager_compile() &&
         literal->should_be_used_once_hint()) {
       info.code()->MarkToBeExecutedOnce(isolate);
     }
+    // Update the shared function info with the scope info.
+    InstallSharedScopeInfo(&info, result);
     // Install compilation result on the shared function info.
-    InstallBaselineCompilationResult(&info, result, scope_info);
+    InstallSharedCompilationResult(&info, result);
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
