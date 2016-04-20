@@ -1514,7 +1514,6 @@ void MacroAssembler::Allocate(int object_size,
     mov(top_reg, result);
   }
   add(top_reg, Immediate(object_size));
-  j(carry, gc_required);
   cmp(top_reg, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 

@@ -1465,6 +1465,8 @@ class MemoryAllocator {
 
   List<MemoryChunk*> chunk_pool_;
 
+  base::VirtualMemory last_chunk_;
+
   friend class TestCodeRangeScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);

@@ -2072,12 +2072,11 @@ void MacroAssembler::Allocate(int object_size,
       shift += 8;
       Operand bits_operand(bits);
       DCHECK(bits_operand.instructions_required(this) == 1);
-      add(result_end, source, bits_operand, SetCC, cond);
+      add(result_end, source, bits_operand, LeaveCC, cond);
       source = result_end;
       cond = cc;
     }
   }
-  b(cs, gc_required);
   cmp(result_end, Operand(alloc_limit));
   b(hi, gc_required);
   str(result_end, MemOperand(top_address));

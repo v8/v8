@@ -333,6 +333,10 @@ void MemoryAllocator::TearDown() {
   capacity_ = 0;
   capacity_executable_ = 0;
 
+  if (last_chunk_.IsReserved()) {
+    last_chunk_.Release();
+  }
+
   delete code_range_;
   code_range_ = nullptr;
 }
@@ -678,6 +682,23 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
   if (owner != NULL) {
     ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
     PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
+  }
+
+  // We cannot use the last chunk in the address space because we would
+  // overflow when comparing top and limit if this chunk is used for a
+  // linear allocation area.
+  if ((reinterpret_cast<uintptr_t>(base) + chunk_size) == 0u) {
+    CHECK(!last_chunk_.IsReserved());
+    last_chunk_.TakeControl(&reservation);
+    UncommitBlock(reinterpret_cast<Address>(last_chunk_.address()),
+                  last_chunk_.size());
+    size_.Increment(-static_cast<intptr_t>(chunk_size));
+    if (executable == EXECUTABLE) {
+      size_executable_.Increment(-static_cast<intptr_t>(chunk_size));
+    }
+    CHECK(last_chunk_.IsReserved());
+    return AllocateChunk(reserve_area_size, commit_area_size, executable,
+                         owner);
   }
 
   return MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,

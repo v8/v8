@@ -3090,7 +3090,7 @@ void MacroAssembler::Allocate(int object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   Adds(result_end, result, object_size);
-  Ccmp(result_end, alloc_limit, CFlag, cc);
+  Ccmp(result_end, alloc_limit, NoFlag, cc);
   B(hi, gc_required);
   Str(result_end, MemOperand(top_address));
 

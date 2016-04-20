@@ -4906,7 +4906,6 @@ void MacroAssembler::Allocate(int object_size,
     movp(top_reg, result);
   }
   addp(top_reg, Immediate(object_size));
-  j(carry, gc_required);
   Operand limit_operand = ExternalOperand(allocation_limit);
   cmpp(top_reg, limit_operand);
   j(above, gc_required);
