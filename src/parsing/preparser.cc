@@ -984,9 +984,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing
   // and lazy compilation.
-  bool is_lazily_parsed =
-      (outer_is_script_scope && allow_lazy() && !parenthesized_function_);
-  parenthesized_function_ = false;
+  bool is_lazily_parsed = (outer_is_script_scope && allow_lazy() &&
+                           !function_state_->this_function_is_parenthesized());
 
   Expect(Token::LBRACE, CHECK_OK);
   if (is_lazily_parsed) {

@@ -3996,11 +3996,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
-  FunctionLiteral::EagerCompileHint eager_compile_hint =
-      parenthesized_function_ ? FunctionLiteral::kShouldEagerCompile
-                              : FunctionLiteral::kShouldLazyCompile;
   bool should_be_used_once_hint = false;
   bool has_duplicate_parameters;
+  FunctionLiteral::EagerCompileHint eager_compile_hint;
+
   // Parse function.
   {
     AstNodeFactory function_factory(ast_value_factory());
@@ -4008,6 +4007,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                  &function_factory);
     scope_->SetScopeName(function_name);
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
+
+    eager_compile_hint = function_state_->this_function_is_parenthesized()
+                             ? FunctionLiteral::kShouldEagerCompile
+                             : FunctionLiteral::kShouldLazyCompile;
 
     if (is_generator) {
       // For generators, allocating variables in contexts is currently a win
@@ -4077,8 +4080,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // logic where only top-level functions will be parsed lazily.
     bool is_lazily_parsed = mode() == PARSE_LAZILY &&
                             scope_->AllowsLazyParsing() &&
-                            !parenthesized_function_;
-    parenthesized_function_ = false;  // The bit was set for this function only.
+                            !function_state_->this_function_is_parenthesized();
 
     // Eager or lazy parse?
     // If is_lazily_parsed, we'll parse lazy. If we can set a bookmark, we'll

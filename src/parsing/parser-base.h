@@ -98,7 +98,6 @@ class ParserBase : public Traits {
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              ParserRecorder* log, typename Traits::Type::Parser this_object)
       : Traits(this_object),
-        parenthesized_function_(false),
         scope_(NULL),
         function_state_(NULL),
         extension_(extension),
@@ -266,6 +265,14 @@ class ParserBase : public Traits {
       return &non_patterns_to_rewrite_;
     }
 
+    void next_function_is_parenthesized(bool parenthesized) {
+      next_function_is_parenthesized_ = parenthesized;
+    }
+
+    bool this_function_is_parenthesized() const {
+      return this_function_is_parenthesized_;
+    }
+
    private:
     void AddDestructuringAssignment(DestructuringAssignment pair) {
       destructuring_assignments_to_rewrite_.Add(pair);
@@ -311,6 +318,14 @@ class ParserBase : public Traits {
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
     typename Traits::Type::Factory* factory_;
+
+    // If true, the next (and immediately following) function literal is
+    // preceded by a parenthesis.
+    bool next_function_is_parenthesized_;
+
+    // The value of the parents' next_function_is_parenthesized_, as it applies
+    // to this function. Filled in by constructor.
+    bool this_function_is_parenthesized_;
 
     friend class ParserTraits;
     friend class PreParserTraits;
@@ -888,12 +903,6 @@ class ParserBase : public Traits {
     bool has_seen_constructor_;
   };
 
-  // If true, the next (and immediately following) function literal is
-  // preceded by a parenthesis.
-  // Heuristically that means that the function will be called immediately,
-  // so never lazily compile it.
-  bool parenthesized_function_;
-
   Scope* scope_;                   // Scope stack.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
@@ -935,9 +944,16 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_scope_(*scope_stack),
       collect_expressions_in_tail_position_(true),
       non_patterns_to_rewrite_(0, scope->zone()),
-      factory_(factory) {
+      factory_(factory),
+      next_function_is_parenthesized_(false),
+      this_function_is_parenthesized_(false) {
   *scope_stack_ = scope;
   *function_state_stack = this;
+  if (outer_function_state_) {
+    this_function_is_parenthesized_ =
+        outer_function_state_->next_function_is_parenthesized_;
+    outer_function_state_->next_function_is_parenthesized_ = false;
+  }
 }
 
 
@@ -1303,7 +1319,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
-      parenthesized_function_ = (peek() == Token::FUNCTION);
+      function_state_->next_function_is_parenthesized(peek() ==
+                                                      Token::FUNCTION);
       ExpressionT expr = this->ParseExpression(true, classifier, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       return expr;
@@ -2837,7 +2854,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     } else {
       // Single-expression body
       int pos = position();
-      parenthesized_function_ = false;
       ExpressionClassifier classifier(this);
       ExpressionT expression =
           ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
