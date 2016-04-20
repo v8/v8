@@ -992,6 +992,7 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - flag: " << flag();
   os << "\n - getter: " << Brief(getter());
   os << "\n - setter: " << Brief(setter());
+  os << "\n - js_getter: " << Brief(js_getter());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
