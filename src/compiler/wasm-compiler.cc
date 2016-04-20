@@ -2203,8 +2203,12 @@ Node* WasmGraphBuilder::ToJS(Node* node, Node* context, wasm::LocalType type) {
     case wasm::kAstI64:
       // TODO(titzer): i64->JS has no good solution right now. Using lower 32
       // bits.
-      node =
-          graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(), node);
+      if (jsgraph()->machine()->Is64()) {
+        // On 32 bit platforms we do not have to do the truncation because the
+        // node we get in as a parameter only contains the low word anyways.
+        node = graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(),
+                                node);
+      }
       return BuildChangeInt32ToTagged(node);
     case wasm::kAstF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
@@ -2369,7 +2373,11 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
       num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToInt32(
                                  TruncationMode::kJavaScript),
                              num);
-      num = graph()->NewNode(jsgraph()->machine()->ChangeInt32ToInt64(), num);
+      if (jsgraph()->machine()->Is64()) {
+        // We cannot change an int32 to an int64 on a 32 bit platform. Instead
+        // we will split the parameter node later.
+        num = graph()->NewNode(jsgraph()->machine()->ChangeInt32ToInt64(), num);
+      }
       break;
     case wasm::kAstF32:
       num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToFloat32(),
@@ -2459,28 +2467,40 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
 
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             wasm::FunctionSig* sig) {
-  int params = static_cast<int>(sig->parameter_count());
-  int count = params + 3;
+  int wasm_count = static_cast<int>(sig->parameter_count());
+  int param_count;
+  if (jsgraph()->machine()->Is64()) {
+    param_count = static_cast<int>(sig->parameter_count());
+  } else {
+    param_count = Int64Lowering::GetParameterCountAfterLowering(sig);
+  }
+  int count = param_count + 3;
   Node** args = Buffer(count);
 
   // Build the start and the JS parameter nodes.
-  Node* start = Start(params + 5);
+  Node* start = Start(param_count + 5);
   *control_ = start;
   *effect_ = start;
   // Create the context parameter
   Node* context = graph()->NewNode(
       jsgraph()->common()->Parameter(
-          Linkage::GetJSCallContextParamIndex(params + 1), "%context"),
+          Linkage::GetJSCallContextParamIndex(wasm_count + 1), "%context"),
       graph()->start());
 
   int pos = 0;
   args[pos++] = Constant(wasm_code);
 
   // Convert JS parameters to WASM numbers.
-  for (int i = 0; i < params; i++) {
+  for (int i = 0; i < wasm_count; i++) {
     Node* param =
         graph()->NewNode(jsgraph()->common()->Parameter(i + 1), start);
-    args[pos++] = FromJS(param, context, sig->GetParam(i));
+    Node* wasm_param = FromJS(param, context, sig->GetParam(i));
+    args[pos++] = wasm_param;
+    if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kAstI64) {
+      // We make up the high word with SAR to get the proper sign extension.
+      args[pos++] = graph()->NewNode(jsgraph()->machine()->Word32Sar(),
+                                     wasm_param, jsgraph()->Int32Constant(31));
+    }
   }
 
   args[pos++] = *effect_;
@@ -2489,9 +2509,18 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   // Call the WASM code.
   CallDescriptor* desc =
       wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  if (jsgraph()->machine()->Is32()) {
+    desc = wasm::ModuleEnv::GetI32WasmCallDescriptor(jsgraph()->zone(), desc);
+  }
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
+  Node* retval = call;
+  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
+      sig->GetReturn(0) == wasm::kAstI64) {
+    // The return values comes as two values, we pick the low word.
+    retval = graph()->NewNode(jsgraph()->common()->Projection(0), retval);
+  }
   Node* jsval =
-      ToJS(call, context,
+      ToJS(retval, context,
            sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
   Node* ret =
       graph()->NewNode(jsgraph()->common()->Return(), jsval, call, start);
@@ -2504,11 +2533,17 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
                                             wasm::FunctionSig* sig) {
   int js_count = function->shared()->internal_formal_parameter_count();
   int wasm_count = static_cast<int>(sig->parameter_count());
+  int param_count;
+  if (jsgraph()->machine()->Is64()) {
+    param_count = wasm_count;
+  } else {
+    param_count = Int64Lowering::GetParameterCountAfterLowering(sig);
+  }
 
   // Build the start and the parameter nodes.
   Isolate* isolate = jsgraph()->isolate();
   CallDescriptor* desc;
-  Node* start = Start(wasm_count + 3);
+  Node* start = Start(param_count + 3);
   *effect_ = start;
   *control_ = start;
   // JS context is the last parameter.
@@ -2544,9 +2579,15 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   args[pos++] = jsgraph()->Constant(global);
 
   // Convert WASM numbers to JS values.
+  int param_index = 0;
   for (int i = 0; i < wasm_count; i++) {
-    Node* param = graph()->NewNode(jsgraph()->common()->Parameter(i), start);
+    Node* param =
+        graph()->NewNode(jsgraph()->common()->Parameter(param_index++), start);
     args[pos++] = ToJS(param, context, sig->GetParam(i));
+    if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kAstI64) {
+      // On 32 bit platforms we have to skip the high word of int64 parameters.
+      param_index++;
+    }
   }
 
   if (add_new_target_undefined) {
@@ -2563,10 +2604,19 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
 
   // Convert the return value back.
+  Node* ret;
   Node* val =
       FromJS(call, context,
              sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
-  Node* ret = graph()->NewNode(jsgraph()->common()->Return(), val, call, start);
+  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
+      sig->GetReturn() == wasm::kAstI64) {
+    ret = graph()->NewNode(jsgraph()->common()->Return(), val,
+                           graph()->NewNode(jsgraph()->machine()->Word32Sar(),
+                                            val, jsgraph()->Int32Constant(31)),
+                           call, start);
+  } else {
+    ret = graph()->NewNode(jsgraph()->common()->Return(), val, call, start);
+  }
 
   MergeControlToEnd(jsgraph(), ret);
 }
@@ -2890,6 +2940,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     // Schedule and compile to machine code.
     CallDescriptor* incoming =
         wasm::ModuleEnv::GetWasmCallDescriptor(&zone, sig);
+    if (machine.Is32()) {
+      incoming = wasm::ModuleEnv::GetI32WasmCallDescriptor(&zone, incoming);
+    }
     Code::Flags flags = Code::ComputeFlags(Code::WASM_TO_JS_FUNCTION);
     bool debugging =
 #if DEBUG
@@ -2959,6 +3012,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
       module_env->module->module_start + function.code_end_offset};
   wasm::TreeResult result =
       wasm::BuildTFGraph(isolate->allocator(), &builder, body);
+
+  if (machine.Is32()) {
+    Int64Lowering r(&graph, &machine, &common, &zone, function.sig);
+    r.LowerGraph();
+  }
 
   if (result.failed()) {
     if (FLAG_trace_wasm_compiler) {

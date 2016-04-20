@@ -79,8 +79,10 @@ static int GetParameterIndexAfterLowering(
   return result;
 }
 
-static int GetParameterCountAfterLowering(
+int Int64Lowering::GetParameterCountAfterLowering(
     Signature<MachineRepresentation>* signature) {
+  // GetParameterIndexAfterLowering(parameter_count) returns the parameter count
+  // after lowering.
   return GetParameterIndexAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
 }
@@ -177,7 +179,9 @@ void Int64Lowering::LowerNode(Node* node) {
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
       } else {
-        DefaultLowering(node);
+        if (HasReplacementLow(node->InputAt(2))) {
+          node->ReplaceInput(2, GetReplacementLow(node->InputAt(2)));
+        }
       }
       break;
     }
