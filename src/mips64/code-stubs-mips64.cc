@@ -1742,9 +1742,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
   __ And(at, a0, Operand(kStringRepresentationMask));
-  // The underlying external string is never a short external string.
-  STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
-  STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
   __ Branch(&external_string, ne, at, Operand(zero_reg));  // Go to (7).
 
   // (5) Sequential string.  Load regexp code according to encoding.

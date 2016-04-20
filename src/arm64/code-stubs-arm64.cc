@@ -1743,35 +1743,35 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Peek(subject, kSubjectOffset);
   __ JumpIfSmi(subject, &runtime);
 
-  __ Ldr(x10, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ Ldrb(string_type, FieldMemOperand(x10, Map::kInstanceTypeOffset));
-
   __ Ldr(jsstring_length, FieldMemOperand(subject, String::kLengthOffset));
 
   // Handle subject string according to its encoding and representation:
-  // (1) Sequential string?  If yes, go to (5).
-  // (2) Anything but sequential or cons?  If yes, go to (6).
-  // (3) Cons string.  If the string is flat, replace subject with first string.
-  //     Otherwise bailout.
-  // (4) Is subject external?  If yes, go to (7).
-  // (5) Sequential string.  Load regexp code according to encoding.
+  // (1) Sequential string?  If yes, go to (4).
+  // (2) Sequential or cons?  If not, go to (5).
+  // (3) Cons string.  If the string is flat, replace subject with first string
+  //     and go to (1). Otherwise bail out to runtime.
+  // (4) Sequential string.  Load regexp code according to encoding.
   // (E) Carry on.
   /// [...]
 
   // Deferred code at the end of the stub:
-  // (6) Not a long external string?  If yes, go to (8).
-  // (7) External string.  Make it, offset-wise, look like a sequential string.
-  //     Go to (5).
-  // (8) Short external string or not a string?  If yes, bail out to runtime.
-  // (9) Sliced string.  Replace subject with parent.  Go to (4).
+  // (5) Long external string?  If not, go to (7).
+  // (6) External string.  Make it, offset-wise, look like a sequential string.
+  //     Go to (4).
+  // (7) Short external string or not a string?  If yes, bail out to runtime.
+  // (8) Sliced string.  Replace subject with parent.  Go to (1).
 
-  Label check_underlying;   // (4)
-  Label seq_string;         // (5)
-  Label not_seq_nor_cons;   // (6)
-  Label external_string;    // (7)
-  Label not_long_external;  // (8)
+  Label check_underlying;   // (1)
+  Label seq_string;         // (4)
+  Label not_seq_nor_cons;   // (5)
+  Label external_string;    // (6)
+  Label not_long_external;  // (7)
 
-  // (1) Sequential string?  If yes, go to (5).
+  __ Bind(&check_underlying);
+  __ Ldr(x10, FieldMemOperand(subject, HeapObject::kMapOffset));
+  __ Ldrb(string_type, FieldMemOperand(x10, Map::kInstanceTypeOffset));
+
+  // (1) Sequential string?  If yes, go to (4).
   __ And(string_representation,
          string_type,
          kIsNotStringMask |
@@ -1788,36 +1788,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   //                is a String
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ Cbz(string_representation, &seq_string);  // Go to (5).
+  __ Cbz(string_representation, &seq_string);  // Go to (4).
 
-  // (2) Anything but sequential or cons?  If yes, go to (6).
+  // (2) Sequential or cons?  If not, go to (5).
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ Cmp(string_representation, kExternalStringTag);
-  __ B(ge, &not_seq_nor_cons);  // Go to (6).
+  __ B(ge, &not_seq_nor_cons);  // Go to (5).
 
   // (3) Cons string.  Check that it's flat.
   __ Ldr(x10, FieldMemOperand(subject, ConsString::kSecondOffset));
   __ JumpIfNotRoot(x10, Heap::kempty_stringRootIndex, &runtime);
   // Replace subject with first string.
   __ Ldr(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
+  __ B(&check_underlying);
 
-  // (4) Is subject external?  If yes, go to (7).
-  __ Bind(&check_underlying);
-  // Reload the string type.
-  __ Ldr(x10, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ Ldrb(string_type, FieldMemOperand(x10, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSeqStringTag == 0);
-  // The underlying external string is never a short external string.
-  STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
-  STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
-  __ TestAndBranchIfAnySet(string_type.X(),
-                           kStringRepresentationMask,
-                           &external_string);  // Go to (7).
-
-  // (5) Sequential string.  Load regexp code according to encoding.
+  // (4) Sequential string.  Load regexp code according to encoding.
   __ Bind(&seq_string);
 
   // Check that the third argument is a positive smi less than the subject
@@ -2087,12 +2075,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kRegExpExec);
 
   // Deferred code for string handling.
-  // (6) Not a long external string?  If yes, go to (8).
+  // (5) Long external string?  If not, go to (7).
   __ Bind(&not_seq_nor_cons);
   // Compare flags are still set.
-  __ B(ne, &not_long_external);  // Go to (8).
+  __ B(ne, &not_long_external);  // Go to (7).
 
-  // (7) External string. Make it, offset-wise, look like a sequential string.
+  // (6) External string. Make it, offset-wise, look like a sequential string.
   __ Bind(&external_string);
   if (masm->emit_debug_code()) {
     // Assert that we do not have a cons or slice (indirect strings) here.
@@ -2110,9 +2098,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Move the pointer so that offset-wise, it looks like a sequential string.
   STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ Sub(subject, subject, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-  __ B(&seq_string);    // Go to (5).
+  __ B(&seq_string);  // Go to (4).
 
-  // (8) If this is a short external string or not a string, bail out to
+  // (7) If this is a short external string or not a string, bail out to
   // runtime.
   __ Bind(&not_long_external);
   STATIC_ASSERT(kShortExternalStringTag != 0);
@@ -2120,11 +2108,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                            kShortExternalStringMask | kIsNotStringMask,
                            &runtime);
 
-  // (9) Sliced string. Replace subject with parent.
+  // (8) Sliced string. Replace subject with parent.
   __ Ldr(sliced_string_offset,
          UntagSmiFieldMemOperand(subject, SlicedString::kOffsetOffset));
   __ Ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
-  __ B(&check_underlying);    // Go to (4).
+  __ B(&check_underlying);  // Go to (1).
 #endif
 }
 

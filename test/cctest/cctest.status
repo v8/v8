@@ -86,6 +86,9 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
+  # BUG(4923). MIPS64 port is missing.
+  'test-regexp/UncachedExternalString': [PASS, ['arch==mips64 or arch==mips64el', FAIL]],
+
   ##############################################################################
   # TurboFan compiler failures.
 
