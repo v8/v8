@@ -906,6 +906,8 @@ class ParserBase : public Traits {
 
     virtual ~ObjectLiteralCheckerBase() {}
 
+    virtual void JustSignature() = 0;
+
    protected:
     ParserBase* parser() const { return parser_; }
     Scanner* scanner() const { return parser_->scanner(); }
@@ -923,6 +925,8 @@ class ParserBase : public Traits {
     void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
                        bool is_generator, bool* ok) override;
 
+    void JustSignature() override;
+
    private:
     bool IsProto() { return this->scanner()->LiteralMatches("__proto__", 9); }
 
@@ -937,6 +941,8 @@ class ParserBase : public Traits {
 
     void CheckProperty(Token::Value property, PropertyKind type, bool is_static,
                        bool is_generator, bool* ok) override;
+
+    void JustSignature() override;
 
    private:
     bool IsConstructor() {
@@ -1828,12 +1834,24 @@ ParserBase<Traits>::ParsePropertyDefinition(
                          : FunctionKind::kBaseConstructor;
       type_flags = typesystem::kConstructorTypes;
     }
+    // Allow signatures when in a class.
+    if (in_class) type_flags |= typesystem::kAllowSignature;
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
         language_mode(), type_flags,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+
+    // Return no property definition if just the signature was given.
+    if (this->IsEmptyExpression(value)) {
+      // Don't count constructor signature as a constructor.
+      if (in_class && !is_static && this->IsConstructor(*name)) {
+        // Note: we don't really need to unset has_seen_constructor
+        checker->JustSignature();
+      }
+      return this->EmptyObjectLiteralProperty();
+    }
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -3828,6 +3846,16 @@ void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     has_seen_constructor_ = true;
     return;
   }
+}
+
+
+template <typename Traits>
+void ParserBase<Traits>::ObjectLiteralChecker::JustSignature() {}
+
+
+template <typename Traits>
+void ParserBase<Traits>::ClassLiteralChecker::JustSignature() {
+  has_seen_constructor_ = false;
 }
 
 

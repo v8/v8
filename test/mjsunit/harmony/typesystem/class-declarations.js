@@ -51,9 +51,9 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   "  '5': boolean = false" + "\n" +
   "  6: string[] = [...['six', 'six', 'and', 'six']]" + "\n" +
      // methods
-  "  f () : number { return 42; }" + "\n" +
-  "  f (a: number[]) : number { return a[0]; }" + "\n" +
-  "  f (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
+  "  f1 () : number { return 42; }" + "\n" +
+  "  f2 (a: number[]) : number { return a[0]; }" + "\n" +
+  "  f3 (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
      // getters
   "  get p () : number { return 42; }" + "\n" +
   "  get 'q' () : number { return 42; }" + "\n" +
@@ -82,9 +82,9 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   "  static '5': boolean = false" + "\n" +
   "  static 6: string[] = [...['six', 'six', 'and', 'six']]" + "\n" +
      // methods
-  "  static f () : number { return 42; }" + "\n" +
-  "  static f (a: number[]) : number { return a[0]; }" + "\n" +
-  "  static f (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
+  "  static f1 () : number { return 42; }" + "\n" +
+  "  static f2 (a: number[]) : number { return a[0]; }" + "\n" +
+  "  static f3 (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
      // getters
   "  static get p () : number { return 42; }" + "\n" +
   "  static get 'q' () : number { return 42; }" + "\n" +
@@ -102,4 +102,29 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckInvalid("class C { [x: any] }");
   CheckInvalid("class C { [x: any] : any }");
   CheckInvalid("class C { static [x: number] }");
+})();
+
+(function TestClassMemberSignatures() {
+  CheckValid("class C {" + "\n" +
+     // constructor signatures
+  "  constructor (x: number, y: boolean)" + "\n" +
+  "  constructor (x: number, y: boolean) { this.x = x; this.y = y; }" + "\n" +
+     // method signatures
+  "  f1 () : number" + "\n" +
+  "  f1 () : number { return 42; }" + "\n" +
+  "  f2 (a: number[]) : number" + "\n" +
+  "  f2 (a: number[]) : number { return a[0]; }" + "\n" +
+  "  f3 (a: number[], b: number) : number" + "\n" +
+  "  f3 (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
+  "}");
+  // Test all possible valid static members.
+  CheckValid("class C {" + "\n" +
+     // static method signatures
+  "  static f1 () : number" + "\n" +
+  "  static f1 () : number { return 42; }" + "\n" +
+  "  static f2 (a: number[]) : number" + "\n" +
+  "  static f2 (a: number[]) : number { return a[0]; }" + "\n" +
+  "  static f3 (a: number[], b: number)" + "\n" +
+  "  static f3 (a: number[], b: number) : number { return b || a[0]; }" + "\n" +
+  "}");
 })();

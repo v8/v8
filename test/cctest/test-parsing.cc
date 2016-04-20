@@ -7853,6 +7853,8 @@ TEST(TypedModeClassDeclarations) {
     "class C { [x: number]; }",
     "class C { [x: string] : boolean; }",
     "class C { [x: number] : boolean; }",
+    "class C { constructor (x: number); constructor (x) {} }",
+    "class C { f (x: number) : number; f (x) { return x; } }",
     NULL
   };
 
@@ -7871,6 +7873,7 @@ TEST(TypedModeClassDeclarations) {
     "class C { [x: any]; }",
     "class C { [x: any] : any; }",
     "class C { static [x: number]; }",
+    "class C { constructor (x: number) : number; constructor (x) {} }",
     NULL
   };
 

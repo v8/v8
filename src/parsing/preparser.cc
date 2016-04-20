@@ -1058,7 +1058,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   parenthesized_function_ = false;
 
   // Parse optional type annotation.
-  if (scope_->typed() && Check(Token::COLON)) {  // Braces required here.
+  if (scope_->typed() &&
+      !(type_flags & typesystem::kDisallowTypeAnnotation) &&
+      Check(Token::COLON)) {  // Braces required here.
     ParseValidType(CHECK_OK);
   }
 
