@@ -2498,7 +2498,7 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
   // Indicates if we support a double (and int32) output for Math.floor and
   // Math.round.
   bool SupportsFlexibleFloorAndRound() const {
-#if V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
     return true;
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
     return CpuFeatures::IsSupported(SSE4_1);

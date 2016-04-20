@@ -3613,8 +3613,13 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   }
 }
 
+void LCodeGen::DoMathFloorD(LMathFloorD* instr) {
+  DoubleRegister input_reg = ToDoubleRegister(instr->value());
+  DoubleRegister output_reg = ToDoubleRegister(instr->result());
+  __ frim(output_reg, input_reg);
+}
 
-void LCodeGen::DoMathFloor(LMathFloor* instr) {
+void LCodeGen::DoMathFloorI(LMathFloorI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
   Register input_high = scratch0();
@@ -3636,8 +3641,30 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   __ bind(&done);
 }
 
+void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
+  DoubleRegister input_reg = ToDoubleRegister(instr->value());
+  DoubleRegister output_reg = ToDoubleRegister(instr->result());
+  DoubleRegister dot_five = double_scratch0();
+  Label done;
 
-void LCodeGen::DoMathRound(LMathRound* instr) {
+  __ frin(output_reg, input_reg);
+  __ fcmpu(input_reg, kDoubleRegZero);
+  __ bge(&done);
+  __ fcmpu(output_reg, input_reg);
+  __ beq(&done);
+
+  // Negative, non-integer case
+  __ LoadDoubleLiteral(dot_five, 0.5, r0);
+  __ fadd(output_reg, input_reg, dot_five);
+  __ frim(output_reg, output_reg);
+  // The range [-0.5, -0.0[ yielded +0.0. Force the sign to negative.
+  __ fabs(output_reg, output_reg);
+  __ fneg(output_reg, output_reg);
+
+  __ bind(&done);
+}
+
+void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
   DoubleRegister double_scratch1 = ToDoubleRegister(instr->temp());
