@@ -14,13 +14,11 @@ namespace compiler {
 
 Frame::Frame(int fixed_frame_size_in_slots)
     : frame_slot_count_(fixed_frame_size_in_slots),
-      callee_saved_slot_count_(0),
       spill_slot_count_(0),
       allocated_registers_(nullptr),
       allocated_double_registers_(nullptr) {}
 
 int Frame::AlignFrame(int alignment) {
-  DCHECK_EQ(0, callee_saved_slot_count_);
   int alignment_slots = alignment / kPointerSize;
   int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
   if (delta != alignment_slots) {

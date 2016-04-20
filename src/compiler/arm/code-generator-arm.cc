@@ -399,8 +399,6 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
 
-void CodeGenerator::AssembleSetupStackPointer() {}
-
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta > 0) {
@@ -1346,8 +1344,34 @@ void CodeGenerator::AssembleDeoptimizerCall(
   __ CheckConstPool(false, false);
 }
 
+void CodeGenerator::FinishFrame(Frame* frame) {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
-void CodeGenerator::AssemblePrologue() {
+  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  if (saves_fp != 0) {
+    frame->AlignSavedCalleeRegisterSlots();
+  }
+
+  if (saves_fp != 0) {
+    // Save callee-saved FP registers.
+    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
+    uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
+    DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
+    frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
+                                            (kDoubleSize / kPointerSize));
+  }
+  const RegList saves = FLAG_enable_embedded_constant_pool
+                            ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
+                            : descriptor->CalleeSavedRegisters();
+  if (saves != 0) {
+    // Save callee-saved registers.
+    frame->AllocateSavedCalleeRegisterSlots(
+        base::bits::CountPopulation32(saves));
+  }
+}
+
+void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
@@ -1366,7 +1390,8 @@ void CodeGenerator::AssemblePrologue() {
     }
   }
 
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots = frame()->GetSpillSlotCount();
+
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1377,15 +1402,12 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
+    shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
-  }
-  if (stack_shrink_slots > 0) {
-    __ sub(sp, sp, Operand(stack_shrink_slots * kPointerSize));
+  if (shrink_slots > 0) {
+    __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
   }
 
   if (saves_fp != 0) {
@@ -1396,8 +1418,6 @@ void CodeGenerator::AssemblePrologue() {
     DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
     __ vstm(db_w, sp, DwVfpRegister::from_code(first),
             DwVfpRegister::from_code(last));
-    frame()->AllocateSavedCalleeRegisterSlots((last - first + 1) *
-                                              (kDoubleSize / kPointerSize));
   }
   const RegList saves = FLAG_enable_embedded_constant_pool
                             ? (descriptor->CalleeSavedRegisters() & ~pp.bit())
@@ -1405,8 +1425,6 @@ void CodeGenerator::AssemblePrologue() {
   if (saves != 0) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);
-    frame()->AllocateSavedCalleeRegisterSlots(
-        base::bits::CountPopulation32(saves));
   }
 }
 

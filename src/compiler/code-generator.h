@@ -54,7 +54,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
-  Frame* frame() const { return frame_access_state_->frame(); }
+  const Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 
@@ -66,6 +66,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   Zone* zone() const { return code()->zone(); }
   CompilationInfo* info() const { return info_; }
+
+  // Create the FrameAccessState object. The Frame is immutable from here on.
+  void CreateFrameAccessState(Frame* frame);
+
+  // Architecture - specific frame finalization.
+  void FinishFrame(Frame* frame);
 
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
@@ -108,9 +114,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
-  void AssemblePrologue();
-
-  void AssembleSetupStackPointer();
+  void AssembleConstructFrame();
 
   // Generates an architecture-specific, descriptor-specific return sequence
   // to tear down a stack frame.

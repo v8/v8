@@ -127,7 +127,7 @@ class InstructionOperandConverter {
     return ToConstant(op).ToHeapObject();
   }
 
-  Frame* frame() const { return gen_->frame(); }
+  const Frame* frame() const { return gen_->frame(); }
   FrameAccessState* frame_access_state() const {
     return gen_->frame_access_state();
   }
@@ -163,7 +163,7 @@ class OutOfLineCode : public ZoneObject {
 
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
-  Frame* frame() const { return frame_; }
+  const Frame* frame() const { return frame_; }
   Isolate* isolate() const { return masm()->isolate(); }
   MacroAssembler* masm() const { return masm_; }
   OutOfLineCode* next() const { return next_; }
@@ -171,7 +171,7 @@ class OutOfLineCode : public ZoneObject {
  private:
   Label entry_;
   Label exit_;
-  Frame* const frame_;
+  const Frame* const frame_;
   MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };

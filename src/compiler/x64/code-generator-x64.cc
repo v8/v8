@@ -607,8 +607,6 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ popq(rbp);
 }
 
-void CodeGenerator::AssembleSetupStackPointer() {}
-
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta > 0) {
@@ -1952,8 +1950,31 @@ static const int kQuadWordSize = 16;
 
 }  // namespace
 
+void CodeGenerator::FinishFrame(Frame* frame) {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
-void CodeGenerator::AssemblePrologue() {
+  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  if (saves_fp != 0) {
+    frame->AlignSavedCalleeRegisterSlots();
+    if (saves_fp != 0) {  // Save callee-saved XMM registers.
+      const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
+      frame->AllocateSavedCalleeRegisterSlots(saves_fp_count *
+                                              (kQuadWordSize / kPointerSize));
+    }
+  }
+  const RegList saves = descriptor->CalleeSavedRegisters();
+  if (saves != 0) {  // Save callee-saved registers.
+    int count = 0;
+    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+      if (((1 << i) & saves)) {
+        ++count;
+      }
+    }
+    frame->AllocateSavedCalleeRegisterSlots(count);
+  }
+}
+
+void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
@@ -1965,7 +1986,8 @@ void CodeGenerator::AssemblePrologue() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
   }
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots = frame()->GetSpillSlotCount();
+
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1976,16 +1998,12 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    stack_shrink_slots -=
-        static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
+    shrink_slots -= static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
   }
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
-  }
-  if (stack_shrink_slots > 0) {
-    __ subq(rsp, Immediate(stack_shrink_slots * kPointerSize));
+  if (shrink_slots > 0) {
+    __ subq(rsp, Immediate(shrink_slots * kPointerSize));
   }
 
   if (saves_fp != 0) {  // Save callee-saved XMM registers.
@@ -2001,8 +2019,6 @@ void CodeGenerator::AssemblePrologue() {
                 XMMRegister::from_code(i));
       slot_idx++;
     }
-    frame()->AllocateSavedCalleeRegisterSlots(saves_fp_count *
-                                              (kQuadWordSize / kPointerSize));
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
@@ -2010,7 +2026,6 @@ void CodeGenerator::AssemblePrologue() {
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
       if (!((1 << i) & saves)) continue;
       __ pushq(Register::from_code(i));
-      frame()->AllocateSavedCalleeRegisterSlots(1);
     }
   }
 }

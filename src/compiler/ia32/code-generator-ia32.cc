@@ -367,8 +367,6 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ pop(ebp);
 }
 
-void CodeGenerator::AssembleSetupStackPointer() {}
-
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta > 0) {
@@ -1642,8 +1640,21 @@ void CodeGenerator::AssembleDeoptimizerCall(
 //                                            | RET | args |  caller frame |
 //                                            ^ esp                        ^ ebp
 
+void CodeGenerator::FinishFrame(Frame* frame) {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  const RegList saves = descriptor->CalleeSavedRegisters();
+  if (saves != 0) {  // Save callee-saved registers.
+    DCHECK(!info()->is_osr());
+    int pushed = 0;
+    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+      if (!((1 << i) & saves)) continue;
+      ++pushed;
+    }
+    frame->AllocateSavedCalleeRegisterSlots(pushed);
+  }
+}
 
-void CodeGenerator::AssemblePrologue() {
+void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
@@ -1655,7 +1666,9 @@ void CodeGenerator::AssemblePrologue() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
   }
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
+
+  int shrink_slots = frame()->GetSpillSlotCount();
+
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1666,12 +1679,12 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
+    shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
-  if (stack_shrink_slots > 0) {
-    __ sub(esp, Immediate(stack_shrink_slots * kPointerSize));
+  if (shrink_slots > 0) {
+    __ sub(esp, Immediate(shrink_slots * kPointerSize));
   }
 
   if (saves != 0) {  // Save callee-saved registers.
@@ -1682,7 +1695,6 @@ void CodeGenerator::AssemblePrologue() {
       __ push(Register::from_code(i));
       ++pushed;
     }
-    frame()->AllocateSavedCalleeRegisterSlots(pushed);
   }
 }
 

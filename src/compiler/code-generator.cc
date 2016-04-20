@@ -33,7 +33,7 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info)
-    : frame_access_state_(new (code->zone()) FrameAccessState(frame)),
+    : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
       info_(info),
@@ -56,6 +56,12 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
+  CreateFrameAccessState(frame);
+}
+
+void CodeGenerator::CreateFrameAccessState(Frame* frame) {
+  FinishFrame(frame);
+  frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
 }
 
 Handle<Code> CodeGenerator::GenerateCode() {
@@ -96,9 +102,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  // Finish the Frame
-  frame()->AlignFrame(kFrameAlignmentInBytes);
-  AssembleSetupStackPointer();
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
     for (const InstructionBlock* block : code()->instruction_blocks()) {
@@ -143,7 +146,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
       masm()->bind(GetLabel(current_block_));
       if (block->must_construct_frame()) {
-        AssemblePrologue();
+        AssembleConstructFrame();
         // We need to setup the root register after we assemble the prologue, to
         // avoid clobbering callee saved registers in case of C linkage and
         // using the roots.
