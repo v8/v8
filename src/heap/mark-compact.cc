@@ -2047,8 +2047,8 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
     ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
-  bool work_to_do = true;
   DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
+  bool work_to_do = true;
   while (work_to_do) {
     if (UsingEmbedderHeapTracer()) {
       embedder_heap_tracer()->TraceWrappersFrom(wrappers_to_trace_);
@@ -2246,9 +2246,9 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
       if (UsingEmbedderHeapTracer()) {
         embedder_heap_tracer()->TracePrologue();
+        ProcessMarkingDeque();
       }
       ProcessEphemeralMarking(&root_visitor, false);
-      ProcessMarkingDeque();
     }
 
     // The objects reachable from the roots, weak maps or object groups
@@ -2282,7 +2282,6 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
-      ProcessMarkingDeque();
       if (UsingEmbedderHeapTracer()) {
         embedder_heap_tracer()->TraceEpilogue();
       }
