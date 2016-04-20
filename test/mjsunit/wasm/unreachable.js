@@ -23,4 +23,4 @@ try {
     print("correctly caught: " + e);
     exception = e;
 }
-assertEquals("unreachable", exception);
+assertEquals("unreachable", exception.message);

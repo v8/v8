@@ -79,6 +79,7 @@ class WasmGraphBuilder {
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::LocalType type, unsigned count, Node** vals, Node* control);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
+  Node* NumberConstant(int32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Float32Constant(float value);

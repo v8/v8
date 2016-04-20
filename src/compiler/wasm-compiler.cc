@@ -193,12 +193,13 @@ class WasmTrapHelper : public ZoneObject {
   }
 
   void BuildTrapCode(wasm::TrapReason reason) {
-    Node* exception =
-        builder_->String(wasm::WasmOpcodes::TrapReasonMessage(reason));
+    Node* message_id = builder_->NumberConstant(
+        wasm::WasmOpcodes::TrapReasonToMessageId(reason));
     Node* end;
     Node** control_ptr = builder_->control_;
     Node** effect_ptr = builder_->effect_;
     wasm::ModuleEnv* module = builder_->module_;
+    DCHECK(traps_[reason] == NULL);
     *control_ptr = traps_[reason] =
         graph()->NewNode(common()->Merge(1), *control_ptr);
     *effect_ptr = effects_[reason] =
@@ -206,14 +207,14 @@ class WasmTrapHelper : public ZoneObject {
 
     if (module && !module->instance->context.is_null()) {
       // Use the module context to call the runtime to throw an exception.
-      Runtime::FunctionId f = Runtime::kThrow;
+      Runtime::FunctionId f = Runtime::kThrowWasmError;
       const Runtime::Function* fun = Runtime::FunctionForId(f);
       CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
           jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
           CallDescriptor::kNoFlags);
       Node* inputs[] = {
           jsgraph()->CEntryStubConstant(fun->result_size),  // C entry
-          exception,                                        // exception
+          message_id,                                       // message id
           jsgraph()->ExternalConstant(
               ExternalReference(f, jsgraph()->isolate())),  // ref
           jsgraph()->Int32Constant(fun->nargs),             // arity
@@ -344,6 +345,9 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
                           buf);
 }
 
+Node* WasmGraphBuilder::NumberConstant(int32_t value) {
+  return jsgraph()->Constant(value);
+}
 
 Node* WasmGraphBuilder::Int32Constant(int32_t value) {
   return jsgraph()->Int32Constant(value);

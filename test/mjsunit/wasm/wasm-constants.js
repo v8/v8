@@ -290,8 +290,8 @@ function assertTraps(trap, code) {
       }
       threwException = false;
     } catch (e) {
-      assertEquals("string", typeof e);
-      assertEquals(kTrapMsgs[trap], e);
+      assertEquals("object", typeof e);
+      assertEquals(kTrapMsgs[trap], e.message);
       // Success.
       return;
     }
