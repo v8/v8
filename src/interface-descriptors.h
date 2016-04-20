@@ -746,11 +746,10 @@ class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ApiGetterDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiGetterDescriptor,
+                                               CallInterfaceDescriptor)
 
-  static const Register ReceiverRegister();
-  static const Register HolderRegister();
-  static const Register CallbackRegister();
+  static const Register function_address();
 };
 
 

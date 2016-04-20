@@ -297,29 +297,19 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
     const char* name;
   };
 
-  static const AccessorRefTable getters[] = {
+  static const AccessorRefTable accessors[] = {
 #define ACCESSOR_INFO_DECLARATION(name) \
   {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
-  };
-  static const AccessorRefTable setters[] = {
 #define ACCESSOR_SETTER_DECLARATION(name) \
   {FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
-      ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+          ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
 
-  for (unsigned i = 0; i < arraysize(getters); ++i) {
-    Add(getters[i].address, getters[i].name);
-#ifdef USE_SIMULATOR
-    Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
-        getters[i].name);
-#endif
-  }
-
-  for (unsigned i = 0; i < arraysize(setters); ++i) {
-    Add(setters[i].address, setters[i].name);
+  for (unsigned i = 0; i < arraysize(accessors); ++i) {
+    Add(accessors[i].address, accessors[i].name);
   }
 
   StubCache* stub_cache = isolate->stub_cache();

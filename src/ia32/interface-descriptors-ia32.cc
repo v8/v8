@@ -58,8 +58,9 @@ const Register InstanceOfDescriptor::RightRegister() { return eax; }
 const Register StringCompareDescriptor::LeftRegister() { return edx; }
 const Register StringCompareDescriptor::RightRegister() { return eax; }
 
-const Register ApiGetterDescriptor::HolderRegister() { return ecx; }
-const Register ApiGetterDescriptor::CallbackRegister() { return eax; }
+
+const Register ApiGetterDescriptor::function_address() { return edx; }
+
 
 const Register MathPowTaggedDescriptor::exponent() { return eax; }
 

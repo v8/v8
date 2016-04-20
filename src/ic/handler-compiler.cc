@@ -358,18 +358,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   return GetCode(kind(), it->name());
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<AccessorInfo> callback) {
-  DCHECK(receiver().is(ApiGetterDescriptor::ReceiverRegister()));
-  __ Move(ApiGetterDescriptor::HolderRegister(), reg);
-  // The callback is alive if this instruction is executed,
-  // so the weak cell is not cleared and points to data.
-  Handle<WeakCell> cell = isolate()->factory()->NewWeakCell(callback);
-  __ GetWeakValue(ApiGetterDescriptor::CallbackRegister(), cell);
-
-  CallApiGetterStub stub(isolate());
-  __ TailCallStub(&stub);
-}
 
 void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     LookupIterator* it, Register interceptor_reg) {

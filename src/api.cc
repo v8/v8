@@ -1224,10 +1224,8 @@ static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
   return obj;
 }
 
-namespace {
-
 template <typename Getter, typename Setter>
-i::Handle<i::AccessorInfo> MakeAccessorInfo(
+static i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::Local<Name> name, Getter getter, Setter setter, v8::Local<Value> data,
     v8::AccessControl settings, v8::PropertyAttribute attributes,
     v8::Local<AccessorSignature> signature, bool is_special_data_property) {
@@ -1238,10 +1236,6 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
   SET_FIELD_WRAPPED(obj, set_setter, setter);
-#ifdef USE_SIMULATOR
-  i::Address redirected = obj->redirected_getter();
-  if (redirected != nullptr) SET_FIELD_WRAPPED(obj, set_js_getter, redirected);
-#endif
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -1250,7 +1244,6 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
 
-}  // namespace
 
 Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   i::Handle<i::FunctionTemplateInfo> handle = Utils::OpenHandle(this, true);
