@@ -541,8 +541,7 @@ class ParserTraits {
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
       Type::ExpressionClassifier* classifier);
   void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
-                                          Expression* params,
-                                          const Scanner::Location& params_loc,
+                                          Expression* params, int end_pos,
                                           bool* ok);
   void ParseArrowFunctionFormalParameterList(
       ParserFormalParameters* parameters, Expression* params,

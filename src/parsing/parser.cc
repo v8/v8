@@ -3827,16 +3827,9 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
   return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
 }
 
-
 void ParserTraits::ParseArrowFunctionFormalParameters(
-    ParserFormalParameters* parameters, Expression* expr,
-    const Scanner::Location& params_loc, bool* ok) {
-  if (parameters->Arity() >= Code::kMaxArguments) {
-    ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
-    *ok = false;
-    return;
-  }
-
+    ParserFormalParameters* parameters, Expression* expr, int end_pos,
+    bool* ok) {
   // ArrowFunctionFormals ::
   //    Binary(Token::COMMA, NonTailArrowFunctionFormals, Tail)
   //    Tail
@@ -3857,7 +3850,8 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     DCHECK_EQ(binop->op(), Token::COMMA);
     Expression* left = binop->left();
     Expression* right = binop->right();
-    ParseArrowFunctionFormalParameters(parameters, left, params_loc, ok);
+    int comma_pos = binop->position();
+    ParseArrowFunctionFormalParameters(parameters, left, comma_pos, ok);
     if (!*ok) return;
     // LHS of comma expression should be unparenthesized.
     expr = right;
@@ -3894,11 +3888,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
                                      parser_->scope_, parameters->scope);
   }
 
-  // TODO(adamk): params_loc.end_pos is not the correct initializer position,
-  // but it should be conservative enough to trigger hole checks for variables
-  // referenced in the initializer (if any).
-  AddFormalParameter(parameters, expr, initializer, params_loc.end_pos,
-                     is_rest);
+  AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
 
@@ -3927,8 +3917,14 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
     Scanner::Location* duplicate_loc, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  ParseArrowFunctionFormalParameters(parameters, expr, params_loc, ok);
+  ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos, ok);
   if (!*ok) return;
+
+  if (parameters->Arity() > Code::kMaxArguments) {
+    ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
+    *ok = false;
+    return;
+  }
 
   Type::ExpressionClassifier classifier(parser_);
   if (!parameters->is_simple) {
