@@ -96,10 +96,8 @@ OptimizedCompileJob* OptimizingCompileDispatcher::NextInput(
   input_queue_length_--;
   if (check_if_flushing) {
     if (static_cast<ModeFlag>(base::Acquire_Load(&mode_)) == FLUSH) {
-      if (!job->info()->is_osr()) {
-        AllowHandleDereference allow_handle_dereference;
-        DisposeOptimizedCompileJob(job, true);
-      }
+      AllowHandleDereference allow_handle_dereference;
+      DisposeOptimizedCompileJob(job, true);
       return NULL;
     }
   }
@@ -134,10 +132,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
       output_queue_.pop();
     }
 
-    // OSR jobs are dealt with separately.
-    if (!job->info()->is_osr()) {
-      DisposeOptimizedCompileJob(job, restore_function_code);
-    }
+    DisposeOptimizedCompileJob(job, restore_function_code);
   }
 }
 

@@ -775,11 +775,7 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
     info->closure()->ShortPrint();
-    if (info->is_osr()) {
-      PrintF(" for concurrent OSR at %d.\n", info->osr_ast_id().ToInt());
-    } else {
-      PrintF(" for concurrent optimization.\n");
-    }
+    PrintF(" for concurrent optimization.\n");
   }
   return true;
 }
