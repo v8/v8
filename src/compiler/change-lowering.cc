@@ -31,6 +31,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeFloat64ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeInt32ToTagged:
       return ChangeInt32ToTagged(node->InputAt(0), control);
+    case IrOpcode::kChangeSmiToInt32:
+      return ChangeSmiToInt32(node->InputAt(0));
     case IrOpcode::kChangeTaggedToFloat64:
       return ChangeTaggedToFloat64(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedToInt32:
@@ -121,11 +123,10 @@ Node* ChangeLowering::ChangeInt32ToSmi(Node* value) {
 
 
 Node* ChangeLowering::ChangeSmiToFloat64(Node* value) {
-  return ChangeInt32ToFloat64(ChangeSmiToInt32(value));
+  return ChangeInt32ToFloat64(ChangeSmiToWord32(value));
 }
 
-
-Node* ChangeLowering::ChangeSmiToInt32(Node* value) {
+Node* ChangeLowering::ChangeSmiToWord32(Node* value) {
   value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
   if (machine()->Is64()) {
     value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
@@ -277,11 +278,14 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
   return Replace(phi);
 }
 
+Reduction ChangeLowering::ChangeSmiToInt32(Node* value) {
+  return Replace(ChangeSmiToWord32(value));
+}
 
 Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                                              Signedness signedness) {
   if (NodeProperties::GetType(value)->Is(Type::TaggedSigned())) {
-    return Replace(ChangeSmiToInt32(value));
+    return ChangeSmiToInt32(value);
   }
 
   const Operator* op = (signedness == kSigned)
@@ -324,7 +328,7 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
   }
 
   Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfrom_smi = ChangeSmiToInt32(value);
+  Node* vfrom_smi = ChangeSmiToWord32(value);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
@@ -334,85 +338,7 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
 }
 
 
-namespace {
-
-bool CanCover(Node* value, IrOpcode::Value opcode) {
-  if (value->opcode() != opcode) return false;
-  bool first = true;
-  for (Edge const edge : value->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge)) continue;
-    if (NodeProperties::IsEffectEdge(edge)) continue;
-    DCHECK(NodeProperties::IsValueEdge(edge));
-    if (!first) return false;
-    first = false;
-  }
-  return true;
-}
-
-}  // namespace
-
-
 Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
-  if (CanCover(value, IrOpcode::kJSToNumber)) {
-    // ChangeTaggedToFloat64(JSToNumber(x)) =>
-    //   if IsSmi(x) then ChangeSmiToFloat64(x)
-    //   else let y = JSToNumber(x) in
-    //     if IsSmi(y) then ChangeSmiToFloat64(y)
-    //     else LoadHeapNumberValue(y)
-    Node* const object = NodeProperties::GetValueInput(value, 0);
-    Node* const context = NodeProperties::GetContextInput(value);
-    Node* const frame_state = NodeProperties::GetFrameStateInput(value, 0);
-    Node* const effect = NodeProperties::GetEffectInput(value);
-    Node* const control = NodeProperties::GetControlInput(value);
-
-    const Operator* merge_op = common()->Merge(2);
-    const Operator* ephi_op = common()->EffectPhi(2);
-    const Operator* phi_op = common()->Phi(MachineRepresentation::kFloat64, 2);
-
-    Node* check1 = TestNotSmi(object);
-    Node* branch1 =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, control);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 = graph()->NewNode(value->op(), object, context, frame_state,
-                                    effect, if_true1);
-    Node* etrue1 = vtrue1;
-
-    Node* check2 = TestNotSmi(vtrue1);
-    Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_true1);
-
-    Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-    Node* vtrue2 = LoadHeapNumberValue(vtrue1, if_true2);
-
-    Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-    Node* vfalse2 = ChangeSmiToFloat64(vtrue1);
-
-    if_true1 = graph()->NewNode(merge_op, if_true2, if_false2);
-    vtrue1 = graph()->NewNode(phi_op, vtrue2, vfalse2, if_true1);
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* vfalse1 = ChangeSmiToFloat64(object);
-    Node* efalse1 = effect;
-
-    Node* merge1 = graph()->NewNode(merge_op, if_true1, if_false1);
-    Node* ephi1 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
-    Node* phi1 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
-
-    // Wire the new diamond into the graph, {JSToNumber} can still throw.
-    NodeProperties::ReplaceUses(value, phi1, ephi1, etrue1, etrue1);
-
-    // TODO(mstarzinger): This iteration cuts out the IfSuccess projection from
-    // the node and places it inside the diamond. Come up with a helper method!
-    for (Node* use : etrue1->uses()) {
-      if (use->opcode() == IrOpcode::kIfSuccess) {
-        use->ReplaceUses(merge1);
-        NodeProperties::ReplaceControlInput(branch2, use);
-      }
-    }
-
-    return Replace(phi1);
-  }
-
   Node* check = TestNotSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);

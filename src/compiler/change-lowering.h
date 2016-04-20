@@ -35,7 +35,7 @@ class ChangeLowering final : public Reducer {
   Node* ChangeInt32ToFloat64(Node* value);
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeSmiToFloat64(Node* value);
-  Node* ChangeSmiToInt32(Node* value);
+  Node* ChangeSmiToWord32(Node* value);
   Node* ChangeUint32ToFloat64(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* LoadHeapNumberValue(Node* value, Node* control);
@@ -45,6 +45,7 @@ class ChangeLowering final : public Reducer {
   Reduction ChangeBoolToBit(Node* value);
   Reduction ChangeFloat64ToTagged(Node* value, Node* control);
   Reduction ChangeInt32ToTagged(Node* value, Node* control);
+  Reduction ChangeSmiToInt32(Node* value);
   Reduction ChangeTaggedToFloat64(Node* value, Node* control);
   Reduction ChangeTaggedToUI32(Node* value, Node* control,
                                Signedness signedness);

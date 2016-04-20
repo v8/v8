@@ -1845,6 +1845,11 @@ Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
 
 }  // namespace
 
+Type* Typer::Visitor::TypeChangeSmiToInt32(Node* node) {
+  Type* arg = Operand(node, 0);
+  // TODO(neis): DCHECK(arg->Is(Type::Signed32()));
+  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
+}
 
 Type* Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
   Type* arg = Operand(node, 0);
