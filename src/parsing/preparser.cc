@@ -160,8 +160,7 @@ PreParserExpression PreParserTraits::ParseClassLiteral(
 // it is used) are generally omitted.
 
 
-PreParser::Statement PreParser::ParseStatementListItem(bool top_level,
-                                                       bool* ok) {
+PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
   // ECMA 262 6th Edition
   // StatementListItem[Yield, Return] :
   //   Statement[?Yield, ?Return]
@@ -182,7 +181,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool top_level,
   // Allow ambient variable, function, and class declarations.
   bool ambient =
       scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
-  if (ambient && !top_level) {
+  if (ambient && !scope_->is_toplevel_scope()) {
     *ok = false;
     ReportMessage(MessageTemplate::kIllegalDeclare);
     return Statement::Default();
@@ -228,7 +227,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool top_level,
 }
 
 
-void PreParser::ParseStatementList(int end_token, bool top_level, bool* ok,
+void PreParser::ParseStatementList(int end_token, bool* ok,
                                    Scanner::BookmarkScope* bookmark) {
   // SourceElements ::
   //   (Statement)* <end_token>
@@ -245,7 +244,7 @@ void PreParser::ParseStatementList(int end_token, bool top_level, bool* ok,
     }
     bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement statement = ParseStatementListItem(top_level, ok);
+    Statement statement = ParseStatementListItem(ok);
     if (!*ok) return;
 
     if (directive_prologue) {
@@ -469,10 +468,14 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
-  while (peek() != Token::RBRACE) {
-    final = ParseStatementListItem(false, CHECK_OK);
+  {
+    BlockState block_state(&scope_, block_scope);
+    while (peek() != Token::RBRACE) {
+      final = ParseStatementListItem(CHECK_OK);
+    }
   }
   Expect(Token::RBRACE, ok);
   return final;
@@ -573,7 +576,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       ParseValidType(CHECK_OK);
     }
 
-    // Skip initializers, for ambient declarations.
+    // Initializers are not allowed in ambient declarations.
     if (ambient) {
       nvars++;
       continue;
@@ -804,7 +807,7 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     while (token != Token::CASE &&
            token != Token::DEFAULT &&
            token != Token::RBRACE) {
-      statement = ParseStatementListItem(false, CHECK_OK);
+      statement = ParseStatementListItem(CHECK_OK);
       token = peek();
     }
   }
@@ -1098,7 +1101,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_lazily_parsed) {
     ParseLazyFunctionLiteralBody(CHECK_OK);
   } else {
-    ParseStatementList(Token::RBRACE, false, CHECK_OK);
+    ParseStatementList(Token::RBRACE, CHECK_OK);
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -1126,7 +1129,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
                                              Scanner::BookmarkScope* bookmark) {
   int body_start = position();
-  ParseStatementList(Token::RBRACE, false, ok, bookmark);
+  ParseStatementList(Token::RBRACE, ok, bookmark);
   if (!*ok) return;
   if (bookmark && bookmark->HasBeenReset()) return;
 
@@ -1238,7 +1241,7 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   {
     BlockState block_state(&scope_, block_scope);
     while (peek() != Token::RBRACE) {
-      ParseStatementListItem(false, CHECK_OK);
+      ParseStatementListItem(CHECK_OK);
     }
     Expect(Token::RBRACE, CHECK_OK);
     return PreParserExpression::Default();

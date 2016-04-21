@@ -932,7 +932,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (info->is_module()) {
       ParseModuleItemList(body, &ok);
     } else {
-      ParseStatementList(body, Token::EOS, true, &ok);
+      ParseStatementList(body, Token::EOS, &ok);
     }
 
     // The parser will peek but not consume EOS.  Our scope logically goes all
@@ -1157,7 +1157,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
 
 void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
-                                 bool top_level, bool* ok) {
+                                 bool* ok) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
@@ -1176,7 +1176,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
     }
 
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement* stat = ParseStatementListItem(top_level, CHECK_OK);
+    Statement* stat = ParseStatementListItem(CHECK_OK);
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1266,7 +1266,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
 }
 
 
-Statement* Parser::ParseStatementListItem(bool top_level, bool* ok) {
+Statement* Parser::ParseStatementListItem(bool* ok) {
   // (Ecma 262 6th Edition, 13.1):
   // StatementListItem:
   //    Statement
@@ -1275,7 +1275,7 @@ Statement* Parser::ParseStatementListItem(bool top_level, bool* ok) {
   // Allow ambient variable, function, and class declarations.
   bool ambient =
       scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
-  if (ambient && !top_level) {
+  if (ambient && !scope_->is_toplevel_scope()) {
     *ok = false;
     ReportMessage(MessageTemplate::kIllegalDeclare);
     return nullptr;
@@ -1335,7 +1335,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
     default:
-      return ParseStatementListItem(true, ok);
+      return ParseStatementListItem(ok);
   }
 }
 
@@ -2318,7 +2318,7 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels,
     Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
-      Statement* stat = ParseStatementListItem(false, CHECK_OK);
+      Statement* stat = ParseStatementListItem(CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->statements()->Add(stat, zone());
       }
@@ -2884,7 +2884,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   while (peek() != Token::CASE &&
          peek() != Token::DEFAULT &&
          peek() != Token::RBRACE) {
-    stat = ParseStatementListItem(false, CHECK_OK);
+    stat = ParseStatementListItem(CHECK_OK);
     statements->Add(stat, zone());
   }
   return factory()->NewCaseClause(label, statements, pos);
@@ -3119,7 +3119,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
         Expect(Token::LBRACE, CHECK_OK);
         while (peek() != Token::RBRACE) {
-          Statement* stat = ParseStatementListItem(false, CHECK_OK);
+          Statement* stat = ParseStatementListItem(CHECK_OK);
           if (stat && !stat->IsEmpty()) {
             catch_block->statements()->Add(stat, zone());
           }
@@ -4732,8 +4732,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
             zone());
       }
 
-      ParseStatementList(try_block->statements(), Token::RBRACE, false,
-                         CHECK_OK);
+      ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
 
       Statement* final_return = factory()->NewReturnStatement(
           BuildIteratorResult(nullptr, true), RelocInfo::kNoPosition);
@@ -4756,7 +4755,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                                                   RelocInfo::kNoPosition),
                 zone());
     } else {
-      ParseStatementList(body, Token::RBRACE, false, CHECK_OK);
+      ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
 
     if (IsSubclassConstructor(kind)) {

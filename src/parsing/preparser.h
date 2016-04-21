@@ -1310,7 +1310,7 @@ class PreParser : public ParserBase<PreParserTraits> {
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
-    ParseStatementList(Token::EOS, true, &ok);
+    ParseStatementList(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
@@ -1350,8 +1350,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  Statement ParseStatementListItem(bool top_level, bool* ok);
-  void ParseStatementList(int end_token, bool top_level, bool* ok,
+  Statement ParseStatementListItem(bool* ok);
+  void ParseStatementList(int end_token, bool* ok,
                           Scanner::BookmarkScope* bookmark = nullptr);
   Statement ParseStatement(AllowLabelledFunctionStatement allow_function,
                            bool* ok);
@@ -1485,7 +1485,7 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseStatementList(Token::RBRACE, false, ok);
+  ParseStatementList(Token::RBRACE, ok);
   if (!*ok) return PreParserStatementList();
 
   Expect(Token::RBRACE, ok);

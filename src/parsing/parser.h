@@ -784,9 +784,8 @@ class Parser : public ParserBase<ParserTraits> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  void* ParseStatementList(ZoneList<Statement*>* body, int end_token,
-                           bool top_level, bool* ok);
-  Statement* ParseStatementListItem(bool top_level, bool* ok);
+  void* ParseStatementList(ZoneList<Statement*>* body, int end_token, bool* ok);
+  Statement* ParseStatementListItem(bool* ok);
   void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   const AstRawString* ParseModuleSpecifier(bool* ok);
