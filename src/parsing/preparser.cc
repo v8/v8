@@ -94,16 +94,18 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
+    LanguageMode language_mode, bool is_typed, typesystem::TypeFlags type_flags,
+    bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, language_mode, type_flags, ok);
+      function_token_position, type, language_mode, is_typed, type_flags, ok);
 }
 
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-    ParserRecorder* log, Scanner::BookmarkScope* bookmark) {
+    LanguageMode language_mode, bool is_typed, FunctionKind kind,
+    bool has_simple_parameters, ParserRecorder* log,
+    Scanner::BookmarkScope* bookmark) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   Scope* top_scope = NewScope(scope_, SCRIPT_SCOPE);
@@ -111,6 +113,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   FunctionState top_state(&function_state_, &scope_, top_scope, kNormalFunction,
                           &top_factory);
   scope_->SetLanguageMode(language_mode);
+  if (is_typed) scope_->SetTyped();
   Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   PreParserFactory function_factory(NULL);
@@ -425,7 +428,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
-                       typesystem::kAllowSignature, CHECK_OK);
+                       typed(), typesystem::kAllowSignature, CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
@@ -1019,7 +1022,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok) {
+    LanguageMode language_mode, bool is_typed, typesystem::TypeFlags type_flags,
+    bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -1027,6 +1031,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   bool outer_is_script_scope = scope_->is_script_scope();
   Scope* function_scope = NewScope(scope_, FUNCTION_SCOPE, kind);
   function_scope->SetLanguageMode(language_mode);
+  if (is_typed) function_scope->SetTyped();
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_, function_scope, kind,
                                &factory);

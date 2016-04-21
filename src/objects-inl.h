@@ -5752,6 +5752,18 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 }
 
 
+bool SharedFunctionInfo::typed() {
+  return BooleanBit::get(compiler_hints(), kTypedFunction);
+}
+
+
+void SharedFunctionInfo::set_typed(bool typed) {
+  int hints = compiler_hints();
+  hints = BooleanBit::set(hints, kTypedFunction, typed);
+  set_compiler_hints(hints);
+}
+
+
 FunctionKind SharedFunctionInfo::kind() {
   return FunctionKindBits::decode(compiler_hints());
 }

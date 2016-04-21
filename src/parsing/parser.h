@@ -604,7 +604,8 @@ class ParserTraits {
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok);
+      LanguageMode language_mode, bool is_typed,
+      typesystem::TypeFlags type_flags, bool* ok);
   V8_INLINE void SkipLazyFunctionBody(
       int* materialized_literal_count, int* expected_property_count, bool* ok,
       Scanner::BookmarkScope* bookmark = nullptr);
@@ -1000,7 +1001,8 @@ class Parser : public ParserBase<ParserTraits> {
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
       int function_token_position, FunctionLiteral::FunctionType type,
-      LanguageMode language_mode, typesystem::TypeFlags type_flags, bool* ok);
+      LanguageMode language_mode, bool is_typed,
+      typesystem::TypeFlags type_flags, bool* ok);
 
 
   ClassLiteral* ParseClassLiteral(const AstRawString* name,

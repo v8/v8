@@ -572,6 +572,7 @@ class ParserBase : public Traits {
   }
 
   LanguageMode language_mode() { return scope_->language_mode(); }
+  bool typed() { return scope_->typed(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
   bool allow_const() {
@@ -1840,7 +1841,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), type_flags,
+        language_mode(), typed(), type_flags,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Return no property definition if just the signature was given.
@@ -1891,7 +1892,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
         RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), typesystem::kDisallowTypeParameters,
+        language_mode(), typed(), typesystem::kDisallowTypeParameters,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
@@ -2699,7 +2700,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, language_mode(),
+        function_token_position, function_type, language_mode(), typed(),
         typesystem::kNormalTypes, CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
