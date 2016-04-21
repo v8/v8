@@ -321,6 +321,9 @@ class Scope: public ZoneObject {
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
   }
+  bool is_toplevel_scope() const {
+    return is_script_scope() || is_eval_scope() || is_module_scope();
+  }
   bool is_declaration_scope() const { return is_declaration_scope_; }
 
   void set_is_declaration_scope() { is_declaration_scope_ = true; }

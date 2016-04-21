@@ -1220,7 +1220,7 @@ class PreParserTraits {
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
-                                        bool* ok);
+                                        bool ambient, bool* ok);
 
   PreParserExpressionList PrepareSpreadArguments(PreParserExpressionList list) {
     return list;
@@ -1360,17 +1360,17 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
                               bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
-  Statement ParseFunctionDeclaration(bool* ok);
-  Statement ParseClassDeclaration(bool* ok);
+  Statement ParseFunctionDeclaration(bool ambient, bool* ok);
+  Statement ParseClassDeclaration(bool ambient, bool* ok);
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
-                                   bool* ok);
+                                   bool ambient, bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
                                       int* num_decl, bool* is_lexical,
                                       bool* is_binding_pattern,
                                       Scanner::Location* first_initializer_loc,
                                       Scanner::Location* bindings_loc,
-                                      bool* ok);
+                                      bool ambient, bool* ok);
   Statement ParseExpressionOrLabelledStatement(
       AllowLabelledFunctionStatement allow_function, bool* ok);
   Statement ParseIfStatement(bool* ok);
@@ -1410,7 +1410,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParserExpression ParseClassLiteral(PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
-                                        bool* ok);
+                                        bool ambient, bool* ok);
 };
 
 

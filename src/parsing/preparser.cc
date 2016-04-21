@@ -143,9 +143,9 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
 
 PreParserExpression PreParserTraits::ParseClassLiteral(
     PreParserIdentifier name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
-  return pre_parser_->ParseClassLiteral(name, class_name_location,
-                                        name_is_strict_reserved, pos, ok);
+    bool name_is_strict_reserved, int pos, bool ambient, bool* ok) {
+  return pre_parser_->ParseClassLiteral(
+      name, class_name_location, name_is_strict_reserved, pos, ambient, ok);
 }
 
 
@@ -181,24 +181,34 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
   // LexicalDeclaration[In, Yield] :
   //   LetOrConst BindingList[?In, ?Yield] ;
 
+  // Allow ambient variable, function, and class declarations.
+  bool ambient =
+      scope_->typed() && CheckContextualKeyword(CStrVector("declare"));
+  if (ambient && !scope_->is_toplevel_scope()) {
+    *ok = false;
+    ReportMessage(MessageTemplate::kIllegalDeclare);
+    return Statement::Default();
+  }
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(ambient, ok);
     case Token::CLASS:
-      return ParseClassDeclaration(ok);
+      return ParseClassDeclaration(ambient, ok);
     case Token::CONST:
       if (allow_const()) {
-        return ParseVariableStatement(kStatementListItem, ok);
+        return ParseVariableStatement(kStatementListItem, ambient, ok);
       }
       break;
+    case Token::VAR:
+      return ParseVariableStatement(kStatementListItem, ambient, ok);
     case Token::LET:
       if (IsNextLetKeyword()) {
-        return ParseVariableStatement(kStatementListItem, ok);
+        return ParseVariableStatement(kStatementListItem, ambient, ok);
       }
       break;
     case Token::IDENTIFIER:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
-      if (!scope_->typed()) break;
+      if (!scope_->typed() || ambient) break;
       int pos = peek_position();
       if (PeekContextualKeyword(CStrVector("type")) &&
           PeekAhead() == Token::IDENTIFIER) {
@@ -209,9 +219,14 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
       }
       break;
     }
-    // TODO(nikolaos): ambient
     default:
       break;
+  }
+  if (ambient) {
+    *ok = false;
+    ReportMessageAt(scanner()->peek_location(),
+                    MessageTemplate::kBadAmbientDeclaration);
+    return Statement::Default();
   }
   return ParseStatement(kAllowLabelledFunctionStatement, ok);
 }
@@ -313,7 +328,7 @@ PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
       (legacy && allow_harmony_restrictive_declarations())) {
     return ParseSubStatement(kDisallowLabelledFunctionStatement, ok);
   } else {
-    return ParseFunctionDeclaration(CHECK_OK);
+    return ParseFunctionDeclaration(false, CHECK_OK);
   }
 }
 
@@ -402,7 +417,7 @@ PreParser::Statement PreParser::ParseSubStatement(
       return ParseDebuggerStatement(ok);
 
     case Token::VAR:
-      return ParseVariableStatement(kStatement, ok);
+      return ParseVariableStatement(kStatement, false, ok);
 
     default:
       return ParseExpressionOrLabelledStatement(allow_function, ok);
@@ -410,7 +425,8 @@ PreParser::Statement PreParser::ParseSubStatement(
 }
 
 
-PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
+PreParser::Statement PreParser::ParseFunctionDeclaration(bool ambient,
+                                                         bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   // GeneratorDeclaration ::
@@ -422,18 +438,20 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
+  typesystem::TypeFlags type_flags =
+      ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
   ParseFunctionLiteral(name, scanner()->location(),
                        is_strict_reserved ? kFunctionNameIsStrictReserved
                                           : kFunctionNameValidityUnknown,
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
-                       typed(), typesystem::kAllowSignature, CHECK_OK);
+                       typed(), type_flags, CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
 
-PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
+PreParser::Statement PreParser::ParseClassDeclaration(bool ambient, bool* ok) {
   Expect(Token::CLASS, CHECK_OK);
   if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
     ReportMessage(MessageTemplate::kSloppyLexical);
@@ -446,7 +464,7 @@ PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   Identifier name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
   ParseClassLiteral(name, scanner()->location(), is_strict_reserved, pos,
-                    CHECK_OK);
+                    ambient, CHECK_OK);
   return Statement::Default();
 }
 
@@ -455,10 +473,14 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
-  while (peek() != Token::RBRACE) {
-    final = ParseStatementListItem(CHECK_OK);
+  {
+    BlockState block_state(&scope_, block_scope);
+    while (peek() != Token::RBRACE) {
+      final = ParseStatementListItem(CHECK_OK);
+    }
   }
   Expect(Token::RBRACE, ok);
   return final;
@@ -466,13 +488,13 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
 
 
 PreParser::Statement PreParser::ParseVariableStatement(
-    VariableDeclarationContext var_context,
-    bool* ok) {
+    VariableDeclarationContext var_context, bool ambient, bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(
-      var_context, nullptr, nullptr, nullptr, nullptr, nullptr, CHECK_OK);
+  Statement result =
+      ParseVariableDeclarations(var_context, nullptr, nullptr, nullptr, nullptr,
+                                nullptr, ambient, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -486,7 +508,7 @@ PreParser::Statement PreParser::ParseVariableStatement(
 PreParser::Statement PreParser::ParseVariableDeclarations(
     VariableDeclarationContext var_context, int* num_decl, bool* is_lexical,
     bool* is_binding_pattern, Scanner::Location* first_initializer_loc,
-    Scanner::Location* bindings_loc, bool* ok) {
+    Scanner::Location* bindings_loc, bool ambient, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -557,6 +579,12 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     // Parse optional type annotation.
     if (scope_->typed() && Check(Token::COLON)) {  // Braces required here.
       ParseValidType(CHECK_OK);
+    }
+
+    // Initializers are not allowed in ambient declarations.
+    if (ambient) {
+      nvars++;
+      continue;
     }
 
     Scanner::Location variable_loc = scanner()->location();
@@ -630,7 +658,7 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
     // ES#sec-labelled-function-declarations Labelled Function Declarations
     if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
       if (allow_function == kAllowLabelledFunctionStatement) {
-        return ParseFunctionDeclaration(ok);
+        return ParseFunctionDeclaration(false, ok);
       } else {
         return ParseScopedStatement(true, ok);
       }
@@ -839,7 +867,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       Scanner::Location bindings_loc = Scanner::Location::invalid();
       ParseVariableDeclarations(kForStatement, &decl_count, &is_lexical,
                                 &is_binding_pattern, &first_initializer_loc,
-                                &bindings_loc, CHECK_OK);
+                                &bindings_loc, false, CHECK_OK);
       if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
@@ -1069,9 +1097,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     ParseValidType(CHECK_OK);
   }
 
-  // Allow for a function signature (i.e., a literal without body).
-  if (peek() != Token::LBRACE && scope_->typed() &&
-      (type_flags & typesystem::kAllowSignature)) {
+  // Allow or even enforce a function signature (i.e., literal without body),
+  // In that case, return a nullptr instead of a function literal.
+  if ((type_flags & typesystem::kDisallowBody) ||
+      (peek() != Token::LBRACE && scope_->typed() &&
+       (type_flags & typesystem::kAllowSignature))) {
     ExpectSemicolon(CHECK_OK);
     return this->EmptyExpression();
   }
@@ -1124,7 +1154,7 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
 
 PreParserExpression PreParser::ParseClassLiteral(
     PreParserIdentifier name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
+    bool name_is_strict_reserved, int pos, bool ambient, bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location,
@@ -1180,7 +1210,7 @@ PreParserExpression PreParser::ParseClassLiteral(
     ExpressionClassifier classifier(this);
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
                             &is_computed_name, &has_seen_constructor,
-                            &classifier, &name, CHECK_OK);
+                            &classifier, &name, ambient, CHECK_OK);
     ValidateExpression(&classifier, CHECK_OK);
   }
 

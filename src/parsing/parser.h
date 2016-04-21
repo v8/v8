@@ -617,7 +617,7 @@ class ParserTraits {
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
-                                  bool* ok);
+                                  bool ambient, bool* ok);
 
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
@@ -807,19 +807,19 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
                                    bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                      bool* ok);
+                                      bool ambient, bool* ok);
   Statement* ParseFunctionDeclaration(int pos, bool is_generator,
                                       ZoneList<const AstRawString*>* names,
-                                      bool* ok);
+                                      bool ambient, bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                   bool* ok);
+                                   bool ambient, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels,
                     bool finalize_block_scope, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
-                                bool* ok);
+                                bool ambient, bool* ok);
   DoExpression* ParseDoExpression(bool* ok);
   Expression* ParseYieldStarExpression(bool* ok);
 
@@ -943,7 +943,7 @@ class Parser : public ParserBase<ParserTraits> {
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    DeclarationParsingResult* parsing_result,
                                    ZoneList<const AstRawString*>* names,
-                                   bool* ok);
+                                   bool ambient, bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels,
       AllowLabelledFunctionStatement allow_function, bool* ok);
@@ -1008,7 +1008,7 @@ class Parser : public ParserBase<ParserTraits> {
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
-                                  bool* ok);
+                                  bool ambient, bool* ok);
 
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);

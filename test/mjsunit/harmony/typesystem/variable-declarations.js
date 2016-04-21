@@ -50,13 +50,9 @@ function InvalidVariableDeclarations(size, keyword="var") {
       keyword != "const" && (t => keyword + " {a: x, b: y} : " + t + ";"),
       t => keyword + " {a: x, b: y} : " + t + " = {a: 17, b: 42};"
     ]),
-    "var [x, y]: number[];",
-    "var {a: x, b: y}: {a: number, b: string};",
-    "let [x, y]: number[];",
-    "let {a: x, b: y}: {a: number, b: string};",
-    "const x: number;",
-    "const [x, y]: [number, string];",
-    "const {a: x, b: y}: {a: number, b: string};"
+    keyword + " [x, y]: number[];",
+    keyword + " {a: x, b: y}: {a: number, b: string};",
+    keyword == "const" && keyword + " x: number;"
   ]);
 }
 

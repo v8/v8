@@ -7943,3 +7943,441 @@ TEST(TypedModeInterfaceDeclarations) {
   RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+TEST(TypedModeAmbientDeclarations) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+  const char* typed_inner_context_data[][2] = {
+    {"'use types'; {", "}"},
+    {"'use types'; try {", "} catch(x) {}"},
+    // TODO(nikolaos): Leaving this out, for now, there's an unrelated bug.
+    // {"'use types'; function f() {", "}"},
+    {"'use types'; for(", " of []) {}"},
+    {NULL, NULL}
+  };
+
+  const char* correct_data[] = {
+#define VALID(decl)                             \
+    "declare var " decl,                        \
+    "declare var " decl "; var " decl
+    VALID("x"),
+    VALID("x: number"),
+    VALID("x, y"),
+    VALID("x: number, y: string"),
+#undef VALID
+#define VALID(decl, full)                       \
+    "declare var " decl,                        \
+    "declare var " decl "; var " full
+    VALID("[x, y]", "[x, y] = [42, 'hello']"),
+    VALID("[x, y] : [number, string]", "[x, y] = [42, 'hello']"),
+    VALID("{a: x, b: y}", "{a: x, b: y} = {a: 42, b: 'hello'}"),
+    VALID("{a: x, b: y} : {a: number, b: string}",
+          "{a: x, b: y} = {a: 42, b: 'hello'}"),
+#undef VALID
+#define VALID(decl)                             \
+    "declare " decl,                            \
+    "declare " decl "; " decl " {}"
+    VALID("function f()"),
+    VALID("function f() : number"),
+    VALID("function f(x: number)"),
+    VALID("function f(x: number) : number"),
+    VALID("function f<A>()"),
+    VALID("function f<A>() : A"),
+    VALID("function f<A>(x: A)"),
+    VALID("function f<A, B>(x: A) : B"),
+    VALID("function* f()"),
+    VALID("function* f() : number"),
+    VALID("function* f(x: number)"),
+    VALID("function* f(x: number) : number"),
+    VALID("function* f<A>()"),
+    VALID("function* f<A>() : A"),
+    VALID("function* f<A>(x: A)"),
+    VALID("function* f<A, B>(x: A) : B"),
+#undef VALID
+#define VALID(members)                                                  \
+    "declare class C {" members "}",                                    \
+    "class B {}; declare class C extends B {" members "}",              \
+    "declare class C implements I {" members "}",                       \
+    "declare class C implements I, J {" members "}",                    \
+    "class B {}; declare class C extends B implements I {" members "}", \
+    "class B {}; declare class C extends B implements I, J {"           \
+      members "}",                                                      \
+    "declare class C<A, B> {" members "}",                              \
+    "class D {}; declare class C<A, B> extends D {" members "}",        \
+    "declare class C<A, B> implements I<A, B> {" members "}",           \
+    "class D {}; declare class C<A, B> extends D implements I<A, B> {"  \
+      members "}"
+    VALID("constructor (x: number, y: boolean);"
+          "x;"
+          "y: boolean;"
+          "'one': number;"
+          "'2': boolean;"
+          "3: string;"
+          "f1 () : number;"
+          "f2 (a: number[]) : number;"
+          "f3 (a: number[], b: number) : number;"
+          "f4 <A, B>(a: A, b: B) : [A, B];"
+          "[x: string];"
+          "[x: string] : number;"
+          "[x: number];"
+          "[x: number] : boolean;"),
+    VALID("static x;"
+          "static y: boolean;"
+          "static 'one': number;"
+          "static '2': boolean;"
+          "static 3: string;"
+          "static f1 () : number;"
+          "static f2 (a: number[]) : number;"
+          "static f3 (a: number[], b: number) : number;"
+          "static f4 <A, B>(a: A, b: B) : [A, B];"),
+#undef VALID
+    NULL
+  };
+
+  const char* error_data[] = {
+    "declare var x : ()",
+    "declare var x = 42",
+    "declare x: number = 42",
+    "declare x = 42, y = 'hello'",
+    "declare x: number = 42, y: string = 'hello'",
+#define INVALID(decl) "declare " decl " {}"
+    INVALID("function f()"),
+    INVALID("function f() : number"),
+    INVALID("function f(x: number)"),
+    INVALID("function f(x: number) : number"),
+    INVALID("function f<A>()"),
+    INVALID("function f<A>() : A"),
+    INVALID("function f<A>(x: A)"),
+    INVALID("function f<A, B>(x: A) : B"),
+    INVALID("function* f()"),
+    INVALID("function* f() : number"),
+    INVALID("function* f(x: number)"),
+    INVALID("function* f(x: number) : number"),
+    INVALID("function* f<A>()"),
+    INVALID("function* f<A>() : A"),
+    INVALID("function* f<A>(x: A)"),
+    INVALID("function* f<A, B>(x: A) : B"),
+#undef INVALID
+    "declare function f() : ()",
+    "declare function f(x? = 42) : ()",
+    "declare function f<>()",
+    "declare function ()",
+    "declare function () : number",
+    "declare function (x: number)",
+    "declare function (x: number) : number",
+    "declare function <A>()",
+    "declare function <A>() : A",
+    "declare function <A>(x: A)",
+    "declare function <A, B>(x: A) : B",
+#define INVALID1(member)                                                \
+    "declare class C {" member "}",                                     \
+    "class B {}; declare class C extends B {" member "}",               \
+    "declare class C implements I {" member "}",                        \
+    "declare class C implements I, J {" member "}",                     \
+    "class B {}; declare class C extends B implements I {" member "}",  \
+    "class B {}; declare class C extends B implements I, J {"           \
+      member "}",                                                       \
+    "declare class C<A, B> {" member "}",                               \
+    "class D {}; declare class C<A, B> extends D {" member "}",         \
+    "declare class C<A, B> implements I<A, B> {" member "}",            \
+    "class D {}; declare class C<A, B> extends D implements I<A, B> {"  \
+      member "}"
+#define INVALID2(member, suffix)                               \
+    INVALID1(member),                                          \
+    INVALID1(member " " suffix)
+    INVALID2("constructor (a : number) : boolean", "{}"),
+    INVALID2("constructor <A>(a : A)", "{}"),
+    INVALID1("x = 42"),
+    INVALID1("x : number = 42"),
+    INVALID1("'four': number = 4"),
+    INVALID1("'5': boolean = false"),
+    INVALID1("6: string[] = [...['six', 'six', 'and', 'six']]"),
+    INVALID2("get x ()", "{ return 42; }"),
+    INVALID2("get x () : number", "{ return 42; }"),
+    INVALID2("set x (a)", "{}"),
+    INVALID2("set x (a) : void", "{}"),
+    INVALID2("set x (a : number)", "{}"),
+    INVALID2("set x (a : number) : void", "{}"),
+    INVALID2("get x (a)", "{ return 42; }"),
+    INVALID2("get x (a) : number", "{ return 42; }"),
+    INVALID2("get x (a, b)", "{ return 42; }"),
+    INVALID2("get x (a, b) : number", "{ return 42; }"),
+    INVALID2("get x (a : number)", "{ return 42; }"),
+    INVALID2("get x (a : number) : number", "{ return 42; }"),
+    INVALID2("get x <A>()", "{ return 42; }"),
+    INVALID2("set x ()", "{}"),
+    INVALID2("set x () : void", "{}"),
+    INVALID2("set x (a : number, b : number)", "{}"),
+    INVALID2("set x (a : number, b : number) : void", "{}"),
+    INVALID2("set x (...rest)", "{}"),
+    INVALID2("set x (...rest : string[]) : void", "{}"),
+    INVALID2("set x <A>(a : A)", "{}"),
+#undef INVALID1
+#undef INVALID2
+    "declare type N = number",
+    "declare interface I {}",
+    "declare x = 42",
+    "declare {}",
+    "declare while (true) {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_inner_context_data, correct_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(typed_inner_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(TypedModeAmbientExportDeclarations) {
+  const char* untyped_context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* typed_context_data[][2] = {{"'use types'; ", ""}, {NULL, NULL}};
+
+  const char* correct_data[] = {
+    // export var
+    "export declare var x",
+    "export declare var x : number",
+    "export declare var x, y",
+    "export declare var x: number, y: string",
+    "export declare var [x, y]",
+    "export declare var [x, y] : [number, string]",
+    "export declare var {a: x, b: y}",
+    "export declare var {a: x, b: y} : {a: number, b: string}",
+    // export function
+    "export declare function f()",
+    "export declare function f() : number",
+    "export declare function f(x: number)",
+    "export declare function f(x: number) : number",
+    "export declare function f<A>()",
+    "export declare function f<A>() : A",
+    "export declare function f<A>(x: A)",
+    "export declare function f<A, B>(x: A) : B",
+    "export declare function* f()",
+    "export declare function* f() : number",
+    "export declare function* f(x: number)",
+    "export declare function* f(x: number) : number",
+    "export declare function* f<A>()",
+    "export declare function* f<A>() : A",
+    "export declare function* f<A>(x: A)",
+    "export declare function* f<A, B>(x: A) : B",
+    // export class
+#define VALID(members)                                                  \
+    "export declare class C {" members "}",                             \
+    "class B {}; export declare class C extends B {" members "}",       \
+    "export declare class C implements I {" members "}",                \
+    "export declare class C implements I, J {" members "}",             \
+    "class B {}; export declare class C extends B implements I {"       \
+      members "}",                                                      \
+    "class B {}; export declare class C extends B implements I, J {"    \
+      members "}",                                                      \
+    "export declare class C<A, B> {" members "}",                       \
+    "class D {}; export declare class C<A, B> extends D {" members "}", \
+    "export declare class C<A, B> implements I<A, B> {" members "}",    \
+    "class D {}; export declare class C<A, B> extends D "               \
+      "implements I<A, B> {" members "}"
+    VALID("constructor (x: number, y: boolean);"
+          "x;"
+          "y: boolean;"
+          "'one': number;"
+          "'2': boolean;"
+          "3: string;"
+          "f1 () : number;"
+          "f2 (a: number[]) : number;"
+          "f3 (a: number[], b: number) : number;"
+          "f4 <A, B>(a: A, b: B) : [A, B];"
+          "[x: string];"
+          "[x: string] : number;"
+          "[x: number];"
+          "[x: number] : boolean;"),
+    VALID("static x;"
+          "static y: boolean;"
+          "static 'one': number;"
+          "static '2': boolean;"
+          "static 3: string;"
+          "static f1 () : number;"
+          "static f2 (a: number[]) : number;"
+          "static f3 (a: number[], b: number) : number;"
+          "static f4 <A, B>(a: A, b: B) : [A, B];"),
+#undef VALID
+    // export default function
+    "export default declare function f()",
+    "export default declare function f() : number",
+    "export default declare function f(x: number)",
+    "export default declare function f(x: number) : boolean",
+    "export default declare function f<A>()",
+    "export default declare function f<A, B>(x: A) : B",
+    "export default declare function ()",
+    "export default declare function () : number",
+    "export default declare function (x: number)",
+    "export default declare function (x: number) : number",
+    "export default declare function <A>()",
+    "export default declare function <A, B>(x: A) : B",
+    "export default declare function* f()",
+    "export default declare function* f() : number",
+    "export default declare function* f(x: number)",
+    "export default declare function* f(x: number) : boolean",
+    "export default declare function* f<A>()",
+    "export default declare function* f<A, B>(x: A) : B",
+    "export default declare function* ()",
+    "export default declare function* () : number",
+    "export default declare function* (x: number)",
+    "export default declare function* (x: number) : number",
+    "export default declare function* <A>()",
+    "export default declare function* <A, B>(x: A) : B",
+    // export default class
+    "export default declare class C implements I { x: number }",
+    NULL
+  };
+
+  const char* error_data[] = {
+    // export var
+    "export declare var x : ()",
+    "export declare var x = 42",
+    "export declare x: number = 42",
+    "export declare x = 42, y = 'hello'",
+    "export declare x: number = 42, y: string = 'hello'",
+    // export function
+#define INVALID(decl) "export declare " decl " {}"
+    INVALID("function f()"),
+    INVALID("function f() : number"),
+    INVALID("function f(x: number)"),
+    INVALID("function f(x: number) : number"),
+    INVALID("function f<A>()"),
+    INVALID("function f<A>() : A"),
+    INVALID("function f<A>(x: A)"),
+    INVALID("function f<A, B>(x: A) : B"),
+    INVALID("function* f()"),
+    INVALID("function* f() : number"),
+    INVALID("function* f(x: number)"),
+    INVALID("function* f(x: number) : number"),
+    INVALID("function* f<A>()"),
+    INVALID("function* f<A>() : A"),
+    INVALID("function* f<A>(x: A)"),
+    INVALID("function* f<A, B>(x: A) : B"),
+#undef INVALID
+    "export declare function f() : ()",
+    "export declare function f(x? = 42) : ()",
+    "export declare function f<>()",
+    "export declare function ()",
+    "export declare function () : number",
+    "export declare function (x: number)",
+    "export declare function (x: number) : number",
+    "export declare function <A>()",
+    "export declare function <A>() : A",
+    "export declare function <A>(x: A)",
+    "export declare function <A, B>(x: A) : B",
+    // export class
+#define INVALID1(member)                                                \
+    "export declare class C {" member "}",                              \
+    "class B {}; export declare class C extends B {" member "}",        \
+    "export declare class C implements I {" member "}",                 \
+    "export declare class C implements I, J {" member "}",              \
+    "class B {}; export declare class C extends B implements I {"       \
+      member "}",                                                       \
+    "class B {}; export declare class C extends B implements I, J {"    \
+      member "}",                                                       \
+    "export declare class C<A, B> {" member "}",                        \
+    "class D {}; export declare class C<A, B> extends D {" member "}",  \
+    "export declare class C<A, B> implements I<A, B> {" member "}",     \
+    "class D {}; export declare class C<A, B> extends D "               \
+      "implements I<A, B> {" member "}"
+#define INVALID2(member, suffix)                               \
+    INVALID1(member),                                          \
+    INVALID1(member " " suffix)
+    INVALID2("constructor (a : number) : boolean", "{}"),
+    INVALID2("constructor <A>(a : A)", "{}"),
+    INVALID1("x = 42"),
+    INVALID1("x : number = 42"),
+    INVALID1("'four': number = 4"),
+    INVALID1("'5': boolean = false"),
+    INVALID1("6: string[] = [...['six', 'six', 'and', 'six']]"),
+    INVALID2("get x ()", "{ return 42; }"),
+    INVALID2("get x () : number", "{ return 42; }"),
+    INVALID2("set x (a)", "{}"),
+    INVALID2("set x (a) : void", "{}"),
+    INVALID2("set x (a : number)", "{}"),
+    INVALID2("set x (a : number) : void", "{}"),
+    INVALID2("get x (a)", "{ return 42; }"),
+    INVALID2("get x (a) : number", "{ return 42; }"),
+    INVALID2("get x (a, b)", "{ return 42; }"),
+    INVALID2("get x (a, b) : number", "{ return 42; }"),
+    INVALID2("get x (a : number)", "{ return 42; }"),
+    INVALID2("get x (a : number) : number", "{ return 42; }"),
+    INVALID2("get x <A>()", "{ return 42; }"),
+    INVALID2("set x ()", "{}"),
+    INVALID2("set x () : void", "{}"),
+    INVALID2("set x (a : number, b : number)", "{}"),
+    INVALID2("set x (a : number, b : number) : void", "{}"),
+    INVALID2("set x (...rest)", "{}"),
+    INVALID2("set x (...rest : string[]) : void", "{}"),
+    INVALID2("set x <A>(a : A)", "{}"),
+#undef INVALID1
+#undef INVALID2
+    // export other ambients
+    "export declare type N = number",
+    "export declare interface I {}",
+    // export invalid ambients
+    "export declare x = 42",
+    "export declare {}",
+    "export declare while (true) {}",
+    // export other forms
+    "export declare * from 'somewhere'",
+    "export declare {}",
+    "export declare { something }",
+    "export declare { something as different }",
+    "export declare {} from 'somewhere'",
+    "export declare { something } from 'somewhere'",
+    "export declare { something as different } from 'somewhere'",
+    "export declare default function f()",
+    // export default var
+    "export default declare var x",
+    "export default declare var x : number",
+    "export default declare var x = 42",
+    "export default declare x: number = 42",
+    // export default function
+    "export default declare function f() {}",
+    "export default declare function f(x: number) : boolean {}",
+    "export default declare function f<A, B>(x: A) : B {}",
+    "export default declare function f<>()",
+    "export default declare function () {}",
+    "export default declare function () : number {}",
+    "export default declare function (x: number) {}",
+    "export default declare function (x: number) : number {}",
+    "export default declare function* f() {}",
+    "export default declare function* f(x: number) : boolean {}",
+    "export default declare function* f<A, B>(x: A) : B {}",
+    "export default declare function* f<>()",
+    "export default declare function* () {}",
+    "export default declare function* () : number {}",
+    "export default declare function* (x: number) {}",
+    "export default declare function* (x: number) : number {}",
+    // export default class
+    "export default declare class C { x: number = 42 }",
+    "export default declare class C { get x() : number }",
+    // export default ...
+    "export default declare type N = number",
+    "export default declare interface I {}",
+    "export default declare x = 42",
+    "export default declare {}",
+    "export default declare while (true) {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowTypes};
+  RunModuleParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
+  RunModuleParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags));
+}
