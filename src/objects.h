@@ -1241,6 +1241,10 @@ class Object {
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+  MUST_USE_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
+      Handle<Object> object, Handle<Name> name, Handle<Object> value,
+      LanguageMode language_mode,
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   MUST_USE_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,

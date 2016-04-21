@@ -6996,7 +6996,7 @@ static i::Handle<i::Symbol> SymbolFor(i::Isolate* isolate,
     else
       symbol = isolate->factory()->NewSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*name);
-    i::JSObject::SetProperty(symbols, name, symbol, i::STRICT).Assert();
+    i::Object::SetPropertyOrElement(symbols, name, symbol, i::STRICT).Assert();
   }
   return i::Handle<i::Symbol>::cast(symbol);
 }

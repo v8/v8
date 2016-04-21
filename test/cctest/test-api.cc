@@ -25026,3 +25026,12 @@ TEST(SetIntegrityLevel) {
   is_frozen = CompileRun("Object.isFrozen(o)");
   CHECK(is_frozen->BooleanValue(context.local()).FromJust());
 }
+
+TEST(PrivateForApiIsNumber) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  // Shouldn't crash.
+  v8::Private::ForApi(isolate, v8_str("42"));
+}

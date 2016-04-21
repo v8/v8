@@ -7034,6 +7034,17 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
   return GetProperty(&it);
 }
 
+MaybeHandle<Object> Object::SetPropertyOrElement(Handle<Object> object,
+                                                 Handle<Name> name,
+                                                 Handle<Object> value,
+                                                 LanguageMode language_mode,
+                                                 StoreFromKeyed store_mode) {
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
+  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
+  return value;
+}
+
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder) {
