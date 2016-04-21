@@ -2217,6 +2217,9 @@ Type* Typer::Visitor::TypeUint64LessThanOrEqual(Node* node) {
 
 Type* Typer::Visitor::TypeUint64Mod(Node* node) { return Type::Internal(); }
 
+Type* Typer::Visitor::TypeBitcastWordToTagged(Node* node) {
+  return Type::TaggedPointer();
+}
 
 Type* Typer::Visitor::TypeChangeFloat32ToFloat64(Node* node) {
   return Type::Intersect(Type::Number(), Type::UntaggedFloat64(), zone());

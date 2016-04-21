@@ -343,8 +343,8 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Node* no_runtime_result = top;
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
                       IntPtrAdd(top, size_in_bytes));
-  no_runtime_result =
-      IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag));
+  no_runtime_result = BitcastWordToTagged(
+      IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag)));
   result.Bind(no_runtime_result);
   Goto(&merge_runtime);
 
@@ -392,7 +392,8 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
   // it when Simd128 alignment is supported.
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top,
                       LoadRoot(Heap::kOnePointerFillerMapRootIndex));
-  address.Bind(IntPtrAdd(address.value(), IntPtrConstant(kPointerSize)));
+  address.Bind(BitcastWordToTagged(
+      IntPtrAdd(address.value(), IntPtrConstant(kPointerSize))));
   Goto(&merge_address);
 
   Bind(&doesnt_need_filler);
@@ -428,7 +429,7 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
 }
 
 Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
-  return IntPtrAdd(previous, IntPtrConstant(offset));
+  return BitcastWordToTagged(IntPtrAdd(previous, IntPtrConstant(offset)));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,

@@ -107,6 +107,7 @@ class Schedule;
   V(Float64Sqrt)                        \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
+  V(BitcastWordToTagged)                \
   V(TruncateInt64ToInt32)               \
   V(ChangeFloat64ToUint32)              \
   V(ChangeInt32ToFloat64)               \

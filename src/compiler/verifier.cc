@@ -975,6 +975,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kBitcastFloat64ToInt64:
     case IrOpcode::kBitcastInt32ToFloat32:
     case IrOpcode::kBitcastInt64ToFloat64:
+    case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeInt32ToFloat64:

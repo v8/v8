@@ -220,6 +220,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
+  // This operator reinterprets the bits of a word as tagged pointer.
+  const Operator* BitcastWordToTagged();
+
   // These operators change the representation of numbers while preserving the
   // value of the number. Narrowing operators assume the input is representable
   // in the target type and are *not* defined for other inputs.
