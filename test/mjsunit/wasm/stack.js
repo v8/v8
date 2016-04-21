@@ -42,6 +42,21 @@ builder.addFunction("main", [kAstStmt])
   .addBody([kExprCallImport, 0])
   .exportAs("main");
 
+builder.addFunction("exec_unreachable", [kAstStmt])
+  .addBody([kExprUnreachable])
+  .exportAs("exec_unreachable");
+
+// make this function unnamed, just to test also this case
+var mem_oob_func = builder.addFunction(undefined, [kAstStmt])
+  // access the memory at offset -1
+  .addBody([kExprI32LoadMem8S, 0, 0, kExprI32Const, 0x7f])
+  .exportAs("mem_out_of_bounds");
+
+// call the mem_out_of_bounds function, in order to have two WASM stack frames
+builder.addFunction("call_mem_out_of_bounds", [kAstStmt])
+  .addBody([kExprCallFunction, mem_oob_func.index])
+  .exportAs("call_mem_out_of_bounds");
+
 var module = builder.instantiate({func: STACK});
 
 (function testSimpleStack() {
@@ -49,8 +64,8 @@ var module = builder.instantiate({func: STACK});
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:33:11)\n" +           // --
     "    at <WASM> (<anonymous>)\n" +             // TODO(jfb): wasm stack here.
-    "    at testSimpleStack (stack.js:55:18)\n" + // --
-    "    at stack.js:57:3";                       // --
+    "    at testSimpleStack (stack.js:70:18)\n" + // --
+    "    at stack.js:72:3";                       // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -70,7 +85,38 @@ Error.prepareStackTrace = function(error, frames) {
       //        function   line        file          toString
       [          "STACK",    33, "stack.js", "stack.js:33:11"],
       [         "<WASM>",  null,       null,         "<WASM>"],
-      ["testStackFrames",    66, "stack.js", "stack.js:66:18"],
-      [             null,    76, "stack.js",  "stack.js:76:3"]
+      ["testStackFrames",    81, "stack.js", "stack.js:81:18"],
+      [             null,    91, "stack.js",  "stack.js:91:3"]
   ]);
+})();
+
+(function testWasmUnreachable() {
+  try {
+    module.exports.exec_unreachable();
+    fail("expected wasm exception");
+  } catch (e) {
+    assertContains("unreachable", e.message);
+    verifyStack(e.stack, [
+        //            function   line        file           toString
+        [             "<WASM>",  null,       null,          "<WASM>"],
+        ["testWasmUnreachable",    95, "stack.js",  "stack.js:95:20"],
+        [                 null,   106, "stack.js",  "stack.js:106:3"]
+    ]);
+  }
+})();
+
+(function testWasmMemOutOfBounds() {
+  try {
+    module.exports.call_mem_out_of_bounds();
+    fail("expected wasm exception");
+  } catch (e) {
+    assertContains("out of bounds", e.message);
+    verifyStack(e.stack, [
+        //               function   line        file           toString
+        [                "<WASM>",  null,       null,          "<WASM>"],
+        [                "<WASM>",  null,       null,          "<WASM>"],
+        ["testWasmMemOutOfBounds",   110, "stack.js", "stack.js:110:20"],
+        [                    null,   122, "stack.js",  "stack.js:122:3"]
+    ]);
+  }
 })();
