@@ -414,7 +414,10 @@ void LookupIterator::TransitionToAccessorProperty(
     pair = Handle<AccessorPair>::cast(GetAccessors());
     // If the component and attributes are identical, nothing has to be done.
     if (pair->get(component) == *accessor) {
-      if (property_details().attributes() == attributes) return;
+      if (property_details().attributes() == attributes) {
+        if (!IsElement()) JSObject::ReoptimizeIfPrototype(receiver);
+        return;
+      }
     } else {
       pair = AccessorPair::Copy(pair);
       pair->set(component, *accessor);
