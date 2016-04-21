@@ -20,19 +20,28 @@ namespace internal {
 namespace wasm {
 
 static const char* wasmSections[] = {
-#define F(enumerator, string) string,
+#define F(enumerator, order, string) string,
     FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
+        "<unknown>"  // entry for "Max"
 };
 
 static uint8_t wasmSectionsLengths[]{
-#define F(enumerator, string) sizeof(string) - 1,
+#define F(enumerator, order, string) sizeof(string) - 1,
     FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
+        9  // entry for "Max"
+};
+
+static uint8_t wasmSectionsOrders[]{
+#define F(enumerator, order, string) order,
+    FOR_EACH_WASM_SECTION_TYPE(F)
+#undef F
+        0  // entry for "Max"
 };
 
 static_assert(sizeof(wasmSections) / sizeof(wasmSections[0]) ==
-                  (size_t)WasmSection::Code::Max,
+                  (size_t)WasmSection::Code::Max + 1,
               "expected enum WasmSection::Code to be monotonic from 0");
 
 WasmSection::Code WasmSection::begin() { return (WasmSection::Code)0; }
@@ -47,6 +56,20 @@ const char* WasmSection::getName(WasmSection::Code code) {
 
 size_t WasmSection::getNameLength(WasmSection::Code code) {
   return wasmSectionsLengths[(size_t)code];
+}
+
+int WasmSection::getOrder(WasmSection::Code code) {
+  return wasmSectionsOrders[(size_t)code];
+}
+
+WasmSection::Code WasmSection::lookup(const byte* string, uint32_t length) {
+  // TODO(jfb) Linear search, it may be better to do a common-prefix search.
+  for (Code i = begin(); i != end(); i = next(i)) {
+    if (getNameLength(i) == length && 0 == memcmp(getName(i), string, length)) {
+      return i;
+    }
+  }
+  return Code::Max;
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmModule& module) {

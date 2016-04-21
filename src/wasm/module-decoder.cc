@@ -25,7 +25,6 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-
 // The main logic for decoding the bytes of a module.
 class ModuleDecoder : public Decoder {
  public:
@@ -79,9 +78,8 @@ class ModuleDecoder : public Decoder {
     module->mem_external = false;
     module->origin = origin_;
 
-    bool sections[(size_t)WasmSection::Code::Max] = {false};
-
     const byte* pos = pc_;
+    int current_order = 0;
     uint32_t magic_word = consume_u32("wasm magic");
 #define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
     if (magic_word != kWasmMagic) {
@@ -109,33 +107,37 @@ class ModuleDecoder : public Decoder {
       TRACE("DecodeSection\n");
       pos = pc_;
 
-      int length;
-      uint32_t section_length = consume_u32v(&length, "section size");
-
-      int section_string_leb_length = 0;
-      uint32_t section_string_length = 0;
-      WasmSection::Code section = consume_section_name(
-          &section_string_leb_length, &section_string_length);
-      uint32_t string_and_leb_length =
-          section_string_leb_length + section_string_length;
-      if (string_and_leb_length > section_length) {
-        error(pos, pos,
-              "section string of size %u longer than total section bytes %u",
-              string_and_leb_length, section_length);
+      // Read and check the section size.
+      int section_leb_length = 0;
+      uint32_t section_length =
+          consume_u32v(&section_leb_length, "section length");
+      if (!checkAvailable(section_length)) {
+        // The section would extend beyond the end of the module.
         break;
       }
+      const byte* section_start = pc_;
+      const byte* expected_section_end = pc_ + section_length;
 
-      if (section == WasmSection::Code::Max) {
-        // Skip unknown section.
-        uint32_t skip = section_length - string_and_leb_length;
-        TRACE("skipping %u bytes from unknown section\n", skip);
-        consume_bytes(skip);
-        continue;
+      // Read the section name.
+      int string_leb_length = 0;
+      uint32_t string_length =
+          consume_u32v(&string_leb_length, "section name length");
+      const byte* section_name_start = pc_;
+      consume_bytes(string_length);
+      if (failed()) {
+        TRACE("Section name of length %u couldn't be read\n", string_length);
+        break;
+      }
+      if (pc_ > expected_section_end) {
+        error(section_name_start, pc_,
+              "section name string %u longer than total section bytes %u",
+              string_length, section_length);
       }
 
-      // Each section should appear at most once.
-      CheckForPreviousSection(sections, section, false);
-      sections[(size_t)section] = true;
+      WasmSection::Code section =
+          WasmSection::lookup(section_name_start, string_length);
+
+      current_order = CheckSectionOrder(current_order, section);
 
       switch (section) {
         case WasmSection::Code::End:
@@ -163,9 +165,6 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::FunctionSignatures: {
-          // Functions require a signature table first.
-          CheckForPreviousSection(sections, WasmSection::Code::Signatures,
-                                  true);
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
@@ -178,9 +177,6 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::FunctionBodies: {
-          // Function bodies should follow signatures.
-          CheckForPreviousSection(sections,
-                                  WasmSection::Code::FunctionSignatures, true);
           int length;
           const byte* pos = pc_;
           uint32_t functions_count = consume_u32v(&length, "functions count");
@@ -207,9 +203,6 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::Functions: {
-          // Functions require a signature table first.
-          CheckForPreviousSection(sections, WasmSection::Code::Signatures,
-                                  true);
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
@@ -243,9 +236,6 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::Names: {
-          // Names correspond to functions.
-          CheckForPreviousSection(sections,
-                                  WasmSection::Code::FunctionSignatures, true);
           int length;
           const byte* pos = pc_;
           uint32_t functions_count = consume_u32v(&length, "functions count");
@@ -341,9 +331,6 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::ImportTable: {
-          // Declares an import table.
-          CheckForPreviousSection(sections, WasmSection::Code::Signatures,
-                                  true);
           int length;
           uint32_t import_table_count =
               consume_u32v(&length, "import table count");
@@ -392,7 +379,25 @@ class ModuleDecoder : public Decoder {
           break;
         }
         case WasmSection::Code::Max:
-          UNREACHABLE();  // Already skipped unknown sections.
+          // Skip unknown sections.
+          TRACE("Unknown section: '");
+          for (uint32_t i = 0; i != string_length; ++i) {
+            TRACE("%c", *(section_name_start + i));
+          }
+          TRACE("'\n");
+          consume_bytes(section_length - string_length - string_leb_length);
+          break;
+      }
+
+      if (pc_ != expected_section_end) {
+        const char* diff = pc_ < expected_section_end ? "shorter" : "longer";
+        size_t expected_length = static_cast<size_t>(section_length);
+        size_t actual_length = static_cast<size_t>(pc_ - section_start);
+        error(pc_, pc_,
+              "section \"%s\" %s (%zu bytes) than specified (%zu bytes)",
+              WasmSection::getName(section), diff, actual_length,
+              expected_length);
+        break;
       }
     }
 
@@ -417,17 +422,18 @@ class ModuleDecoder : public Decoder {
     }
   }
 
-  void CheckForPreviousSection(bool* sections, WasmSection::Code section,
-                               bool present) {
-    if (section >= WasmSection::Code::Max) return;
-    if (sections[(size_t)section] == present) return;
-    if (present) {
-      error(pc_ - 1, nullptr, "required %s section missing",
-            WasmSection::getName(section));
-    } else {
-      error(pc_ - 1, nullptr, "%s section already present",
+  int CheckSectionOrder(int current_order, WasmSection::Code section) {
+    int next_order = WasmSection::getOrder(section);
+    if (next_order == 0) return current_order;
+    if (next_order == current_order) {
+      error(pc_, pc_, "section \"%s\" already defined",
             WasmSection::getName(section));
     }
+    if (next_order < current_order) {
+      error(pc_, pc_, "section \"%s\" out of order",
+            WasmSection::getName(section));
+    }
+    return next_order;
   }
 
   // Decodes a single anonymous function starting at {start_}.
@@ -641,30 +647,6 @@ class ModuleDecoder : public Decoder {
     }
     *func = &module->functions[func_index];
     return func_index;
-  }
-
-  // Reads a section name.
-  WasmSection::Code consume_section_name(int* string_leb_length,
-                                         uint32_t* string_length) {
-    *string_length = consume_u32v(string_leb_length, "name length");
-    const byte* start = pc_;
-    consume_bytes(*string_length);
-    if (failed()) {
-      TRACE("Section name of length %u couldn't be read\n", *string_length);
-      return WasmSection::Code::Max;
-    }
-    // TODO(jfb) Linear search, it may be better to do a common-prefix search.
-    for (WasmSection::Code i = WasmSection::begin(); i != WasmSection::end();
-         i = WasmSection::next(i)) {
-      if (WasmSection::getNameLength(i) == *string_length &&
-          0 == memcmp(WasmSection::getName(i), start, *string_length)) {
-        return i;
-      }
-    }
-    TRACE("Unknown section: '");
-    for (uint32_t i = 0; i != *string_length; ++i) TRACE("%c", *(start + i));
-    TRACE("'\n");
-    return WasmSection::Code::Max;
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.

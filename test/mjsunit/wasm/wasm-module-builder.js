@@ -149,16 +149,6 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
 
     var wasm = this;
 
-    // Add memory section
-    if (wasm.memory != undefined) {
-        if (debug) print("emitting memory @ " + bytes.length);
-        emit_section(bytes, kDeclMemory, function(bytes) {
-            emit_varint(bytes, wasm.memory.min);
-            emit_varint(bytes, wasm.memory.max);
-            emit_u8(bytes, wasm.memory.exp ? 1 : 0);
-        });
-    }
-
     // Add signatures section
     if (wasm.signatures.length > 0) {
         if (debug) print("emitting signatures @ " + bytes.length);
@@ -187,7 +177,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // Add functions section
+    // Add functions declarations
     var names = false;
     var exports = 0;
     if (wasm.functions.length > 0) {
@@ -206,6 +196,54 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
             }
         });
 
+    }
+
+    // Add function table.
+    if (wasm.function_table.length > 0) {
+        if (debug) print("emitting function table @ " + bytes.length);
+        emit_section(bytes, kDeclFunctionTable, function(bytes) {
+            emit_varint(bytes, wasm.function_table.length);
+            for (index of wasm.function_table) {
+                emit_varint(bytes, index);
+            }
+        });
+    }
+
+    // Add memory section
+    if (wasm.memory != undefined) {
+        if (debug) print("emitting memory @ " + bytes.length);
+        emit_section(bytes, kDeclMemory, function(bytes) {
+            emit_varint(bytes, wasm.memory.min);
+            emit_varint(bytes, wasm.memory.max);
+            emit_u8(bytes, wasm.memory.exp ? 1 : 0);
+        });
+    }
+
+
+    // Add export table.
+    if (exports > 0) {
+        if (debug) print("emitting exports @ " + bytes.length);
+        emit_section(bytes, kDeclExportTable, function(bytes) {
+            emit_varint(bytes, exports);
+            for (func of wasm.functions) {
+                for (exp of func.exports) {
+                    emit_varint(bytes, func.index);
+                    emit_string(bytes, exp);
+                }
+            }
+        });
+    }
+
+    // Add start function section.
+    if (wasm.start_index != undefined) {
+        if (debug) print("emitting start function @ " + bytes.length);
+        emit_section(bytes, kDeclStartFunction, function(bytes) {
+            emit_varint(bytes, wasm.start_index);
+        });
+    }
+
+    // Add function bodies.
+    if (wasm.functions.length > 0) {
         // emit function bodies
         if (debug) print("emitting function bodies @ " + bytes.length);
         emit_section(bytes, kDeclFunctionBodies, function(bytes) {
@@ -244,50 +282,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // emit function names
-    if (has_names) {
-        if (debug) print("emitting names @ " + bytes.length);
-        emit_section(bytes, kDeclNames, function(bytes) {
-            emit_varint(bytes, wasm.functions.length);
-            for (func of wasm.functions) {
-                var name = func.name == undefined ? "" : func.name;
-               emit_string(bytes, name);
-               emit_u8(bytes, 0);  // local names count == 0
-            }
-        });
-    }
-
-    // Add start function section.
-    if (wasm.start_index != undefined) {
-        if (debug) print("emitting start function @ " + bytes.length);
-        emit_section(bytes, kDeclStartFunction, function(bytes) {
-            emit_varint(bytes, wasm.start_index);
-        });
-    }
-
-    if (wasm.function_table.length > 0) {
-        if (debug) print("emitting function table @ " + bytes.length);
-        emit_section(bytes, kDeclFunctionTable, function(bytes) {
-            emit_varint(bytes, wasm.function_table.length);
-            for (index of wasm.function_table) {
-                emit_varint(bytes, index);
-            }
-        });
-    }
-
-    if (exports > 0) {
-        if (debug) print("emitting exports @ " + bytes.length);
-        emit_section(bytes, kDeclExportTable, function(bytes) {
-            emit_varint(bytes, exports);
-            for (func of wasm.functions) {
-                for (exp of func.exports) {
-                    emit_varint(bytes, func.index);
-                    emit_string(bytes, exp);
-                }
-            }
-        });
-    }
-
+    // Add data segments.
     if (wasm.data_segments.length > 0) {
         if (debug) print("emitting data segments @ " + bytes.length);
         emit_section(bytes, kDeclDataSegments, function(bytes) {
@@ -300,10 +295,23 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         });
     }
 
-    // Emit any explicitly added sections
+    // Add any explicitly added sections
     for (exp of wasm.explicit) {
         if (debug) print("emitting explicit @ " + bytes.length);
         emit_bytes(bytes, exp);
+    }
+
+    // Add function names.
+    if (has_names) {
+        if (debug) print("emitting names @ " + bytes.length);
+        emit_section(bytes, kDeclNames, function(bytes) {
+            emit_varint(bytes, wasm.functions.length);
+            for (func of wasm.functions) {
+                var name = func.name == undefined ? "" : func.name;
+               emit_string(bytes, name);
+               emit_u8(bytes, 0);  // local names count == 0
+            }
+        });
     }
 
     // End the module.

@@ -28,21 +28,21 @@ const uint32_t kWasmVersion = 0x0a;
 // WebAssembly sections are named as strings in the binary format, but
 // internally V8 uses an enum to handle them.
 //
-// Entries have the form F(enumerator, string).
-#define FOR_EACH_WASM_SECTION_TYPE(F)          \
-  F(Memory, "memory")                          \
-  F(Signatures, "signatures")                  \
-  F(Functions, "functions")                    \
-  F(Globals, "globals")                        \
-  F(DataSegments, "data_segments")             \
-  F(FunctionTable, "function_table")           \
-  F(End, "end")                                \
-  F(StartFunction, "start_function")           \
-  F(ImportTable, "import_table")               \
-  F(ExportTable, "export_table")               \
-  F(FunctionSignatures, "function_signatures") \
-  F(FunctionBodies, "function_bodies")         \
-  F(Names, "names")
+// Entries have the form F(enumerator, order, string).
+#define FOR_EACH_WASM_SECTION_TYPE(F)             \
+  F(Signatures, 1, "signatures")                  \
+  F(ImportTable, 2, "import_table")               \
+  F(FunctionSignatures, 3, "function_signatures") \
+  F(FunctionTable, 4, "function_table")           \
+  F(Memory, 5, "memory")                          \
+  F(ExportTable, 6, "export_table")               \
+  F(StartFunction, 7, "start_function")           \
+  F(FunctionBodies, 8, "function_bodies")         \
+  F(DataSegments, 9, "data_segments")             \
+  F(Names, 10, "names")                           \
+  F(Globals, 0, "globals")                        \
+  F(Functions, 0, "functions")                    \
+  F(End, 0, "end")
 
 // Contants for the above section types: {LEB128 length, characters...}.
 #define WASM_SECTION_MEMORY 6, 'm', 'e', 'm', 'o', 'r', 'y'
@@ -85,7 +85,7 @@ const uint32_t kWasmVersion = 0x0a;
 
 struct WasmSection {
   enum class Code : uint32_t {
-#define F(enumerator, string) enumerator,
+#define F(enumerator, order, string) enumerator,
     FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
         Max
@@ -94,7 +94,9 @@ struct WasmSection {
   static WasmSection::Code end();
   static WasmSection::Code next(WasmSection::Code code);
   static const char* getName(Code code);
+  static int getOrder(Code code);
   static size_t getNameLength(Code code);
+  static WasmSection::Code lookup(const byte* string, uint32_t length);
 };
 
 enum WasmFunctionDeclBit {
