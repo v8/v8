@@ -590,7 +590,7 @@ class RuntimeCallTimerScope {
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
   /* Asm/Wasm. */                                                             \
-  HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 0, 10000, 101)
+  HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \
@@ -623,13 +623,14 @@ class RuntimeCallTimerScope {
   /* Total compilation time incl. caching/parsing */                          \
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
   /* Asm/Wasm */                                                              \
-  HT(wasm_instantiate_time, V8.WasmInstantiateMicroSeconds, 1000000,          \
-     MICROSECOND)                                                             \
+  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,      \
+     1000000, MICROSECOND)                                                    \
   HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,       \
      MICROSECOND)                                                             \
   HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,   \
      MICROSECOND)                                                             \
-  HT(wasm_compile_time, V8.WasmCompileMicroSeconds, 1000000, MICROSECOND)     \
+  HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,     \
+     MICROSECOND)                                                             \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000, \
      MICROSECOND)
 
@@ -662,16 +663,16 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                                 \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted)               \
-  HM(memory_heap_used, V8.MemoryHeapUsed)                         \
-  /* Asm/Wasm */                                                  \
-  HM(wasm_decode_peak_memory_bytes, V8.WasmDecodePeakMemoryBytes) \
-  HM(wasm_compile_function_peak_memory_bytes,                     \
-     V8.WasmCompileFunctionPeakMemoryBytes)                       \
-  HM(wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)           \
-  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)           \
-  HM(wasm_function_size_bytes, V8.WasmFunctionSizeBytes)          \
+#define HISTOGRAM_MEMORY_LIST(HM)                                              \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                            \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                                      \
+  /* Asm/Wasm */                                                               \
+  HM(wasm_decode_module_peak_memory_bytes, V8.WasmDecodeModulePeakMemoryBytes) \
+  HM(wasm_compile_function_peak_memory_bytes,                                  \
+     V8.WasmCompileFunctionPeakMemoryBytes)                                    \
+  HM(wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                        \
+  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                        \
+  HM(wasm_function_size_bytes, V8.WasmFunctionSizeBytes)                       \
   HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC

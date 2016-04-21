@@ -780,7 +780,7 @@ ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
   ModuleDecoder decoder(zone, module_start, module_end, origin);
   ModuleResult result = decoder.DecodeModule(module, verify_functions);
   // TODO(bradnelson): Improve histogram handling of size_t.
-  isolate->counters()->wasm_decode_peak_memory_bytes()->AddSample(
+  isolate->counters()->wasm_decode_module_peak_memory_bytes()->AddSample(
       static_cast<int>(zone->allocation_size() - decode_memory_start));
   return result;
 }

@@ -382,8 +382,8 @@ static MaybeHandle<JSFunction> LookupFunction(
 MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                               Handle<JSObject> ffi,
                                               Handle<JSArrayBuffer> memory) {
-  HistogramTimerScope wasm_instantiate_time_scope(
-      isolate->counters()->wasm_instantiate_time());
+  HistogramTimerScope wasm_instantiate_module_time_scope(
+      isolate->counters()->wasm_instantiate_module_time());
   this->shared_isolate = isolate;  // TODO(titzer): have a real shared isolate.
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
@@ -430,8 +430,8 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                          *instance.globals_buffer);
   }
 
-  HistogramTimerScope wasm_compile_time_scope(
-      isolate->counters()->wasm_compile_time());
+  HistogramTimerScope wasm_compile_module_time_scope(
+      isolate->counters()->wasm_compile_module_time());
 
   //-------------------------------------------------------------------------
   // Compile wrappers to imported functions.
