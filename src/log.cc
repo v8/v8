@@ -180,8 +180,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       AbstractCode* code,
-                                      SharedFunctionInfo* shared,
-                                      CompilationInfo* info, Name* name) {
+                                      SharedFunctionInfo* shared, Name* name) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(shared, code));
   name_buffer_->AppendName(name);
@@ -1118,12 +1117,11 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
 }
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                             SharedFunctionInfo* shared, CompilationInfo* info,
-                             Name* name) {
-  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, name));
+                             SharedFunctionInfo* shared, Name* name) {
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, name));
 
   if (!is_logging_code_events()) return;
-  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, name));
+  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, name));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   if (code == AbstractCode::cast(
@@ -1618,10 +1616,9 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                     *script_name, line_num, column_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
-        PROFILE(isolate_,
-                CodeCreateEvent(
-                    Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script),
-                    *code, *shared, NULL, *script_name));
+        PROFILE(isolate_, CodeCreateEvent(Logger::ToNativeByScript(
+                                              Logger::SCRIPT_TAG, *script),
+                                          *code, *shared, *script_name));
       }
     } else {
       PROFILE(isolate_,
@@ -1644,9 +1641,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
     }
   } else {
-    PROFILE(isolate_,
-            CodeCreateEvent(
-                Logger::LAZY_COMPILE_TAG, *code, *shared, NULL, *func_name));
+    PROFILE(isolate_, CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *shared,
+                                      *func_name));
   }
 }
 

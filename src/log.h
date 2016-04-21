@@ -224,8 +224,7 @@ class Logger {
                        const char* source);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code, Name* name);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* name);
+                       SharedFunctionInfo* shared, Name* name);
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, CompilationInfo* info,
                        Name* source, int line, int column);
@@ -470,8 +469,7 @@ class CodeEventListener {
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                Name* name) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info, Name* name) = 0;
+                               SharedFunctionInfo* shared, Name* name) = 0;
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared,
                                CompilationInfo* info, Name* source, int line,
@@ -502,8 +500,7 @@ class CodeEventLogger : public CodeEventListener {
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        int args_count) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* name) override;
+                       SharedFunctionInfo* shared, Name* name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, CompilationInfo* info,
                        Name* source, int line, int column) override;

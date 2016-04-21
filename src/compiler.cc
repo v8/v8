@@ -1032,7 +1032,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);
 
     PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
-                                     info, *script_name));
+                                     *script_name));
 
     if (!script.is_null())
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
