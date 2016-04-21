@@ -278,6 +278,8 @@ PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
       (legacy && allow_harmony_restrictive_declarations())) {
     return ParseSubStatement(kDisallowLabelledFunctionStatement, ok);
   } else {
+    Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
+    BlockState block_state(&scope_, body_scope);
     return ParseFunctionDeclaration(CHECK_OK);
   }
 }
@@ -415,10 +417,14 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
+  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
-  while (peek() != Token::RBRACE) {
-    final = ParseStatementListItem(CHECK_OK);
+  {
+    BlockState block_state(&scope_, block_scope);
+    while (peek() != Token::RBRACE) {
+      final = ParseStatementListItem(CHECK_OK);
+    }
   }
   Expect(Token::RBRACE, ok);
   return final;
@@ -714,23 +720,27 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  Expect(Token::LBRACE, CHECK_OK);
-  Token::Value token = peek();
-  while (token != Token::RBRACE) {
-    if (token == Token::CASE) {
-      Expect(Token::CASE, CHECK_OK);
-      ParseExpression(true, CHECK_OK);
-    } else {
-      Expect(Token::DEFAULT, CHECK_OK);
-    }
-    Expect(Token::COLON, CHECK_OK);
-    token = peek();
-    Statement statement = Statement::Jump();
-    while (token != Token::CASE &&
-           token != Token::DEFAULT &&
-           token != Token::RBRACE) {
-      statement = ParseStatementListItem(CHECK_OK);
+  Scope* cases_scope = NewScope(scope_, BLOCK_SCOPE);
+  {
+    BlockState cases_block_state(&scope_, cases_scope);
+    Expect(Token::LBRACE, CHECK_OK);
+    Token::Value token = peek();
+    while (token != Token::RBRACE) {
+      if (token == Token::CASE) {
+        Expect(Token::CASE, CHECK_OK);
+        ParseExpression(true, CHECK_OK);
+      } else {
+        Expect(Token::DEFAULT, CHECK_OK);
+      }
+      Expect(Token::COLON, CHECK_OK);
       token = peek();
+      Statement statement = Statement::Jump();
+      while (token != Token::CASE &&
+             token != Token::DEFAULT &&
+             token != Token::RBRACE) {
+        statement = ParseStatementListItem(CHECK_OK);
+        token = peek();
+      }
     }
   }
   Expect(Token::RBRACE, ok);
@@ -770,6 +780,11 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // ForStatement ::
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
+  // Create an in-between scope for let-bound iteration variables.
+  Scope* for_scope = NewScope(scope_, BLOCK_SCOPE);
+  bool has_lexical = false;
+
+  BlockState block_state(&scope_, for_scope);
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   if (peek() != Token::SEMICOLON) {
@@ -784,6 +799,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       ParseVariableDeclarations(kForStatement, &decl_count, &is_lexical,
                                 &is_binding_pattern, &first_initializer_loc,
                                 &bindings_loc, CHECK_OK);
+      if (is_lexical) has_lexical = true;
       if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
@@ -847,7 +863,11 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
 
         Expect(Token::RPAREN, CHECK_OK);
-        ParseScopedStatement(true, CHECK_OK);
+        Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
+        {
+          BlockState block_state(&scope_, body_scope);
+          ParseScopedStatement(true, CHECK_OK);
+        }
         return Statement::Default();
       }
     }
@@ -856,17 +876,26 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // Parsed initializer at this point.
   Expect(Token::SEMICOLON, CHECK_OK);
 
-  if (peek() != Token::SEMICOLON) {
-    ParseExpression(true, CHECK_OK);
-  }
-  Expect(Token::SEMICOLON, CHECK_OK);
+  // If there are let bindings, then condition and the next statement of the
+  // for loop must be parsed in a new scope.
+  Scope* inner_scope = scope_;
+  if (has_lexical) inner_scope = NewScope(for_scope, BLOCK_SCOPE);
 
-  if (peek() != Token::RPAREN) {
-    ParseExpression(true, CHECK_OK);
-  }
-  Expect(Token::RPAREN, CHECK_OK);
+  {
+    BlockState block_state(&scope_, inner_scope);
 
-  ParseScopedStatement(true, ok);
+    if (peek() != Token::SEMICOLON) {
+      ParseExpression(true, CHECK_OK);
+    }
+    Expect(Token::SEMICOLON, CHECK_OK);
+
+    if (peek() != Token::RPAREN) {
+      ParseExpression(true, CHECK_OK);
+    }
+    Expect(Token::RPAREN, CHECK_OK);
+
+    ParseScopedStatement(true, ok);
+  }
   return Statement::Default();
 }
 
@@ -912,15 +941,18 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
     Expect(Token::LPAREN, CHECK_OK);
+    Scope* catch_scope = NewScope(scope_, CATCH_SCOPE);
     ExpressionClassifier pattern_classifier(this);
     ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
     ValidateBindingPattern(&pattern_classifier, CHECK_OK);
     Expect(Token::RPAREN, CHECK_OK);
     {
-      // TODO(adamk): Make this CATCH_SCOPE
-      Scope* with_scope = NewScope(scope_, WITH_SCOPE);
-      BlockState block_state(&scope_, with_scope);
-      ParseBlock(CHECK_OK);
+      BlockState block_state(&scope_, catch_scope);
+      Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
+      {
+        BlockState block_state(&scope_, block_scope);
+        ParseBlock(CHECK_OK);
+      }
     }
     tok = peek();
   }
@@ -1114,15 +1146,11 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   //     do '{' StatementList '}'
   Expect(Token::DO, CHECK_OK);
   Expect(Token::LBRACE, CHECK_OK);
-  Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
-  {
-    BlockState block_state(&scope_, block_scope);
-    while (peek() != Token::RBRACE) {
-      ParseStatementListItem(CHECK_OK);
-    }
-    Expect(Token::RBRACE, CHECK_OK);
-    return PreParserExpression::Default();
+  while (peek() != Token::RBRACE) {
+    ParseStatementListItem(CHECK_OK);
   }
+  Expect(Token::RBRACE, CHECK_OK);
+  return PreParserExpression::Default();
 }
 
 #undef CHECK_OK

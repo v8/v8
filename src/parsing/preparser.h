@@ -1149,8 +1149,14 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseStatementList(Token::RBRACE, ok);
-  if (!*ok) return PreParserStatementList();
+  Scope* inner_scope = scope_;
+  if (!parameters.is_simple) inner_scope = NewScope(scope_, BLOCK_SCOPE);
+
+  {
+    BlockState block_state(&scope_, inner_scope);
+    ParseStatementList(Token::RBRACE, ok);
+    if (!*ok) return PreParserStatementList();
+  }
 
   Expect(Token::RBRACE, ok);
   return PreParserStatementList();
