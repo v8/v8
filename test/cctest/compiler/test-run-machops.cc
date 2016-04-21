@@ -4019,7 +4019,7 @@ TEST(RunTruncateFloat32ToUint32) {
   m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
   {
     FOR_UINT32_INPUTS(i) {
-      float input = static_cast<float>(*i);
+      volatile float input = static_cast<float>(*i);
       // This condition on 'input' is required because
       // static_cast<float>(std::numeric_limits<uint32_t>::max()) results in a
       // value outside uint32 range.
