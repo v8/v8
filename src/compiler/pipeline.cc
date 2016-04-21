@@ -771,16 +771,22 @@ struct EscapeAnalysisPhase {
   }
 };
 
-
-struct SimplifiedLoweringPhase {
-  static const char* phase_name() { return "simplified lowering"; }
+struct RepresentationSelectionPhase {
+  static const char* phase_name() { return "representation selection"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
                                 data->source_positions());
     lowering.LowerAllNodes();
+  }
+};
 
+struct EarlyOptimizationPhase {
+  static const char* phase_name() { return "early optimization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    JSGenericLowering generic_lowering(data->jsgraph());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
@@ -790,13 +796,13 @@ struct SimplifiedLoweringPhase {
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &generic_lowering);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
 };
-
 
 struct ControlFlowOptimizationPhase {
   static const char* phase_name() { return "control flow optimization"; }
@@ -838,8 +844,8 @@ struct EffectControlLinearizationPhase {
   }
 };
 
-struct ChangeLoweringPhase {
-  static const char* phase_name() { return "change lowering"; }
+struct LateOptimizationPhase {
+  static const char* phase_name() { return "late optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
@@ -851,12 +857,17 @@ struct ChangeLoweringPhase {
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
+    SelectLowering select_lowering(data->jsgraph()->graph(),
+                                   data->jsgraph()->common());
+    TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &select_lowering);
+    AddReducer(data, &graph_reducer, &tco);
     graph_reducer.ReduceGraph();
   }
 };
@@ -894,29 +905,6 @@ struct StressLoopPeelingPhase {
       LoopPeeler::Peel(data->graph(), data->common(), loop_tree,
                        loop_tree->outer_loops()[0], temp_zone);
     }
-  }
-};
-
-
-struct GenericLoweringPhase {
-  static const char* phase_name() { return "generic lowering"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common());
-    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                         data->common(), data->machine());
-    JSGenericLowering generic_lowering(data->jsgraph());
-    SelectLowering select_lowering(data->jsgraph()->graph(),
-                                   data->jsgraph()->common());
-    TailCallOptimization tco(data->common(), data->graph());
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &common_reducer);
-    AddReducer(data, &graph_reducer, &generic_lowering);
-    AddReducer(data, &graph_reducer, &select_lowering);
-    AddReducer(data, &graph_reducer, &tco);
-    graph_reducer.ReduceGraph();
   }
 };
 
@@ -1284,9 +1272,13 @@ Handle<Code> Pipeline::GenerateCode() {
     RunPrintAndVerify("Escape Analysed");
   }
 
-  // Lower simplified operators and insert changes.
-  Run<SimplifiedLoweringPhase>();
-  RunPrintAndVerify("Lowered simplified");
+  // Select representations.
+  Run<RepresentationSelectionPhase>();
+  RunPrintAndVerify("Representations selected");
+
+  // Run early optimization pass.
+  Run<EarlyOptimizationPhase>();
+  RunPrintAndVerify("Early optimized");
 
   if (info()->is_effect_scheduling_enabled()) {
     // TODO(jarin) Run value numbering for the representation changes.
@@ -1304,14 +1296,9 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   // Lower changes that have been inserted before.
-  Run<ChangeLoweringPhase>();
+  Run<LateOptimizationPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Lowered changes", true);
-
-  // Lower any remaining generic JSOperators.
-  Run<GenericLoweringPhase>();
-  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Lowered generic", true);
+  RunPrintAndVerify("Late optimized", true);
 
   Run<LateGraphTrimmingPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
