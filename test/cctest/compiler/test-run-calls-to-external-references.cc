@@ -48,6 +48,21 @@ void TestExternalReference(BufferedRawMachineAssemblerTester<int32_t>* m,
   CHECK_EQ(comparison_param2, param2);
 }
 
+template <typename R, typename P>
+void TestExternalReference(BufferedRawMachineAssemblerTester<R>* m,
+                           ExternalReference ref, R (*comparison)(P*),
+                           P param) {
+  P comparison_param = param;
+
+  Node* function = m->ExternalConstant(ref);
+  m->Return(m->CallCFunction1(MachineType::Pointer(), MachineType::Pointer(),
+                              function, m->PointerConstant(&param)));
+
+  CHECK_EQ(comparison(&comparison_param), m->Call());
+
+  CHECK_EQ(comparison_param, param);
+}
+
 template <typename R, typename P1, typename P2>
 void TestExternalReference(BufferedRawMachineAssemblerTester<R>* m,
                            ExternalReference ref, R (*comparison)(P1*, P2*),
@@ -200,6 +215,30 @@ TEST(RunCallUint64Mod) {
   ExternalReference ref = ExternalReference::wasm_uint64_mod(m.isolate());
   TestExternalReference(&m, ref, wasm::uint64_mod_wrapper, uint64_t(1774),
                         uint64_t(21));
+}
+
+TEST(RunCallWord32Ctz) {
+  BufferedRawMachineAssemblerTester<uint32_t> m;
+  ExternalReference ref = ExternalReference::wasm_word32_ctz(m.isolate());
+  TestExternalReference(&m, ref, wasm::word32_ctz_wrapper, uint32_t(1774));
+}
+
+TEST(RunCallWord64Ctz) {
+  BufferedRawMachineAssemblerTester<uint32_t> m;
+  ExternalReference ref = ExternalReference::wasm_word64_ctz(m.isolate());
+  TestExternalReference(&m, ref, wasm::word64_ctz_wrapper, uint64_t(1774));
+}
+
+TEST(RunCallWord32Popcnt) {
+  BufferedRawMachineAssemblerTester<uint32_t> m;
+  ExternalReference ref = ExternalReference::wasm_word32_popcnt(m.isolate());
+  TestExternalReference(&m, ref, wasm::word32_popcnt_wrapper, uint32_t(1774));
+}
+
+TEST(RunCallWord64Popcnt) {
+  BufferedRawMachineAssemblerTester<uint32_t> m;
+  ExternalReference ref = ExternalReference::wasm_word64_popcnt(m.isolate());
+  TestExternalReference(&m, ref, wasm::word64_popcnt_wrapper, uint64_t(1774));
 }
 }  // namespace compiler
 }  // namespace internal

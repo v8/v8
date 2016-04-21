@@ -50,8 +50,15 @@ int32_t int64_mod_wrapper(int64_t* dst, int64_t* src);
 int32_t uint64_div_wrapper(uint64_t* dst, uint64_t* src);
 
 int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src);
+
+uint32_t word32_ctz_wrapper(uint32_t* input);
+
+uint32_t word64_ctz_wrapper(uint64_t* input);
+
+uint32_t word32_popcnt_wrapper(uint32_t* input);
+
+uint32_t word64_popcnt_wrapper(uint64_t* input);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
 #endif

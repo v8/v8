@@ -28,22 +28,10 @@
 #define B1(a) kExprBlock, 1, a
 
 // Can't bridge macro land with nested macros.
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_X87
-#define MIPS_OR_X87 true
+#if V8_TARGET_ARCH_MIPS
+#define MIPS true
 #else
-#define MIPS_OR_X87 false
-#endif
-
-#if V8_TARGET_ARCH_X87
-#define X87 true
-#else
-#define X87 false
-#endif
-
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_X87 || V8_TARGET_ARCH_ARM
-#define MIPS_OR_ARM_OR_X87 true
-#else
-#define MIPS_OR_ARM_OR_X87 false
+#define MIPS false
 #endif
 
 #define FOREACH_I64_OPERATOR(V) \
@@ -53,9 +41,9 @@
   V(I64Return, true)            \
   V(I64Param, true)             \
   V(I64LoadStore, true)         \
-  V(I64Add, !X87)               \
-  V(I64Sub, !X87)               \
-  V(I64Mul, !MIPS_OR_X87)       \
+  V(I64Add, true)               \
+  V(I64Sub, true)               \
+  V(I64Mul, !MIPS)              \
   V(I64DivS, true)              \
   V(I64DivU, true)              \
   V(I64RemS, true)              \
@@ -63,9 +51,9 @@
   V(I64And, true)               \
   V(I64Ior, true)               \
   V(I64Xor, true)               \
-  V(I64Shl, !X87)               \
-  V(I64ShrU, !X87)              \
-  V(I64ShrS, !X87)              \
+  V(I64Shl, true)               \
+  V(I64ShrU, true)              \
+  V(I64ShrS, true)              \
   V(I64Eq, true)                \
   V(I64Ne, true)                \
   V(I64LtS, true)               \
@@ -78,7 +66,7 @@
   V(I64GeU, true)               \
   V(I64Ctz, true)               \
   V(I64Clz, true)               \
-  V(I64Popcnt, !X87)            \
+  V(I64Popcnt, true)            \
   V(I32ConvertI64, true)        \
   V(I64SConvertF32, true)       \
   V(I64SConvertF64, true)       \

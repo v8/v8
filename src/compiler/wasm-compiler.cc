@@ -1221,180 +1221,52 @@ Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input) {
   return result;
 }
 
+Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
+                                             MachineRepresentation input_type) {
+  Node* stack_slot_param =
+      graph()->NewNode(jsgraph()->machine()->StackSlot(input_type));
+
+  const Operator* store_op = jsgraph()->machine()->Store(
+      StoreRepresentation(input_type, kNoWriteBarrier));
+  *effect_ =
+      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
+                       input, *effect_, *control_);
+
+  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 1);
+  sig_builder.AddReturn(MachineType::Int32());
+  sig_builder.AddParam(MachineType::Pointer());
+
+  Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
+  Node* args[] = {function, stack_slot_param};
+
+  return BuildCCall(sig_builder.Build(), args);
+}
 
 Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
-  //// Implement the following code as TF graph.
-  // value = value | (value << 1);
-  // value = value | (value << 2);
-  // value = value | (value << 4);
-  // value = value | (value << 8);
-  // value = value | (value << 16);
-  // return CountPopulation32(0xffffffff XOR value);
-
-  Node* result =
-      Binop(wasm::kExprI32Ior, input,
-            Binop(wasm::kExprI32Shl, input, jsgraph()->Int32Constant(1)));
-
-  result = Binop(wasm::kExprI32Ior, result,
-                 Binop(wasm::kExprI32Shl, result, jsgraph()->Int32Constant(2)));
-
-  result = Binop(wasm::kExprI32Ior, result,
-                 Binop(wasm::kExprI32Shl, result, jsgraph()->Int32Constant(4)));
-
-  result = Binop(wasm::kExprI32Ior, result,
-                 Binop(wasm::kExprI32Shl, result, jsgraph()->Int32Constant(8)));
-
-  result =
-      Binop(wasm::kExprI32Ior, result,
-            Binop(wasm::kExprI32Shl, result, jsgraph()->Int32Constant(16)));
-
-  result = BuildI32Popcnt(
-      Binop(wasm::kExprI32Xor, jsgraph()->Int32Constant(0xffffffff), result));
-
-  return result;
+  return BuildBitCountingCall(
+      input, ExternalReference::wasm_word32_ctz(jsgraph()->isolate()),
+      MachineRepresentation::kWord32);
 }
-
 
 Node* WasmGraphBuilder::BuildI64Ctz(Node* input) {
-  //// Implement the following code as TF graph.
-  // value = value | (value << 1);
-  // value = value | (value << 2);
-  // value = value | (value << 4);
-  // value = value | (value << 8);
-  // value = value | (value << 16);
-  // value = value | (value << 32);
-  // return CountPopulation64(0xffffffffffffffff XOR value);
-
-  Node* result =
-      Binop(wasm::kExprI64Ior, input,
-            Binop(wasm::kExprI64Shl, input, jsgraph()->Int64Constant(1)));
-
-  result = Binop(wasm::kExprI64Ior, result,
-                 Binop(wasm::kExprI64Shl, result, jsgraph()->Int64Constant(2)));
-
-  result = Binop(wasm::kExprI64Ior, result,
-                 Binop(wasm::kExprI64Shl, result, jsgraph()->Int64Constant(4)));
-
-  result = Binop(wasm::kExprI64Ior, result,
-                 Binop(wasm::kExprI64Shl, result, jsgraph()->Int64Constant(8)));
-
-  result =
-      Binop(wasm::kExprI64Ior, result,
-            Binop(wasm::kExprI64Shl, result, jsgraph()->Int64Constant(16)));
-
-  result =
-      Binop(wasm::kExprI64Ior, result,
-            Binop(wasm::kExprI64Shl, result, jsgraph()->Int64Constant(32)));
-
-  result = BuildI64Popcnt(Binop(
-      wasm::kExprI64Xor, jsgraph()->Int64Constant(0xffffffffffffffff), result));
-
-  return result;
+  return Unop(wasm::kExprI64UConvertI32,
+              BuildBitCountingCall(input, ExternalReference::wasm_word64_ctz(
+                                              jsgraph()->isolate()),
+                                   MachineRepresentation::kWord64));
 }
 
-
 Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
-  //// Implement the following code as a TF graph.
-  // value = ((value >> 1) & 0x55555555) + (value & 0x55555555);
-  // value = ((value >> 2) & 0x33333333) + (value & 0x33333333);
-  // value = ((value >> 4) & 0x0f0f0f0f) + (value & 0x0f0f0f0f);
-  // value = ((value >> 8) & 0x00ff00ff) + (value & 0x00ff00ff);
-  // value = ((value >> 16) & 0x0000ffff) + (value & 0x0000ffff);
-
-  Node* result = Binop(
-      wasm::kExprI32Add,
-      Binop(wasm::kExprI32And,
-            Binop(wasm::kExprI32ShrU, input, jsgraph()->Int32Constant(1)),
-            jsgraph()->Int32Constant(0x55555555)),
-      Binop(wasm::kExprI32And, input, jsgraph()->Int32Constant(0x55555555)));
-
-  result = Binop(
-      wasm::kExprI32Add,
-      Binop(wasm::kExprI32And,
-            Binop(wasm::kExprI32ShrU, result, jsgraph()->Int32Constant(2)),
-            jsgraph()->Int32Constant(0x33333333)),
-      Binop(wasm::kExprI32And, result, jsgraph()->Int32Constant(0x33333333)));
-
-  result = Binop(
-      wasm::kExprI32Add,
-      Binop(wasm::kExprI32And,
-            Binop(wasm::kExprI32ShrU, result, jsgraph()->Int32Constant(4)),
-            jsgraph()->Int32Constant(0x0f0f0f0f)),
-      Binop(wasm::kExprI32And, result, jsgraph()->Int32Constant(0x0f0f0f0f)));
-
-  result = Binop(
-      wasm::kExprI32Add,
-      Binop(wasm::kExprI32And,
-            Binop(wasm::kExprI32ShrU, result, jsgraph()->Int32Constant(8)),
-            jsgraph()->Int32Constant(0x00ff00ff)),
-      Binop(wasm::kExprI32And, result, jsgraph()->Int32Constant(0x00ff00ff)));
-
-  result = Binop(
-      wasm::kExprI32Add,
-      Binop(wasm::kExprI32And,
-            Binop(wasm::kExprI32ShrU, result, jsgraph()->Int32Constant(16)),
-            jsgraph()->Int32Constant(0x0000ffff)),
-      Binop(wasm::kExprI32And, result, jsgraph()->Int32Constant(0x0000ffff)));
-
-  return result;
+  return BuildBitCountingCall(
+      input, ExternalReference::wasm_word32_popcnt(jsgraph()->isolate()),
+      MachineRepresentation::kWord32);
 }
 
 
 Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
-  //// Implement the following code as a TF graph.
-  // value = ((value >> 1) & 0x5555555555555555) + (value & 0x5555555555555555);
-  // value = ((value >> 2) & 0x3333333333333333) + (value & 0x3333333333333333);
-  // value = ((value >> 4) & 0x0f0f0f0f0f0f0f0f) + (value & 0x0f0f0f0f0f0f0f0f);
-  // value = ((value >> 8) & 0x00ff00ff00ff00ff) + (value & 0x00ff00ff00ff00ff);
-  // value = ((value >> 16) & 0x0000ffff0000ffff) + (value &
-  // 0x0000ffff0000ffff);
-  // value = ((value >> 32) & 0x00000000ffffffff) + (value &
-  // 0x00000000ffffffff);
-
-  Node* result =
-      Binop(wasm::kExprI64Add,
-            Binop(wasm::kExprI64And,
-                  Binop(wasm::kExprI64ShrU, input, jsgraph()->Int64Constant(1)),
-                  jsgraph()->Int64Constant(0x5555555555555555)),
-            Binop(wasm::kExprI64And, input,
-                  jsgraph()->Int64Constant(0x5555555555555555)));
-
-  result = Binop(wasm::kExprI64Add,
-                 Binop(wasm::kExprI64And, Binop(wasm::kExprI64ShrU, result,
-                                                jsgraph()->Int64Constant(2)),
-                       jsgraph()->Int64Constant(0x3333333333333333)),
-                 Binop(wasm::kExprI64And, result,
-                       jsgraph()->Int64Constant(0x3333333333333333)));
-
-  result = Binop(wasm::kExprI64Add,
-                 Binop(wasm::kExprI64And, Binop(wasm::kExprI64ShrU, result,
-                                                jsgraph()->Int64Constant(4)),
-                       jsgraph()->Int64Constant(0x0f0f0f0f0f0f0f0f)),
-                 Binop(wasm::kExprI64And, result,
-                       jsgraph()->Int64Constant(0x0f0f0f0f0f0f0f0f)));
-
-  result = Binop(wasm::kExprI64Add,
-                 Binop(wasm::kExprI64And, Binop(wasm::kExprI64ShrU, result,
-                                                jsgraph()->Int64Constant(8)),
-                       jsgraph()->Int64Constant(0x00ff00ff00ff00ff)),
-                 Binop(wasm::kExprI64And, result,
-                       jsgraph()->Int64Constant(0x00ff00ff00ff00ff)));
-
-  result = Binop(wasm::kExprI64Add,
-                 Binop(wasm::kExprI64And, Binop(wasm::kExprI64ShrU, result,
-                                                jsgraph()->Int64Constant(16)),
-                       jsgraph()->Int64Constant(0x0000ffff0000ffff)),
-                 Binop(wasm::kExprI64And, result,
-                       jsgraph()->Int64Constant(0x0000ffff0000ffff)));
-
-  result = Binop(wasm::kExprI64Add,
-                 Binop(wasm::kExprI64And, Binop(wasm::kExprI64ShrU, result,
-                                                jsgraph()->Int64Constant(32)),
-                       jsgraph()->Int64Constant(0x00000000ffffffff)),
-                 Binop(wasm::kExprI64And, result,
-                       jsgraph()->Int64Constant(0x00000000ffffffff)));
-
-  return result;
+  return Unop(wasm::kExprI64UConvertI32,
+              BuildBitCountingCall(input, ExternalReference::wasm_word64_popcnt(
+                                              jsgraph()->isolate()),
+                                   MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {

@@ -1261,6 +1261,26 @@ ExternalReference ExternalReference::wasm_uint64_mod(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_word32_ctz(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ctz_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word64_ctz(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word64_ctz_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_popcnt(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_popcnt_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
+}
+
 static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(

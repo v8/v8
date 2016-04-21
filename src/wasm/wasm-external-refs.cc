@@ -9,6 +9,7 @@
 
 #include "include/v8config.h"
 
+#include "src/base/bits.h"
 #include "src/wasm/wasm-external-refs.h"
 
 namespace v8 {
@@ -176,6 +177,23 @@ int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
   *dst %= *src;
   return 1;
 }
+
+uint32_t word32_ctz_wrapper(uint32_t* input) {
+  return static_cast<uint32_t>(base::bits::CountTrailingZeros32(*input));
+}
+
+uint32_t word64_ctz_wrapper(uint64_t* input) {
+  return static_cast<uint32_t>(base::bits::CountTrailingZeros64(*input));
+}
+
+uint32_t word32_popcnt_wrapper(uint32_t* input) {
+  return static_cast<uint32_t>(base::bits::CountPopulation(*input));
+}
+
+uint32_t word64_popcnt_wrapper(uint64_t* input) {
+  return static_cast<uint32_t>(base::bits::CountPopulation(*input));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

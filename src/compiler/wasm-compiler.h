@@ -190,6 +190,9 @@ class WasmGraphBuilder {
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
   Node* BuildI64Popcnt(Node* input);
+  Node* BuildBitCountingCall(Node* input, ExternalReference ref,
+                             MachineRepresentation input_type);
+
   Node* BuildCFuncInstruction(ExternalReference ref, MachineType type,
                               Node* input0, Node* input1 = nullptr);
   Node* BuildF32Trunc(Node* input);
