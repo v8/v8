@@ -715,6 +715,8 @@ class ReferenceMap final : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
 
+class InstructionBlock;
+
 class Instruction final {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
@@ -857,6 +859,15 @@ class Instruction final {
   ParallelMove* const* parallel_moves() const { return &parallel_moves_[0]; }
   ParallelMove** parallel_moves() { return &parallel_moves_[0]; }
 
+  // The block_id may be invalidated in JumpThreading. It is only important for
+  // register allocation, to avoid searching for blocks from instruction
+  // indexes.
+  InstructionBlock* block() const { return block_; }
+  void set_block(InstructionBlock* block) {
+    DCHECK_NOT_NULL(block);
+    block_ = block;
+  }
+
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
@@ -877,6 +888,7 @@ class Instruction final {
   uint32_t bit_field_;
   ParallelMove* parallel_moves_[2];
   ReferenceMap* reference_map_;
+  InstructionBlock* block_;
   InstructionOperand operands_[1];
 
   DISALLOW_COPY_AND_ASSIGN(Instruction);
@@ -1394,7 +1406,6 @@ class InstructionSequence final : public ZoneObject {
   Zone* const zone_;
   InstructionBlocks* const instruction_blocks_;
   SourcePositionMap source_positions_;
-  IntVector block_starts_;
   ConstantMap constants_;
   Immediates immediates_;
   InstructionDeque instructions_;
@@ -1402,6 +1413,9 @@ class InstructionSequence final : public ZoneObject {
   ReferenceMapDeque reference_maps_;
   ZoneVector<MachineRepresentation> representations_;
   DeoptimizationVector deoptimization_entries_;
+
+  // Used at construction time
+  InstructionBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
 };

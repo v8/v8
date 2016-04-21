@@ -87,7 +87,6 @@ void InstructionSelector::SelectInstructions() {
 #endif
 }
 
-
 void InstructionSelector::StartBlock(RpoNumber rpo) {
   if (FLAG_turbo_instruction_scheduling &&
       InstructionScheduler::SchedulerSupported()) {

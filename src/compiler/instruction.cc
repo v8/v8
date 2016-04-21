@@ -251,16 +251,15 @@ ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
                  DoubleRegister::from_code(index).IsAllocatable());
 }
 
-
 Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      reference_map_(nullptr) {
+      reference_map_(nullptr),
+      block_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
 }
-
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,
                          InstructionOperand* outputs, size_t input_count,
@@ -271,7 +270,8 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  InputCountField::encode(input_count) |
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
-      reference_map_(nullptr) {
+      reference_map_(nullptr),
+      block_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
   size_t offset = 0;
@@ -611,7 +611,6 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   return instr_block;
 }
 
-
 InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
@@ -683,7 +682,6 @@ void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
   }
 }
 
-
 InstructionSequence::InstructionSequence(Isolate* isolate,
                                          Zone* instruction_zone,
                                          InstructionBlocks* instruction_blocks)
@@ -691,7 +689,6 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
       source_positions_(zone()),
-      block_starts_(zone()),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
@@ -699,10 +696,8 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       next_virtual_register_(0),
       reference_maps_(zone()),
       representations_(zone()),
-      deoptimization_entries_(zone()) {
-  block_starts_.reserve(instruction_blocks_->size());
-}
-
+      deoptimization_entries_(zone()),
+      current_block_(nullptr) {}
 
 int InstructionSequence::NextVirtualRegister() {
   int virtual_register = next_virtual_register_++;
@@ -718,28 +713,31 @@ Instruction* InstructionSequence::GetBlockStart(RpoNumber rpo) const {
 
 
 void InstructionSequence::StartBlock(RpoNumber rpo) {
-  DCHECK(block_starts_.size() == rpo.ToSize());
-  InstructionBlock* block = InstructionBlockAt(rpo);
+  DCHECK_NULL(current_block_);
+  current_block_ = InstructionBlockAt(rpo);
   int code_start = static_cast<int>(instructions_.size());
-  block->set_code_start(code_start);
-  block_starts_.push_back(code_start);
+  current_block_->set_code_start(code_start);
 }
 
 
 void InstructionSequence::EndBlock(RpoNumber rpo) {
   int end = static_cast<int>(instructions_.size());
-  InstructionBlock* block = InstructionBlockAt(rpo);
-  if (block->code_start() == end) {  // Empty block.  Insert a nop.
+  DCHECK_EQ(current_block_->rpo_number(), rpo);
+  if (current_block_->code_start() == end) {  // Empty block.  Insert a nop.
     AddInstruction(Instruction::New(zone(), kArchNop));
     end = static_cast<int>(instructions_.size());
   }
-  DCHECK(block->code_start() >= 0 && block->code_start() < end);
-  block->set_code_end(end);
+  DCHECK(current_block_->code_start() >= 0 &&
+         current_block_->code_start() < end);
+  current_block_->set_code_end(end);
+  current_block_ = nullptr;
 }
 
 
 int InstructionSequence::AddInstruction(Instruction* instr) {
+  DCHECK_NOT_NULL(current_block_);
   int index = static_cast<int>(instructions_.size());
+  instr->set_block(current_block_);
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
     DCHECK(instr->reference_map() == nullptr);
@@ -754,18 +752,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
 
 InstructionBlock* InstructionSequence::GetInstructionBlock(
     int instruction_index) const {
-  DCHECK(instruction_blocks_->size() == block_starts_.size());
-  auto begin = block_starts_.begin();
-  auto end = std::lower_bound(begin, block_starts_.end(), instruction_index);
-  // Post condition of std::lower_bound:
-  DCHECK(end == block_starts_.end() || *end >= instruction_index);
-  if (end == block_starts_.end() || *end > instruction_index) --end;
-  DCHECK(*end <= instruction_index);
-  size_t index = std::distance(begin, end);
-  InstructionBlock* block = instruction_blocks_->at(index);
-  DCHECK(block->code_start() <= instruction_index &&
-         instruction_index < block->code_end());
-  return block;
+  return instructions()[instruction_index]->block();
 }
 
 

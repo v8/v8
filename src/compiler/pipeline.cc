@@ -1509,7 +1509,6 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
                                  CallDescriptor* descriptor,
                                  bool run_verifier) {
   PipelineData* data = this->data_;
-
   // Don't track usage for this zone in compiler stats.
   base::SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
