@@ -119,6 +119,7 @@
         'wasm/ast-decoder-unittest.cc',
         'wasm/decoder-unittest.cc',
         'wasm/encoder-unittest.cc',
+        'wasm/leb-helper-unittest.cc',
         'wasm/loop-assignment-analysis-unittest.cc',
         'wasm/module-decoder-unittest.cc',
         'wasm/switch-logic-unittest.cc',

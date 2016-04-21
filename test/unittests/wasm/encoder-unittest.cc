@@ -17,36 +17,7 @@ class EncoderTest : public TestWithZone {
  protected:
   void AddLocal(WasmFunctionBuilder* f, LocalType type) {
     uint16_t index = f->AddLocal(type);
-    const std::vector<uint8_t>& out_index = UnsignedLEB128From(index);
-    std::vector<uint8_t> code;
-    code.push_back(kExprGetLocal);
-    for (size_t i = 0; i < out_index.size(); i++) {
-      code.push_back(out_index.at(i));
-    }
-    uint32_t local_indices[] = {1};
-    f->EmitCode(&code[0], static_cast<uint32_t>(code.size()), local_indices, 1);
-  }
-
-  void CheckReadValue(uint8_t* leb_value, uint32_t expected_result,
-                      int expected_length,
-                      ReadUnsignedLEB128ErrorCode expected_error_code) {
-    int length;
-    uint32_t result;
-    ReadUnsignedLEB128ErrorCode error_code =
-        ReadUnsignedLEB128Operand(leb_value, leb_value + 5, &length, &result);
-    CHECK_EQ(error_code, expected_error_code);
-    if (error_code == 0) {
-      CHECK_EQ(result, expected_result);
-      CHECK_EQ(length, expected_length);
-    }
-  }
-
-  void CheckWriteValue(uint32_t input, int length, uint8_t* vals) {
-    const std::vector<uint8_t> result = UnsignedLEB128From(input);
-    CHECK_EQ(result.size(), length);
-    for (int i = 0; i < length; i++) {
-      CHECK_EQ(result.at(i), vals[i]);
-    }
+    f->EmitGetLocal(index);
   }
 };
 
@@ -186,32 +157,6 @@ TEST_F(EncoderTest, Function_Builder_EmitEditableVarIntImmediate_Locals) {
     CHECK_EQ(body[offset++], (i >> 7) & 0x7f);
   }
   CHECK_EQ(offset, 479);
-}
-
-TEST_F(EncoderTest, LEB_Functions) {
-  byte leb_value[5] = {0, 0, 0, 0, 0};
-  CheckReadValue(leb_value, 0, 1, kNoError);
-  CheckWriteValue(0, 1, leb_value);
-  leb_value[0] = 23;
-  CheckReadValue(leb_value, 23, 1, kNoError);
-  CheckWriteValue(23, 1, leb_value);
-  leb_value[0] = 0x80;
-  leb_value[1] = 0x01;
-  CheckReadValue(leb_value, 128, 2, kNoError);
-  CheckWriteValue(128, 2, leb_value);
-  leb_value[0] = 0x80;
-  leb_value[1] = 0x80;
-  leb_value[2] = 0x80;
-  leb_value[3] = 0x80;
-  leb_value[4] = 0x01;
-  CheckReadValue(leb_value, 0x10000000, 5, kNoError);
-  CheckWriteValue(0x10000000, 5, leb_value);
-  leb_value[0] = 0x80;
-  leb_value[1] = 0x80;
-  leb_value[2] = 0x80;
-  leb_value[3] = 0x80;
-  leb_value[4] = 0x80;
-  CheckReadValue(leb_value, -1, -1, kInvalidLEB128);
 }
 }  // namespace wasm
 }  // namespace internal

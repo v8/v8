@@ -1674,17 +1674,6 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   return os;
 }
 
-
-ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte* pc,
-                                                      const byte* limit,
-                                                      int* length,
-                                                      uint32_t* result) {
-  Decoder decoder(pc, limit);
-  *result = decoder.checked_read_u32v(pc, 0, length);
-  if (decoder.ok()) return kNoError;
-  return (limit - pc) > 1 ? kInvalidLEB128 : kMissingLEB128;
-}
-
 int OpcodeLength(const byte* pc, const byte* end) {
   WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeLength(pc);

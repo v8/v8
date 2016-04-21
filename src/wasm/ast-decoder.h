@@ -215,11 +215,6 @@ inline TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
   return BuildTFGraph(allocator, builder, body);
 }
 
-enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
-
-ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte*, const byte*,
-                                                      int*, uint32_t*);
-
 struct AstLocalDecls {
   // The size of the encoded declarations.
   uint32_t decls_encoded_size;  // size of encoded declarations

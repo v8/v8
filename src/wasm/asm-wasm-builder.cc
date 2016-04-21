@@ -273,10 +273,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       current_function_builder_->Emit(kExprNop);
     } else {
       current_function_builder_->Emit(kExprBrTable);
-      std::vector<uint8_t> count =
-          UnsignedLEB128From(node->end - node->begin + 1);
-      current_function_builder_->EmitCode(&count[0],
-                                          static_cast<uint32_t>(count.size()));
+      current_function_builder_->EmitVarInt(node->end - node->begin + 1);
       for (int v = node->begin; v <= node->end; v++) {
         if (case_to_block.find(v) != case_to_block.end()) {
           byte break_code[] = {BR_TARGET(case_to_block.at(v))};
@@ -1137,9 +1134,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
           index = LookupOrInsertFunction(vp->var());
         }
         current_function_builder_->Emit(kExprCallFunction);
-        std::vector<uint8_t> index_arr = UnsignedLEB128From(index);
-        current_function_builder_->EmitCode(
-            &index_arr[0], static_cast<uint32_t>(index_arr.size()));
+        current_function_builder_->EmitVarInt(index);
         break;
       }
       case Call::KEYED_PROPERTY_CALL: {
