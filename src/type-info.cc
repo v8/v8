@@ -297,7 +297,7 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     KeyedLoadICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, receiver_types);
     *is_string = HasOnlyStringMaps(receiver_types);
-    *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+    *key_type = nexus.GetKeyType();
   }
 }
 

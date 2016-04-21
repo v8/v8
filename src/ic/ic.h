@@ -106,7 +106,7 @@ class IC {
   }
 
   // Configure for most states.
-  void ConfigureVectorState(IC::State new_state);
+  void ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Code> handler);
@@ -267,10 +267,6 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode) {
-    return LoadICState(typeof_mode).GetExtraICState();
-  }
-
   TypeofMode typeof_mode() const {
     return LoadICState::GetTypeofMode(extra_ic_state());
   }
@@ -320,20 +316,6 @@ class LoadIC : public IC {
 
 class KeyedLoadIC : public LoadIC {
  public:
-  // ExtraICState bits (building on IC)
-  class IcCheckTypeField
-      : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
-
-  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
-                                          IcCheckType key_type) {
-    return LoadICState(typeof_mode).GetExtraICState() |
-           IcCheckTypeField::encode(key_type);
-  }
-
-  static IcCheckType GetKeyType(ExtraICState extra_state) {
-    return IcCheckTypeField::decode(extra_state);
-  }
-
   KeyedLoadIC(FrameDepth depth, Isolate* isolate,
               KeyedLoadICNexus* nexus = NULL)
       : LoadIC(depth, isolate, nexus) {
@@ -366,10 +348,6 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(LanguageMode flag) {
-    return StoreICState(flag).GetExtraICState();
-  }
-
   StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(IsStoreStub());
@@ -424,22 +402,6 @@ enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
 class KeyedStoreIC : public StoreIC {
  public:
-  // ExtraICState bits (building on IC)
-  // ExtraICState bits
-  // When more language modes are added, these BitFields need to move too.
-  STATIC_ASSERT(i::LANGUAGE_END == 3);
-  class ExtraICStateKeyedAccessStoreMode
-      : public BitField<KeyedAccessStoreMode, 3, 3> {};  // NOLINT
-
-  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
-
-  static ExtraICState ComputeExtraICState(LanguageMode flag,
-                                          KeyedAccessStoreMode mode) {
-    return StoreICState(flag).GetExtraICState() |
-           ExtraICStateKeyedAccessStoreMode::encode(mode) |
-           IcCheckTypeField::encode(ELEMENT);
-  }
-
   KeyedAccessStoreMode GetKeyedAccessStoreMode() {
     return casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
   }
