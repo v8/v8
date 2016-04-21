@@ -1683,11 +1683,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ld(subject, MemOperand(sp, kSubjectOffset));
   __ JumpIfSmi(subject, &runtime);
   __ mov(a3, subject);  // Make a copy of the original subject string.
-  __ ld(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
 
   // subject: subject string
-  // a0: subject string instance type
   // a3: subject string
   // regexp_data: RegExp data (FixedArray)
   // Handle subject string according to its encoding and representation:
@@ -1714,8 +1711,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ bind(&check_underlying);
   __ ld(a2, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ Daddu(a0, a2, Map::kInstanceTypeOffset);
-  __ lbu(a0, MemOperand(a0));
+  __ lbu(a0, FieldMemOperand(a2, Map::kInstanceTypeOffset));
 
   // (1) Sequential string?  If yes, go to (4).
   __ And(a1,
