@@ -2503,9 +2503,13 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
   ExpressionT result =
       this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);
 
+  bool type_instantiation = false;
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
+        if (type_instantiation) {  // Braces required here.
+          Expect(Token::LPAREN, CHECK_OK);
+        }
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2519,6 +2523,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::LPAREN: {
+        type_instantiation = false;
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2577,20 +2582,24 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::PERIOD: {
-        // In typed mode, we want to allow type instantiation with the notation
-        // f.<A, B> that must be handled separately.
-        if (scope_->typed() && PeekAhead() == Token::LT) {
-          Consume(Token::PERIOD);
-          typename TypeSystem::TypeList type_arguments =
-              ParseTypeArguments(CHECK_OK);
-          USE(type_arguments);  // TODO(nikolaos): really use them!
-          break;
+        if (type_instantiation) {  // Braces required here.
+          Expect(Token::LPAREN, CHECK_OK);
         }
-
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::PERIOD);
+
+        // In typed mode, we want to allow type instantiation with the notation
+        // f.<A, B> that must be handled separately.
+        if (scope_->typed() && peek() == Token::LT) {
+          typename TypeSystem::TypeList type_arguments =
+              ParseTypeArguments(CHECK_OK);
+          USE(type_arguments);  // TODO(nikolaos): really use them!
+          type_instantiation = true;
+          break;
+        }
+
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         result = factory()->NewProperty(
@@ -2609,6 +2618,9 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       default:
+        if (type_instantiation) {  // Braces required here.
+          Expect(Token::LPAREN, CHECK_OK);
+        }
         return result;
     }
   }

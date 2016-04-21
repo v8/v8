@@ -17,10 +17,13 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckValid("(function <A, B>(x: A, y: B) {}).<number, string>(42, 'hello')");
   CheckValid("(f => f)(function <A>(x: A) {}).<number>(42)");
   CheckValid("(f => f)(function <A, B>(x: A, y: B) {}).<number, string>(42, 'hello')");
+  CheckValid("function f<A>() { return f; }; f.<a>().<b>()");
+  CheckValid("function f<A>() { return {g: f}; }; f.<a>().g.<b>()");
   CheckInvalid("function f<A>(x: A) {}; f.(42)");
   CheckInvalid("function f<A>(x: A) {}; f.<>(42)");
   CheckInvalid("(function <A>(x: A) {}).(42)");
   CheckInvalid("(function <A>(x: A) {}).<>(42)");
+  CheckInvalid("function f<A>(x: A) {}; f.<number>");
 })();
 
 (function TestTypeInstantiationForGenerators() {
@@ -36,6 +39,7 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckInvalid("function* f<A>(x: A) {}; f.<>(42)");
   CheckInvalid("(function* <A>(x: A) {}).(42)");
   CheckInvalid("(function* <A>(x: A) {}).<>(42)");
+  CheckInvalid("(function* <A>(x: A) {}).<number>");
 })();
 
 (function TestTypeInstantiationForNewCalls() {
@@ -51,6 +55,7 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckInvalid("function f<A>(x: A) {}; new f.<>(42)");
   CheckInvalid("new (function <A>(x: A) {}).(42)");
   CheckInvalid("new (function <A>(x: A) {}).<>(42)");
+  CheckInvalid("new (function <A>(x: A) {}).<number>");
 })();
 
 (function TestTypeInstantiationForMethods() {
@@ -66,4 +71,5 @@ load("test/mjsunit/harmony/typesystem/testgen.js");
   CheckInvalid("({ f<A>(x: A) {} }).f.<>(42)");
   CheckInvalid("(o => o)({ f<A>(x: A) {} }).f.(42)");
   CheckInvalid("(o => o)({ f<A>(x: A) {} }).f.<>(42)");
+  CheckInvalid("(o => o)({ f<A>(x: A) {} }).f.<number>");
 })();
