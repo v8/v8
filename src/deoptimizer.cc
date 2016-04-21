@@ -895,11 +895,8 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
-  // The top address for the bottommost output frame can be computed from
-  // the input frame pointer and the output frame's height.  For all
-  // subsequent output frames, it can be computed from the previous one's
-  // top address and the current frame's size.
-  Register fp_reg = JavaScriptFrame::fp_register();
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
   intptr_t top_address;
   if (is_bottommost) {
     top_address = caller_frame_top_ - output_frame_size;
@@ -947,7 +944,10 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
-  if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
+  if (is_topmost) {
+    Register fp_reg = JavaScriptFrame::fp_register();
+    output_frame->SetRegister(fp_reg.code(), fp_value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
@@ -1117,11 +1117,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
-  // The top address for the bottommost output frame can be computed from
-  // the input frame pointer and the output frame's height.  For all
-  // subsequent output frames, it can be computed from the previous one's
-  // top address and the current frame's size.
-  Register fp_reg = InterpretedFrame::fp_register();
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
   intptr_t top_address;
   if (is_bottommost) {
     top_address = caller_frame_top_ - output_frame_size;
@@ -1170,7 +1167,10 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
-  if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
+  if (is_topmost) {
+    Register fp_reg = InterpretedFrame::fp_register();
+    output_frame->SetRegister(fp_reg.code(), fp_value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
@@ -1334,8 +1334,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   CHECK(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
-  // The top address of the frame is computed from the previous
-  // frame's top and this frame's size.
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
   intptr_t top_address;
   if (is_bottommost) {
     top_address = caller_frame_top_ - output_frame_size;
@@ -1485,7 +1485,6 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
            offset, stack_fp_, new_stack_fp, caller_frame_top_,
            new_caller_frame_top);
   }
-  stack_fp_ = new_stack_fp;
   caller_frame_top_ = new_caller_frame_top;
   caller_fp_ = adaptor_caller_fp;
   caller_pc_ = adaptor_caller_pc;
@@ -1521,8 +1520,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   DCHECK(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
-  // The top address of the frame is computed from the previous
-  // frame's top and this frame's size.
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
   intptr_t top_address;
   top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
@@ -1807,13 +1806,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(frame_index, 0);
   output_[frame_index] = output_frame;
 
-  // The top address for the output frame can be computed from the input
-  // frame pointer and the output frame's height. Subtract space for the
-  // context and function slots.
-  Register fp_reg = StubFailureTrampolineFrame::fp_register();
-  intptr_t top_address =
-      stack_fp_ - StubFailureTrampolineFrameConstants::kFixedFrameSizeFromFp -
-      height_in_bytes;
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
+  intptr_t top_address = caller_frame_top_ - output_frame_size;
   output_frame->SetTop(top_address);
 
   // Set caller's PC (JSFunction continuation).
@@ -1827,7 +1822,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
   value = caller_fp_;
   output_frame_offset -= kFPOnStackSize;
   output_frame->SetCallerFp(output_frame_offset, value);
-  intptr_t frame_ptr = stack_fp_;
+  intptr_t frame_ptr = top_address + output_frame_offset;
+  Register fp_reg = StubFailureTrampolineFrame::fp_register();
   output_frame->SetRegister(fp_reg.code(), frame_ptr);
   output_frame->SetFp(frame_ptr);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
