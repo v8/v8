@@ -790,7 +790,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                                    JavaScriptFrame* osr_frame = nullptr) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  if (shared->HasDebugInfo()) return MaybeHandle<Code>();
 
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
