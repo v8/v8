@@ -707,12 +707,22 @@ void Interpreter::DoBinaryOp(Runtime::FunctionId function_id,
   __ Dispatch();
 }
 
+template <class Generator>
+void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* lhs = __ LoadRegister(reg_index);
+  Node* rhs = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result = Generator::Generate(assembler, lhs, rhs, context);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 // Add <src>
 //
 // Add register <src> to accumulator.
 void Interpreter::DoAdd(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Add(isolate_), assembler);
+  DoBinaryOp<AddStub>(assembler);
 }
 
 
@@ -720,7 +730,7 @@ void Interpreter::DoAdd(InterpreterAssembler* assembler) {
 //
 // Subtract register <src> from accumulator.
 void Interpreter::DoSub(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Subtract(isolate_), assembler);
+  DoBinaryOp<SubtractStub>(assembler);
 }
 
 
@@ -728,7 +738,7 @@ void Interpreter::DoSub(InterpreterAssembler* assembler) {
 //
 // Multiply accumulator by register <src>.
 void Interpreter::DoMul(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Multiply(isolate_), assembler);
+  DoBinaryOp<MultiplyStub>(assembler);
 }
 
 
@@ -736,7 +746,7 @@ void Interpreter::DoMul(InterpreterAssembler* assembler) {
 //
 // Divide register <src> by accumulator.
 void Interpreter::DoDiv(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Divide(isolate_), assembler);
+  DoBinaryOp<DivideStub>(assembler);
 }
 
 
@@ -744,7 +754,7 @@ void Interpreter::DoDiv(InterpreterAssembler* assembler) {
 //
 // Modulo register <src> by accumulator.
 void Interpreter::DoMod(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Modulus(isolate_), assembler);
+  DoBinaryOp<ModulusStub>(assembler);
 }
 
 
@@ -752,7 +762,7 @@ void Interpreter::DoMod(InterpreterAssembler* assembler) {
 //
 // BitwiseOr register <src> to accumulator.
 void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseOr(isolate_), assembler);
+  DoBinaryOp<BitwiseOrStub>(assembler);
 }
 
 
@@ -760,7 +770,7 @@ void Interpreter::DoBitwiseOr(InterpreterAssembler* assembler) {
 //
 // BitwiseXor register <src> to accumulator.
 void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseXor(isolate_), assembler);
+  DoBinaryOp<BitwiseXorStub>(assembler);
 }
 
 
@@ -768,7 +778,7 @@ void Interpreter::DoBitwiseXor(InterpreterAssembler* assembler) {
 //
 // BitwiseAnd register <src> to accumulator.
 void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::BitwiseAnd(isolate_), assembler);
+  DoBinaryOp<BitwiseAndStub>(assembler);
 }
 
 
@@ -779,7 +789,7 @@ void Interpreter::DoBitwiseAnd(InterpreterAssembler* assembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftLeft(isolate_), assembler);
+  DoBinaryOp<ShiftLeftStub>(assembler);
 }
 
 
@@ -790,7 +800,7 @@ void Interpreter::DoShiftLeft(InterpreterAssembler* assembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftRight(isolate_), assembler);
+  DoBinaryOp<ShiftRightStub>(assembler);
 }
 
 
@@ -801,7 +811,7 @@ void Interpreter::DoShiftRight(InterpreterAssembler* assembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::ShiftRightLogical(isolate_), assembler);
+  DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
 void Interpreter::DoCountOp(Runtime::FunctionId function_id,

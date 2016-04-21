@@ -498,26 +498,27 @@ void StringLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->Return(result);
 }
 
-void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* left, compiler::Node* right,
+                                  compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(2);
-
   // Shared entry for floating point addition.
-  Label do_fadd(assembler);
+  Label do_fadd(assembler), end(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive, ToString and/or
   // ToNumber conversions.
   Variable var_lhs(assembler, MachineRepresentation::kTagged),
-      var_rhs(assembler, MachineRepresentation::kTagged);
+      var_rhs(assembler, MachineRepresentation::kTagged),
+      var_result(assembler, MachineRepresentation::kTagged);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(assembler, 2, loop_vars);
-  var_lhs.Bind(assembler->Parameter(0));
-  var_rhs.Bind(assembler->Parameter(1));
+  var_lhs.Bind(left);
+  var_rhs.Bind(right);
   assembler->Goto(&loop);
   assembler->Bind(&loop);
   {
@@ -554,7 +555,8 @@ void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         }
 
         assembler->Bind(&if_notoverflow);
-        assembler->Return(assembler->Projection(0, pair));
+        var_result.Bind(assembler->Projection(0, pair));
+        assembler->Goto(&end);
       }
 
       assembler->Bind(&if_rhsisnotsmi);
@@ -595,7 +597,8 @@ void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
             // resulting string with the String {rhs}.
             Callable callable = CodeFactory::StringAdd(
                 assembler->isolate(), STRING_ADD_CONVERT_LEFT, NOT_TENURED);
-            assembler->TailCallStub(callable, context, lhs, rhs);
+            var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
+            assembler->Goto(&end);
           }
 
           assembler->Bind(&if_rhsisnotstring);
@@ -649,7 +652,8 @@ void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         // no hint followed by ToString) and concatenate the strings.
         Callable callable = CodeFactory::StringAdd(
             assembler->isolate(), STRING_ADD_CONVERT_RIGHT, NOT_TENURED);
-        assembler->TailCallStub(callable, context, lhs, rhs);
+        var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
+        assembler->Goto(&end);
       }
 
       assembler->Bind(&if_lhsisnotstring);
@@ -727,7 +731,8 @@ void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
             // no hint followed by ToString) and concatenate the strings.
             Callable callable = CodeFactory::StringAdd(
                 assembler->isolate(), STRING_ADD_CONVERT_LEFT, NOT_TENURED);
-            assembler->TailCallStub(callable, context, lhs, rhs);
+            var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
+            assembler->Goto(&end);
           }
 
           assembler->Bind(&if_rhsisnotstring);
@@ -849,31 +854,35 @@ void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* lhs_value = var_fadd_lhs.value();
     Node* rhs_value = var_fadd_rhs.value();
     Node* value = assembler->Float64Add(lhs_value, rhs_value);
-    Node* result = assembler->ChangeFloat64ToTagged(value);
-    assembler->Return(result);
+    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    assembler->Goto(&end);
   }
+  assembler->Bind(&end);
+  return var_result.value();
 }
 
-void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+compiler::Node* SubtractStub::Generate(CodeStubAssembler* assembler,
+                                       compiler::Node* left,
+                                       compiler::Node* right,
+                                       compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(2);
-
   // Shared entry for floating point subtraction.
-  Label do_fsub(assembler);
+  Label do_fsub(assembler), end(assembler);
   Variable var_fsub_lhs(assembler, MachineRepresentation::kFloat64),
       var_fsub_rhs(assembler, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive and/or ToNumber
   // conversions.
   Variable var_lhs(assembler, MachineRepresentation::kTagged),
-      var_rhs(assembler, MachineRepresentation::kTagged);
+      var_rhs(assembler, MachineRepresentation::kTagged),
+      var_result(assembler, MachineRepresentation::kTagged);
   Variable* loop_vars[2] = {&var_lhs, &var_rhs};
   Label loop(assembler, 2, loop_vars);
-  var_lhs.Bind(assembler->Parameter(0));
-  var_rhs.Bind(assembler->Parameter(1));
+  var_lhs.Bind(left);
+  var_rhs.Bind(right);
   assembler->Goto(&loop);
   assembler->Bind(&loop);
   {
@@ -911,7 +920,8 @@ void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         }
 
         assembler->Bind(&if_notoverflow);
-        assembler->Return(assembler->Projection(0, pair));
+        var_result.Bind(assembler->Projection(0, pair));
+        assembler->Goto(&end);
       }
 
       assembler->Bind(&if_rhsisnotsmi);
@@ -937,7 +947,8 @@ void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         assembler->Bind(&if_rhsisnotnumber);
         {
           // Convert the {rhs} to a Number first.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
           var_rhs.Bind(assembler->CallStub(callable, context, rhs));
           assembler->Goto(&loop);
         }
@@ -993,7 +1004,8 @@ void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           assembler->Bind(&if_rhsisnotnumber);
           {
             // Convert the {rhs} to a Number first.
-            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            Callable callable =
+                CodeFactory::NonNumberToNumber(assembler->isolate());
             var_rhs.Bind(assembler->CallStub(callable, context, rhs));
             assembler->Goto(&loop);
           }
@@ -1003,7 +1015,8 @@ void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&if_lhsisnotnumber);
       {
         // Convert the {lhs} to a Number first.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         var_lhs.Bind(assembler->CallStub(callable, context, lhs));
         assembler->Goto(&loop);
       }
@@ -1015,17 +1028,21 @@ void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
-    Node* result = assembler->ChangeFloat64ToTagged(value);
-    assembler->Return(result);
+    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    assembler->Goto(&end);
   }
+  assembler->Bind(&end);
+  return var_result.value();
 }
 
-void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
+                                       compiler::Node* left,
+                                       compiler::Node* right,
+                                       compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
-
-  Node* context = assembler->Parameter(2);
 
   // Shared entry point for floating point multiplication.
   Label do_fmul(assembler);
@@ -1039,8 +1056,8 @@ void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       var_rhs(assembler, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_lhs, &var_rhs};
   Label loop(assembler, 2, loop_variables);
-  var_lhs.Bind(assembler->Parameter(0));
-  var_rhs.Bind(assembler->Parameter(1));
+  var_lhs.Bind(left);
+  var_rhs.Bind(right);
   assembler->Goto(&loop);
   assembler->Bind(&loop);
   {
@@ -1150,7 +1167,8 @@ void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&lhs_is_not_number);
       {
         // Convert {lhs} to a Number and loop.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         var_lhs.Bind(assembler->CallStub(callable, context, lhs));
         assembler->Goto(&loop);
       }
@@ -1162,19 +1180,21 @@ void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
     Node* result = assembler->ChangeFloat64ToTagged(value);
-    assembler->Return(result);
+    return result;
   }
 }
 
-void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* DivideStub::Generate(CodeStubAssembler* assembler,
+                                     compiler::Node* left,
+                                     compiler::Node* right,
+                                     compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(2);
-
   // Shared entry point for floating point division.
-  Label do_fdiv(assembler);
+  Label do_fdiv(assembler), end(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64);
 
@@ -1182,11 +1202,12 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 
   // We might need to loop one or two times due to ToNumber conversions.
   Variable var_dividend(assembler, MachineRepresentation::kTagged),
-      var_divisor(assembler, MachineRepresentation::kTagged);
+      var_divisor(assembler, MachineRepresentation::kTagged),
+      var_result(assembler, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_dividend, &var_divisor};
   Label loop(assembler, 2, loop_variables);
-  var_dividend.Bind(assembler->Parameter(0));
-  var_divisor.Bind(assembler->Parameter(1));
+  var_dividend.Bind(left);
+  var_divisor.Bind(right);
   assembler->Goto(&loop);
   assembler->Bind(&loop);
   {
@@ -1260,7 +1281,8 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         // Do floating point division if the remainder is not 0.
         assembler->GotoIf(
             assembler->Word32NotEqual(untagged_dividend, truncated), &bailout);
-        assembler->Return(assembler->SmiTag(untagged_result));
+        var_result.Bind(assembler->SmiTag(untagged_result));
+        assembler->Goto(&end);
 
         // Bailout: convert {dividend} and {divisor} to double and do double
         // division.
@@ -1294,7 +1316,8 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         assembler->Bind(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
           var_divisor.Bind(assembler->CallStub(callable, context, divisor));
           assembler->Goto(&loop);
         }
@@ -1349,7 +1372,8 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           assembler->Bind(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
-            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            Callable callable =
+                CodeFactory::NonNumberToNumber(assembler->isolate());
             var_divisor.Bind(assembler->CallStub(callable, context, divisor));
             assembler->Goto(&loop);
           }
@@ -1359,7 +1383,8 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         var_dividend.Bind(assembler->CallStub(callable, context, dividend));
         assembler->Goto(&loop);
       }
@@ -1370,30 +1395,21 @@ void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   {
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
-    assembler->Return(result);
+    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    assembler->Goto(&end);
   }
+  assembler->Bind(&end);
+  return var_result.value();
 }
 
-void BitwiseAndStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  using compiler::Node;
-
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
-  Node* value = assembler->Word32And(lhs_value, rhs_value);
-  Node* result = assembler->ChangeInt32ToTagged(value);
-  assembler->Return(result);
-}
-
-void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* ModulusStub::Generate(CodeStubAssembler* assembler,
+                                      compiler::Node* left,
+                                      compiler::Node* right,
+                                      compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
-
-  Node* context = assembler->Parameter(2);
 
   // Shared entry point for floating point modulus.
   Label do_fmod(assembler);
@@ -1407,8 +1423,8 @@ void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       var_divisor(assembler, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_dividend, &var_divisor};
   Label loop(assembler, 2, loop_variables);
-  var_dividend.Bind(assembler->Parameter(0));
-  var_divisor.Bind(assembler->Parameter(1));
+  var_dividend.Bind(left);
+  var_divisor.Bind(right);
   assembler->Goto(&loop);
   assembler->Bind(&loop);
   {
@@ -1455,7 +1471,8 @@ void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
         assembler->Bind(&divisor_is_not_number);
         {
           // Convert {divisor} to a number and loop.
-          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          Callable callable =
+              CodeFactory::NonNumberToNumber(assembler->isolate());
           var_divisor.Bind(assembler->CallStub(callable, context, divisor));
           assembler->Goto(&loop);
         }
@@ -1510,7 +1527,8 @@ void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           assembler->Bind(&divisor_is_not_number);
           {
             // Convert {divisor} to a number and loop.
-            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            Callable callable =
+                CodeFactory::NonNumberToNumber(assembler->isolate());
             var_divisor.Bind(assembler->CallStub(callable, context, divisor));
             assembler->Goto(&loop);
           }
@@ -1520,7 +1538,8 @@ void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&dividend_is_not_number);
       {
         // Convert {dividend} to a Number and loop.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         var_dividend.Bind(assembler->CallStub(callable, context, dividend));
         assembler->Goto(&loop);
       }
@@ -1532,80 +1551,92 @@ void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
     Node* result = assembler->ChangeFloat64ToTagged(value);
-    assembler->Return(result);
+    return result;
   }
 }
 
-void ShiftLeftStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* ShiftLeftStub::Generate(CodeStubAssembler* assembler,
+                                        compiler::Node* left,
+                                        compiler::Node* right,
+                                        compiler::Node* context) {
   using compiler::Node;
 
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
   Node* shift_count =
       assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
   Node* value = assembler->Word32Shl(lhs_value, shift_count);
   Node* result = assembler->ChangeInt32ToTagged(value);
-  assembler->Return(result);
+  return result;
 }
 
-void ShiftRightStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+compiler::Node* ShiftRightStub::Generate(CodeStubAssembler* assembler,
+                                         compiler::Node* left,
+                                         compiler::Node* right,
+                                         compiler::Node* context) {
   using compiler::Node;
 
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
   Node* shift_count =
       assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
   Node* value = assembler->Word32Sar(lhs_value, shift_count);
   Node* result = assembler->ChangeInt32ToTagged(value);
-  assembler->Return(result);
+  return result;
 }
 
-void ShiftRightLogicalStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
+compiler::Node* ShiftRightLogicalStub::Generate(CodeStubAssembler* assembler,
+                                                compiler::Node* left,
+                                                compiler::Node* right,
+                                                compiler::Node* context) {
   using compiler::Node;
 
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
   Node* shift_count =
       assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
   Node* value = assembler->Word32Shr(lhs_value, shift_count);
   Node* result = assembler->ChangeUint32ToTagged(value);
-  assembler->Return(result);
+  return result;
 }
 
-void BitwiseOrStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+compiler::Node* BitwiseAndStub::Generate(CodeStubAssembler* assembler,
+                                         compiler::Node* left,
+                                         compiler::Node* right,
+                                         compiler::Node* context) {
   using compiler::Node;
 
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
+  Node* value = assembler->Word32And(lhs_value, rhs_value);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  return result;
+}
+
+compiler::Node* BitwiseOrStub::Generate(CodeStubAssembler* assembler,
+                                        compiler::Node* left,
+                                        compiler::Node* right,
+                                        compiler::Node* context) {
+  using compiler::Node;
+
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
   Node* value = assembler->Word32Or(lhs_value, rhs_value);
   Node* result = assembler->ChangeInt32ToTagged(value);
-  assembler->Return(result);
+  return result;
 }
 
-void BitwiseXorStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+compiler::Node* BitwiseXorStub::Generate(CodeStubAssembler* assembler,
+                                         compiler::Node* left,
+                                         compiler::Node* right,
+                                         compiler::Node* context) {
   using compiler::Node;
-
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
-  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, left);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, right);
   Node* value = assembler->Word32Xor(lhs_value, rhs_value);
   Node* result = assembler->ChangeInt32ToTagged(value);
-  assembler->Return(result);
+  return result;
 }
 
 namespace {
