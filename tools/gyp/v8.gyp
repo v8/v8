@@ -299,6 +299,8 @@
               'action_name': 'run_mksnapshot (external)',
               'inputs': [
                 '<(mksnapshot_exec)',
+                '<(embed_script)',
+                '<(warmup_script)',
               ],
               'variables': {
                 'mksnapshot_flags': [],
