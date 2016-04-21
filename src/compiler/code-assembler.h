@@ -52,6 +52,7 @@ class Schedule;
   V(Int32LessThanOrEqual)                        \
   V(IntPtrLessThan)                              \
   V(IntPtrLessThanOrEqual)                       \
+  V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
@@ -191,13 +192,7 @@ class CodeAssembler {
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
-  Node* BooleanMapConstant();
-  Node* EmptyStringConstant();
-  Node* HeapNumberMapConstant();
   Node* NaNConstant();
-  Node* NoContextConstant();
-  Node* NullConstant();
-  Node* UndefinedConstant();
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -222,6 +217,9 @@ class CodeAssembler {
   Node* Load(MachineType rep, Node* base);
   Node* Load(MachineType rep, Node* base, Node* index);
   Node* AtomicLoad(MachineType rep, Node* base, Node* index);
+
+  // Load a value from the root array.
+  Node* LoadRoot(Heap::RootListIndex root_index);
 
   // Store value to raw memory location.
   Node* Store(MachineRepresentation rep, Node* base, Node* value);
@@ -307,22 +305,6 @@ class CodeAssembler {
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);
 
-  // ===========================================================================
-  // Macros
-  // ===========================================================================
-
-  // Tag a Word as a Smi value.
-  Node* SmiTag(Node* value);
-  // Untag a Smi value as a Word.
-  Node* SmiUntag(Node* value);
-
-  // Load a value from the root array.
-  Node* LoadRoot(Heap::RootListIndex root_index);
-
-  // Allocate an object of the given size.
-  Node* Allocate(int size, AllocationFlags flags = kNone);
-  Node* InnerAllocate(Node* previous, int offset);
-
   // Branching helpers.
   void BranchIf(Node* condition, Label* if_true, Label* if_false);
 
@@ -356,11 +338,6 @@ class CodeAssembler {
 
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-
-  Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
-                           Node* top_address, Node* limit_address);
-  Node* AllocateRawUnaligned(Node* size_in_bytes, AllocationFlags flags,
-                             Node* top_adddress, Node* limit_address);
 
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;

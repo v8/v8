@@ -32,11 +32,23 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                     Code::Flags flags, const char* name);
 
+  compiler::Node* BooleanMapConstant();
+  compiler::Node* EmptyStringConstant();
+  compiler::Node* HeapNumberMapConstant();
+  compiler::Node* NoContextConstant();
+  compiler::Node* NullConstant();
+  compiler::Node* UndefinedConstant();
+
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);
   compiler::Node* Float64Floor(compiler::Node* x);
   compiler::Node* Float64Round(compiler::Node* x);
   compiler::Node* Float64Trunc(compiler::Node* x);
+
+  // Tag a Word as a Smi value.
+  compiler::Node* SmiTag(compiler::Node* value);
+  // Untag a Smi value as a Word.
+  compiler::Node* SmiUntag(compiler::Node* value);
 
   // Smi conversions.
   compiler::Node* SmiToFloat64(compiler::Node* value);
@@ -54,6 +66,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
+
+  // Allocate an object of the given size.
+  compiler::Node* Allocate(int size, AllocationFlags flags = kNone);
+  compiler::Node* InnerAllocate(compiler::Node* previous, int offset);
 
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
@@ -179,6 +195,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
+
+ private:
+  compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
+                                     AllocationFlags flags,
+                                     compiler::Node* top_address,
+                                     compiler::Node* limit_address);
+  compiler::Node* AllocateRawUnaligned(compiler::Node* size_in_bytes,
+                                       AllocationFlags flags,
+                                       compiler::Node* top_adddress,
+                                       compiler::Node* limit_address);
 };
 
 }  // namespace internal

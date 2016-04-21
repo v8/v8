@@ -22,6 +22,30 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const char* name)
     : compiler::CodeAssembler(isolate, zone, parameter_count, flags, name) {}
 
+Node* CodeStubAssembler::BooleanMapConstant() {
+  return HeapConstant(isolate()->factory()->boolean_map());
+}
+
+Node* CodeStubAssembler::EmptyStringConstant() {
+  return LoadRoot(Heap::kempty_stringRootIndex);
+}
+
+Node* CodeStubAssembler::HeapNumberMapConstant() {
+  return HeapConstant(isolate()->factory()->heap_number_map());
+}
+
+Node* CodeStubAssembler::NoContextConstant() {
+  return SmiConstant(Smi::FromInt(0));
+}
+
+Node* CodeStubAssembler::NullConstant() {
+  return LoadRoot(Heap::kNullValueRootIndex);
+}
+
+Node* CodeStubAssembler::UndefinedConstant() {
+  return LoadRoot(Heap::kUndefinedValueRootIndex);
+}
+
 Node* CodeStubAssembler::Float64Round(Node* x) {
   Node* one = Float64Constant(1.0);
   Node* one_half = Float64Constant(0.5);
@@ -216,6 +240,14 @@ Node* CodeStubAssembler::SmiFromWord32(Node* value) {
   return WordShl(value, SmiShiftBitsConstant());
 }
 
+Node* CodeStubAssembler::SmiTag(Node* value) {
+  return WordShl(value, SmiShiftBitsConstant());
+}
+
+Node* CodeStubAssembler::SmiUntag(Node* value) {
+  return WordSar(value, SmiShiftBitsConstant());
+}
+
 Node* CodeStubAssembler::SmiToWord32(Node* value) {
   Node* result = WordSar(value, SmiShiftBitsConstant());
   if (Is64()) {
@@ -276,6 +308,127 @@ Node* CodeStubAssembler::WordIsSmi(Node* a) {
 Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
   return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask | kSmiSignMask)),
                    IntPtrConstant(0));
+}
+
+Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
+                                              AllocationFlags flags,
+                                              Node* top_address,
+                                              Node* limit_address) {
+  Node* top = Load(MachineType::Pointer(), top_address);
+  Node* limit = Load(MachineType::Pointer(), limit_address);
+
+  // If there's not enough space, call the runtime.
+  Variable result(this, MachineRepresentation::kTagged);
+  Label runtime_call(this, Label::kDeferred), no_runtime_call(this);
+  Label merge_runtime(this, &result);
+
+  Branch(IntPtrLessThan(IntPtrSub(limit, top), size_in_bytes), &runtime_call,
+         &no_runtime_call);
+
+  Bind(&runtime_call);
+  // AllocateInTargetSpace does not use the context.
+  Node* context = IntPtrConstant(0);
+  Node* runtime_flags = SmiTag(Int32Constant(
+      AllocateDoubleAlignFlag::encode(false) |
+      AllocateTargetSpace::encode(flags & kPretenured
+                                      ? AllocationSpace::OLD_SPACE
+                                      : AllocationSpace::NEW_SPACE)));
+  Node* runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
+                                     SmiTag(size_in_bytes), runtime_flags);
+  result.Bind(runtime_result);
+  Goto(&merge_runtime);
+
+  // When there is enough space, return `top' and bump it up.
+  Bind(&no_runtime_call);
+  Node* no_runtime_result = top;
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
+                      IntPtrAdd(top, size_in_bytes));
+  no_runtime_result =
+      IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag));
+  result.Bind(no_runtime_result);
+  Goto(&merge_runtime);
+
+  Bind(&merge_runtime);
+  return result.value();
+}
+
+Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
+                                            AllocationFlags flags,
+                                            Node* top_address,
+                                            Node* limit_address) {
+  Node* top = Load(MachineType::Pointer(), top_address);
+  Node* limit = Load(MachineType::Pointer(), limit_address);
+  Variable adjusted_size(this, MachineType::PointerRepresentation());
+  adjusted_size.Bind(size_in_bytes);
+  if (flags & kDoubleAlignment) {
+    // TODO(epertoso): Simd128 alignment.
+    Label aligned(this), not_aligned(this), merge(this, &adjusted_size);
+    Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &not_aligned,
+           &aligned);
+
+    Bind(&not_aligned);
+    Node* not_aligned_size =
+        IntPtrAdd(size_in_bytes, IntPtrConstant(kPointerSize));
+    adjusted_size.Bind(not_aligned_size);
+    Goto(&merge);
+
+    Bind(&aligned);
+    Goto(&merge);
+
+    Bind(&merge);
+  }
+
+  Variable address(this, MachineRepresentation::kTagged);
+  address.Bind(AllocateRawUnaligned(adjusted_size.value(), kNone, top, limit));
+
+  Label needs_filler(this), doesnt_need_filler(this),
+      merge_address(this, &address);
+  Branch(IntPtrEqual(adjusted_size.value(), size_in_bytes), &doesnt_need_filler,
+         &needs_filler);
+
+  Bind(&needs_filler);
+  // Store a filler and increase the address by kPointerSize.
+  // TODO(epertoso): this code assumes that we only align to kDoubleSize. Change
+  // it when Simd128 alignment is supported.
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top,
+                      LoadRoot(Heap::kOnePointerFillerMapRootIndex));
+  address.Bind(IntPtrAdd(address.value(), IntPtrConstant(kPointerSize)));
+  Goto(&merge_address);
+
+  Bind(&doesnt_need_filler);
+  Goto(&merge_address);
+
+  Bind(&merge_address);
+  // Update the top.
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
+                      IntPtrAdd(top, adjusted_size.value()));
+  return address.value();
+}
+
+Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+  bool const new_space = !(flags & kPretenured);
+  Node* top_address = ExternalConstant(
+      new_space
+          ? ExternalReference::new_space_allocation_top_address(isolate())
+          : ExternalReference::old_space_allocation_top_address(isolate()));
+  Node* limit_address = ExternalConstant(
+      new_space
+          ? ExternalReference::new_space_allocation_limit_address(isolate())
+          : ExternalReference::old_space_allocation_limit_address(isolate()));
+
+#ifdef V8_HOST_ARCH_32_BIT
+  if (flags & kDoubleAlignment) {
+    return AllocateRawAligned(IntPtrConstant(size_in_bytes), flags, top_address,
+                              limit_address);
+  }
+#endif
+
+  return AllocateRawUnaligned(IntPtrConstant(size_in_bytes), flags, top_address,
+                              limit_address);
+}
+
+Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
+  return IntPtrAdd(previous, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
