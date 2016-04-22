@@ -40,7 +40,7 @@ function CheckInvalidReferenceInContext(expr) {
 
 function ValidTypeAssertions(size) {
   return Generate(size, [
-    new TestGen(1, ValidTypes, [
+    new TestGen(10, ValidTypes, [
       // With primary expressions.
       t => "< " + t + "> 42",
       t => "< " + t + "> x",
@@ -75,6 +75,11 @@ function ValidTypeAssertions(size) {
       t => "< " + t + "> new new ff(42)",
       t => "< " + t + "> new new ffa(42)[0]",
       t => "< " + t + "> new new ffo(42).x"
+    ]),
+    new TestGen(1, ValidTypeAssertions, [
+      // More than one assertions.
+      e => "<number>" + e,
+      e => "<number[]>" + e
     ])
   ]);
 }

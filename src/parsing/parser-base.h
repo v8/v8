@@ -3536,31 +3536,30 @@ void ParserBase<Traits>::ParseTypeAssertionOrParameters(
     ExpressionClassifier* classifier, bool* ok) {
   Expect(Token::LT, ok);
   if (!*ok) return;
-  bool first = true;
-  do {
-    if (first) {
-      first = false;
-      int pos = peek_position();
-      typename TypeSystem::Type type = ParseValidType(ok);
-      if (!*ok) return;
-      if (!type->IsValidBindingIdentifier()) {
-        classifier->RecordArrowFormalParametersError(
-            Scanner::Location(pos, scanner()->location().end_pos),
-            MessageTemplate::kInvalidTypeParameter);
-        break;
-      }
-      if (peek() != Token::GT)
-        classifier->RecordExpressionError(
-            scanner()->peek_location(), MessageTemplate::kInvalidTypeAssertion);
-    } else {
-      ParseIdentifierName(ok);
-      if (!*ok) return;
-    }
+  int pos = peek_position();
+  typename TypeSystem::Type type = ParseValidType(ok);
+  if (!*ok) return;
+  if (type->IsValidBindingIdentifier()) {
+    if (peek() != Token::GT)
+      classifier->RecordExpressionError(scanner()->peek_location(),
+                                        MessageTemplate::kInvalidTypeAssertion);
     if (Check(Token::EXTENDS)) {
       ParseValidType(ok);
       if (!*ok) return;
     }
-  } while (Check(Token::COMMA));
+    while (Check(Token::COMMA)) {
+      ParseIdentifierName(ok);
+      if (!*ok) return;
+      if (Check(Token::EXTENDS)) {
+        ParseValidType(ok);
+        if (!*ok) return;
+      }
+    }
+  } else {
+    classifier->RecordArrowFormalParametersError(
+        Scanner::Location(pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidTypeParameter);
+  }
   Expect(Token::GT, ok);
 }
 
