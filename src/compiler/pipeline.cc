@@ -104,7 +104,8 @@ class PipelineData {
         register_allocation_data_(nullptr) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
     graph_ = new (graph_zone_) Graph(graph_zone_);
-    source_positions_.Reset(new SourcePositionTable(graph_));
+    source_positions_ = new (graph_zone_->New(sizeof(SourcePositionTable)))
+        SourcePositionTable(graph_);
     simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
     machine_ = new (graph_zone_) MachineOperatorBuilder(
         graph_zone_, MachineType::PointerRepresentation(),
@@ -128,7 +129,8 @@ class PipelineData {
         graph_zone_scope_(zone_pool_),
         graph_zone_(nullptr),
         graph_(graph),
-        source_positions_(new SourcePositionTable(graph_)),
+        source_positions_(new (info->zone()->New(sizeof(SourcePositionTable)))
+                              SourcePositionTable(graph_)),
         loop_assignment_(nullptr),
         simplified_(nullptr),
         machine_(nullptr),
@@ -195,9 +197,7 @@ class PipelineData {
 
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
-  SourcePositionTable* source_positions() const {
-    return source_positions_.get();
-  }
+  SourcePositionTable* source_positions() const { return source_positions_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
@@ -238,13 +238,11 @@ class PipelineData {
   }
 
   void DeleteGraphZone() {
-    // Destroy objects with destructors first.
-    source_positions_.Reset(nullptr);
     if (graph_zone_ == nullptr) return;
-    // Destroy zone and clear pointers.
     graph_zone_scope_.Destroy();
     graph_zone_ = nullptr;
     graph_ = nullptr;
+    source_positions_ = nullptr;
     loop_assignment_ = nullptr;
     type_hint_analysis_ = nullptr;
     simplified_ = nullptr;
@@ -317,8 +315,7 @@ class PipelineData {
   ZonePool::Scope graph_zone_scope_;
   Zone* graph_zone_;
   Graph* graph_;
-  // TODO(dcarney): make this into a ZoneObject.
-  base::SmartPointer<SourcePositionTable> source_positions_;
+  SourcePositionTable* source_positions_;
   LoopAssignmentAnalysis* loop_assignment_;
   TypeHintAnalysis* type_hint_analysis_ = nullptr;
   SimplifiedOperatorBuilder* simplified_;

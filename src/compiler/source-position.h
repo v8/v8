@@ -66,9 +66,6 @@ class SourcePositionTable final {
   };
 
   explicit SourcePositionTable(Graph* graph);
-  ~SourcePositionTable() {
-    if (decorator_) RemoveDecorator();
-  }
 
   void AddDecorator();
   void RemoveDecorator();
