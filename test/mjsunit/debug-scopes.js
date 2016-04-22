@@ -1179,11 +1179,10 @@ var code3 = "function for_statement() {         \n" +
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeChainPositions([{start: 52, end: 111}, {start: 42, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
+  CheckScopeChainPositions([{start: 52, end: 111}, {start: 22, end: 145}, {}, {}], exec_state);
 }
 eval(code3);
 EndTest();

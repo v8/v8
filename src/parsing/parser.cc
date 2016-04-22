@@ -3435,6 +3435,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
     // Make a block around the statement for a lexical binding
     // is introduced by a FunctionDeclaration.
     Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
+    body_scope->set_start_position(scanner()->location().beg_pos);
     BlockState block_state(&scope_, body_scope);
     Block* block = factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
     Statement* body = ParseFunctionDeclaration(NULL, CHECK_OK);
@@ -3459,6 +3460,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   for_scope->set_start_position(scanner()->location().beg_pos);
+  for_scope->set_is_hidden();
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST ||
@@ -4381,8 +4383,8 @@ Block* Parser::BuildParameterInitializationBlock(
     if (!parameter.is_simple() && scope_->calls_sloppy_eval()) {
       param_scope = NewScope(scope_, BLOCK_SCOPE);
       param_scope->set_is_declaration_scope();
-      param_scope->set_start_position(parameter.pattern->position());
-      param_scope->set_end_position(RelocInfo::kNoPosition);
+      param_scope->set_start_position(descriptor.initialization_pos);
+      param_scope->set_end_position(parameter.initializer_end_position);
       param_scope->RecordEvalCall();
       param_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
       param_block->set_scope(param_scope);
@@ -5971,6 +5973,7 @@ Expression* ParserTraits::RewriteYieldStar(
     catch_block->statements()->Add(set_mode_throw, zone);
 
     Scope* catch_scope = NewScope(scope, CATCH_SCOPE);
+    catch_scope->set_is_hidden();
     const AstRawString* name = avfactory->dot_catch_string();
     Variable* catch_variable =
         catch_scope->DeclareLocal(name, VAR, kCreatedInitialized,
@@ -6452,6 +6455,7 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
     Variable* catch_variable =
         catch_scope->DeclareLocal(avfactory->dot_catch_string(), VAR,
                                   kCreatedInitialized, Variable::NORMAL);
+    catch_scope->set_is_hidden();
 
     Statement* rethrow;
     // We use %ReThrow rather than the ordinary throw because we want to
@@ -6563,6 +6567,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
     Variable* catch_variable = catch_scope->DeclareLocal(
         avfactory->dot_catch_string(), VAR, kCreatedInitialized,
         Variable::NORMAL);
+    catch_scope->set_is_hidden();
 
     try_call_return = factory->NewTryCatchStatement(
         try_block, catch_scope, catch_variable, catch_block, nopos);

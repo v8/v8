@@ -842,7 +842,7 @@ bool ScopeIterator::CopyContextExtensionToScopeObject(
 
 void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
-  if (!scope->is_eval_scope()) {
+  if (!scope->is_eval_scope() && !scope->is_hidden()) {
     nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
                                               scope->start_position(),
                                               scope->end_position()));
@@ -851,7 +851,7 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
     Scope* inner_scope = scope->inner_scopes()->at(i);
     int beg_pos = inner_scope->start_position();
     int end_pos = inner_scope->end_position();
-    DCHECK(beg_pos >= 0 && end_pos >= 0);
+    DCHECK((beg_pos >= 0 && end_pos >= 0) || inner_scope->is_hidden());
     if (beg_pos <= position && position < end_pos) {
       GetNestedScopeChain(isolate, inner_scope, position);
       return;
