@@ -3383,6 +3383,7 @@ TranslatedState::TranslatedState(JavaScriptFrame* frame)
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+  DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
   Init(frame->fp(), &it, data->LiteralArray(), nullptr /* registers */,

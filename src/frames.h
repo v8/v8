@@ -635,9 +635,16 @@ class JavaScriptFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
+  // Mode for StandardFrame::Summarize. Exact summary is required to produce an
+  // exact stack trace. It will trigger an assertion failure if that is not
+  // possible, e.g., because of missing deoptimization information. The
+  // approximate mode should produce a summary even without deoptimization
+  // information, but it might miss frames.
+  enum Mode { kExactSummary, kApproximateSummary };
+
   FrameSummary(Object* receiver, JSFunction* function,
                AbstractCode* abstract_code, int code_offset,
-               bool is_constructor);
+               bool is_constructor, Mode mode = kExactSummary);
 
   static FrameSummary GetFirst(JavaScriptFrame* frame);
 
@@ -678,7 +685,9 @@ class StandardFrame : public StackFrame {
   }
 
   // Build a list with summaries for this frame including all inlined frames.
-  virtual void Summarize(List<FrameSummary>* frames) const;
+  virtual void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
 
   // Accessors.
   virtual JSFunction* function() const;
@@ -777,7 +786,9 @@ class JavaScriptFrame : public StandardFrame {
   // Return a list with JSFunctions of this frame.
   virtual void GetFunctions(List<JSFunction*>* functions) const;
 
-  void Summarize(List<FrameSummary>* frames) const override;
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -855,7 +866,9 @@ class OptimizedFrame : public JavaScriptFrame {
   // is the top-most activation)
   void GetFunctions(List<JSFunction*>* functions) const override;
 
-  void Summarize(List<FrameSummary>* frames) const override;
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
@@ -902,7 +915,9 @@ class InterpretedFrame : public JavaScriptFrame {
   void WriteInterpreterRegister(int register_index, Object* value);
 
   // Build a list with summaries for this frame including all inlined frames.
-  void Summarize(List<FrameSummary>* frames) const override;
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
@@ -967,7 +982,9 @@ class WasmFrame : public StandardFrame {
 
   JSFunction* function() const override;
 
-  void Summarize(List<FrameSummary>* frames) const override;
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
