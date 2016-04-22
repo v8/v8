@@ -135,7 +135,7 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
 
 MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
     Isolate* isolate, Handle<JSObject> receiver, Handle<JSObject> holder,
-    Handle<Name> name, Handle<Object> value, bool observe) {
+    Handle<Name> name, Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
@@ -145,20 +145,7 @@ MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
     it.Next();
   }
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-
-  Handle<Object> old_value;
-  bool is_observed = observe && receiver->map()->is_observed();
-  if (is_observed) {
-    MaybeHandle<Object> maybe_old = Object::GetPropertyWithAccessor(&it);
-    if (!maybe_old.ToHandle(&old_value)) return maybe_old;
-  }
-
   it.ReconfigureDataProperty(value, it.property_attributes());
-
-  if (is_observed && !old_value->SameValue(*value)) {
-    return JSObject::EnqueueChangeRecord(receiver, "update", name, old_value);
-  }
-
   return value;
 }
 
@@ -173,8 +160,8 @@ void Accessors::ReconfigureToDataProperty(
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result = ReplaceAccessorWithDataProperty(
-      isolate, receiver, holder, name, value, false);
+  MaybeHandle<Object> result =
+      ReplaceAccessorWithDataProperty(isolate, receiver, holder, name, value);
   if (result.is_null()) isolate->OptionalRescheduleException(false);
 }
 
@@ -235,9 +222,7 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  if (JSArray::ObservableSetLength(array, length).is_null()) {
-    isolate->OptionalRescheduleException(false);
-  }
+  JSArray::SetLength(array, length);
 
   if (info.ShouldThrowOnError()) {
     uint32_t actual_new_len = 0;
@@ -732,24 +717,8 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 
 MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
     Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
-  Handle<Object> old_value;
-  bool is_observed = function->map()->is_observed();
-  if (is_observed) {
-    if (function->has_prototype())
-      old_value = handle(function->prototype(), isolate);
-    else
-      old_value = isolate->factory()->NewFunctionPrototype(function);
-  }
-
   JSFunction::SetPrototype(function, value);
   DCHECK(function->prototype() == *value);
-
-  if (is_observed && !old_value->SameValue(*value)) {
-    MaybeHandle<Object> result = JSObject::EnqueueChangeRecord(
-        function, "update", isolate->factory()->prototype_string(), old_value);
-    if (result.is_null()) return MaybeHandle<Object>();
-  }
-
   return function;
 }
 
@@ -820,27 +789,10 @@ void Accessors::FunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-void Accessors::ObservedReconfigureToDataProperty(
-    v8::Local<v8::Name> key, v8::Local<v8::Value> val,
-    const v8::PropertyCallbackInfo<void>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  HandleScope scope(isolate);
-  Handle<JSObject> receiver =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
-  Handle<JSObject> holder =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Name> name = Utils::OpenHandle(*key);
-  Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result = ReplaceAccessorWithDataProperty(
-      isolate, receiver, holder, name, value, true);
-  if (result.is_null()) isolate->OptionalRescheduleException(false);
-}
-
-
 Handle<AccessorInfo> Accessors::FunctionLengthInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &FunctionLengthGetter, &ObservedReconfigureToDataProperty,
+                      &FunctionLengthGetter, &ReconfigureToDataProperty,
                       attributes);
 }
 
@@ -864,7 +816,7 @@ void Accessors::FunctionNameGetter(
 Handle<AccessorInfo> Accessors::FunctionNameInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
-                      &FunctionNameGetter, &ObservedReconfigureToDataProperty,
+                      &FunctionNameGetter, &ReconfigureToDataProperty,
                       attributes);
 }
 
@@ -1170,8 +1122,8 @@ void Accessors::BoundFunctionLengthGetter(
 Handle<AccessorInfo> Accessors::BoundFunctionLengthInfo(
     Isolate* isolate, PropertyAttributes attributes) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &BoundFunctionLengthGetter,
-                      &ObservedReconfigureToDataProperty, attributes);
+                      &BoundFunctionLengthGetter, &ReconfigureToDataProperty,
+                      attributes);
 }
 
 //
@@ -1195,8 +1147,8 @@ void Accessors::BoundFunctionNameGetter(
 Handle<AccessorInfo> Accessors::BoundFunctionNameInfo(
     Isolate* isolate, PropertyAttributes attributes) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
-                      &BoundFunctionNameGetter,
-                      &ObservedReconfigureToDataProperty, attributes);
+                      &BoundFunctionNameGetter, &ReconfigureToDataProperty,
+                      attributes);
 }
 
 //

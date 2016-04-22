@@ -277,7 +277,6 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ElementsKind origin_kind = array->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
-  if (array->map()->is_observed()) return false;
   if (!array->map()->is_extensible()) return false;
   if (args == nullptr) return true;
 
@@ -584,7 +583,6 @@ BUILTIN(ArrayPop) {
   }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  DCHECK(!array->map()->is_observed());
 
   uint32_t len = static_cast<uint32_t>(Smi::cast(array->length())->value());
   if (len == 0) return isolate->heap()->undefined_value();
@@ -617,7 +615,6 @@ BUILTIN(ArrayShift) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  DCHECK(!array->map()->is_observed());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -638,7 +635,6 @@ BUILTIN(ArrayUnshift) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  DCHECK(!array->map()->is_observed());
   int to_add = args.length() - 1;
   if (to_add == 0) return array->length();
 
@@ -736,7 +732,6 @@ BUILTIN(ArraySplice) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  DCHECK(!array->map()->is_observed());
 
   int argument_count = args.length() - 1;
   int relative_start = 0;

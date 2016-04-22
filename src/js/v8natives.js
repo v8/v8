@@ -20,9 +20,6 @@ var MakeTypeError;
 var MathAbs;
 var NaN = %GetRootNaN();
 var ObjectToString = utils.ImportNow("object_to_string");
-var ObserveBeginPerformSplice;
-var ObserveEndPerformSplice;
-var ObserveEnqueueSpliceRecord;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -30,9 +27,6 @@ utils.Import(function(from) {
   MakeSyntaxError = from.MakeSyntaxError;
   MakeTypeError = from.MakeTypeError;
   MathAbs = from.MathAbs;
-  ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
-  ObserveEndPerformSplice = from.ObserveEndPerformSplice;
-  ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
 });
 
 // ----------------------------------------------------------------------------
@@ -688,19 +682,11 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
   // Step 3 - Special handling for array index.
   if (!IS_SYMBOL(p)) {
     var index = TO_UINT32(p);
-    var emit_splice = false;
     if (TO_STRING(index) == p && index != 4294967295) {
       var length = obj.length;
-      if (index >= length && %IsObserved(obj)) {
-        emit_splice = true;
-        ObserveBeginPerformSplice(obj);
-      }
-
       var length_desc = GetOwnPropertyJS(obj, "length");
       if ((index >= length && !length_desc.isWritable()) ||
           !DefineObjectProperty(obj, p, desc, true)) {
-        if (emit_splice)
-          ObserveEndPerformSplice(obj);
         if (should_throw) {
           throw MakeTypeError(kDefineDisallowed, p);
         } else {
@@ -709,10 +695,6 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       }
       if (index >= length) {
         obj.length = index + 1;
-      }
-      if (emit_splice) {
-        ObserveEndPerformSplice(obj);
-        ObserveEnqueueSpliceRecord(obj, length, [], index + 1 - length);
       }
       return true;
     }
@@ -764,15 +746,6 @@ function ObjectSetPrototypeOf(obj, proto) {
 function ObjectDefineProperty(obj, p, attributes) {
   // The new pure-C++ implementation doesn't support O.o.
   // TODO(jkummerow): Implement missing features and remove fallback path.
-  if (%IsObserved(obj)) {
-    if (!IS_RECEIVER(obj)) {
-      throw MakeTypeError(kCalledOnNonObject, "Object.defineProperty");
-    }
-    var name = TO_NAME(p);
-    var desc = ToPropertyDescriptor(attributes);
-    DefineOwnProperty(obj, name, desc, true);
-    return obj;
-  }
   return %ObjectDefineProperty(obj, p, attributes);
 }
 
@@ -781,21 +754,6 @@ function ObjectDefineProperty(obj, p, attributes) {
 function ObjectDefineProperties(obj, properties) {
   // The new pure-C++ implementation doesn't support O.o.
   // TODO(jkummerow): Implement missing features and remove fallback path.
-  if (%IsObserved(obj)) {
-    if (!IS_RECEIVER(obj)) {
-      throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
-    }
-    var props = TO_OBJECT(properties);
-    var names = %GetOwnPropertyKeys(props, PROPERTY_FILTER_ONLY_ENUMERABLE);
-    var descriptors = new InternalArray();
-    for (var i = 0; i < names.length; i++) {
-      descriptors.push(ToPropertyDescriptor(props[names[i]]));
-    }
-    for (var i = 0; i < names.length; i++) {
-      DefineOwnProperty(obj, names[i], descriptors[i], true);
-    }
-    return obj;
-  }
   return %ObjectDefineProperties(obj, properties);
 }
 
@@ -860,8 +818,6 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "setPrototypeOf", ObjectSetPrototypeOf,
   // getOwnPropertySymbols is added in symbol.js.
   // is is added in bootstrapper.cc.
-  // deliverChangeRecords, getNotifier, observe and unobserve are added
-  // in object-observe.js.
 ]);
 
 

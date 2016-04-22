@@ -503,5 +503,19 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
+  isolate->EnqueueMicrotask(microtask);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  isolate->RunMicrotasks();
+  return isolate->heap()->undefined_value();
+}
 }  // namespace internal
 }  // namespace v8

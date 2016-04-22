@@ -48,7 +48,6 @@ class AccessorInfo;
 
 #define ACCESSOR_SETTER_LIST(V)        \
   V(ReconfigureToDataProperty)         \
-  V(ObservedReconfigureToDataProperty) \
   V(ArrayLengthSetter)                 \
   V(FunctionPrototypeSetter)
 

@@ -195,7 +195,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                           \
   V(harmony_explicit_tailcalls, "harmony explicit tail calls")          \
-  V(harmony_object_observe, "harmony Object.observe")                   \
   V(harmony_function_sent, "harmony function.sent")                     \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_simd, "harmony simd")                                       \

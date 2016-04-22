@@ -4444,11 +4444,6 @@ bool Map::is_undetectable() {
 }
 
 
-void Map::set_is_observed() { set_bit_field(bit_field() | (1 << kIsObserved)); }
-
-bool Map::is_observed() { return ((1 << kIsObserved) & bit_field()) != 0; }
-
-
 void Map::set_has_named_interceptor() {
   set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
 }

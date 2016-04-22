@@ -2761,10 +2761,6 @@ void Heap::CreateInitialObjects() {
   // The symbol registry is initialized lazily.
   set_symbol_registry(Smi::FromInt(0));
 
-  // Allocate object to hold object observation state.
-  set_observation_state(*factory->NewJSObjectFromMap(
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)));
-
   // Microtask queue uses the empty fixed array as a sentinel for "empty".
   // Number of queued microtasks stored in Isolate::pending_microtask_count().
   set_microtask_queue(empty_fixed_array());

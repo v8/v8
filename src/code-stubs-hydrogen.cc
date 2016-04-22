@@ -763,18 +763,6 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     check.End();
   }
 
-  // Disallow pushing onto observed objects.
-  {
-    HValue* bit_field =
-        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField());
-    HValue* mask = Add<HConstant>(1 << Map::kIsObserved);
-    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field, mask);
-    IfBuilder check(this);
-    check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
-    check.End();
-  }
-
   // Disallow pushing onto arrays in dictionary named property mode. We need to
   // figure out whether the length property is still writable.
   {

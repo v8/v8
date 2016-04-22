@@ -1413,17 +1413,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
-  // Observed objects are always modified through the runtime.
-  if (object->IsHeapObject() &&
-      Handle<HeapObject>::cast(object)->map()->is_observed()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        Object::SetProperty(object, name, value, language_mode(), store_mode),
-        Object);
-    return result;
-  }
-
   LookupIterator it(object, name);
   if (FLAG_use_ic) UpdateCaches(&it, value, store_mode);
 
@@ -1894,10 +1883,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     return store_handle;
   }
 
-  bool use_ic =
-      FLAG_use_ic && !object->IsStringWrapper() &&
-      !object->IsAccessCheckNeeded() && !object->IsJSGlobalProxy() &&
-      !(object->IsJSObject() && JSObject::cast(*object)->map()->is_observed());
+  bool use_ic = FLAG_use_ic && !object->IsStringWrapper() &&
+                !object->IsAccessCheckNeeded() && !object->IsJSGlobalProxy();
   if (use_ic && !object->IsSmi()) {
     // Don't use ICs for maps of the objects in Array's prototype chain. We
     // expect to be able to trap element sets to objects with those maps in

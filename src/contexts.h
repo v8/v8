@@ -119,10 +119,6 @@ enum BindingFlags {
     no_side_effects_to_string_fun)                                            \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
-  V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \
-  V(OBSERVERS_END_SPLICE_INDEX, JSFunction, observers_end_perform_splice)     \
-  V(OBSERVERS_ENQUEUE_SPLICE_INDEX, JSFunction, observers_enqueue_splice)     \
-  V(OBSERVERS_NOTIFY_CHANGE_INDEX, JSFunction, observers_notify_change)       \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                           \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \

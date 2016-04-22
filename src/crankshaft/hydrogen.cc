@@ -6904,7 +6904,6 @@ static bool ComputeReceiverTypes(Expression* expr, HValue* receiver,
       // possible if the receiver had a known map at some point, and no
       // map-changing stores have happened to it since.
       Handle<Map> candidate_map = receiver->GetMonomorphicJSObjectMap();
-      if (candidate_map->is_observed()) return false;
       for (HInstruction* current = builder->current_block()->last();
            current != nullptr; current = current->previous()) {
         if (current->IsBlockEntry()) break;
@@ -8916,8 +8915,7 @@ bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
   return !receiver_map.is_null() && receiver_map->prototype()->IsJSObject() &&
          receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
-         !receiver_map->is_dictionary_map() && !receiver_map->is_observed() &&
-         receiver_map->is_extensible() &&
+         !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
@@ -9294,7 +9292,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (!receiver_map->prototype()->IsJSObject()) return false;
       ElementsKind kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(kind)) return false;
-      if (receiver_map->is_observed()) return false;
       if (argument_count != 2) return false;
       if (!receiver_map->is_extensible()) return false;
 

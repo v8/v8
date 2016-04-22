@@ -622,11 +622,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ ld(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks and is not observed.
-  // The generic stub does not perform map checks or handle observed objects.
+  // Check that the receiver does not require access checks.
+  // The generic stub does not perform map checks.
   __ lbu(a4, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
-  __ And(a4, a4,
-         Operand(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
+  __ And(a4, a4, Operand(1 << Map::kIsAccessCheckNeeded));
   __ Branch(&slow, ne, a4, Operand(zero_reg));
   // Check if the object is a JS array or not.
   __ lbu(a4, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));

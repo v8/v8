@@ -9046,33 +9046,6 @@ TEST(ApiUncaughtException) {
 }
 
 
-TEST(ApiUncaughtExceptionInObjectObserve) {
-  v8::internal::FLAG_harmony_object_observe = true;
-  v8::internal::FLAG_stack_size = 150;
-  report_count = 0;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  isolate->AddMessageListener(ApiUncaughtExceptionTestListener);
-  CompileRun(
-      "var obj = {};"
-      "var observe_count = 0;"
-      "function observer1() { ++observe_count; };"
-      "function observer2() { ++observe_count; };"
-      "function observer_throws() { throw new Error(); };"
-      "function stack_overflow() { return (function f(x) { f(x+1); })(0); };"
-      "Object.observe(obj, observer_throws.bind());"
-      "Object.observe(obj, observer1);"
-      "Object.observe(obj, stack_overflow);"
-      "Object.observe(obj, observer2);"
-      "Object.observe(obj, observer_throws.bind());"
-      "obj.foo = 'bar';");
-  CHECK_EQ(3, report_count);
-  ExpectInt32("observe_count", 2);
-  isolate->RemoveMessageListeners(ApiUncaughtExceptionTestListener);
-}
-
-
 static const char* script_resource_name = "ExceptionInNativeScript.js";
 static void ExceptionInNativeScriptTestListener(v8::Local<v8::Message> message,
                                                 v8::Local<Value>) {
@@ -21275,40 +21248,6 @@ TEST(ScopedMicrotasks) {
   }
 
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
-}
-
-
-static void DebugEventInObserver(const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  if (event != v8::Break) return;
-  Local<Object> exec_state = event_details.GetExecutionState();
-  Local<Context> context = CcTest::isolate()->GetCurrentContext();
-  Local<Value> break_id =
-      exec_state->Get(context, v8_str("break_id")).ToLocalChecked();
-  CompileRun("function f(id) { new FrameDetails(id, 0); }");
-  Local<Function> fun = Local<Function>::Cast(
-      CcTest::global()->Get(context, v8_str("f")).ToLocalChecked());
-  fun->Call(context, CcTest::global(), 1, &break_id).ToLocalChecked();
-}
-
-
-TEST(Regress385349) {
-  i::FLAG_harmony_object_observe = true;
-  i::FLAG_allow_natives_syntax = true;
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope handle_scope(isolate);
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
-  Local<Context> context = Context::New(isolate);
-  v8::Debug::SetDebugEventListener(isolate, DebugEventInObserver);
-  {
-    Context::Scope context_scope(context);
-    CompileRun("var obj = {};"
-               "Object.observe(obj, function(changes) { debugger; });"
-               "obj.a = 0;");
-  }
-  isolate->RunMicrotasks();
-  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
-  v8::Debug::SetDebugEventListener(isolate, nullptr);
 }
 
 
