@@ -1486,7 +1486,7 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
   Node* etrue0 = effect;
   Node* vtrue0;
   {
-    vtrue0 = graph()->NewNode(simplified()->ChangeSmiToInt32(), value);
+    vtrue0 = graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
     vtrue0 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue0);
   }
 
@@ -1506,7 +1506,8 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
     Node* etrue1 = efalse0;
     Node* vtrue1;
     {
-      vtrue1 = graph()->NewNode(simplified()->ChangeSmiToInt32(), vfalse0);
+      vtrue1 =
+          graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), vfalse0);
       vtrue1 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue1);
     }
 
@@ -1567,7 +1568,8 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* etrue0 = effect;
-  Node* vtrue0 = graph()->NewNode(simplified()->ChangeSmiToInt32(), value);
+  Node* vtrue0 =
+      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
 
   Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* efalse0 = effect;
@@ -1583,7 +1585,8 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* etrue1 = efalse0;
-    Node* vtrue1 = graph()->NewNode(simplified()->ChangeSmiToInt32(), vfalse0);
+    Node* vtrue1 =
+        graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), vfalse0);
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
     Node* efalse1 = efalse0;

@@ -470,7 +470,13 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeTaggedToUint32, MachineRepresentation::kTagged,
               Type::Unsigned32(), MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
-              Type::None(), MachineRepresentation::kFloat64);
+              Type::Number(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
+              Type::NumberOrUndefined(), MachineRepresentation::kFloat64);
+  CheckTwoChanges(IrOpcode::kChangeTaggedSignedToInt32,
+                  IrOpcode::kChangeInt32ToFloat64,
+                  MachineRepresentation::kTagged, Type::TaggedSigned(),
+                  MachineRepresentation::kFloat64);
 
   // Int32,Uint32 <-> Float64 are actually machine conversions.
   CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,

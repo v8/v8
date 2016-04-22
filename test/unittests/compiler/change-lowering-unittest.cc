@@ -132,14 +132,6 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeInt31ToTagged) {
   EXPECT_THAT(r.replacement(), IsChangeInt32ToSmi(value));
 }
 
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedSigned) {
-  Node* value = Parameter(Type::TaggedSigned());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeTaggedToInt32(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsChangeSmiToInt32(value));
-}
-
 TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedNumber) {
   Node* value =
       Parameter(Type::Intersect(Type::TaggedPointer(), Type::Number(), zone()));
@@ -149,16 +141,6 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedNumber) {
   EXPECT_THAT(r.replacement(), IsChangeFloat64ToInt32(
                                    IsLoadHeapNumber(value, graph()->start())));
 }
-
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedSigned) {
-  Node* value = Parameter(Type::TaggedSigned());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeTaggedToUint32(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsChangeSmiToInt32(value));
-}
-
 
 TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedPointer) {
   Node* value =

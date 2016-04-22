@@ -760,7 +760,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::TaggedPointer());
       break;
 
-    case IrOpcode::kChangeSmiToInt32: {
+    case IrOpcode::kChangeTaggedSignedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type* from = Type::Intersect(Type::Signed32(), Type::Tagged());

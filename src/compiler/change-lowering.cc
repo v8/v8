@@ -33,8 +33,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeInt31ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeInt32ToTagged:
       return ChangeInt32ToTagged(node->InputAt(0), control);
-    case IrOpcode::kChangeSmiToInt32:
-      return ChangeSmiToInt32(node->InputAt(0));
+    case IrOpcode::kChangeTaggedSignedToInt32:
+      return ChangeTaggedSignedToInt32(node->InputAt(0));
     case IrOpcode::kChangeTaggedToFloat64:
       return ChangeTaggedToFloat64(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedToInt32:
@@ -272,16 +272,12 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
   return Replace(value);
 }
 
-Reduction ChangeLowering::ChangeSmiToInt32(Node* value) {
+Reduction ChangeLowering::ChangeTaggedSignedToInt32(Node* value) {
   return Replace(ChangeSmiToWord32(value));
 }
 
 Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
                                              Signedness signedness) {
-  if (NodeProperties::GetType(value)->Is(Type::TaggedSigned())) {
-    return ChangeSmiToInt32(value);
-  }
-
   const Operator* op = (signedness == kSigned)
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();

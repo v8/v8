@@ -322,7 +322,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = machine()->ChangeUint32ToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
-    if (output_type->Is(Type::NumberOrUndefined())) {
+    if (output_type->Is(Type::Undefined())) {
+      return jsgraph()->Float64Constant(
+          std::numeric_limits<double>::quiet_NaN());
+    } else if (output_type->Is(Type::TaggedSigned())) {
+      node = InsertChangeTaggedSignedToInt32(node);
+      op = machine()->ChangeInt32ToFloat64();
+    } else if (output_type->Is(Type::NumberOrUndefined())) {
       op = simplified()->ChangeTaggedToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
@@ -377,7 +383,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
-    if (output_type->Is(Type::Unsigned32())) {
+    if (output_type->Is(Type::TaggedSigned())) {
+      op = simplified()->ChangeTaggedSignedToInt32();
+    } else if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
@@ -551,6 +559,11 @@ Node* RepresentationChanger::InsertChangeFloat64ToUint32(Node* node) {
 
 Node* RepresentationChanger::InsertChangeFloat64ToInt32(Node* node) {
   return jsgraph()->graph()->NewNode(machine()->ChangeFloat64ToInt32(), node);
+}
+
+Node* RepresentationChanger::InsertChangeTaggedSignedToInt32(Node* node) {
+  return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(),
+                                     node);
 }
 
 Node* RepresentationChanger::InsertChangeTaggedToFloat64(Node* node) {

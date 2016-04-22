@@ -135,6 +135,7 @@ class RepresentationChanger final {
   Node* InsertChangeFloat32ToFloat64(Node* node);
   Node* InsertChangeFloat64ToInt32(Node* node);
   Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
