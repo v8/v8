@@ -169,6 +169,7 @@ config("toolchain") {
   cflags = []
 
   # TODO(jochen): Add support for arm subarchs, mips, mipsel, mips64el.
+
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
     if (current_cpu == "arm") {
@@ -195,13 +196,8 @@ config("toolchain") {
         "CAN_USE_ARMV7_INSTRUCTIONS",
         "CAN_USE_VFP3_INSTRUCTIONS",
         "CAN_USE_VFP32DREGS",
+        "USE_EABI_HARDFLOAT=0",
       ]
-
-      if (arm_float_abi == "hard") {
-        defines += [ "USE_EABI_HARDFLOAT=1" ]
-      } else if (arm_float_abi == "softfp") {
-        defines += [ "USE_EABI_HARDFLOAT=0" ]
-      }
     }
 
     # TODO(jochen): Add support for arm_test_noprobe.
@@ -217,7 +213,7 @@ config("toolchain") {
   }
   if (v8_target_arch == "s390") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-  }
+  } 
   if (v8_target_arch == "s390x") {
     defines += [
       "V8_TARGET_ARCH_S390",
@@ -230,7 +226,7 @@ config("toolchain") {
   if (v8_target_arch == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
   }
-
+     
   if (is_win) {
     defines += [ "WIN32" ]
     # TODO(jochen): Support v8_enable_prof.
