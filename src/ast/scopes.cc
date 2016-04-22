@@ -175,7 +175,10 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the language mode from the parent scope.
-  language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
+  language_mode_ =
+      is_module_scope()
+          ? STRICT
+          : (outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY);
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   scope_nonlinear_ = false;

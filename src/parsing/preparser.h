@@ -969,8 +969,9 @@ class PreParser : public ParserBase<PreParserTraits> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(int* materialized_literals = 0) {
-    Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
+  PreParseResult PreParseProgram(int* materialized_literals = 0,
+                                 bool is_module = false) {
+    Scope* scope = NewScope(scope_, is_module ? MODULE_SCOPE : SCRIPT_SCOPE);
     PreParserFactory factory(NULL);
     FunctionState top_scope(&function_state_, &scope_, scope, kNormalFunction,
                             &factory);

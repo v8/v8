@@ -1555,8 +1555,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            stack_limit);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(&stream);
-    i::PreParser::PreParseResult result = preparser.PreParseProgram(
-        &preparser_materialized_literals);
+    i::PreParser::PreParseResult result =
+        preparser.PreParseProgram(&preparser_materialized_literals, is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
   bool preparse_error = log.HasError();

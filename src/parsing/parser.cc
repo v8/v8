@@ -917,15 +917,15 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     FunctionState function_state(&function_state_, &scope_, scope,
                                  kNormalFunction, &function_factory);
 
-    // Don't count the mode in the use counters--give the program a chance
-    // to enable script/module-wide strict mode below.
-    scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     if (info->is_module()) {
       ParseModuleItemList(body, &ok);
     } else {
+      // Don't count the mode in the use counters--give the program a chance
+      // to enable script-wide strict mode below.
+      scope_->SetLanguageMode(info->language_mode());
       ParseStatementList(body, Token::EOS, &ok);
     }
 
@@ -1295,7 +1295,6 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
   //    ModuleItem*
 
   DCHECK(scope_->is_module_scope());
-  RaiseLanguageMode(STRICT);
 
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem(CHECK_OK);
