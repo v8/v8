@@ -124,24 +124,13 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
   EXPECT_THAT(r.replacement(), IsWordEqual(value, IsTrueConstant()));
 }
 
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeInt32ToTaggedWithSignedSmall) {
+TARGET_TEST_P(ChangeLoweringCommonTest, ChangeInt31ToTagged) {
   Node* value = Parameter(Type::SignedSmall());
   Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeInt32ToTagged(), value));
+      Reduce(graph()->NewNode(simplified()->ChangeInt31ToTagged(), value));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsChangeInt32ToSmi(value));
 }
-
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeUint32ToTaggedWithUnsignedSmall) {
-  Node* value = Parameter(Type::UnsignedSmall());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeUint32ToTagged(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsChangeUint32ToSmi(value));
-}
-
 
 TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToInt32WithTaggedSigned) {
   Node* value = Parameter(Type::TaggedSigned());

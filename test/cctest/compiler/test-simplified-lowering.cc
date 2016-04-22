@@ -908,7 +908,7 @@ TEST(LowerBooleanToNumber_bit_tagged) {
   t.Return(use);
   t.Lower();
   CHECK_EQ(b, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeUint32ToTagged, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeInt31ToTagged, use->InputAt(0)->opcode());
 }
 
 
@@ -921,7 +921,7 @@ TEST(LowerBooleanToNumber_tagged_tagged) {
   t.Return(use);
   t.Lower();
   CHECK_EQ(cnv, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeUint32ToTagged, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeInt31ToTagged, use->InputAt(0)->opcode());
   CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
   CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
   Node* c = t.jsgraph.TrueConstant();

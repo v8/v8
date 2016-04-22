@@ -1871,6 +1871,13 @@ Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 
+Type* Typer::Visitor::TypeChangeInt31ToTagged(Node* node) {
+  Type* arg = Operand(node, 0);
+  // TODO(neis): DCHECK(arg->Is(Type::Signed31()));
+  Type* rep =
+      arg->Is(Type::SignedSmall()) ? Type::TaggedSigned() : Type::Tagged();
+  return ChangeRepresentation(arg, rep, zone());
+}
 
 Type* Typer::Visitor::TypeChangeInt32ToTagged(Node* node) {
   Type* arg = Operand(node, 0);

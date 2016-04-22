@@ -50,6 +50,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeTaggedToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kChangeInt31ToTagged:
     case IrOpcode::kChangeInt32ToTagged: {
       Int32Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceNumber(m.Value());
@@ -59,7 +60,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(m.Value());
       if (m.IsChangeFloat64ToTagged()) return Replace(m.node()->InputAt(0));
-      if (m.IsChangeInt32ToTagged()) {
+      if (m.IsChangeInt31ToTagged() || m.IsChangeInt32ToTagged()) {
         return Change(node, machine()->ChangeInt32ToFloat64(), m.InputAt(0));
       }
       if (m.IsChangeUint32ToTagged()) {
@@ -73,7 +74,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat64ToTagged()) {
         return Change(node, machine()->ChangeFloat64ToInt32(), m.InputAt(0));
       }
-      if (m.IsChangeInt32ToTagged()) return Replace(m.InputAt(0));
+      if (m.IsChangeInt31ToTagged() || m.IsChangeInt32ToTagged()) {
+        return Replace(m.InputAt(0));
+      }
       break;
     }
     case IrOpcode::kChangeTaggedToUint32: {

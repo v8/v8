@@ -1281,7 +1281,6 @@ Handle<Code> Pipeline::GenerateCode() {
   RunPrintAndVerify("Early optimized");
 
   if (info()->is_effect_scheduling_enabled()) {
-    // TODO(jarin) Run value numbering for the representation changes.
     Run<EffectControlLinearizationPhase>();
     RunPrintAndVerify("Effect and control linearized");
   }

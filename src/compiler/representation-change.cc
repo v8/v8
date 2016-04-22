@@ -190,10 +190,12 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   if (output_rep == MachineRepresentation::kBit) {
     op = simplified()->ChangeBitToBool();
   } else if (IsWord(output_rep)) {
-    if (output_type->Is(Type::Unsigned32())) {
-      op = simplified()->ChangeUint32ToTagged();
+    if (output_type->Is(Type::Signed31())) {
+      op = simplified()->ChangeInt31ToTagged();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeInt32ToTagged();
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = simplified()->ChangeUint32ToTagged();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
@@ -201,9 +203,24 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   } else if (output_rep ==
              MachineRepresentation::kFloat32) {  // float32 -> float64 -> tagged
     node = InsertChangeFloat32ToFloat64(node);
+    // TODO(bmeurer): Pass -0 hint to ChangeFloat64ToTagged.
     op = simplified()->ChangeFloat64ToTagged();
   } else if (output_rep == MachineRepresentation::kFloat64) {
-    op = simplified()->ChangeFloat64ToTagged();
+    if (output_type->Is(Type::Signed31())) {  // float64 -> int32 -> tagged
+      node = InsertChangeFloat64ToInt32(node);
+      op = simplified()->ChangeInt31ToTagged();
+    } else if (output_type->Is(
+                   Type::Signed32())) {  // float64 -> int32 -> tagged
+      node = InsertChangeFloat64ToInt32(node);
+      op = simplified()->ChangeInt32ToTagged();
+    } else if (output_type->Is(
+                   Type::Unsigned32())) {  // float64 -> uint32 -> tagged
+      node = InsertChangeFloat64ToUint32(node);
+      op = simplified()->ChangeUint32ToTagged();
+    } else {
+      // TODO(bmeurer): Pass -0 hint to ChangeFloat64ToTagged.
+      op = simplified()->ChangeFloat64ToTagged();
+    }
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTagged);
@@ -528,6 +545,13 @@ Node* RepresentationChanger::InsertChangeFloat32ToFloat64(Node* node) {
   return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(), node);
 }
 
+Node* RepresentationChanger::InsertChangeFloat64ToUint32(Node* node) {
+  return jsgraph()->graph()->NewNode(machine()->ChangeFloat64ToUint32(), node);
+}
+
+Node* RepresentationChanger::InsertChangeFloat64ToInt32(Node* node) {
+  return jsgraph()->graph()->NewNode(machine()->ChangeFloat64ToInt32(), node);
+}
 
 Node* RepresentationChanger::InsertChangeTaggedToFloat64(Node* node) {
   return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),

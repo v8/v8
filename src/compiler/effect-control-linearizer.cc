@@ -293,15 +293,8 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                     Node* control) {
   Node* value = node->InputAt(0);
 
-  Type* const value_type = NodeProperties::GetType(value);
-  Node* const value32 = graph()->NewNode(
+  Node* value32 = graph()->NewNode(
       machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
-  // TODO(bmeurer): This fast case must be disabled until we kill the asm.js
-  // support in the generic JavaScript pipeline, because LoadBuffer is lying
-  // about its result.
-  // if (value_type->Is(Type::Signed32())) {
-  //   return ChangeInt32ToTagged(value32, control);
-  // }
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
@@ -311,36 +304,33 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
   Node* vsmi;
   Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
 
-  // We only need to check for -0 if the {value} can potentially contain -0.
-  if (value_type->Maybe(Type::MinusZero())) {
-    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
-                                        jsgraph()->Int32Constant(0));
-    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                         check_zero, if_smi);
+  // Check if {value} is -0.
+  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                      jsgraph()->Int32Constant(0));
+  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check_zero, if_smi);
 
-    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+  Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
 
-    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-    Node* check_negative = graph()->NewNode(
-        machine()->Int32LessThan(),
-        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
-        jsgraph()->Int32Constant(0));
-    Node* branch_negative = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Node* check_negative = graph()->NewNode(
+      machine()->Int32LessThan(),
+      graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+      jsgraph()->Int32Constant(0));
+  Node* branch_negative = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                           check_negative, if_zero);
 
-    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
-    Node* if_notnegative =
-        graph()->NewNode(common()->IfFalse(), branch_negative);
+  Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
+  Node* if_notnegative = graph()->NewNode(common()->IfFalse(), branch_negative);
 
-    // We need to create a box for negative 0.
-    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
-    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
-  }
+  // We need to create a box for negative 0.
+  if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
+  if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
 
   // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
   // machines we need to deal with potential overflow and fallback to boxing.
-  if (machine()->Is64() || value_type->Is(Type::SignedSmall())) {
+  if (machine()->Is64()) {
     vsmi = ChangeInt32ToSmi(value32);
   } else {
     Node* smi_tag =
@@ -373,8 +363,7 @@ EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node, Node* effect,
                                                   Node* control) {
   Node* value = node->InputAt(0);
 
-  if (machine()->Is64() ||
-      NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
+  if (machine()->Is64()) {
     return ValueEffectControl(ChangeInt32ToSmi(value), effect, control);
   }
 
@@ -404,10 +393,6 @@ EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node, Node* effect,
                                                    Node* control) {
   Node* value = node->InputAt(0);
-
-  if (NodeProperties::GetType(value)->Is(Type::UnsignedSmall())) {
-    return ValueEffectControl(ChangeUint32ToSmi(value), effect, control);
-  }
 
   Node* check = graph()->NewNode(machine()->Uint32LessThanOrEqual(), value,
                                  SmiMaxValueConstant());

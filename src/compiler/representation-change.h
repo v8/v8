@@ -133,6 +133,8 @@ class RepresentationChanger final {
                   Type* output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
   Node* InsertChangeFloat32ToFloat64(Node* node);
+  Node* InsertChangeFloat64ToInt32(Node* node);
+  Node* InsertChangeFloat64ToUint32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }

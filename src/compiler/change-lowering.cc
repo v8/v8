@@ -29,6 +29,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeBoolToBit(node->InputAt(0));
     case IrOpcode::kChangeFloat64ToTagged:
       return ChangeFloat64ToTagged(node->InputAt(0), control);
+    case IrOpcode::kChangeInt31ToTagged:
+      return ChangeInt31ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeInt32ToTagged:
       return ChangeInt32ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeSmiToInt32:
@@ -177,15 +179,8 @@ Reduction ChangeLowering::ChangeBoolToBit(Node* value) {
 
 
 Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
-  Type* const value_type = NodeProperties::GetType(value);
-  Node* const value32 = graph()->NewNode(
+  Node* value32 = graph()->NewNode(
       machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
-  // TODO(bmeurer): This fast case must be disabled until we kill the asm.js
-  // support in the generic JavaScript pipeline, because LoadBuffer is lying
-  // about its result.
-  // if (value_type->Is(Type::Signed32())) {
-  //   return ChangeInt32ToTagged(value32, control);
-  // }
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
@@ -196,36 +191,33 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
   Node* if_box = graph()->NewNode(common()->IfFalse(), branch_same);
   Node* vbox;
 
-  // We only need to check for -0 if the {value} can potentially contain -0.
-  if (value_type->Maybe(Type::MinusZero())) {
-    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
-                                        jsgraph()->Int32Constant(0));
-    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                         check_zero, if_smi);
+  // Check if {value} is -0.
+  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
+                                      jsgraph()->Int32Constant(0));
+  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check_zero, if_smi);
 
-    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-    Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
+  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+  Node* if_notzero = graph()->NewNode(common()->IfFalse(), branch_zero);
 
-    // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-    Node* check_negative = graph()->NewNode(
-        machine()->Int32LessThan(),
-        graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
-        jsgraph()->Int32Constant(0));
-    Node* branch_negative = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_negative, if_zero);
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  Node* check_negative = graph()->NewNode(
+      machine()->Int32LessThan(),
+      graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+      jsgraph()->Int32Constant(0));
+  Node* branch_negative = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                           check_negative, if_zero);
 
-    Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
-    Node* if_notnegative =
-        graph()->NewNode(common()->IfFalse(), branch_negative);
+  Node* if_negative = graph()->NewNode(common()->IfTrue(), branch_negative);
+  Node* if_notnegative = graph()->NewNode(common()->IfFalse(), branch_negative);
 
-    // We need to create a box for negative 0.
-    if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
-    if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
-  }
+  // We need to create a box for negative 0.
+  if_smi = graph()->NewNode(common()->Merge(2), if_notzero, if_notnegative);
+  if_box = graph()->NewNode(common()->Merge(2), if_box, if_negative);
 
   // On 64-bit machines we can just wrap the 32-bit integer in a smi, for 32-bit
   // machines we need to deal with potential overflow and fallback to boxing.
-  if (machine()->Is64() || value_type->Is(Type::SignedSmall())) {
+  if (machine()->Is64()) {
     vsmi = ChangeInt32ToSmi(value32);
   } else {
     Node* smi_tag =
@@ -251,31 +243,33 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
   return Replace(value);
 }
 
+Reduction ChangeLowering::ChangeInt31ToTagged(Node* value, Node* control) {
+  return Replace(ChangeInt32ToSmi(value));
+}
 
 Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
-  if (machine()->Is64() ||
-      NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
-    return Replace(ChangeInt32ToSmi(value));
+  if (machine()->Is64()) {
+    value = ChangeInt32ToSmi(value);
+  } else {
+    Node* add =
+        graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);
+
+    Node* ovf = graph()->NewNode(common()->Projection(1), add);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), ovf, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* vtrue =
+        AllocateHeapNumberWithValue(ChangeInt32ToFloat64(value), if_true);
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* vfalse = graph()->NewNode(common()->Projection(0), add);
+
+    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
   }
-
-  Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);
-
-  Node* ovf = graph()->NewNode(common()->Projection(1), add);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), ovf, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue =
-      AllocateHeapNumberWithValue(ChangeInt32ToFloat64(value), if_true);
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(common()->Projection(0), add);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue, vfalse, merge);
-
-  return Replace(phi);
+  return Replace(value);
 }
 
 Reduction ChangeLowering::ChangeSmiToInt32(Node* value) {
@@ -382,10 +376,6 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
 
 
 Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
-  if (NodeProperties::GetType(value)->Is(Type::UnsignedSmall())) {
-    return Replace(ChangeUint32ToSmi(value));
-  }
-
   Node* check = graph()->NewNode(machine()->Uint32LessThanOrEqual(), value,
                                  SmiMaxValueConstant());
   Node* branch =
