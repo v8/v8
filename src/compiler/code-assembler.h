@@ -245,6 +245,8 @@ class CodeAssembler {
   Node* TruncateFloat64ToInt32JavaScript(Node* a);
   // No-op on 32-bit, otherwise zero extend.
   Node* ChangeUint32ToWord(Node* value);
+  // No-op on 32-bit, otherwise sign extend.
+  Node* ChangeInt32ToIntPtr(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);

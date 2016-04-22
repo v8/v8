@@ -371,11 +371,6 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   return Load(MachineType::AnyTagged(), constant_pool, entry_offset);
 }
 
-Node* InterpreterAssembler::LoadObjectField(Node* object, int offset) {
-  return Load(MachineType::AnyTagged(), object,
-              IntPtrConstant(offset - kHeapObjectTag));
-}
-
 Node* InterpreterAssembler::LoadContextSlot(Node* context, int slot_index) {
   return Load(MachineType::AnyTagged(), context,
               IntPtrConstant(Context::SlotOffset(slot_index)));
@@ -711,6 +706,75 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #else
 #error "Unknown Architecture"
 #endif
+}
+
+Node* InterpreterAssembler::RegisterCount() {
+  Node* bytecode_array = LoadRegister(Register::bytecode_array());
+  Node* frame_size = LoadObjectField(
+      bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32());
+  return Word32Sar(frame_size, Int32Constant(kPointerSizeLog2));
+}
+
+Node* InterpreterAssembler::ExportRegisterFile() {
+  Node* register_count = RegisterCount();
+  Node* array =
+      AllocateUninitializedFixedArray(ChangeInt32ToIntPtr(register_count));
+
+  Variable var_index(this, MachineRepresentation::kWord32);
+  var_index.Bind(Int32Constant(0));
+
+  // Iterate over register file and write values into array.
+  Label loop(this, &var_index), done_loop(this);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_index.value();
+    Node* condition = Int32LessThan(index, register_count);
+    GotoUnless(condition, &done_loop);
+
+    Node* reg_index =
+        Int32Sub(Int32Constant(Register(0).ToOperand()), index);
+    Node* value = LoadRegister(ChangeInt32ToIntPtr(reg_index));
+
+    // No write barrier needed for writing into freshly allocated object.
+    StoreFixedArrayElementNoWriteBarrier(
+        array, ChangeInt32ToIntPtr(index), value);
+
+    var_index.Bind(Int32Add(index, Int32Constant(1)));
+    Goto(&loop);
+  }
+  Bind(&done_loop);
+
+  return array;
+}
+
+Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
+  Node* register_count = RegisterCount();
+
+  Variable var_index(this, MachineRepresentation::kWord32);
+  var_index.Bind(Int32Constant(0));
+
+  // Iterate over array and write values into register file.
+  Label loop(this, &var_index), done_loop(this);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_index.value();
+    Node* condition = Int32LessThan(index, register_count);
+    GotoUnless(condition, &done_loop);
+
+    Node* value = LoadFixedArrayElementInt32Index(array, index);
+
+    Node* reg_index =
+        Int32Sub(Int32Constant(Register(0).ToOperand()), index);
+    StoreRegister(value, ChangeInt32ToIntPtr(reg_index));
+
+    var_index.Bind(Int32Add(index, Int32Constant(1)));
+    Goto(&loop);
+  }
+  Bind(&done_loop);
+
+  return array;
 }
 
 }  // namespace interpreter

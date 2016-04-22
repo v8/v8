@@ -1362,6 +1362,14 @@ void BytecodeGraphBuilder::VisitForInStep() {
   environment()->BindAccumulator(index, &states);
 }
 
+void BytecodeGraphBuilder::VisitSuspendGenerator() {
+  UNIMPLEMENTED();
+}
+
+void BytecodeGraphBuilder::VisitResumeGenerator() {
+  UNIMPLEMENTED();
+}
+
 void BytecodeGraphBuilder::VisitWide() {
   // Consumed by the BytecodeArrayIterator.
   UNREACHABLE();

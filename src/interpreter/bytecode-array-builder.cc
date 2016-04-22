@@ -941,6 +941,24 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::SuspendGenerator(
+    Register generator) {
+  OperandScale operand_scale = OperandSizesToScale(generator.SizeOfOperand());
+  OutputScaled(Bytecode::kSuspendGenerator, operand_scale,
+               RegisterOperand(generator));
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
+    Register generator) {
+  OperandScale operand_scale = OperandSizesToScale(generator.SizeOfOperand());
+  OutputScaled(Bytecode::kResumeGenerator, operand_scale,
+               RegisterOperand(generator));
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
                                                         bool will_catch) {
   handler_table_builder()->SetHandlerTarget(handler_id, bytecodes()->size());

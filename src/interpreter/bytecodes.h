@@ -241,6 +241,10 @@ namespace interpreter {
   V(ReThrow, AccumulatorUse::kRead)                                           \
   V(Return, AccumulatorUse::kNone)                                            \
                                                                               \
+  /* Generators */                                                            \
+  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg)               \
+  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)               \
+                                                                              \
   /* Debugger */                                                              \
   V(Debugger, AccumulatorUse::kNone)                                          \
   DEBUG_BREAK_BYTECODE_LIST(V)                                                \

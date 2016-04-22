@@ -644,8 +644,7 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
     RegisterAllocationScope register_scope(this);
     Register state = register_allocator()->NewRegister();
     builder()
-        ->CallRuntime(Runtime::kResumeIgnitionGenerator, Register::new_target(),
-                      1)
+        ->ResumeGenerator(Register::new_target())
         .StoreAccumulatorInRegister(state);
 
     // TODO(neis): Optimize this by using a proper jump table.
@@ -2218,16 +2217,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
   builder()->SetExpressionPosition(expr);
   Register value = VisitForRegisterValue(expr->expression());
 
-  register_allocator()->PrepareForConsecutiveAllocations(2);
-  Register generator = register_allocator()->NextConsecutiveRegister();
-  Register state = register_allocator()->NextConsecutiveRegister();
+  Register generator = VisitForRegisterValue(expr->generator_object());
 
   // Save context, registers, and state. Then return.
-  VisitForRegisterValue(expr->generator_object(), generator);
   builder()
       ->LoadLiteral(Smi::FromInt(id))
-      .StoreAccumulatorInRegister(state)
-      .CallRuntime(Runtime::kSuspendIgnitionGenerator, generator, 2)
+      .SuspendGenerator(generator)
       .LoadAccumulatorWithRegister(value)
       .Return();  // Hard return (ignore any finally blocks).
 

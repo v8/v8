@@ -68,6 +68,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
 
   // Allocate an object of the given size.
+  compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);
   compiler::Node* Allocate(int size, AllocationFlags flags = kNone);
   compiler::Node* InnerAllocate(compiler::Node* previous, int offset);
 
@@ -123,6 +124,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load the instance size of a Map.
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
 
+  compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
+
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElementInt32Index(compiler::Node* object,
                                                   compiler::Node* int32_index,
@@ -137,6 +140,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StoreHeapNumberValue(compiler::Node* object,
                                        compiler::Node* value);
   // Store a field to an object on the heap.
+  compiler::Node* StoreObjectField(
+      compiler::Node* object, int offset, compiler::Node* value);
   compiler::Node* StoreObjectFieldNoWriteBarrier(
       compiler::Node* object, int offset, compiler::Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);

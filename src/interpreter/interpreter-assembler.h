@@ -50,6 +50,13 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* GetContext();
   void SetContext(compiler::Node* value);
 
+  // Number of registers.
+  compiler::Node* RegisterCount();
+
+  // Backup/restore register file to/from a fixed array.
+  compiler::Node* ExportRegisterFile();
+  compiler::Node* ImportRegisterFile(compiler::Node* array);
+
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);
   compiler::Node* LoadRegister(compiler::Node* reg_index);
@@ -66,9 +73,6 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   // Load constant at |index| in the constant pool.
   compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
-
-  // Load a field from an object on the heap.
-  compiler::Node* LoadObjectField(compiler::Node* object, int offset);
 
   // Load |slot_index| from |context|.
   compiler::Node* LoadContextSlot(compiler::Node* context, int slot_index);

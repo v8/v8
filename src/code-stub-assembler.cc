@@ -406,7 +406,7 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
   return address.value();
 }
 
-Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
   bool const new_space = !(flags & kPretenured);
   Node* top_address = ExternalConstant(
       new_space
@@ -419,13 +419,15 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
 
 #ifdef V8_HOST_ARCH_32_BIT
   if (flags & kDoubleAlignment) {
-    return AllocateRawAligned(IntPtrConstant(size_in_bytes), flags, top_address,
-                              limit_address);
+    return AllocateRawAligned(size_in_bytes, flags, top_address, limit_address);
   }
 #endif
 
-  return AllocateRawUnaligned(IntPtrConstant(size_in_bytes), flags, top_address,
-                              limit_address);
+  return AllocateRawUnaligned(size_in_bytes, flags, top_address, limit_address);
+}
+
+Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
+  return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
 Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
@@ -492,6 +494,19 @@ Node* CodeStubAssembler::LoadNameHash(Node* name) {
               IntPtrConstant(Name::kHashFieldOffset - kHeapObjectTag));
 }
 
+Node* CodeStubAssembler::AllocateUninitializedFixedArray(Node* length) {
+  Node* header_size = IntPtrConstant(FixedArray::kHeaderSize);
+  Node* data_size = WordShl(length, IntPtrConstant(kPointerSizeLog2));
+  Node* total_size = IntPtrAdd(data_size, header_size);
+
+  Node* result = Allocate(total_size, kNone);
+  StoreMapNoWriteBarrier(result, LoadRoot(Heap::kFixedArrayMapRootIndex));
+  StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
+      SmiTag(length));
+
+  return result;
+}
+
 Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
     Node* object, Node* index, int additional_offset) {
   Node* header_size = IntPtrConstant(additional_offset +
@@ -535,6 +550,12 @@ Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
   return StoreNoWriteBarrier(
       MachineRepresentation::kFloat64, object,
       IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag), value);
+}
+
+Node* CodeStubAssembler::StoreObjectField(
+    Node* object, int offset, Node* value) {
+  return Store(MachineRepresentation::kTagged, object,
+               IntPtrConstant(offset - kHeapObjectTag), value);
 }
 
 Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(

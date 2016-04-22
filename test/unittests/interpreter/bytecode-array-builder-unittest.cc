@@ -289,6 +289,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
 
+  // Emit generator operations
+  builder.SuspendGenerator(reg)
+      .ResumeGenerator(reg);
+
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg, 1)
       .CallRuntime(Runtime::kInlineIsArray, wide, 1);

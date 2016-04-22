@@ -243,6 +243,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
 
+  // Generators.
+  BytecodeArrayBuilder& SuspendGenerator(Register generator);
+  BytecodeArrayBuilder& ResumeGenerator(Register generator);
+
   // Exception handling.
   BytecodeArrayBuilder& MarkHandler(int handler_id, bool will_catch);
   BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);

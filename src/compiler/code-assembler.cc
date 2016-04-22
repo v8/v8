@@ -176,6 +176,13 @@ Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
   return value;
 }
 
+Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    value = raw_assembler_->ChangeInt32ToInt64(value);
+  }
+  return value;
+}
+
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
   Node* CodeAssembler::name(Node* a) { return raw_assembler_->name(a); }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)

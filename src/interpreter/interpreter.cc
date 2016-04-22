@@ -1695,6 +1695,49 @@ void Interpreter::DoIllegal(InterpreterAssembler* assembler) {
   __ Abort(kInvalidBytecode);
 }
 
+// SuspendGenerator <generator>
+//
+// Exports the register file and stores it into the generator.  Also stores the
+// current context and the state given in the accumulator into the generator.
+void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
+  Node* generator_reg = __ BytecodeOperandReg(0);
+  Node* generator = __ LoadRegister(generator_reg);
+
+  Node* array = __ ExportRegisterFile();
+  Node* context = __ GetContext();
+  Node* state = __ GetAccumulator();
+
+  __ StoreObjectField(generator, JSGeneratorObject::kOperandStackOffset, array);
+  __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
+  __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
+
+  __ Dispatch();
+}
+
+// ResumeGenerator <generator>
+//
+// Imports the register file stored in the generator. Also loads the
+// generator's state and stores it in the accumulator, before overwriting it
+// with kGeneratorExecuting.
+void Interpreter::DoResumeGenerator(InterpreterAssembler* assembler) {
+  Node* generator_reg = __ BytecodeOperandReg(0);
+  Node* generator = __ LoadRegister(generator_reg);
+
+  __ ImportRegisterFile(
+      __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset));
+  __ StoreObjectField(generator, JSGeneratorObject::kOperandStackOffset,
+      __ HeapConstant(isolate_->factory()->empty_fixed_array()));
+
+  Node* old_state =
+      __ LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
+  Node* new_state = __ Int32Constant(JSGeneratorObject::kGeneratorExecuting);
+  __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
+      __ SmiTag(new_state));
+  __ SetAccumulator(old_state);
+
+  __ Dispatch();
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
