@@ -851,7 +851,6 @@ struct LateOptimizationPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
-    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ValueNumberingReducer value_numbering(temp_zone);
     ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
@@ -861,7 +860,6 @@ struct LateOptimizationPhase {
                                    data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
