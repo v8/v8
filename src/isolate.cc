@@ -1327,9 +1327,16 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     HandleScope scope(this);
     // Find code position if recorded in relocation info.
     StandardFrame* frame = it.frame();
-    Code* code = frame->LookupCode();
-    int offset = static_cast<int>(frame->pc() - code->instruction_start());
-    int pos = frame->LookupCode()->SourcePosition(offset);
+    int pos;
+    if (frame->is_interpreted()) {
+      InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
+      pos = iframe->GetBytecodeArray()->SourcePosition(
+          iframe->GetBytecodeOffset());
+    } else {
+      Code* code = frame->LookupCode();
+      int offset = static_cast<int>(frame->pc() - code->instruction_start());
+      pos = frame->LookupCode()->SourcePosition(offset);
+    }
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
     Handle<JSFunction> fun(frame->function());
