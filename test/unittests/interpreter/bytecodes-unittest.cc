@@ -177,6 +177,20 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
   };
 
 #define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
+#define REG_OPERAND(i) \
+  (InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize - (i))
+#define REG8(i) static_cast<uint8_t>(REG_OPERAND(i))
+#if V8_TARGET_LITTLE_ENDIAN
+#define REG16(i)                        \
+  static_cast<uint8_t>(REG_OPERAND(i)), \
+      static_cast<uint8_t>(REG_OPERAND(i) >> 8)
+#elif V8_TARGET_BIG_ENDIAN
+#define REG16(i)                             \
+  static_cast<uint8_t>(REG_OPERAND(i) >> 8), \
+      static_cast<uint8_t>(REG_OPERAND(i))
+#else
+#error "Unknown Architecture"
+#endif
   const BytecodesAndResult cases[] = {
 #if V8_TARGET_LITTLE_ENDIAN
     {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
@@ -191,9 +205,9 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
      6,
      0,
      "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), 0xf5}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), 0x72, 0xff}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), 0x74, 0xff, 0x73, 0xff, 0x02, 0x00, 0xb1, 0x00},
+    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), REG16(134), REG16(135), 0x02, 0x00, 0xb1, 0x00},
      10,
      0,
      "Call.Wide r134, r135, #2, [177]"},
@@ -223,9 +237,9 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
      6,
      0,
      "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), 0xf5}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), 0xff, 0x72}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), 0xff, 0x74, 0xff, 0x73, 0x00, 0x02, 0x00, 0xb1},
+    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), REG16(134), REG16(135), 0x00, 0x02, 0x00, 0xb1},
      10,
      0,
      "Call.Wide r134, r135, #2, [177]"},
@@ -247,6 +261,9 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
 #endif
   };
 #undef B
+#undef REG_OFFSET
+#undef REG
+#undef REG_HI
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.
