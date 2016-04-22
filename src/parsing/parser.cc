@@ -3502,6 +3502,18 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
             decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
           ++use_counts_[v8::Isolate::kForInInitializer];
+          if (FLAG_harmony_for_in) {
+            // TODO(rossberg): This error is not currently generated in the
+            // preparser, because that would lose some of the use counts
+            // recorded above. Once either the use counter or the flag is
+            // removed, the preparser should be adjusted.
+            ParserTraits::ReportMessageAt(
+                parsing_result.first_initializer_loc,
+                MessageTemplate::kForInOfLoopInitializer,
+                ForEachStatement::VisitModeString(mode));
+            *ok = false;
+            return nullptr;
+          }
           const AstRawString* name =
               decl.pattern->AsVariableProxy()->raw_name();
           VariableProxy* single_var = scope_->NewUnresolved(

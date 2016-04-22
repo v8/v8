@@ -2397,6 +2397,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_for_in)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_iterator_close)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_exec)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
@@ -2957,6 +2958,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
+  static const char* harmony_for_in_natives[] = {nullptr};
   static const char* harmony_regexp_exec_natives[] = {
       "native harmony-regexp-exec.js", nullptr};
   static const char* harmony_regexp_subclass_natives[] = {nullptr};
