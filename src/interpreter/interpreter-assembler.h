@@ -112,7 +112,7 @@ class InterpreterAssembler : public CodeStubAssembler {
                                compiler::Node* arg_count, int return_size = 1);
 
   // Jump relative to the current bytecode by |jump_offset|.
-  void Jump(compiler::Node* jump_offset);
+  compiler::Node* Jump(compiler::Node* jump_offset);
 
   // Jump relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfWordEqual and
@@ -133,14 +133,14 @@ class InterpreterAssembler : public CodeStubAssembler {
   void StackCheck();
 
   // Returns from the function.
-  void InterpreterReturn();
+  compiler::Node* InterpreterReturn();
 
   // Dispatch to the bytecode.
-  void Dispatch();
+  compiler::Node* Dispatch();
 
   // Dispatch to bytecode handler.
-  void DispatchToBytecodeHandler(compiler::Node* handler) {
-    DispatchToBytecodeHandler(handler, BytecodeOffset());
+  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler) {
+    return DispatchToBytecodeHandler(handler, BytecodeOffset());
   }
 
   // Dispatch bytecode as wide operand variant.
@@ -213,15 +213,15 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* Advance(compiler::Node* delta);
 
   // Starts next instruction dispatch at |new_bytecode_offset|.
-  void DispatchTo(compiler::Node* new_bytecode_offset);
+  compiler::Node* DispatchTo(compiler::Node* new_bytecode_offset);
 
   // Dispatch to the bytecode handler with code offset |handler|.
-  void DispatchToBytecodeHandler(compiler::Node* handler,
-                                 compiler::Node* bytecode_offset);
+  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler,
+                                            compiler::Node* bytecode_offset);
 
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
-  void DispatchToBytecodeHandlerEntry(compiler::Node* handler_entry,
-                                      compiler::Node* bytecode_offset);
+  compiler::Node* DispatchToBytecodeHandlerEntry(
+      compiler::Node* handler_entry, compiler::Node* bytecode_offset);
 
   // Abort operations for debug code.
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,

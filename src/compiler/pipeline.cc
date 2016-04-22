@@ -556,6 +556,12 @@ void Pipeline::Run(Arg0 arg_0) {
   phase.Run(this->data_, scope.zone(), arg_0);
 }
 
+template <typename Phase, typename Arg0, typename Arg1>
+void Pipeline::Run(Arg0 arg_0, Arg1 arg_1) {
+  PipelineRunScope scope(this->data_, Phase::phase_name());
+  Phase phase;
+  phase.Run(this->data_, scope.zone(), arg_0, arg_1);
+}
 
 struct LoopAssignmentAnalysisPhase {
   static const char* phase_name() { return "loop assignment analysis"; }
@@ -1142,9 +1148,10 @@ struct PrintGraphPhase {
 struct VerifyGraphPhase {
   static const char* phase_name() { return nullptr; }
 
-  void Run(PipelineData* data, Zone* temp_zone, const bool untyped) {
-    Verifier::Run(data->graph(),
-                  !untyped ? Verifier::TYPED : Verifier::UNTYPED);
+  void Run(PipelineData* data, Zone* temp_zone, const bool untyped,
+           bool values_only = false) {
+    Verifier::Run(data->graph(), !untyped ? Verifier::TYPED : Verifier::UNTYPED,
+                  values_only ? Verifier::kValuesOnly : Verifier::kAll);
   }
 };
 
@@ -1344,6 +1351,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
+  pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 

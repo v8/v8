@@ -313,12 +313,7 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    m.Dispatch();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
+    Node* tail_call_node = m.Dispatch();
 
     OperandScale operand_scale = OperandScale::kSingle;
     Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
@@ -357,11 +352,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
   TRACED_FOREACH(int, jump_offset, jump_offsets) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
       InterpreterAssemblerForTest m(this, bytecode);
-      m.Jump(m.IntPtrConstant(jump_offset));
-      Graph* graph = m.graph();
-      Node* end = graph->end();
-      EXPECT_EQ(1, end->InputCount());
-      Node* tail_call_node = end->InputAt(0);
+      Node* tail_call_node = m.Jump(m.IntPtrConstant(jump_offset));
 
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
           IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
@@ -391,68 +382,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
-  static const int kJumpIfTrueOffset = 73;
-
-  // If debug code is enabled we emit extra code in Jump.
-  if (FLAG_debug_code) return;
-
-  MachineOperatorBuilder machine(zone());
-
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Node* lhs = m.IntPtrConstant(0);
-    Node* rhs = m.IntPtrConstant(1);
-    m.JumpIfWordEqual(lhs, rhs, m.IntPtrConstant(kJumpIfTrueOffset));
-    Graph* graph = m.graph();
-    Node* end = graph->end();
-    EXPECT_EQ(2, end->InputCount());
-
-    OperandScale operand_scale = OperandScale::kSingle;
-    int jump_offsets[] = {kJumpIfTrueOffset, interpreter::Bytecodes::Size(
-                                                 bytecode, operand_scale)};
-    for (int i = 0; i < static_cast<int>(arraysize(jump_offsets)); i++) {
-      Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-          IsIntPtrConstant(jump_offsets[i]));
-      Matcher<Node*> target_bytecode_matcher =
-          m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
-      if (kPointerSize == 8) {
-        target_bytecode_matcher =
-            IsChangeUint32ToUint64(target_bytecode_matcher);
-      }
-      Matcher<Node*> code_target_matcher = m.IsLoad(
-          MachineType::Pointer(),
-          IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-          IsWordShl(target_bytecode_matcher,
-                    IsIntPtrConstant(kPointerSizeLog2)));
-      EXPECT_THAT(
-          end->InputAt(i),
-          IsTailCall(
-              _, code_target_matcher,
-              IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-              next_bytecode_offset_matcher, _,
-              IsParameter(
-                  InterpreterDispatchDescriptor::kDispatchTableParameter),
-              _, _));
-    }
-
-    // TODO(oth): test control flow paths.
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
   // If debug code is enabled we emit extra code in InterpreterReturn.
   if (FLAG_debug_code) return;
 
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
-    m.InterpreterReturn();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
+    Node* tail_call_node = m.InterpreterReturn();
 
     Handle<HeapObject> exit_trampoline =
         isolate()->builtins()->InterpreterExitTrampoline();
@@ -548,12 +484,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
     EXPECT_THAT(m.GetAccumulator(), accumulator_value_2);
 
     // Should be passed to next bytecode handler on dispatch.
-    m.Dispatch();
-    Graph* graph = m.graph();
-
-    Node* end = graph->end();
-    EXPECT_EQ(1, end->InputCount());
-    Node* tail_call_node = end->InputAt(0);
+    Node* tail_call_node = m.Dispatch();
 
     EXPECT_THAT(tail_call_node,
                 IsTailCall(_, _, accumulator_value_2, _, _, _, _));

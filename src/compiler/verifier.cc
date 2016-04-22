@@ -42,12 +42,14 @@ static bool IsUseDefChainLinkPresent(Node* def, Node* use) {
 
 class Verifier::Visitor {
  public:
-  Visitor(Zone* z, Typing typed) : zone(z), typing(typed) {}
+  Visitor(Zone* z, Typing typed, CheckInputs check_inputs)
+      : zone(z), typing(typed), check_inputs(check_inputs) {}
 
   void Check(Node* node);
 
   Zone* zone;
   Typing typing;
+  CheckInputs check_inputs;
 
  private:
   void CheckNotTyped(Node* node) {
@@ -114,8 +116,10 @@ void Verifier::Visitor::Check(Node* node) {
   int control_count = node->op()->ControlInputCount();
 
   // Verify number of inputs matches up.
-  int input_count = value_count + context_count + frame_state_count +
-                    effect_count + control_count;
+  int input_count = value_count + context_count + frame_state_count;
+  if (check_inputs == kAll) {
+    input_count += effect_count + control_count;
+  }
   CHECK_EQ(input_count, node->InputCount());
 
   // Verify that frame state has been inserted for the nodes that need it.
@@ -150,20 +154,23 @@ void Verifier::Visitor::Check(Node* node) {
     CHECK(IsUseDefChainLinkPresent(context, node));
   }
 
-  // Verify all effect inputs actually have an effect.
-  for (int i = 0; i < effect_count; ++i) {
-    Node* effect = NodeProperties::GetEffectInput(node);
-    CheckOutput(effect, node, effect->op()->EffectOutputCount(), "effect");
-    CHECK(IsDefUseChainLinkPresent(effect, node));
-    CHECK(IsUseDefChainLinkPresent(effect, node));
-  }
+  if (check_inputs == kAll) {
+    // Verify all effect inputs actually have an effect.
+    for (int i = 0; i < effect_count; ++i) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      CheckOutput(effect, node, effect->op()->EffectOutputCount(), "effect");
+      CHECK(IsDefUseChainLinkPresent(effect, node));
+      CHECK(IsUseDefChainLinkPresent(effect, node));
+    }
 
-  // Verify all control inputs are control nodes.
-  for (int i = 0; i < control_count; ++i) {
-    Node* control = NodeProperties::GetControlInput(node, i);
-    CheckOutput(control, node, control->op()->ControlOutputCount(), "control");
-    CHECK(IsDefUseChainLinkPresent(control, node));
-    CHECK(IsUseDefChainLinkPresent(control, node));
+    // Verify all control inputs are control nodes.
+    for (int i = 0; i < control_count; ++i) {
+      Node* control = NodeProperties::GetControlInput(node, i);
+      CheckOutput(control, node, control->op()->ControlOutputCount(),
+                  "control");
+      CHECK(IsDefUseChainLinkPresent(control, node));
+      CHECK(IsUseDefChainLinkPresent(control, node));
+    }
   }
 
   switch (node->opcode()) {
@@ -1020,12 +1027,11 @@ void Verifier::Visitor::Check(Node* node) {
   }
 }  // NOLINT(readability/fn_size)
 
-
-void Verifier::Run(Graph* graph, Typing typing) {
+void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
   CHECK_NOT_NULL(graph->start());
   CHECK_NOT_NULL(graph->end());
   Zone zone(graph->zone()->allocator());
-  Visitor visitor(&zone, typing);
+  Visitor visitor(&zone, typing, check_inputs);
   AllNodes all(&zone, graph);
   for (Node* node : all.live) visitor.Check(node);
 

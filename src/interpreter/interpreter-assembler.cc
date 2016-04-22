@@ -497,9 +497,9 @@ Node* InterpreterAssembler::Advance(Node* delta) {
   return IntPtrAdd(BytecodeOffset(), delta);
 }
 
-void InterpreterAssembler::Jump(Node* delta) {
+Node* InterpreterAssembler::Jump(Node* delta) {
   UpdateInterruptBudget(delta);
-  DispatchTo(Advance(delta));
+  return DispatchTo(Advance(delta));
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
@@ -522,11 +522,11 @@ void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
   JumpConditional(WordNotEqual(lhs, rhs), delta);
 }
 
-void InterpreterAssembler::Dispatch() {
-  DispatchTo(Advance(Bytecodes::Size(bytecode_, operand_scale_)));
+Node* InterpreterAssembler::Dispatch() {
+  return DispatchTo(Advance(Bytecodes::Size(bytecode_, operand_scale_)));
 }
 
-void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
+Node* InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
   Node* target_bytecode = Load(
       MachineType::Uint8(), BytecodeArrayTaggedPointer(), new_bytecode_offset);
   if (kPointerSize == 8) {
@@ -541,17 +541,17 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            WordShl(target_bytecode, IntPtrConstant(kPointerSizeLog2)));
 
-  DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset);
+  return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset);
 }
 
-void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
-                                                     Node* bytecode_offset) {
+Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
+                                                      Node* bytecode_offset) {
   Node* handler_entry =
       IntPtrAdd(handler, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
-  DispatchToBytecodeHandlerEntry(handler_entry, bytecode_offset);
+  return DispatchToBytecodeHandlerEntry(handler_entry, bytecode_offset);
 }
 
-void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
+Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset) {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
@@ -560,7 +560,7 @@ void InterpreterAssembler::DispatchToBytecodeHandlerEntry(
   InterpreterDispatchDescriptor descriptor(isolate());
   Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
                   BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
-  TailCallBytecodeDispatch(descriptor, handler_entry, args);
+  return TailCallBytecodeDispatch(descriptor, handler_entry, args);
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -602,7 +602,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
 }
 
-void InterpreterAssembler::InterpreterReturn() {
+compiler::Node* InterpreterAssembler::InterpreterReturn() {
   // TODO(rmcilroy): Investigate whether it is worth supporting self
   // optimization of primitive functions like FullCodegen.
 
@@ -615,7 +615,7 @@ void InterpreterAssembler::InterpreterReturn() {
 
   Node* exit_trampoline_code_object =
       HeapConstant(isolate()->builtins()->InterpreterExitTrampoline());
-  DispatchToBytecodeHandler(exit_trampoline_code_object);
+  return DispatchToBytecodeHandler(exit_trampoline_code_object);
 }
 
 void InterpreterAssembler::StackCheck() {

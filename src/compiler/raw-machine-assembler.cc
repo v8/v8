@@ -115,7 +115,6 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
 
 void RawMachineAssembler::Return(Node* value) {
   Node* ret = MakeNode(common()->Return(), 1, &value);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -124,7 +123,6 @@ void RawMachineAssembler::Return(Node* value) {
 void RawMachineAssembler::Return(Node* v1, Node* v2) {
   Node* values[] = {v1, v2};
   Node* ret = MakeNode(common()->Return(2), 2, values);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -133,7 +131,6 @@ void RawMachineAssembler::Return(Node* v1, Node* v2) {
 void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
   Node* values[] = {v1, v2, v3};
   Node* ret = MakeNode(common()->Return(3), 3, values);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -260,7 +257,6 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
     buffer[index++] = args[i];
   }
   Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -282,7 +278,6 @@ Node* RawMachineAssembler::TailCallRuntime0(Runtime::FunctionId function,
   Node* nodes[] = {centry, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -304,7 +299,6 @@ Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
   Node* nodes[] = {centry, arg1, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -328,7 +322,6 @@ Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
   Node* nodes[] = {centry, arg1, arg2, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -351,7 +344,6 @@ Node* RawMachineAssembler::TailCallRuntime3(Runtime::FunctionId function,
   Node* nodes[] = {centry, arg1, arg2, arg3, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -374,7 +366,6 @@ Node* RawMachineAssembler::TailCallRuntime4(Runtime::FunctionId function,
   Node* nodes[] = {centry, arg1, arg2, arg3, arg4, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
