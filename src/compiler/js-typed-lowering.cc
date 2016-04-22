@@ -235,7 +235,7 @@ class JSBinopReduction final {
                                      frame_state, effect(), control());
     Node* const if_success = graph()->NewNode(common()->IfSuccess(), n);
     NodeProperties::ReplaceControlInput(node_, if_success);
-    NodeProperties::ReplaceUses(node_, node_, node_, n, n);
+    NodeProperties::ReplaceUses(node_, node_, node_, node_, n);
     update_effect(n);
     return n;
   }
