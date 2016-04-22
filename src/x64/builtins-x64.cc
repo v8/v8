@@ -632,10 +632,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(rdi);  // Callee's JS function.
   __ Push(rdx);  // Callee's new target.
 
-  // Get the bytecode array from the function object and load the pointer to the
-  // first entry into edi (InterpreterBytecodeRegister).
+  // Get the bytecode array from the function object (or from the DebugInfo if
+  // it is present) and load it into kInterpreterBytecodeArrayRegister.
   __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-
   Label load_debug_bytecode_array, bytecode_array_loaded;
   DCHECK_EQ(Smi::FromInt(0), DebugInfo::uninitialized());
   __ cmpp(FieldOperand(rax, SharedFunctionInfo::kDebugInfoOffset),
@@ -645,8 +644,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           FieldOperand(rax, SharedFunctionInfo::kFunctionDataOffset));
   __ bind(&bytecode_array_loaded);
 
+  // Check function data field is actually a BytecodeArray object.
+  Label bytecode_array_not_present;
+  __ CompareRoot(kInterpreterBytecodeArrayRegister,
+                 Heap::kUndefinedValueRootIndex);
+  __ j(equal, &bytecode_array_not_present);
   if (FLAG_debug_code) {
-    // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
                      rax);
@@ -715,6 +718,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(kInterpreterBytecodeArrayRegister,
           FieldOperand(debug_info, DebugInfo::kAbstractCodeIndex));
   __ jmp(&bytecode_array_loaded);
+
+  // If the bytecode array is no longer present, then the underlying function
+  // has been switched to a different kind of code and we heal the closure by
+  // switching the code entry field over to the new code object as well.
+  __ bind(&bytecode_array_not_present);
+  __ leave();  // Leave the frame so we can tail call.
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kCodeOffset));
+  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
+  __ movp(FieldOperand(rdi, JSFunction::kCodeEntryOffset), rcx);
+  __ RecordWriteCodeEntryField(rdi, rcx, r15);
+  __ jmp(rcx);
 }
 
 

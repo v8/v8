@@ -6275,6 +6275,28 @@ TEST(CanonicalSharedFunctionInfo) {
       "check(g1, g2);");
 }
 
+TEST(RemoveCodeFromSharedFunctionInfoButNotFromClosure) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(isolate, "check", v8::FunctionTemplate::New(
+                                    isolate, CheckEqualSharedFunctionInfos));
+  global->Set(isolate, "remove",
+              v8::FunctionTemplate::New(isolate, RemoveCodeAndGC));
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope cscope(context);
+  CompileRun(
+      "function f() { return function g() {}; }"
+      "var g1 = f();"
+      "var g2 = f();"
+      "check(g1, g2);"
+      "g1();"
+      "g2();"
+      "remove(g1);"
+      "g2();"
+      "check(g1, g2);");
+}
 
 TEST(OldGenerationAllocationThroughput) {
   CcTest::InitializeVM();

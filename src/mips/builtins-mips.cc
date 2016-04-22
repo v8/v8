@@ -983,8 +983,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(a1);
 
-  // Get the bytecode array from the function object and load the pointer to the
-  // first entry into kInterpreterBytecodeRegister.
+  // Get the bytecode array from the function object (or from the DebugInfo if
+  // it is present) and load it into kInterpreterBytecodeArrayRegister.
   __ lw(a0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   Label load_debug_bytecode_array, bytecode_array_loaded;
   Register debug_info = kInterpreterBytecodeArrayRegister;
@@ -996,8 +996,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
   __ bind(&bytecode_array_loaded);
 
+  // Check function data field is actually a BytecodeArray object.
+  Label bytecode_array_not_present;
+  __ JumpIfRoot(kInterpreterBytecodeArrayRegister,
+                Heap::kUndefinedValueRootIndex, &bytecode_array_not_present);
   if (FLAG_debug_code) {
-    // Check function data field is actually a BytecodeArray object.
     __ SmiTst(kInterpreterBytecodeArrayRegister, t0);
     __ Assert(ne, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry, t0,
               Operand(zero_reg));
@@ -1062,6 +1065,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ lw(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(debug_info, DebugInfo::kAbstractCodeIndex));
   __ Branch(&bytecode_array_loaded);
+
+  // If the bytecode array is no longer present, then the underlying function
+  // has been switched to a different kind of code and we heal the closure by
+  // switching the code entry field over to the new code object as well.
+  __ bind(&bytecode_array_not_present);
+  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+  __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kCodeOffset));
+  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ sw(t0, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ RecordWriteCodeEntryField(a1, t0, t1);
+  __ Jump(t0);
 }
 
 
