@@ -120,6 +120,8 @@ namespace internal {
   V(BitwiseAnd)                             \
   V(BitwiseOr)                              \
   V(BitwiseXor)                             \
+  V(Inc)                                    \
+  V(Dec)                                    \
   V(FastCloneShallowObject)                 \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
@@ -774,6 +776,22 @@ class BitwiseXorStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseXor, TurboFanCodeStub);
+};
+
+class IncStub final : public TurboFanCodeStub {
+ public:
+  explicit IncStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
+  DEFINE_TURBOFAN_CODE_STUB(Inc, TurboFanCodeStub);
+};
+
+class DecStub final : public TurboFanCodeStub {
+ public:
+  explicit DecStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
+  DEFINE_TURBOFAN_CODE_STUB(Dec, TurboFanCodeStub);
 };
 
 class LessThanStub final : public TurboFanCodeStub {

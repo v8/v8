@@ -81,9 +81,8 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
-  // Generates code to perform the count operations via |function_id|.
-  void DoCountOp(Runtime::FunctionId function_id,
-                 InterpreterAssembler* assembler);
+  // Generates code to perform the count operations via |callable|.
+  void DoCountOp(Callable callable, InterpreterAssembler* assembler);
 
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
@@ -128,7 +127,7 @@ class Interpreter {
   // Generates code to perform a type conversion.
   void DoTypeConversionOp(Callable callable, InterpreterAssembler* assembler);
 
-  // Generates code ro create a literal via |function_id|.
+  // Generates code to create a literal via |function_id|.
   void DoCreateLiteral(Runtime::FunctionId function_id,
                        InterpreterAssembler* assembler);
 

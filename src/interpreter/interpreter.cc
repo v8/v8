@@ -814,12 +814,12 @@ void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
   DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
-void Interpreter::DoCountOp(Runtime::FunctionId function_id,
+void Interpreter::DoCountOp(Callable callable,
                             InterpreterAssembler* assembler) {
+  Node* target = __ HeapConstant(callable.code());
   Node* value = __ GetAccumulator();
-  Node* one = __ NumberConstant(1);
   Node* context = __ GetContext();
-  Node* result = __ CallRuntime(function_id, context, value, one);
+  Node* result = __ CallStub(callable.descriptor(), target, context, value);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -829,7 +829,7 @@ void Interpreter::DoCountOp(Runtime::FunctionId function_id,
 //
 // Increments value in the accumulator by one.
 void Interpreter::DoInc(InterpreterAssembler* assembler) {
-  DoCountOp(Runtime::kAdd, assembler);
+  DoCountOp(CodeFactory::Inc(isolate_), assembler);
 }
 
 
@@ -837,7 +837,7 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
 //
 // Decrements value in the accumulator by one.
 void Interpreter::DoDec(InterpreterAssembler* assembler) {
-  DoCountOp(Runtime::kSubtract, assembler);
+  DoCountOp(CodeFactory::Dec(isolate_), assembler);
 }
 
 

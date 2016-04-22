@@ -281,6 +281,18 @@ Callable CodeFactory::BitwiseXor(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::Inc(Isolate* isolate) {
+  IncStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
+Callable CodeFactory::Dec(Isolate* isolate) {
+  DecStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::LessThan(Isolate* isolate) {
   LessThanStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

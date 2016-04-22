@@ -2796,13 +2796,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Convert old value into a number.
-  builder()->CastAccumulatorToNumber();
-
   // Save result for postfix expressions.
   if (is_postfix) {
     old_value = register_allocator()->outer()->NewRegister();
-    builder()->StoreAccumulatorInRegister(old_value);
+
+    // Convert old value into a number before saving it.
+    builder()->CastAccumulatorToNumber().StoreAccumulatorInRegister(old_value);
   }
 
   // Perform +1/-1 operation.

@@ -66,6 +66,7 @@ class PlatformInterfaceDescriptor;
   V(Compare)                                  \
   V(BinaryOp)                                 \
   V(BinaryOpWithAllocationSite)               \
+  V(CountOp)                                  \
   V(StringAdd)                                \
   V(StringCompare)                            \
   V(Keyed)                                    \
@@ -631,6 +632,10 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
+class CountOpDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CountOpDescriptor, CallInterfaceDescriptor)
+};
 
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:

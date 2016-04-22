@@ -1121,9 +1121,11 @@ void BytecodeGraphBuilder::VisitShiftRightLogical() {
 
 void BytecodeGraphBuilder::VisitInc() {
   FrameStateBeforeAndAfter states(this);
-  const Operator* js_op = javascript()->Add(BinaryOperationHints::Any());
+  // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
+  // a number, not a string.
+  const Operator* js_op = javascript()->Subtract(BinaryOperationHints::Any());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
-                       jsgraph()->OneConstant());
+                       jsgraph()->Constant(-1.0));
   environment()->BindAccumulator(node, &states);
 }
 
