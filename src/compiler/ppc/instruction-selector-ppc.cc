@@ -190,11 +190,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kTagged:  // Fall through.
 #endif
     case MachineRepresentation::kWord32:
-      opcode = kPPC_LoadWordS32;
-#if V8_TARGET_ARCH_PPC64
-      // TODO(mbrandy): this applies to signed loads only (lwa)
-      mode = kInt16Imm_4ByteAligned;
-#endif
+      opcode = kPPC_LoadWordU32;
       break;
 #if V8_TARGET_ARCH_PPC64
     case MachineRepresentation::kTagged:  // Fall through.
