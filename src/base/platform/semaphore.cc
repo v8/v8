@@ -74,6 +74,13 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
+  // The sem_init() does not check for alignment of the native handle.
+  // Unaligned native handle can later cause a failure in semaphore signal.
+  // Check the alignment here to catch the failure earlier.
+  // Context: crbug.com/605349.
+  const uintptr_t kPointerAlignmentMask = sizeof(void*) - 1;
+  CHECK_EQ(
+      0, reinterpret_cast<uintptr_t>(&native_handle_) & kPointerAlignmentMask);
   DCHECK(count >= 0);
 #if V8_LIBC_GLIBC
   // sem_init in glibc prior to 2.1 does not zero out semaphores.
