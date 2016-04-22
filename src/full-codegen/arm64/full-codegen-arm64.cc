@@ -3605,7 +3605,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
-  SetExpressionPosition(expr);
 
   // Try to generate an optimized comparison with a literal value.
   // TODO(jbramley): This only checks common values like NaN or undefined.
@@ -3628,6 +3627,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   switch (op) {
     case Token::IN:
       VisitForStackValue(expr->right());
+      SetExpressionPosition(expr);
       CallRuntimeWithOperands(Runtime::kHasProperty);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ CompareRoot(x0, Heap::kTrueValueRootIndex);
@@ -3636,6 +3636,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       PopOperand(x1);
       InstanceOfStub stub(isolate());
       __ CallStub(&stub);
@@ -3647,6 +3648,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     default: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       Condition cond = CompareIC::ComputeCondition(op);
 
       // Pop the stack value.

@@ -3705,7 +3705,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
-  SetExpressionPosition(expr);
 
   // First we try a fast inlined version of the compare when one of
   // the operands is a literal.
@@ -3725,6 +3724,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   switch (op) {
     case Token::IN:
       VisitForStackValue(expr->right());
+      SetExpressionPosition(expr);
       CallRuntimeWithOperands(Runtime::kHasProperty);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ LoadRoot(t0, Heap::kTrueValueRootIndex);
@@ -3733,6 +3733,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       __ mov(a0, result_register());
       PopOperand(a1);
       InstanceOfStub stub(isolate());
@@ -3745,6 +3746,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     default: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       Condition cc = CompareIC::ComputeCondition(op);
       __ mov(a0, result_register());
       PopOperand(a1);

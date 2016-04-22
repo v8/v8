@@ -1746,16 +1746,19 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;
   Handle<String> check;
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareTypeof(expr, sub_expr, check);
     return true;
   }
 
   if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
     return true;
   }
 
   if (expr->IsLiteralCompareNull(&sub_expr)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareNil(expr, sub_expr, kNullValue);
     return true;
   }
