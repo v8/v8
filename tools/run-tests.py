@@ -597,6 +597,11 @@ def Main():
     return 1
   SetupEnvironment(options)
 
+  if options.swarming:
+    # Swarming doesn't print how isolated commands are called. Lets make this
+    # less cryptic by printing it ourselves.
+    print ' '.join(sys.argv)
+
   exit_code = 0
   if not options.no_presubmit:
     print ">>> running presubmit tests"
