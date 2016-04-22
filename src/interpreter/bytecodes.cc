@@ -724,7 +724,7 @@ OperandSize Register::SizeOfOperand() const {
   int32_t operand = ToOperand();
   if (operand >= kMinInt8 && operand <= kMaxInt8) {
     return OperandSize::kByte;
-  } else if (index_ >= kMinInt16 && index_ <= kMaxInt16) {
+  } else if (operand >= kMinInt16 && operand <= kMaxInt16) {
     return OperandSize::kShort;
   } else {
     return OperandSize::kQuad;
