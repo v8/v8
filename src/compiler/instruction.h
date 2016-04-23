@@ -1392,9 +1392,10 @@ class InstructionSequence final : public ZoneObject {
   void PrintBlock(const RegisterConfiguration* config, int block_id) const;
   void PrintBlock(int block_id) const;
 
-  void ValidateEdgeSplitForm();
-  void ValidateDeferredBlockExitPaths();
-  void ValidateSSA();
+  void ValidateEdgeSplitForm() const;
+  void ValidateDeferredBlockExitPaths() const;
+  void ValidateDeferredBlockEntryPaths() const;
+  void ValidateSSA() const;
 
  private:
   friend std::ostream& operator<<(std::ostream& os,

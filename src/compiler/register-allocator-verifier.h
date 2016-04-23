@@ -74,9 +74,9 @@ class PendingAssessment final : public Assessment {
                              InstructionOperand operand)
       : Assessment(Pending), origin_(origin), operand_(operand) {}
 
-  static PendingAssessment* cast(Assessment* assessment) {
+  static const PendingAssessment* cast(const Assessment* assessment) {
     CHECK(assessment->kind() == Pending);
-    return static_cast<PendingAssessment*>(assessment);
+    return static_cast<const PendingAssessment*>(assessment);
   }
 
   const InstructionBlock* origin() const { return origin_; }

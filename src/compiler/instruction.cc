@@ -627,7 +627,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   return blocks;
 }
 
-void InstructionSequence::ValidateEdgeSplitForm() {
+void InstructionSequence::ValidateEdgeSplitForm() const {
   // Validate blocks are in edge-split form: no block with multiple successors
   // has an edge to a block (== a successor) with more than one predecessors.
   for (const InstructionBlock* block : instruction_blocks()) {
@@ -642,7 +642,7 @@ void InstructionSequence::ValidateEdgeSplitForm() {
   }
 }
 
-void InstructionSequence::ValidateDeferredBlockExitPaths() {
+void InstructionSequence::ValidateDeferredBlockExitPaths() const {
   // A deferred block with more than one successor must have all its successors
   // deferred.
   for (const InstructionBlock* block : instruction_blocks()) {
@@ -653,7 +653,21 @@ void InstructionSequence::ValidateDeferredBlockExitPaths() {
   }
 }
 
-void InstructionSequence::ValidateSSA() {
+void InstructionSequence::ValidateDeferredBlockEntryPaths() const {
+  // If a deferred block has multiple predecessors, they have to
+  // all be deferred. Otherwise, we can run into a situation where a range
+  // that spills only in deferred blocks inserts its spill in the block, but
+  // other ranges need moves inserted by ResolveControlFlow in the predecessors,
+  // which may clobber the register of this range.
+  for (const InstructionBlock* block : instruction_blocks()) {
+    if (!block->IsDeferred() || block->PredecessorCount() <= 1) continue;
+    for (RpoNumber predecessor_id : block->predecessors()) {
+      CHECK(InstructionBlockAt(predecessor_id)->IsDeferred());
+    }
+  }
+}
+
+void InstructionSequence::ValidateSSA() const {
   // TODO(mtrofin): We could use a local zone here instead.
   BitVector definitions(VirtualRegisterCount(), zone());
   for (const Instruction* instruction : *this) {

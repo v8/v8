@@ -3411,7 +3411,8 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
     BitVector* live = live_in_sets[block->rpo_number().ToInt()];
     BitVector::Iterator iterator(live);
     while (!iterator.Done()) {
-      LiveRangeBoundArray* array = finder.ArrayFor(iterator.Current());
+      int vreg = iterator.Current();
+      LiveRangeBoundArray* array = finder.ArrayFor(vreg);
       for (const RpoNumber& pred : block->predecessors()) {
         FindResult result;
         const InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
@@ -3628,6 +3629,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
     worklist.push(iterator.Current());
   }
 
+  ZoneSet<std::pair<RpoNumber, int>> done_moves(temp_zone);
   // Seek the deferred blocks that dominate locations requiring spill operands,
   // and spill there. We only need to spill at the start of such blocks.
   BitVector done_blocks(
@@ -3654,10 +3656,15 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
 
         InstructionOperand pred_op = bound->range_->GetAssignedOperand();
 
-        data()->AddGapMove(spill_block->first_instruction_index(),
-                           Instruction::GapPosition::START, pred_op,
-                           spill_operand);
-        spill_block->mark_needs_frame();
+        RpoNumber spill_block_number = spill_block->rpo_number();
+        if (done_moves.find(std::make_pair(
+                spill_block_number, range->vreg())) == done_moves.end()) {
+          data()->AddGapMove(spill_block->first_instruction_index(),
+                             Instruction::GapPosition::START, pred_op,
+                             spill_operand);
+          done_moves.insert(std::make_pair(spill_block_number, range->vreg()));
+          spill_block->mark_needs_frame();
+        }
       }
     }
   }

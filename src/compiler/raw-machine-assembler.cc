@@ -50,7 +50,7 @@ Schedule* RawMachineAssembler::Export() {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
     os << *schedule_;
   }
-  schedule_->EnsureSplitEdgeForm();
+  schedule_->EnsureCFGWellFormedness();
   schedule_->PropagateDeferredMark();
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");

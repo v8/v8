@@ -282,9 +282,7 @@ void BlockAssessments::PerformParallelMoves(const ParallelMove* moves) {
     CHECK(it != map_.end());
     // The LHS of a parallel move should not have been assigned in this
     // parallel move.
-    // TODO(mtrofin): this check fails when generating code for
-    // CodeStubAssembler::ChangeUint32ToTagged.
-    // CHECK(map_for_moves_.find(move->destination()) ==  map_for_moves_.end());
+    CHECK(map_for_moves_.find(move->destination()) == map_for_moves_.end());
     // Copy the assessment to the destination.
     map_for_moves_[move->destination()] = it->second;
   }
@@ -418,7 +416,7 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
         case Pending: {
           // This happens if we have a diamond feeding into another one, and
           // the inner one never being used - other than for carrying the value.
-          PendingAssessment* next = PendingAssessment::cast(contribution);
+          const PendingAssessment* next = PendingAssessment::cast(contribution);
           if (seen.find(pred) == seen.end()) {
             worklist.push({next, expected});
             seen.insert(pred);
