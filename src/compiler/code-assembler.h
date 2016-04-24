@@ -108,12 +108,14 @@ class Schedule;
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
   V(BitcastWordToTagged)                \
+  V(TruncateFloat64ToWord32)            \
   V(TruncateInt64ToInt32)               \
   V(ChangeFloat64ToUint32)              \
   V(ChangeInt32ToFloat64)               \
   V(ChangeInt32ToInt64)                 \
   V(ChangeUint32ToFloat64)              \
   V(ChangeUint32ToUint64)               \
+  V(RoundFloat64ToInt32)                \
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
   V(Float64RoundTruncate)               \
@@ -241,8 +243,6 @@ class CodeAssembler {
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
 
-  Node* TruncateFloat64ToInt32RoundToZero(Node* a);
-  Node* TruncateFloat64ToInt32JavaScript(Node* a);
   // No-op on 32-bit, otherwise zero extend.
   Node* ChangeUint32ToWord(Node* value);
   // No-op on 32-bit, otherwise sign extend.

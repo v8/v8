@@ -1046,8 +1046,7 @@ TEST(LowerNumberToInt32_to_ChangeTaggedToInt32) {
   CheckChangeOf(IrOpcode::kChangeTaggedToInt32, t.p0, use->InputAt(0));
 }
 
-
-TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32) {
+TEST(LowerNumberToInt32_to_TruncateFloat64ToWord32) {
   // NumberToInt32(x: kRepFloat64) used as MachineType::Int32()
   TestingGraph t(Type::Number());
   Node* p0 = t.ExampleWithOutput(MachineType::Float64());
@@ -1055,22 +1054,17 @@ TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32) {
   Node* use = t.Use(trunc, MachineType::Int32());
   t.Return(use);
   t.Lower();
-  CheckChangeOf(IrOpcode::kTruncateFloat64ToInt32, p0, use->InputAt(0));
+  CheckChangeOf(IrOpcode::kTruncateFloat64ToWord32, p0, use->InputAt(0));
 }
 
-
-TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32_with_change) {
+TEST(LowerNumberToInt32_to_TruncateTaggedToWord32) {
   // NumberToInt32(x: kTypeNumber | kRepTagged) used as MachineType::Int32()
   TestingGraph t(Type::Number());
   Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), t.p0);
   Node* use = t.Use(trunc, MachineType::Int32());
   t.Return(use);
   t.Lower();
-  Node* node = use->InputAt(0);
-  CHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, node->opcode());
-  Node* of = node->InputAt(0);
-  CHECK_EQ(IrOpcode::kChangeTaggedToFloat64, of->opcode());
-  CHECK_EQ(t.p0, of->InputAt(0));
+  CheckChangeOf(IrOpcode::kTruncateTaggedToWord32, t.p0, use->InputAt(0));
 }
 
 
@@ -1084,8 +1078,7 @@ TEST(LowerNumberToUint32_to_ChangeTaggedToUint32) {
   CheckChangeOf(IrOpcode::kChangeTaggedToUint32, t.p0, use->InputAt(0));
 }
 
-
-TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32) {
+TEST(LowerNumberToUint32_to_TruncateFloat64ToWord32) {
   // NumberToUint32(x: kRepFloat64) used as MachineType::Uint32()
   TestingGraph t(Type::Number());
   Node* p0 = t.ExampleWithOutput(MachineType::Float64());
@@ -1095,26 +1088,20 @@ TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32) {
   Node* use = t.Use(trunc, MachineType::Uint32());
   t.Return(use);
   t.Lower();
-  CheckChangeOf(IrOpcode::kTruncateFloat64ToInt32, p0, use->InputAt(0));
+  CheckChangeOf(IrOpcode::kTruncateFloat64ToWord32, p0, use->InputAt(0));
 }
 
-
-TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32_with_change) {
+TEST(LowerNumberToUint32_to_TruncateTaggedToWord32) {
   // NumberToInt32(x: kTypeNumber | kRepTagged) used as MachineType::Uint32()
   TestingGraph t(Type::Number());
   Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), t.p0);
   Node* use = t.Use(trunc, MachineType::Uint32());
   t.Return(use);
   t.Lower();
-  Node* node = use->InputAt(0);
-  CHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, node->opcode());
-  Node* of = node->InputAt(0);
-  CHECK_EQ(IrOpcode::kChangeTaggedToFloat64, of->opcode());
-  CHECK_EQ(t.p0, of->InputAt(0));
+  CheckChangeOf(IrOpcode::kTruncateTaggedToWord32, t.p0, use->InputAt(0));
 }
 
-
-TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32_uint32) {
+TEST(LowerNumberToUint32_to_TruncateFloat64ToWord32_uint32) {
   // NumberToUint32(x: kRepFloat64) used as kRepWord32
   TestingGraph t(Type::Unsigned32());
   Node* input = t.ExampleWithOutput(MachineType::Float64());
@@ -1122,7 +1109,7 @@ TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32_uint32) {
   Node* use = t.Use(trunc, MachineType::RepWord32());
   t.Return(use);
   t.Lower();
-  CheckChangeOf(IrOpcode::kTruncateFloat64ToInt32, input, use->InputAt(0));
+  CheckChangeOf(IrOpcode::kTruncateFloat64ToWord32, input, use->InputAt(0));
 }
 
 
@@ -1150,7 +1137,7 @@ TEST(InsertBasicChanges) {
                        MachineType::Int32(), Type::Signed32());
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToUint32, MachineType::Float64(),
                        MachineType::Uint32(), Type::Unsigned32());
-  CheckChangeInsertion(IrOpcode::kTruncateFloat64ToInt32,
+  CheckChangeInsertion(IrOpcode::kTruncateFloat64ToWord32,
                        MachineType::Float64(), MachineType::Uint32(),
                        Type::Integral32());
   CheckChangeInsertion(IrOpcode::kChangeTaggedToInt32, MachineType::AnyTagged(),

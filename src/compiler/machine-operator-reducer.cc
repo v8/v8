@@ -419,8 +419,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
       break;
     }
-    case IrOpcode::kTruncateFloat64ToInt32:
-      return ReduceTruncateFloat64ToInt32(node);
+    case IrOpcode::kTruncateFloat64ToWord32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+      return NoChange();
+    }
     case IrOpcode::kTruncateInt64ToInt32: {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
@@ -431,6 +435,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat32(DoubleToFloat32(m.Value()));
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
+      break;
+    }
+    case IrOpcode::kRoundFloat64ToInt32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kFloat64InsertLowWord32:
@@ -640,37 +650,6 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
     }
     return Changed(node);
-  }
-  return NoChange();
-}
-
-
-Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
-  Float64Matcher m(node->InputAt(0));
-  if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
-  if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-  if (m.IsPhi()) {
-    Node* const phi = m.node();
-    DCHECK_EQ(MachineRepresentation::kFloat64, PhiRepresentationOf(phi->op()));
-    if (phi->OwnedBy(node)) {
-      // TruncateFloat64ToInt32[mode](Phi[Float64](x1,...,xn))
-      //   => Phi[Int32](TruncateFloat64ToInt32[mode](x1),
-      //                 ...,
-      //                 TruncateFloat64ToInt32[mode](xn))
-      const int value_input_count = phi->InputCount() - 1;
-      for (int i = 0; i < value_input_count; ++i) {
-        Node* input = graph()->NewNode(node->op(), phi->InputAt(i));
-        // TODO(bmeurer): Reschedule input for reduction once we have Revisit()
-        // instead of recursing into ReduceTruncateFloat64ToInt32() here.
-        Reduction reduction = ReduceTruncateFloat64ToInt32(input);
-        if (reduction.Changed()) input = reduction.replacement();
-        phi->ReplaceInput(i, input);
-      }
-      NodeProperties::ChangeOp(
-          phi,
-          common()->Phi(MachineRepresentation::kWord32, value_input_count));
-      return Replace(phi);
-    }
   }
   return NoChange();
 }

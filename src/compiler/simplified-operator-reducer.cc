@@ -96,6 +96,18 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
+    case IrOpcode::kTruncateTaggedToWord32: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+      if (m.IsChangeInt31ToTagged() || m.IsChangeInt32ToTagged() ||
+          m.IsChangeUint32ToTagged()) {
+        return Replace(m.InputAt(0));
+      }
+      if (m.IsChangeFloat64ToTagged()) {
+        return Change(node, machine()->TruncateFloat64ToWord32(), m.InputAt(0));
+      }
+      break;
+    }
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberRound:

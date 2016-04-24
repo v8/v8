@@ -371,7 +371,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
     } else if (truncation.TruncatesToWord32()) {
-      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
+      op = machine()->TruncateFloat64ToWord32();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
@@ -380,7 +380,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
     } else if (truncation.TruncatesToWord32()) {
-      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
+      op = machine()->TruncateFloat64ToWord32();
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::TaggedSigned())) {
@@ -390,8 +390,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
     } else if (truncation.TruncatesToWord32()) {
-      node = InsertChangeTaggedToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript);
+      op = simplified()->TruncateTaggedToWord32();
     }
   }
   if (op == nullptr) {

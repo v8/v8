@@ -5323,8 +5323,7 @@ TEST(RunTruncateInt64ToInt32P) {
   }
 }
 
-
-TEST(RunTruncateFloat64ToInt32P) {
+TEST(RunTruncateFloat64ToWord32P) {
   struct {
     double from;
     double raw;
@@ -5385,8 +5384,7 @@ TEST(RunTruncateFloat64ToInt32P) {
                  {-1.7976931348623157e+308, 0}};
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
-  m.Return(m.TruncateFloat64ToInt32(
-      TruncationMode::kJavaScript,
+  m.Return(m.TruncateFloat64ToWord32(
       m.LoadFromPointer(&input, MachineType::Float64())));
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;

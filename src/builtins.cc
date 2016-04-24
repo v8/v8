@@ -5221,7 +5221,7 @@ compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
   a->Bind(&if_numberisnotsmi);
   {
     Node* number_index_value = a->LoadHeapNumberValue(number_index);
-    Node* access_index = a->TruncateFloat64ToInt32(number_index_value);
+    Node* access_index = a->TruncateFloat64ToWord32(number_index_value);
     Node* test_index = a->ChangeInt32ToFloat64(access_index);
 
     CodeStubAssembler::Label if_indexesareequal(a), if_indexesarenotequal(a);

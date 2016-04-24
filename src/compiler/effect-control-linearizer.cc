@@ -293,8 +293,7 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                     Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* value32 = graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  Node* value32 = graph()->NewNode(machine()->RoundFloat64ToInt32(), value);
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));

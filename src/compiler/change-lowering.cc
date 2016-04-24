@@ -43,6 +43,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeTaggedToUI32(node->InputAt(0), control, kUnsigned);
     case IrOpcode::kChangeUint32ToTagged:
       return ChangeUint32ToTagged(node->InputAt(0), control);
+    case IrOpcode::kTruncateTaggedToWord32:
+      return TruncateTaggedToWord32(node->InputAt(0), control);
     case IrOpcode::kLoadField:
       return LoadField(node);
     case IrOpcode::kStoreField:
@@ -179,8 +181,7 @@ Reduction ChangeLowering::ChangeBoolToBit(Node* value) {
 
 
 Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
-  Node* value32 = graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  Node* value32 = graph()->NewNode(machine()->RoundFloat64ToInt32(), value);
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
@@ -391,6 +392,48 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
   return Replace(phi);
 }
 
+Reduction ChangeLowering::TruncateTaggedToWord32(Node* value, Node* control) {
+  Node* check = TestNotSmi(value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
+
+  Node* vnot_smi;
+  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
+    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
+                                             jsgraph()->UndefinedConstant());
+    Node* branch_undefined = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
+
+    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
+    Node* vundefined = jsgraph()->Int32Constant(0);
+
+    Node* if_not_undefined =
+        graph()->NewNode(common()->IfFalse(), branch_undefined);
+    Node* vheap_number =
+        graph()->NewNode(machine()->TruncateFloat64ToWord32(),
+                         LoadHeapNumberValue(value, if_not_undefined));
+
+    if_not_smi =
+        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
+    vnot_smi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                         vundefined, vheap_number, if_not_smi);
+  } else {
+    vnot_smi = graph()->NewNode(machine()->TruncateFloat64ToWord32(),
+                                LoadHeapNumberValue(value, if_not_smi));
+  }
+
+  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfrom_smi = ChangeSmiToWord32(value);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vnot_smi, vfrom_smi, merge);
+
+  return Replace(phi);
+}
 
 namespace {
 

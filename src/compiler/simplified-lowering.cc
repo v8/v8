@@ -1309,7 +1309,7 @@ class RepresentationSelector {
       case IrOpcode::kTruncateFloat64ToFloat32:
         return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat32);
-      case IrOpcode::kTruncateFloat64ToInt32:
+      case IrOpcode::kTruncateFloat64ToWord32:
         return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kWord32);
 
@@ -1595,9 +1595,7 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
       vfalse1 = efalse1 = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), efalse0,
           efalse1, if_false1);
-      vfalse1 = graph()->NewNode(
-          machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript),
-          vfalse1);
+      vfalse1 = graph()->NewNode(machine()->TruncateFloat64ToWord32(), vfalse1);
     }
 
     if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);

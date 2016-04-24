@@ -160,15 +160,6 @@ Node* CodeAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, IntPtrConstant(shift));
 }
 
-Node* CodeAssembler::TruncateFloat64ToInt32RoundToZero(Node* a) {
-  return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kRoundToZero,
-                                                a);
-}
-
-Node* CodeAssembler::TruncateFloat64ToInt32JavaScript(Node* a) {
-  return raw_assembler_->TruncateFloat64ToInt32(TruncationMode::kJavaScript, a);
-}
-
 Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
   if (raw_assembler_->machine()->Is64()) {
     value = raw_assembler_->ChangeUint32ToUint64(value);

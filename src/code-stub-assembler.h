@@ -169,8 +169,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                           compiler::Node* value);
   compiler::Node* TruncateTaggedToWord32(compiler::Node* context,
                                          compiler::Node* value);
-  // Truncate to int32 using JavaScript truncation mode.
-  compiler::Node* TruncateFloat64ToInt32(compiler::Node* value);
   // Truncate the floating point value of a HeapNumber to an Int32.
   compiler::Node* TruncateHeapNumberValueToWord32(compiler::Node* object);
 

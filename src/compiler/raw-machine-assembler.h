@@ -472,6 +472,9 @@ class RawMachineAssembler {
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
+  Node* TruncateFloat64ToWord32(Node* a) {
+    return AddNode(machine()->TruncateFloat64ToWord32(), a);
+  }
   Node* ChangeFloat32ToFloat64(Node* a) {
     return AddNode(machine()->ChangeFloat32ToFloat64(), a);
   }
@@ -517,11 +520,11 @@ class RawMachineAssembler {
   Node* TruncateFloat64ToFloat32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToFloat32(), a);
   }
-  Node* TruncateFloat64ToInt32(TruncationMode mode, Node* a) {
-    return AddNode(machine()->TruncateFloat64ToInt32(mode), a);
-  }
   Node* TruncateInt64ToInt32(Node* a) {
     return AddNode(machine()->TruncateInt64ToInt32(), a);
+  }
+  Node* RoundFloat64ToInt32(Node* a) {
+    return AddNode(machine()->RoundFloat64ToInt32(), a);
   }
   Node* RoundInt32ToFloat32(Node* a) {
     return AddNode(machine()->RoundInt32ToFloat32(), a);

@@ -32,22 +32,6 @@ class OptionalOperator final {
   const Operator* const op_;
 };
 
-
-// Supported float64 to int32 truncation modes.
-enum class TruncationMode : uint8_t {
-  kJavaScript,  // ES6 section 7.1.5
-  kRoundToZero  // Round towards zero. Implementation defined for NaN and ovf.
-};
-
-V8_INLINE size_t hash_value(TruncationMode mode) {
-  return static_cast<uint8_t>(mode);
-}
-
-std::ostream& operator<<(std::ostream&, TruncationMode);
-
-TruncationMode TruncationModeOf(Operator const*);
-
-
 // Supported write barrier modes.
 enum WriteBarrierKind {
   kNoWriteBarrier,
@@ -223,6 +207,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   // This operator reinterprets the bits of a word as tagged pointer.
   const Operator* BitcastWordToTagged();
 
+  // JavaScript float64 to int32/uint32 truncation.
+  const Operator* TruncateFloat64ToWord32();
+
   // These operators change the representation of numbers while preserving the
   // value of the number. Narrowing operators assume the input is representable
   // in the target type and are *not* defined for other inputs.
@@ -246,8 +233,8 @@ class MachineOperatorBuilder final : public ZoneObject {
   // These operators truncate or round numbers, both changing the representation
   // of the number and mapping multiple input values onto the same output value.
   const Operator* TruncateFloat64ToFloat32();
-  const Operator* TruncateFloat64ToInt32(TruncationMode);
   const Operator* TruncateInt64ToInt32();
+  const Operator* RoundFloat64ToInt32();
   const Operator* RoundInt32ToFloat32();
   const Operator* RoundInt64ToFloat32();
   const Operator* RoundInt64ToFloat64();

@@ -206,6 +206,7 @@
   V(ChangeFloat64ToTagged)         \
   V(ChangeBoolToBit)               \
   V(ChangeBitToBool)               \
+  V(TruncateTaggedToWord32)        \
   V(Allocate)                      \
   V(LoadField)                     \
   V(LoadBuffer)                    \
@@ -287,6 +288,7 @@
   V(Uint64Div)                  \
   V(Uint64Mod)                  \
   V(BitcastWordToTagged)        \
+  V(TruncateFloat64ToWord32)    \
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \
   V(ChangeFloat64ToUint32)      \
@@ -302,8 +304,8 @@
   V(ChangeUint32ToFloat64)      \
   V(ChangeUint32ToUint64)       \
   V(TruncateFloat64ToFloat32)   \
-  V(TruncateFloat64ToInt32)     \
   V(TruncateInt64ToInt32)       \
+  V(RoundFloat64ToInt32)        \
   V(RoundInt32ToFloat32)        \
   V(RoundInt64ToFloat32)        \
   V(RoundInt64ToFloat64)        \

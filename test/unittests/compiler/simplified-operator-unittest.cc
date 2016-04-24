@@ -31,7 +31,6 @@ std::ostream& operator<<(std::ostream& os, const PureOperator& pop) {
   return os << IrOpcode::Mnemonic(pop.opcode);
 }
 
-
 const PureOperator kPureOperators[] = {
 #define PURE(Name, properties, input_count)              \
   {                                                      \
@@ -56,6 +55,7 @@ const PureOperator kPureOperators[] = {
     PURE(NumberShiftRightLogical, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
+    PURE(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToUint32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToFloat64, Operator::kNoProperties, 1),
@@ -64,6 +64,7 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeFloat64ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeBoolToBit, Operator::kNoProperties, 1),
     PURE(ChangeBitToBool, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToWord32, Operator::kNoProperties, 1),
     PURE(ObjectIsNumber, Operator::kNoProperties, 1),
     PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
     PURE(ObjectIsSmi, Operator::kNoProperties, 1)

@@ -844,8 +844,7 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
        g.Use(node->InputAt(0)));
 }
 
-
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
   X87OperandGenerator g(this);
 
   switch (TruncationModeOf(node->op())) {

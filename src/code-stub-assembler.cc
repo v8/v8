@@ -726,17 +726,13 @@ Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::TruncateFloat64ToInt32(Node* value) {
-  return TruncateFloat64ToInt32JavaScript(value);
-}
-
 Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
   Node* value = LoadHeapNumberValue(object);
-  return TruncateFloat64ToInt32(value);
+  return TruncateFloat64ToWord32(value);
 }
 
 Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
-  Node* value32 = TruncateFloat64ToInt32RoundToZero(value);
+  Node* value32 = RoundFloat64ToInt32(value);
   Node* value64 = ChangeInt32ToFloat64(value32);
 
   Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
@@ -745,16 +741,9 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
   Branch(Float64Equal(value, value64), &if_valueisequal, &if_valueisnotequal);
   Bind(&if_valueisequal);
   {
-    Label if_valueiszero(this), if_valueisnotzero(this);
-    Branch(Float64Equal(value, Float64Constant(0.0)), &if_valueiszero,
-           &if_valueisnotzero);
-
-    Bind(&if_valueiszero);
+    GotoUnless(Word32Equal(value32, Int32Constant(0)), &if_valueisint32);
     BranchIfInt32LessThan(Float64ExtractHighWord32(value), Int32Constant(0),
                           &if_valueisheapnumber, &if_valueisint32);
-
-    Bind(&if_valueisnotzero);
-    Goto(&if_valueisint32);
   }
   Bind(&if_valueisnotequal);
   Goto(&if_valueisheapnumber);

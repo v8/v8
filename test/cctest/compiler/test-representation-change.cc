@@ -533,7 +533,7 @@ TEST(SignednessInWord32) {
               Type::None(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kChangeFloat64ToInt32, MachineRepresentation::kFloat64,
               Type::Signed32(), MachineRepresentation::kWord32);
-  CheckChange(IrOpcode::kTruncateFloat64ToInt32,
+  CheckChange(IrOpcode::kTruncateFloat64ToWord32,
               MachineRepresentation::kFloat64, Type::Number(),
               MachineRepresentation::kWord32);
 
@@ -542,7 +542,7 @@ TEST(SignednessInWord32) {
                   MachineRepresentation::kWord32, Type::None(),
                   MachineRepresentation::kFloat32);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
-                  IrOpcode::kTruncateFloat64ToInt32,
+                  IrOpcode::kTruncateFloat64ToWord32,
                   MachineRepresentation::kFloat32, Type::Number(),
                   MachineRepresentation::kWord32);
 }

@@ -1045,10 +1045,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
     case IrOpcode::kTruncateFloat64ToFloat32:
       return MarkAsFloat32(node), VisitTruncateFloat64ToFloat32(node);
-    case IrOpcode::kTruncateFloat64ToInt32:
-      return MarkAsWord32(node), VisitTruncateFloat64ToInt32(node);
+    case IrOpcode::kTruncateFloat64ToWord32:
+      return MarkAsWord32(node), VisitTruncateFloat64ToWord32(node);
     case IrOpcode::kTruncateInt64ToInt32:
       return MarkAsWord32(node), VisitTruncateInt64ToInt32(node);
+    case IrOpcode::kRoundFloat64ToInt32:
+      return MarkAsWord32(node), VisitRoundFloat64ToInt32(node);
     case IrOpcode::kRoundInt64ToFloat32:
       return MarkAsFloat32(node), VisitRoundInt64ToFloat32(node);
     case IrOpcode::kRoundInt32ToFloat32:

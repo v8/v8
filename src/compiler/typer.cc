@@ -1915,6 +1915,11 @@ Type* Typer::Visitor::TypeChangeBitToBool(Node* node) {
   return ChangeRepresentation(arg, Type::TaggedPointer(), zone());
 }
 
+Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {
+  Type* arg = Operand(node, 0);
+  // TODO(neis): DCHECK(arg->Is(Type::Number()));
+  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
+}
 
 Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::TaggedPointer(); }
 
@@ -2303,9 +2308,9 @@ Type* Typer::Visitor::TypeTruncateFloat64ToFloat32(Node* node) {
   return Type::Intersect(Type::Number(), Type::UntaggedFloat32(), zone());
 }
 
-
-Type* Typer::Visitor::TypeTruncateFloat64ToInt32(Node* node) {
-  return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
+Type* Typer::Visitor::TypeTruncateFloat64ToWord32(Node* node) {
+  return Type::Intersect(Type::Integral32(), Type::UntaggedIntegral32(),
+                         zone());
 }
 
 
@@ -2313,6 +2318,9 @@ Type* Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
 }
 
+Type* Typer::Visitor::TypeRoundFloat64ToInt32(Node* node) {
+  return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
+}
 
 Type* Typer::Visitor::TypeRoundInt32ToFloat32(Node* node) {
   return Type::Intersect(Type::PlainNumber(), Type::UntaggedFloat32(), zone());

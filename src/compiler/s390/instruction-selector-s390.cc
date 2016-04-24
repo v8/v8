@@ -1042,7 +1042,7 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kS390_DoubleToFloat32, node);
 }
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
   switch (TruncationModeOf(node->op())) {
     case TruncationMode::kJavaScript:
       return VisitRR(this, kArchTruncateDoubleToI, node);

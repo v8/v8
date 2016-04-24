@@ -1139,8 +1139,7 @@ Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input) {
   if (module_ && module_->asm_js()) {
     // asm.js must use the wacky JS semantics.
     input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
-    return graph()->NewNode(
-        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
   }
 
   // Truncation of the input value is needed for the overflow check later.
@@ -1161,8 +1160,7 @@ Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input) {
   MachineOperatorBuilder* m = jsgraph()->machine();
   if (module_ && module_->asm_js()) {
     // asm.js must use the wacky JS semantics.
-    return graph()->NewNode(
-        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
   }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
@@ -1183,8 +1181,7 @@ Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input) {
   if (module_ && module_->asm_js()) {
     // asm.js must use the wacky JS semantics.
     input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
-    return graph()->NewNode(
-        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
   }
 
   // Truncation of the input value is needed for the overflow check later.
@@ -1205,8 +1202,7 @@ Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input) {
   MachineOperatorBuilder* m = jsgraph()->machine();
   if (module_ && module_->asm_js()) {
     // asm.js must use the wacky JS semantics.
-    return graph()->NewNode(
-        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
   }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
@@ -2007,8 +2003,7 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
   MachineOperatorBuilder* machine = jsgraph()->machine();
   CommonOperatorBuilder* common = jsgraph()->common();
 
-  Node* const value32 = graph()->NewNode(
-      machine->TruncateFloat64ToInt32(TruncationMode::kRoundToZero), value);
+  Node* value32 = graph()->NewNode(machine->RoundFloat64ToInt32(), value);
   Node* check_same = graph()->NewNode(
       machine->Float64Equal(), value,
       graph()->NewNode(machine->ChangeInt32ToFloat64(), value32));
@@ -2239,15 +2234,13 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
 
   switch (type) {
     case wasm::kAstI32: {
-      num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToInt32(
-                                 TruncationMode::kJavaScript),
+      num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToWord32(),
                              num);
       break;
     }
     case wasm::kAstI64:
       // TODO(titzer): JS->i64 has no good solution right now. Using 32 bits.
-      num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToInt32(
-                                 TruncationMode::kJavaScript),
+      num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToWord32(),
                              num);
       if (jsgraph()->machine()->Is64()) {
         // We cannot change an int32 to an int64 on a 32 bit platform. Instead

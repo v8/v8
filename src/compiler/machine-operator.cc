@@ -12,24 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, TruncationMode mode) {
-  switch (mode) {
-    case TruncationMode::kJavaScript:
-      return os << "JavaScript";
-    case TruncationMode::kRoundToZero:
-      return os << "RoundToZero";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
-TruncationMode TruncationModeOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, op->opcode());
-  return OpParameter<TruncationMode>(op);
-}
-
-
 std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   switch (kind) {
     case kNoWriteBarrier:
@@ -147,6 +129,7 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                         \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                  \
   V(BitcastWordToTagged, Operator::kNoProperties, 1, 0, 1)                    \
+  V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
@@ -158,6 +141,7 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                    \
@@ -273,19 +257,6 @@ struct MachineOperatorGlobalCache {
   PURE_OP_LIST(PURE)
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
-
-  template <TruncationMode kMode>
-  struct TruncateFloat64ToInt32Operator final
-      : public Operator1<TruncationMode> {
-    TruncateFloat64ToInt32Operator()
-        : Operator1<TruncationMode>(IrOpcode::kTruncateFloat64ToInt32,
-                                    Operator::kPure, "TruncateFloat64ToInt32",
-                                    1, 0, 0, 1, 0, 0, kMode) {}
-  };
-  TruncateFloat64ToInt32Operator<TruncationMode::kJavaScript>
-      kTruncateFloat64ToInt32JavaScript;
-  TruncateFloat64ToInt32Operator<TruncationMode::kRoundToZero>
-      kTruncateFloat64ToInt32RoundToZero;
 
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
@@ -404,19 +375,6 @@ PURE_OP_LIST(PURE)
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
-
-
-const Operator* MachineOperatorBuilder::TruncateFloat64ToInt32(
-    TruncationMode mode) {
-  switch (mode) {
-    case TruncationMode::kJavaScript:
-      return &cache_.kTruncateFloat64ToInt32JavaScript;
-    case TruncationMode::kRoundToZero:
-      return &cache_.kTruncateFloat64ToInt32RoundToZero;
-  }
-  UNREACHABLE();
-  return nullptr;
-}
 
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {

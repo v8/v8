@@ -401,6 +401,28 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeUint32ToTagged) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// TruncateTaggedToWord32
+
+TEST_F(SimplifiedOperatorReducerTest,
+       TruncateTaggedToWord3WithChangeFloat64ToTagged) {
+  Node* param0 = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->TruncateTaggedToWord32(),
+      graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToWord32(param0));
+}
+
+TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
+  TRACED_FOREACH(double, n, kFloat64Values) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->TruncateTaggedToWord32(), NumberConstant(n)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(n)));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
