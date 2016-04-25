@@ -45,11 +45,7 @@ class ChangeLowering final : public Reducer {
   Reduction ChangeInt31ToTagged(Node* value, Node* control);
   Reduction ChangeInt32ToTagged(Node* value, Node* control);
   Reduction ChangeTaggedSignedToInt32(Node* value);
-  Reduction ChangeTaggedToFloat64(Node* value, Node* control);
-  Reduction ChangeTaggedToUI32(Node* value, Node* control,
-                               Signedness signedness);
   Reduction ChangeUint32ToTagged(Node* value, Node* control);
-  Reduction TruncateTaggedToWord32(Node* value, Node* control);
 
   Reduction LoadField(Node* node);
   Reduction StoreField(Node* node);

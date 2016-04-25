@@ -31,14 +31,6 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeInt31ToTagged(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedSignedToInt32:
       return ChangeTaggedSignedToInt32(node->InputAt(0));
-    case IrOpcode::kChangeTaggedToFloat64:
-      return ChangeTaggedToFloat64(node->InputAt(0), control);
-    case IrOpcode::kChangeTaggedToInt32:
-      return ChangeTaggedToUI32(node->InputAt(0), control, kSigned);
-    case IrOpcode::kChangeTaggedToUint32:
-      return ChangeTaggedToUI32(node->InputAt(0), control, kUnsigned);
-    case IrOpcode::kTruncateTaggedToWord32:
-      return TruncateTaggedToWord32(node->InputAt(0), control);
     case IrOpcode::kLoadField:
       return LoadField(node);
     case IrOpcode::kStoreField:
@@ -143,79 +135,6 @@ Reduction ChangeLowering::ChangeInt31ToTagged(Node* value, Node* control) {
 
 Reduction ChangeLowering::ChangeTaggedSignedToInt32(Node* value) {
   return Replace(ChangeSmiToWord32(value));
-}
-
-Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
-                                             Signedness signedness) {
-  const Operator* op = (signedness == kSigned)
-                           ? machine()->ChangeFloat64ToInt32()
-                           : machine()->ChangeFloat64ToUint32();
-
-  if (NodeProperties::GetType(value)->Is(Type::TaggedPointer()) &&
-      NodeProperties::GetType(value)->Is(Type::Number())) {
-    return Replace(graph()->NewNode(op, LoadHeapNumberValue(value, control)));
-  }
-
-  Node* check = TestNotSmi(value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
-
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  Node* vnot_smi = graph()->NewNode(op, LoadHeapNumberValue(value, if_not_smi));
-
-  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfrom_smi = ChangeSmiToWord32(value);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
-  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                               vnot_smi, vfrom_smi, merge);
-
-  return Replace(phi);
-}
-
-
-Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
-  Node* check = TestNotSmi(value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
-
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  Node* vnot_smi = LoadHeapNumberValue(value, if_not_smi);
-
-  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfrom_smi = ChangeSmiToFloat64(value);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
-  Node* phi =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
-                       vnot_smi, vfrom_smi, merge);
-
-  return Replace(phi);
-}
-
-Reduction ChangeLowering::TruncateTaggedToWord32(Node* value, Node* control) {
-  Node* check = TestNotSmi(value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
-
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  Node* vnot_smi = graph()->NewNode(machine()->TruncateFloat64ToWord32(),
-                                    LoadHeapNumberValue(value, if_not_smi));
-
-  Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfrom_smi = ChangeSmiToWord32(value);
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_not_smi, if_smi);
-  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                               vnot_smi, vfrom_smi, merge);
-
-  return Replace(phi);
 }
 
 namespace {

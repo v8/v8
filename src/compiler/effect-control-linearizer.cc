@@ -355,6 +355,18 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
     case IrOpcode::kChangeFloat64ToTagged:
       state = LowerChangeFloat64ToTagged(node, *effect, *control);
       break;
+    case IrOpcode::kChangeTaggedToInt32:
+      state = LowerChangeTaggedToInt32(node, *effect, *control);
+      break;
+    case IrOpcode::kChangeTaggedToUint32:
+      state = LowerChangeTaggedToUint32(node, *effect, *control);
+      break;
+    case IrOpcode::kChangeTaggedToFloat64:
+      state = LowerChangeTaggedToFloat64(node, *effect, *control);
+      break;
+    case IrOpcode::kTruncateTaggedToWord32:
+      state = LowerTruncateTaggedToWord32(node, *effect, *control);
+      break;
     case IrOpcode::kObjectIsCallable:
       state = LowerObjectIsCallable(node, *effect, *control);
       break;
@@ -503,6 +515,140 @@ EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node, Node* effect,
       graph()->NewNode(common()->EffectPhi(2), effect, alloc.effect, merge);
 
   return ValueEffectControl(phi, ephi, merge);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node, Node* effect,
+                                                  Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue =
+      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+    vfalse = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
+        efalse, if_false);
+    vfalse = graph()->NewNode(machine()->ChangeFloat64ToInt32(), vfalse);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node, Node* effect,
+                                                   Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue =
+      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+    vfalse = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
+        efalse, if_false);
+    vfalse = graph()->NewNode(machine()->ChangeFloat64ToUint32(), vfalse);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node, Node* effect,
+                                                    Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue;
+  {
+    vtrue = graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+    vtrue = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue);
+  }
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+    vfalse = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
+        efalse, if_false);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node, Node* effect,
+                                                     Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue =
+      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+    vfalse = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
+        efalse, if_false);
+    vfalse = graph()->NewNode(machine()->TruncateFloat64ToWord32(), vfalse);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

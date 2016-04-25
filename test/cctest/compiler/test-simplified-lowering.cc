@@ -1398,9 +1398,9 @@ TEST(LowerLoadElement_to_load) {
 
 TEST(LowerStoreElement_to_store) {
   {
-    TestingGraph t(Type::Any(), Type::Signed32());
-
     for (size_t i = 0; i < arraysize(kMachineReps); i++) {
+      TestingGraph t(Type::Any(), Type::Signed32());
+
       ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                               Type::Any(), kMachineReps[i]};
 
