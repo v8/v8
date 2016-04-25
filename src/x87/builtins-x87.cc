@@ -555,10 +555,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ push(edi);  // Callee's JS function.
   __ push(edx);  // Callee's new target.
 
-  // Get the bytecode array from the function object and load the pointer to the
-  // first entry into edi (InterpreterBytecodeRegister).
+  // Get the bytecode array from the function object (or from the DebugInfo if
+  // it is present) and load it into kInterpreterBytecodeArrayRegister.
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-
   Label load_debug_bytecode_array, bytecode_array_loaded;
   __ cmp(FieldOperand(eax, SharedFunctionInfo::kDebugInfoOffset),
          Immediate(DebugInfo::uninitialized()));
@@ -567,8 +566,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
   __ bind(&bytecode_array_loaded);
 
+  // Check function data field is actually a BytecodeArray object.
+  Label bytecode_array_not_present;
+  __ CompareRoot(kInterpreterBytecodeArrayRegister,
+                 Heap::kUndefinedValueRootIndex);
+  __ j(equal, &bytecode_array_not_present);
   if (FLAG_debug_code) {
-    // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
                      eax);
@@ -639,6 +642,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(debug_info, DebugInfo::kAbstractCodeIndex));
   __ jmp(&bytecode_array_loaded);
+
+  // If the bytecode array is no longer present, then the underlying function
+  // has been switched to a different kind of code and we heal the closure by
+  // switching the code entry field over to the new code object as well.
+  __ bind(&bytecode_array_not_present);
+  __ pop(edx);  // Callee's new target.
+  __ pop(edi);  // Callee's JS function.
+  __ pop(esi);  // Callee's context.
+  __ leave();   // Leave the frame so we can tail call.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ mov(FieldOperand(edi, JSFunction::kCodeEntryOffset), ecx);
+  __ RecordWriteCodeEntryField(edi, ecx, ebx);
+  __ jmp(ecx);
 }
 
 
