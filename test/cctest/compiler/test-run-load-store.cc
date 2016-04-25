@@ -222,11 +222,19 @@ TEST(RunLoadStore) {
 #endif
 }
 
+#if V8_TARGET_LITTLE_ENDIAN
+#define LSB(addr, bytes) addr
+#elif V8_TARGET_BIG_ENDIAN
+#define LSB(addr, bytes) reinterpret_cast<byte*>(addr + 1) - bytes
+#else
+#error "Unknown Architecture"
+#endif
+
 TEST(RunLoadStoreSignExtend32) {
   int32_t buffer[4];
   RawMachineAssemblerTester<int32_t> m;
-  Node* load8 = m.LoadFromPointer(&buffer[0], MachineType::Int8());
-  Node* load16 = m.LoadFromPointer(&buffer[0], MachineType::Int16());
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());
+  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
   Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Int32());
   m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
   m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
@@ -246,8 +254,8 @@ TEST(RunLoadStoreSignExtend32) {
 TEST(RunLoadStoreZeroExtend32) {
   uint32_t buffer[4];
   RawMachineAssemblerTester<uint32_t> m;
-  Node* load8 = m.LoadFromPointer(&buffer[0], MachineType::Uint8());
-  Node* load16 = m.LoadFromPointer(&buffer[0], MachineType::Uint16());
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
+  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
   Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Uint32());
   m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
   m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
@@ -284,9 +292,9 @@ TEST(RunLoadStoreSignExtend64) {
   if (true) return;  // TODO(titzer): sign extension of loads to 64-bit.
   int64_t buffer[5];
   RawMachineAssemblerTester<int64_t> m;
-  Node* load8 = m.LoadFromPointer(&buffer[0], MachineType::Int8());
-  Node* load16 = m.LoadFromPointer(&buffer[0], MachineType::Int16());
-  Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Int32());
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());
+  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
+  Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Int32());
   Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Int64());
   m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
   m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
@@ -309,9 +317,9 @@ TEST(RunLoadStoreZeroExtend64) {
   if (kPointerSize < 8) return;
   uint64_t buffer[5];
   RawMachineAssemblerTester<int64_t> m;
-  Node* load8 = m.LoadFromPointer(&buffer[0], MachineType::Uint8());
-  Node* load16 = m.LoadFromPointer(&buffer[0], MachineType::Uint16());
-  Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Uint32());
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
+  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
+  Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Uint32());
   Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Uint64());
   m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
   m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
