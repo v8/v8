@@ -525,6 +525,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
   } while (0)
 
+#if V8_TARGET_ARCH_PPC64
+// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
+#define CleanUInt32(x) __ ClearLeftImm(x, x, Operand(32))
+#else
+#define CleanUInt32(x)
+#endif
 
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr, asm_instrx, width)  \
   do {                                                             \
@@ -544,12 +550,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (mode == kMode_MRI) {                                       \
       __ asm_instr(result, operand);                               \
     } else {                                                       \
+      CleanUInt32(offset);                                         \
       __ asm_instrx(result, operand);                              \
     }                                                              \
     __ bind(ool->exit());                                          \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                           \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr, asm_instrx) \
   do {                                                       \
@@ -569,12 +575,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (mode == kMode_MRI) {                                 \
       __ asm_instr(result, operand);                         \
     } else {                                                 \
+      CleanUInt32(offset);                                   \
       __ asm_instrx(result, operand);                        \
     }                                                        \
     __ bind(ool->exit());                                    \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_FLOAT32()                \
   do {                                                  \
@@ -595,12 +601,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (mode == kMode_MRI) {                            \
       __ stfs(kScratchDoubleReg, operand);              \
     } else {                                            \
+      CleanUInt32(offset);                              \
       __ stfsx(kScratchDoubleReg, operand);             \
     }                                                   \
     __ bind(&done);                                     \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_DOUBLE()                 \
   do {                                                  \
@@ -620,12 +626,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (mode == kMode_MRI) {                            \
       __ stfd(value, operand);                          \
     } else {                                            \
+      CleanUInt32(offset);                              \
       __ stfdx(value, operand);                         \
     }                                                   \
     __ bind(&done);                                     \
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr, asm_instrx) \
   do {                                                        \
@@ -645,6 +651,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     if (mode == kMode_MRI) {                                  \
       __ asm_instr(value, operand);                           \
     } else {                                                  \
+      CleanUInt32(offset);                                    \
       __ asm_instrx(value, operand);                          \
     }                                                         \
     __ bind(&done);                                           \
