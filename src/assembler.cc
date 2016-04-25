@@ -1729,34 +1729,12 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
-     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
-    defined(V8_OS_AIX)
-  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
-  // special cases that are different.
-  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
-    double f;
-    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
-    /* retain sign if odd integer exponent */
-    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
-               ? copysign(result, x)
-               : result;
-  }
-
-  if (x == 2.0) {
-    int y_int = static_cast<int>(y);
-    if (y == y_int) {
-      return std::ldexp(1.0, y_int);
-    }
-  }
-#endif
-
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  return std::pow(x, y);
+  return Pow(x, y);
 }
 
 

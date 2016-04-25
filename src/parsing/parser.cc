@@ -438,7 +438,7 @@ bool ParserTraits::ShortcutNumericLiteralBinaryExpression(
         return true;
       }
       case Token::EXP: {
-        double value = std::pow(x_val, y_val);
+        double value = Pow(x_val, y_val);
         int int_value = static_cast<int>(value);
         *x = factory->NewNumberLiteral(
             int_value == value && value != -0.0 ? int_value : value, pos,

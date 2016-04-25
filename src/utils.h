@@ -211,6 +211,30 @@ inline double Floor(double x) {
   return std::floor(x);
 }
 
+inline double Pow(double x, double y) {
+#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
+     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
+    defined(V8_OS_AIX)
+  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
+  // special cases that are different.
+  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
+    double f;
+    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+    /* retain sign if odd integer exponent */
+    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
+               ? copysign(result, x)
+               : result;
+  }
+
+  if (x == 2.0) {
+    int y_int = static_cast<int>(y);
+    if (y == y_int) {
+      return std::ldexp(1.0, y_int);
+    }
+  }
+#endif
+  return std::pow(x, y);
+}
 
 // TODO(svenpanne) Clean up the whole power-of-2 mess.
 inline int32_t WhichPowerOf2Abs(int32_t x) {
