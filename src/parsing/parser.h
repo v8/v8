@@ -939,10 +939,11 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
-                                  Expression* subject, Statement* body);
+                                  Expression* subject, Statement* body,
+                                  int each_keyword_pos);
   void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                 Expression* iterable, Statement* body,
-                                int iterable_pos);
+                                int next_result_pos = RelocInfo::kNoPosition);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,

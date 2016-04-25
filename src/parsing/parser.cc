@@ -3083,11 +3083,10 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
 
 void Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                         Expression* each, Expression* subject,
-                                        Statement* body) {
+                                        Statement* body, int each_keyword_pos) {
   ForOfStatement* for_of = stmt->AsForOfStatement();
   if (for_of != NULL) {
-    InitializeForOfStatement(for_of, each, subject, body,
-                             RelocInfo::kNoPosition);
+    InitializeForOfStatement(for_of, each, subject, body, each_keyword_pos);
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
       Variable* temp =
@@ -3112,7 +3111,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
 
 void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
                                       Expression* iterable, Statement* body,
-                                      int iterable_pos) {
+                                      int next_result_pos) {
   Variable* iterator =
       scope_->NewTemporary(ast_value_factory()->dot_iterator_string());
   Variable* result =
@@ -3123,14 +3122,7 @@ void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
   Expression* result_done;
   Expression* assign_each;
 
-  // Hackily disambiguate o from o.next and o [Symbol.iterator]().
-  // TODO(verwaest): Come up with a better solution.
-  int get_iterator_pos = iterable_pos != RelocInfo::kNoPosition
-                             ? iterable_pos
-                             : iterable->position() - 2;
-  int next_result_pos = iterable_pos != RelocInfo::kNoPosition
-                            ? iterable_pos
-                            : iterable->position() - 1;
+  int get_iterator_pos = iterable->position();
 
   // iterator = iterable[Symbol.iterator]()
   assign_iterator = factory()->NewAssignment(
@@ -3550,6 +3542,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
+        int each_keyword_position = scanner()->location().beg_pos;
+
         Expression* enumerable;
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
@@ -3591,7 +3585,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           body_block->statements()->Add(body, zone());
           VariableProxy* temp_proxy =
               factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
-          InitializeForEachStatement(loop, temp_proxy, enumerable, body_block);
+          InitializeForEachStatement(loop, temp_proxy, enumerable, body_block,
+                                     each_keyword_position);
         }
         body_scope->set_end_position(scanner()->location().end_pos);
         body_scope = body_scope->FinalizeBlockScope();
@@ -3670,6 +3665,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
+        int each_keyword_position = scanner()->location().beg_pos;
+
         Expression* enumerable;
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
@@ -3684,7 +3681,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         // For legacy compat reasons, give for loops similar treatment to
         // if statements in allowing a function declaration for a body
         Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-        InitializeForEachStatement(loop, expression, enumerable, body);
+        InitializeForEachStatement(loop, expression, enumerable, body,
+                                   each_keyword_position);
 
         Statement* final_loop = loop->IsForOfStatement()
             ? FinalizeForOfStatement(
@@ -5520,7 +5518,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
           ForEachStatement::ITERATE, nullptr, RelocInfo::kNoPosition);
       InitializeForOfStatement(loop->AsForOfStatement(),
                                factory()->NewVariableProxy(each), subject,
-                               append_body, spread->expression_position());
+                               append_body);
       do_block->statements()->Add(loop, zone());
     }
   }

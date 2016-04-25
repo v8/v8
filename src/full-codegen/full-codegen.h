@@ -662,8 +662,7 @@ class FullCodeGenerator: public AstVisitor {
   // otherwise.
   void SetStatementPosition(Statement* stmt,
                             InsertBreak insert_break = INSERT_BREAK);
-  void SetExpressionPosition(Expression* expr,
-                             InsertBreak insert_break = SKIP_BREAK);
+  void SetExpressionPosition(Expression* expr);
 
   // Consider an expression a statement. As such, we also insert a break.
   // This is used in loop headers where we want to break for each iteration.

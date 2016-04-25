@@ -1188,6 +1188,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   LoopBuilder loop_builder(builder());
   ControlScopeForIteration control_scope(this, stmt, &loop_builder);
 
+  builder()->SetExpressionAsStatementPosition(stmt->assign_iterator());
   VisitForEffect(stmt->assign_iterator());
 
   loop_builder.LoopHeader();

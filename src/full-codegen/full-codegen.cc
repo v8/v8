@@ -652,14 +652,9 @@ void FullCodeGenerator::SetStatementPosition(
   }
 }
 
-
-void FullCodeGenerator::SetExpressionPosition(
-    Expression* expr, FullCodeGenerator::InsertBreak insert_break) {
+void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  bool recorded = RecordPosition(masm_, expr->position());
-  if (recorded && insert_break == INSERT_BREAK && info_->is_debug()) {
-    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
-  }
+  RecordPosition(masm_, expr->position());
 }
 
 
@@ -1231,6 +1226,7 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   increment_loop_depth();
 
   // var iterator = iterable[Symbol.iterator]();
+  SetExpressionAsStatementPosition(stmt->assign_iterator());
   VisitForEffect(stmt->assign_iterator());
 
   // Loop entry.

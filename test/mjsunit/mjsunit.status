@@ -752,7 +752,6 @@
 ##############################################################################
 ['ignition == True', {
   # TODO(yangguo,4690): assertion failures in debugger tests.
-  'es6/debug-stepnext-for': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
 
   # TODO(yangguo,4690): flaky failures on the bots.
