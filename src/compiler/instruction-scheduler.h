@@ -180,7 +180,9 @@ class InstructionScheduler final : public ZoneObject {
     return (instr->arch_opcode() == kArchNop) &&
       (instr->OutputCount() == 1) &&
       (instr->OutputAt(0)->IsUnallocated()) &&
-      UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy();
+      (UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy() ||
+       UnallocatedOperand::cast(
+           instr->OutputAt(0))->HasFixedDoubleRegisterPolicy());
   }
 
   void ComputeTotalLatencies();
