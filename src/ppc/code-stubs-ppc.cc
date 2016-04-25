@@ -4939,6 +4939,23 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(r4);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make r10 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ mr(r10, fp);
+    __ b(&loop_entry);
+    __ bind(&loop);
+    __ LoadP(r10, MemOperand(r10, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ LoadP(ip, MemOperand(r10, StandardFrameConstants::kFunctionOffset));
+    __ cmp(ip, r4);
+    __ bne(&loop);
+  }
+
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ LoadWordArith(
@@ -4947,19 +4964,20 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ SmiTag(r5);
 #endif
   __ SmiToPtrArrayOffset(r6, r5);
-  __ add(r6, fp, r6);
+  __ add(r6, r10, r6);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // r4 : function
   // r5 : number of parameters (tagged)
   // r6 : parameters pointer
+  // r10 : JavaScript frame pointer
   // Registers used over whole function:
   // r8 : arguments count (tagged)
   // r9 : mapped parameter count (tagged)
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r7, MemOperand(r10, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(r3, MemOperand(r7, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
