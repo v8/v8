@@ -1400,10 +1400,6 @@ RegisterAllocationData::RegisterAllocationData(
       debug_name_(debug_name),
       config_(config),
       phi_map_(allocation_zone()),
-      allocatable_codes_(this->config()->num_general_registers(), -1,
-                         allocation_zone()),
-      allocatable_double_codes_(this->config()->num_double_registers(), -1,
-                                allocation_zone()),
       live_in_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_out_sets_(code->InstructionBlockCount(), nullptr, allocation_zone()),
       live_ranges_(code->VirtualRegisterCount() * 2, nullptr,
@@ -1418,10 +1414,6 @@ RegisterAllocationData::RegisterAllocationData(
       assigned_double_registers_(nullptr),
       virtual_register_count_(code->VirtualRegisterCount()),
       preassigned_slot_ranges_(zone) {
-  DCHECK(this->config()->num_general_registers() <=
-         RegisterConfiguration::kMaxGeneralRegisters);
-  DCHECK(this->config()->num_double_registers() <=
-         RegisterConfiguration::kMaxDoubleRegisters);
   assigned_registers_ = new (code_zone())
       BitVector(this->config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -2616,7 +2608,7 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
   inactive_live_ranges().reserve(8);
   // TryAllocateFreeReg and AllocateBlockedReg assume this
   // when allocating local arrays.
-  DCHECK(RegisterConfiguration::kMaxDoubleRegisters >=
+  DCHECK(RegisterConfiguration::kMaxFPRegisters >=
          this->data()->config()->num_general_registers());
 }
 
@@ -2813,7 +2805,7 @@ void LinearScanAllocator::InactiveToActive(LiveRange* range) {
 
 
 bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
-  LifetimePosition free_until_pos[RegisterConfiguration::kMaxDoubleRegisters];
+  LifetimePosition free_until_pos[RegisterConfiguration::kMaxFPRegisters];
 
   for (int i = 0; i < num_registers(); i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
@@ -2899,8 +2891,8 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     return;
   }
 
-  LifetimePosition use_pos[RegisterConfiguration::kMaxDoubleRegisters];
-  LifetimePosition block_pos[RegisterConfiguration::kMaxDoubleRegisters];
+  LifetimePosition use_pos[RegisterConfiguration::kMaxFPRegisters];
+  LifetimePosition block_pos[RegisterConfiguration::kMaxFPRegisters];
 
   for (int i = 0; i < num_registers(); i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
