@@ -294,29 +294,8 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
 
   Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* vnot_smi;
-  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
-    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
-                                             jsgraph()->UndefinedConstant());
-    Node* branch_undefined = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
-
-    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
-    Node* vundefined = jsgraph()->Int32Constant(0);
-
-    Node* if_not_undefined =
-        graph()->NewNode(common()->IfFalse(), branch_undefined);
-    Node* vheap_number =
-        graph()->NewNode(op, LoadHeapNumberValue(value, if_not_undefined));
-
-    if_not_smi =
-        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
-    vnot_smi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                         vundefined, vheap_number, if_not_smi);
-  } else {
-    vnot_smi = graph()->NewNode(op, LoadHeapNumberValue(value, if_not_smi));
-  }
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vnot_smi = graph()->NewNode(op, LoadHeapNumberValue(value, if_not_smi));
 
   Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
   Node* vfrom_smi = ChangeSmiToWord32(value);
@@ -336,29 +315,8 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
 
   Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* vnot_smi;
-  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
-    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
-                                             jsgraph()->UndefinedConstant());
-    Node* branch_undefined = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
-
-    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
-    Node* vundefined =
-        jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
-
-    Node* if_not_undefined =
-        graph()->NewNode(common()->IfFalse(), branch_undefined);
-    Node* vheap_number = LoadHeapNumberValue(value, if_not_undefined);
-
-    if_not_smi =
-        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
-    vnot_smi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
-                         vundefined, vheap_number, if_not_smi);
-  } else {
-    vnot_smi = LoadHeapNumberValue(value, if_not_smi);
-  }
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vnot_smi = LoadHeapNumberValue(value, if_not_smi);
 
   Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
   Node* vfrom_smi = ChangeSmiToFloat64(value);
@@ -399,31 +357,9 @@ Reduction ChangeLowering::TruncateTaggedToWord32(Node* value, Node* control) {
 
   Node* if_not_smi = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* vnot_smi;
-  if (NodeProperties::GetType(value)->Maybe(Type::Undefined())) {
-    Node* check_undefined = graph()->NewNode(machine()->WordEqual(), value,
-                                             jsgraph()->UndefinedConstant());
-    Node* branch_undefined = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
-
-    Node* if_undefined = graph()->NewNode(common()->IfTrue(), branch_undefined);
-    Node* vundefined = jsgraph()->Int32Constant(0);
-
-    Node* if_not_undefined =
-        graph()->NewNode(common()->IfFalse(), branch_undefined);
-    Node* vheap_number =
-        graph()->NewNode(machine()->TruncateFloat64ToWord32(),
-                         LoadHeapNumberValue(value, if_not_undefined));
-
-    if_not_smi =
-        graph()->NewNode(common()->Merge(2), if_undefined, if_not_undefined);
-    vnot_smi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                         vundefined, vheap_number, if_not_smi);
-  } else {
-    vnot_smi = graph()->NewNode(machine()->TruncateFloat64ToWord32(),
-                                LoadHeapNumberValue(value, if_not_smi));
-  }
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vnot_smi = graph()->NewNode(machine()->TruncateFloat64ToWord32(),
+                                    LoadHeapNumberValue(value, if_not_smi));
 
   Node* if_smi = graph()->NewNode(common()->IfFalse(), branch);
   Node* vfrom_smi = ChangeSmiToWord32(value);

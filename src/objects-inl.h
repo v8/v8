@@ -1909,6 +1909,13 @@ InterceptorInfo* Map::GetIndexedInterceptor() {
       constructor->shared()->get_api_func_data()->indexed_property_handler());
 }
 
+double Oddball::to_number_raw() const {
+  return READ_DOUBLE_FIELD(this, kToNumberRawOffset);
+}
+
+void Oddball::set_to_number_raw(double value) {
+  WRITE_DOUBLE_FIELD(this, kToNumberRawOffset, value);
+}
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
