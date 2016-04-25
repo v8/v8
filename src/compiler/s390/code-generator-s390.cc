@@ -237,15 +237,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #if V8_TARGET_ARCH_S390X
         case kS390_Add:
         case kS390_Sub:
-          return lt;
 #endif
         case kS390_AddWithOverflow32:
         case kS390_SubWithOverflow32:
-#if V8_TARGET_ARCH_S390X
-          return ne;
-#else
           return lt;
-#endif
         default:
           break;
       }
@@ -255,15 +250,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #if V8_TARGET_ARCH_S390X
         case kS390_Add:
         case kS390_Sub:
-          return ge;
 #endif
         case kS390_AddWithOverflow32:
         case kS390_SubWithOverflow32:
-#if V8_TARGET_ARCH_S390X
-          return eq;
-#else
           return ge;
-#endif
         default:
           break;
       }
@@ -333,16 +323,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   } while (0)
 
 #if V8_TARGET_ARCH_S390X
-#define ASSEMBLE_ADD_WITH_OVERFLOW32()      \
-  do {                                      \
-    ASSEMBLE_BINOP(AddP, AddP);             \
-    __ TestIfInt32(i.OutputRegister(), r0); \
+#define ASSEMBLE_ADD_WITH_OVERFLOW32()                   \
+  do {                                                   \
+    ASSEMBLE_ADD_WITH_OVERFLOW();                        \
+    __ LoadAndTestP_ExtendSrc(kScratchReg, kScratchReg); \
   } while (0)
 
-#define ASSEMBLE_SUB_WITH_OVERFLOW32()      \
-  do {                                      \
-    ASSEMBLE_BINOP(SubP, SubP);             \
-    __ TestIfInt32(i.OutputRegister(), r0); \
+#define ASSEMBLE_SUB_WITH_OVERFLOW32()                   \
+  do {                                                   \
+    ASSEMBLE_SUB_WITH_OVERFLOW();                        \
+    __ LoadAndTestP_ExtendSrc(kScratchReg, kScratchReg); \
   } while (0)
 #else
 #define ASSEMBLE_ADD_WITH_OVERFLOW32 ASSEMBLE_ADD_WITH_OVERFLOW
@@ -462,7 +452,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
-// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr, width)              \
   do {                                                             \
     DoubleRegister result = i.OutputDoubleRegister();              \
@@ -470,7 +459,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                              \
     MemOperand operand = i.MemoryOperand(&mode, index);            \
     Register offset = operand.rb();                                \
-    __ lgfr(offset, offset);                                       \
     if (HasRegisterInput(instr, 2)) {                              \
       __ CmpLogical32(offset, i.InputRegister(2));                 \
     } else {                                                       \
@@ -482,7 +470,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bind(ool->exit());                                          \
   } while (0)
 
-// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)             \
   do {                                                       \
     Register result = i.OutputRegister();                    \
@@ -490,7 +477,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                        \
     MemOperand operand = i.MemoryOperand(&mode, index);      \
     Register offset = operand.rb();                          \
-    __ lgfr(offset, offset);                                 \
     if (HasRegisterInput(instr, 2)) {                        \
       __ CmpLogical32(offset, i.InputRegister(2));           \
     } else {                                                 \
@@ -502,7 +488,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bind(ool->exit());                                    \
   } while (0)
 
-// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
 #define ASSEMBLE_CHECKED_STORE_FLOAT32()                \
   do {                                                  \
     Label done;                                         \
@@ -510,7 +495,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                   \
     MemOperand operand = i.MemoryOperand(&mode, index); \
     Register offset = operand.rb();                     \
-    __ lgfr(offset, offset);                            \
     if (HasRegisterInput(instr, 2)) {                   \
       __ CmpLogical32(offset, i.InputRegister(2));      \
     } else {                                            \
@@ -522,7 +506,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bind(&done);                                     \
   } while (0)
 
-// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
 #define ASSEMBLE_CHECKED_STORE_DOUBLE()                 \
   do {                                                  \
     Label done;                                         \
@@ -531,7 +514,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     MemOperand operand = i.MemoryOperand(&mode, index); \
     DCHECK_EQ(kMode_MRR, mode);                         \
     Register offset = operand.rb();                     \
-    __ lgfr(offset, offset);                            \
     if (HasRegisterInput(instr, 2)) {                   \
       __ CmpLogical32(offset, i.InputRegister(2));      \
     } else {                                            \
@@ -543,7 +525,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bind(&done);                                     \
   } while (0)
 
-// TODO(mbrandy): fix paths that produce garbage in offset's upper 32-bits.
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)       \
   do {                                                  \
     Label done;                                         \
@@ -551,7 +532,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     AddressingMode mode = kMode_None;                   \
     MemOperand operand = i.MemoryOperand(&mode, index); \
     Register offset = operand.rb();                     \
-    __ lgfr(offset, offset);                            \
     if (HasRegisterInput(instr, 2)) {                   \
       __ CmpLogical32(offset, i.InputRegister(2));      \
     } else {                                            \
@@ -1570,6 +1550,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kS390_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(LoadHalfWordP);
       break;
+    case kS390_LoadWordU32:
+      ASSEMBLE_LOAD_INTEGER(LoadlW);
+      break;
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadW);
       break;
@@ -1622,7 +1605,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_CHECKED_LOAD_INTEGER(LoadLogicalHalfWordP);
       break;
     case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(LoadW);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(LoadlW);
       break;
     case kCheckedLoadWord64:
 #if V8_TARGET_ARCH_S390X
@@ -1672,7 +1655,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
       break;
     case kAtomicLoadWord32:
-      __ Load(i.OutputRegister(), i.MemoryOperand());
+      __ LoadlW(i.OutputRegister(), i.MemoryOperand());
       break;
     default:
       UNREACHABLE();
@@ -1774,7 +1757,7 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   S390OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ CmpP(input, Operand(i.InputInt32(index + 0)));
+    __ Cmp32(input, Operand(i.InputInt32(index + 0)));
     __ beq(GetLabel(i.InputRpo(index + 1)));
   }
   AssembleArchJump(i.InputRpo(1));

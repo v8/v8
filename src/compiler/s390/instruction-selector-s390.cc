@@ -182,11 +182,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kTagged:  // Fall through.
 #endif
     case MachineRepresentation::kWord32:
-      opcode = kS390_LoadWordS32;
-#if V8_TARGET_ARCH_S390X
-      // TODO(john.yan): Remove this mode since s390 do not has this restriction
-      mode = kInt16Imm_4ByteAligned;
-#endif
+      opcode = kS390_LoadWordU32;
       break;
 #if V8_TARGET_ARCH_S390X
     case MachineRepresentation::kTagged:  // Fall through.
