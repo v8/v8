@@ -17,7 +17,7 @@
       'dependencies': [
         '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
-        '../../tools/gyp/v8.gyp:v8_libplatform',
+        '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
@@ -182,9 +182,9 @@
         ['component=="shared_library"', {
           # compiler-unittests can't be built against a shared library, so we
           # need to depend on the underlying static target in that case.
-          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
         }, {
-          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+          'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['os_posix == 1', {
           # TODO(svenpanne): This is a temporary work-around to fix the warnings

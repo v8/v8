@@ -264,7 +264,7 @@ GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   build/shim_headers.gypi build/features.gypi build/standalone.gypi \
 	   build/toolchain.gypi build/all.gyp build/mac/asan.gyp \
 	   test/cctest/cctest.gyp test/fuzzer/fuzzer.gyp \
-	   test/unittests/unittests.gyp tools/gyp/v8.gyp \
+	   test/unittests/unittests.gyp src/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
 	   buildtools/third_party/libc++abi/libc++abi.gyp \
 	   buildtools/third_party/libc++/libc++.gyp samples/samples.gyp \

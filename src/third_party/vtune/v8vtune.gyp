@@ -35,7 +35,7 @@
       'target_name': 'v8_vtune',
       'type': 'static_library',
       'dependencies': [
-        '../../../tools/gyp/v8.gyp:v8',
+        '../../v8.gyp:v8',
       ],
       'sources': [
         'ittnotify_config.h',
