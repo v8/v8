@@ -836,6 +836,7 @@ struct EffectControlLinearizationPhase {
     Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
                                                     Scheduler::kNoFlags);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
+    TraceSchedule(data->info(), schedule);
 
     // Post-pass for wiring the control/effects
     // - connect allocating representation changes into the control&effect

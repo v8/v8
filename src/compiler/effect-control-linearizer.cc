@@ -34,8 +34,9 @@ MachineOperatorBuilder* EffectControlLinearizer::machine() const {
 
 namespace {
 
-struct BlockEffectData {
+struct BlockEffectControlData {
   Node* current_effect = nullptr;  // New effect.
+  Node* current_control = nullptr;  // New control.
 };
 
 // Effect phis that need to be updated after the first pass.
@@ -48,7 +49,7 @@ struct PendingEffectPhi {
 };
 
 void UpdateEffectPhi(Node* node, BasicBlock* block,
-                     ZoneVector<BlockEffectData>* block_effects) {
+                     ZoneVector<BlockEffectControlData>* block_effects) {
   // Update all inputs to an effect phi with the effects from the given
   // block->effect map.
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
@@ -60,6 +61,27 @@ void UpdateEffectPhi(Node* node, BasicBlock* block,
         (*block_effects)[predecessor->rpo_number()].current_effect;
     if (input != input_effect) {
       node->ReplaceInput(i, input_effect);
+    }
+  }
+}
+
+void UpdateBlockControl(BasicBlock* block,
+                        ZoneVector<BlockEffectControlData>* block_effects) {
+  Node* control = block->NodeAt(0);
+  DCHECK(NodeProperties::IsControl(control));
+
+  // Do not rewire the end node.
+  if (control->opcode() == IrOpcode::kEnd) return;
+
+  // Update all inputs to the given control node with the correct control.
+  DCHECK_EQ(control->op()->ControlInputCount(), block->PredecessorCount());
+  for (int i = 0; i < control->op()->ControlInputCount(); i++) {
+    Node* input = NodeProperties::GetControlInput(control, i);
+    BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
+    Node* input_control =
+        (*block_effects)[predecessor->rpo_number()].current_control;
+    if (input != input_control) {
+      NodeProperties::ReplaceControlInput(control, input_control, i);
     }
   }
 }
@@ -94,8 +116,9 @@ void RemoveRegionNode(Node* node) {
 }  // namespace
 
 void EffectControlLinearizer::Run() {
-  ZoneVector<BlockEffectData> block_effects(temp_zone());
+  ZoneVector<BlockEffectControlData> block_effects(temp_zone());
   ZoneVector<PendingEffectPhi> pending_effect_phis(temp_zone());
+  ZoneVector<BasicBlock*> pending_block_controls(temp_zone());
   block_effects.resize(schedule()->RpoBlockCount());
   NodeVector inputs_buffer(temp_zone());
 
@@ -105,6 +128,16 @@ void EffectControlLinearizer::Run() {
     // The control node should be the first.
     Node* control = block->NodeAt(instr);
     DCHECK(NodeProperties::IsControl(control));
+    // Update the control inputs.
+    if (HasIncomingBackEdges(block)) {
+      // If there are back edges, we need to update later because we have not
+      // computed the control yet. This should only happen for loops.
+      DCHECK_EQ(IrOpcode::kLoop, control->opcode());
+      pending_block_controls.push_back(block);
+    } else {
+      // If there are no back edges, we can update now.
+      UpdateBlockControl(block, &block_effects);
+    }
     instr++;
 
     // Iterate over the phis and update the effect phis.
@@ -177,8 +210,9 @@ void EffectControlLinearizer::Run() {
           pending_effect_phis.push_back(PendingEffectPhi(effect, block));
         } else if (control->opcode() == IrOpcode::kIfException) {
           // The IfException is connected into the effect chain, so we need
-          // to process it here.
-          ProcessNode(control, &effect, &control);
+          // to update the effect here.
+          NodeProperties::ReplaceEffectInput(control, effect);
+          effect = control;
         }
       }
     }
@@ -212,6 +246,7 @@ void EffectControlLinearizer::Run() {
 
     // Store the effect for later use.
     block_effects[block->rpo_number()].current_effect = effect;
+    block_effects[block->rpo_number()].current_control = control;
   }
 
   // Update the incoming edges of the effect phis that could not be processed
@@ -220,7 +255,26 @@ void EffectControlLinearizer::Run() {
     UpdateEffectPhi(pending_effect_phi.effect_phi, pending_effect_phi.block,
                     &block_effects);
   }
+  for (BasicBlock* pending_block_control : pending_block_controls) {
+    UpdateBlockControl(pending_block_control, &block_effects);
+  }
 }
+
+namespace {
+
+void TryScheduleCallIfSuccess(Node* node, Node** control) {
+  // Schedule the call's IfSuccess node if there is no exception use.
+  if (!NodeProperties::IsExceptionalCall(node)) {
+    for (Edge edge : node->use_edges()) {
+      if (NodeProperties::IsControlEdge(edge) &&
+          edge.from()->opcode() == IrOpcode::kIfSuccess) {
+        *control = edge.from();
+      }
+    }
+  }
+}
+
+}  // namespace
 
 void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
                                           Node** control) {
@@ -244,6 +298,16 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
     }
   }
 
+  if (node->opcode() == IrOpcode::kIfSuccess) {
+    // We always schedule IfSuccess with its call, so skip it here.
+    DCHECK_EQ(IrOpcode::kCall, node->InputAt(0)->opcode());
+    // The IfSuccess node should not belong to an exceptional call node
+    // because such IfSuccess nodes should only start a basic block (and
+    // basic block start nodes are not handled in the ProcessNode method).
+    DCHECK(!NodeProperties::IsExceptionalCall(node->InputAt(0)));
+    return;
+  }
+
   // If the node takes an effect, replace with the current one.
   if (node->op()->EffectInputCount() > 0) {
     DCHECK_EQ(1, node->op()->EffectInputCount());
@@ -263,6 +327,18 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
     // New effect chain is only started with a Start or ValueEffect node.
     DCHECK(node->op()->EffectOutputCount() == 0 ||
            node->opcode() == IrOpcode::kStart);
+  }
+  // Rewire control inputs of control nodes, and update the current control
+  // input.
+  if (node->op()->ControlOutputCount() > 0) {
+    DCHECK_EQ(1, node->op()->ControlInputCount());
+    NodeProperties::ReplaceControlInput(node, *control);
+    *control = node;
+
+    if (node->opcode() == IrOpcode::kCall) {
+      // Schedule the call's IfSuccess node (if there is no exception use).
+      TryScheduleCallIfSuccess(node, control);
+    }
   }
 }
 
