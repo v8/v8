@@ -215,6 +215,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(ResumeGeneratorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
   V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
+  V(CompileBaseline, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
   V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
   V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(NotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
@@ -438,6 +439,7 @@ class Builtins {
                                BuiltinExtraArguments extra_args);
   static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
   static void Generate_CompileLazy(MacroAssembler* masm);
+  static void Generate_CompileBaseline(MacroAssembler* masm);
   static void Generate_InOptimizationQueue(MacroAssembler* masm);
   static void Generate_CompileOptimized(MacroAssembler* masm);
   static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);

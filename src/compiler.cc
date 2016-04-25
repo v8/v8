@@ -18,6 +18,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
+#include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -590,13 +591,15 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
 
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
 
   // Update the shared function info with the scope info.
   InstallSharedScopeInfo(info, shared);
 
   // Install compilation result on the shared function info
   InstallSharedCompilationResult(info, shared);
+
+  // Record the function compilation event.
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
 
   return info->code();
 }
@@ -805,8 +808,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return cached_code;
   }
 
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-
+  // Reset profiler ticks, function is no longer considered hot.
   if (shared->is_compiled()) {
     shared->code()->set_profiler_ticks(0);
   }
@@ -858,6 +860,103 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   return MaybeHandle<Code>();
+}
+
+class InterpreterActivationsFinder : public ThreadVisitor {
+ public:
+  SharedFunctionInfo* shared_;
+  bool has_activations_;
+
+  explicit InterpreterActivationsFinder(SharedFunctionInfo* shared)
+      : shared_(shared), has_activations_(false) {}
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    JavaScriptFrameIterator it(isolate, top);
+    for (; !it.done() && !has_activations_; it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      if (!frame->is_interpreted()) continue;
+      if (frame->function()->shared() == shared_) has_activations_ = true;
+    }
+  }
+};
+
+bool HasInterpreterActivations(Isolate* isolate, SharedFunctionInfo* shared) {
+  InterpreterActivationsFinder activations_finder(shared);
+  activations_finder.VisitThread(isolate, isolate->thread_local_top());
+  isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
+  return activations_finder.has_activations_;
+}
+
+MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  VMState<COMPILER> state(isolate);
+  PostponeInterruptsScope postpone(isolate);
+  CompilationInfoWithZone info(function);
+
+  // Reset profiler ticks, function is no longer considered hot.
+  if (function->shared()->HasBytecodeArray()) {
+    function->shared()->set_profiler_ticks(0);
+  }
+
+  // We do not switch to baseline code when the debugger might have created a
+  // copy of the bytecode with break slots to be able to set break points.
+  if (function->shared()->HasDebugInfo()) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(4280): For now we do not switch generators to baseline code because
+  // there might be suspended activations stored in generator objects on the
+  // heap. We could eventually go directly to TurboFan in this case.
+  if (function->shared()->is_generator()) {
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(4280): For now we disable switching to baseline code in the presence
+  // of interpreter activations of the given function. The reasons are:
+  //  1) The debugger assumes each function is either full-code or bytecode.
+  //  2) The underlying bytecode is cleared below, breaking stack unwinding.
+  if (HasInterpreterActivations(isolate, function->shared())) {
+    if (FLAG_trace_opt) {
+      OFStream os(stdout);
+      os << "[unable to switch " << Brief(*function) << " due to activations]"
+         << std::endl;
+    }
+    return MaybeHandle<Code>();
+  }
+
+  if (FLAG_trace_opt) {
+    OFStream os(stdout);
+    os << "[switching method " << Brief(*function) << " to baseline code]"
+       << std::endl;
+  }
+
+  // Parse and update CompilationInfo with the results.
+  if (!Parser::ParseStatic(info.parse_info())) return MaybeHandle<Code>();
+  Handle<SharedFunctionInfo> shared = info.shared_info();
+  DCHECK_EQ(shared->language_mode(), info.literal()->language_mode());
+
+  // Compile baseline code using the full code generator.
+  if (!Compiler::Analyze(info.parse_info()) ||
+      !FullCodeGenerator::MakeCode(&info)) {
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return MaybeHandle<Code>();
+  }
+
+  // TODO(4280): For now we play it safe and remove the bytecode array when we
+  // switch to baseline code. We might consider keeping around the bytecode so
+  // that it can be used as the "source of truth" eventually.
+  shared->ClearBytecodeArray();
+
+  // Update the shared function info with the scope info.
+  InstallSharedScopeInfo(&info, shared);
+
+  // Install compilation result on the shared function info
+  InstallSharedCompilationResult(&info, shared);
+
+  // Record the function compilation event.
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &info);
+
+  return info.code();
 }
 
 MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
@@ -1077,6 +1176,29 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
       isolate->clear_pending_exception();
     }
     return false;
+  }
+
+  // Install code on closure.
+  function->ReplaceCode(*code);
+
+  // Check postconditions on success.
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->is_compiled());
+  return true;
+}
+
+bool Compiler::CompileBaseline(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  // Start a compilation.
+  Handle<Code> code;
+  if (!GetBaselineCode(function).ToHandle(&code)) {
+    // Baseline generation failed, get unoptimized code.
+    DCHECK(function->shared()->is_compiled());
+    code = handle(function->shared()->code());
+    isolate->clear_pending_exception();
   }
 
   // Install code on closure.
