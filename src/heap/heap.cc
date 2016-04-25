@@ -945,7 +945,7 @@ void Heap::EnsureFillerObjectAtTop() {
   // may be uninitialized memory behind top. We fill the remainder of the page
   // with a filler.
   Address to_top = new_space_.top();
-  NewSpacePage* page = NewSpacePage::FromAddress(to_top - kPointerSize);
+  Page* page = Page::FromAddress(to_top - kPointerSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
     CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
@@ -1552,7 +1552,8 @@ void PromotionQueue::Initialize() {
   front_ = rear_ =
       reinterpret_cast<struct Entry*>(heap_->new_space()->ToSpaceEnd());
   limit_ = reinterpret_cast<struct Entry*>(
-      Page::FromAllocationTop(reinterpret_cast<Address>(rear_))->area_start());
+      Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_))
+          ->area_start());
   emergency_stack_ = NULL;
 }
 
@@ -1560,7 +1561,7 @@ void PromotionQueue::Initialize() {
 void PromotionQueue::RelocateQueueHead() {
   DCHECK(emergency_stack_ == NULL);
 
-  Page* p = Page::FromAllocationTop(reinterpret_cast<Address>(rear_));
+  Page* p = Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
   struct Entry* head_start = rear_;
   struct Entry* head_end =
       Min(front_, reinterpret_cast<struct Entry*>(p->area_end()));
@@ -1909,13 +1910,14 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
     // queue of unprocessed copied objects.  Process them until the
     // queue is empty.
     while (new_space_front != new_space_.top()) {
-      if (!NewSpacePage::IsAtEnd(new_space_front)) {
+      if (!Page::IsAlignedToPageSize(new_space_front)) {
         HeapObject* object = HeapObject::FromAddress(new_space_front);
         new_space_front +=
             StaticScavengeVisitor::IterateBody(object->map(), object);
       } else {
-        new_space_front =
-            NewSpacePage::FromLimit(new_space_front)->next_page()->area_start();
+        new_space_front = Page::FromAllocationAreaAddress(new_space_front)
+                              ->next_page()
+                              ->area_start();
       }
     }
 
@@ -4629,7 +4631,7 @@ void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
                           new_space_.FromSpaceEnd());
   while (it.has_next()) {
-    NewSpacePage* page = it.next();
+    Page* page = it.next();
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;

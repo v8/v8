@@ -425,20 +425,12 @@ Address MemoryAllocator::AllocateAlignedMemory(
   return base;
 }
 
-
-void Page::InitializeAsAnchor(PagedSpace* owner) {
-  set_owner(owner);
-  set_prev_page(this);
-  set_next_page(this);
-}
-
-void NewSpacePage::InitializeAsAnchor(SemiSpace* semi_space) {
-  set_owner(semi_space);
+void Page::InitializeAsAnchor(Space* space) {
+  set_owner(space);
   set_next_chunk(this);
   set_prev_chunk(this);
-  // Flags marks this invalid page as not being in new-space.
-  // All real new-space pages will be in new-space.
   SetFlags(0, ~0);
+  SetFlag(ANCHOR);
 }
 
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
@@ -772,12 +764,11 @@ template void MemoryAllocator::Free<MemoryAllocator::kRegular>(
 template void MemoryAllocator::Free<MemoryAllocator::kPooled>(
     MemoryChunk* chunk);
 
-template <typename PageType, MemoryAllocator::AllocationMode mode,
-          typename SpaceType>
-PageType* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
-                                        Executability executable) {
+template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
+Page* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
+                                    Executability executable) {
   MemoryChunk* chunk = nullptr;
-  if (mode == kPooled) {
+  if (alloc_mode == kPooled) {
     DCHECK_EQ(size, static_cast<intptr_t>(MemoryChunk::kAllocatableMemory));
     DCHECK_EQ(executable, NOT_EXECUTABLE);
     chunk = AllocatePagePooled(owner);
@@ -786,20 +777,26 @@ PageType* MemoryAllocator::AllocatePage(intptr_t size, SpaceType* owner,
     chunk = AllocateChunk(size, size, executable, owner);
   }
   if (chunk == nullptr) return nullptr;
-  return PageType::Initialize(isolate_->heap(), chunk, executable, owner);
+  return Page::Initialize(isolate_->heap(), chunk, executable, owner);
 }
 
-template Page* MemoryAllocator::AllocatePage<Page, MemoryAllocator::kRegular,
-                                             PagedSpace>(intptr_t, PagedSpace*,
-                                                         Executability);
+template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
+    intptr_t size, PagedSpace* owner, Executability executable);
+template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
+    intptr_t size, SemiSpace* owner, Executability executable);
+template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
+    intptr_t size, SemiSpace* owner, Executability executable);
 
-template LargePage*
-MemoryAllocator::AllocatePage<LargePage, MemoryAllocator::kRegular, Space>(
-    intptr_t, Space*, Executability);
-
-template NewSpacePage* MemoryAllocator::AllocatePage<
-    NewSpacePage, MemoryAllocator::kPooled, SemiSpace>(intptr_t, SemiSpace*,
-                                                       Executability);
+LargePage* MemoryAllocator::AllocateLargePage(intptr_t size,
+                                              LargeObjectSpace* owner,
+                                              Executability executable) {
+  MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
+  if (chunk == nullptr) return nullptr;
+  return LargePage::Initialize(isolate_->heap(), chunk, executable, owner);
+}
 
 template <typename SpaceType>
 MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
@@ -1041,13 +1038,11 @@ void Space::AllocationStep(Address soon_object, int size) {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : Space(heap, space, executable), free_list_(this) {
+    : Space(heap, space, executable), anchor_(this), free_list_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
   allocation_info_.Reset(nullptr, nullptr);
-
-  anchor_.InitializeAsAnchor(this);
 }
 
 
@@ -1180,8 +1175,7 @@ bool PagedSpace::Expand() {
 
   if (!heap()->CanExpandOldGeneration(size)) return false;
 
-  Page* p =
-      heap()->memory_allocator()->AllocatePage<Page>(size, this, executable());
+  Page* p = heap()->memory_allocator()->AllocatePage(size, this, executable());
   if (p == nullptr) return false;
 
   AccountCommitted(static_cast<intptr_t>(p->size()));
@@ -1240,7 +1234,7 @@ void PagedSpace::ReleasePage(Page* page) {
   free_list_.EvictFreeListItems(page);
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
 
-  if (Page::FromAllocationTop(allocation_info_.top()) == page) {
+  if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     allocation_info_.Reset(nullptr, nullptr);
   }
 
@@ -1269,7 +1263,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
   while (page_iterator.has_next()) {
     Page* page = page_iterator.next();
     CHECK(page->owner() == this);
-    if (page == Page::FromAllocationTop(allocation_info_.top())) {
+    if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -1488,14 +1482,14 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
 
 bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
-  DCHECK(!NewSpacePage::IsAtStart(top));
+  DCHECK(!Page::IsAtObjectStart(top));
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.
     return false;
   }
 
   // Clear remainder of current page.
-  Address limit = NewSpacePage::FromLimit(top)->area_end();
+  Address limit = Page::FromAllocationAreaAddress(top)->area_end();
   if (heap()->gc_state() == Heap::SCAVENGE) {
     heap()->promotion_queue()->SetNewLimit(limit);
   }
@@ -1503,7 +1497,7 @@ bool NewSpace::AddFreshPage() {
   int remaining_in_page = static_cast<int>(limit - top);
   heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   pages_used_++;
-  allocated_since_last_gc_ += NewSpacePage::kAllocatableMemory;
+  allocated_since_last_gc_ += Page::kAllocatableMemory;
   UpdateAllocationInfo();
 
   return true;
@@ -1622,9 +1616,9 @@ void NewSpace::Verify() {
   CHECK_EQ(current, to_space_.space_start());
 
   while (current != top()) {
-    if (!NewSpacePage::IsAtEnd(current)) {
+    if (!Page::IsAlignedToPageSize(current)) {
       // The allocation pointer should not be in the middle of an object.
-      CHECK(!NewSpacePage::FromLimit(current)->ContainsLimit(top()) ||
+      CHECK(!Page::FromAllocationAreaAddress(current)->ContainsLimit(top()) ||
             current < top());
 
       HeapObject* object = HeapObject::FromAddress(current);
@@ -1650,7 +1644,7 @@ void NewSpace::Verify() {
       current += size;
     } else {
       // At end of page, switch to next page.
-      NewSpacePage* page = NewSpacePage::FromLimit(current)->next_page();
+      Page* page = Page::FromAllocationAreaAddress(current)->next_page();
       // Next page should be valid.
       CHECK(!page->is_anchor());
       current = page->area_start();
@@ -1686,14 +1680,12 @@ void SemiSpace::TearDown() {
 
 bool SemiSpace::Commit() {
   DCHECK(!is_committed());
-  NewSpacePage* current = anchor();
+  Page* current = anchor();
   const int num_pages = current_capacity_ / Page::kPageSize;
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
-    NewSpacePage* new_page =
-        heap()
-            ->memory_allocator()
-            ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
-                NewSpacePage::kAllocatableMemory, this, executable());
+    Page* new_page =
+        heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
+            Page::kAllocatableMemory, this, executable());
     if (new_page == nullptr) {
       RewindPages(current, pages_added);
       return false;
@@ -1740,20 +1732,18 @@ bool SemiSpace::GrowTo(int new_capacity) {
   if (!is_committed()) {
     if (!Commit()) return false;
   }
-  DCHECK_EQ(new_capacity & NewSpacePage::kPageAlignmentMask, 0);
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, current_capacity_);
   const int delta = new_capacity - current_capacity_;
   DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-  const int delta_pages = delta / NewSpacePage::kPageSize;
-  NewSpacePage* last_page = anchor()->prev_page();
+  const int delta_pages = delta / Page::kPageSize;
+  Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
-    NewSpacePage* new_page =
-        heap()
-            ->memory_allocator()
-            ->AllocatePage<NewSpacePage, MemoryAllocator::kPooled>(
-                NewSpacePage::kAllocatableMemory, this, executable());
+    Page* new_page =
+        heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
+            Page::kAllocatableMemory, this, executable());
     if (new_page == nullptr) {
       RewindPages(last_page, pages_added);
       return false;
@@ -1761,8 +1751,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
     new_page->InsertAfter(last_page);
     Bitmap::Clear(new_page);
     // Duplicate the flags that was set on the old page.
-    new_page->SetFlags(last_page->GetFlags(),
-                       NewSpacePage::kCopyOnFlipFlagsMask);
+    new_page->SetFlags(last_page->GetFlags(), Page::kCopyOnFlipFlagsMask);
     last_page = new_page;
   }
   AccountCommitted(static_cast<intptr_t>(delta));
@@ -1770,9 +1759,9 @@ bool SemiSpace::GrowTo(int new_capacity) {
   return true;
 }
 
-void SemiSpace::RewindPages(NewSpacePage* start, int num_pages) {
-  NewSpacePage* new_last_page = nullptr;
-  NewSpacePage* last_page = start;
+void SemiSpace::RewindPages(Page* start, int num_pages) {
+  Page* new_last_page = nullptr;
+  Page* last_page = start;
   while (num_pages > 0) {
     DCHECK_NE(last_page, anchor());
     new_last_page = last_page->prev_page();
@@ -1784,15 +1773,15 @@ void SemiSpace::RewindPages(NewSpacePage* start, int num_pages) {
 }
 
 bool SemiSpace::ShrinkTo(int new_capacity) {
-  DCHECK_EQ(new_capacity & NewSpacePage::kPageAlignmentMask, 0);
+  DCHECK_EQ(new_capacity & Page::kPageAlignmentMask, 0);
   DCHECK_GE(new_capacity, minimum_capacity_);
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
     const int delta = current_capacity_ - new_capacity;
     DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
-    int delta_pages = delta / NewSpacePage::kPageSize;
-    NewSpacePage* new_last_page;
-    NewSpacePage* last_page;
+    int delta_pages = delta / Page::kPageSize;
+    Page* new_last_page;
+    Page* last_page;
     while (delta_pages > 0) {
       last_page = anchor()->prev_page();
       new_last_page = last_page->prev_page();
@@ -1809,13 +1798,12 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
 
 void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
   anchor_.set_owner(this);
-  // Fixup back-pointers to anchor. Address of anchor changes when we swap.
   anchor_.prev_page()->set_next_page(&anchor_);
   anchor_.next_page()->set_prev_page(&anchor_);
 
   NewSpacePageIterator it(this);
   while (it.has_next()) {
-    NewSpacePage* page = it.next();
+    Page* page = it.next();
     page->set_owner(this);
     page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
@@ -1838,12 +1826,11 @@ void SemiSpace::Reset() {
   current_page_ = anchor_.next_page();
 }
 
-void SemiSpace::ReplaceWithEmptyPage(NewSpacePage* old_page) {
-  NewSpacePage* new_page =
-      heap()->memory_allocator()->AllocatePage<NewSpacePage>(
-          NewSpacePage::kAllocatableMemory, this, executable());
+void SemiSpace::ReplaceWithEmptyPage(Page* old_page) {
+  Page* new_page = heap()->memory_allocator()->AllocatePage(
+      Page::kAllocatableMemory, this, executable());
   Bitmap::Clear(new_page);
-  new_page->SetFlags(old_page->GetFlags(), NewSpacePage::kCopyAllFlags);
+  new_page->SetFlags(old_page->GetFlags(), Page::kCopyAllFlags);
   new_page->set_next_page(old_page->next_page());
   new_page->set_prev_page(old_page->prev_page());
   old_page->next_page()->set_prev_page(new_page);
@@ -1868,13 +1855,13 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->anchor_, to->anchor_);
   std::swap(from->current_page_, to->current_page_);
 
-  to->FixPagesFlags(saved_to_space_flags, NewSpacePage::kCopyOnFlipFlagsMask);
+  to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
   from->FixPagesFlags(0, 0);
 }
 
 
 void SemiSpace::set_age_mark(Address mark) {
-  DCHECK_EQ(NewSpacePage::FromLimit(mark)->semi_space(), this);
+  DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
   NewSpacePageIterator it(space_start(), mark);
@@ -1891,10 +1878,10 @@ void SemiSpace::Print() {}
 #ifdef VERIFY_HEAP
 void SemiSpace::Verify() {
   bool is_from_space = (id_ == kFromSpace);
-  NewSpacePage* page = anchor_.next_page();
-  CHECK(anchor_.semi_space() == this);
+  Page* page = anchor_.next_page();
+  CHECK(anchor_.owner() == this);
   while (page != &anchor_) {
-    CHECK_EQ(page->semi_space(), this);
+    CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
     CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::IN_FROM_SPACE
                                         : MemoryChunk::IN_TO_SPACE));
@@ -1922,10 +1909,10 @@ void SemiSpace::Verify() {
 #ifdef DEBUG
 void SemiSpace::AssertValidRange(Address start, Address end) {
   // Addresses belong to same semi-space
-  NewSpacePage* page = NewSpacePage::FromLimit(start);
-  NewSpacePage* end_page = NewSpacePage::FromLimit(end);
-  SemiSpace* space = page->semi_space();
-  CHECK_EQ(space, end_page->semi_space());
+  Page* page = Page::FromAllocationAreaAddress(start);
+  Page* end_page = Page::FromAllocationAreaAddress(end);
+  SemiSpace* space = reinterpret_cast<SemiSpace*>(page->owner());
+  CHECK_EQ(space, end_page->owner());
   // Start address is before end address, either on same page,
   // or end address is on a later page in the linked list of
   // semi-space pages.
@@ -2599,7 +2586,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
 void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
   if (allocation_info_.top() >= allocation_info_.limit()) return;
 
-  if (!Page::FromAllocationTop(allocation_info_.top())->CanAllocate()) {
+  if (!Page::FromAllocationAreaAddress(allocation_info_.top())->CanAllocate()) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
@@ -2908,7 +2895,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     return AllocationResult::Retry(identity());
   }
 
-  LargePage* page = heap()->memory_allocator()->AllocatePage<LargePage>(
+  LargePage* page = heap()->memory_allocator()->AllocateLargePage(
       object_size, this, executable);
   if (page == NULL) return AllocationResult::Retry(identity());
   DCHECK(page->area_size() >= object_size);
@@ -2977,7 +2964,7 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
   if (e != NULL) {
     DCHECK(e->value != NULL);
     LargePage* page = reinterpret_cast<LargePage*>(e->value);
-    DCHECK(page->is_valid());
+    DCHECK(LargePage::IsValid(page));
     if (page->Contains(a)) {
       return page;
     }

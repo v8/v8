@@ -862,7 +862,7 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
-  List<NewSpacePage*> newspace_evacuation_candidates_;
+  List<Page*> newspace_evacuation_candidates_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

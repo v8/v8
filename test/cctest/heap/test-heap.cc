@@ -6622,15 +6622,14 @@ UNINITIALIZED_TEST(PagePromotion) {
     CHECK_GT(handles.size(), 0u);
     // First object in handle should be on the first page.
     Handle<FixedArray> first_object = handles.front();
-    NewSpacePage* first_page =
-        NewSpacePage::FromAddress(first_object->address());
+    Page* first_page = Page::FromAddress(first_object->address());
     // The age mark should not be on the first page.
     CHECK(!first_page->ContainsLimit(heap->new_space()->age_mark()));
     // To perform a sanity check on live bytes we need to mark the heap.
     SimulateIncrementalMarking(heap, true);
     // Sanity check that the page meets the requirements for promotion.
     const int threshold_bytes =
-        FLAG_page_promotion_threshold * NewSpacePage::kAllocatableMemory / 100;
+        FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
     CHECK_GE(first_page->LiveBytes(), threshold_bytes);
 
     // Actual checks: The page is in new space first, but is moved to old space

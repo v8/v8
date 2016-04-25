@@ -56,8 +56,8 @@ Page* PageIterator::next() {
 
 HeapObject* SemiSpaceIterator::Next() {
   while (current_ != limit_) {
-    if (NewSpacePage::IsAtEnd(current_)) {
-      NewSpacePage* page = NewSpacePage::FromLimit(current_);
+    if (Page::IsAlignedToPageSize(current_)) {
+      Page* page = Page::FromAllocationAreaAddress(current_);
       page = page->next_page();
       DCHECK(!page->is_anchor());
       current_ = page->area_start();
@@ -80,9 +80,9 @@ HeapObject* SemiSpaceIterator::next_object() { return Next(); }
 // NewSpacePageIterator
 
 NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
-    : prev_page_(NewSpacePage::FromAddress(space->ToSpaceStart())->prev_page()),
-      next_page_(NewSpacePage::FromAddress(space->ToSpaceStart())),
-      last_page_(NewSpacePage::FromLimit(space->ToSpaceEnd())) {}
+    : prev_page_(Page::FromAddress(space->ToSpaceStart())->prev_page()),
+      next_page_(Page::FromAddress(space->ToSpaceStart())),
+      last_page_(Page::FromAllocationAreaAddress(space->ToSpaceEnd())) {}
 
 NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
     : prev_page_(space->anchor()),
@@ -90,17 +90,16 @@ NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
       last_page_(prev_page_->prev_page()) {}
 
 NewSpacePageIterator::NewSpacePageIterator(Address start, Address limit)
-    : prev_page_(NewSpacePage::FromAddress(start)->prev_page()),
-      next_page_(NewSpacePage::FromAddress(start)),
-      last_page_(NewSpacePage::FromLimit(limit)) {
+    : prev_page_(Page::FromAddress(start)->prev_page()),
+      next_page_(Page::FromAddress(start)),
+      last_page_(Page::FromAllocationAreaAddress(limit)) {
   SemiSpace::AssertValidRange(start, limit);
 }
 
 
 bool NewSpacePageIterator::has_next() { return prev_page_ != last_page_; }
 
-
-NewSpacePage* NewSpacePageIterator::next() {
+Page* NewSpacePageIterator::next() {
   DCHECK(has_next());
   prev_page_ = next_page_;
   next_page_ = next_page_->next_page();
@@ -244,20 +243,18 @@ bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 size_t NewSpace::AllocatedSinceLastGC() {
-  const intptr_t age_mark_offset =
-      NewSpacePage::OffsetInPage(to_space_.age_mark());
-  const intptr_t top_offset =
-      NewSpacePage::OffsetInPage(allocation_info_.top());
+  const intptr_t age_mark_offset = Page::OffsetInPage(to_space_.age_mark());
+  const intptr_t top_offset = Page::OffsetInPage(allocation_info_.top());
   const intptr_t age_mark_delta =
-      age_mark_offset >= NewSpacePage::kObjectStartOffset
-          ? age_mark_offset - NewSpacePage::kObjectStartOffset
-          : NewSpacePage::kAllocatableMemory;
-  const intptr_t top_delta = top_offset >= NewSpacePage::kObjectStartOffset
-                                 ? top_offset - NewSpacePage::kObjectStartOffset
-                                 : NewSpacePage::kAllocatableMemory;
+      age_mark_offset >= Page::kObjectStartOffset
+          ? age_mark_offset - Page::kObjectStartOffset
+          : Page::kAllocatableMemory;
+  const intptr_t top_delta = top_offset >= Page::kObjectStartOffset
+                                 ? top_offset - Page::kObjectStartOffset
+                                 : Page::kAllocatableMemory;
   DCHECK((allocated_since_last_gc_ > 0) ||
-         (NewSpacePage::FromLimit(allocation_info_.top()) ==
-          NewSpacePage::FromLimit(to_space_.age_mark())));
+         (Page::FromAllocationAreaAddress(allocation_info_.top()) ==
+          Page::FromAllocationAreaAddress(to_space_.age_mark())));
   return static_cast<size_t>(allocated_since_last_gc_ + top_delta -
                              age_mark_delta);
 }
@@ -270,16 +267,15 @@ AllocationSpace AllocationResult::RetrySpace() {
   return static_cast<AllocationSpace>(Smi::cast(object_)->value());
 }
 
-NewSpacePage* NewSpacePage::Initialize(Heap* heap, MemoryChunk* chunk,
-                                       Executability executable,
-                                       SemiSpace* owner) {
+Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
+                       SemiSpace* owner) {
   DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
   bool in_to_space = (owner->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
   DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
                                        : MemoryChunk::IN_TO_SPACE));
-  NewSpacePage* page = static_cast<NewSpacePage*>(chunk);
+  Page* page = static_cast<Page*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
   return page;
 }
@@ -309,7 +305,8 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   return page;
 }
 
-Page* Page::Convert(NewSpacePage* old_page, PagedSpace* new_owner) {
+Page* Page::ConvertNewToOld(Page* old_page, PagedSpace* new_owner) {
+  DCHECK(old_page->InNewSpace());
   old_page->set_owner(new_owner);
   old_page->SetFlags(0, ~0);
   new_owner->AccountCommitted(old_page->size());
@@ -359,14 +356,14 @@ void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
-  if (!p->is_valid()) return false;
+  if (!Page::IsValid(p)) return false;
   return p->owner() == this;
 }
 
 bool PagedSpace::Contains(Object* o) {
   if (!o->IsHeapObject()) return false;
   Page* p = Page::FromAddress(HeapObject::cast(o)->address());
-  if (!p->is_valid()) return false;
+  if (!Page::IsValid(p)) return false;
   return p->owner() == this;
 }
 
@@ -470,16 +467,6 @@ MemoryChunk* MemoryChunkIterator::next() {
   }
   UNREACHABLE();
   return nullptr;
-}
-
-void Page::set_next_page(Page* page) {
-  DCHECK(page->owner() == owner());
-  set_next_chunk(page);
-}
-
-void Page::set_prev_page(Page* page) {
-  DCHECK(page->owner() == owner());
-  set_prev_chunk(page);
 }
 
 Page* FreeListCategory::page() {

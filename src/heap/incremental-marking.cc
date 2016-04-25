@@ -348,7 +348,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     NewSpace* space) {
   NewSpacePageIterator it(space);
   while (it.has_next()) {
-    NewSpacePage* p = it.next();
+    Page* p = it.next();
     SetNewSpacePageFlags(p, false);
   }
 }
@@ -361,7 +361,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
 
   LargePage* lop = heap_->lo_space()->first_page();
-  while (lop->is_valid()) {
+  while (LargePage::IsValid(lop)) {
     SetOldSpacePageFlags(lop, false, false);
     lop = lop->next_page();
   }
@@ -380,7 +380,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
 void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
   while (it.has_next()) {
-    NewSpacePage* p = it.next();
+    Page* p = it.next();
     SetNewSpacePageFlags(p, true);
   }
 }
@@ -393,7 +393,7 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
   LargePage* lop = heap_->lo_space()->first_page();
-  while (lop->is_valid()) {
+  while (LargePage::IsValid(lop)) {
     SetOldSpacePageFlags(lop, true, is_compacting_);
     lop = lop->next_page();
   }

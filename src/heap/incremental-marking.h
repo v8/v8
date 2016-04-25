@@ -185,7 +185,7 @@ class IncrementalMarking {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }
 
-  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
+  inline void SetNewSpacePageFlags(Page* chunk) {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
