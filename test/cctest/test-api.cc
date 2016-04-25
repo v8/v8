@@ -24985,3 +24985,12 @@ TEST(MemoryPressure) {
   isolate->MemoryPressureNotification(v8::MemoryPressureLevel::kNone);
   CHECK(!CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
 }
+
+TEST(PrivateForApiIsNumber) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  // Shouldn't crash.
+  v8::Private::ForApi(isolate, v8_str("42"));
+}
