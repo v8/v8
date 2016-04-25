@@ -1630,6 +1630,14 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
                 String::cast(*next_source)->length() == 0);
   }
 
+  // If the target is deprecated, the object will be updated on first store. If
+  // the source for that store equals the target, this will invalidate the
+  // cached representation of the source. Preventively upgrade the target.
+  // Do this on each iteration since any property load could cause deprecation.
+  if (to->map()->is_deprecated()) {
+    JSObject::MigrateInstance(Handle<JSObject>::cast(to));
+  }
+
   Isolate* isolate = to->GetIsolate();
   Handle<Map> map(JSReceiver::cast(*next_source)->map(), isolate);
 
