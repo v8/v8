@@ -355,6 +355,21 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
     case IrOpcode::kChangeFloat64ToTagged:
       state = LowerChangeFloat64ToTagged(node, *effect, *control);
       break;
+    case IrOpcode::kObjectIsCallable:
+      state = LowerObjectIsCallable(node, *effect, *control);
+      break;
+    case IrOpcode::kObjectIsNumber:
+      state = LowerObjectIsNumber(node, *effect, *control);
+      break;
+    case IrOpcode::kObjectIsReceiver:
+      state = LowerObjectIsReceiver(node, *effect, *control);
+      break;
+    case IrOpcode::kObjectIsString:
+      state = LowerObjectIsString(node, *effect, *control);
+      break;
+    case IrOpcode::kObjectIsUndetectable:
+      state = LowerObjectIsUndetectable(node, *effect, *control);
+      break;
     default:
       return false;
   }
@@ -488,6 +503,190 @@ EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node, Node* effect,
       graph()->NewNode(common()->EffectPhi(2), effect, alloc.effect, merge);
 
   return ValueEffectControl(phi, ephi, merge);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsCallable(Node* node, Node* effect,
+                                               Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->Int32Constant(0);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    Node* value_map = efalse =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse, if_false);
+    Node* value_bit_field = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapBitField()), value_map,
+        efalse, if_false);
+    vfalse = graph()->NewNode(
+        machine()->Word32Equal(),
+        jsgraph()->Int32Constant(1 << Map::kIsCallable),
+        graph()->NewNode(
+            machine()->Word32And(), value_bit_field,
+            jsgraph()->Int32Constant((1 << Map::kIsCallable) |
+                                     (1 << Map::kIsUndetectable))));
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
+                           vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsNumber(Node* node, Node* effect,
+                                             Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->Int32Constant(1);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    Node* value_map = efalse =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse, if_false);
+    vfalse = graph()->NewNode(machine()->WordEqual(), value_map,
+                              jsgraph()->HeapNumberMapConstant());
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
+                           vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsReceiver(Node* node, Node* effect,
+                                               Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->Int32Constant(0);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    Node* value_map = efalse =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse, if_false);
+    Node* value_instance_type = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+        efalse, if_false);
+    vfalse = graph()->NewNode(machine()->Uint32LessThanOrEqual(),
+                              jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE),
+                              value_instance_type);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
+                           vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsString(Node* node, Node* effect,
+                                             Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->Int32Constant(0);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    Node* value_map = efalse =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse, if_false);
+    Node* value_instance_type = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+        efalse, if_false);
+    vfalse = graph()->NewNode(machine()->Uint32LessThan(), value_instance_type,
+                              jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
+                           vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
+                                                   Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->Int32Constant(0);
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    Node* value_map = efalse =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse, if_false);
+    Node* value_bit_field = efalse = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapBitField()), value_map,
+        efalse, if_false);
+    vfalse = graph()->NewNode(
+        machine()->Word32Equal(),
+        graph()->NewNode(
+            machine()->Word32Equal(), jsgraph()->Int32Constant(0),
+            graph()->NewNode(
+                machine()->Word32And(), value_bit_field,
+                jsgraph()->Int32Constant(1 << Map::kIsUndetectable))),
+        jsgraph()->Int32Constant(0));
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
+                           vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
