@@ -846,18 +846,13 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
 
 void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
   X87OperandGenerator g(this);
+  Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
 
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
-           g.Use(node->InputAt(0)));
-      return;
-    case TruncationMode::kRoundToZero:
-      Emit(kX87Float64ToInt32, g.DefineAsRegister(node),
-           g.Use(node->InputAt(0)));
-      return;
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Float64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
