@@ -5202,7 +5202,7 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
   a->Bind(&is_typed_array);
   Node* array_buffer = a->LoadObjectField(tagged, JSTypedArray::kBufferOffset);
   Node* is_buffer_shared = a->BitFieldDecode<JSArrayBuffer::IsShared>(
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldOffset));
+      a->LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldSlot));
   a->Branch(is_buffer_shared, &is_shared, &not_shared);
   a->Bind(&not_shared);
   a->Goto(&invalid);
