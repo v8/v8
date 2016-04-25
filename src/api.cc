@@ -7913,6 +7913,10 @@ int MicrotasksScope::GetCurrentDepth(Isolate* v8Isolate) {
   return isolate->handle_scope_implementer()->GetMicrotasksScopeDepth();
 }
 
+bool MicrotasksScope::IsRunningMicrotasks(Isolate* v8Isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8Isolate);
+  return isolate->IsRunningMicrotasks();
+}
 
 String::Utf8Value::Utf8Value(v8::Local<v8::Value> obj)
     : str_(NULL), length_(0) {

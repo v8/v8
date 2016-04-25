@@ -5140,6 +5140,11 @@ class V8_EXPORT MicrotasksScope {
    */
   static int GetCurrentDepth(Isolate* isolate);
 
+  /**
+   * Returns true while microtasks are being executed.
+   */
+  static bool IsRunningMicrotasks(Isolate* isolate);
+
  private:
   internal::Isolate* const isolate_;
   bool run_;

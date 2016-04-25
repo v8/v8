@@ -1858,6 +1858,7 @@ Isolate::Isolate(bool enable_serializer)
 #if TRACE_MAPS
       next_unique_sfi_id_(0),
 #endif
+      is_running_microtasks_(false),
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL),
       cancelable_task_manager_(new CancelableTaskManager()),
@@ -2780,7 +2781,9 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
+  is_running_microtasks_ = true;
   RunMicrotasksInternal();
+  is_running_microtasks_ = false;
   FireMicrotasksCompletedCallback();
 }
 

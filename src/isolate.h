@@ -1064,6 +1064,7 @@ class Isolate {
 
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
+  bool IsRunningMicrotasks() const { return is_running_microtasks_; }
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
@@ -1343,6 +1344,7 @@ class Isolate {
 
   // List of callbacks after microtasks were run.
   List<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
+  bool is_running_microtasks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
   BasicBlockProfiler* basic_block_profiler_;
