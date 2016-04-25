@@ -4709,11 +4709,26 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(rdi);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make r9 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ movp(r9, rbp);
+    __ jmp(&loop_entry, Label::kNear);
+    __ bind(&loop);
+    __ movp(r9, Operand(r9, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ cmpp(rdi, Operand(r9, StandardFrameConstants::kFunctionOffset));
+    __ j(not_equal, &loop);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ LoadSharedFunctionInfoSpecialField(
       rcx, rcx, SharedFunctionInfo::kFormalParameterCountOffset);
-  __ leap(rdx, Operand(rbp, rcx, times_pointer_size,
+  __ leap(rdx, Operand(r9, rcx, times_pointer_size,
                        StandardFrameConstants::kCallerSPOffset));
   __ Integer32ToSmi(rcx, rcx);
 
@@ -4721,6 +4736,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // rdx : parameters pointer
   // rdi : function
   // rsp[0] : return address
+  // r9  : JavaScript frame pointer.
   // Registers used over the whole function:
   //  rbx: the mapped parameter count (untagged)
   //  rax: the allocated object (tagged).
@@ -4731,7 +4747,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movp(rax, Operand(r9, StandardFrameConstants::kCallerFPOffset));
   __ movp(r8, Operand(rax, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Cmp(r8, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(equal, &adaptor_frame);

@@ -22,6 +22,8 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
+typedef CodeStubAssembler::Label Label;
+typedef CodeStubAssembler::Variable Variable;
 
 #define __ assembler->
 
@@ -1471,9 +1473,40 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
 void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
-  __ SetAccumulator(result);
+
+  Variable result(assembler, MachineRepresentation::kTagged);
+  Label end(assembler), if_duplicate_parameters(assembler),
+      if_not_duplicate_parameters(assembler);
+
+  // Check if function has duplicate parameters.
+  // TODO(rmcilroy): Remove this check when FastNewSloppyArgumentsStub supports
+  // duplicate parameters.
+  Node* shared_info =
+      __ LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
+  Node* compiler_hints = __ LoadObjectField(
+      shared_info, SharedFunctionInfo::kHasDuplicateParametersByteOffset,
+      MachineType::Uint8());
+  Node* duplicate_parameters_bit = __ Int32Constant(
+      1 << SharedFunctionInfo::kHasDuplicateParametersBitWithinByte);
+  Node* compare = __ Word32And(compiler_hints, duplicate_parameters_bit);
+  __ BranchIf(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
+
+  __ Bind(&if_duplicate_parameters);
+  {
+    result.Bind(
+        __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure));
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_not_duplicate_parameters);
+  {
+    Callable callable = CodeFactory::FastNewSloppyArguments(isolate_);
+    Node* target = __ HeapConstant(callable.code());
+    result.Bind(__ CallStub(callable.descriptor(), target, context, closure));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  __ SetAccumulator(result.value());
   __ Dispatch();
 }
 

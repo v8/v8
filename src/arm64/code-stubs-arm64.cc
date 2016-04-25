@@ -5076,17 +5076,34 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make x6 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ Mov(x6, fp);
+    __ B(&loop_entry);
+    __ Bind(&loop);
+    __ Ldr(x6, MemOperand(x6, StandardFrameConstants::kCallerFPOffset));
+    __ Bind(&loop_entry);
+    __ Ldr(x3, MemOperand(x6, StandardFrameConstants::kFunctionOffset));
+    __ Cmp(x3, x1);
+    __ B(ne, &loop);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldrsw(
       x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Add(x3, fp, Operand(x2, LSL, kPointerSizeLog2));
+  __ Add(x3, x6, Operand(x2, LSL, kPointerSizeLog2));
   __ Add(x3, x3, Operand(StandardFrameConstants::kCallerSPOffset));
   __ SmiTag(x2);
 
   // x1 : function
   // x2 : number of parameters (tagged)
   // x3 : parameters pointer
+  // x6 : JavaScript frame pointer
   //
   // Returns pointer to result object in x0.
 
@@ -5104,7 +5121,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   Register caller_ctx = x12;
   Label runtime;
   Label adaptor_frame, try_allocate;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(caller_fp, MemOperand(x6, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(
       caller_ctx,
       MemOperand(caller_fp, CommonFrameConstants::kContextOrFrameTypeOffset));

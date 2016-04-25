@@ -4991,23 +4991,39 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(a1);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make t0 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ Branch(USE_DELAY_SLOT, &loop_entry);
+    __ mov(t0, fp);  // In delay slot.
+    __ bind(&loop);
+    __ lw(t0, MemOperand(t0, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ lw(a3, MemOperand(t0, StandardFrameConstants::kFunctionOffset));
+    __ Branch(&loop, ne, a1, Operand(a3));
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Lsa(a3, fp, a2, kPointerSizeLog2 - 1);
+  __ Lsa(a3, t0, a2, kPointerSizeLog2 - 1);
   __ Addu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // a1 : function
   // a2 : number of parameters (tagged)
   // a3 : parameters pointer
+  // t0 : Javascript frame pointer
   // Registers used over whole function:
   //  t1 : arguments count (tagged)
   //  t2 : mapped parameter count (tagged)
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ lw(t0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ lw(t0, MemOperand(t0, StandardFrameConstants::kCallerFPOffset));
   __ lw(a0, MemOperand(t0, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&adaptor_frame, eq, a0,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
