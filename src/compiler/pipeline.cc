@@ -502,10 +502,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
   }
-  if (!info()->shared_info()->asm_function()) {
-    info()->MarkAsEffectSchedulingEnabled();
-  }
-
   if (!info()->shared_info()->HasBytecodeArray()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
@@ -1283,10 +1279,8 @@ Handle<Code> Pipeline::GenerateCode() {
   Run<EarlyOptimizationPhase>();
   RunPrintAndVerify("Early optimized");
 
-  if (info()->is_effect_scheduling_enabled()) {
-    Run<EffectControlLinearizationPhase>();
-    RunPrintAndVerify("Effect and control linearized");
-  }
+  Run<EffectControlLinearizationPhase>();
+  RunPrintAndVerify("Effect and control linearized");
 
   Run<BranchEliminationPhase>();
   RunPrintAndVerify("Branch conditions eliminated");
