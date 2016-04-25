@@ -721,11 +721,6 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 }
 
 
-// ES6 section 19.1.2.9
-function ObjectGetPrototypeOf(obj) {
-  return %_GetPrototype(TO_OBJECT(obj));
-}
-
 // ES6 section 19.1.2.18.
 function ObjectSetPrototypeOf(obj, proto) {
   CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
@@ -760,7 +755,7 @@ function ObjectDefineProperties(obj, properties) {
 
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
-  return %_GetPrototype(TO_OBJECT(this));
+  return %object_get_prototype_of(this);
 }
 
 
@@ -810,14 +805,11 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 
 // Set up non-enumerable functions in the Object object.
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  // assign is added in bootstrapper.cc.
-  // keys is added in bootstrapper.cc.
   "defineProperty", ObjectDefineProperty,
   "defineProperties", ObjectDefineProperties,
-  "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
   // getOwnPropertySymbols is added in symbol.js.
-  // is is added in bootstrapper.cc.
+  // Others are added in bootstrapper.cc.
 ]);
 
 

@@ -898,7 +898,8 @@ function InnerArraySort(array, length, comparefn) {
   // of a prototype property.
   var CopyFromPrototype = function CopyFromPrototype(obj, length) {
     var max = 0;
-    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
+    for (var proto = %object_get_prototype_of(obj); proto;
+         proto = %object_get_prototype_of(proto)) {
       var indices = IS_PROXY(proto) ? length : %GetArrayKeys(proto, length);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -926,7 +927,8 @@ function InnerArraySort(array, length, comparefn) {
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
   var ShadowPrototypeElements = function(obj, from, to) {
-    for (var proto = %_GetPrototype(obj); proto; proto = %_GetPrototype(proto)) {
+    for (var proto = %object_get_prototype_of(obj); proto;
+         proto = %object_get_prototype_of(proto)) {
       var indices = IS_PROXY(proto) ? to : %GetArrayKeys(proto, to);
       if (IS_NUMBER(indices)) {
         // It's an interval.
@@ -993,7 +995,7 @@ function InnerArraySort(array, length, comparefn) {
     }
     for (i = length - num_holes; i < length; i++) {
       // For compatability with Webkit, do not expose elements in the prototype.
-      if (i in %_GetPrototype(obj)) {
+      if (i in %object_get_prototype_of(obj)) {
         obj[i] = UNDEFINED;
       } else {
         delete obj[i];

@@ -1796,6 +1796,23 @@ BUILTIN(ObjectFreeze) {
 }
 
 
+// ES section 19.1.2.9 Object.getPrototypeOf ( O )
+BUILTIN(ObjectGetPrototypeOf) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, object));
+
+  Handle<Object> prototype;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, prototype, JSReceiver::GetPrototype(isolate, receiver));
+
+  return *prototype;
+}
+
+
 // ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
 BUILTIN(ObjectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);

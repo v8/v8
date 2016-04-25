@@ -878,7 +878,7 @@ var StackTraceGetter = function() {
       if (IS_UNDEFINED(stack_trace)) {
         // Neither formatted nor structured stack trace available.
         // Look further up the prototype chain.
-        holder = %_GetPrototype(holder);
+        holder = %object_get_prototype_of(holder);
         continue;
       }
       formatted_stack_trace = FormatStackTrace(holder, stack_trace);
