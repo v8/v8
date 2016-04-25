@@ -20,7 +20,6 @@ var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
 var MaxSimple;
 var MinSimple;
-var ObjectDefineProperty;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
@@ -32,7 +31,6 @@ utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 

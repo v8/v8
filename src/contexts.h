@@ -67,25 +67,27 @@ enum BindingFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                             \
-  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                               \
-  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
-  V(OBJECT_FREEZE, JSFunction, object_freeze)                             \
-  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)         \
-  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)               \
-  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                       \
-  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                       \
-  V(OBJECT_KEYS, JSFunction, object_keys)                                 \
-  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
-  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
-  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property)   \
-  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property)   \
-  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
-  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                   \
-  V(ORDINARY_HAS_INSTANCE_INDEX, JSFunction, ordinary_has_instance)       \
-  V(MATH_FLOOR, JSFunction, math_floor)                                   \
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
+  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
+  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)   \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
+  V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)     \
+  V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)         \
+  V(OBJECT_FREEZE, JSFunction, object_freeze)                           \
+  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)       \
+  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)             \
+  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
+  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
+  V(OBJECT_KEYS, JSFunction, object_keys)                               \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
+  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
+  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
+  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
+  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
+  V(ORDINARY_HAS_INSTANCE_INDEX, JSFunction, ordinary_has_instance)     \
+  V(MATH_FLOOR, JSFunction, math_floor)                                 \
   V(MATH_SQRT, JSFunction, math_sqrt)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \

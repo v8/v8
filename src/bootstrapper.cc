@@ -1074,6 +1074,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(object_function, "seal",
                           Builtins::kObjectSeal, 1, false);
 
+    Handle<JSFunction> object_define_properties = SimpleInstallFunction(
+        object_function, "defineProperties",
+        Builtins::kObjectDefineProperties, 2, true);
+    native_context()->set_object_define_properties(*object_define_properties);
+
+    Handle<JSFunction> object_define_property = SimpleInstallFunction(
+        object_function, factory->defineProperty_string(),
+        Builtins::kObjectDefineProperty, 3, true);
+    native_context()->set_object_define_property(*object_define_property);
+
     Handle<JSFunction> object_freeze = SimpleInstallFunction(
         object_function, "freeze", Builtins::kObjectFreeze, 1, false);
     native_context()->set_object_freeze(*object_freeze);

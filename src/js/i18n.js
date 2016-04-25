@@ -35,8 +35,6 @@ var IsNaN;
 var MakeError;
 var MakeRangeError;
 var MakeTypeError;
-var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
-var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
 var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
@@ -574,14 +572,14 @@ function freezeArray(array) {
   var l = array.length;
   for (var i = 0; i < l; i++) {
     if (i in array) {
-      ObjectDefineProperty(array, i, {value: array[i],
-                                      configurable: false,
-                                      writable: false,
-                                      enumerable: true});
+      %object_define_property(array, i, {value: array[i],
+                                         configurable: false,
+                                         writable: false,
+                                         enumerable: true});
     }
   }
 
-  ObjectDefineProperty(array, 'length', {value: l, writable: false});
+  %object_define_property(array, 'length', {value: l, writable: false});
   return array;
 }
 
@@ -643,8 +641,8 @@ function getAvailableLocalesOf(service) {
  * Configurable is false by default.
  */
 function defineWEProperty(object, property, value) {
-  ObjectDefineProperty(object, property,
-                       {value: value, writable: true, enumerable: true});
+  %object_define_property(object, property,
+                          {value: value, writable: true, enumerable: true});
 }
 
 
@@ -663,10 +661,10 @@ function addWEPropertyIfDefined(object, property, value) {
  * Defines a property and sets writable, enumerable and configurable to true.
  */
 function defineWECProperty(object, property, value) {
-  ObjectDefineProperty(object, property, {value: value,
-                                          writable: true,
-                                          enumerable: true,
-                                          configurable: true});
+  %object_define_property(object, property, {value: value,
+                                             writable: true,
+                                             enumerable: true,
+                                             configurable: true});
 }
 
 
@@ -965,8 +963,8 @@ function initializeCollator(collator, locales, options) {
   // We define all properties C++ code may produce, to prevent security
   // problems. If malicious user decides to redefine Object.prototype.locale
   // we can't just use plain x.locale = 'us' or in C++ Set("locale", "us").
-  // ObjectDefineProperties will either succeed defining or throw an error.
-  var resolved = ObjectDefineProperties({}, {
+  // %object_define_properties will either succeed defining or throw an error.
+  var resolved = %object_define_properties({}, {
     caseFirst: {writable: true},
     collation: {value: internalOptions.collation, writable: true},
     ignorePunctuation: {writable: true},
@@ -985,7 +983,7 @@ function initializeCollator(collator, locales, options) {
   // Writable, configurable and enumerable are set to false by default.
   %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
   collator[resolvedSymbol] = resolved;
-  ObjectDefineProperty(collator, 'resolved', resolvedAccessor);
+  %object_define_property(collator, 'resolved', resolvedAccessor);
 
   return collator;
 }
@@ -1198,7 +1196,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
                              getOption, internalOptions);
 
   var requestedLocale = locale.locale + extension;
-  var resolved = ObjectDefineProperties({}, {
+  var resolved = %object_define_properties({}, {
     currency: {writable: true},
     currencyDisplay: {writable: true},
     locale: {writable: true},
@@ -1222,13 +1220,13 @@ function initializeNumberFormat(numberFormat, locales, options) {
                                       resolved);
 
   if (internalOptions.style === 'currency') {
-    ObjectDefineProperty(resolved, 'currencyDisplay', {value: currencyDisplay,
-                                                       writable: true});
+    %object_define_property(resolved, 'currencyDisplay',
+        {value: currencyDisplay, writable: true});
   }
 
   %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
   numberFormat[resolvedSymbol] = resolved;
-  ObjectDefineProperty(numberFormat, 'resolved', resolvedAccessor);
+  %object_define_property(numberFormat, 'resolved', resolvedAccessor);
 
   return numberFormat;
 }
@@ -1508,33 +1506,33 @@ function toDateTimeOptions(options, required, defaults) {
   }
 
   if (needsDefault && (defaults === 'date' || defaults === 'all')) {
-    ObjectDefineProperty(options, 'year', {value: 'numeric',
-                                           writable: true,
-                                           enumerable: true,
-                                           configurable: true});
-    ObjectDefineProperty(options, 'month', {value: 'numeric',
-                                            writable: true,
-                                            enumerable: true,
-                                            configurable: true});
-    ObjectDefineProperty(options, 'day', {value: 'numeric',
-                                          writable: true,
-                                          enumerable: true,
-                                          configurable: true});
+    %object_define_property(options, 'year', {value: 'numeric',
+                                              writable: true,
+                                              enumerable: true,
+                                              configurable: true});
+    %object_define_property(options, 'month', {value: 'numeric',
+                                               writable: true,
+                                               enumerable: true,
+                                               configurable: true});
+    %object_define_property(options, 'day', {value: 'numeric',
+                                             writable: true,
+                                             enumerable: true,
+                                             configurable: true});
   }
 
   if (needsDefault && (defaults === 'time' || defaults === 'all')) {
-    ObjectDefineProperty(options, 'hour', {value: 'numeric',
-                                           writable: true,
-                                           enumerable: true,
-                                           configurable: true});
-    ObjectDefineProperty(options, 'minute', {value: 'numeric',
-                                             writable: true,
-                                             enumerable: true,
-                                             configurable: true});
-    ObjectDefineProperty(options, 'second', {value: 'numeric',
-                                             writable: true,
-                                             enumerable: true,
-                                             configurable: true});
+    %object_define_property(options, 'hour', {value: 'numeric',
+                                              writable: true,
+                                              enumerable: true,
+                                              configurable: true});
+    %object_define_property(options, 'minute', {value: 'numeric',
+                                                writable: true,
+                                                enumerable: true,
+                                                configurable: true});
+    %object_define_property(options, 'second', {value: 'numeric',
+                                                writable: true,
+                                                enumerable: true,
+                                                configurable: true});
   }
 
   return options;
@@ -1592,7 +1590,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
                              getOption, internalOptions);
 
   var requestedLocale = locale.locale + extension;
-  var resolved = ObjectDefineProperties({}, {
+  var resolved = %object_define_properties({}, {
     calendar: {writable: true},
     day: {writable: true},
     era: {writable: true},
@@ -1622,7 +1620,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
   dateFormat[resolvedSymbol] = resolved;
-  ObjectDefineProperty(dateFormat, 'resolved', resolvedAccessor);
+  %object_define_property(dateFormat, 'resolved', resolvedAccessor);
 
   return dateFormat;
 }
@@ -1826,7 +1824,7 @@ function initializeBreakIterator(iterator, locales, options) {
     'type', 'string', ['character', 'word', 'sentence', 'line'], 'word'));
 
   var locale = resolveLocale('breakiterator', locales, options);
-  var resolved = ObjectDefineProperties({}, {
+  var resolved = %object_define_properties({}, {
     requestedLocale: {value: locale.locale, writable: true},
     type: {value: internalOptions.type, writable: true},
     locale: {writable: true}
@@ -1839,7 +1837,7 @@ function initializeBreakIterator(iterator, locales, options) {
   %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
                                      internalIterator);
   iterator[resolvedSymbol] = resolved;
-  ObjectDefineProperty(iterator, 'resolved', resolvedAccessor);
+  %object_define_property(iterator, 'resolved', resolvedAccessor);
 
   return iterator;
 }

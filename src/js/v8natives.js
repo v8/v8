@@ -737,22 +737,6 @@ function ObjectSetPrototypeOf(obj, proto) {
 }
 
 
-// ES5 section 15.2.3.6.
-function ObjectDefineProperty(obj, p, attributes) {
-  // The new pure-C++ implementation doesn't support O.o.
-  // TODO(jkummerow): Implement missing features and remove fallback path.
-  return %ObjectDefineProperty(obj, p, attributes);
-}
-
-
-// ES5 section 15.2.3.7.
-function ObjectDefineProperties(obj, properties) {
-  // The new pure-C++ implementation doesn't support O.o.
-  // TODO(jkummerow): Implement missing features and remove fallback path.
-  return %ObjectDefineProperties(obj, properties);
-}
-
-
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
   return %object_get_prototype_of(this);
@@ -805,8 +789,6 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 
 // Set up non-enumerable functions in the Object object.
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "defineProperty", ObjectDefineProperty,
-  "defineProperties", ObjectDefineProperties,
   "setPrototypeOf", ObjectSetPrototypeOf,
   // getOwnPropertySymbols is added in symbol.js.
   // Others are added in bootstrapper.cc.
@@ -1044,8 +1026,6 @@ utils.Export(function(to) {
   to.IsNaN = GlobalIsNaN;
   to.NumberIsNaN = NumberIsNaN;
   to.NumberIsInteger = NumberIsInteger;
-  to.ObjectDefineProperties = ObjectDefineProperties;
-  to.ObjectDefineProperty = ObjectDefineProperty;
   to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
 

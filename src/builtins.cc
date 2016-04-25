@@ -1782,6 +1782,30 @@ BUILTIN(ObjectCreate) {
   return *object;
 }
 
+// ES6 section 19.1.2.3 Object.defineProperties
+BUILTIN(ObjectDefineProperties) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> properties = args.at<Object>(2);
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSReceiver::DefineProperties(isolate, target, properties));
+  return *result;
+}
+
+// ES6 section 19.1.2.4 Object.defineProperty
+BUILTIN(ObjectDefineProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> attributes = args.at<Object>(3);
+
+  return JSReceiver::DefineProperty(isolate, target, key, attributes);
+}
 
 // ES6 section 19.1.2.5 Object.freeze ( O )
 BUILTIN(ObjectFreeze) {

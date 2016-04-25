@@ -128,10 +128,10 @@ function InstallGetterSetter(object, name, getter, setter, attributes) {
 
 function OverrideFunction(object, name, f, afterInitialBootstrap) {
   %CheckIsBootstrapping();
-  %ObjectDefineProperty(object, name, { value: f,
-                                        writeable: true,
-                                        configurable: true,
-                                        enumerable: false });
+  %object_define_property(object, name, { value: f,
+                                          writeable: true,
+                                          configurable: true,
+                                          enumerable: false });
   SetFunctionName(f, name);
   if (!afterInitialBootstrap) %FunctionRemovePrototype(f);
   %SetNativeFlag(f);
@@ -195,7 +195,6 @@ function PostNatives(utils) {
     "MaxSimple",
     "MinSimple",
     "NumberIsInteger",
-    "ObjectDefineProperty",
     "ObserveArrayMethods",
     "ObserveObjectMethods",
     "PromiseChain",

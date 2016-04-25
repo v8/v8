@@ -32,7 +32,6 @@ var Int32x4ToString;
 var Int8x16ToString;
 var InternalArray = utils.InternalArray;
 var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
-var ObjectDefineProperty;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
@@ -54,7 +53,6 @@ utils.Import(function(from) {
   Int16x8ToString = from.Int16x8ToString;
   Int32x4ToString = from.Int32x4ToString;
   Int8x16ToString = from.Int8x16ToString;
-  ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
@@ -994,9 +992,9 @@ utils.InstallGetterSetter(StackOverflowBoilerplate, 'stack',
 // Define actual captureStackTrace function after everything has been set up.
 captureStackTrace = function captureStackTrace(obj, cons_opt) {
   // Define accessors first, as this may fail and throw.
-  ObjectDefineProperty(obj, 'stack', { get: StackTraceGetter,
-                                       set: StackTraceSetter,
-                                       configurable: true });
+  %object_define_property(obj, 'stack', { get: StackTraceGetter,
+                                          set: StackTraceSetter,
+                                          configurable: true });
   %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
 };
 
