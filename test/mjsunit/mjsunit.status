@@ -751,9 +751,6 @@
 
 ##############################################################################
 ['ignition == True', {
-  # TODO(yangguo,4690): assertion failures in debugger tests.
-  'regress/regress-crbug-119800': [FAIL],
-
   # TODO(yangguo,4690): flaky failures on the bots.
   'debug-stepin-builtin-callback-opt': [SKIP],
 
