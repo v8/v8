@@ -461,8 +461,8 @@ class MarkCompactCollector {
     void PrepareToBeSweptPage(AllocationSpace space, Page* page);
 
     Heap* heap_;
-    base::Mutex mutex_;
     base::Semaphore pending_sweeper_tasks_semaphore_;
+    base::Mutex mutex_;
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
@@ -867,9 +867,6 @@ class MarkCompactCollector {
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.
   bool compacting_;
-
-  // Semaphore used to synchronize compaction tasks.
-  base::Semaphore pending_compaction_tasks_semaphore_;
 
   bool black_allocation_;
 

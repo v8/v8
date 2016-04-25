@@ -62,7 +62,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       embedder_heap_tracer_(nullptr),
       have_code_to_deoptimize_(false),
       compacting_(false),
-      pending_compaction_tasks_semaphore_(0),
       sweeper_(heap) {
 }
 
