@@ -335,34 +335,6 @@ class ChangeLowering32Test : public ChangeLoweringTest {
 };
 
 
-TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
-  Node* value = Parameter(Type::Integral32());
-  Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), value);
-  Reduction r = Reduce(node);
-  ASSERT_TRUE(r.Changed());
-  Capture<Node*> add, branch, heap_number, if_true;
-  EXPECT_THAT(
-      r.replacement(),
-      IsPhi(MachineRepresentation::kTagged,
-            IsFinishRegion(
-                AllOf(CaptureEq(&heap_number),
-                      IsAllocateHeapNumber(_, CaptureEq(&if_true))),
-                IsStore(
-                    StoreRepresentation(MachineRepresentation::kFloat64,
-                                        kNoWriteBarrier),
-                    CaptureEq(&heap_number),
-                    IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
-                    IsChangeInt32ToFloat64(value), CaptureEq(&heap_number),
-                    CaptureEq(&if_true))),
-            IsProjection(0, AllOf(CaptureEq(&add),
-                                  IsInt32AddWithOverflow(value, value))),
-            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
-                    IsIfFalse(AllOf(CaptureEq(&branch),
-                                    IsBranch(IsProjection(1, CaptureEq(&add)),
-                                             graph()->start()))))));
-}
-
-
 TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -434,39 +406,6 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
 }
 
 
-TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-
-  Node* value = Parameter(Type::Number());
-  Node* node = graph()->NewNode(simplified()->ChangeUint32ToTagged(), value);
-  Reduction r = Reduce(node);
-  ASSERT_TRUE(r.Changed());
-  Capture<Node*> branch, heap_number, if_false;
-  EXPECT_THAT(
-      r.replacement(),
-      IsPhi(
-          MachineRepresentation::kTagged,
-          IsWord32Shl(value, IsInt32Constant(kSmiTagSize + kSmiShiftSize)),
-          IsFinishRegion(
-              AllOf(CaptureEq(&heap_number),
-                    IsAllocateHeapNumber(_, CaptureEq(&if_false))),
-              IsStore(
-                  StoreRepresentation(MachineRepresentation::kFloat64,
-                                      kNoWriteBarrier),
-                  CaptureEq(&heap_number),
-                  IsInt32Constant(HeapNumber::kValueOffset - kHeapObjectTag),
-                  IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),
-                  CaptureEq(&if_false))),
-          IsMerge(IsIfTrue(AllOf(
-                      CaptureEq(&branch),
-                      IsBranch(IsUint32LessThanOrEqual(
-                                   value, IsInt32Constant(Smi::kMaxValue)),
-                               graph()->start()))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
 // -----------------------------------------------------------------------------
 // 64-bit
 
@@ -478,15 +417,6 @@ class ChangeLowering64Test : public ChangeLoweringTest {
     return MachineRepresentation::kWord64;
   }
 };
-
-
-TARGET_TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
-  Node* value = Parameter(Type::Signed32());
-  Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), value);
-  Reduction r = Reduce(node);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsChangeInt32ToSmi(value));
-}
 
 
 TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
@@ -559,40 +489,6 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
                       CaptureEq(&branch),
                       IsBranch(IsWord64And(value, IsInt64Constant(kSmiTagMask)),
                                graph()->start()))))));
-}
-
-
-TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-
-  Node* value = Parameter(Type::Number());
-  Node* node = graph()->NewNode(simplified()->ChangeUint32ToTagged(), value);
-  Reduction r = Reduce(node);
-  ASSERT_TRUE(r.Changed());
-  Capture<Node*> branch, heap_number, if_false;
-  EXPECT_THAT(
-      r.replacement(),
-      IsPhi(
-          MachineRepresentation::kTagged,
-          IsWord64Shl(IsChangeUint32ToUint64(value),
-                      IsInt64Constant(kSmiTagSize + kSmiShiftSize)),
-          IsFinishRegion(
-              AllOf(CaptureEq(&heap_number),
-                    IsAllocateHeapNumber(_, CaptureEq(&if_false))),
-              IsStore(
-                  StoreRepresentation(MachineRepresentation::kFloat64,
-                                      kNoWriteBarrier),
-                  CaptureEq(&heap_number),
-                  IsInt64Constant(HeapNumber::kValueOffset - kHeapObjectTag),
-                  IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),
-                  CaptureEq(&if_false))),
-          IsMerge(IsIfTrue(AllOf(
-                      CaptureEq(&branch),
-                      IsBranch(IsUint32LessThanOrEqual(
-                                   value, IsInt32Constant(Smi::kMaxValue)),
-                               graph()->start()))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
 }
 
 }  // namespace compiler

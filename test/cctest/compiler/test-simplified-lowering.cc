@@ -8,11 +8,13 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
+#include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/representation-change.h"
+#include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/source-position.h"
 #include "src/compiler/typer.h"
@@ -59,6 +61,11 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     this->End();
     typer.Run();
     lowering.LowerAllNodes();
+
+    Schedule* schedule = Scheduler::ComputeSchedule(this->zone(), this->graph(),
+                                                    Scheduler::kNoFlags);
+    EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
+    linearizer.Run();
 
     ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
@@ -726,6 +733,11 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
 
+    Schedule* schedule = Scheduler::ComputeSchedule(this->zone(), this->graph(),
+                                                    Scheduler::kNoFlags);
+    EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
+    linearizer.Run();
+
     ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
     reducer.AddReducer(&lowering);
@@ -1298,9 +1310,8 @@ const MachineType kMachineReps[] = {
 
 
 TEST(LowerLoadField_to_load) {
-  TestingGraph t(Type::Any(), Type::Signed32());
-
   for (size_t i = 0; i < arraysize(kMachineReps); i++) {
+    TestingGraph t(Type::Any(), Type::Signed32());
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), Type::Any(), kMachineReps[i]};
 
@@ -1365,9 +1376,8 @@ TEST(LowerStoreField_to_store) {
 
 
 TEST(LowerLoadElement_to_load) {
-  TestingGraph t(Type::Any(), Type::Signed32());
-
   for (size_t i = 0; i < arraysize(kMachineReps); i++) {
+    TestingGraph t(Type::Any(), Type::Signed32());
     ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                             Type::Any(), kMachineReps[i]};
 

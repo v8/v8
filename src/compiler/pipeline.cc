@@ -839,8 +839,8 @@ struct EffectControlLinearizationPhase {
     //   chains and lower them,
     // - get rid of the region markers,
     // - introduce effect phis and rewire effects to get SSA again.
-    EffectControlLinearizer introducer(data->jsgraph(), schedule, temp_zone);
-    introducer.Run();
+    EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone);
+    linearizer.Run();
   }
 };
 
