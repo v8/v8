@@ -179,8 +179,8 @@ class TestingModule : public ModuleEnv {
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
     Isolate* isolate = module->shared_isolate;
-    WasmName module_name = {"test", 4};
-    WasmName function_name = {nullptr, 0};
+    WasmName module_name = ArrayVector("test");
+    WasmName function_name;
     Handle<Code> code = CompileWasmToJSWrapper(isolate, this, jsfunc, sig,
                                                module_name, function_name);
     instance->function_code[index] = code;

@@ -2680,8 +2680,8 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   if (isolate->logger()->is_logging_code_events() ||
       isolate->cpu_profiler()->is_profiling()) {
     ScopedVector<char> buffer(128);
-    SNPrintF(buffer, "%s#%d:%.*s", message, index, func_name.length,
-             func_name.name);
+    SNPrintF(buffer, "%s#%d:%.*s", message, index, func_name.length(),
+             func_name.start());
     Handle<String> name_str =
         isolate->factory()->NewStringFromAsciiChecked(buffer.start());
     Handle<String> script_str =
@@ -2896,7 +2896,7 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
     wasm::WasmName name =
         module_env->module->GetName(function.name_offset, function.name_length);
     SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
-             function.func_index, name.length, name.name);
+             function.func_index, name.length(), name.start());
     thrower.Failed(buffer.start(), result);
     return std::make_pair(nullptr, nullptr);
   }
@@ -2955,10 +2955,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 #else
       FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
 #endif
-  Vector<const char> func_name =
-      module_env->module
-          ->GetNameOrNull(function.name_offset, function.name_length)
-          .toVec();
+  Vector<const char> func_name = module_env->module->GetNameOrNull(
+      function.name_offset, function.name_length);
   Vector<char> buffer;
   if (func_name.is_empty()) {
     if (debugging) {

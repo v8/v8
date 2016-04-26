@@ -103,7 +103,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
     if (pair.module_) {
       WasmName name = pair.module_->GetName(pair.function_->name_offset,
                                             pair.function_->name_length);
-      os.write(name.name, name.length);
+      os.write(name.start(), name.length());
     } else {
       os << "+" << pair.function_->func_index;
     }
@@ -337,13 +337,13 @@ static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
                                               wasm::WasmName module_name,
                                               wasm::WasmName function_name) {
-  if (function_name.name) {
+  if (function_name.start()) {
     thrower.Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
-                  index, module_name.length, module_name.name,
-                  function_name.length, function_name.name, error);
+                  index, module_name.length(), module_name.start(),
+                  function_name.length(), function_name.start(), error);
   } else {
     thrower.Error("Import #%d module=\"%.*s\" error: %s", index,
-                  module_name.length, module_name.name, error);
+                  module_name.length(), module_name.start(), error);
   }
   thrower.Error("Import ");
   return MaybeHandle<JSFunction>();
@@ -358,8 +358,7 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   // Look up the module first.
-  Handle<String> name = factory->InternalizeUtf8String(
-      Vector<const char>(module_name.name, module_name.length));
+  Handle<String> name = factory->InternalizeUtf8String(module_name);
   MaybeHandle<Object> result = Object::GetProperty(ffi, name);
   if (result.is_null()) {
     return ReportFFIError(thrower, "module not found", index, module_name,
@@ -374,10 +373,9 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   Handle<Object> function;
-  if (function_name.name) {
+  if (function_name.start()) {
     // Look up the function in the module.
-    Handle<String> name = factory->InternalizeUtf8String(
-        Vector<const char>(function_name.name, function_name.length));
+    Handle<String> name = factory->InternalizeUtf8String(function_name);
     MaybeHandle<Object> result = Object::GetProperty(module, name);
     if (result.is_null()) {
       return ReportFFIError(thrower, "function not found", index, module_name,
@@ -502,8 +500,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
 
       WasmName str = GetName(func.name_offset, func.name_length);
       WasmName str_null = {nullptr, 0};
-      Handle<String> name = factory->InternalizeUtf8String(
-          Vector<const char>(str.name, str.length));
+      Handle<String> name = factory->InternalizeUtf8String(str);
       Handle<Code> code = Handle<Code>::null();
       Handle<JSFunction> function = Handle<JSFunction>::null();
       if (func.external) {
@@ -519,8 +516,8 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         code =
             compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
         if (code.is_null()) {
-          thrower.Error("Compilation of #%d:%.*s failed.", index, str.length,
-                        str.name);
+          thrower.Error("Compilation of #%d:%.*s failed.", index, str.length(),
+                        str.start());
           return MaybeHandle<JSObject>();
         }
         if (func.exported) {
@@ -564,8 +561,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       for (const WasmExport& exp : export_table) {
         if (thrower.error()) break;
         WasmName str = GetName(exp.name_offset, exp.name_length);
-        Handle<String> name = factory->InternalizeUtf8String(
-            Vector<const char>(str.name, str.length));
+        Handle<String> name = factory->InternalizeUtf8String(str);
         Handle<Code> code = linker.GetFunctionCode(exp.func_index);
         Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
             isolate, &module_env, name, code, instance.js_object,
