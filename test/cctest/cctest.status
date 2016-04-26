@@ -492,7 +492,7 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['ignition == True', {
+['ignition or ignition_turbofan', {
   # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
@@ -561,6 +561,6 @@
 
   # BUG(4751). Flaky with ignition and tsan.
   'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],
-}],  # ignition == True
+}],  # ignition or ignition_turbofan
 
 ]

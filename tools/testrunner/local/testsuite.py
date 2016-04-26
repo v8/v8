@@ -42,6 +42,7 @@ ALL_VARIANT_FLAGS = {
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition", "--turbo"]],
+  "ignition_turbofan": [["--ignition", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
@@ -52,11 +53,13 @@ FAST_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition", "--turbo"]],
+  "ignition_turbofan": [["--ignition", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "nocrankshaft", "ignition", "preparser"])
+                    "nocrankshaft", "ignition", "ignition_turbofan",
+                    "preparser"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 

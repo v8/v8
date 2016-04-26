@@ -255,6 +255,9 @@ def BuildOptions():
                     default="")
   result.add_option("--ignition", help="Skip tests which don't run in ignition",
                     default=False, action="store_true")
+  result.add_option("--ignition-turbofan",
+                    help="Skip tests which don't run in ignition_turbofan",
+                    default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -720,6 +723,7 @@ def Execute(arch, mode, args, options, suites):
     "gc_stress": options.gc_stress,
     "gcov_coverage": options.gcov_coverage,
     "ignition": options.ignition,
+    "ignition_turbofan": options.ignition_turbofan,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,

@@ -750,7 +750,7 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ##############################################################################
-['ignition == True', {
+['ignition or ignition_turbofan', {
   # TODO(yangguo,4690): flaky failures on the bots.
   'debug-stepin-builtin-callback-opt': [SKIP],
 
@@ -797,25 +797,25 @@
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
-}],  # ignition == True
+}],  # ignition or ignition_turbofan
 
-['ignition == True and arch == arm64', {
+['(ignition or ignition_turbofan) and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific timeouts.
   'asm/construct-double': [SKIP],
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'wasm/asm-wasm-i32': [SKIP],
   'wasm/asm-wasm-u32': [SKIP],
-}],  # ignition == True and arch == arm64
+}],  # (ignition or ignition_turbofan) and arch == arm64
 
-['ignition == True and arch == arm', {
+['(ignition or ignition_turbofan) and arch == arm', {
   # TODO(rmcilroy,4680): Arm specific timeouts.
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
-}],  # ignition == True and arch == arm
+}],  # (ignition or ignition_turbofan) and arch == arm
 
-['ignition == True and msan', {
+['(ignition or ignition_turbofan) and msan', {
   # TODO(mythria,4680): All of these tests have large loops and hence slow
   # and timeout.
   'compiler/osr-big': [SKIP],
@@ -826,21 +826,21 @@
   'try': [SKIP],
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [SKIP],
-}],  # ignition == True and msan
+}],  # (ignition or ignition_turbofan) and msan
 
-['ignition == True and gc_stress == True', {
+['(ignition or ignition_turbofan) and gc_stress == True', {
   # TODO(oth,4680): failures from the bots.
   'es6/debug-step-destructuring-bind': [SKIP],
   'es6/debug-stepin-collections-foreach': [SKIP],
   'ignition/elided-instruction': [SKIP],
   'regress/regress-269': [SKIP],
-}],  # ignition == True and gc_stress == True
+}],  # (ignition or ignition_turbofan) and gc_stress == True
 
-['ignition == False', {
+['ignition == False and ignition_turbofan == False', {
   # Debugger test cases that pass with full-codegen, but not ignition.
   # These differences between full-codegen and ignition are deliberate.
   'ignition/elided-instruction': [FAIL],
-}],  # ignition == False
+}],  # ignition == False and ignition_turbofan == False
 
 ##############################################################################
 ['gcov_coverage', {
