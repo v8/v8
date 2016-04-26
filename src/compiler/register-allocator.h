@@ -14,11 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-enum RegisterKind {
-  GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
-};
-
+enum RegisterKind { GENERAL_REGISTERS, FP_REGISTERS };
 
 // This class represents a single point of a InstructionOperand's lifetime. For
 // each instruction there are four lifetime positions:

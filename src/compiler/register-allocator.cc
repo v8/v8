@@ -26,23 +26,22 @@ void RemoveElement(ZoneVector<LiveRange*>* v, LiveRange* range) {
 }
 
 int GetRegisterCount(const RegisterConfiguration* cfg, RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS ? cfg->num_double_registers()
-                                  : cfg->num_general_registers();
+  return kind == FP_REGISTERS ? cfg->num_double_registers()
+                              : cfg->num_general_registers();
 }
 
 
 int GetAllocatableRegisterCount(const RegisterConfiguration* cfg,
                                 RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS
-             ? cfg->num_allocatable_aliased_double_registers()
-             : cfg->num_allocatable_general_registers();
+  return kind == FP_REGISTERS ? cfg->num_allocatable_aliased_double_registers()
+                              : cfg->num_allocatable_general_registers();
 }
 
 
 const int* GetAllocatableRegisterCodes(const RegisterConfiguration* cfg,
                                        RegisterKind kind) {
-  return kind == DOUBLE_REGISTERS ? cfg->allocatable_double_codes()
-                                  : cfg->allocatable_general_codes();
+  return kind == FP_REGISTERS ? cfg->allocatable_double_codes()
+                              : cfg->allocatable_general_codes();
 }
 
 
@@ -489,8 +488,7 @@ void LiveRange::Spill() {
 
 
 RegisterKind LiveRange::kind() const {
-  return IsFloatingPoint(representation()) ? DOUBLE_REGISTERS
-                                           : GENERAL_REGISTERS;
+  return IsFloatingPoint(representation()) ? FP_REGISTERS : GENERAL_REGISTERS;
 }
 
 
@@ -1583,7 +1581,7 @@ SpillRange* RegisterAllocationData::CreateSpillRangeForLiveRange(
 
 
 void RegisterAllocationData::MarkAllocated(RegisterKind kind, int index) {
-  if (kind == DOUBLE_REGISTERS) {
+  if (kind == FP_REGISTERS) {
     assigned_double_registers_->Add(index);
   } else {
     DCHECK(kind == GENERAL_REGISTERS);
@@ -1934,7 +1932,7 @@ TopLevelLiveRange* LiveRangeBuilder::FixedDoubleLiveRangeFor(int index) {
                                   MachineRepresentation::kFloat64);
     DCHECK(result->IsFixed());
     result->set_assigned_register(index);
-    data()->MarkAllocated(DOUBLE_REGISTERS, index);
+    data()->MarkAllocated(FP_REGISTERS, index);
     data()->fixed_double_live_ranges()[index] = result;
   }
   return result;
@@ -2582,8 +2580,8 @@ void RegisterAllocator::Spill(LiveRange* range) {
 
 const ZoneVector<TopLevelLiveRange*>& RegisterAllocator::GetFixedRegisters()
     const {
-  return mode() == DOUBLE_REGISTERS ? data()->fixed_double_live_ranges()
-                                    : data()->fixed_live_ranges();
+  return mode() == FP_REGISTERS ? data()->fixed_double_live_ranges()
+                                : data()->fixed_live_ranges();
 }
 
 

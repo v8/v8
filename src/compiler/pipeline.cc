@@ -971,13 +971,14 @@ struct AllocateGeneralRegistersPhase {
   }
 };
 
-
 template <typename RegAllocator>
-struct AllocateDoubleRegistersPhase {
-  static const char* phase_name() { return "allocate double registers"; }
+struct AllocateFPRegistersPhase {
+  static const char* phase_name() {
+    return "allocate floating point registers";
+  }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    RegAllocator allocator(data->register_allocation_data(), DOUBLE_REGISTERS,
+    RegAllocator allocator(data->register_allocation_data(), FP_REGISTERS,
                            temp_zone);
     allocator.AllocateRegisters();
   }
@@ -1559,10 +1560,10 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
 
   if (FLAG_turbo_greedy_regalloc) {
     Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
-    Run<AllocateDoubleRegistersPhase<GreedyAllocator>>();
+    Run<AllocateFPRegistersPhase<GreedyAllocator>>();
   } else {
     Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-    Run<AllocateDoubleRegistersPhase<LinearScanAllocator>>();
+    Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
   }
 
   if (FLAG_turbo_preprocess_ranges) {
