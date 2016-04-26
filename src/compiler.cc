@@ -898,6 +898,11 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
     function->shared()->set_profiler_ticks(0);
   }
 
+  // Nothing left to do if the function already has baseline code.
+  if (function->shared()->code()->kind() == Code::FUNCTION) {
+    return Handle<Code>(function->shared()->code());
+  }
+
   // We do not switch to baseline code when the debugger might have created a
   // copy of the bytecode with break slots to be able to set break points.
   if (function->shared()->HasDebugInfo()) {
