@@ -4824,17 +4824,18 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ Bind(&done_allocate);
 
   // Initialize the JSObject fields.
-  __ Mov(x1, x0);
   STATIC_ASSERT(JSObject::kMapOffset == 0 * kPointerSize);
-  __ Str(x2, MemOperand(x1, kPointerSize, PostIndex));
+  __ Str(x2, FieldMemOperand(x0, JSObject::kMapOffset));
   __ LoadRoot(x3, Heap::kEmptyFixedArrayRootIndex);
   STATIC_ASSERT(JSObject::kPropertiesOffset == 1 * kPointerSize);
   STATIC_ASSERT(JSObject::kElementsOffset == 2 * kPointerSize);
-  __ Stp(x3, x3, MemOperand(x1, 2 * kPointerSize, PostIndex));
+  __ Str(x3, FieldMemOperand(x0, JSObject::kPropertiesOffset));
+  __ Str(x3, FieldMemOperand(x0, JSObject::kElementsOffset));
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+  __ Add(x1, x0, Operand(JSObject::kHeaderSize - kHeapObjectTag));
 
   // ----------- S t a t e -------------
-  //  -- x0 : result (untagged)
+  //  -- x0 : result (tagged)
   //  -- x1 : result fields (untagged)
   //  -- x5 : result end (untagged)
   //  -- x2 : initial map
@@ -4852,10 +4853,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   {
     // Initialize all in-object fields with undefined.
     __ InitializeFieldsWithFiller(x1, x5, x6);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Add(x0, x0, kHeapObjectTag);
     __ Ret();
   }
   __ Bind(&slack_tracking);
@@ -4873,10 +4870,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     // Initialize the remaining (reserved) fields with one pointer filler map.
     __ LoadRoot(x6, Heap::kOnePointerFillerMapRootIndex);
     __ InitializeFieldsWithFiller(x1, x5, x6);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ Add(x0, x0, kHeapObjectTag);
 
     // Check if we can finalize the instance size.
     Label finalize;
@@ -4907,10 +4900,10 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(x2);
   }
-  STATIC_ASSERT(kHeapObjectTag == 1);
-  __ Sub(x0, x0, kHeapObjectTag);
   __ Ldrb(x5, FieldMemOperand(x2, Map::kInstanceSizeOffset));
   __ Add(x5, x0, Operand(x5, LSL, kPointerSizeLog2));
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  __ Sub(x5, x5, kHeapObjectTag);  // Subtract the tag from end.
   __ B(&done_allocate);
 
   // Fall back to %NewObject.
@@ -4974,7 +4967,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
 
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
-    __ Allocate(JSArray::kSize, x0, x1, x2, &allocate, TAG_OBJECT);
+    __ Allocate(JSArray::kSize, x0, x1, x2, &allocate, NO_ALLOCATION_FLAGS);
     __ Bind(&done_allocate);
 
     // Setup the rest parameter array in x0.
@@ -5015,7 +5008,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     Label allocate, done_allocate;
     __ Mov(x1, JSArray::kSize + FixedArray::kHeaderSize);
     __ Add(x1, x1, Operand(x0, LSL, kPointerSizeLog2));
-    __ Allocate(x1, x3, x4, x5, &allocate, TAG_OBJECT);
+    __ Allocate(x1, x3, x4, x5, &allocate, NO_ALLOCATION_FLAGS);
     __ Bind(&done_allocate);
 
     // Compute arguments.length in x6.
@@ -5192,7 +5185,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // Do the allocation of all three objects in one go. Assign this to x0, as it
   // will be returned to the caller.
   Register alloc_obj = x0;
-  __ Allocate(size, alloc_obj, x11, x12, &runtime, TAG_OBJECT);
+  __ Allocate(size, alloc_obj, x11, x12, &runtime, NO_ALLOCATION_FLAGS);
 
   // Get the arguments boilerplate from the current (global) context.
 
@@ -5426,7 +5419,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   Label allocate, done_allocate;
   __ Mov(x1, JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize);
   __ Add(x1, x1, Operand(x0, LSL, kPointerSizeLog2));
-  __ Allocate(x1, x3, x4, x5, &allocate, TAG_OBJECT);
+  __ Allocate(x1, x3, x4, x5, &allocate, NO_ALLOCATION_FLAGS);
   __ Bind(&done_allocate);
 
   // Compute arguments.length in x6.

@@ -3094,10 +3094,8 @@ void MacroAssembler::Allocate(int object_size,
   B(hi, gc_required);
   Str(result_end, MemOperand(top_address));
 
-  // Tag the object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ObjectTag(result, result);
-  }
+  // Tag the object.
+  ObjectTag(result, result);
 }
 
 
@@ -3174,10 +3172,8 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   B(hi, gc_required);
   Str(result_end, MemOperand(top_address));
 
-  // Tag the object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    ObjectTag(result, result);
-  }
+  // Tag the object.
+  ObjectTag(result, result);
 }
 
 
@@ -3196,12 +3192,8 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   Bic(scratch1, scratch1, kObjectAlignmentMask);
 
   // Allocate two-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result,
@@ -3225,12 +3217,8 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   Bic(scratch1, scratch1, kObjectAlignmentMask);
 
   // Allocate one-byte string in new space.
-  Allocate(scratch1,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
@@ -3244,7 +3232,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result,
                       length,
@@ -3258,12 +3246,8 @@ void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
                                                Register scratch1,
                                                Register scratch2,
                                                Label* gc_required) {
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -3277,7 +3261,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                                  Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2));
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result,
                       length,
@@ -3294,7 +3278,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Label* gc_required) {
   DCHECK(!AreAliased(result, length, scratch1, scratch2));
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -3348,14 +3332,14 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   if (value.IsSameSizeAndType(heap_number_map)) {
     STATIC_ASSERT(HeapObject::kMapOffset + kPointerSize ==
                   HeapNumber::kValueOffset);
-    Stp(heap_number_map, value, MemOperand(result, HeapObject::kMapOffset));
+    Stp(heap_number_map, value,
+        FieldMemOperand(result, HeapObject::kMapOffset));
   } else {
-    Str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+    Str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
     if (value.IsValid()) {
-      Str(value, MemOperand(result, HeapNumber::kValueOffset));
+      Str(value, FieldMemOperand(result, HeapNumber::kValueOffset));
     }
   }
-  ObjectTag(result, result);
 }
 
 
@@ -3379,7 +3363,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);

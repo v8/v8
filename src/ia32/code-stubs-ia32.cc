@@ -4714,16 +4714,16 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ bind(&done_allocate);
 
   // Initialize the JSObject fields.
-  __ mov(Operand(eax, JSObject::kMapOffset), ecx);
-  __ mov(Operand(eax, JSObject::kPropertiesOffset),
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
          masm->isolate()->factory()->empty_fixed_array());
-  __ mov(Operand(eax, JSObject::kElementsOffset),
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
          masm->isolate()->factory()->empty_fixed_array());
   STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ lea(ebx, Operand(eax, JSObject::kHeaderSize));
+  __ lea(ebx, FieldOperand(eax, JSObject::kHeaderSize));
 
   // ----------- S t a t e -------------
-  //  -- eax    : result (untagged)
+  //  -- eax    : result (tagged)
   //  -- ebx    : result fields (untagged)
   //  -- edi    : result end (untagged)
   //  -- ecx    : initial map
@@ -4741,10 +4741,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     // Initialize all in-object fields with undefined.
     __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
     __ InitializeFieldsWithFiller(ebx, edi, edx);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ inc(eax);
     __ Ret();
   }
   __ bind(&slack_tracking);
@@ -4766,10 +4762,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ lea(edx, Operand(ebx, edx, times_pointer_size, 0));
     __ LoadRoot(edi, Heap::kOnePointerFillerMapRootIndex);
     __ InitializeFieldsWithFiller(ebx, edx, edi);
-
-    // Add the object tag to make the JSObject real.
-    STATIC_ASSERT(kHeapObjectTag == 1);
-    __ inc(eax);
 
     // Check if we can finalize the instance size.
     Label finalize;
@@ -4801,10 +4793,10 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(ecx);
   }
-  STATIC_ASSERT(kHeapObjectTag == 1);
-  __ dec(eax);
   __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
   __ lea(edi, Operand(eax, ebx, times_pointer_size, 0));
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  __ dec(edi);
   __ jmp(&done_allocate);
 
   // Fall back to %NewObject.
@@ -4868,7 +4860,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
 
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
-    __ Allocate(JSArray::kSize, eax, edx, ecx, &allocate, TAG_OBJECT);
+    __ Allocate(JSArray::kSize, eax, edx, ecx, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Setup the rest parameter array in rax.
@@ -4910,7 +4902,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     Label allocate, done_allocate;
     __ lea(ecx, Operand(eax, times_half_pointer_size,
                         JSArray::kSize + FixedArray::kHeaderSize));
-    __ Allocate(ecx, edx, edi, no_reg, &allocate, TAG_OBJECT);
+    __ Allocate(ecx, edx, edi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Setup the elements array in edx.
@@ -5050,7 +5042,7 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ add(ebx, Immediate(JSSloppyArgumentsObject::kSize));
 
   // Do the allocation of all three objects in one go.
-  __ Allocate(ebx, eax, edi, no_reg, &runtime, TAG_OBJECT);
+  __ Allocate(ebx, eax, edi, no_reg, &runtime, NO_ALLOCATION_FLAGS);
 
   // eax = address of new object(s) (tagged)
   // ecx = argument count (smi-tagged)
@@ -5280,7 +5272,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ lea(ecx,
          Operand(eax, times_half_pointer_size,
                  JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
-  __ Allocate(ecx, edx, edi, no_reg, &allocate, TAG_OBJECT);
+  __ Allocate(ecx, edx, edi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
   __ bind(&done_allocate);
 
   // Setup the elements array in edx.
