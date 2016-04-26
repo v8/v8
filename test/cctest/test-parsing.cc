@@ -2395,6 +2395,10 @@ TEST(ErrorsYieldGenerator) {
     "var {foo: yield 24} = {a: 42};",
     "[yield 24] = [42];",
     "({a: yield 24} = {a: 42});",
+    "for (yield 'x' in {});",
+    "for (yield 'x' of {});",
+    "for (yield 'x' in {} in {});",
+    "for (yield 'x' in {} of {});",
     NULL
   };
   // clang-format on

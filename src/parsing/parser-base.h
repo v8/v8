@@ -773,7 +773,8 @@ class ParserBase : public Traits {
   ExpressionT ParseAssignmentExpression(bool accept_IN,
                                         ExpressionClassifier* classifier,
                                         bool* ok);
-  ExpressionT ParseYieldExpression(ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParseYieldExpression(bool accept_IN,
+                                   ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN,
                                          ExpressionClassifier* classifier,
                                          bool* ok);
@@ -1896,7 +1897,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   int lhs_beg_pos = peek_position();
 
   if (peek() == Token::YIELD && is_generator()) {
-    return this->ParseYieldExpression(classifier, ok);
+    return this->ParseYieldExpression(accept_IN, classifier, ok);
   }
 
   FuncNameInferrer::State fni_state(fni_);
@@ -2043,7 +2044,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
+ParserBase<Traits>::ParseYieldExpression(bool accept_IN,
+                                         ExpressionClassifier* classifier,
                                          bool* ok) {
   // YieldExpression ::
   //   'yield' ([no line terminator] '*'? AssignmentExpression)?
@@ -2073,7 +2075,7 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         if (!delegating) break;
         // Delegating yields require an RHS; fall through.
       default:
-        expression = ParseAssignmentExpression(false, classifier, CHECK_OK);
+        expression = ParseAssignmentExpression(accept_IN, classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         break;
     }
