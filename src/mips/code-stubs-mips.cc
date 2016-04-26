@@ -5708,21 +5708,30 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
   Register scratch = t0;
-  Register scratch2 = t1;
-  Register scratch3 = t2;
-  DCHECK(!AreAliased(receiver, holder, callback, scratch, scratch2, scratch3));
+  DCHECK(!AreAliased(receiver, holder, callback, scratch));
 
   Register api_function_address = a2;
 
-  __ Push(receiver);
-  // Push data from AccessorInfo.
+  // Here and below +1 is for name() pushed after the args_ array.
+  typedef PropertyCallbackArguments PCA;
+  __ Subu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
+  __ sw(receiver, MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
+  __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
+  __ sw(scratch, MemOperand(sp, (PCA::kDataIndex + 1) * kPointerSize));
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
-  __ li(scratch2, Operand(ExternalReference::isolate_address(isolate())));
-  __ lw(scratch3, FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ Push(scratch3, scratch, scratch, scratch2, holder);
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ sw(scratch, MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
+  __ sw(scratch, MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
+                                    kPointerSize));
+  __ li(scratch, Operand(ExternalReference::isolate_address(isolate())));
+  __ sw(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
+  __ sw(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
+  // should_throw_on_error -> false
+  DCHECK(Smi::FromInt(0) == nullptr);
+  __ sw(zero_reg,
+        MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
   __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
-  __ push(scratch);
+  __ sw(scratch, MemOperand(sp, 0 * kPointerSize));
+
   // v8::PropertyCallbackInfo::args_ array and name handle.
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
 
