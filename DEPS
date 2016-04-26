@@ -8,11 +8,11 @@ vars = {
 
 deps = {
   "v8/build/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "6ea68631cdabab9b7c5257657567a785a261692e",
+    Var("git_url") + "/external/gyp.git" + "@" + "4cf07e8d616739f6484e46c9359b2a35196b2585",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "c291cde264469b20ca969ce8832088acb21e0c48",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "e84114dbe2b65428951c876349b6a3ff1afbfccd",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "2a9a29fbdc2170c25e5cc0f642213eb7b3e7bc98",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "c8c8665c2deaf1cc749d9f8e153256d4f67bf1b8",
   "v8/tools/swarming_client":
