@@ -98,11 +98,11 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
       function_token_position, type, language_mode, ok);
 }
 
-
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
     LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-    ParserRecorder* log, Scanner::BookmarkScope* bookmark) {
+    ParserRecorder* log, Scanner::BookmarkScope* bookmark, int* use_counts) {
   log_ = log;
+  use_counts_ = use_counts;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   Scope* top_scope = NewScope(scope_, SCRIPT_SCOPE);
   PreParserFactory top_factory(NULL);
@@ -118,6 +118,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   bool ok = true;
   int start_position = peek_position();
   ParseLazyFunctionLiteralBody(&ok, bookmark);
+  use_counts_ = nullptr;
   if (bookmark && bookmark->HasBeenReset()) {
     // Do nothing, as we've just aborted scanning this function.
   } else if (stack_overflow()) {
@@ -811,7 +812,12 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
         if (first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
-             is_lexical || is_binding_pattern)) {
+             is_lexical || is_binding_pattern || allow_harmony_for_in())) {
+          // Only increment the use count if we would have let this through
+          // without the flag.
+          if (use_counts_ != nullptr && allow_harmony_for_in()) {
+            ++use_counts_[v8::Isolate::kForInInitializer];
+          }
           PreParserTraits::ReportMessageAt(
               first_initializer_loc, MessageTemplate::kForInOfLoopInitializer,
               ForEachStatement::VisitModeString(mode));

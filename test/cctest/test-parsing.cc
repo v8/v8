@@ -1508,7 +1508,8 @@ enum ParserFlag {
   kAllowHarmonyNewTarget,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
-  kAllowHarmonyExponentiationOperator
+  kAllowHarmonyExponentiationOperator,
+  kAllowHarmonyForIn
 };
 
 enum ParserSyncTestResult {
@@ -1528,6 +1529,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
   parser->set_allow_harmony_exponentiation_operator(
       flags.Contains(kAllowHarmonyExponentiationOperator));
+  parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
 }
 
 
@@ -7265,5 +7267,25 @@ TEST(ExponentiationOperatorErrors) {
   static const ParserFlag always_flags[] = {
       kAllowHarmonyExponentiationOperator};
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(RestrictiveForInErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'use strict'", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "for (var x = 0 in {});",
+    "for (const x = 0 in {});",
+    "for (let x = 0 in {});",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyForIn};
+  RunParserSyncTest(context_data, error_data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }

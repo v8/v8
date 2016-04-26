@@ -963,7 +963,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
             ParserRecorder* log, uintptr_t stack_limit)
       : ParserBase<PreParserTraits>(zone, scanner, stack_limit, NULL,
-                                    ast_value_factory, log, this) {}
+                                    ast_value_factory, log, this),
+        use_counts_(nullptr) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
@@ -1001,7 +1002,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // the final '}'.
   PreParseResult PreParseLazyFunction(
       LanguageMode language_mode, FunctionKind kind, bool has_simple_parameters,
-      ParserRecorder* log, Scanner::BookmarkScope* bookmark = nullptr);
+      ParserRecorder* log, Scanner::BookmarkScope* bookmark, int* use_counts);
 
  private:
   friend class PreParserTraits;
@@ -1074,6 +1075,8 @@ class PreParser : public ParserBase<PreParserTraits> {
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool* ok);
+
+  int* use_counts_;
 };
 
 

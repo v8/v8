@@ -785,6 +785,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
+  set_allow_harmony_for_in(FLAG_harmony_for_in);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
@@ -3478,7 +3479,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         if (parsing_result.first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
              IsLexicalVariableMode(parsing_result.descriptor.mode) ||
-             !decl.pattern->IsVariableProxy())) {
+             !decl.pattern->IsVariableProxy() || allow_harmony_for_in())) {
+          // Only increment the use count if we would have let this through
+          // without the flag.
+          if (allow_harmony_for_in()) {
+            ++use_counts_[v8::Isolate::kForInInitializer];
+          }
           ParserTraits::ReportMessageAt(
               parsing_result.first_initializer_loc,
               MessageTemplate::kForInOfLoopInitializer,
@@ -3492,19 +3498,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         // special case for legacy for (var/const x =.... in)
         if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
             decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+          DCHECK(!allow_harmony_for_in());
           ++use_counts_[v8::Isolate::kForInInitializer];
-          if (FLAG_harmony_for_in) {
-            // TODO(rossberg): This error is not currently generated in the
-            // preparser, because that would lose some of the use counts
-            // recorded above. Once either the use counter or the flag is
-            // removed, the preparser should be adjusted.
-            ParserTraits::ReportMessageAt(
-                parsing_result.first_initializer_loc,
-                MessageTemplate::kForInOfLoopInitializer,
-                ForEachStatement::VisitModeString(mode));
-            *ok = false;
-            return nullptr;
-          }
           const AstRawString* name =
               decl.pattern->AsVariableProxy()->raw_name();
           VariableProxy* single_var = scope_->NewUnresolved(
@@ -4602,6 +4597,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
+    SET_ALLOW(harmony_for_in);
     SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_exponentiation_operator);
@@ -4610,7 +4606,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
       language_mode(), function_state_->kind(), scope_->has_simple_parameters(),
-      logger, bookmark);
+      logger, bookmark, use_counts_);
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Stop();
   }

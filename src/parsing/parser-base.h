@@ -114,6 +114,7 @@ class ParserBase : public Traits {
         allow_tailcalls_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
+        allow_harmony_for_in_(false),
         allow_harmony_function_name_(false),
         allow_harmony_function_sent_(false) {}
 
@@ -132,6 +133,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
+  ALLOW_ACCESSORS(harmony_for_in);
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   SCANNER_ACCESSORS(harmony_exponentiation_operator);
@@ -923,6 +925,7 @@ class ParserBase : public Traits {
   bool allow_tailcalls_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
+  bool allow_harmony_for_in_;
   bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;
 };
