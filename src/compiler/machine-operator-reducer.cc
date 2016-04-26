@@ -448,6 +448,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64InsertHighWord32:
       return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
+    case IrOpcode::kCheckedStore:
       return ReduceStore(node);
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
@@ -656,9 +657,19 @@ Reduction MachineOperatorReducer::ReduceUint32Mod(Node* node) {
 
 
 Reduction MachineOperatorReducer::ReduceStore(Node* node) {
-  MachineRepresentation const rep =
-      StoreRepresentationOf(node->op()).representation();
-  Node* const value = node->InputAt(2);
+  NodeMatcher nm(node);
+  MachineRepresentation rep;
+  int value_input;
+  if (nm.IsCheckedStore()) {
+    rep = CheckedStoreRepresentationOf(node->op());
+    value_input = 3;
+  } else {
+    rep = StoreRepresentationOf(node->op()).representation();
+    value_input = 2;
+  }
+
+  Node* const value = node->InputAt(value_input);
+
   switch (value->opcode()) {
     case IrOpcode::kWord32And: {
       Uint32BinopMatcher m(value);
@@ -666,7 +677,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
                                     (m.right().Value() & 0xff) == 0xff) ||
                                    (rep == MachineRepresentation::kWord16 &&
                                     (m.right().Value() & 0xffff) == 0xffff))) {
-        node->ReplaceInput(2, m.left().node());
+        node->ReplaceInput(value_input, m.left().node());
         return Changed(node);
       }
       break;
@@ -679,7 +690,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
                                       m.right().IsInRange(1, 16)))) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().Is(m.right().Value())) {
-          node->ReplaceInput(2, mleft.left().node());
+          node->ReplaceInput(value_input, mleft.left().node());
           return Changed(node);
         }
       }
