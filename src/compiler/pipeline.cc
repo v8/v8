@@ -73,7 +73,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class PipelineData {
+class PipelineData : public ZoneObject {
  public:
   // For main entry point.
   PipelineData(ZonePool* zone_pool, CompilationInfo* info,
@@ -174,11 +174,13 @@ class PipelineData {
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         register_allocation_data_(nullptr) {}
 
-  ~PipelineData() {
+  void Destroy() {
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
     DeleteGraphZone();
   }
+
+  ~PipelineData() { Destroy(); }
 
   Isolate* isolate() const { return isolate_; }
   CompilationInfo* info() const { return info_; }
@@ -1380,6 +1382,14 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 
+void Pipeline::InitializeWasmCompilation(Zone* pipeline_zone,
+                                         ZonePool* zone_pool, Graph* graph) {
+  data_ = new (pipeline_zone) PipelineData(zone_pool, info(), graph, nullptr);
+  RunPrintAndVerify("Machine", true);
+}
+
+void Pipeline::FinalizeWasmCompilation() { data_->Destroy(); }
+
 OptimizedCompileJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
   return new (info->zone()) PipelineCompilationJob(info);
 }
@@ -1402,6 +1412,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
     CallDescriptor* call_descriptor) {
   PipelineData* data = this->data_;
 
+  DCHECK_NOT_NULL(data);
   DCHECK_NOT_NULL(data->graph());
 
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();

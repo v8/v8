@@ -15,6 +15,7 @@ namespace internal {
 class CompilationInfo;
 class OptimizedCompileJob;
 class RegisterConfiguration;
+class Zone;
 
 namespace compiler {
 
@@ -24,6 +25,7 @@ class InstructionSequence;
 class Linkage;
 class PipelineData;
 class Schedule;
+class ZonePool;
 
 class Pipeline {
  public:
@@ -61,6 +63,12 @@ class Pipeline {
   // Returns a new compilation job for the given compilation info.
   static OptimizedCompileJob* NewCompilationJob(CompilationInfo* info);
 
+  void InitializeWasmCompilation(Zone* pipeline_zone, ZonePool* zone_pool,
+                                 Graph* graph);
+  void FinalizeWasmCompilation();
+
+  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
+
  private:
   // Helpers for executing pipeline phases.
   template <typename Phase>
@@ -72,7 +80,6 @@ class Pipeline {
 
   void BeginPhaseKind(const char* phase_kind);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
-  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* descriptor, bool run_verifier);
 

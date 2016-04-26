@@ -12,8 +12,8 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-generic-lowering.h"
@@ -24,6 +24,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/source-position.h"
+#include "src/compiler/zone-pool.h"
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -2846,35 +2847,24 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   return code;
 }
 
-
-// Helper function to compile a single function.
-Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
-                                 wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction& function) {
-  HistogramTimerScope wasm_compile_function_time_scope(
-      isolate->counters()->wasm_compile_function_time());
-  if (FLAG_trace_wasm_compiler) {
-    OFStream os(stdout);
-    os << "Compiling WASM function "
-       << wasm::WasmFunctionName(&function, module_env) << std::endl;
-    os << std::endl;
-  }
-
-  double decode_ms = 0;
+JSGraph* BuildGraphForWasmFunction(Zone* zone, wasm::ErrorThrower& thrower,
+                                   Isolate* isolate,
+                                   wasm::ModuleEnv*& module_env,
+                                   const wasm::WasmFunction& function,
+                                   double* decode_ms) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
   }
-
   // Create a TF graph during decoding.
-  Zone zone(isolate->allocator());
-  Graph graph(&zone);
-  CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
+  Graph* graph = new (zone) Graph(zone);
+  CommonOperatorBuilder* common = new (zone) CommonOperatorBuilder(zone);
+  MachineOperatorBuilder* machine = new (zone) MachineOperatorBuilder(
+      zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
-  WasmGraphBuilder builder(&zone, &jsgraph, function.sig);
+  JSGraph* jsgraph =
+      new (zone) JSGraph(isolate, graph, common, nullptr, nullptr, machine);
+  WasmGraphBuilder builder(zone, jsgraph, function.sig);
   wasm::FunctionBody body = {
       module_env, function.sig, module_env->module->module_start,
       module_env->module->module_start + function.code_start_offset,
@@ -2882,8 +2872,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   wasm::TreeResult result =
       wasm::BuildTFGraph(isolate->allocator(), &builder, body);
 
-  if (machine.Is32()) {
-    Int64Lowering r(&graph, &machine, &common, &zone, function.sig);
+  if (machine->Is32()) {
+    Int64Lowering r(graph, machine, common, zone, function.sig);
     r.LowerGraph();
   }
 
@@ -2899,16 +2889,40 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
              function.func_index, name.length, name.name);
     thrower.Failed(buffer.start(), result);
-    return Handle<Code>::null();
+    return nullptr;
   }
-
   int index = static_cast<int>(function.func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     PrintAst(isolate->allocator(), body);
   }
-
   if (FLAG_trace_wasm_decode_time) {
-    decode_ms = decode_timer.Elapsed().InMillisecondsF();
+    *decode_ms = decode_timer.Elapsed().InMillisecondsF();
+  }
+  return jsgraph;
+}
+
+// Helper function to compile a single function.
+Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
+                                 wasm::ModuleEnv* module_env,
+                                 const wasm::WasmFunction& function) {
+  HistogramTimerScope wasm_compile_function_time_scope(
+      isolate->counters()->wasm_compile_function_time());
+  if (FLAG_trace_wasm_compiler) {
+    OFStream os(stdout);
+    os << "Compiling WASM function "
+       << wasm::WasmFunctionName(&function, module_env) << std::endl;
+    os << std::endl;
+  }
+
+  compiler::ZonePool zone_pool(isolate->allocator());
+  compiler::ZonePool::Scope graph_zone_scope(&zone_pool);
+  double decode_ms = 0;
+  JSGraph* jsgraph =
+      BuildGraphForWasmFunction(graph_zone_scope.zone(), thrower, isolate,
+                                module_env, function, &decode_ms);
+
+  if (jsgraph == nullptr) {
+    return Handle<Code>::null();
   }
 
   base::ElapsedTimer compile_timer;
@@ -2916,10 +2930,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     compile_timer.Start();
   }
   // Run the compiler pipeline to generate machine code.
-  CallDescriptor* descriptor =
-      wasm::ModuleEnv::GetWasmCallDescriptor(&zone, function.sig);
-  if (machine.Is32()) {
-    descriptor = module_env->GetI32WasmCallDescriptor(&zone, descriptor);
+  CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
+      jsgraph->graph()->zone(), function.sig);
+  if (jsgraph->machine()->Is32()) {
+    descriptor = module_env->GetI32WasmCallDescriptor(jsgraph->graph()->zone(),
+                                                      descriptor);
   }
   Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
   // add flags here if a meaningful name is helpful for debugging.
@@ -2939,10 +2954,14 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
              name.name);
     func_name = buffer.start();
   }
-  CompilationInfo info(func_name, isolate, &zone, flags);
-
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, descriptor, &graph);
+  CompilationInfo info(func_name, isolate, jsgraph->graph()->zone(), flags);
+  compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
+  Pipeline pipeline(&info);
+  pipeline.InitializeWasmCompilation(pipeline_zone_scope.zone(), &zone_pool,
+                                     jsgraph->graph());
+  Handle<Code> code = pipeline.ScheduleAndGenerateCode(descriptor);
+  pipeline.FinalizeWasmCompilation();
+  pipeline_zone_scope.Destroy();
   if (debugging) {
     buffer.Dispose();
   }
@@ -2959,11 +2978,12 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
         "wasm-compile ok: %d bytes, %0.3f ms decode, %d nodes, %0.3f ms "
         "compile\n",
         static_cast<int>(function.code_end_offset - function.code_start_offset),
-        decode_ms, static_cast<int>(graph.NodeCount()), compile_ms);
+        decode_ms, static_cast<int>(jsgraph->graph()->NodeCount()), compile_ms);
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   isolate->counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
-      static_cast<int>(zone.allocation_size()));
+      static_cast<int>(jsgraph->graph()->zone()->allocation_size()));
+  graph_zone_scope.Destroy();
   return code;
 }
 
