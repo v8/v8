@@ -19,6 +19,7 @@ class Node;
 class JSGraph;
 class Graph;
 class Operator;
+class SourcePositionTable;
 }
 
 namespace wasm {
@@ -56,7 +57,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 class WasmTrapHelper;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(Zone* z, JSGraph* g, wasm::FunctionSig* function_signature);
+  WasmGraphBuilder(
+      Zone* z, JSGraph* g, wasm::FunctionSig* function_signature,
+      compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -140,6 +143,8 @@ class WasmGraphBuilder {
 
   void Int64LoweringForTesting();
 
+  void SetSourcePosition(Node* node, int position);
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
@@ -159,6 +164,8 @@ class WasmGraphBuilder {
   WasmTrapHelper* trap_;
   wasm::FunctionSig* function_signature_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
+
+  compiler::SourcePositionTable* source_position_table_ = nullptr;
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }

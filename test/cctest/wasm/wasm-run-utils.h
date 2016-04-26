@@ -17,6 +17,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/zone-pool.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-js.h"
@@ -242,9 +243,10 @@ class TestingModule : public ModuleEnv {
 };
 
 inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
-                              FunctionSig* sig, const byte* start,
-                              const byte* end) {
-  compiler::WasmGraphBuilder builder(zone, jsgraph, sig);
+                              FunctionSig* sig,
+                              SourcePositionTable* source_position_table,
+                              const byte* start, const byte* end) {
+  compiler::WasmGraphBuilder builder(zone, jsgraph, sig, source_position_table);
   TreeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
@@ -418,7 +420,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
         sig(sig),
         descriptor_(nullptr),
         testing_module_(module),
-        debug_name_(debug_name) {
+        debug_name_(debug_name),
+        source_position_table_(this->graph()) {
     if (module) {
       // Get a new function from the testing module.
       function_ = nullptr;
@@ -444,6 +447,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   WasmFunction* function_;
   int function_index_;
   LocalDeclEncoder local_decls;
+  SourcePositionTable source_position_table_;
 
   Isolate* isolate() { return main_isolate(); }
   Graph* graph() const { return main_graph_; }
@@ -460,7 +464,8 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   void Build(const byte* start, const byte* end) {
     // Build the TurboFan graph.
     local_decls.Prepend(&start, &end);
-    TestBuildingGraph(main_zone(), &jsgraph, testing_module_, sig, start, end);
+    TestBuildingGraph(main_zone(), &jsgraph, testing_module_, sig,
+                      &source_position_table_, start, end);
     delete[] start;
   }
 
@@ -479,16 +484,26 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     }
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
-    Handle<Code> result =
-        Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
+    compiler::ZonePool zone_pool(this->isolate()->allocator());
+    compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
+    Pipeline pipeline(&info);
+    pipeline.InitializeWasmCompilation(this->zone(), &zone_pool, this->graph(),
+                                       &source_position_table_);
+    Handle<Code> code;
+    if (pipeline.ExecuteWasmCompilation(desc)) {
+      code = pipeline.FinalizeWasmCompilation(desc);
+    } else {
+      code = Handle<Code>::null();
+    }
+    pipeline_zone_scope.Destroy();
 #ifdef ENABLE_DISASSEMBLER
-    if (!result.is_null() && FLAG_print_opt_code) {
+    if (!code.is_null() && FLAG_print_opt_code) {
       OFStream os(stdout);
-      result->Disassemble("wasm code", os);
+      code->Disassemble("wasm code", os);
     }
 #endif
 
-    return result;
+    return code;
   }
 
   uint32_t CompileAndAdd(uint16_t sig_index = 0) {

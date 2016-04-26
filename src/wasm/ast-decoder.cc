@@ -718,6 +718,7 @@ class SR_WasmDecoder : public WasmDecoder {
           break;
         }
         case kExprUnreachable: {
+          // TODO(clemensh): add source position for unreachable
           BUILD0(Unreachable);
           ssa_env_->Kill(SsaEnv::kControlEnd);
           Leaf(kAstEnd, nullptr);
@@ -1235,6 +1236,7 @@ class SR_WasmDecoder : public WasmDecoder {
             buffer[i] = p->tree->children[i - 1]->node;
           }
           p->tree->node = builder_->CallDirect(operand.index, buffer);
+          AddSourcePosition(p);
         }
         break;
       }
@@ -1253,6 +1255,7 @@ class SR_WasmDecoder : public WasmDecoder {
             buffer[i] = p->tree->children[i]->node;
           }
           p->tree->node = builder_->CallIndirect(operand.index, buffer);
+          AddSourcePosition(p);
         }
         break;
       }
@@ -1270,6 +1273,7 @@ class SR_WasmDecoder : public WasmDecoder {
             buffer[i] = p->tree->children[i - 1]->node;
           }
           p->tree->node = builder_->CallImport(operand.index, buffer);
+          AddSourcePosition(p);
         }
         break;
       }
@@ -1630,6 +1634,17 @@ class SR_WasmDecoder : public WasmDecoder {
       }
     }
     return assigned;
+  }
+
+  void AddSourcePosition(Production* p) {
+    DCHECK_NOT_NULL(p->tree->node);
+    AddSourcePosition(p->tree->node, p->pc());
+  }
+
+  void AddSourcePosition(TFNode* node, const byte* pc) {
+    int offset = static_cast<int>(pc - start_);
+    DCHECK_EQ(pc - start_, offset);  // overflows cannot happen
+    builder_->SetSourcePosition(node, offset);
   }
 };
 

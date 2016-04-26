@@ -1727,14 +1727,14 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, static_cast<byte>(opcode), kExprGetLocal, 0};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, code,
+    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
     byte code[] = {WASM_NO_LOCALS, static_cast<byte>(opcode),
                    kExprGetLocal,  0,
                    kExprGetLocal,  1};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, code,
+    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   }
 }

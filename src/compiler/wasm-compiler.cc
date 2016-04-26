@@ -245,8 +245,9 @@ class WasmTrapHelper : public ZoneObject {
   }
 };
 
-WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph,
-                                   wasm::FunctionSig* function_signature)
+WasmGraphBuilder::WasmGraphBuilder(
+    Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* function_signature,
+    compiler::SourcePositionTable* source_position_table)
     : zone_(zone),
       jsgraph_(jsgraph),
       module_(nullptr),
@@ -258,7 +259,8 @@ WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph,
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
       trap_(new (zone) WasmTrapHelper(this)),
-      function_signature_(function_signature) {
+      function_signature_(function_signature),
+      source_position_table_(source_position_table) {
   DCHECK_NOT_NULL(jsgraph_);
 }
 
@@ -2664,6 +2666,12 @@ void WasmGraphBuilder::Int64LoweringForTesting() {
   }
 }
 
+void WasmGraphBuilder::SetSourcePosition(Node* node, int position) {
+  compiler::SourcePosition pos(position);
+  if (source_position_table_)
+    source_position_table_->SetSourcePosition(node, pos);
+}
+
 static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       const char* message, uint32_t index,
@@ -2756,7 +2764,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 
     CompilationInfo info(func_name, isolate, &zone, flags);
     Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+        Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
       OFStream os(stdout);
@@ -2847,11 +2855,10 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   return code;
 }
 
-JSGraph* BuildGraphForWasmFunction(Zone* zone, wasm::ErrorThrower& thrower,
-                                   Isolate* isolate,
-                                   wasm::ModuleEnv*& module_env,
-                                   const wasm::WasmFunction& function,
-                                   double* decode_ms) {
+std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
+    Zone* zone, wasm::ErrorThrower& thrower, Isolate* isolate,
+    wasm::ModuleEnv*& module_env, const wasm::WasmFunction& function,
+    double* decode_ms) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
@@ -2864,7 +2871,9 @@ JSGraph* BuildGraphForWasmFunction(Zone* zone, wasm::ErrorThrower& thrower,
       InstructionSelector::SupportedMachineOperatorFlags());
   JSGraph* jsgraph =
       new (zone) JSGraph(isolate, graph, common, nullptr, nullptr, machine);
-  WasmGraphBuilder builder(zone, jsgraph, function.sig);
+  SourcePositionTable* source_position_table =
+      new (zone) SourcePositionTable(graph);
+  WasmGraphBuilder builder(zone, jsgraph, function.sig, source_position_table);
   wasm::FunctionBody body = {
       module_env, function.sig, module_env->module->module_start,
       module_env->module->module_start + function.code_start_offset,
@@ -2889,7 +2898,7 @@ JSGraph* BuildGraphForWasmFunction(Zone* zone, wasm::ErrorThrower& thrower,
     SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
              function.func_index, name.length, name.name);
     thrower.Failed(buffer.start(), result);
-    return nullptr;
+    return std::make_pair(nullptr, nullptr);
   }
   int index = static_cast<int>(function.func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
@@ -2898,7 +2907,7 @@ JSGraph* BuildGraphForWasmFunction(Zone* zone, wasm::ErrorThrower& thrower,
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
-  return jsgraph;
+  return std::make_pair(jsgraph, source_position_table);
 }
 
 // Helper function to compile a single function.
@@ -2917,9 +2926,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   compiler::ZonePool zone_pool(isolate->allocator());
   compiler::ZonePool::Scope graph_zone_scope(&zone_pool);
   double decode_ms = 0;
-  JSGraph* jsgraph =
+  std::pair<JSGraph*, SourcePositionTable*> graph_result =
       BuildGraphForWasmFunction(graph_zone_scope.zone(), thrower, isolate,
                                 module_env, function, &decode_ms);
+  JSGraph* jsgraph = graph_result.first;
+  SourcePositionTable* source_positions = graph_result.second;
 
   if (jsgraph == nullptr) {
     return Handle<Code>::null();
@@ -2958,7 +2969,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
   Pipeline pipeline(&info);
   pipeline.InitializeWasmCompilation(pipeline_zone_scope.zone(), &zone_pool,
-                                     jsgraph->graph());
+                                     jsgraph->graph(), source_positions);
   Handle<Code> code;
   if (pipeline.ExecuteWasmCompilation(descriptor)) {
     code = pipeline.FinalizeWasmCompilation(descriptor);

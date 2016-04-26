@@ -38,8 +38,7 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
   return !(lhs == rhs);
 }
 
-
-class SourcePositionTable final {
+class SourcePositionTable final : public ZoneObject {
  public:
   class Scope final {
    public:
@@ -71,6 +70,7 @@ class SourcePositionTable final {
   void RemoveDecorator();
 
   SourcePosition GetSourcePosition(Node* node) const;
+  void SetSourcePosition(Node* node, SourcePosition position);
 
   void Print(std::ostream& os) const;
 

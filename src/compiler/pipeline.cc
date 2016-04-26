@@ -83,30 +83,15 @@ class PipelineData : public ZoneObject {
         outer_zone_(info_->zone()),
         zone_pool_(zone_pool),
         pipeline_statistics_(pipeline_statistics),
-        compilation_failed_(false),
-        code_(Handle<Code>::null()),
-        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
         graph_zone_(graph_zone_scope_.zone()),
-        graph_(nullptr),
-        loop_assignment_(nullptr),
-        simplified_(nullptr),
-        machine_(nullptr),
-        common_(nullptr),
-        javascript_(nullptr),
-        jsgraph_(nullptr),
-        schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        register_allocation_data_(nullptr) {
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
     graph_ = new (graph_zone_) Graph(graph_zone_);
-    source_positions_ = new (graph_zone_->New(sizeof(SourcePositionTable)))
-        SourcePositionTable(graph_);
+    source_positions_ = new (graph_zone_) SourcePositionTable(graph_);
     simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
     machine_ = new (graph_zone_) MachineOperatorBuilder(
         graph_zone_, MachineType::PointerRepresentation(),
@@ -117,65 +102,47 @@ class PipelineData : public ZoneObject {
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
   }
 
+  // For WASM compile entry point.
+  PipelineData(ZonePool* zone_pool, CompilationInfo* info, Graph* graph,
+               SourcePositionTable* source_positions)
+      : isolate_(info->isolate()),
+        info_(info),
+        zone_pool_(zone_pool),
+        graph_zone_scope_(zone_pool_),
+        graph_(graph),
+        source_positions_(source_positions),
+        instruction_zone_scope_(zone_pool_),
+        instruction_zone_(instruction_zone_scope_.zone()),
+        register_allocation_zone_scope_(zone_pool_),
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
+
   // For machine graph testing entry point.
   PipelineData(ZonePool* zone_pool, CompilationInfo* info, Graph* graph,
                Schedule* schedule)
       : isolate_(info->isolate()),
         info_(info),
-        outer_zone_(nullptr),
         zone_pool_(zone_pool),
-        pipeline_statistics_(nullptr),
-        compilation_failed_(false),
-        code_(Handle<Code>::null()),
-        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
-        graph_zone_(nullptr),
         graph_(graph),
-        source_positions_(new (info->zone()->New(sizeof(SourcePositionTable)))
-                              SourcePositionTable(graph_)),
-        loop_assignment_(nullptr),
-        simplified_(nullptr),
-        machine_(nullptr),
-        common_(nullptr),
-        javascript_(nullptr),
-        jsgraph_(nullptr),
+        source_positions_(new (info->zone()) SourcePositionTable(graph_)),
         schedule_(schedule),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(instruction_zone_scope_.zone()),
-        sequence_(nullptr),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        register_allocation_data_(nullptr) {}
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
   // For register allocation testing entry point.
   PipelineData(ZonePool* zone_pool, CompilationInfo* info,
                InstructionSequence* sequence)
       : isolate_(info->isolate()),
         info_(info),
-        outer_zone_(nullptr),
         zone_pool_(zone_pool),
-        pipeline_statistics_(nullptr),
-        compilation_failed_(false),
-        code_(Handle<Code>::null()),
-        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
-        graph_zone_(nullptr),
-        graph_(nullptr),
-        loop_assignment_(nullptr),
-        simplified_(nullptr),
-        machine_(nullptr),
-        common_(nullptr),
-        javascript_(nullptr),
-        jsgraph_(nullptr),
-        schedule_(nullptr),
         instruction_zone_scope_(zone_pool_),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
-        frame_(nullptr),
         register_allocation_zone_scope_(zone_pool_),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        register_allocation_data_(nullptr) {}
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
 
   void Destroy() {
     DeleteRegisterAllocationZone();
@@ -208,7 +175,10 @@ class PipelineData : public ZoneObject {
 
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
-  SourcePositionTable* source_positions() const { return source_positions_; }
+  SourcePositionTable* source_positions() const {
+    DCHECK_NOT_NULL(source_positions_);
+    return source_positions_;
+  }
   MachineOperatorBuilder* machine() const { return machine_; }
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
@@ -315,28 +285,28 @@ class PipelineData : public ZoneObject {
  private:
   Isolate* isolate_;
   CompilationInfo* info_;
-  Zone* outer_zone_;
+  Zone* outer_zone_ = nullptr;
   ZonePool* const zone_pool_;
-  PipelineStatistics* pipeline_statistics_;
-  bool compilation_failed_;
+  PipelineStatistics* pipeline_statistics_ = nullptr;
+  bool compilation_failed_ = false;
   Handle<Code> code_;
-  BasicBlockProfiler::Data* profiler_data_;
+  BasicBlockProfiler::Data* profiler_data_ = nullptr;
   std::ostringstream source_position_output_;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
   ZonePool::Scope graph_zone_scope_;
-  Zone* graph_zone_;
-  Graph* graph_;
-  SourcePositionTable* source_positions_;
-  LoopAssignmentAnalysis* loop_assignment_;
+  Zone* graph_zone_ = nullptr;
+  Graph* graph_ = nullptr;
+  SourcePositionTable* source_positions_ = nullptr;
+  LoopAssignmentAnalysis* loop_assignment_ = nullptr;
   TypeHintAnalysis* type_hint_analysis_ = nullptr;
-  SimplifiedOperatorBuilder* simplified_;
-  MachineOperatorBuilder* machine_;
-  CommonOperatorBuilder* common_;
-  JSOperatorBuilder* javascript_;
-  JSGraph* jsgraph_;
-  Schedule* schedule_;
+  SimplifiedOperatorBuilder* simplified_ = nullptr;
+  MachineOperatorBuilder* machine_ = nullptr;
+  CommonOperatorBuilder* common_ = nullptr;
+  JSOperatorBuilder* javascript_ = nullptr;
+  JSGraph* jsgraph_ = nullptr;
+  Schedule* schedule_ = nullptr;
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_.  They are all set to nullptr when the instruction_zone_
@@ -344,15 +314,15 @@ class PipelineData : public ZoneObject {
   // destroyed.
   ZonePool::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
-  InstructionSequence* sequence_;
-  Frame* frame_;
+  InstructionSequence* sequence_ = nullptr;
+  Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
   // register_allocation_zone_.  They are all set to nullptr when the zone is
   // destroyed.
   ZonePool::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
-  RegisterAllocationData* register_allocation_data_;
+  RegisterAllocationData* register_allocation_data_ = nullptr;
 
   int CalculateFixedFrameSize(CallDescriptor* descriptor) {
     if (descriptor->IsJSFunctionCall()) {
@@ -1324,7 +1294,6 @@ Handle<Code> Pipeline::GenerateCode() {
       Linkage::ComputeIncoming(data.instruction_zone(), info()));
 }
 
-
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
@@ -1393,9 +1362,11 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 
-void Pipeline::InitializeWasmCompilation(Zone* pipeline_zone,
-                                         ZonePool* zone_pool, Graph* graph) {
-  data_ = new (pipeline_zone) PipelineData(zone_pool, info(), graph, nullptr);
+void Pipeline::InitializeWasmCompilation(
+    Zone* pipeline_zone, ZonePool* zone_pool, Graph* graph,
+    SourcePositionTable* source_positions) {
+  data_ = new (pipeline_zone)
+      PipelineData(zone_pool, info(), graph, source_positions);
   RunPrintAndVerify("Machine", true);
 }
 

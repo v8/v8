@@ -25,6 +25,7 @@ class InstructionSequence;
 class Linkage;
 class PipelineData;
 class Schedule;
+class SourcePositionTable;
 class ZonePool;
 
 class Pipeline {
@@ -64,7 +65,8 @@ class Pipeline {
   static OptimizedCompileJob* NewCompilationJob(CompilationInfo* info);
 
   void InitializeWasmCompilation(Zone* pipeline_zone, ZonePool* zone_pool,
-                                 Graph* graph);
+                                 Graph* graph,
+                                 SourcePositionTable* source_positions);
   bool ExecuteWasmCompilation(CallDescriptor* descriptor);
   Handle<Code> FinalizeWasmCompilation(CallDescriptor* descriptor);
 
