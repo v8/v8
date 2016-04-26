@@ -47,7 +47,7 @@ DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
 
 DeoptimizerData::~DeoptimizerData() {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
-    allocator_->Free(deopt_entry_code_[i]);
+    allocator_->Free<MemoryAllocator::kFull>(deopt_entry_code_[i]);
     deopt_entry_code_[i] = NULL;
   }
 }

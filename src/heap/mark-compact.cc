@@ -846,7 +846,7 @@ void MarkCompactCollector::Prepare() {
 
   // If concurrent unmapping tasks are still running, we should wait for
   // them here.
-  heap()->WaitUntilUnmappingOfFreeChunksCompleted();
+  heap()->memory_allocator()->unmapper()->WaitUntilCompleted();
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
@@ -3538,7 +3538,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // slots only handles old space (for unboxed doubles), and thus map space can
   // still contain stale pointers. We only free the chunks after pointer updates
   // to still have access to page headers.
-  heap()->FreeQueuedChunks();
+  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
@@ -3726,7 +3726,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
-  heap()->FreeQueuedChunks();
+  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 int MarkCompactCollector::Sweeper::ParallelSweepSpace(AllocationSpace identity,
