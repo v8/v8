@@ -165,7 +165,7 @@ class CompilationInfo {
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
-  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone,
+  CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
   virtual ~CompilationInfo();
 
@@ -492,7 +492,7 @@ class CompilationInfo {
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+  CompilationInfo(ParseInfo* parse_info, Vector<const char> debug_name,
                   Code::Flags code_flags, Mode mode, Isolate* isolate,
                   Zone* zone);
 
@@ -556,7 +556,7 @@ class CompilationInfo {
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;
 
-  const char* debug_name_;
+  Vector<const char> debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

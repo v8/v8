@@ -278,8 +278,8 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
     timer.Start();
   }
   Zone zone(isolate->allocator());
-  CompilationInfo info(CodeStub::MajorName(stub->MajorKey()), isolate, &zone,
-                       stub->GetCodeFlags());
+  CompilationInfo info(CStrVector(CodeStub::MajorName(stub->MajorKey())),
+                       isolate, &zone, stub->GetCodeFlags());
   // Parameter count is number of stack parameters.
   int parameter_count = descriptor.GetStackParameterCount();
   if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {

@@ -122,13 +122,15 @@ TEST(CollectDetailedWasmStack_WasmError) {
   TestSignatures sigs;
   TestingModule module;
 
-  WasmFunctionCompiler comp1(sigs.i_v(), &module, "exec_unreachable");
+  WasmFunctionCompiler comp1(sigs.i_v(), &module,
+                             ArrayVector("exec_unreachable"));
   // Set the execution context, such that a runtime error can be thrown.
   comp1.SetModuleContext();
   BUILD(comp1, WASM_UNREACHABLE);
   uint32_t wasm_index = comp1.CompileAndAdd();
 
-  WasmFunctionCompiler comp2(sigs.i_v(), &module, "call_exec_unreachable");
+  WasmFunctionCompiler comp2(sigs.i_v(), &module,
+                             ArrayVector("call_exec_unreachable"));
   BUILD(comp2, WASM_CALL_FUNCTION0(wasm_index));
   uint32_t wasm_index_2 = comp2.CompileAndAdd();
 

@@ -382,7 +382,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         r.LowerGraph();
       }
 
-      CompilationInfo info("testing", isolate, graph()->zone());
+      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone());
       code_ =
           Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
       CHECK(!code_.is_null());
@@ -412,8 +412,9 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
 class WasmFunctionCompiler : public HandleAndZoneScope,
                              private GraphAndBuilders {
  public:
-  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module,
-                                const char* debug_name = "<WASM UNNAMED>")
+  explicit WasmFunctionCompiler(
+      FunctionSig* sig, TestingModule* module,
+      Vector<const char> debug_name = ArrayVector("<WASM UNNAMED>"))
       : GraphAndBuilders(main_zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
@@ -443,7 +444,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModule* testing_module_;
-  const char* debug_name_;
+  Vector<const char> debug_name_;
   WasmFunction* function_;
   int function_index_;
   LocalDeclEncoder local_decls;

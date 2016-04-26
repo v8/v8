@@ -52,6 +52,10 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 struct WasmName {
   const char* name;
   uint32_t length;
+  // TODO(clemensh): Remove whole WasmName, replace by Vector<const char>
+  inline Vector<const char> toVec() const {
+    return Vector<const char>(name, length);
+  }
 };
 
 // TODO(titzer): Renumber all the opcodes to fill in holes.

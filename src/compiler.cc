@@ -121,8 +121,8 @@ bool CompilationInfo::has_shared_info() const {
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info,
                                  Handle<JSFunction> closure)
-    : CompilationInfo(parse_info, nullptr, Code::ComputeFlags(Code::FUNCTION),
-                      BASE, parse_info->isolate(), parse_info->zone()) {
+    : CompilationInfo(parse_info, {}, Code::ComputeFlags(Code::FUNCTION), BASE,
+                      parse_info->isolate(), parse_info->zone()) {
   closure_ = closure;
 
   // Compiling for the snapshot typically results in different code than
@@ -139,12 +139,13 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 }
 
-
-CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
-                                 Zone* zone, Code::Flags code_flags)
+CompilationInfo::CompilationInfo(Vector<const char> debug_name,
+                                 Isolate* isolate, Zone* zone,
+                                 Code::Flags code_flags)
     : CompilationInfo(nullptr, debug_name, code_flags, STUB, isolate, zone) {}
 
-CompilationInfo::CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+CompilationInfo::CompilationInfo(ParseInfo* parse_info,
+                                 Vector<const char> debug_name,
                                  Code::Flags code_flags, Mode mode,
                                  Isolate* isolate, Zone* zone)
     : parse_info_(parse_info),
@@ -164,7 +165,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, const char* debug_name,
       optimization_id_(-1),
       osr_expr_stack_height_(0),
       debug_name_(debug_name) {}
-
 
 CompilationInfo::~CompilationInfo() {
   DisableFutureOptimization();
@@ -268,10 +268,11 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
   if (parse_info() && !parse_info()->shared_info().is_null()) {
     return parse_info()->shared_info()->DebugName()->ToCString();
   }
-  const char* str = debug_name_ ? debug_name_ : "unknown";
-  size_t len = strlen(str) + 1;
-  base::SmartArrayPointer<char> name(new char[len]);
-  memcpy(name.get(), str, len);
+  Vector<const char> name_vec = debug_name_;
+  if (name_vec.is_empty()) name_vec = ArrayVector("unknown");
+  base::SmartArrayPointer<char> name(new char[name_vec.length() + 1]);
+  memcpy(name.get(), name_vec.start(), name_vec.length());
+  name[name_vec.length()] = '\0';
   return name;
 }
 

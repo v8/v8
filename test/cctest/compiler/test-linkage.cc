@@ -98,7 +98,8 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator());
   ToNumberStub stub(isolate);
-  CompilationInfo info("test", isolate, &zone, Code::ComputeFlags(Code::STUB));
+  CompilationInfo info(ArrayVector("test"), isolate, &zone,
+                       Code::ComputeFlags(Code::STUB));
   CallInterfaceDescriptor interface_descriptor =
       stub.GetCallInterfaceDescriptor();
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(

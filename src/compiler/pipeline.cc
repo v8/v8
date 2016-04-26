@@ -1299,7 +1299,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                Graph* graph, Schedule* schedule,
                                                Code::Flags flags,
                                                const char* debug_name) {
-  CompilationInfo info(debug_name, isolate, graph->zone(), flags);
+  CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
 
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool(isolate->allocator());
@@ -1387,7 +1387,8 @@ OptimizedCompileJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
-  CompilationInfo info("testing", sequence->isolate(), sequence->zone());
+  CompilationInfo info(ArrayVector("testing"), sequence->isolate(),
+                       sequence->zone());
   ZonePool zone_pool(sequence->isolate()->allocator());
   PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);

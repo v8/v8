@@ -2752,14 +2752,14 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 #else
         FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
 #endif
-    const char* func_name = "js-to-wasm";
+    Vector<const char> func_name = ArrayVector("js-to-wasm");
 
     static unsigned id = 0;
     Vector<char> buffer;
     if (debugging) {
       buffer = Vector<char>::New(128);
-      SNPrintF(buffer, "js-to-wasm#%d", id);
-      func_name = buffer.start();
+      int chars = SNPrintF(buffer, "js-to-wasm#%d", id);
+      func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
     }
 
     CompilationInfo info(func_name, isolate, &zone, flags);
@@ -2828,13 +2828,13 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 #else
         FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
 #endif
-    const char* func_name = "wasm-to-js";
+    Vector<const char> func_name = ArrayVector("wasm-to-js");
     static unsigned id = 0;
     Vector<char> buffer;
     if (debugging) {
       buffer = Vector<char>::New(128);
-      SNPrintF(buffer, "wasm-to-js#%d", id);
-      func_name = buffer.start();
+      int chars = SNPrintF(buffer, "wasm-to-js#%d", id);
+      func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
     }
 
     CompilationInfo info(func_name, isolate, &zone, flags);
@@ -2955,15 +2955,19 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 #else
       FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
 #endif
-  const char* func_name = "wasm";
+  Vector<const char> func_name =
+      module_env->module
+          ->GetNameOrNull(function.name_offset, function.name_length)
+          .toVec();
   Vector<char> buffer;
-  if (debugging) {
-    buffer = Vector<char>::New(128);
-    wasm::WasmName name =
-        module_env->module->GetName(function.name_offset, function.name_length);
-    SNPrintF(buffer, "WASM_function_#%d:%.*s", function.func_index, name.length,
-             name.name);
-    func_name = buffer.start();
+  if (func_name.is_empty()) {
+    if (debugging) {
+      buffer = Vector<char>::New(128);
+      int chars = SNPrintF(buffer, "WASM_function_#%d", function.func_index);
+      func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
+    } else {
+      func_name = ArrayVector("wasm");
+    }
   }
   CompilationInfo info(func_name, isolate, jsgraph->graph()->zone(), flags);
   compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
@@ -2977,9 +2981,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     code = Handle<Code>::null();
   }
 
-  if (debugging) {
-    buffer.Dispose();
-  }
+  buffer.Dispose();
   if (!code.is_null()) {
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "WASM_function",
                               function.func_index,
