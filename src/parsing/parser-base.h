@@ -2866,6 +2866,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
+      // ES6 14.6.1 Static Semantics: IsInTailPosition
+      if (allow_tailcalls() && !is_sloppy(language_mode())) {
+        this->MarkTailPosition(expression);
+      }
     }
     super_loc = function_state.super_location();
 

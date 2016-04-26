@@ -392,3 +392,24 @@ function f_153(expected_call_stack, a) {
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
+
+
+// Test tail calls from arrow functions.
+(function () {
+  function g1(a) {
+    return (() => { return f_153([f_153, test]); })();
+  }
+
+  function g2(a) {
+    return (() => f_153([f_153, test]))();
+  }
+
+  function test() {
+    assertEquals(153, g1());
+    assertEquals(153, g2());
+  }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();

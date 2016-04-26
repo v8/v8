@@ -572,6 +572,8 @@ class ParserTraits {
                                   bool name_is_strict_reserved, int pos,
                                   bool* ok);
 
+  V8_INLINE void MarkTailPosition(Expression* expression);
+
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
 
