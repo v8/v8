@@ -85,6 +85,7 @@ class PipelineData : public ZoneObject {
         pipeline_statistics_(pipeline_statistics),
         compilation_failed_(false),
         code_(Handle<Code>::null()),
+        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
         graph_zone_(graph_zone_scope_.zone()),
         graph_(nullptr),
@@ -126,6 +127,7 @@ class PipelineData : public ZoneObject {
         pipeline_statistics_(nullptr),
         compilation_failed_(false),
         code_(Handle<Code>::null()),
+        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
         graph_zone_(nullptr),
         graph_(graph),
@@ -156,6 +158,7 @@ class PipelineData : public ZoneObject {
         pipeline_statistics_(nullptr),
         compilation_failed_(false),
         code_(Handle<Code>::null()),
+        profiler_data_(nullptr),
         graph_zone_scope_(zone_pool_),
         graph_zone_(nullptr),
         graph_(nullptr),
@@ -193,7 +196,13 @@ class PipelineData : public ZoneObject {
     DCHECK(code_.is_null());
     code_ = code;
   }
-
+  BasicBlockProfiler::Data* profiler_data() { return profiler_data_; }
+  void set_profiler_data(BasicBlockProfiler::Data* data) {
+    profiler_data_ = data;
+  }
+  std::ostringstream* source_position_output() {
+    return &source_position_output_;
+  }
   // RawMachineAssembler generally produces graphs which cannot be verified.
   bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
 
@@ -311,6 +320,8 @@ class PipelineData : public ZoneObject {
   PipelineStatistics* pipeline_statistics_;
   bool compilation_failed_;
   Handle<Code> code_;
+  BasicBlockProfiler::Data* profiler_data_;
+  std::ostringstream source_position_output_;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -1388,7 +1399,15 @@ void Pipeline::InitializeWasmCompilation(Zone* pipeline_zone,
   RunPrintAndVerify("Machine", true);
 }
 
-void Pipeline::FinalizeWasmCompilation() { data_->Destroy(); }
+bool Pipeline::ExecuteWasmCompilation(CallDescriptor* descriptor) {
+  return ScheduleGraph(descriptor);
+}
+
+Handle<Code> Pipeline::FinalizeWasmCompilation(CallDescriptor* descriptor) {
+  Handle<Code> result = GenerateCode(descriptor);
+  data_->Destroy();
+  return result;
+}
 
 OptimizedCompileJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
   return new (info->zone()) PipelineCompilationJob(info);
@@ -1407,21 +1426,26 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   return !data.compilation_failed();
 }
 
-
 Handle<Code> Pipeline::ScheduleAndGenerateCode(
     CallDescriptor* call_descriptor) {
-  PipelineData* data = this->data_;
+  if (ScheduleGraph(call_descriptor)) {
+    return GenerateCode(call_descriptor);
+  } else {
+    return Handle<Code>::null();
+  }
+}
 
+bool Pipeline::ScheduleGraph(CallDescriptor* call_descriptor) {
+  PipelineData* data = this->data_;
   DCHECK_NOT_NULL(data);
   DCHECK_NOT_NULL(data->graph());
 
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
   TraceSchedule(data->info(), data->schedule());
 
-  BasicBlockProfiler::Data* profiler_data = nullptr;
   if (FLAG_turbo_profiling) {
-    profiler_data = BasicBlockInstrumentor::Instrument(info(), data->graph(),
-                                                       data->schedule());
+    data->set_profiler_data(BasicBlockInstrumentor::Instrument(
+        info(), data->graph(), data->schedule()));
   }
 
   data->InitializeInstructionSequence(call_descriptor);
@@ -1437,10 +1461,9 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
                  data->sequence());
   }
 
-  std::ostringstream source_position_output;
   if (FLAG_trace_turbo) {
     // Output source position information before the graph is deleted.
-    data_->source_positions()->Print(source_position_output);
+    data_->source_positions()->Print(*(data->source_position_output()));
   }
 
   data->DeleteGraphZone();
@@ -1456,7 +1479,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
-    return Handle<Code>();
+    return false;
   }
 
   BeginPhaseKind("code generation");
@@ -1467,16 +1490,21 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   if (FLAG_turbo_jt) {
     Run<JumpThreadingPhase>(generate_frame_at_start);
   }
+  return true;
+}
 
+Handle<Code> Pipeline::GenerateCode(CallDescriptor* call_descriptor) {
+  PipelineData* data = this->data_;
+  Linkage linkage(call_descriptor);
   // Generate final machine code.
   Run<GenerateCodePhase>(&linkage);
 
   Handle<Code> code = data->code();
-  if (profiler_data != nullptr) {
+  if (data->profiler_data() != nullptr) {
 #if ENABLE_DISASSEMBLER
     std::ostringstream os;
     code->Disassemble(nullptr, os);
-    profiler_data->SetCode(&os);
+    data->profiler_data()->SetCode(&os);
 #endif
   }
 
@@ -1499,7 +1527,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
 #endif  // ENABLE_DISASSEMBLER
       json_of << "\"}\n],\n";
       json_of << "\"nodePositions\":";
-      json_of << source_position_output.str();
+      json_of << data->source_position_output()->str();
       json_of << "}";
       fclose(json_file);
     }
@@ -1508,10 +1536,8 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
        << "Finished compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
   }
-
   return code;
 }
-
 
 void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
                                  CallDescriptor* descriptor,

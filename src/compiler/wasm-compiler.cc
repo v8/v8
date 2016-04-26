@@ -2959,9 +2959,13 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   Pipeline pipeline(&info);
   pipeline.InitializeWasmCompilation(pipeline_zone_scope.zone(), &zone_pool,
                                      jsgraph->graph());
-  Handle<Code> code = pipeline.ScheduleAndGenerateCode(descriptor);
-  pipeline.FinalizeWasmCompilation();
-  pipeline_zone_scope.Destroy();
+  Handle<Code> code;
+  if (pipeline.ExecuteWasmCompilation(descriptor)) {
+    code = pipeline.FinalizeWasmCompilation(descriptor);
+  } else {
+    code = Handle<Code>::null();
+  }
+
   if (debugging) {
     buffer.Dispose();
   }

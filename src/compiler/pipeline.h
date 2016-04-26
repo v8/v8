@@ -65,9 +65,8 @@ class Pipeline {
 
   void InitializeWasmCompilation(Zone* pipeline_zone, ZonePool* zone_pool,
                                  Graph* graph);
-  void FinalizeWasmCompilation();
-
-  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
+  bool ExecuteWasmCompilation(CallDescriptor* descriptor);
+  Handle<Code> FinalizeWasmCompilation(CallDescriptor* descriptor);
 
  private:
   // Helpers for executing pipeline phases.
@@ -82,7 +81,9 @@ class Pipeline {
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* descriptor, bool run_verifier);
-
+  bool ScheduleGraph(CallDescriptor* call_descriptor);
+  Handle<Code> GenerateCode(CallDescriptor* descriptor);
+  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const;
 
