@@ -4643,35 +4643,50 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(edi);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make ebx point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ mov(ecx, ebp);
+    __ jmp(&loop_entry, Label::kNear);
+    __ bind(&loop);
+    __ mov(ecx, Operand(ecx, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ cmp(edi, Operand(ecx, StandardFrameConstants::kFunctionOffset));
+    __ j(not_equal, &loop);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ecx,
-         FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ lea(edx, Operand(ebp, ecx, times_half_pointer_size,
+  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx,
+         FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ lea(edx, Operand(ecx, ebx, times_half_pointer_size,
                       StandardFrameConstants::kCallerSPOffset));
 
-  // ecx : number of parameters (tagged)
+  // ebx : number of parameters (tagged)
   // edx : parameters pointer
   // edi : function
+  // ecx : JavaScript frame pointer.
   // esp[0] : return address
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(ebx, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ mov(eax, Operand(ecx, StandardFrameConstants::kCallerFPOffset));
+  __ mov(eax, Operand(eax, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor_frame, Label::kNear);
 
   // No adaptor, parameter count = argument count.
-  __ mov(ebx, ecx);
-  __ push(ecx);
+  __ mov(ecx, ebx);
+  __ push(ebx);
   __ jmp(&try_allocate, Label::kNear);
 
   // We have an adaptor frame. Patch the parameters pointer.
   __ bind(&adaptor_frame);
-  __ mov(ebx, ecx);
-  __ push(ecx);
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ push(ebx);
+  __ mov(edx, Operand(ecx, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ lea(edx,
          Operand(edx, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
