@@ -2573,6 +2573,13 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   function_state_->set_return_location(loc);
 
   Token::Value tok = peek();
+  int tail_call_position = -1;
+  if (FLAG_harmony_explicit_tailcalls && tok == Token::CONTINUE) {
+    Consume(Token::CONTINUE);
+    tail_call_position = position();
+    tok = peek();
+  }
+
   Statement* result;
   Expression* return_value;
   if (scanner()->HasAnyLineTerminatorBeforeNext() ||
@@ -2629,9 +2636,21 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           is_object_conditional, pos);
     }
 
-    // ES6 14.6.1 Static Semantics: IsInTailPosition
-    if (allow_tailcalls() && !is_sloppy(language_mode())) {
-      function_state_->AddExpressionInTailPosition(return_value);
+    // TODO(ishell): update chapter number.
+    // ES8 XX.YY.ZZ
+    if (tail_call_position >= 0) {
+      if (!function_state_->collect_expressions_in_tail_position()) {
+        Scanner::Location loc(tail_call_position, tail_call_position + 1);
+        ReportMessageAt(loc, MessageTemplate::kTailCallInTryBlock);
+        *ok = false;
+        return NULL;
+      }
+      function_state_->AddExpressionInTailPosition(return_value,
+                                                   tail_call_position);
+
+    } else if (allow_tailcalls() && !is_sloppy(language_mode())) {
+      // ES6 14.6.1 Static Semantics: IsInTailPosition
+      function_state_->AddExpressionInTailPosition(return_value, pos);
     }
   }
   ExpectSemicolon(CHECK_OK);
@@ -2811,40 +2830,6 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
       factory()->NewThrow(exception, pos), pos);
 }
 
-class Parser::DontCollectExpressionsInTailPositionScope {
- public:
-  DontCollectExpressionsInTailPositionScope(
-      Parser::FunctionState* function_state)
-      : function_state_(function_state),
-        old_value_(function_state->collect_expressions_in_tail_position()) {
-    function_state->set_collect_expressions_in_tail_position(false);
-  }
-  ~DontCollectExpressionsInTailPositionScope() {
-    function_state_->set_collect_expressions_in_tail_position(old_value_);
-  }
-
- private:
-  Parser::FunctionState* function_state_;
-  bool old_value_;
-};
-
-// Collects all return expressions at tail call position in this scope
-// to a separate list.
-class Parser::CollectExpressionsInTailPositionToListScope {
- public:
-  CollectExpressionsInTailPositionToListScope(
-      Parser::FunctionState* function_state, List<Expression*>* list)
-      : function_state_(function_state), list_(list) {
-    function_state->expressions_in_tail_position().Swap(list_);
-  }
-  ~CollectExpressionsInTailPositionToListScope() {
-    function_state_->expressions_in_tail_position().Swap(list_);
-  }
-
- private:
-  Parser::FunctionState* function_state_;
-  List<Expression*>* list_;
-};
 
 TryStatement* Parser::ParseTryStatement(bool* ok) {
   // TryStatement ::
@@ -2877,7 +2862,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Scope* catch_scope = NULL;
   Variable* catch_variable = NULL;
   Block* catch_block = NULL;
-  List<Expression*> expressions_in_tail_position_in_catch_block;
+  List<TailCallExpression> expressions_in_tail_position_in_catch_block;
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
 
@@ -2993,6 +2978,16 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     result = factory()->NewTryCatchStatement(try_block, catch_scope,
                                              catch_variable, catch_block, pos);
   } else {
+    if (FLAG_harmony_explicit_tailcalls &&
+        expressions_in_tail_position_in_catch_block.length() > 0) {
+      // TODO(ishell): update chapter number.
+      // ES8 XX.YY.ZZ
+      int pos = expressions_in_tail_position_in_catch_block[0].pos;
+      ReportMessageAt(Scanner::Location(pos, pos + 1),
+                      MessageTemplate::kTailCallInCatchBlock);
+      *ok = false;
+      return NULL;
+    }
     DCHECK(finally_block != NULL);
     result = factory()->NewTryFinallyStatement(try_block, finally_block, pos);
   }
@@ -4573,10 +4568,10 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
   // ES6 14.6.1 Static Semantics: IsInTailPosition
   // Mark collected return expressions that are in tail call position.
-  const List<Expression*>& expressions_in_tail_position =
+  const List<TailCallExpression>& expressions_in_tail_position =
       function_state_->expressions_in_tail_position();
   for (int i = 0; i < expressions_in_tail_position.length(); ++i) {
-    MarkTailPosition(expressions_in_tail_position[i]);
+    MarkTailPosition(expressions_in_tail_position[i].expression);
   }
   return result;
 }

@@ -920,8 +920,6 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
-  class DontCollectExpressionsInTailPositionScope;
-  class CollectExpressionsInTailPositionToListScope;
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
   // Parse a SubStatement in strict mode, or with an extra block scope in

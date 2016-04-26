@@ -423,6 +423,9 @@ class CallSite {
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
   T(StrictWith, "Strict mode code may not include a with statement")           \
+  T(TailCallInCatchBlock,                                                      \
+    "Tail call expression in catch block when finally block is also present.") \
+  T(TailCallInTryBlock, "Tail call expression in try block.")                  \
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \

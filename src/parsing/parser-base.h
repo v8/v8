@@ -190,6 +190,14 @@ class ParserBase : public Traits {
     Scope* scope;
   };
 
+  struct TailCallExpression {
+    TailCallExpression(ExpressionT expression, int pos)
+        : expression(expression), pos(pos) {}
+
+    ExpressionT expression;
+    int pos;
+  };
+
   class FunctionState BASE_EMBEDDED {
    public:
     FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
@@ -247,12 +255,12 @@ class ParserBase : public Traits {
       return destructuring_assignments_to_rewrite_;
     }
 
-    List<ExpressionT>& expressions_in_tail_position() {
+    List<TailCallExpression>& expressions_in_tail_position() {
       return expressions_in_tail_position_;
     }
-    void AddExpressionInTailPosition(ExpressionT expression) {
+    void AddExpressionInTailPosition(ExpressionT expression, int pos) {
       if (collect_expressions_in_tail_position_) {
-        expressions_in_tail_position_.Add(expression);
+        expressions_in_tail_position_.Add(TailCallExpression(expression, pos));
       }
     }
 
@@ -315,7 +323,7 @@ class ParserBase : public Traits {
     Scope* outer_scope_;
 
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
-    List<ExpressionT> expressions_in_tail_position_;
+    List<TailCallExpression> expressions_in_tail_position_;
     bool collect_expressions_in_tail_position_;
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
@@ -332,6 +340,42 @@ class ParserBase : public Traits {
     friend class ParserTraits;
     friend class PreParserTraits;
     friend class Checkpoint;
+  };
+
+  // This scope disables collecting of expressions at tail call position.
+  class DontCollectExpressionsInTailPositionScope {
+   public:
+    explicit DontCollectExpressionsInTailPositionScope(
+        FunctionState* function_state)
+        : function_state_(function_state),
+          old_value_(function_state->collect_expressions_in_tail_position()) {
+      function_state->set_collect_expressions_in_tail_position(false);
+    }
+    ~DontCollectExpressionsInTailPositionScope() {
+      function_state_->set_collect_expressions_in_tail_position(old_value_);
+    }
+
+   private:
+    FunctionState* function_state_;
+    bool old_value_;
+  };
+
+  // Collects all return expressions at tail call position in this scope
+  // to a separate list.
+  class CollectExpressionsInTailPositionToListScope {
+   public:
+    CollectExpressionsInTailPositionToListScope(FunctionState* function_state,
+                                                List<TailCallExpression>* list)
+        : function_state_(function_state), list_(list) {
+      function_state->expressions_in_tail_position().Swap(list_);
+    }
+    ~CollectExpressionsInTailPositionToListScope() {
+      function_state_->expressions_in_tail_position().Swap(list_);
+    }
+
+   private:
+    FunctionState* function_state_;
+    List<TailCallExpression>* list_;
   };
 
   // Annoyingly, arrow functions first parse as comma expressions, then when we
@@ -1893,6 +1937,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   //   ArrowFunction
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+  //   TailCallExpression
   bool is_destructuring_assignment = false;
   int lhs_beg_pos = peek_position();
 
@@ -2860,6 +2905,22 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       // Single-expression body
       int pos = position();
       ExpressionClassifier classifier(this);
+      bool is_tail_call_expression;
+      if (FLAG_harmony_explicit_tailcalls) {
+        // TODO(ishell): update chapter number.
+        // ES8 XX.YY.ZZ
+        if (peek() == Token::CONTINUE) {
+          Consume(Token::CONTINUE);
+          pos = position();
+          is_tail_call_expression = true;
+        } else {
+          is_tail_call_expression = false;
+        }
+      } else {
+        // ES6 14.6.1 Static Semantics: IsInTailPosition
+        is_tail_call_expression =
+            allow_tailcalls() && !is_sloppy(language_mode());
+      }
       ExpressionT expression =
           ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
       Traits::RewriteNonPattern(&classifier, CHECK_OK);
@@ -2868,8 +2929,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      // ES6 14.6.1 Static Semantics: IsInTailPosition
-      if (allow_tailcalls() && !is_sloppy(language_mode())) {
+      if (is_tail_call_expression) {
         this->MarkTailPosition(expression);
       }
     }
