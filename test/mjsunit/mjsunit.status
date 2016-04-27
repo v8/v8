@@ -751,9 +751,6 @@
 
 ##############################################################################
 ['ignition or ignition_turbofan', {
-  # TODO(yangguo,4690): flaky failures on the bots.
-  'debug-stepin-builtin-callback-opt': [SKIP],
-
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
   'debug-liveedit-literals': [FAIL],
