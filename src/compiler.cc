@@ -699,22 +699,13 @@ bool UseTurboFan(CompilationInfo* info) {
          passes_osr_test;
 }
 
-bool GetOptimizedCodeNow(CompilationInfo* info) {
+bool GetOptimizedCodeNow(OptimizedCompileJob* job) {
+  CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
-  CanonicalHandleScope canonical(isolate);
-  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  TRACE_EVENT0("v8", "V8.OptimizeCode");
-
-  bool use_turbofan = UseTurboFan(info);
-  base::SmartPointer<OptimizedCompileJob> job(
-      use_turbofan ? compiler::Pipeline::NewCompilationJob(info)
-                   : new HCompilationJob(info));
 
   // Parsing is not required when optimizing from existing bytecode.
-  if (!use_turbofan || !info->shared_info()->HasBytecodeArray()) {
+  if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
-  } else {
-    info->MarkAsOptimizeFromBytecode();
   }
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
@@ -739,11 +730,9 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   return true;
 }
 
-bool GetOptimizedCodeLater(CompilationInfo* info) {
+bool GetOptimizedCodeLater(OptimizedCompileJob* job) {
+  CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
-  CanonicalHandleScope canonical(isolate);
-  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  TRACE_EVENT0("v8", "V8.OptimizeCode");
 
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
@@ -754,20 +743,13 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
     return false;
   }
 
-  bool use_turbofan = UseTurboFan(info);
-  base::SmartPointer<OptimizedCompileJob> job(
-      use_turbofan ? compiler::Pipeline::NewCompilationJob(info)
-                   : new HCompilationJob(info));
-
   // All handles below this point will be allocated in a deferred handle scope
   // that is detached and handed off to the background thread when we return.
   CompilationHandleScope handle_scope(info);
 
   // Parsing is not required when optimizing from existing bytecode.
-  if (!use_turbofan || !info->shared_info()->HasBytecodeArray()) {
+  if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
-  } else {
-    info->MarkAsOptimizeFromBytecode();
   }
 
   // Reopen handles in the new CompilationHandleScope.
@@ -778,8 +760,7 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
-  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
-  job.Detach();  // The background recompile job owns this now.
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
@@ -850,14 +831,29 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
+  CanonicalHandleScope canonical(isolate);
+  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
+  TRACE_EVENT0("v8", "V8.OptimizeCode");
+
+  bool use_turbofan = UseTurboFan(info.get());
+  base::SmartPointer<OptimizedCompileJob> job(
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(info.get())
+                   : new HCompilationJob(info.get()));
+
+  // TruboFan can optimize directly from existing bytecode.
+  if (use_turbofan && info->shared_info()->HasBytecodeArray()) {
+    info->MarkAsOptimizeFromBytecode();
+  }
+
   if (mode == Compiler::CONCURRENT) {
-    if (GetOptimizedCodeLater(info.get())) {
+    if (GetOptimizedCodeLater(job.get())) {
       info.Detach();  // The background recompile job owns this now.
+      job.Detach();   // The background recompile job owns this now.
       return isolate->builtins()->InOptimizationQueue();
     }
   } else {
     info->set_osr_frame(osr_frame);
-    if (GetOptimizedCodeNow(info.get())) return info->code();
+    if (GetOptimizedCodeNow(job.get())) return info->code();
   }
 
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
