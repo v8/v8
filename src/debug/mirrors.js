@@ -1529,11 +1529,6 @@ PropertyMirror.prototype.propertyType = function() {
 };
 
 
-PropertyMirror.prototype.insertionIndex = function() {
-  return %DebugPropertyIndexFromDetails(this.details_);
-};
-
-
 /**
  * Returns whether this property has a getter defined through __defineGetter__.
  * @return {booolean} True if this property has a getter

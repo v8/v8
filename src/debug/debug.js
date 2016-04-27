@@ -894,10 +894,6 @@ ExecutionState.prototype.frameCount = function() {
   return %GetFrameCount(this.break_id);
 };
 
-ExecutionState.prototype.threadCount = function() {
-  return %GetThreadCount(this.break_id);
-};
-
 ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
@@ -2173,28 +2169,6 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 };
 
 
-DebugCommandProcessor.prototype.threadsRequest_ = function(request, response) {
-  // Get the number of threads.
-  var total_threads = this.exec_state_.threadCount();
-
-  // Get information for all threads.
-  var threads = [];
-  for (var i = 0; i < total_threads; i++) {
-    var details = %GetThreadDetails(this.exec_state_.break_id, i);
-    var thread_info = { current: details[0],
-                        id: details[1]
-                      };
-    threads.push(thread_info);
-  }
-
-  // Create the response body.
-  response.body = {
-    totalThreads: total_threads,
-    threads: threads
-  };
-};
-
-
 DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
   response.running = false;
 };
@@ -2360,7 +2334,6 @@ DebugCommandProcessor.prototype.dispatch_ = (function() {
     "references":           proto.referencesRequest_,
     "source":               proto.sourceRequest_,
     "scripts":              proto.scriptsRequest_,
-    "threads":              proto.threadsRequest_,
     "suspend":              proto.suspendRequest_,
     "version":              proto.versionRequest_,
     "changelive":           proto.changeLiveRequest_,

@@ -147,9 +147,6 @@ namespace internal {
   F(DebugGetProperty, 2, 1)                    \
   F(DebugPropertyTypeFromDetails, 1, 1)        \
   F(DebugPropertyAttributesFromDetails, 1, 1)  \
-  F(DebugPropertyIndexFromDetails, 1, 1)       \
-  F(DebugNamedInterceptorPropertyValue, 2, 1)  \
-  F(DebugIndexedInterceptorElementValue, 2, 1) \
   F(CheckExecutionState, 1, 1)                 \
   F(GetFrameCount, 1, 1)                       \
   F(GetFrameDetails, 2, 1)                     \
@@ -160,8 +157,6 @@ namespace internal {
   F(GetFunctionScopeDetails, 2, 1)             \
   F(SetScopeVariableValue, 6, 1)               \
   F(DebugPrintScopes, 0, 1)                    \
-  F(GetThreadCount, 1, 1)                      \
-  F(GetThreadDetails, 2, 1)                    \
   F(SetBreakPointsActive, 1, 1)                \
   F(GetBreakLocations, 2, 1)                   \
   F(SetFunctionBreakPoint, 3, 1)               \
