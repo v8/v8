@@ -561,7 +561,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
     if (info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
     }
-    return BAILED_OUT;
+    return FAILED;
   }
   info()->dependencies()->Commit(code);
   info()->SetCode(code);

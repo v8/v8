@@ -107,8 +107,7 @@ void OptimizingCompileDispatcher::CompileNext(CompilationJob* job) {
 
   // The function may have already been optimized by OSR.  Simply continue.
   CompilationJob::Status status = job->OptimizeGraph();
-  USE(status);  // Prevent an unused-variable error in release mode.
-  DCHECK(status != CompilationJob::FAILED);
+  USE(status);  // Prevent an unused-variable error.
 
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install

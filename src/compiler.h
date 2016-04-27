@@ -568,9 +568,11 @@ class CompilationInfo {
 //  2) OptimizeGraph: Runs concurrently. No heap allocation or handle derefs.
 //  3) GenerateCode:  Runs on main thread. No dependency changes.
 //
-// Each of the three phases can either fail, bail-out to full code generator or
-// succeed. Apart from their return value, the status of the phase last run can
-// be checked using {last_status()} as well.
+// Each of the three phases can either fail or succeed. Apart from their return
+// value, the status of the phase last run can be checked using {last_status()}
+// as well. When failing we distinguish between the following levels:
+//  a) AbortOptimization: Persistent failure, disable future optimization.
+//  b) RetryOptimzation: Transient failure, try again next time.
 // TODO(mstarzinger): Make CompilationInfo base embedded.
 class CompilationJob {
  public:
@@ -578,9 +580,7 @@ class CompilationJob {
       : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
   virtual ~CompilationJob() {}
 
-  enum Status {
-    FAILED, BAILED_OUT, SUCCEEDED
-  };
+  enum Status { FAILED, SUCCEEDED };
 
   MUST_USE_RESULT Status CreateGraph();
   MUST_USE_RESULT Status OptimizeGraph();
@@ -592,12 +592,12 @@ class CompilationJob {
 
   Status RetryOptimization(BailoutReason reason) {
     info_->RetryOptimization(reason);
-    return SetLastStatus(BAILED_OUT);
+    return SetLastStatus(FAILED);
   }
 
   Status AbortOptimization(BailoutReason reason) {
     info_->AbortOptimization(reason);
-    return SetLastStatus(BAILED_OUT);
+    return SetLastStatus(FAILED);
   }
 
   void RecordOptimizationStats();

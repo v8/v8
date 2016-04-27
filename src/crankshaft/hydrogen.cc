@@ -185,7 +185,7 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
     return FAILED;
   }
 
-  if (graph_ == NULL) return BAILED_OUT;
+  if (graph_ == NULL) return FAILED;
 
   if (info()->dependencies()->HasAborted()) {
     // Dependency has changed during graph creation. Let's try again later.
@@ -206,7 +206,7 @@ HCompilationJob::Status HCompilationJob::OptimizeGraphImpl() {
     info()->AbortOptimization(bailout_reason);
   }
 
-  return BAILED_OUT;
+  return FAILED;
 }
 
 HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
@@ -223,7 +223,7 @@ HCompilationJob::Status HCompilationJob::GenerateCodeImpl() {
       if (info()->bailout_reason() == kNoReason) {
         return AbortOptimization(kCodeGenerationFailed);
       }
-      return BAILED_OUT;
+      return FAILED;
     }
     RegisterWeakObjectsInOptimizedCode(optimized_code);
     info()->SetCode(optimized_code);
