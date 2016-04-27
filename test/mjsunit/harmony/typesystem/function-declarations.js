@@ -11,7 +11,7 @@ load("test/mjsunit/harmony/typesystem/typegen.js");
 // In all the following functions, the size parameter (positive integer)
 // denotes how many test cases will be tried.  The variable test_size
 // controls execution time of this test.  It should not be too high.
-let test_size = 1000;
+let test_size = default_test_size;
 
 
 function ValidFormalParameters(size) {
@@ -31,12 +31,14 @@ function ValidFormalParameters(size) {
       t => "(x? : " + t + ", y)",
       t => "(x? : " + t + ", y : " + t + ")"
     ]),
+    "(...rest)",
     "(x, ...rest)",
     "(x, y, ...rest)",
     "(x?, ...rest)",
     "(x?, y, ...rest)",
     "(x, y?, ...rest)",
     new TestGen(1, ValidTypes, [
+      t => "(...rest : (" + t + ")[])",
       t => "(x : " + t + ", ...rest : (" + t + ")[])",
       t => "(x? : " + t + ", y : " + t + ", ...rest : (" + t + ")[])"
     ]),
@@ -57,7 +59,9 @@ function InvalidFormalParameters(size) {
     "(x? = 42)",
     "(x? : number = 42)",
     "(...rest?)",
-    "(...rest? : number)"
+    "(...rest? : number)",
+    "(first, ...rest?)",
+    "(first, ...rest? : number)"
   ]);
 }
 

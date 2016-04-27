@@ -274,12 +274,12 @@ function ValidObjectTypes(size) {
       t => "{f?<A>(a: " + t + ")}",
       t => "{f<A, B>(a: A, b: " + t + ") : B}",
       t => "{f?<A, B>(a: A, b: " + t + ") : B}",
-      t => "{f<A extends " + t + ">(a: " + t + ")}",
-      t => "{f?<A extends " + t + ">(a: " + t + ")}",
+      t => "{f<A extends " + t + " >(a: " + t + ")}",
+      t => "{f?<A extends " + t + " >(a: " + t + ")}",
       t => "{f<A extends " + t + ", B>(a: A, b: " + t + ") : B}",
       t => "{f?<A extends " + t + ", B>(a: A, b: " + t + ") : B}",
-      t => "{f<A extends " + t + ">(a: " + t + ") : " + t + "}",
-      t => "{f?<A extends " + t + ">(a: " + t + ") : " + t + "}"
+      t => "{f<A extends " + t + " >(a: " + t + ") : " + t + "}",
+      t => "{f?<A extends " + t + " >(a: " + t + ") : " + t + "}"
     ]),
     // Call signatures.
     "{()}",
@@ -289,8 +289,8 @@ function ValidObjectTypes(size) {
       t => "{() : " + t + "}",
       t => "{(a: " + t + ")}",
       t => "{(a: " + t + ") : " + t + "}",
-      t => "{<A extends " + t + ">(a: " + t + ")}",
-      t => "{<A extends " + t + ">(a: " + t + ") : " + t + "}"
+      t => "{<A extends " + t + " >(a: " + t + ")}",
+      t => "{<A extends " + t + " >(a: " + t + ") : " + t + "}"
     ]),
     // Constructor signatures.
     "{new ()}",
@@ -300,8 +300,8 @@ function ValidObjectTypes(size) {
       t => "{new () : " + t + "}",
       t => "{new (a: " + t + ")}",
       t => "{new (a: " + t + ") : " + t + "}",
-      t => "{new <A extends " + t + ">(a: " + t + ")}",
-      t => "{new <A extends " + t + ">(a: " + t + ") : " + t + "}"
+      t => "{new <A extends " + t + " >(a: " + t + ")}",
+      t => "{new <A extends " + t + " >(a: " + t + ") : " + t + "}"
     ]),
     // Index signatures.
     "{[a: number]}",
@@ -321,7 +321,7 @@ function InvalidObjectTypes(size) {
       t => "{a: " + t + ", b?: " + t + "}",
       t => "{f() : " + t + "}",
       t => "{f(a: " + t + ")}",
-      t => "{f<A extends " + t + ">()}",
+      t => "{f<A extends " + t + " >()}",
       t => "{(a: " + t + ")}",
       t => "{new () : " + t + "}"
     ]),

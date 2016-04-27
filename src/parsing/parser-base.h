@@ -3027,7 +3027,8 @@ void ParserBase<Traits>::ParseFormalParameter(FormalParametersT* parameters,
 
   // Parse optional question mark.
   bool optional = false;
-  if (scope_->typed() && allow_optional) optional = Check(Token::CONDITIONAL);
+  if (scope_->typed() && allow_optional && !is_rest)
+    optional = Check(Token::CONDITIONAL);
 
   // Parse optional type annotation.
   typename TypeSystem::Type type = this->EmptyType();
@@ -3777,7 +3778,8 @@ ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
     if (peek() == Token::LBRACK) {  // Braces required here
       type = ValidateType(type, type_location, CHECK_OK_TYPE);
     }
-    while (Check(Token::LBRACK)) {  // Braces required here
+    while (!scanner()->HasAnyLineTerminatorBeforeNext() &&
+           Check(Token::LBRACK)) {
       Expect(Token::RBRACK, CHECK_OK_TYPE);
       type = factory()->NewArrayType(type, pos);
     }
