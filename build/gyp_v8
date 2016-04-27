@@ -43,7 +43,7 @@ import vs_toolchain
 script_dir = os.path.dirname(os.path.realpath(__file__))
 v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
 
-sys.path.insert(0, os.path.join(v8_root, 'build', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(v8_root, 'tools', 'gyp', 'pylib'))
 import gyp
 
 # Add paths so that pymod_do_main(...) can import files.

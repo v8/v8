@@ -447,9 +447,9 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
+	tools/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
@@ -458,9 +458,9 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
+	tools/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
 
 # Note that NACL_SDK_ROOT must be set to point to an appropriate
