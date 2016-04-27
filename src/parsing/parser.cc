@@ -3555,6 +3555,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
 
         {
+          DontCollectExpressionsInTailPositionScope no_tail_calls(
+              function_state_);
           BlockState block_state(&scope_, body_scope);
 
           Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
