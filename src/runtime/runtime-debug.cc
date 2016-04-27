@@ -1294,10 +1294,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   }
 
   // Return result as a JS array.
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObject(isolate->array_function());
-  JSArray::SetContent(Handle<JSArray>::cast(result), instances);
-  return *result;
+  return *isolate->factory()->NewJSArrayWithElements(instances);
 }
 
 static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
