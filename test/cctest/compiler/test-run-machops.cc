@@ -5393,6 +5393,12 @@ TEST(RunTruncateFloat64ToWord32P) {
   }
 }
 
+TEST(RunTruncateFloat64ToWord32SignExtension) {
+  BufferedRawMachineAssemblerTester<int32_t> r;
+  r.Return(r.Int32Sub(r.TruncateFloat64ToWord32(r.Float64Constant(-1.0)),
+                      r.Int32Constant(0)));
+  CHECK_EQ(-1, r.Call());
+}
 
 TEST(RunChangeFloat32ToFloat64) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float32());
