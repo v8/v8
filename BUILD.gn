@@ -1065,6 +1065,8 @@ source_set("v8_base") {
     "src/extensions/free-buffer-extension.h",
     "src/extensions/gc-extension.cc",
     "src/extensions/gc-extension.h",
+    "src/extensions/ignition-statistics-extension.cc",
+    "src/extensions/ignition-statistics-extension.h",
     "src/extensions/statistics-extension.cc",
     "src/extensions/statistics-extension.h",
     "src/extensions/trigger-failure-extension.cc",

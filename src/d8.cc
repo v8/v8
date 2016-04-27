@@ -19,6 +19,7 @@
 
 #ifndef V8_SHARED
 #include <algorithm>
+#include <fstream>
 #include <vector>
 #endif  // !V8_SHARED
 
@@ -1276,6 +1277,21 @@ struct CounterAndKey {
 inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
   return strcmp(lhs.key, rhs.key) < 0;
 }
+
+void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+
+  Local<Object> dispatch_counters = reinterpret_cast<i::Isolate*>(isolate)
+                                        ->interpreter()
+                                        ->GetDispatchCountersObject();
+  std::ofstream dispatch_counters_stream(
+      i::FLAG_trace_ignition_dispatches_output_file);
+  dispatch_counters_stream << *String::Utf8Value(
+      JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+}
+
 #endif  // !V8_SHARED
 
 
@@ -1312,12 +1328,6 @@ void Shell::OnExit(v8::Isolate* isolate) {
     printf("+----------------------------------------------------------------+"
            "-------------+\n");
     delete [] counters;
-  }
-
-  if (i::FLAG_trace_ignition_dispatches) {
-    reinterpret_cast<i::Isolate*>(isolate)
-        ->interpreter()
-        ->WriteDispatchCounters();
   }
 
   delete counters_file_;
@@ -2483,6 +2493,12 @@ int Shell::Main(int argc, char* argv[]) {
     if (options.use_interactive_shell()) {
       RunShell(isolate);
     }
+
+#ifndef V8_SHARED
+    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches) {
+      WriteIgnitionDispatchCountersFile(isolate);
+    }
+#endif
 
     // Shut down contexts and collect garbage.
     evaluation_context_.Reset();

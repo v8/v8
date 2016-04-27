@@ -53,14 +53,14 @@ class Interpreter {
   void TraceCodegen(Handle<Code> code);
   const char* LookupNameOfBytecodeHandler(Code* code);
 
-  void WriteDispatchCounters();
+  Local<v8::Object> GetDispatchCountersObject();
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
   }
 
-  uintptr_t* bytecode_dispatch_count_table() {
-    return bytecode_dispatch_count_table_.get();
+  Address bytecode_dispatch_counters_table() {
+    return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
  private:
@@ -143,6 +143,8 @@ class Interpreter {
   void DoStoreLookupSlot(LanguageMode language_mode,
                          InterpreterAssembler* assembler);
 
+  uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
+
   // Get dispatch table index of bytecode.
   static size_t GetDispatchTableIndex(Bytecode bytecode,
                                       OperandScale operand_scale);
@@ -151,10 +153,11 @@ class Interpreter {
 
   static const int kNumberOfWideVariants = 3;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);
+  static const int kNumberOfBytecodes = static_cast<int>(Bytecode::kLast) + 1;
 
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
-  v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_count_table_;
+  v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_counters_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

@@ -10,6 +10,7 @@
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
 #include "src/extensions/gc-extension.h"
+#include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/heap/heap.h"
@@ -73,7 +74,7 @@ v8::Extension* Bootstrapper::gc_extension_ = NULL;
 v8::Extension* Bootstrapper::externalize_string_extension_ = NULL;
 v8::Extension* Bootstrapper::statistics_extension_ = NULL;
 v8::Extension* Bootstrapper::trigger_failure_extension_ = NULL;
-
+v8::Extension* Bootstrapper::ignition_statistics_extension_ = NULL;
 
 void Bootstrapper::InitializeOncePerProcess() {
   free_buffer_extension_ = new FreeBufferExtension;
@@ -86,6 +87,8 @@ void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(statistics_extension_);
   trigger_failure_extension_ = new TriggerFailureExtension;
   v8::RegisterExtension(trigger_failure_extension_);
+  ignition_statistics_extension_ = new IgnitionStatisticsExtension;
+  v8::RegisterExtension(ignition_statistics_extension_);
 }
 
 
@@ -100,6 +103,8 @@ void Bootstrapper::TearDownExtensions() {
   statistics_extension_ = NULL;
   delete trigger_failure_extension_;
   trigger_failure_extension_ = NULL;
+  delete ignition_statistics_extension_;
+  ignition_statistics_extension_ = NULL;
 }
 
 
@@ -3209,17 +3214,20 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   Isolate* isolate = native_context->GetIsolate();
   ExtensionStates extension_states;  // All extensions have state UNVISITED.
   return InstallAutoExtensions(isolate, &extension_states) &&
-      (!FLAG_expose_free_buffer ||
-       InstallExtension(isolate, "v8/free-buffer", &extension_states)) &&
-      (!FLAG_expose_gc ||
-       InstallExtension(isolate, "v8/gc", &extension_states)) &&
-      (!FLAG_expose_externalize_string ||
-       InstallExtension(isolate, "v8/externalize", &extension_states)) &&
-      (!FLAG_track_gc_object_stats ||
-       InstallExtension(isolate, "v8/statistics", &extension_states)) &&
-      (!FLAG_expose_trigger_failure ||
-       InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
-      InstallRequestedExtensions(isolate, extensions, &extension_states);
+         (!FLAG_expose_free_buffer ||
+          InstallExtension(isolate, "v8/free-buffer", &extension_states)) &&
+         (!FLAG_expose_gc ||
+          InstallExtension(isolate, "v8/gc", &extension_states)) &&
+         (!FLAG_expose_externalize_string ||
+          InstallExtension(isolate, "v8/externalize", &extension_states)) &&
+         (!FLAG_track_gc_object_stats ||
+          InstallExtension(isolate, "v8/statistics", &extension_states)) &&
+         (!FLAG_expose_trigger_failure ||
+          InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
+         (!(FLAG_ignition && FLAG_trace_ignition_dispatches) ||
+          InstallExtension(isolate, "v8/ignition-statistics",
+                           &extension_states)) &&
+         InstallRequestedExtensions(isolate, extensions, &extension_states);
 }
 
 

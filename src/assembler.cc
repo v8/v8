@@ -1075,7 +1075,7 @@ ExternalReference ExternalReference::interpreter_dispatch_table_address(
 ExternalReference ExternalReference::interpreter_dispatch_counters(
     Isolate* isolate) {
   return ExternalReference(
-      isolate->interpreter()->bytecode_dispatch_count_table());
+      isolate->interpreter()->bytecode_dispatch_counters_table());
 }
 
 ExternalReference::ExternalReference(StatsCounter* counter)

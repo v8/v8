@@ -775,6 +775,8 @@
         'extensions/free-buffer-extension.h',
         'extensions/gc-extension.cc',
         'extensions/gc-extension.h',
+        'extensions/ignition-statistics-extension.cc',
+        'extensions/ignition-statistics-extension.h',
         'extensions/statistics-extension.cc',
         'extensions/statistics-extension.h',
         'extensions/trigger-failure-extension.cc',
