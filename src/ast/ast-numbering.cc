@@ -324,7 +324,7 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
-  DisableOptimization(kTryFinallyStatement);
+  DisableCrankshaft(kTryFinallyStatement);
   Visit(node->try_block());
   Visit(node->finally_block());
 }
