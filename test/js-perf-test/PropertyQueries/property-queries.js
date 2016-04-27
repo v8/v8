@@ -81,15 +81,13 @@ function Deinternalize(s) {
 
 // ============================================================================
 
-const QUERY_INTERNALIZED_PROP = "query-internalized-prop";
-const QUERY_DEINTERNALIZED_PROP = "query-deinternalized-prop";
-const QUERY_NON_EXISTING_INTERNALIZED_PROP =
-    "query-non-existing-internalized-prop";
-const QUERY_NON_EXISTING_DEINTERNALIZED_PROP =
-    "query-non-existing-deinternalized-prop";
-const QUERY_ELEMENT = "query-element";
-const QUERY_ELEMENT_AS_STRING = "query-element-as-string";
-const QUERY_NON_EXISTING_ELEMENT = "query-non-existing-element";
+const QUERY_INTERNALIZED_PROP = "INTERN-prop";
+const QUERY_DEINTERNALIZED_PROP = "DEINTERN-prop";
+const QUERY_NON_EXISTING_INTERNALIZED_PROP = "NE-INTERN-prop";
+const QUERY_NON_EXISTING_DEINTERNALIZED_PROP = "NE-DEINTERN-prop";
+const QUERY_ELEMENT = "el";
+const QUERY_ELEMENT_AS_STRING = "el-str";
+const QUERY_NON_EXISTING_ELEMENT = "NE-el";
 
 const OBJ_MODE_FAST = "fast";
 const OBJ_MODE_SLOW = "slow";
@@ -238,9 +236,10 @@ for (var test_function_desc of TestFunctions) {
   var test_function_name = test_function_desc.name;
 
   for (var query_kind of TestQueries) {
+    var benchmarks = [];
+    var suit_name = test_function_name + "--" + query_kind;
     for (var test_data of TestData) {
-      var benchmarks = [];
-      var name = test_function_name + "--" + query_kind + "--" + test_data.name;
+      var name = suit_name + "--" + test_data.name;
 
       for (var object of test_data.objects) {
         var keys = test_function_desc.keys(object);
@@ -252,8 +251,8 @@ for (var test_function_desc of TestFunctions) {
         var benchmark = new Benchmark(name, false, true, 400, test_function);
         benchmarks.push(benchmark);
       }
-      Benchmarks.push(new BenchmarkSuite(name, [100], benchmarks));
     }
+    Benchmarks.push(new BenchmarkSuite(suit_name, [100], benchmarks));
   }
 }
 
