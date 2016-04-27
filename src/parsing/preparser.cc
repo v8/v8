@@ -179,7 +179,7 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
 
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseHoistableDeclaration(ok);
     case Token::CLASS:
       return ParseClassDeclaration(ok);
     case Token::CONST:
@@ -378,15 +378,8 @@ PreParser::Statement PreParser::ParseSubStatement(
 }
 
 
-PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
-  // FunctionDeclaration ::
-  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
-  // GeneratorDeclaration ::
-  //   'function' '*' Identifier '(' FormalParameterListopt ')'
-  //      '{' FunctionBody '}'
-  Expect(Token::FUNCTION, CHECK_OK);
-  int pos = position();
-  bool is_generator = Check(Token::MUL);
+PreParser::Statement PreParser::ParseHoistableDeclaration(
+    int pos, bool is_generator, bool* ok) {
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
@@ -398,6 +391,19 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        pos, FunctionLiteral::kDeclaration, language_mode(),
                        CHECK_OK);
   return Statement::FunctionDeclaration();
+}
+
+
+PreParser::Statement PreParser::ParseHoistableDeclaration(bool* ok) {
+  // FunctionDeclaration ::
+  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
+  // GeneratorDeclaration ::
+  //   'function' '*' Identifier '(' FormalParameterListopt ')'
+  //      '{' FunctionBody '}'
+  Expect(Token::FUNCTION, CHECK_OK);
+  int pos = position();
+  bool is_generator = Check(Token::MUL);
+  return ParseHoistableDeclaration(pos, is_generator, CHECK_OK);
 }
 
 
@@ -551,6 +557,20 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   if (is_lexical != nullptr) *is_lexical = lexical;
   if (is_binding_pattern != nullptr) *is_binding_pattern = is_pattern;
   return Statement::Default();
+}
+
+PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
+  Consume(Token::FUNCTION);
+  int pos = position();
+  bool is_generator = Check(Token::MUL);
+  if (allow_harmony_restrictive_declarations() && is_generator) {
+    PreParserTraits::ReportMessageAt(
+        scanner()->location(),
+        MessageTemplate::kGeneratorInLegacyContext);
+    *ok = false;
+    return Statement::Default();
+  }
+  return ParseHoistableDeclaration(pos, is_generator, ok);
 }
 
 PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(

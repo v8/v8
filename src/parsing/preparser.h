@@ -1028,6 +1028,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
                               bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
+  Statement ParseHoistableDeclaration(bool* ok);
+  Statement ParseHoistableDeclaration(int pos, bool is_generator, bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);

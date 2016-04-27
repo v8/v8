@@ -364,6 +364,8 @@ class CallSite {
     "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
+  T(GeneratorInLegacyContext,                                                  \
+    "Generator declarations are not allowed in legacy contexts.")              \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
   T(IllegalLanguageModeDirective,                                              \

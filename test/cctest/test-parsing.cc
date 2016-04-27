@@ -7142,6 +7142,13 @@ TEST(FunctionDeclarationError) {
     "with ({}) label: function f() { };",
     "if (true) label: function f() {}",
     "if (true) {} else label: function f() {}",
+    "if (true) function* f() { }",
+    "label: function* f() { }",
+    // TODO(littledan, v8:4806): Ban duplicate generator declarations in
+    // a block, maybe by tracking whether a Variable is a generator declaration
+    // "{ function* f() {} function* f() {} }",
+    // "{ function f() {} function* f() {} }",
+    // "{ function* f() {} function f() {} }",
     NULL
   };
   // Valid only in sloppy mode, with or without

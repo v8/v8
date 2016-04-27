@@ -761,9 +761,10 @@ class Parser : public ParserBase<ParserTraits> {
                                bool* ok);
   Statement* ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
                                    bool* ok);
-  Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
+  Statement* ParseFunctionDeclaration(bool* ok);
+  Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
-  Statement* ParseFunctionDeclaration(int pos, bool is_generator,
+  Statement* ParseHoistableDeclaration(int pos, bool is_generator,
                                       ZoneList<const AstRawString*>* names,
                                       bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
