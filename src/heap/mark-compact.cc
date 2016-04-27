@@ -2051,7 +2051,8 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     if (UsingEmbedderHeapTracer()) {
       embedder_heap_tracer()->TraceWrappersFrom(wrappers_to_trace_);
       wrappers_to_trace_.clear();
-    } else if (!only_process_harmony_weak_collections) {
+    }
+    if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
           visitor, &IsUnmarkedHeapObjectWithHeap);
       MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
