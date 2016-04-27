@@ -38,6 +38,20 @@ struct FormalParametersBase {
 };
 
 
+namespace typesystem {
+
+enum CoverFormalParametersEnum {
+  kNoCover = 0,
+  kAllowType = 1 << 0,
+  kAllowOptional = 1 << 1,
+  kCover = kAllowType | kAllowOptional
+};
+
+typedef base::Flags<CoverFormalParametersEnum> CoverFormalParameters;
+
+}  // namespace typesystem
+
+
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -777,9 +791,12 @@ class ParserBase : public Traits {
 
   ExpressionT ParsePrimaryExpression(ExpressionClassifier* classifier,
                                      bool* ok);
-  ExpressionT ParseExpression(bool accept_IN, bool* ok);
-  ExpressionT ParseExpression(bool accept_IN, ExpressionClassifier* classifier,
+  ExpressionT ParseExpression(bool accept_IN,
+                              typesystem::CoverFormalParameters cover,
                               bool* ok);
+  ExpressionT ParseExpression(bool accept_IN,
+                              typesystem::CoverFormalParameters cover,
+                              ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
                                 bool* is_computed_name,
@@ -796,10 +813,11 @@ class ParserBase : public Traits {
       bool* ok);
 
   ExpressionT ParseAssignmentExpression(bool accept_IN,
+                                        typesystem::CoverFormalParameters cover,
                                         ExpressionClassifier* classifier,
                                         bool* ok);
   ExpressionT ParseYieldExpression(ExpressionClassifier* classifier, bool* ok);
-  ExpressionT ParseConditionalExpression(bool accept_IN,
+  ExpressionT ParseConditionalExpression(bool accept_IN, bool allow_optional,
                                          ExpressionClassifier* classifier,
                                          bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN,
@@ -882,6 +900,8 @@ class ParserBase : public Traits {
   typename TypeSystem::Type ParseTypeReference(bool* ok);
   typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
   typename TypeSystem::TypeList ParseTypeArguments(bool* ok);
+  void ParseTypeAssertionOrParameters(ExpressionClassifier* classifier,
+                                      bool* ok);
   IdentifierListT ParsePropertyNameList(bool* ok);
   typename TypeSystem::Type ParseObjectType(bool* ok);
   typename TypeSystem::TypeMember ParseTypeMember(bool* ok);
@@ -1379,8 +1399,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
-        ExpressionT expr =
-            this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+        ExpressionT expr = this->ParseAssignmentExpression(
+            true, typesystem::kAllowType, classifier, CHECK_OK);
         if (!this->IsIdentifier(expr) && !IsValidPattern(expr)) {
           classifier->RecordArrowFormalParametersError(
               Scanner::Location(ellipsis_pos, scanner()->location().end_pos),
@@ -1398,7 +1418,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
       parenthesized_function_ = (peek() == Token::FUNCTION);
-      ExpressionT expr = this->ParseExpression(true, classifier, CHECK_OK);
+      ExpressionT expr =
+          this->ParseExpression(true, typesystem::kCover, classifier, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       return expr;
     }
@@ -1457,9 +1478,9 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
-    bool accept_IN, bool* ok) {
+    bool accept_IN, typesystem::CoverFormalParameters cover, bool* ok) {
   ExpressionClassifier classifier(this);
-  ExpressionT result = ParseExpression(accept_IN, &classifier, CHECK_OK);
+  ExpressionT result = ParseExpression(accept_IN, cover, &classifier, CHECK_OK);
   Traits::RewriteNonPattern(&classifier, CHECK_OK);
   return result;
 }
@@ -1467,14 +1488,15 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
-    bool accept_IN, ExpressionClassifier* classifier, bool* ok) {
+    bool accept_IN, typesystem::CoverFormalParameters cover,
+    ExpressionClassifier* classifier, bool* ok) {
   // Expression ::
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
   ExpressionClassifier binding_classifier(this);
-  ExpressionT result =
-      this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
+  ExpressionT result = this->ParseAssignmentExpression(
+      accept_IN, cover, &binding_classifier, CHECK_OK);
   classifier->Accumulate(&binding_classifier,
                          ExpressionClassifier::AllProductions);
   bool is_simple_parameter_list = this->IsIdentifier(result);
@@ -1499,7 +1521,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     }
     int pos = position(), expr_pos = peek_position();
     ExpressionT right = this->ParseAssignmentExpression(
-        accept_IN, &binding_classifier, CHECK_OK);
+        accept_IN, is_rest
+                       ? cover & typesystem::CoverFormalParameters(
+                                     ~typesystem::kAllowOptional)
+                       : cover,
+        &binding_classifier, CHECK_OK);
     classifier->Accumulate(&binding_classifier,
                            ExpressionClassifier::AllProductions);
     if (is_rest) {
@@ -1541,8 +1567,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
       int start_pos = peek_position();
       Consume(Token::ELLIPSIS);
       int expr_pos = peek_position();
-      ExpressionT argument =
-          this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+      ExpressionT argument = this->ParseAssignmentExpression(
+          true, typesystem::kNoCover, classifier, CHECK_OK);
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
@@ -1565,7 +1591,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
       }
     } else {
       int beg_pos = peek_position();
-      elem = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+      elem = this->ParseAssignmentExpression(true, typesystem::kNoCover,
+                                             classifier, CHECK_OK);
       CheckDestructuringElement(elem, classifier, beg_pos,
                                 scanner()->location().end_pos);
     }
@@ -1625,8 +1652,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       *is_computed_name = true;
       Consume(Token::LBRACK);
       ExpressionClassifier computed_name_classifier(this);
-      ExpressionT expression =
-          ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
+      ExpressionT expression = ParseAssignmentExpression(
+          true, typesystem::kNoCover, &computed_name_classifier, CHECK_OK);
       Traits::RewriteNonPattern(&computed_name_classifier, CHECK_OK);
       classifier->Accumulate(&computed_name_classifier,
                              ExpressionClassifier::ExpressionProductions);
@@ -1727,7 +1754,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       return this->EmptyObjectLiteralProperty();
     }
     Expect(Token::RBRACK, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-    // Parse optional result type
+    // Parse optional result type.
     typename TypeSystem::Type type = this->EmptyType();
     if (Check(Token::COLON)) {  // Braces required here.
       type = ParseValidType(CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1767,7 +1794,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
       Consume(Token::COLON);
       int beg_pos = peek_position();
       value = this->ParseAssignmentExpression(
-          true, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+          true, typesystem::kNoCover, classifier,
+          CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       CheckDestructuringElement(value, classifier, beg_pos,
                                 scanner()->location().end_pos);
 
@@ -1802,7 +1830,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
         Consume(Token::ASSIGN);
         ExpressionClassifier rhs_classifier(this);
         ExpressionT rhs = this->ParseAssignmentExpression(
-            true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+            true, typesystem::kNoCover, &rhs_classifier,
+            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         Traits::RewriteNonPattern(&rhs_classifier,
                                   CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         classifier->Accumulate(&rhs_classifier,
@@ -1945,7 +1974,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     if (!ambient && Check(Token::ASSIGN)) {
       ExpressionClassifier rhs_classifier(this);
       ExpressionT rhs = this->ParseAssignmentExpression(
-          true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+          true, typesystem::kNoCover, &rhs_classifier,
+          CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       Traits::RewriteNonPattern(&rhs_classifier,
                                 CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       classifier->Accumulate(&rhs_classifier,
@@ -2041,8 +2071,9 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
     bool is_spread = Check(Token::ELLIPSIS);
     int expr_pos = peek_position();
 
-    ExpressionT argument = this->ParseAssignmentExpression(
-        true, classifier, CHECK_OK_CUSTOM(NullExpressionList));
+    ExpressionT argument =
+        this->ParseAssignmentExpression(true, typesystem::kNoCover, classifier,
+                                        CHECK_OK_CUSTOM(NullExpressionList));
     Traits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(NullExpressionList));
     if (is_spread) {
       if (!spread_arg.IsValid()) {
@@ -2093,9 +2124,9 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
 // Precedence = 2
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
-                                              ExpressionClassifier* classifier,
-                                              bool* ok) {
+ParserBase<Traits>::ParseAssignmentExpression(
+    bool accept_IN, typesystem::CoverFormalParameters cover,
+    ExpressionClassifier* classifier, bool* ok) {
   // AssignmentExpression ::
   //   ConditionalExpression
   //   ArrowFunction
@@ -2112,18 +2143,41 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   ParserBase<Traits>::Checkpoint checkpoint(this);
   ExpressionClassifier arrow_formals_classifier(this,
                                                 classifier->duplicate_finder());
-  bool parenthesized_formals = peek() == Token::LPAREN;
-  if (!parenthesized_formals) {
+  bool maybe_arrow_formals =
+      peek() == Token::LPAREN || (scope_->typed() && peek() == Token::LT);
+  if (!maybe_arrow_formals) {
     ArrowFormalParametersUnexpectedToken(&arrow_formals_classifier);
   }
   ExpressionT expression = this->ParseConditionalExpression(
-      accept_IN, &arrow_formals_classifier, CHECK_OK);
+      accept_IN, cover & typesystem::kAllowOptional, &arrow_formals_classifier,
+      CHECK_OK);
+  // Parse optional parameter in typed mode.
+  bool optional = scope_->typed() && (cover & typesystem::kAllowOptional) &&
+                  Check(Token::CONDITIONAL);
+  if (optional) ExpressionUnexpectedToken(classifier);
+  // Parse optional type annotation in typed mode.
+  if (scope_->typed() &&
+      (maybe_arrow_formals || (cover & typesystem::kAllowType)) &&
+      peek() == Token::COLON) {
+    // This is not valid in an expression, unless followed by an arrow.
+    // Prepare the appropriate error message.
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    Consume(Token::COLON);
+    // TODO(nikolaos): Eventually, the result of the following should be used.
+    ParseValidType(CHECK_OK);
+    if (!maybe_arrow_formals || peek() != Token::ARROW)
+      classifier->RecordExpressionError(scanner()->peek_location(),
+                                        MessageTemplate::kUnexpectedToken);
+  }
   if (peek() == Token::ARROW) {
     classifier->RecordPatternError(scanner()->peek_location(),
                                    MessageTemplate::kUnexpectedToken,
                                    Token::String(Token::ARROW));
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
-                                  parenthesized_formals, CHECK_OK);
+                                  maybe_arrow_formals, CHECK_OK);
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
@@ -2169,7 +2223,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
       ExpressionClassifier::CoverInitializedNameProduction,
       false);
 
-  if (!Token::IsAssignmentOp(peek())) {
+  if (optional || !Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
     // Now pending non-pattern expressions must be merged.
     classifier->MergeNonPatterns(&arrow_formals_classifier);
@@ -2201,8 +2255,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
   ExpressionClassifier rhs_classifier(this);
 
-  ExpressionT right =
-      this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
+  ExpressionT right = this->ParseAssignmentExpression(
+      accept_IN, typesystem::kNoCover, &rhs_classifier, CHECK_OK);
   Traits::RewriteNonPattern(&rhs_classifier, CHECK_OK);
   classifier->Accumulate(
       &rhs_classifier, ExpressionClassifier::ExpressionProductions |
@@ -2282,7 +2336,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         if (!delegating) break;
         // Delegating yields require an RHS; fall through.
       default:
-        expression = ParseAssignmentExpression(false, classifier, CHECK_OK);
+        expression = ParseAssignmentExpression(false, typesystem::kNoCover,
+                                               classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         break;
     }
@@ -2305,6 +2360,7 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
+                                               bool allow_optional,
                                                ExpressionClassifier* classifier,
                                                bool* ok) {
   // ConditionalExpression ::
@@ -2316,6 +2372,14 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   ExpressionT expression =
       this->ParseBinaryExpression(4, accept_IN, classifier, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
+  // In typed mode, when parsing an expression that could be a formal
+  // parameter, we may encounter a '?' which denotes an optional parameter.
+  // This can only be followed by ':', ',' or ')', which cannot start an
+  // AssignmentExpression.
+  if (scope_->typed() && allow_optional &&
+      (PeekAhead() == Token::COMMA || PeekAhead() == Token::COLON ||
+       PeekAhead() == Token::RPAREN))
+    return expression;
   Traits::RewriteNonPattern(classifier, CHECK_OK);
   ArrowFormalParametersUnexpectedToken(classifier);
   BindingPatternUnexpectedToken(classifier);
@@ -2323,11 +2387,12 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
-  ExpressionT left = ParseAssignmentExpression(true, classifier, CHECK_OK);
+  ExpressionT left = ParseAssignmentExpression(true, typesystem::kNoCover,
+                                               classifier, CHECK_OK);
   Traits::RewriteNonPattern(classifier, CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
-  ExpressionT right =
-      ParseAssignmentExpression(accept_IN, classifier, CHECK_OK);
+  ExpressionT right = ParseAssignmentExpression(accept_IN, typesystem::kNoCover,
+                                                classifier, CHECK_OK);
   Traits::RewriteNonPattern(classifier, CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
 }
@@ -2453,7 +2518,33 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
                                         true /* prefix */,
                                         expression,
                                         position());
-
+  } else if (scope_->typed() && op == Token::LT) {
+    // In typed mode, allow type assertions of the form <Type> UnaryExpression
+    // and also optional type parameters for arrow functions, of the form
+    // <Type, ... Type> ( FormalParameters ) => ConciseBody.
+    // We cannot distinguish between those two at this point...
+    // We can parse them with a cover grammar (TypeAssertionOrParameters)
+    // and classify later; just prepare the appropriate error message.
+    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
+    const char* arg;
+    Scanner::Location location = scanner()->peek_location();
+    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
+    // TODO(nikolaos): the following should have a result and be really used!
+    ParseTypeAssertionOrParameters(classifier, CHECK_OK);
+    // Arrow formal parameters should be parenthesized after type parameters.
+    bool parenthesized_formals = peek() == Token::LPAREN;
+    ExpressionT expression = ParseUnaryExpression(classifier, CHECK_OK);
+    // A type assertion cannot be a valid binding or assignment pattern.
+    classifier->RecordPatternError(location, message, arg);
+    if (!parenthesized_formals)
+      classifier->RecordArrowFormalParametersError(location, message, arg);
+    // TODO(nikolaos): The result is wrapped to disallow e.g. <number> x = 42
+    // but when AST is introduced for type assertions, the RewritableExpression
+    // will be necessary for desugaring it.
+    expression = factory()->NewRewritableExpression(expression);
+    // TODO(nikolaos): The following will be necessary now for desugaring.
+    // Traits::QueueNonPatternForRewriting(expression);
+    return expression;
   } else {
     return this->ParsePostfixExpression(classifier, ok);
   }
@@ -2514,7 +2605,8 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::LBRACK);
         int pos = position();
-        ExpressionT index = ParseExpression(true, classifier, CHECK_OK);
+        ExpressionT index =
+            ParseExpression(true, typesystem::kNoCover, classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         result = factory()->NewProperty(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
@@ -2848,7 +2940,8 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
 
         Consume(Token::LBRACK);
         int pos = position();
-        ExpressionT index = this->ParseExpression(true, classifier, CHECK_OK);
+        ExpressionT index = this->ParseExpression(true, typesystem::kNoCover,
+                                                  classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         expression = factory()->NewProperty(expression, index, pos);
         if (fni_ != NULL) {
@@ -2947,7 +3040,8 @@ void ParserBase<Traits>::ParseFormalParameter(FormalParametersT* parameters,
   ExpressionT initializer = Traits::EmptyExpression();
   if (!is_rest && !optional && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
-    initializer = ParseAssignmentExpression(true, &init_classifier, ok);
+    initializer = ParseAssignmentExpression(true, typesystem::kNoCover,
+                                            &init_classifier, ok);
     if (!*ok) return;
     Traits::RewriteNonPattern(&init_classifier, ok);
     ValidateFormalParameterInitializer(&init_classifier, ok);
@@ -3123,8 +3217,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       int pos = position();
       parenthesized_function_ = false;
       ExpressionClassifier classifier(this);
-      ExpressionT expression =
-          ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
+      ExpressionT expression = ParseAssignmentExpression(
+          accept_IN, typesystem::kNoCover, &classifier, CHECK_OK);
       Traits::RewriteNonPattern(&classifier, CHECK_OK);
       body = this->NewStatementList(1, zone());
       this->AddParameterInitializationBlock(formal_parameters, body, CHECK_OK);
@@ -3230,7 +3324,8 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start,
     }
 
     int expr_pos = peek_position();
-    ExpressionT expression = this->ParseExpression(true, classifier, CHECK_OK);
+    ExpressionT expression =
+        this->ParseExpression(true, typesystem::kNoCover, classifier, CHECK_OK);
     Traits::RewriteNonPattern(classifier, CHECK_OK);
     Traits::AddTemplateExpression(&ts, expression);
 
@@ -3376,13 +3471,23 @@ typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
           : ParseUnionOrIntersectionOrPrimaryType(ok);
   if (!*ok) return this->EmptyType();
   // Parse function and constructor types.
-  if (Check(Token::ARROW)) {
+  if (peek() == Token::ARROW) {
     typename TypeSystem::FormalParameters parameters =
         type->AsValidParameterList(zone_, ok);
     if (!*ok) {
+      // If we don't have a valid list of parameters and we haven't seen
+      // type parameters or 'new', we assume that the arrow is not part
+      // of the type and return.  Otherwise, type annotations in the result
+      // of arrow functions will not work.
+      if (!has_new && this->IsNullTypeParameters(type_parameters)) {
+        *ok = true;
+        return type;
+      }
+      Consume(Token::ARROW);
       ReportUnexpectedToken(Token::ARROW);
       return this->EmptyType();
     }
+    Consume(Token::ARROW);
     typename TypeSystem::Type result_type = ParseValidType(CHECK_OK_TYPE);
     return factory()->NewFunctionType(type_parameters, parameters, result_type,
                                       pos, has_new);
@@ -3431,6 +3536,45 @@ ParserBase<Traits>::ParseTypeArguments(bool* ok) {
   } while (Check(Token::COMMA));
   Expect(Token::GT, CHECK_OK_CUSTOM(NullTypeList));
   return arguments;
+}
+
+
+// This parses a cover grammar that encompasses type assertions and type
+// arguments for arrow functions.
+// TODO(nikolaos): Eventually, it should return AST for this.
+//
+// TypeAssertionOrParameters ::=
+//   < Type [ extends Type ] ( , Identifier extends Type )* >
+template <typename Traits>
+void ParserBase<Traits>::ParseTypeAssertionOrParameters(
+    ExpressionClassifier* classifier, bool* ok) {
+  Expect(Token::LT, ok);
+  if (!*ok) return;
+  int pos = peek_position();
+  typename TypeSystem::Type type = ParseValidType(ok);
+  if (!*ok) return;
+  if (type->IsValidBindingIdentifier()) {
+    if (peek() != Token::GT)
+      classifier->RecordExpressionError(scanner()->peek_location(),
+                                        MessageTemplate::kInvalidTypeAssertion);
+    if (Check(Token::EXTENDS)) {
+      ParseValidType(ok);
+      if (!*ok) return;
+    }
+    while (Check(Token::COMMA)) {
+      ParseIdentifierName(ok);
+      if (!*ok) return;
+      if (Check(Token::EXTENDS)) {
+        ParseValidType(ok);
+        if (!*ok) return;
+      }
+    }
+  } else {
+    classifier->RecordArrowFormalParametersError(
+        Scanner::Location(pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidTypeParameter);
+  }
+  Expect(Token::GT, ok);
 }
 
 

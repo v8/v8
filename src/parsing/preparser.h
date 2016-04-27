@@ -423,6 +423,42 @@ typedef PreParserList<PreParserStatement> PreParserStatementList;
 namespace typesystem {
 
 
+enum PreParserTypeInfoEnum {
+  kValidNone = 0,
+  kValidType = 1 << 0,
+  kValidBindingIdentifier = 1 << 1,
+  kValidBindingPattern = 1 << 2,
+  kStringLiteralType = 1 << 3,
+  kValidBindingIdentifierOrPattern =
+      kValidBindingIdentifier | kValidBindingPattern
+};
+
+typedef base::Flags<PreParserTypeInfoEnum> PreParserTypeInfo;
+
+
+class PreParserTypeBase {
+ public:
+  PreParserTypeInfo type_info() const { return type_info_; }
+
+  bool IsValidType() const { return is_valid(kValidType); }
+  bool IsValidBindingIdentifier() const {
+    return is_valid(kValidBindingIdentifier);
+  }
+  bool IsValidBindingIdentifierOrPattern() const {
+    return is_valid(kValidBindingIdentifierOrPattern);
+  }
+  bool IsStringLiteralType() const { return is_valid(kStringLiteralType); }
+
+ protected:
+  explicit PreParserTypeBase(PreParserTypeInfo info) : type_info_(info) {}
+
+  bool is_valid(PreParserTypeInfo info) const { return type_info_ & info; }
+
+ private:
+  PreParserTypeInfo type_info_;
+};
+
+
 class PreParserType;
 
 
@@ -435,22 +471,16 @@ class PreParserTypeParameter {
 };
 
 
-class PreParserFormalParameter {
+class PreParserFormalParameter : public PreParserTypeBase {
  public:
   static PreParserFormalParameter Named() {
-    return PreParserFormalParameter(false, false);
+    return PreParserFormalParameter(kValidNone);
   }
   V8_INLINE static PreParserFormalParameter Unnamed(const PreParserType& type);
 
-  bool IsValidType() const { return valid_type_; }
-  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
-
  private:
-  PreParserFormalParameter(bool valid_type, bool valid_binder)
-      : valid_type_(valid_type), valid_binder_(valid_binder) {}
-
-  bool valid_type_;
-  bool valid_binder_;
+  explicit PreParserFormalParameter(PreParserTypeInfo info)
+      : PreParserTypeBase(info) {}
 };
 
 
@@ -477,20 +507,26 @@ class PreParserFormalParameters
 };
 
 
-class PreParserType {
+class PreParserType : public PreParserTypeBase {
  public:
   static PreParserType Default(bool valid_type = true,
-                               bool valid_binder = false) {
-    return PreParserType(valid_type, valid_binder, false);
+                               bool valid_binding_identifier = false,
+                               bool valid_binding_pattern = false) {
+    return PreParserType(PreParserTypeInfo(
+        (valid_type ? kValidType : kValidNone) |
+        (valid_binding_identifier ? kValidBindingIdentifier : kValidNone) |
+        (valid_binding_pattern ? kValidBindingPattern : kValidNone)));
   }
   static PreParserType Reference(bool simple) {
-    return PreParserType(true, simple, false);
+    return PreParserType(PreParserTypeInfo(
+        simple ? (kValidType | kValidBindingIdentifier) : kValidType));
   }
   static PreParserType Parenthesized(bool valid_type, int arity) {
-    return PreParserType(valid_type, false, false, arity);
+    return PreParserType(
+        PreParserTypeInfo(valid_type ? kValidType : kValidNone), arity);
   }
   static PreParserType StringLiteral() {
-    return PreParserType(true, false, true);
+    return PreParserType(PreParserTypeInfo(kValidType | kStringLiteralType));
   }
 
   // Dummy implementation for making type->somefunc() work in both Parser
@@ -498,7 +534,7 @@ class PreParserType {
   PreParserType* operator->() { return this; }
 
   PreParserType Uncover(bool* ok) {
-    *ok = valid_type_;
+    *ok = IsValidType();
     return *this;
   }
 
@@ -508,20 +544,10 @@ class PreParserType {
     return PreParserFormalParameters();
   }
 
-  bool IsValidType() const { return valid_type_; }
-  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
-  bool IsStringLiteralType() const { return string_; }
-
  private:
-  PreParserType(bool valid_type, bool valid_binder, bool string, int arity = -1)
-      : valid_type_(valid_type),
-        valid_binder_(valid_binder),
-        string_(string),
-        arity_(arity) {}
+  explicit PreParserType(PreParserTypeInfo info, int arity = -1)
+      : PreParserTypeBase(info), arity_(arity) {}
 
-  bool valid_type_;
-  bool valid_binder_;
-  bool string_;
   int arity_;
 };
 
@@ -529,27 +555,24 @@ class PreParserType {
 typedef PreParserList<PreParserType> PreParserTypeList;
 
 
-class PreParserTypeMember {
+class PreParserTypeMember : public PreParserTypeBase {
  public:
   static PreParserTypeMember Default(bool valid_type, bool valid_binder) {
-    return PreParserTypeMember(valid_type, valid_binder);
+    return PreParserTypeMember(PreParserTypeInfo(
+        (valid_type ? kValidType : kValidNone) |
+        (valid_binder ? kValidBindingIdentifierOrPattern : kValidNone)));
   }
   static PreParserTypeMember IndexSignature() {
-    return PreParserTypeMember(true, false);
+    return PreParserTypeMember(kValidType);
   }
-  bool IsValidType() const { return valid_type_; }
-  bool IsValidBindingIdentifierOrPattern() const { return valid_binder_; }
 
   // Dummy implementation for making type_member->somefunc() work in both
   // Parser and PreParser.
   PreParserTypeMember* operator->() { return this; }
 
  private:
-  PreParserTypeMember(bool valid_type, bool valid_binder)
-      : valid_type_(valid_type), valid_binder_(valid_binder) {}
-
-  bool valid_type_;
-  bool valid_binder_;
+  explicit PreParserTypeMember(PreParserTypeInfo info)
+      : PreParserTypeBase(info) {}
 };
 
 
@@ -558,8 +581,7 @@ typedef PreParserList<PreParserTypeMember> PreParserTypeMembers;
 
 V8_INLINE PreParserFormalParameter
 PreParserFormalParameter::Unnamed(const PreParserType& type) {
-  return PreParserFormalParameter(type.IsValidType(),
-                                  type.IsValidBindingIdentifierOrPattern());
+  return PreParserFormalParameter(type.type_info());
 }
 
 

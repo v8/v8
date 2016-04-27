@@ -7509,6 +7509,26 @@ TEST(TypedModeLazy) {
   const char* typed_data[] = {
     "function p() { var n: number; }; p()",
     "function p() { function q() { var n: number; }; q(); }; p()",
+    "function p() : number { var n: number; }; p()",
+    "function p() : number { "
+      "function q() : number { var n: number; }; q(); }; p()",
+    "function p(x: number) { var n: number; }; p(0)",
+    "function p(x: number) { "
+      "function q(x: number) { var n: number; }; q(x); }; p(0)",
+    "function p(x: number) : number { var n: number; }; p(0)",
+    "function p(x: number) : number { "
+      "function q(x: number) : number { var n: number; }; q(x); }; p(0)",
+    "var p = () => { var n: number; }; p()",
+    "var p = () => { var q = () => { var n: number; }; q(); }; p()",
+    "var p = () : number => { var n: number; }; p()",
+    "var p = () : number => { "
+      "var q = () : number => { var n: number; }; q(); }; p()",
+    "var p = (x: number) => { var n: number; }; p(0)",
+    "var p = (x: number) => { "
+      "var q = (x: number) => { var n: number; }; q(x); }; p(0)",
+    "var p = (x: number) : number => { var n: number; }; p(0)",
+    "var p = (x: number) : number => { "
+      "var q = (x: number) : number => { var n: number; }; q(x); }; p(0)",
     NULL
   };
 

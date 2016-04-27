@@ -2499,9 +2499,6 @@ class Assignment final : public Expression {
 // 2. All other Is* and As* methods are practically delegated to the
 //    wrapped node, i.e. IsArrayLiteral() will return true iff the
 //    wrapped node is an array literal.
-//
-// Furthermore, an invariant that should be respected is that the wrapped
-// node is not a RewritableExpression.
 class RewritableExpression : public Expression {
  public:
   DECLARE_NODE_TYPE(RewritableExpression)
@@ -2512,7 +2509,6 @@ class RewritableExpression : public Expression {
   void Rewrite(Expression* new_expression) {
     DCHECK(!is_rewritten());
     DCHECK_NOT_NULL(new_expression);
-    DCHECK(!new_expression->IsRewritableExpression());
     expr_ = new_expression;
     is_rewritten_ = true;
   }
@@ -2523,9 +2519,7 @@ class RewritableExpression : public Expression {
   RewritableExpression(Zone* zone, Expression* expression)
       : Expression(zone, expression->position()),
         is_rewritten_(false),
-        expr_(expression) {
-    DCHECK(!expression->IsRewritableExpression());
-  }
+        expr_(expression) {}
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -2964,6 +2958,7 @@ class Type : public AstNode {
                                                              bool* ok) const;
 
   V8_INLINE bool IsValidType() const;
+  V8_INLINE bool IsValidBindingIdentifier() const;
   V8_INLINE bool IsValidBindingIdentifierOrPattern() const;
 
  protected:
@@ -3325,6 +3320,12 @@ V8_INLINE bool Type::IsValidType() const {
   if (IsTupleType()) return AsTupleType()->IsValidType();
   if (IsObjectType()) return AsObjectType()->IsValidType();
   return true;
+}
+
+V8_INLINE bool Type::IsValidBindingIdentifier() const {
+  if (IsTypeReference()) return AsTypeReference()->IsValidBindingIdentifier();
+  if (IsPredefinedType()) return AsPredefinedType()->IsValidBindingIdentifier();
+  return false;
 }
 
 V8_INLINE bool Type::IsValidBindingIdentifierOrPattern() const {
@@ -4068,34 +4069,36 @@ class AstNodeFactory final BASE_EMBEDDED {
 #define DECLARE_NODE_FUNCTIONS(type)                                          \
   bool AstNode::Is##type() const {                                            \
     NodeType mine = node_type();                                              \
-    if (mine == AstNode::kRewritableExpression &&                             \
-        AstNode::k##type != AstNode::kRewritableExpression)                   \
-      mine = reinterpret_cast<const RewritableExpression*>(this)              \
-                 ->expression()                                               \
-                 ->node_type();                                               \
+    const AstNode* node = this;                                               \
+    while (mine == AstNode::kRewritableExpression &&                          \
+        AstNode::k##type != AstNode::kRewritableExpression) {                 \
+      node =                                                                  \
+          reinterpret_cast<const RewritableExpression*>(node)->expression();  \
+      mine = node->node_type();                                               \
+    }                                                                         \
     return mine == AstNode::k##type;                                          \
   }                                                                           \
   type* AstNode::As##type() {                                                 \
     NodeType mine = node_type();                                              \
-    AstNode* result = this;                                                   \
-    if (mine == AstNode::kRewritableExpression &&                             \
+    AstNode* node = this;                                                     \
+    while (mine == AstNode::kRewritableExpression &&                          \
         AstNode::k##type != AstNode::kRewritableExpression) {                 \
-      result =                                                                \
-          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
-      mine = result->node_type();                                             \
+      node =                                                                  \
+          reinterpret_cast<const RewritableExpression*>(node)->expression();  \
+      mine = node->node_type();                                               \
     }                                                                         \
-    return mine == AstNode::k##type ? reinterpret_cast<type*>(result) : NULL; \
+    return mine == AstNode::k##type ? reinterpret_cast<type*>(node) : NULL;   \
   }                                                                           \
   const type* AstNode::As##type() const {                                     \
     NodeType mine = node_type();                                              \
-    const AstNode* result = this;                                             \
-    if (mine == AstNode::kRewritableExpression &&                             \
+    const AstNode* node = this;                                               \
+    while (mine == AstNode::kRewritableExpression &&                          \
         AstNode::k##type != AstNode::kRewritableExpression) {                 \
-      result =                                                                \
-          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
-      mine = result->node_type();                                             \
+      node =                                                                  \
+          reinterpret_cast<const RewritableExpression*>(node)->expression();  \
+      mine = node->node_type();                                               \
     }                                                                         \
-    return mine == AstNode::k##type ? reinterpret_cast<const type*>(result)   \
+    return mine == AstNode::k##type ? reinterpret_cast<const type*>(node)     \
                                     : NULL;                                   \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)

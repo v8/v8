@@ -1095,10 +1095,16 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         // NewUnresolved references in current scope. Entrer arrow function
         // scope for formal parameter parsing.
         BlockState block_state(&scope_, scope);
-        if (Check(Token::LPAREN)) {
+        if (peek() == Token::LPAREN ||
+            (scope_->typed() && peek() == Token::LT)) {
+          if (scope_->typed() && peek() == Token::LT) ParseTypeParameters(&ok);
           // '(' StrictFormalParameters ')'
-          ParseFormalParameterList(&formals, true, &formals_classifier, &ok);
+          if (ok) Expect(Token::LPAREN, &ok);
+          if (ok)
+            ParseFormalParameterList(&formals, true, &formals_classifier, &ok);
           if (ok) ok = Check(Token::RPAREN);
+          // Parse optional type annotation in typed mode.
+          if (ok && scope_->typed() && Check(Token::COLON)) ParseValidType(&ok);
         } else {
           // BindingIdentifier
           ParseFormalParameter(&formals, false, &formals_classifier, &ok);
@@ -1689,7 +1695,8 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
       int pos = peek_position();
       ExpressionClassifier classifier(this);
-      Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+      Expression* expr = ParseAssignmentExpression(true, typesystem::kNoCover,
+                                                   &classifier, CHECK_OK);
       RewriteNonPattern(&classifier, CHECK_OK);
 
       ExpectSemicolon(CHECK_OK);
@@ -2475,7 +2482,8 @@ Block* Parser::ParseVariableDeclarations(
     if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier(this);
       value = ParseAssignmentExpression(var_context != kForStatement,
-                                        &classifier, CHECK_OK);
+                                        typesystem::kNoCover, &classifier,
+                                        CHECK_OK);
       RewriteNonPattern(&classifier, CHECK_OK);
       variable_loc.end_pos = scanner()->location().end_pos;
 
@@ -2589,7 +2597,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
   }
 
   bool starts_with_idenfifier = peek_any_identifier();
-  Expression* expr = ParseExpression(true, CHECK_OK);
+  Expression* expr = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   if (peek() == Token::COLON && starts_with_idenfifier && expr != NULL &&
       expr->AsVariableProxy() != NULL &&
       !expr->AsVariableProxy()->is_this()) {
@@ -2662,7 +2670,7 @@ IfStatement* Parser::ParseIfStatement(ZoneList<const AstRawString*>* labels,
   int pos = peek_position();
   Expect(Token::IF, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  Expression* condition = ParseExpression(true, CHECK_OK);
+  Expression* condition = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* then_statement = ParseScopedStatement(labels, false, CHECK_OK);
   Statement* else_statement = NULL;
@@ -2768,7 +2776,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     }
   } else {
     int pos = peek_position();
-    return_value = ParseExpression(true, CHECK_OK);
+    return_value = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
 
     if (IsSubclassConstructor(function_state_->kind())) {
       // For subclass constructors we need to return this in case of undefined
@@ -2849,7 +2857,7 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
   }
 
   Expect(Token::LPAREN, CHECK_OK);
-  Expression* expr = ParseExpression(true, CHECK_OK);
+  Expression* expr = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
@@ -2871,7 +2879,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   Expression* label = NULL;  // NULL expression indicates default case
   if (peek() == Token::CASE) {
     Expect(Token::CASE, CHECK_OK);
-    label = ParseExpression(true, CHECK_OK);
+    label = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   } else {
     Expect(Token::DEFAULT, CHECK_OK);
     if (*default_seen_ptr) {
@@ -2916,7 +2924,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
 
   Expect(Token::SWITCH, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  Expression* tag = ParseExpression(true, CHECK_OK);
+  Expression* tag = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   Variable* tag_variable =
@@ -2986,7 +2994,7 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
     *ok = false;
     return NULL;
   }
-  Expression* exception = ParseExpression(true, CHECK_OK);
+  Expression* exception = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
   return factory()->NewExpressionStatement(
@@ -3197,7 +3205,7 @@ DoWhileStatement* Parser::ParseDoWhileStatement(
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
-  Expression* cond = ParseExpression(true, CHECK_OK);
+  Expression* cond = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -3221,7 +3229,7 @@ WhileStatement* Parser::ParseWhileStatement(
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  Expression* cond = ParseExpression(true, CHECK_OK);
+  Expression* cond = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
 
@@ -3726,10 +3734,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Expression* enumerable;
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          enumerable = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          enumerable = ParseAssignmentExpression(true, typesystem::kNoCover,
+                                                 &classifier, CHECK_OK);
           RewriteNonPattern(&classifier, CHECK_OK);
         } else {
-          enumerable = ParseExpression(true, CHECK_OK);
+          enumerable = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
         }
 
         Expect(Token::RPAREN, CHECK_OK);
@@ -3817,7 +3826,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     } else {
       int lhs_beg_pos = peek_position();
       ExpressionClassifier classifier(this);
-      Expression* expression = ParseExpression(false, &classifier, CHECK_OK);
+      Expression* expression =
+          ParseExpression(false, typesystem::kNoCover, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
       is_let_identifier_expression =
@@ -3850,10 +3860,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Expression* enumerable;
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          enumerable = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          enumerable = ParseAssignmentExpression(true, typesystem::kNoCover,
+                                                 &classifier, CHECK_OK);
           RewriteNonPattern(&classifier, CHECK_OK);
         } else {
-          enumerable = ParseExpression(true, CHECK_OK);
+          enumerable = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
         }
 
         Expect(Token::RPAREN, CHECK_OK);
@@ -3908,12 +3919,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     BlockState block_state(&scope_, inner_scope);
 
     if (peek() != Token::SEMICOLON) {
-      cond = ParseExpression(true, CHECK_OK);
+      cond = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
     }
     Expect(Token::SEMICOLON, CHECK_OK);
 
     if (peek() != Token::RPAREN) {
-      Expression* exp = ParseExpression(true, CHECK_OK);
+      Expression* exp = ParseExpression(true, typesystem::kNoCover, CHECK_OK);
       next = factory()->NewExpressionStatement(exp, exp->position());
     }
     Expect(Token::RPAREN, CHECK_OK);

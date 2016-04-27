@@ -486,6 +486,8 @@ class CallSite {
   T(IllegalDeclare,                                                            \
     "Unexpected 'declare', ambient declaration not allowed here")              \
   T(AmbientGetOrSet, "Unexpected 'get' or 'set' in ambient class declaration") \
+  T(InvalidTypeAssertion, "Invalid type assertion")                            \
+  T(InvalidTypeParameter, "Invalid type parameter")                            \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

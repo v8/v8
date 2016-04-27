@@ -591,8 +591,8 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
     nvars++;
     if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier(this);
-      ParseAssignmentExpression(var_context != kForStatement, &classifier,
-                                CHECK_OK);
+      ParseAssignmentExpression(var_context != kForStatement,
+                                typesystem::kNoCover, &classifier, CHECK_OK);
       ValidateExpression(&classifier, CHECK_OK);
 
       variable_loc.end_pos = scanner()->location().end_pos;
@@ -642,7 +642,8 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
 
   bool starts_with_identifier = peek_any_identifier();
   ExpressionClassifier classifier(this);
-  Expression expr = ParseExpression(true, &classifier, CHECK_OK);
+  Expression expr =
+      ParseExpression(true, typesystem::kNoCover, &classifier, CHECK_OK);
   ValidateExpression(&classifier, CHECK_OK);
 
   // Even if the expression starts with an identifier, it is not necessarily an
@@ -690,7 +691,7 @@ PreParser::Statement PreParser::ParseIfStatement(bool* ok) {
 
   Expect(Token::IF, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   Statement stat = ParseScopedStatement(false, CHECK_OK);
   if (peek() == Token::ELSE) {
@@ -761,7 +762,7 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
-    ParseExpression(true, CHECK_OK);
+    ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Jump();
@@ -778,7 +779,7 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
     return Statement::Default();
   }
   Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   Scope* with_scope = NewScope(scope_, WITH_SCOPE);
@@ -794,7 +795,7 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
 
   Expect(Token::SWITCH, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -802,7 +803,7 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
   while (token != Token::RBRACE) {
     if (token == Token::CASE) {
       Expect(Token::CASE, CHECK_OK);
-      ParseExpression(true, CHECK_OK);
+      ParseExpression(true, typesystem::kNoCover, CHECK_OK);
     } else {
       Expect(Token::DEFAULT, CHECK_OK);
     }
@@ -829,7 +830,7 @@ PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   ParseScopedStatement(true, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, ok);
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
   return Statement::Default();
@@ -842,7 +843,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   ParseScopedStatement(true, ok);
   return Statement::Default();
@@ -889,10 +890,11 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          ParseAssignmentExpression(true, typesystem::kNoCover, &classifier,
+                                    CHECK_OK);
           RewriteNonPattern(&classifier, CHECK_OK);
         } else {
-          ParseExpression(true, CHECK_OK);
+          ParseExpression(true, typesystem::kNoCover, CHECK_OK);
         }
 
         Expect(Token::RPAREN, CHECK_OK);
@@ -902,7 +904,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
     } else {
       int lhs_beg_pos = peek_position();
       ExpressionClassifier classifier(this);
-      Expression lhs = ParseExpression(false, &classifier, CHECK_OK);
+      Expression lhs =
+          ParseExpression(false, typesystem::kNoCover, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
@@ -926,10 +929,11 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
 
         if (mode == ForEachStatement::ITERATE) {
           ExpressionClassifier classifier(this);
-          ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          ParseAssignmentExpression(true, typesystem::kNoCover, &classifier,
+                                    CHECK_OK);
           RewriteNonPattern(&classifier, CHECK_OK);
         } else {
-          ParseExpression(true, CHECK_OK);
+          ParseExpression(true, typesystem::kNoCover, CHECK_OK);
         }
 
         Expect(Token::RPAREN, CHECK_OK);
@@ -950,12 +954,12 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   Expect(Token::SEMICOLON, CHECK_OK);
 
   if (peek() != Token::SEMICOLON) {
-    ParseExpression(true, CHECK_OK);
+    ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
   if (peek() != Token::RPAREN) {
-    ParseExpression(true, CHECK_OK);
+    ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   }
   Expect(Token::RPAREN, CHECK_OK);
 
@@ -974,7 +978,7 @@ PreParser::Statement PreParser::ParseThrowStatement(bool* ok) {
     *ok = false;
     return Statement::Default();
   }
-  ParseExpression(true, CHECK_OK);
+  ParseExpression(true, typesystem::kNoCover, CHECK_OK);
   ExpectSemicolon(ok);
   return Statement::Jump();
 }
