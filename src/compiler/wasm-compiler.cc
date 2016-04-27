@@ -2968,11 +2968,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     }
   }
   CompilationInfo info(func_name, isolate, jsgraph->graph()->zone(), flags);
-  base::SmartPointer<OptimizedCompileJob> job(Pipeline::NewWasmCompilationJob(
+  base::SmartPointer<CompilationJob> job(Pipeline::NewWasmCompilationJob(
       &info, jsgraph->graph(), descriptor, source_positions));
   Handle<Code> code = Handle<Code>::null();
-  if (job->OptimizeGraph() == OptimizedCompileJob::SUCCEEDED &&
-      job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+  if (job->OptimizeGraph() == CompilationJob::SUCCEEDED &&
+      job->GenerateCode() == CompilationJob::SUCCEEDED) {
     code = info.code();
   }
 

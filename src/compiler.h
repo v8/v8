@@ -17,8 +17,8 @@ namespace internal {
 
 // Forward declarations.
 class CompilationInfo;
+class CompilationJob;
 class JavaScriptFrame;
-class OptimizedCompileJob;
 class ParseInfo;
 class ScriptData;
 
@@ -50,8 +50,8 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static bool CompileForLiveEdit(Handle<Script> script);
 
-  // Generate and install code from previously queued optimization job.
-  static void FinalizeOptimizedCompileJob(OptimizedCompileJob* job);
+  // Generate and install code from previously queued compilation job.
+  static void FinalizeCompilationJob(CompilationJob* job);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -572,11 +572,11 @@ class CompilationInfo {
 // succeed. Apart from their return value, the status of the phase last run can
 // be checked using {last_status()} as well.
 // TODO(mstarzinger): Make CompilationInfo base embedded.
-class OptimizedCompileJob {
+class CompilationJob {
  public:
-  explicit OptimizedCompileJob(CompilationInfo* info, const char* compiler_name)
+  explicit CompilationJob(CompilationInfo* info, const char* compiler_name)
       : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}
-  virtual ~OptimizedCompileJob() {}
+  virtual ~CompilationJob() {}
 
   enum Status {
     FAILED, BAILED_OUT, SUCCEEDED

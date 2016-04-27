@@ -485,12 +485,11 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     }
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
-    v8::base::SmartPointer<OptimizedCompileJob> job(
-        Pipeline::NewWasmCompilationJob(&info, graph(), desc,
-                                        &source_position_table_));
+    v8::base::SmartPointer<CompilationJob> job(Pipeline::NewWasmCompilationJob(
+        &info, graph(), desc, &source_position_table_));
     Handle<Code> code = Handle<Code>::null();
-    if (job->OptimizeGraph() == OptimizedCompileJob::SUCCEEDED &&
-        job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+    if (job->OptimizeGraph() == CompilationJob::SUCCEEDED &&
+        job->GenerateCode() == CompilationJob::SUCCEEDED) {
       code = info.code();
     }
 #ifdef ENABLE_DISASSEMBLER

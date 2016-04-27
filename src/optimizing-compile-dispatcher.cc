@@ -15,8 +15,7 @@ namespace internal {
 
 namespace {
 
-void DisposeOptimizedCompileJob(OptimizedCompileJob* job,
-                                bool restore_function_code) {
+void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
   // The recompile job is allocated in the CompilationInfo's zone.
   CompilationInfo* info = job->info();
   if (restore_function_code) {
@@ -86,33 +85,30 @@ OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
   DeleteArray(input_queue_);
 }
 
-
-OptimizedCompileJob* OptimizingCompileDispatcher::NextInput(
-    bool check_if_flushing) {
+CompilationJob* OptimizingCompileDispatcher::NextInput(bool check_if_flushing) {
   base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
   if (input_queue_length_ == 0) return NULL;
-  OptimizedCompileJob* job = input_queue_[InputQueueIndex(0)];
+  CompilationJob* job = input_queue_[InputQueueIndex(0)];
   DCHECK_NOT_NULL(job);
   input_queue_shift_ = InputQueueIndex(1);
   input_queue_length_--;
   if (check_if_flushing) {
     if (static_cast<ModeFlag>(base::Acquire_Load(&mode_)) == FLUSH) {
       AllowHandleDereference allow_handle_dereference;
-      DisposeOptimizedCompileJob(job, true);
+      DisposeCompilationJob(job, true);
       return NULL;
     }
   }
   return job;
 }
 
-
-void OptimizingCompileDispatcher::CompileNext(OptimizedCompileJob* job) {
+void OptimizingCompileDispatcher::CompileNext(CompilationJob* job) {
   if (!job) return;
 
   // The function may have already been optimized by OSR.  Simply continue.
-  OptimizedCompileJob::Status status = job->OptimizeGraph();
+  CompilationJob::Status status = job->OptimizeGraph();
   USE(status);  // Prevent an unused-variable error in release mode.
-  DCHECK(status != OptimizedCompileJob::FAILED);
+  DCHECK(status != CompilationJob::FAILED);
 
   // The function may have already been optimized by OSR.  Simply continue.
   // Use a mutex to make sure that functions marked for install
@@ -125,7 +121,7 @@ void OptimizingCompileDispatcher::CompileNext(OptimizedCompileJob* job) {
 
 void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   for (;;) {
-    OptimizedCompileJob* job = NULL;
+    CompilationJob* job = NULL;
     {
       base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
@@ -133,7 +129,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
       output_queue_.pop();
     }
 
-    DisposeOptimizedCompileJob(job, restore_function_code);
+    DisposeCompilationJob(job, restore_function_code);
   }
 }
 
@@ -177,7 +173,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
 
   for (;;) {
-    OptimizedCompileJob* job = NULL;
+    CompilationJob* job = NULL;
     {
       base::LockGuard<base::Mutex> access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
@@ -192,16 +188,14 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
         function->ShortPrint();
         PrintF(" as it has already been optimized.\n");
       }
-      DisposeOptimizedCompileJob(job, false);
+      DisposeCompilationJob(job, false);
     } else {
-      Compiler::FinalizeOptimizedCompileJob(job);
+      Compiler::FinalizeCompilationJob(job);
     }
   }
 }
 
-
-void OptimizingCompileDispatcher::QueueForOptimization(
-    OptimizedCompileJob* job) {
+void OptimizingCompileDispatcher::QueueForOptimization(CompilationJob* job) {
   DCHECK(IsQueueAvailable());
   {
     // Add job to the back of the input queue.

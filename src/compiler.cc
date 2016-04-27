@@ -307,9 +307,9 @@ void CompilationInfo::PrintAstForTesting() {
 #endif
 
 // ----------------------------------------------------------------------------
-// Implementation of OptimizedCompileJob
+// Implementation of CompilationJob
 
-OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
+CompilationJob::Status CompilationJob::CreateGraph() {
   DisallowJavascriptExecution no_js(isolate());
   DCHECK(info()->IsOptimizing());
 
@@ -327,8 +327,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   return SetLastStatus(CreateGraphImpl());
 }
 
-
-OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
+CompilationJob::Status CompilationJob::OptimizeGraph() {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
@@ -340,7 +339,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
   return SetLastStatus(OptimizeGraphImpl());
 }
 
-OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
+CompilationJob::Status CompilationJob::GenerateCode() {
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate());
   DCHECK(!info()->dependencies()->HasAborted());
@@ -365,8 +364,7 @@ void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
 
 }  // namespace
 
-void OptimizedCompileJob::RegisterWeakObjectsInOptimizedCode(
-    Handle<Code> code) {
+void CompilationJob::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
   // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
   Isolate* const isolate = code->GetIsolate();
   DCHECK(code->is_optimized_code());
@@ -406,8 +404,7 @@ void OptimizedCompileJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
-
-void OptimizedCompileJob::RecordOptimizationStats() {
+void CompilationJob::RecordOptimizationStats() {
   Handle<JSFunction> function = info()->closure();
   if (!function->IsOptimized()) {
     // Concurrent recompilation and OSR may race.  Increment only once.
@@ -699,7 +696,7 @@ bool UseTurboFan(CompilationInfo* info) {
          passes_osr_test;
 }
 
-bool GetOptimizedCodeNow(OptimizedCompileJob* job) {
+bool GetOptimizedCodeNow(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
@@ -711,9 +708,9 @@ bool GetOptimizedCodeNow(OptimizedCompileJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
-      job->OptimizeGraph() != OptimizedCompileJob::SUCCEEDED ||
-      job->GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
+  if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
+      job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
+      job->GenerateCode() != CompilationJob::SUCCEEDED) {
     if (FLAG_trace_opt) {
       PrintF("[aborted optimizing ");
       info->closure()->ShortPrint();
@@ -730,7 +727,7 @@ bool GetOptimizedCodeNow(OptimizedCompileJob* job) {
   return true;
 }
 
-bool GetOptimizedCodeLater(OptimizedCompileJob* job) {
+bool GetOptimizedCodeLater(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
@@ -759,7 +756,7 @@ bool GetOptimizedCodeLater(OptimizedCompileJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
-  if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
+  if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
 
   if (FLAG_trace_concurrent_recompilation) {
@@ -836,7 +833,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TRACE_EVENT0("v8", "V8.OptimizeCode");
 
   bool use_turbofan = UseTurboFan(info.get());
-  base::SmartPointer<OptimizedCompileJob> job(
+  base::SmartPointer<CompilationJob> job(
       use_turbofan ? compiler::Pipeline::NewCompilationJob(info.get())
                    : new HCompilationJob(info.get()));
 
@@ -1720,7 +1717,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   return GetOptimizedCode(function, NOT_CONCURRENT, osr_ast_id, osr_frame);
 }
 
-void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
+void Compiler::FinalizeCompilationJob(CompilationJob* job) {
   // Take ownership of compilation info.  Deleting compilation info
   // also tears down the zone.
   base::SmartPointer<CompilationInfo> info(job->info());
@@ -1740,12 +1737,12 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
   //    Except when OSR already disabled optimization for some reason.
   // 3) The code may have already been invalidated due to dependency change.
   // 4) Code generation may have failed.
-  if (job->last_status() == OptimizedCompileJob::SUCCEEDED) {
+  if (job->last_status() == CompilationJob::SUCCEEDED) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(kOptimizationDisabled);
     } else if (info->dependencies()->HasAborted()) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
-    } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+    } else if (job->GenerateCode() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizationStats();
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get());
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
@@ -1763,7 +1760,7 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
     }
   }
 
-  DCHECK(job->last_status() != OptimizedCompileJob::SUCCEEDED);
+  DCHECK(job->last_status() != CompilationJob::SUCCEEDED);
   if (FLAG_trace_opt) {
     PrintF("[aborted optimizing ");
     info->closure()->ShortPrint();

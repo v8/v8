@@ -500,10 +500,10 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
   return pipeline_statistics;
 }
 
-class PipelineCompilationJob final : public OptimizedCompileJob {
+class PipelineCompilationJob final : public CompilationJob {
  public:
   explicit PipelineCompilationJob(CompilationInfo* info)
-      : OptimizedCompileJob(info, "TurboFan"),
+      : CompilationJob(info, "TurboFan"),
         zone_pool_(info->isolate()->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(info, &zone_pool_)),
         data_(&zone_pool_, info, pipeline_statistics_.get()),
@@ -572,12 +572,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
   return SUCCEEDED;
 }
 
-class PipelineWasmCompilationJob final : public OptimizedCompileJob {
+class PipelineWasmCompilationJob final : public CompilationJob {
  public:
   explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
                                       CallDescriptor* descriptor,
                                       SourcePositionTable* source_positions)
-      : OptimizedCompileJob(info, "TurboFan"),
+      : CompilationJob(info, "TurboFan"),
         zone_pool_(info->isolate()->allocator()),
         data_(&zone_pool_, info, graph, source_positions),
         pipeline_(&data_),
@@ -1461,12 +1461,12 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 // static
-OptimizedCompileJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
+CompilationJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
   return new PipelineCompilationJob(info);
 }
 
 // static
-OptimizedCompileJob* Pipeline::NewWasmCompilationJob(
+CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions) {
   return new PipelineWasmCompilationJob(info, graph, descriptor,

@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
-class OptimizedCompileJob;
+class CompilationJob;
 class RegisterConfiguration;
 
 namespace compiler {
@@ -73,10 +73,10 @@ class Pipeline {
                                              Schedule* schedule = nullptr);
 
   // Returns a new compilation job for the given compilation info.
-  static OptimizedCompileJob* NewCompilationJob(CompilationInfo* info);
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
 
   // Returns a new compilation job for the WebAssembly compilation info.
-  static OptimizedCompileJob* NewWasmCompilationJob(
+  static CompilationJob* NewWasmCompilationJob(
       CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions);
 
