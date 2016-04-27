@@ -2968,15 +2968,12 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     }
   }
   CompilationInfo info(func_name, isolate, jsgraph->graph()->zone(), flags);
-  compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
-  Pipeline pipeline(&info);
-  pipeline.InitializeWasmCompilation(pipeline_zone_scope.zone(), &zone_pool,
-                                     jsgraph->graph(), source_positions);
-  Handle<Code> code;
-  if (pipeline.ExecuteWasmCompilation(descriptor)) {
-    code = pipeline.FinalizeWasmCompilation(descriptor);
-  } else {
-    code = Handle<Code>::null();
+  base::SmartPointer<OptimizedCompileJob> job(Pipeline::NewWasmCompilationJob(
+      &info, jsgraph->graph(), descriptor, source_positions));
+  Handle<Code> code = Handle<Code>::null();
+  if (job->OptimizeGraph() == OptimizedCompileJob::SUCCEEDED &&
+      job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+    code = info.code();
   }
 
   buffer.Dispose();

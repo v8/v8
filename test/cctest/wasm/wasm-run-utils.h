@@ -485,18 +485,14 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     }
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
-    compiler::ZonePool zone_pool(this->isolate()->allocator());
-    compiler::ZonePool::Scope pipeline_zone_scope(&zone_pool);
-    Pipeline pipeline(&info);
-    pipeline.InitializeWasmCompilation(this->zone(), &zone_pool, this->graph(),
-                                       &source_position_table_);
-    Handle<Code> code;
-    if (pipeline.ExecuteWasmCompilation(desc)) {
-      code = pipeline.FinalizeWasmCompilation(desc);
-    } else {
-      code = Handle<Code>::null();
+    v8::base::SmartPointer<OptimizedCompileJob> job(
+        Pipeline::NewWasmCompilationJob(&info, graph(), desc,
+                                        &source_position_table_));
+    Handle<Code> code = Handle<Code>::null();
+    if (job->OptimizeGraph() == OptimizedCompileJob::SUCCEEDED &&
+        job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+      code = info.code();
     }
-    pipeline_zone_scope.Destroy();
 #ifdef ENABLE_DISASSEMBLER
     if (!code.is_null() && FLAG_print_opt_code) {
       OFStream os(stdout);

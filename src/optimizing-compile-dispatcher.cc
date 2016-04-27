@@ -23,6 +23,7 @@ void DisposeOptimizedCompileJob(OptimizedCompileJob* job,
     Handle<JSFunction> function = info->closure();
     function->ReplaceCode(function->shared()->code());
   }
+  delete job;
   delete info;
 }
 

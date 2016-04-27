@@ -571,7 +571,8 @@ class CompilationInfo {
 // Each of the three phases can either fail, bail-out to full code generator or
 // succeed. Apart from their return value, the status of the phase last run can
 // be checked using {last_status()} as well.
-class OptimizedCompileJob: public ZoneObject {
+// TODO(mstarzinger): Make CompilationInfo base embedded.
+class OptimizedCompileJob {
  public:
   explicit OptimizedCompileJob(CompilationInfo* info, const char* compiler_name)
       : info_(info), compiler_name_(compiler_name), last_status_(SUCCEEDED) {}

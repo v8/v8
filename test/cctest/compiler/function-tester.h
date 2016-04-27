@@ -194,8 +194,7 @@ class FunctionTester : public InitializedHandleScope {
     CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
-    Pipeline pipeline(&info);
-    Handle<Code> code = pipeline.GenerateCode();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(&info);
     CHECK(!code.is_null());
     info.dependencies()->Commit(code);
     info.context()->native_context()->AddOptimizedCode(*code);

@@ -706,9 +706,9 @@ bool GetOptimizedCodeNow(CompilationInfo* info) {
   TRACE_EVENT0("v8", "V8.OptimizeCode");
 
   bool use_turbofan = UseTurboFan(info);
-  OptimizedCompileJob* job = use_turbofan
-                                 ? compiler::Pipeline::NewCompilationJob(info)
-                                 : new (info->zone()) HCompilationJob(info);
+  base::SmartPointer<OptimizedCompileJob> job(
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(info)
+                   : new HCompilationJob(info));
 
   // Parsing is not required when optimizing from existing bytecode.
   if (!use_turbofan || !info->shared_info()->HasBytecodeArray()) {
@@ -755,9 +755,9 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   }
 
   bool use_turbofan = UseTurboFan(info);
-  OptimizedCompileJob* job = use_turbofan
-                                 ? compiler::Pipeline::NewCompilationJob(info)
-                                 : new (info->zone()) HCompilationJob(info);
+  base::SmartPointer<OptimizedCompileJob> job(
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(info)
+                   : new HCompilationJob(info));
 
   // All handles below this point will be allocated in a deferred handle scope
   // that is detached and handed off to the background thread when we return.
@@ -778,7 +778,8 @@ bool GetOptimizedCodeLater(CompilationInfo* info) {
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
-  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
+  job.Detach();  // The background recompile job owns this now.
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
@@ -1725,7 +1726,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 
 void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
   // Take ownership of compilation info.  Deleting compilation info
-  // also tears down the zone and the recompile job.
+  // also tears down the zone.
   base::SmartPointer<CompilationInfo> info(job->info());
   Isolate* isolate = info->isolate();
 
@@ -1761,6 +1762,7 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
         PrintF("]\n");
       }
       info->closure()->ReplaceCode(*info->code());
+      delete job;
       return;
     }
   }
@@ -1772,6 +1774,7 @@ void Compiler::FinalizeOptimizedCompileJob(OptimizedCompileJob* job) {
     PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
   info->closure()->ReplaceCode(shared->code());
+  delete job;
 }
 
 void Compiler::PostInstantiation(Handle<JSFunction> function,
