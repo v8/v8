@@ -148,10 +148,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
-  // Skip property with empty name.
-  if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
+  // Temporary variables introduced by the parser have not been materialized.
+  assertTrue(scope.scopeObject().property('').isUndefined());
 
   if (count != scope_size) {
     print('Names found in scope:');

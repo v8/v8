@@ -571,7 +571,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   for (int slot = 0; slot < scope_info->LocalCount(); ++slot) {
     // Hide compiler-introduced temporary variables, whether on the stack or on
     // the context.
-    if (scope_info->LocalIsSynthetic(slot)) local_count--;
+    if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(slot))) {
+      local_count--;
+    }
   }
 
   Handle<FixedArray> locals =
@@ -582,7 +584,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   int i = 0;
   for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
-    if (scope_info->LocalIsSynthetic(i)) continue;
+    if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(i))) continue;
     locals->set(local * 2, scope_info->LocalName(i));
     Handle<Object> value = frame_inspector.GetExpression(i);
     // TODO(yangguo): We convert optimized out values to {undefined} when they
@@ -596,8 +598,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     Handle<Context> context(
         Handle<Context>::cast(frame_inspector.GetContext())->closure_context());
     for (; i < scope_info->LocalCount(); ++i) {
-      if (scope_info->LocalIsSynthetic(i)) continue;
       Handle<String> name(scope_info->LocalName(i));
+      if (ScopeInfo::VariableIsSynthetic(*name)) continue;
       VariableMode mode;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
