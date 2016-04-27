@@ -1921,6 +1921,18 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       if (!printed) {
         accumulator->Add("<JS Function");
       }
+      if (FLAG_trace_file_names) {
+        Object* source_name =
+            Script::cast(function->shared()->script())->name();
+        if (source_name->IsString()) {
+          String* str = String::cast(source_name);
+          if (str->length() > 0) {
+            accumulator->Add(" <");
+            accumulator->Put(str);
+            accumulator->Add(">");
+          }
+        }
+      }
       accumulator->Add(" (SharedFunctionInfo %p)",
                        reinterpret_cast<void*>(function->shared()));
       accumulator->Put('>');

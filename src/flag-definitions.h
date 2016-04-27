@@ -573,6 +573,8 @@ DEFINE_BOOL(mask_constants_with_cookie, true,
 DEFINE_BOOL(lazy, true, "use lazy compilation")
 DEFINE_BOOL(trace_opt, false, "trace lazy optimization")
 DEFINE_BOOL(trace_opt_stats, false, "trace lazy optimization statistics")
+DEFINE_BOOL(trace_file_names, false,
+            "include file names in trace-opt/trace-deopt output")
 DEFINE_BOOL(opt, true, "use adaptive optimizations")
 DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
