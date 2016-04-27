@@ -1004,7 +1004,6 @@ class Parser : public ParserBase<ParserTraits> {
       LanguageMode language_mode, bool is_typed,
       typesystem::TypeFlags type_flags, bool* ok);
 
-
   ClassLiteral* ParseClassLiteral(const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,

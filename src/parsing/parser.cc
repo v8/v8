@@ -750,8 +750,8 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    LanguageMode language_mode, bool is_typed,
-    typesystem::TypeFlags type_flags, bool* ok) {
+    LanguageMode language_mode, bool is_typed, typesystem::TypeFlags type_flags,
+    bool* ok) {
   return parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
       function_token_position, type, language_mode, is_typed, type_flags, ok);
@@ -1650,13 +1650,13 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
         typesystem::TypeFlags type_flags =
             ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
-        default_export =
-            ParseFunctionLiteral(default_string, Scanner::Location::invalid(),
-                                 kSkipFunctionNameCheck,
-                                 is_generator ? FunctionKind::kGeneratorFunction
-                                              : FunctionKind::kNormalFunction,
-                                 pos, FunctionLiteral::kDeclaration,
-                                 language_mode(), typed(), type_flags, CHECK_OK);
+        default_export = ParseFunctionLiteral(
+            default_string, Scanner::Location::invalid(),
+            kSkipFunctionNameCheck,
+            is_generator ? FunctionKind::kGeneratorFunction
+                         : FunctionKind::kNormalFunction,
+            pos, FunctionLiteral::kDeclaration, language_mode(), typed(),
+            type_flags, CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, ambient,
