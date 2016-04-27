@@ -693,9 +693,10 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
       tok != Token::EOS) {
     ParseExpression(true, CHECK_OK);
     if (tail_call_position >= 0) {
-      if (!function_state_->collect_expressions_in_tail_position()) {
-        Scanner::Location loc(tail_call_position, tail_call_position + 1);
-        ReportMessageAt(loc, MessageTemplate::kTailCallInTryBlock);
+      ReturnExprContext return_expr_context =
+          function_state_->return_expr_context();
+      if (return_expr_context != ReturnExprContext::kNormal) {
+        ReportIllegalTailCallAt(tail_call_position, return_expr_context);
         *ok = false;
         return Statement::Default();
       }
@@ -850,7 +851,11 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
 
         Expect(Token::RPAREN, CHECK_OK);
-        ParseScopedStatement(true, CHECK_OK);
+        {
+          ReturnExprScope no_tail_calls(function_state_,
+                                        ReturnExprContext::kInsideForInOfBody);
+          ParseScopedStatement(true, CHECK_OK);
+        }
         return Statement::Default();
       }
     } else {
@@ -953,7 +958,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
   Expect(Token::TRY, CHECK_OK);
 
   {
-    DontCollectExpressionsInTailPositionScope no_tail_calls(function_state_);
+    ReturnExprScope no_tail_calls(function_state_,
+                                  ReturnExprContext::kInsideTryBlock);
     ParseBlock(CHECK_OK);
   }
 

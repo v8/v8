@@ -425,6 +425,7 @@ class CallSite {
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(TailCallInCatchBlock,                                                      \
     "Tail call expression in catch block when finally block is also present.") \
+  T(TailCallInForInOf, "Tail call expression in for-in/of body.")              \
   T(TailCallInTryBlock, "Tail call expression in try block.")                  \
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \

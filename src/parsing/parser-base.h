@@ -198,6 +198,15 @@ class ParserBase : public Traits {
     int pos;
   };
 
+  // Defines whether tail call expressions are allowed or not.
+  enum class ReturnExprContext {
+    // Tail call expressions are allowed.
+    kNormal,
+    // Tail call expressions are not allowed.
+    kInsideTryBlock,
+    kInsideForInOfBody,
+  };
+
   class FunctionState BASE_EMBEDDED {
    public:
     FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
@@ -259,16 +268,16 @@ class ParserBase : public Traits {
       return expressions_in_tail_position_;
     }
     void AddExpressionInTailPosition(ExpressionT expression, int pos) {
-      if (collect_expressions_in_tail_position_) {
+      if (return_expr_context() == ReturnExprContext::kNormal) {
         expressions_in_tail_position_.Add(TailCallExpression(expression, pos));
       }
     }
 
-    bool collect_expressions_in_tail_position() const {
-      return collect_expressions_in_tail_position_;
+    ReturnExprContext return_expr_context() const {
+      return return_expr_context_;
     }
-    void set_collect_expressions_in_tail_position(bool collect) {
-      collect_expressions_in_tail_position_ = collect;
+    void set_return_expr_context(ReturnExprContext context) {
+      return_expr_context_ = context;
     }
 
     ZoneList<ExpressionT>* non_patterns_to_rewrite() {
@@ -324,7 +333,7 @@ class ParserBase : public Traits {
 
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
     List<TailCallExpression> expressions_in_tail_position_;
-    bool collect_expressions_in_tail_position_;
+    ReturnExprContext return_expr_context_;
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
     typename Traits::Type::Factory* factory_;
@@ -342,22 +351,22 @@ class ParserBase : public Traits {
     friend class Checkpoint;
   };
 
-  // This scope disables collecting of expressions at tail call position.
-  class DontCollectExpressionsInTailPositionScope {
+  // This scope sets current ReturnExprContext to given value.
+  class ReturnExprScope {
    public:
-    explicit DontCollectExpressionsInTailPositionScope(
-        FunctionState* function_state)
+    explicit ReturnExprScope(FunctionState* function_state,
+                             ReturnExprContext return_expr_context)
         : function_state_(function_state),
-          old_value_(function_state->collect_expressions_in_tail_position()) {
-      function_state->set_collect_expressions_in_tail_position(false);
+          sav_return_expr_context_(function_state->return_expr_context()) {
+      function_state->set_return_expr_context(return_expr_context);
     }
-    ~DontCollectExpressionsInTailPositionScope() {
-      function_state_->set_collect_expressions_in_tail_position(old_value_);
+    ~ReturnExprScope() {
+      function_state_->set_return_expr_context(sav_return_expr_context_);
     }
 
    private:
     FunctionState* function_state_;
-    bool old_value_;
+    ReturnExprContext sav_return_expr_context_;
   };
 
   // Collects all return expressions at tail call position in this scope
@@ -631,6 +640,23 @@ class ParserBase : public Traits {
                        ParseErrorType error_type = kSyntaxError) {
     Traits::ReportMessageAt(location, message, reinterpret_cast<const char*>(0),
                             error_type);
+  }
+
+  void ReportIllegalTailCallAt(int pos, ReturnExprContext return_expr_context) {
+    Scanner::Location loc(pos, pos + 1);
+    MessageTemplate::Template msg = MessageTemplate::kNone;
+    switch (return_expr_context) {
+      case ReturnExprContext::kNormal:
+        UNREACHABLE();
+        return;
+      case ReturnExprContext::kInsideTryBlock:
+        msg = MessageTemplate::kTailCallInTryBlock;
+        break;
+      case ReturnExprContext::kInsideForInOfBody:
+        msg = MessageTemplate::kTailCallInForInOf;
+        break;
+    }
+    ReportMessageAt(loc, msg);
   }
 
   void GetUnexpectedTokenMessage(
@@ -990,7 +1016,7 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      collect_expressions_in_tail_position_(true),
+      return_expr_context_(ReturnExprContext::kNormal),
       non_patterns_to_rewrite_(0, scope->zone()),
       factory_(factory),
       next_function_is_parenthesized_(false),

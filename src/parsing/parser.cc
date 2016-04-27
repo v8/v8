@@ -2639,9 +2639,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     // TODO(ishell): update chapter number.
     // ES8 XX.YY.ZZ
     if (tail_call_position >= 0) {
-      if (!function_state_->collect_expressions_in_tail_position()) {
-        Scanner::Location loc(tail_call_position, tail_call_position + 1);
-        ReportMessageAt(loc, MessageTemplate::kTailCallInTryBlock);
+      ReturnExprContext return_expr_context =
+          function_state_->return_expr_context();
+      if (return_expr_context != ReturnExprContext::kNormal) {
+        ReportIllegalTailCallAt(tail_call_position, return_expr_context);
         *ok = false;
         return NULL;
       }
@@ -2848,7 +2849,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Block* try_block;
   {
-    DontCollectExpressionsInTailPositionScope no_tail_calls(function_state_);
+    ReturnExprScope no_tail_calls(function_state_,
+                                  ReturnExprContext::kInsideTryBlock);
     try_block = ParseBlock(NULL, CHECK_OK);
   }
 
@@ -3555,8 +3557,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
 
         {
-          DontCollectExpressionsInTailPositionScope no_tail_calls(
-              function_state_);
+          ReturnExprScope no_tail_calls(function_state_,
+                                        ReturnExprContext::kInsideForInOfBody);
           BlockState block_state(&scope_, body_scope);
 
           Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
