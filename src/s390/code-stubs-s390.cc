@@ -4731,13 +4731,13 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   {
     Label loop, loop_entry;
     __ LoadRR(r4, fp);
-    __ b(&loop_entry);
+    __ b(&loop_entry, Label::kNear);
     __ bind(&loop);
     __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
     __ bind(&loop_entry);
     __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
-    __ bne(&loop);
+    __ bne(&loop, Label::kNear);
   }
 
   // Check if we have rest parameters (only possible if we have an
@@ -4871,6 +4871,22 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(r3);
 
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make r9 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ LoadRR(r9, fp);
+    __ b(&loop_entry);
+    __ bind(&loop);
+    __ LoadP(r9, MemOperand(r9, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ LoadP(ip, MemOperand(r9, StandardFrameConstants::kFunctionOffset));
+    __ CmpP(ip, r3);
+    __ bne(&loop);
+  }
+
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
   __ LoadW(
@@ -4879,19 +4895,20 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ SmiTag(r4);
 #endif
   __ SmiToPtrArrayOffset(r5, r4);
-  __ AddP(r5, fp, r5);
+  __ AddP(r5, r9, r5);
   __ AddP(r5, r5, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // r3 : function
   // r4 : number of parameters (tagged)
   // r5 : parameters pointer
+  // r9 : JavaScript frame pointer
   // Registers used over whole function:
   // r7 : arguments count (tagged)
   // r8 : mapped parameter count (tagged)
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r6, MemOperand(r9, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(r2, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ CmpSmiLiteral(r2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ beq(&adaptor_frame);
