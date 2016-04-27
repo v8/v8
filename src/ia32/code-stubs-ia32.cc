@@ -1442,21 +1442,24 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   }
   __ bind(&runtime_call);
 
-  // Push arguments below the return address.
-  __ pop(ecx);
-  __ push(edx);
-  __ push(eax);
-
-  // Figure out which native to call and setup the arguments.
   if (cc == equal) {
-    __ push(ecx);
-    __ TailCallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(edx);
+      __ Push(eax);
+      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+    }
+    // Turn true into 0 and false into some non-zero value.
+    STATIC_ASSERT(EQUAL == 0);
+    __ sub(eax, Immediate(isolate()->factory()->true_value()));
+    __ Ret();
   } else {
+    // Push arguments below the return address.
+    __ pop(ecx);
+    __ push(edx);
+    __ push(eax);
     __ push(Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
-
-    // Restore return address on the stack.
     __ push(ecx);
-
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
     __ TailCallRuntime(Runtime::kCompare);
