@@ -2357,11 +2357,11 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   }
 
   // Compute the new state.
-  BinaryOpICState old_state(isolate(), extra_ic_state());
+  BinaryOpICState old_state(isolate(), target()->extra_ic_state());
   state.Update(left, right, result);
 
   // Check if we have a string operation here.
-  Handle<Code> target;
+  Handle<Code> new_target;
   if (!allocation_site.is_null() || state.ShouldCreateAllocationMementos()) {
     // Setup the allocation site on-demand.
     if (allocation_site.is_null()) {
@@ -2370,24 +2370,24 @@ MaybeHandle<Object> BinaryOpIC::Transition(
 
     // Install the stub with an allocation site.
     BinaryOpICWithAllocationSiteStub stub(isolate(), state);
-    target = stub.GetCodeCopyFromTemplate(allocation_site);
+    new_target = stub.GetCodeCopyFromTemplate(allocation_site);
 
     // Sanity check the trampoline stub.
-    DCHECK_EQ(*allocation_site, target->FindFirstAllocationSite());
+    DCHECK_EQ(*allocation_site, new_target->FindFirstAllocationSite());
   } else {
     // Install the generic stub.
     BinaryOpICStub stub(isolate(), state);
-    target = stub.GetCode();
+    new_target = stub.GetCode();
 
     // Sanity check the generic stub.
-    DCHECK_NULL(target->FindFirstAllocationSite());
+    DCHECK_NULL(new_target->FindFirstAllocationSite());
   }
-  set_target(*target);
+  set_target(*new_target);
 
   if (FLAG_trace_ic) {
     OFStream os(stdout);
     os << "[BinaryOpIC" << old_state << " => " << state << " @ "
-       << static_cast<void*>(*target) << " <- ";
+       << static_cast<void*>(*new_target) << " <- ";
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     if (!allocation_site.is_null()) {
       os << " using allocation site " << static_cast<void*>(*allocation_site);
