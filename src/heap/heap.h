@@ -778,6 +778,11 @@ class Heap {
 
   inline bool OldGenerationAllocationLimitReached();
 
+  void QueueMemoryChunkForFree(MemoryChunk* chunk);
+  void FreeQueuedChunks(MemoryChunk* list_head);
+  void FreeQueuedChunks();
+  void WaitUntilUnmappingOfFreeChunksCompleted();
+
   // Completely clear the Instanceof cache (to stop it keeping objects alive
   // around a GC).
   inline void CompletelyClearInstanceofCache();
@@ -1385,6 +1390,7 @@ class Heap {
 
  private:
   class PretenuringScope;
+  class UnmapFreeMemoryTask;
 
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly
@@ -2201,6 +2207,12 @@ class Heap {
   GCCallbackFlags current_gc_callback_flags_;
 
   ExternalStringTable external_string_table_;
+
+  MemoryChunk* chunks_queued_for_free_;
+
+  size_t concurrent_unmapping_tasks_active_;
+
+  base::Semaphore pending_unmapping_tasks_semaphore_;
 
   base::Mutex relocation_mutex_;
 

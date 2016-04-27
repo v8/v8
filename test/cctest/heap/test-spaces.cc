@@ -193,7 +193,7 @@ static void VerifyMemoryChunk(Isolate* isolate,
     CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
           second_commit_area_size);
 
-    memory_allocator->Free<MemoryAllocator::kFull>(memory_chunk);
+    memory_allocator->Free(memory_chunk);
   }
   memory_allocator->TearDown();
   delete memory_allocator;
