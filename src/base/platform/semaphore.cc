@@ -101,7 +101,9 @@ Semaphore::~Semaphore() {
 
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
-  CHECK_EQ(0, result);
+  if (result != 0) {
+    V8_Fatal(__FILE__, __LINE__, "Semaphore signal failure: %d\n", errno);
+  }
 }
 
 
