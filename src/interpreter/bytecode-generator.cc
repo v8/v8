@@ -569,9 +569,10 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_result_(nullptr),
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
+      generator_state_(),
+      generator_yields_seen_(0),
       try_catch_nesting_level_(0),
-      try_finally_nesting_level_(0),
-      generator_yields_seen_(0) {
+      try_finally_nesting_level_(0) {
   InitializeAstVisitor(isolate());
 }
 
@@ -582,7 +583,10 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
 
+  RegisterAllocationScope register_scope(this);
+
   if (IsGeneratorFunction(info()->literal()->kind())) {
+    generator_state_ = register_allocator()->NewRegister();
     VisitGeneratorPrologue();
   }
 
@@ -632,30 +636,71 @@ void BytecodeGenerator::MakeBytecodeBody() {
   VisitStatements(info()->literal()->body());
 }
 
+void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
+                                         size_t size,
+                                         ZoneVector<BytecodeLabel>& targets) {
+  // TODO(neis): Optimize this by using a proper jump table.
+  for (size_t i = start_index; i < start_index + size; i++) {
+    DCHECK(0 <= i && i < targets.size());
+    builder()
+        ->LoadLiteral(Smi::FromInt(static_cast<int>(i)))
+        .CompareOperation(Token::Value::EQ_STRICT, index)
+        .JumpIfTrue(&(targets[i]));
+  }
+  builder()->Illegal();  // Should never get here.
+}
+
+void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
+                                             LoopBuilder* loop_builder) {
+  // Recall that stmt->yield_count() is always zero inside ordinary
+  // (i.e. non-generator) functions.
+
+  // Collect all labels for generator resume points within the loop (if any) so
+  // that they can be bound to the loop header below. Also create fresh labels
+  // for these resume points, to be used inside the loop.
+  ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
+  for (size_t id = generator_yields_seen_;
+       id < generator_yields_seen_ + stmt->yield_count(); id++) {
+    DCHECK(0 <= id && id < generator_resume_points_.size());
+    auto& label = generator_resume_points_[id];
+    resume_points_in_loop.push_back(label);
+    generator_resume_points_[id] = BytecodeLabel();
+  }
+
+  loop_builder->LoopHeader(&resume_points_in_loop);
+
+  if (stmt->yield_count() > 0) {
+    // If we are not resuming, fall through to loop body.
+    // If we are resuming, perform state dispatch.
+    BytecodeLabel not_resuming;
+    builder()
+        ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
+        .CompareOperation(Token::Value::EQ, generator_state_)
+        .JumpIfTrue(&not_resuming);
+    BuildIndexedJump(generator_state_, generator_yields_seen_,
+                     stmt->yield_count(), generator_resume_points_);
+    builder()->Bind(&not_resuming);
+  }
+}
+
 void BytecodeGenerator::VisitGeneratorPrologue() {
+  // The generator resume trampoline abuses the new.target register both to
+  // indicate that this is a resume call and to pass in the generator object.
+  // In ordinary calls, new.target is always undefined because generator
+  // functions are non-constructable.
+  Register generator_object = Register::new_target();
   BytecodeLabel regular_call;
   builder()
-      ->LoadAccumulatorWithRegister(Register::new_target())
+      ->LoadAccumulatorWithRegister(generator_object)
       .JumpIfUndefined(&regular_call);
 
   // This is a resume call. Restore registers and perform state dispatch.
   // (The current context has already been restored by the trampoline.)
-  {
-    RegisterAllocationScope register_scope(this);
-    Register state = register_allocator()->NewRegister();
-    builder()
-        ->ResumeGenerator(Register::new_target())
-        .StoreAccumulatorInRegister(state);
-
-    // TODO(neis): Optimize this by using a proper jump table.
-    for (size_t i = 0; i < generator_resume_points_.size(); ++i) {
-      builder()
-          ->LoadLiteral(Smi::FromInt(static_cast<int>(i)))
-          .CompareOperation(Token::Value::EQ_STRICT, state)
-          .JumpIfTrue(&(generator_resume_points_[i]));
-    }
-    builder()->Illegal();  // Should never get here.
-  }
+  builder()
+      ->ResumeGenerator(generator_object)
+      .StoreAccumulatorInRegister(generator_state_);
+  BuildIndexedJump(generator_state_, 0, generator_resume_points_.size(),
+                   generator_resume_points_);
 
   builder()->Bind(&regular_call);
   // This is a regular call. Fall through to the ordinary function prologue,
@@ -989,7 +1034,7 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder());
-  loop_builder.LoopHeader();
+  VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond()->ToBooleanIsFalse()) {
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.Condition();
@@ -1014,7 +1059,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   }
 
   LoopBuilder loop_builder(builder());
-  loop_builder.LoopHeader();
+  VisitIterationHeader(stmt, &loop_builder);
   loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
@@ -1038,7 +1083,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
 
   LoopBuilder loop_builder(builder());
-  loop_builder.LoopHeader();
+  VisitIterationHeader(stmt, &loop_builder);
   loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
@@ -1163,7 +1208,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->StoreAccumulatorInRegister(index);
 
   // The loop
-  loop_builder.LoopHeader();
+  VisitIterationHeader(stmt, &loop_builder);
   builder()->SetExpressionAsStatementPosition(stmt->each());
   loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
@@ -1191,7 +1236,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   builder()->SetExpressionAsStatementPosition(stmt->assign_iterator());
   VisitForEffect(stmt->assign_iterator());
 
-  loop_builder.LoopHeader();
+  VisitIterationHeader(stmt, &loop_builder);
   loop_builder.Next();
   builder()->SetExpressionAsStatementPosition(stmt->next_result());
   VisitForEffect(stmt->next_result());
@@ -2213,7 +2258,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 void BytecodeGenerator::VisitYield(Yield* expr) {
-  int id = generator_yields_seen_++;
+  size_t id = generator_yields_seen_++;
 
   builder()->SetExpressionPosition(expr);
   Register value = VisitForRegisterValue(expr->expression());
@@ -2222,7 +2267,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   // Save context, registers, and state. Then return.
   builder()
-      ->LoadLiteral(Smi::FromInt(id))
+      ->LoadLiteral(Smi::FromInt(static_cast<int>(id)))
       .SuspendGenerator(generator)
       .LoadAccumulatorWithRegister(value)
       .Return();  // Hard return (ignore any finally blocks).
@@ -2232,6 +2277,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   {
     RegisterAllocationScope register_scope(this);
+
+    // Update state to indicate that we have finished resuming. Loop headers
+    // rely on this.
+    builder()
+        ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
+        .StoreAccumulatorInRegister(generator_state_);
 
     Register input = register_allocator()->NewRegister();
     builder()

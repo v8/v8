@@ -575,3 +575,26 @@
   }
   assertEquals({value: undefined, done: true}, g.next());
 }
+
+{
+  function* foo() {
+    for (let i = 0; i < 3; ++i) {
+      let j = 0
+      yield i;
+      do {
+        yield (i + 10);
+      } while (++j < 2);
+    }
+  }
+  g = foo();
+  assertEquals({value: 0, done: false}, g.next());
+  assertEquals({value: 10, done: false}, g.next());
+  assertEquals({value: 10, done: false}, g.next());
+  assertEquals({value: 1, done: false}, g.next());
+  assertEquals({value: 11, done: false}, g.next());
+  assertEquals({value: 11, done: false}, g.next());
+  assertEquals({value: 2, done: false}, g.next());
+  assertEquals({value: 12, done: false}, g.next());
+  assertEquals({value: 12, done: false}, g.next());
+  assertEquals({value: undefined, done: true}, g.next());
+}
