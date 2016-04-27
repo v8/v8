@@ -11,8 +11,7 @@ Handle<Object> FunctionCallbackArguments::Call(FunctionCallback f) {
   Isolate* isolate = this->isolate();
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_,
-                                       is_construct_call_);
+  FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
   f(info);
   return GetReturnValue<Object>(isolate);
 }
