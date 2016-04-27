@@ -322,7 +322,8 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Label runtime_call(this, Label::kDeferred), no_runtime_call(this);
   Label merge_runtime(this, &result);
 
-  Branch(IntPtrLessThan(IntPtrSub(limit, top), size_in_bytes), &runtime_call,
+  Node* new_top = IntPtrAdd(top, size_in_bytes);
+  Branch(UintPtrGreaterThanOrEqual(new_top, limit), &runtime_call,
          &no_runtime_call);
 
   Bind(&runtime_call);
@@ -342,7 +343,7 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Bind(&no_runtime_call);
   Node* no_runtime_result = top;
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
-                      IntPtrAdd(top, size_in_bytes));
+                      new_top);
   no_runtime_result = BitcastWordToTagged(
       IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag)));
   result.Bind(no_runtime_result);
