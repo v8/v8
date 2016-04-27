@@ -275,9 +275,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new FixedDoubleArray.
   // edx: receiver
   // edi: length of source FixedArray (smi-tagged)
+  AllocationFlags flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT);
   __ Allocate(FixedDoubleArray::kHeaderSize, times_8, edi,
-              REGISTER_VALUE_IS_SMI, eax, ebx, no_reg, &gc_required,
-              DOUBLE_ALIGNMENT);
+              REGISTER_VALUE_IS_SMI, eax, ebx, no_reg, &gc_required, flags);
 
   // eax: destination FixedDoubleArray
   // edi: number of elements

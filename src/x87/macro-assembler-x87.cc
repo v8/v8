@@ -1520,10 +1520,10 @@ void MacroAssembler::Allocate(int object_size,
   // Update allocation top.
   UpdateAllocationTopHelper(top_reg, scratch, flags);
 
-  // Tag result if requested.
   if (top_reg.is(result)) {
     sub(result, Immediate(object_size - kHeapObjectTag));
   } else {
+    // Tag the result.
     DCHECK(kHeapObjectTag == 1);
     inc(result);
   }
@@ -1597,6 +1597,7 @@ void MacroAssembler::Allocate(int header_size,
   cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
+  // Tag result.
   DCHECK(kHeapObjectTag == 1);
   inc(result);
 
