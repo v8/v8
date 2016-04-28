@@ -27,5 +27,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   v8::JSON::Parse(support->GetContext(), source).IsEmpty();
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
   return 0;
 }
