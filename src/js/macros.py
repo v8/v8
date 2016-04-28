@@ -174,16 +174,6 @@ macro OVERRIDE_SUBJECT(override) = ((override)[(override).length - 1]);
 # 1-based so index of 1 returns the first capture
 macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
-# PropertyDescriptor return value indices - must match
-# PropertyDescriptorIndices in runtime-object.cc.
-define IS_ACCESSOR_INDEX = 0;
-define VALUE_INDEX = 1;
-define GETTER_INDEX = 2;
-define SETTER_INDEX = 3;
-define WRITABLE_INDEX = 4;
-define ENUMERABLE_INDEX = 5;
-define CONFIGURABLE_INDEX = 6;
-
 # For messages.js
 # Matches Script::Type from objects.h
 define TYPE_NATIVE = 0;
@@ -250,7 +240,6 @@ define kLegacyConst = 2;
 define kMarkDequeOverflow = 3;
 define kStoreBufferOverflow = 4;
 define kSlotsBufferOverflow = 5;
-define kObjectObserve = 6;
 define kForcedGC = 7;
 define kSloppyMode = 8;
 define kStrictMode = 9;

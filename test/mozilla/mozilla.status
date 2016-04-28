@@ -81,6 +81,11 @@
   'ecma/String/15.5.4.8-1': [FAIL],
   'ecma/String/15.5.4.9-1': [FAIL],
 
+  # __defineGetter__ is spec'ed in ES2016+ to respect readonly properties
+  # and throw. These tests fail in modern Firefox (tested: 38.7.1) too.
+  'js1_5/extensions/regress-313500': [FAIL],
+  'js1_5/extensions/regress-325269': [FAIL],
+
   # Date.prototype is an Object, not a Date
   'ecma/Date/15.9.5': [FAIL],
 
