@@ -1,3 +1,630 @@
+2016-04-28: Version 5.2.166
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-28: Version 5.2.165
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-28: Version 5.2.164
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.163
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.162
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.161
+
+        [esnext] stage --harmony-string-padding (issue 4954).
+
+        Disallow generator declarations in certain locations (issue 4824).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.160
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.159
+
+        [api] Expose FunctionCallbackInfo::NewTarget (issue 4261).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.158
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.157
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.156
+
+        [es8] Report proper syntax error for tail call expressions in for-in and
+        for-of bodies (issue 4915).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.155
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.154
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.153
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.152
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-27: Version 5.2.151
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.150
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.149
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.148
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.147
+
+        Do not penalize performance when --harmony-species is off (Chromium
+        issue 606207).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.146
+
+        [es8] Initial set of changes to support syntactic tail calls (issue
+        4915).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.145
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.144
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.143
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.142
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.141
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.140
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.139
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.138
+
+        [es6] Fix tail call elimination in single-expression arrow functions
+        (issue 4698).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-26: Version 5.2.137
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.136
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.135
+
+        Widen --harmony-for-in flag to throw errors in PreParser (issue 4942).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.134
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.133
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.132
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.131
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.130
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.129
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.128
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.127
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.126
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.125
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.124
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.123
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-25: Version 5.2.122
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.121
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.120
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.119
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.118
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.117
+
+        [debugger] Hide scopes that originate from desugaring (Chromium issue
+        604458).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.116
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-22: Version 5.2.115
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.114
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.113
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.112
+
+        [ic] Restore PROPERTY key tracking in keyed ICs (Chromium issue 594183).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.111
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.110
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.109
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.108
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.107
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.106
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.105
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.104
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.103
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-21: Version 5.2.102
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.101
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.100
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.99
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.98
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.97
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.96
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.95
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.94
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.93
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.92
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.91
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.90
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.89
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.88
+
+        [turbofan] Length and index2 are unsigned in CheckedLoad/CheckedStore
+        (Chromium issue 599717).
+
+        Prevent un-parsed LiteralFunction reaching the compiler (Chromium issue
+        604044).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.87
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-20: Version 5.2.86
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.85
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.84
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.83
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.82
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.81
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.80
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.79
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.78
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.77
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.76
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.75
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.73
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.72
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.71
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.69
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.68
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-19: Version 5.2.66
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.64
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.62
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.61
+
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.59
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.50
+
+        [Atomics] Remove Atomics code stubs; use TF ops (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-18: Version 5.2.49
+
+        [api] Bring back finalizers on global handles.
+
+        Performance and stability improvements on all platforms.
+
+
 2016-02-17: Sentinel
 
         The ChangeLog file is no longer maintained on master. This
