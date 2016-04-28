@@ -1815,10 +1815,8 @@ void MacroAssembler::Allocate(int object_size, Register result,
   }
   StoreP(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    AddP(result, result, Operand(kHeapObjectTag));
-  }
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::Allocate(Register object_size, Register result,
@@ -1915,10 +1913,8 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   }
   StoreP(result_end, MemOperand(top_address));
 
-  // Tag object if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    AddP(result, result, Operand(kHeapObjectTag));
-  }
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::AllocateTwoByteString(Register result, Register length,
@@ -1935,7 +1931,8 @@ void MacroAssembler::AllocateTwoByteString(Register result, Register length,
   AndP(scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate two-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required, TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kStringMapRootIndex, scratch1,
@@ -1955,7 +1952,8 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   AndP(scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate one-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required, TAG_OBJECT);
+  Allocate(scratch1, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
@@ -1967,7 +1965,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result, Register length,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsStringMapRootIndex, scratch1,
                       scratch2);
@@ -1978,7 +1976,7 @@ void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
                                                Register scratch2,
                                                Label* gc_required) {
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -1990,7 +1988,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedStringMapRootIndex, scratch1,
                       scratch2);
@@ -2002,7 +2000,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Register scratch2,
                                                  Label* gc_required) {
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
                       scratch1, scratch2);
@@ -2969,12 +2967,11 @@ void MacroAssembler::AllocateHeapNumber(Register result, Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
                                         Label* gc_required,
-                                        TaggingMode tagging_mode,
                                         MutableMode mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           tagging_mode == TAG_RESULT ? TAG_OBJECT : NO_ALLOCATION_FLAGS);
+           NO_ALLOCATION_FLAGS);
 
   Heap::RootListIndex map_index = mode == MUTABLE
                                       ? Heap::kMutableHeapNumberMapRootIndex
@@ -2982,11 +2979,7 @@ void MacroAssembler::AllocateHeapNumber(Register result, Register scratch1,
   AssertIsRoot(heap_number_map, map_index);
 
   // Store heap number map in the allocated object.
-  if (tagging_mode == TAG_RESULT) {
     StoreP(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
-  } else {
-    StoreP(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
-  }
 }
 
 void MacroAssembler::AllocateHeapNumberWithValue(
@@ -3005,7 +2998,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
