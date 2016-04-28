@@ -715,10 +715,12 @@ Node* InterpreterAssembler::RegisterCount() {
   return Word32Sar(frame_size, Int32Constant(kPointerSizeLog2));
 }
 
-Node* InterpreterAssembler::ExportRegisterFile() {
-  Node* register_count = RegisterCount();
-  Node* array =
-      AllocateUninitializedFixedArray(ChangeInt32ToIntPtr(register_count));
+Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
+  if (FLAG_debug_code) {
+    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    AbortIfWordNotEqual(
+        array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
+  }
 
   Variable var_index(this, MachineRepresentation::kWord32);
   var_index.Bind(Int32Constant(0));
@@ -729,16 +731,14 @@ Node* InterpreterAssembler::ExportRegisterFile() {
   Bind(&loop);
   {
     Node* index = var_index.value();
-    Node* condition = Int32LessThan(index, register_count);
+    Node* condition = Int32LessThan(index, RegisterCount());
     GotoUnless(condition, &done_loop);
 
     Node* reg_index =
         Int32Sub(Int32Constant(Register(0).ToOperand()), index);
     Node* value = LoadRegister(ChangeInt32ToIntPtr(reg_index));
 
-    // No write barrier needed for writing into freshly allocated object.
-    StoreFixedArrayElementNoWriteBarrier(
-        array, ChangeInt32ToIntPtr(index), value);
+    StoreFixedArrayElementInt32Index(array, index, value);
 
     var_index.Bind(Int32Add(index, Int32Constant(1)));
     Goto(&loop);
@@ -749,18 +749,23 @@ Node* InterpreterAssembler::ExportRegisterFile() {
 }
 
 Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
-  Node* register_count = RegisterCount();
+  if (FLAG_debug_code) {
+    Node* array_size = SmiUntag(LoadFixedArrayBaseLength(array));
+    AbortIfWordNotEqual(
+        array_size, RegisterCount(), kInvalidRegisterFileInGenerator);
+  }
 
   Variable var_index(this, MachineRepresentation::kWord32);
   var_index.Bind(Int32Constant(0));
 
-  // Iterate over array and write values into register file.
+  // Iterate over array and write values into register file.  Also erase the
+  // array contents to not keep them alive artificially.
   Label loop(this, &var_index), done_loop(this);
   Goto(&loop);
   Bind(&loop);
   {
     Node* index = var_index.value();
-    Node* condition = Int32LessThan(index, register_count);
+    Node* condition = Int32LessThan(index, RegisterCount());
     GotoUnless(condition, &done_loop);
 
     Node* value = LoadFixedArrayElementInt32Index(array, index);
@@ -768,6 +773,8 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
     Node* reg_index =
         Int32Sub(Int32Constant(Register(0).ToOperand()), index);
     StoreRegister(value, ChangeInt32ToIntPtr(reg_index));
+
+    StoreFixedArrayElementInt32Index(array, index, StaleRegisterConstant());
 
     var_index.Bind(Int32Add(index, Int32Constant(1)));
     Goto(&loop);

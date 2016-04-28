@@ -38,6 +38,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* NoContextConstant();
   compiler::Node* NullConstant();
   compiler::Node* UndefinedConstant();
+  compiler::Node* StaleRegisterConstant();
 
   // Float64 operations.
   compiler::Node* Float64Ceil(compiler::Node* x);

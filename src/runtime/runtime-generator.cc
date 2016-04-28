@@ -19,12 +19,21 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   RUNTIME_ASSERT(function->shared()->is_generator());
 
+  Handle<FixedArray> operand_stack;
+  if (FLAG_ignition && FLAG_ignition_generators) {
+    int size = function->shared()->bytecode_array()->register_count();
+    operand_stack = isolate->factory()->NewFixedArray(size);
+  } else {
+    DCHECK(!function->shared()->HasBytecodeArray());
+    operand_stack = handle(isolate->heap()->empty_fixed_array());
+  }
+
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(isolate->context());
   generator->set_receiver(*receiver);
-  generator->set_operand_stack(isolate->heap()->empty_fixed_array());
+  generator->set_operand_stack(*operand_stack);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
   return *generator;
 }

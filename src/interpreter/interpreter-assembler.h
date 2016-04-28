@@ -53,8 +53,8 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Number of registers.
   compiler::Node* RegisterCount();
 
-  // Backup/restore register file to/from a fixed array.
-  compiler::Node* ExportRegisterFile();
+  // Backup/restore register file to/from a fixed array of the correct length.
+  compiler::Node* ExportRegisterFile(compiler::Node* array);
   compiler::Node* ImportRegisterFile(compiler::Node* array);
 
   // Loads from and stores to the interpreter register file.

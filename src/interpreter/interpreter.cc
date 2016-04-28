@@ -1736,11 +1736,12 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   Node* generator_reg = __ BytecodeOperandReg(0);
   Node* generator = __ LoadRegister(generator_reg);
 
-  Node* array = __ ExportRegisterFile();
+  Node* array =
+      __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset);
   Node* context = __ GetContext();
   Node* state = __ GetAccumulator();
 
-  __ StoreObjectField(generator, JSGeneratorObject::kOperandStackOffset, array);
+  __ ExportRegisterFile(array);
   __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
@@ -1758,8 +1759,6 @@ void Interpreter::DoResumeGenerator(InterpreterAssembler* assembler) {
 
   __ ImportRegisterFile(
       __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset));
-  __ StoreObjectField(generator, JSGeneratorObject::kOperandStackOffset,
-      __ HeapConstant(isolate_->factory()->empty_fixed_array()));
 
   Node* old_state =
       __ LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);

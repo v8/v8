@@ -110,6 +110,7 @@ namespace internal {
   V(kInvalidLhsInCompoundAssignment, "Invalid lhs in compound assignment")     \
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
+  V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
   V(kJSGlobalObjectNativeContextShouldBeANativeContext,                        \
     "JSGlobalObject::native_context should be a native context")               \
   V(kJSGlobalProxyContextShouldNotBeNull,                                      \

@@ -46,6 +46,10 @@ Node* CodeStubAssembler::UndefinedConstant() {
   return LoadRoot(Heap::kUndefinedValueRootIndex);
 }
 
+Node* CodeStubAssembler::StaleRegisterConstant() {
+  return LoadRoot(Heap::kStaleRegisterRootIndex);
+}
+
 Node* CodeStubAssembler::Float64Round(Node* x) {
   Node* one = Float64Constant(1.0);
   Node* one_half = Float64Constant(0.5);

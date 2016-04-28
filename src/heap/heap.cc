@@ -2290,6 +2290,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
@@ -2663,6 +2664,11 @@ void Heap::CreateInitialObjects() {
       *factory->NewOddball(factory->optimized_out_map(), "optimized_out",
                            handle(Smi::FromInt(-6), isolate()), false,
                            "undefined", Oddball::kOptimizedOut));
+
+  set_stale_register(
+      *factory->NewOddball(factory->stale_register_map(), "stale_register",
+                           handle(Smi::FromInt(-7), isolate()), false,
+                           "undefined", Oddball::kStaleRegister));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =

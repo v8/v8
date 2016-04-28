@@ -1009,7 +1009,8 @@ template <class C> inline bool Is(Object* obj);
   V(True)               \
   V(False)              \
   V(ArgumentsMarker)    \
-  V(OptimizedOut)
+  V(OptimizedOut)       \
+  V(StaleRegister)
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
@@ -9493,6 +9494,7 @@ class Oddball: public HeapObject {
   static const byte kOther = 7;
   static const byte kException = 8;
   static const byte kOptimizedOut = 9;
+  static const byte kStaleRegister = 10;
 
   typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;
