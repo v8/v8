@@ -1000,7 +1000,10 @@ class Constant final {
     return RpoNumber::FromInt(static_cast<int>(value_));
   }
 
-  Handle<HeapObject> ToHeapObject() const;
+  Handle<HeapObject> ToHeapObject() const {
+    DCHECK_EQ(kHeapObject, type());
+    return bit_cast<Handle<HeapObject> >(static_cast<intptr_t>(value_));
+  }
 
  private:
   Type type_;

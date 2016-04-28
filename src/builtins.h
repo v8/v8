@@ -172,9 +172,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                                      \
-  V(AllocateInNewSpace, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(AllocateInOldSpace, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-                                                                               \
   V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
                                                                                \
   V(ConstructedNonConstructable, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
@@ -442,8 +439,6 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
-  static void Generate_AllocateInNewSpace(MacroAssembler* masm);
-  static void Generate_AllocateInOldSpace(MacroAssembler* masm);
   static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
   static void Generate_CompileLazy(MacroAssembler* masm);
   static void Generate_CompileBaseline(MacroAssembler* masm);

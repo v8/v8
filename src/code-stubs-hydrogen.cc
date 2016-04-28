@@ -1289,6 +1289,16 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+template <>
+HValue* CodeStubGraphBuilder<AllocateStub>::BuildCodeStub() {
+  HValue* result =
+      Add<HAllocate>(GetParameter(0), HType::Tagged(),
+                     casted_stub()->pretenure_flag(), JS_OBJECT_TYPE);
+  return result;
+}
+
+Handle<Code> AllocateStub::GenerateCode() { return DoGenerateCode(this); }
+
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
     ElementsKind kind,
     AllocationSiteOverrideMode override_mode,

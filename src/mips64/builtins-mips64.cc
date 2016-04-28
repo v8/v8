@@ -2724,44 +2724,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : requested object size (tagged)
-  //  -- cp : context
-  // -----------------------------------
-  __ AssertSmi(a0);
-
-  Label runtime;
-  __ SmiUntag(a0);
-  __ Allocate(a0, v0, a1, a2, &runtime, NO_ALLOCATION_FLAGS);
-  __ Ret();
-
-  __ bind(&runtime);
-  __ SmiTag(a0);
-  __ Push(a0);
-  __ TailCallRuntime(Runtime::kAllocateInNewSpace);
-}
-
-// static
-void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a0 : requested object size (tagged)
-  //  -- cp : context
-  // -----------------------------------
-  __ AssertSmi(a0);
-
-  Label runtime;
-  __ SmiUntag(a0);
-  __ Allocate(a0, v0, a1, a2, &runtime, PRETENURE);
-  __ Ret();
-
-  __ bind(&runtime);
-  __ SmiTag(a0);
-  __ Push(a0);
-  __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
-  __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
-}
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // State setup as expected by MacroAssembler::InvokePrologue.

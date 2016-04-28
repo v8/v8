@@ -4006,6 +4006,10 @@ void AllocateMutableHeapNumberStub::InitializeDescriptor(
 SIMD128_TYPES(SIMD128_INIT_DESC)
 #undef SIMD128_INIT_DESC
 
+void AllocateStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize();
+}
+
 void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
   descriptor->SetMissHandler(ExternalReference(

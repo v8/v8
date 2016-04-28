@@ -1302,11 +1302,13 @@ bool Pipeline::CreateGraph() {
   }
 
   // Type the graph.
-  Typer typer(isolate(), data->graph(), info()->is_deoptimization_enabled()
-                                            ? Typer::kDeoptimizationEnabled
-                                            : Typer::kNoFlags,
-              info()->dependencies());
-  Run<TyperPhase>(&typer);
+  base::SmartPointer<Typer> typer;
+  typer.Reset(new Typer(isolate(), data->graph(),
+                        info()->is_deoptimization_enabled()
+                            ? Typer::kDeoptimizationEnabled
+                            : Typer::kNoFlags,
+                        info()->dependencies()));
+  Run<TyperPhase>(typer.get());
   RunPrintAndVerify("Typed");
 
   BeginPhaseKind("lowering");
@@ -1333,6 +1335,26 @@ bool Pipeline::CreateGraph() {
   Run<EarlyOptimizationPhase>();
   RunPrintAndVerify("Early optimized");
 
+  Run<EffectControlLinearizationPhase>();
+  RunPrintAndVerify("Effect and control linearized");
+
+  Run<BranchEliminationPhase>();
+  RunPrintAndVerify("Branch conditions eliminated");
+
+  // Optimize control flow.
+  if (FLAG_turbo_cf_optimization) {
+    Run<ControlFlowOptimizationPhase>();
+    RunPrintAndVerify("Control flow optimized");
+  }
+
+  // Lower changes that have been inserted before.
+  Run<LateOptimizationPhase>();
+  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+  RunPrintAndVerify("Late optimized", true);
+
+  // Kill the Typer and thereby uninstall the decorator (if any).
+  typer.Reset(nullptr);
+
   EndPhaseKind();
 
   return true;
@@ -1342,23 +1364,6 @@ bool Pipeline::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
   BeginPhaseKind("block building");
-
-  Run<EffectControlLinearizationPhase>();
-  RunPrintAndVerify("Effect and control linearized", true);
-
-  Run<BranchEliminationPhase>();
-  RunPrintAndVerify("Branch conditions eliminated", true);
-
-  // Optimize control flow.
-  if (FLAG_turbo_cf_optimization) {
-    Run<ControlFlowOptimizationPhase>();
-    RunPrintAndVerify("Control flow optimized", true);
-  }
-
-  // Lower changes that have been inserted before.
-  Run<LateOptimizationPhase>();
-  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify("Late optimized", true);
 
   Run<LateGraphTrimmingPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.

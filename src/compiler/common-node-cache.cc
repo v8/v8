@@ -17,7 +17,7 @@ Node** CommonNodeCache::FindExternalConstant(ExternalReference value) {
 
 
 Node** CommonNodeCache::FindHeapConstant(Handle<HeapObject> value) {
-  return heap_constants_.Find(zone(), bit_cast<intptr_t>(value.address()));
+  return heap_constants_.Find(zone(), bit_cast<intptr_t>(value.location()));
 }
 
 
