@@ -121,8 +121,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
                                source_position_table_builder()));
 }
 
-BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
-
 Register BytecodeArrayBuilder::first_context_register() const {
   DCHECK_GT(context_register_count_, 0);
   return Register(local_register_count_);
@@ -147,6 +145,7 @@ bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
 
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
+  DCHECK_EQ(0, unbound_jumps_);
   DCHECK_EQ(bytecode_generated_, false);
   DCHECK(exit_seen_in_block_);
 
