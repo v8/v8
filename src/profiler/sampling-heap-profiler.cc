@@ -58,14 +58,14 @@ SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
           heap_, static_cast<intptr_t>(rate), rate, this,
           heap->isolate()->random_number_generator())),
       names_(names),
-      profile_root_("(root)", v8::UnboundScript::kNoScriptId, 0),
+      profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0),
       samples_(),
       stack_depth_(stack_depth),
       rate_(rate) {
   CHECK_GT(rate_, 0);
   heap->new_space()->AddAllocationObserver(new_space_observer_.get());
   AllSpaces spaces(heap);
-  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+  for (Space* space = spaces.next(); space != nullptr; space = spaces.next()) {
     if (space != heap->new_space()) {
       space->AddAllocationObserver(other_spaces_observer_.get());
     }
@@ -76,7 +76,7 @@ SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
 SamplingHeapProfiler::~SamplingHeapProfiler() {
   heap_->new_space()->RemoveAllocationObserver(new_space_observer_.get());
   AllSpaces spaces(heap_);
-  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+  for (Space* space = spaces.next(); space != nullptr; space = spaces.next()) {
     if (space != heap_->new_space()) {
       space->RemoveAllocationObserver(other_spaces_observer_.get());
     }
@@ -119,6 +119,14 @@ void SamplingHeapProfiler::OnWeakCallback(
   node->allocations_[sample->size]--;
   if (node->allocations_[sample->size] == 0) {
     node->allocations_.erase(sample->size);
+    while (node->allocations_.empty() && node->children_.empty() &&
+           node->parent_ && !node->parent_->pinned_) {
+      AllocationNode* parent = node->parent_;
+      parent->children_.erase(
+          std::find(parent->children_.begin(), parent->children_.end(), node));
+      delete node;
+      node = parent;
+    }
   }
   sample->profiler->samples_.erase(sample);
   delete sample;
@@ -134,7 +142,8 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::FindOrAddChildNode(
       return child;
     }
   }
-  AllocationNode* child = new AllocationNode(name, script_id, start_position);
+  AllocationNode* child =
+      new AllocationNode(parent, name, script_id, start_position);
   parent->children_.push_back(child);
   return child;
 }
@@ -197,6 +206,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
 v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
     const std::map<int, Handle<Script>>& scripts) {
+  // By pinning the node we make sure its children won't get disposed if
+  // a GC kicks in during the tree retrieval.
+  node->pinned_ = true;
   Local<v8::String> script_name =
       ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(""));
   int line = v8::AllocationProfile::kNoLineNumberInfo;
@@ -239,6 +251,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     current->children.push_back(
         TranslateAllocationNode(profile, node->children_[i], scripts));
   }
+  node->pinned_ = false;
   return current;
 }
 

@@ -71,11 +71,13 @@ class SamplingHeapProfiler {
 
   class AllocationNode {
    public:
-    AllocationNode(const char* const name, int script_id,
-                   const int start_position)
-        : script_id_(script_id),
+    AllocationNode(AllocationNode* parent, const char* name, int script_id,
+                   int start_position)
+        : parent_(parent),
+          script_id_(script_id),
           script_position_(start_position),
-          name_(name) {}
+          name_(name),
+          pinned_(false) {}
     ~AllocationNode() {
       for (auto child : children_) {
         delete child;
@@ -85,9 +87,11 @@ class SamplingHeapProfiler {
    private:
     std::map<size_t, unsigned int> allocations_;
     std::vector<AllocationNode*> children_;
+    AllocationNode* const parent_;
     const int script_id_;
     const int script_position_;
     const char* const name_;
+    bool pinned_;
 
     friend class SamplingHeapProfiler;
 
