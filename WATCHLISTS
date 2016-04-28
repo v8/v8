@@ -62,10 +62,7 @@
     },
     'merges': {
       'filepath': '.',
-    },
-    'v8_gyp': {
-      'filepath': 'tools/gyp/v8.gyp|src/v8.gyp',
-    },
+    }
   },
 
   'WATCHLISTS': {
@@ -98,10 +95,7 @@
     ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
-      # 'v8-merges@googlegroups.com',
-    ],
-    'v8_gyp': [
-      'machenbach@chromium.org',
+      'v8-merges@googlegroups.com',
     ],
   },
 }
