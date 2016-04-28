@@ -768,9 +768,6 @@
   'es6/debug-liveedit-new-target-3': [FAIL],
   'es6/generators-debug-liveedit': [FAIL],
 
-  # TODO(yangguo, 4961): test failure with GC stress
-  'es6/typedarray-copywithin': [PASS, ['gc_stress', SKIP]],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
@@ -834,6 +831,9 @@
   'es6/debug-stepin-collections-foreach': [SKIP],
   'ignition/elided-instruction': [SKIP],
   'regress/regress-269': [SKIP],
+   # TODO(yangguo,4961): issues with the compiler pipeline.
+  'es6/typedarray-copywithin': [SKIP],
+  'es6/block-conflicts': [SKIP],
 }],  # (ignition or ignition_turbofan) and gc_stress == True
 
 ['ignition == False and ignition_turbofan == False', {
