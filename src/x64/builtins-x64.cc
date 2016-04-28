@@ -2042,6 +2042,48 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
 }
 
+// static
+void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx : requested object size (tagged)
+  //  -- rsi : context
+  // -----------------------------------
+  __ AssertSmi(rdx);
+
+  Label runtime;
+  __ SmiToInteger64(rdx, rdx);
+  __ Allocate(rdx, rax, rcx, rdi, &runtime, NO_ALLOCATION_FLAGS);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ Integer32ToSmi(rdx, rdx);
+  __ PopReturnAddressTo(rcx);
+  __ Push(rdx);
+  __ PushReturnAddressFrom(rcx);
+  __ TailCallRuntime(Runtime::kAllocateInNewSpace);
+}
+
+// static
+void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdx : requested object size (tagged)
+  //  -- rsi : context
+  // -----------------------------------
+  __ AssertSmi(rdx);
+
+  Label runtime;
+  __ SmiToInteger64(rdx, rdx);
+  __ Allocate(rdx, rax, rcx, rdi, &runtime, PRETENURE);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ Integer32ToSmi(rdx, rdx);
+  __ PopReturnAddressTo(rcx);
+  __ Push(rdx);
+  __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
+  __ PushReturnAddressFrom(rcx);
+  __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
+}
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------

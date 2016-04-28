@@ -2751,6 +2751,46 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+// static
+void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
+  ASM_LOCATION("Builtins::Generate_AllocateInNewSpace");
+  // ----------- S t a t e -------------
+  //  -- x1 : requested object size (tagged)
+  //  -- cp : context
+  // -----------------------------------
+  __ AssertSmi(x1);
+
+  Label runtime;
+  __ SmiUntag(x1);
+  __ Allocate(x1, x0, x2, x3, &runtime, NO_ALLOCATION_FLAGS);
+  __ Ret();
+
+  __ Bind(&runtime);
+  __ SmiTag(x1);
+  __ Push(x1);
+  __ TailCallRuntime(Runtime::kAllocateInNewSpace);
+}
+
+// static
+void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
+  ASM_LOCATION("Builtins::Generate_AllocateInOldSpace");
+  // ----------- S t a t e -------------
+  //  -- x1 : requested object size (tagged)
+  //  -- cp : context
+  // -----------------------------------
+  __ AssertSmi(x1);
+
+  Label runtime;
+  __ SmiUntag(x1);
+  __ Allocate(x1, x0, x2, x3, &runtime, PRETENURE);
+  __ Ret();
+
+  __ Bind(&runtime);
+  __ SmiTag(x1);
+  __ Push(x1);
+  __ Push(Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
+  __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
+}
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   ASM_LOCATION("Builtins::Generate_ArgumentsAdaptorTrampoline");

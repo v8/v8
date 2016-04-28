@@ -57,7 +57,6 @@ namespace internal {
   V(VectorStoreIC)                          \
   V(VectorKeyedStoreIC)                     \
   /* HydrogenCodeStubs */                   \
-  V(Allocate)                               \
   V(ArrayNArgumentsConstructor)             \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
@@ -2749,23 +2748,6 @@ class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
   };
 SIMD128_TYPES(SIMD128_ALLOC_STUB)
 #undef SIMD128_ALLOC_STUB
-
-class AllocateStub final : public HydrogenCodeStub {
- public:
-  AllocateStub(Isolate* isolate, PretenureFlag pretenure_flag)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(PretenureFlagBits::encode(pretenure_flag));
-  }
-
-  PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(sub_minor_key());
-  }
-
- private:
-  typedef BitField<PretenureFlag, 0, 1> PretenureFlagBits;
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate);
-  DEFINE_HYDROGEN_CODE_STUB(Allocate, HydrogenCodeStub);
-};
 
 class ArrayConstructorStubBase : public HydrogenCodeStub {
  public:

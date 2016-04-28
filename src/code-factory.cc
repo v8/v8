@@ -516,8 +516,10 @@ SIMD128_TYPES(SIMD128_ALLOC)
 
 // static
 Callable CodeFactory::Allocate(Isolate* isolate, PretenureFlag pretenure_flag) {
-  AllocateStub stub(isolate, pretenure_flag);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+  return Callable(pretenure_flag == NOT_TENURED
+                      ? isolate->builtins()->AllocateInNewSpace()
+                      : isolate->builtins()->AllocateInOldSpace(),
+                  AllocateDescriptor(isolate));
 }
 
 // static

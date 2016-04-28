@@ -253,7 +253,7 @@ SIMD128_TYPES(SIMD128_ALLOC_DESC)
 
 void AllocateDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {eax};
+  Register registers[] = {edx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
