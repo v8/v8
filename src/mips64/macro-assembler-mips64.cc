@@ -1325,33 +1325,175 @@ void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 // ------------Pseudo-instructions-------------
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
-  lwr(rd, rs);
-  lwl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lw(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsLwrOffset) &&
+        is_int16(rs.offset() + kMipsLwlOffset)) {
+      if (!rd.is(rs.rm())) {
+        lwr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
+        lwl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
+      } else {
+        lwr(at, MemOperand(rs.rm(), rs.offset() + kMipsLwrOffset));
+        lwl(at, MemOperand(rs.rm(), rs.offset() + kMipsLwlOffset));
+        mov(rd, at);
+      }
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+      lwr(rd, MemOperand(at, kMipsLwrOffset));
+      lwl(rd, MemOperand(at, kMipsLwlOffset));
+    }
+  }
+}
+
+void MacroAssembler::Ulwu(Register rd, const MemOperand& rs) {
+  if (kArchVariant == kMips64r6) {
+    lwu(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Ulw(rd, rs);
+    Dext(rd, rd, 0, 32);
+  }
 }
 
 
 void MacroAssembler::Usw(Register rd, const MemOperand& rs) {
-  swr(rd, rs);
-  swl(rd, MemOperand(rs.rm(), rs.offset() + 3));
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    sw(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsSwrOffset) &&
+        is_int16(rs.offset() + kMipsSwlOffset)) {
+      swr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwrOffset));
+      swl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSwlOffset));
+    } else {
+      LoadRegPlusOffsetToAt(rs);
+      swr(rd, MemOperand(at, kMipsSwrOffset));
+      swl(rd, MemOperand(at, kMipsSwlOffset));
+    }
+  }
 }
 
-
-// Do 64-bit load from unaligned address. Note this only handles
-// the specific case of 32-bit aligned, but not 64-bit aligned.
-void MacroAssembler::Uld(Register rd, const MemOperand& rs, Register scratch) {
-  // Assert fail if the offset from start of object IS actually aligned.
-  // ONLY use with known misalignment, since there is performance cost.
-  DCHECK((rs.offset() + kHeapObjectTag) & (kPointerSize - 1));
-  if (kArchEndian == kLittle) {
-    lwu(rd, rs);
-    lw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsll32(scratch, scratch, 0);
+void MacroAssembler::Ulh(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lh(rd, rs);
   } else {
-    lw(rd, rs);
-    lwu(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsll32(rd, rd, 0);
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(at, rs);
+      lb(rd, MemOperand(rs.rm(), rs.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
+      lb(rd, rs);
+#endif
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lb(rd, MemOperand(at, 1));
+      lbu(at, MemOperand(at, 0));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lb(rd, MemOperand(at, 0));
+      lbu(at, MemOperand(at, 1));
+#endif
+    }
+    dsll(rd, rd, 8);
+    or_(rd, rd, at);
   }
-  Daddu(rd, rd, scratch);
+}
+
+void MacroAssembler::Ulhu(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    lhu(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset()) && is_int16(rs.offset() + 1)) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(at, rs);
+      lbu(rd, MemOperand(rs.rm(), rs.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(at, MemOperand(rs.rm(), rs.offset() + 1));
+      lbu(rd, rs);
+#endif
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+      lbu(rd, MemOperand(at, 1));
+      lbu(at, MemOperand(at, 0));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+      lbu(rd, MemOperand(at, 0));
+      lbu(at, MemOperand(at, 1));
+#endif
+    }
+    dsll(rd, rd, 8);
+    or_(rd, rd, at);
+  }
+}
+
+void MacroAssembler::Ush(Register rd, const MemOperand& rs, Register scratch) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  DCHECK(!rs.rm().is(scratch));
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    sh(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    MemOperand source = rs;
+    // If offset > 16 bits, load address to at with offset 0.
+    if (!is_int16(rs.offset()) || !is_int16(rs.offset() + 1)) {
+      LoadRegPlusOffsetToAt(rs);
+      source = MemOperand(at, 0);
+    }
+
+    if (!scratch.is(rd)) {
+      mov(scratch, rd);
+    }
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+    sb(scratch, source);
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(source.rm(), source.offset() + 1));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+    sb(scratch, MemOperand(source.rm(), source.offset() + 1));
+    srl(scratch, scratch, 8);
+    sb(scratch, source);
+#endif
+  }
+}
+
+void MacroAssembler::Uld(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    ld(rd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsLdrOffset) &&
+        is_int16(rs.offset() + kMipsLdlOffset)) {
+      if (!rd.is(rs.rm())) {
+        ldr(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
+        ldl(rd, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
+      } else {
+        ldr(at, MemOperand(rs.rm(), rs.offset() + kMipsLdrOffset));
+        ldl(at, MemOperand(rs.rm(), rs.offset() + kMipsLdlOffset));
+        mov(rd, at);
+      }
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(rs);
+      ldr(rd, MemOperand(at, kMipsLdrOffset));
+      ldl(rd, MemOperand(at, kMipsLdlOffset));
+    }
+  }
 }
 
 
@@ -1366,21 +1508,22 @@ void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs,
   Daddu(rd, rd, scratch);
 }
 
-
-// Do 64-bit store to unaligned address. Note this only handles
-// the specific case of 32-bit aligned, but not 64-bit aligned.
-void MacroAssembler::Usd(Register rd, const MemOperand& rs, Register scratch) {
-  // Assert fail if the offset from start of object IS actually aligned.
-  // ONLY use with known misalignment, since there is performance cost.
-  DCHECK((rs.offset() + kHeapObjectTag) & (kPointerSize - 1));
-  if (kArchEndian == kLittle) {
-    sw(rd, rs);
-    dsrl32(scratch, rd, 0);
-    sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
+void MacroAssembler::Usd(Register rd, const MemOperand& rs) {
+  DCHECK(!rd.is(at));
+  DCHECK(!rs.rm().is(at));
+  if (kArchVariant == kMips64r6) {
+    sd(rd, rs);
   } else {
-    sw(rd, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
-    dsrl32(scratch, rd, 0);
-    sw(scratch, rs);
+    DCHECK(kArchVariant == kMips64r2);
+    if (is_int16(rs.offset() + kMipsSdrOffset) &&
+        is_int16(rs.offset() + kMipsSdlOffset)) {
+      sdr(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdrOffset));
+      sdl(rd, MemOperand(rs.rm(), rs.offset() + kMipsSdlOffset));
+    } else {
+      LoadRegPlusOffsetToAt(rs);
+      sdr(rd, MemOperand(at, kMipsSdrOffset));
+      sdl(rd, MemOperand(at, kMipsSdlOffset));
+    }
   }
 }
 
@@ -1393,6 +1536,51 @@ void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs,
   sw(scratch, MemOperand(rs.rm(), rs.offset() + kPointerSize / 2));
 }
 
+void MacroAssembler::Ulwc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  if (kArchVariant == kMips64r6) {
+    lwc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Ulw(scratch, rs);
+    mtc1(scratch, fd);
+  }
+}
+
+void MacroAssembler::Uswc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  if (kArchVariant == kMips64r6) {
+    swc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    mfc1(scratch, fd);
+    Usw(scratch, rs);
+  }
+}
+
+void MacroAssembler::Uldc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    ldc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    Uld(scratch, rs);
+    dmtc1(scratch, fd);
+  }
+}
+
+void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
+                           Register scratch) {
+  DCHECK(!scratch.is(at));
+  if (kArchVariant == kMips64r6) {
+    sdc1(fd, rs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
+    dmfc1(scratch, fd);
+    Usd(scratch, rs);
+  }
+}
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   AllowDeferredHandleDereference smi_check;

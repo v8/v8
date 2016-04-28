@@ -1743,7 +1743,7 @@ int32_t Simulator::ReadW(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -1763,7 +1763,7 @@ uint32_t Simulator::ReadWU(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
     uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -1783,7 +1783,7 @@ void Simulator::WriteW(int64_t addr, int32_t value, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
     TraceMemWr(addr, value, WORD);
     int* ptr = reinterpret_cast<int*>(addr);
     *ptr = value;
@@ -1803,7 +1803,7 @@ int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     TraceMemRd(addr, *ptr);
     return *ptr;
@@ -1823,7 +1823,7 @@ void Simulator::Write2W(int64_t addr, int64_t value, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
     TraceMemWr(addr, value, DWORD);
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     *ptr = value;
@@ -1836,7 +1836,7 @@ void Simulator::Write2W(int64_t addr, int64_t value, Instruction* instr) {
 
 
 double Simulator::ReadD(int64_t addr, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || kArchVariant == kMips64r6) {
     double* ptr = reinterpret_cast<double*>(addr);
     return *ptr;
   }
@@ -1848,7 +1848,7 @@ double Simulator::ReadD(int64_t addr, Instruction* instr) {
 
 
 void Simulator::WriteD(int64_t addr, double value, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || kArchVariant == kMips64r6) {
     double* ptr = reinterpret_cast<double*>(addr);
     *ptr = value;
     return;
@@ -1861,7 +1861,7 @@ void Simulator::WriteD(int64_t addr, double value, Instruction* instr) {
 
 
 uint16_t Simulator::ReadHU(int64_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -1875,7 +1875,7 @@ uint16_t Simulator::ReadHU(int64_t addr, Instruction* instr) {
 
 
 int16_t Simulator::ReadH(int64_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr));
     return *ptr;
@@ -1889,7 +1889,7 @@ int16_t Simulator::ReadH(int64_t addr, Instruction* instr) {
 
 
 void Simulator::WriteH(int64_t addr, uint16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
     TraceMemWr(addr, value, HALF);
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     *ptr = value;
@@ -1903,7 +1903,7 @@ void Simulator::WriteH(int64_t addr, uint16_t value, Instruction* instr) {
 
 
 void Simulator::WriteH(int64_t addr, int16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || kArchVariant == kMips64r6) {
     TraceMemWr(addr, value, HALF);
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     *ptr = value;
@@ -4164,6 +4164,8 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   int64_t addr = 0x0;
   // Alignment for 32-bit integers used in LWL, LWR, etc.
   const int kInt32AlignmentMask = sizeof(uint32_t) - 1;
+  // Alignment for 64-bit integers used in LDL, LDR, etc.
+  const int kInt64AlignmentMask = sizeof(uint64_t) - 1;
 
   // Branch instructions common part.
   auto BranchAndLinkHelper = [this, instr, &next_pc,
@@ -4465,10 +4467,10 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       uint8_t byte_shift = kInt32AlignmentMask - al_offset;
       uint32_t mask = (1 << byte_shift * 8) - 1;
       addr = rs + se_imm16 - al_offset;
-      alu_out = ReadW(addr, instr);
-      alu_out <<= byte_shift * 8;
-      alu_out |= rt & mask;
-      set_register(rt_reg, alu_out);
+      int32_t val = ReadW(addr, instr);
+      val <<= byte_shift * 8;
+      val |= rt & mask;
+      set_register(rt_reg, static_cast<int64_t>(val));
       break;
     }
     case LW:
@@ -4494,6 +4496,30 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       addr = rs + se_imm16 - al_offset;
       alu_out = ReadW(addr, instr);
       alu_out = static_cast<uint32_t> (alu_out) >> al_offset * 8;
+      alu_out |= rt & mask;
+      set_register(rt_reg, alu_out);
+      break;
+    }
+    case LDL: {
+      // al_offset is offset of the effective address within an aligned word.
+      uint8_t al_offset = (rs + se_imm16) & kInt64AlignmentMask;
+      uint8_t byte_shift = kInt64AlignmentMask - al_offset;
+      uint64_t mask = (1UL << byte_shift * 8) - 1;
+      addr = rs + se_imm16 - al_offset;
+      alu_out = Read2W(addr, instr);
+      alu_out <<= byte_shift * 8;
+      alu_out |= rt & mask;
+      set_register(rt_reg, alu_out);
+      break;
+    }
+    case LDR: {
+      // al_offset is offset of the effective address within an aligned word.
+      uint8_t al_offset = (rs + se_imm16) & kInt64AlignmentMask;
+      uint8_t byte_shift = kInt64AlignmentMask - al_offset;
+      uint64_t mask = al_offset ? (~0UL << (byte_shift + 1) * 8) : 0UL;
+      addr = rs + se_imm16 - al_offset;
+      alu_out = Read2W(addr, instr);
+      alu_out = alu_out >> al_offset * 8;
       alu_out |= rt & mask;
       set_register(rt_reg, alu_out);
       break;
@@ -4527,6 +4553,25 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       uint64_t mem_value = ReadW(addr, instr);
       mem_value = (rt << al_offset * 8) | (mem_value & mask);
       WriteW(addr, static_cast<int32_t>(mem_value), instr);
+      break;
+    }
+    case SDL: {
+      uint8_t al_offset = (rs + se_imm16) & kInt64AlignmentMask;
+      uint8_t byte_shift = kInt64AlignmentMask - al_offset;
+      uint64_t mask = byte_shift ? (~0UL << (al_offset + 1) * 8) : 0;
+      addr = rs + se_imm16 - al_offset;
+      uint64_t mem_value = Read2W(addr, instr) & mask;
+      mem_value |= rt >> byte_shift * 8;
+      Write2W(addr, mem_value, instr);
+      break;
+    }
+    case SDR: {
+      uint8_t al_offset = (rs + se_imm16) & kInt64AlignmentMask;
+      uint64_t mask = (1UL << al_offset * 8) - 1;
+      addr = rs + se_imm16 - al_offset;
+      uint64_t mem_value = Read2W(addr, instr);
+      mem_value = (rt << al_offset * 8) | (mem_value & mask);
+      Write2W(addr, mem_value, instr);
       break;
     }
     case LWC1:

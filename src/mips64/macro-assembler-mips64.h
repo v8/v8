@@ -714,10 +714,22 @@ class MacroAssembler: public Assembler {
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
+  void Ulh(Register rd, const MemOperand& rs);
+  void Ulhu(Register rd, const MemOperand& rs);
+  void Ush(Register rd, const MemOperand& rs, Register scratch);
+
   void Ulw(Register rd, const MemOperand& rs);
+  void Ulwu(Register rd, const MemOperand& rs);
   void Usw(Register rd, const MemOperand& rs);
-  void Uld(Register rd, const MemOperand& rs, Register scratch = at);
-  void Usd(Register rd, const MemOperand& rs, Register scratch = at);
+
+  void Uld(Register rd, const MemOperand& rs);
+  void Usd(Register rd, const MemOperand& rs);
+
+  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);

@@ -679,8 +679,18 @@ class MacroAssembler: public Assembler {
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
+  void Ulh(Register rd, const MemOperand& rs);
+  void Ulhu(Register rd, const MemOperand& rs);
+  void Ush(Register rd, const MemOperand& rs, Register scratch);
+
   void Ulw(Register rd, const MemOperand& rs);
   void Usw(Register rd, const MemOperand& rs);
+
+  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
   // Load int32 in the rd register.
   void li(Register rd, Operand j, LiFlags mode = OPTIMIZE_SIZE);

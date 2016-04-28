@@ -1791,7 +1791,7 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1813,7 +1813,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
     MipsDebugger dbg(this);
     dbg.Debug();
   }
-  if ((addr & kPointerAlignmentMask) == 0) {
+  if ((addr & kPointerAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     TraceMemWr(addr, value, WORD);
     *ptr = value;
@@ -1828,7 +1828,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
 
 
 double Simulator::ReadD(int32_t addr, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     return *ptr;
   }
@@ -1841,7 +1841,7 @@ double Simulator::ReadD(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
-  if ((addr & kDoubleAlignmentMask) == 0) {
+  if ((addr & kDoubleAlignmentMask) == 0 || IsMipsArchVariant(kMips32r6)) {
     double* ptr = reinterpret_cast<double*>(addr);
     *ptr = value;
     return;
@@ -1854,7 +1854,7 @@ void Simulator::WriteD(int32_t addr, double value, Instruction* instr) {
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1868,7 +1868,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemRd(addr, static_cast<int32_t>(*ptr));
     return *ptr;
@@ -1882,7 +1882,7 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;
@@ -1896,7 +1896,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
-  if ((addr & 1) == 0) {
+  if ((addr & 1) == 0 || IsMipsArchVariant(kMips32r6)) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     TraceMemWr(addr, value, HALF);
     *ptr = value;

@@ -108,6 +108,19 @@ const uint32_t kHoleNanLower32Offset = 4;
   (CpuFeatures::IsSupported(static_cast<CpuFeature>(check)))
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kMipsLwrOffset = 0;
+const uint32_t kMipsLwlOffset = 3;
+const uint32_t kMipsSwrOffset = 0;
+const uint32_t kMipsSwlOffset = 3;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kMipsLwrOffset = 3;
+const uint32_t kMipsLwlOffset = 0;
+const uint32_t kMipsSwrOffset = 3;
+const uint32_t kMipsSwlOffset = 0;
+#else
+#error Unknown endianness
+#endif
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>

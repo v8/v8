@@ -1167,6 +1167,9 @@ class Assembler : public AssemblerBase {
   // Load Scaled Address instruction.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
 
+  // Helpers.
+  void LoadRegPlusOffsetToAt(const MemOperand& src);
+
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
@@ -1364,8 +1367,6 @@ class Assembler : public AssemblerBase {
   void GenInstrJump(Opcode opcode,
                      uint32_t address);
 
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
 
   // Labels.
   void print(Label* L);

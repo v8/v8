@@ -2001,11 +2001,15 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
 
 
 void Assembler::lwl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LWL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::lwr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LWR, rs.rm(), rd, rs.offset_);
 }
 
@@ -2041,11 +2045,15 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
 
 
 void Assembler::swl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SWL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::swr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SWR, rs.rm(), rd, rs.offset_);
 }
 
@@ -2084,21 +2092,29 @@ void Assembler::dati(Register rs, int32_t j) {
 
 
 void Assembler::ldl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LDL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::ldr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LDR, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::sdl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SDL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::sdr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SDR, rs.rm(), rd, rs.offset_);
 }
 

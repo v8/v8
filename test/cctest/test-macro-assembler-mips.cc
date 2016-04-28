@@ -413,6 +413,13 @@ static const std::vector<int32_t> cvt_trunc_int32_test_values() {
   for (std::vector<ctype>::iterator var = var##_vec.begin(); \
        var != var##_vec.end(); ++var)
 
+#define FOR_INPUTS2(ctype, itype, var, var2, test_vector)  \
+  std::vector<ctype> var##_vec = test_vector();            \
+  std::vector<ctype>::iterator var;                        \
+  std::vector<ctype>::reverse_iterator var2;               \
+  for (var = var##_vec.begin(), var2 = var##_vec.rbegin(); \
+       var != var##_vec.end(); ++var, ++var2)
+
 #define FOR_ENUM_INPUTS(var, type, test_vector) \
   FOR_INPUTS(enum type, type, var, test_vector)
 #define FOR_STRUCT_INPUTS(var, type, test_vector) \
@@ -421,6 +428,11 @@ static const std::vector<int32_t> cvt_trunc_int32_test_values() {
   FOR_INPUTS(uint32_t, uint32, var, test_vector)
 #define FOR_INT32_INPUTS(var, test_vector) \
   FOR_INPUTS(int32_t, int32, var, test_vector)
+#define FOR_INT32_INPUTS2(var, var2, test_vector) \
+  FOR_INPUTS2(int32_t, int32, var, var2, test_vector)
+
+#define FOR_UINT64_INPUTS(var, test_vector) \
+  FOR_INPUTS(uint64_t, uint32, var, test_vector)
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
 RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
@@ -916,6 +928,243 @@ TEST(min_max_nan) {
     CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
     CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
     CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
+  }
+}
+
+template <typename IN_TYPE, typename Func>
+bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
+                   IN_TYPE value, Func GenerateUnalignedInstructionFunc) {
+  typedef int32_t (*F_CVT)(char* x0, int x1, int x2, int x3, int x4);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assm;
+  IN_TYPE res;
+
+  GenerateUnalignedInstructionFunc(masm, in_offset, out_offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
+
+  MemCopy(memory_buffer + in_offset, &value, sizeof(IN_TYPE));
+  CALL_GENERATED_CODE(isolate, f, memory_buffer, 0, 0, 0, 0);
+  MemCopy(&res, memory_buffer + out_offset, sizeof(IN_TYPE));
+
+  return res == value;
+}
+
+static const std::vector<uint64_t> unsigned_test_values() {
+  static const uint64_t kValues[] = {
+      0x2180f18a06384414, 0x000a714532102277, 0xbc1acccf180649f0,
+      0x8000000080008000, 0x0000000000000001, 0xffffffffffffffff,
+  };
+  return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<int32_t> unsigned_test_offset() {
+  static const int32_t kValues[] = {// value, offset
+                                    -132 * KB, -21 * KB, 0, 19 * KB, 135 * KB};
+  return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<int32_t> unsigned_test_offset_increment() {
+  static const int32_t kValues[] = {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+  return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+TEST(Ulh) {
+  CcTest::InitializeVM();
+
+  static const int kBufferSize = 300 * KB;
+  char memory_buffer[kBufferSize];
+  char* buffer_middle = memory_buffer + (kBufferSize / 2);
+
+  FOR_UINT64_INPUTS(i, unsigned_test_values) {
+    FOR_INT32_INPUTS2(j1, j2, unsigned_test_offset) {
+      FOR_INT32_INPUTS2(k1, k2, unsigned_test_offset_increment) {
+        uint16_t value = static_cast<uint64_t>(*i & 0xFFFF);
+        int32_t in_offset = *j1 + *k1;
+        int32_t out_offset = *j2 + *k2;
+
+        CHECK_EQ(true, run_Unaligned<uint16_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ Ulh(v0, MemOperand(a0, in_offset));
+                             __ Ush(v0, MemOperand(a0, out_offset), v0);
+                           }));
+        CHECK_EQ(true, run_Unaligned<uint16_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ mov(t0, a0);
+                             __ Ulh(a0, MemOperand(a0, in_offset));
+                             __ Ush(a0, MemOperand(t0, out_offset), v0);
+                           }));
+        CHECK_EQ(true, run_Unaligned<uint16_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ mov(t0, a0);
+                             __ Ulhu(a0, MemOperand(a0, in_offset));
+                             __ Ush(a0, MemOperand(t0, out_offset), t1);
+                           }));
+        CHECK_EQ(true, run_Unaligned<uint16_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ Ulhu(v0, MemOperand(a0, in_offset));
+                             __ Ush(v0, MemOperand(a0, out_offset), t1);
+                           }));
+      }
+    }
+  }
+}
+
+TEST(Ulh_bitextension) {
+  CcTest::InitializeVM();
+
+  static const int kBufferSize = 300 * KB;
+  char memory_buffer[kBufferSize];
+  char* buffer_middle = memory_buffer + (kBufferSize / 2);
+
+  FOR_UINT64_INPUTS(i, unsigned_test_values) {
+    FOR_INT32_INPUTS2(j1, j2, unsigned_test_offset) {
+      FOR_INT32_INPUTS2(k1, k2, unsigned_test_offset_increment) {
+        uint16_t value = static_cast<uint64_t>(*i & 0xFFFF);
+        int32_t in_offset = *j1 + *k1;
+        int32_t out_offset = *j2 + *k2;
+
+        CHECK_EQ(true, run_Unaligned<uint16_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             Label success, fail, end, different;
+                             __ Ulh(t0, MemOperand(a0, in_offset));
+                             __ Ulhu(t1, MemOperand(a0, in_offset));
+                             __ Branch(&different, ne, t0, Operand(t1));
+
+                             // If signed and unsigned values are same, check
+                             // the upper bits to see if they are zero
+                             __ sra(t0, t0, 15);
+                             __ Branch(&success, eq, t0, Operand(zero_reg));
+                             __ Branch(&fail);
+
+                             // If signed and unsigned values are different,
+                             // check that the upper bits are complementary
+                             __ bind(&different);
+                             __ sra(t1, t1, 15);
+                             __ Branch(&fail, ne, t1, Operand(1));
+                             __ sra(t0, t0, 15);
+                             __ addiu(t0, t0, 1);
+                             __ Branch(&fail, ne, t0, Operand(zero_reg));
+                             // Fall through to success
+
+                             __ bind(&success);
+                             __ Ulh(t0, MemOperand(a0, in_offset));
+                             __ Ush(t0, MemOperand(a0, out_offset), v0);
+                             __ Branch(&end);
+                             __ bind(&fail);
+                             __ Ush(zero_reg, MemOperand(a0, out_offset), v0);
+                             __ bind(&end);
+                           }));
+      }
+    }
+  }
+}
+
+TEST(Ulw) {
+  CcTest::InitializeVM();
+
+  static const int kBufferSize = 300 * KB;
+  char memory_buffer[kBufferSize];
+  char* buffer_middle = memory_buffer + (kBufferSize / 2);
+
+  FOR_UINT64_INPUTS(i, unsigned_test_values) {
+    FOR_INT32_INPUTS2(j1, j2, unsigned_test_offset) {
+      FOR_INT32_INPUTS2(k1, k2, unsigned_test_offset_increment) {
+        uint32_t value = static_cast<uint32_t>(*i & 0xFFFFFFFF);
+        int32_t in_offset = *j1 + *k1;
+        int32_t out_offset = *j2 + *k2;
+
+        CHECK_EQ(true, run_Unaligned<uint32_t>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ Ulw(v0, MemOperand(a0, in_offset));
+                             __ Usw(v0, MemOperand(a0, out_offset));
+                           }));
+        CHECK_EQ(true,
+                 run_Unaligned<uint32_t>(
+                     buffer_middle, in_offset, out_offset, (uint32_t)value,
+                     [](MacroAssembler* masm, int32_t in_offset,
+                        int32_t out_offset) {
+                       __ mov(t0, a0);
+                       __ Ulw(a0, MemOperand(a0, in_offset));
+                       __ Usw(a0, MemOperand(t0, out_offset));
+                     }));
+      }
+    }
+  }
+}
+
+TEST(Ulwc1) {
+  CcTest::InitializeVM();
+
+  static const int kBufferSize = 300 * KB;
+  char memory_buffer[kBufferSize];
+  char* buffer_middle = memory_buffer + (kBufferSize / 2);
+
+  FOR_UINT64_INPUTS(i, unsigned_test_values) {
+    FOR_INT32_INPUTS2(j1, j2, unsigned_test_offset) {
+      FOR_INT32_INPUTS2(k1, k2, unsigned_test_offset_increment) {
+        float value = static_cast<float>(*i & 0xFFFFFFFF);
+        int32_t in_offset = *j1 + *k1;
+        int32_t out_offset = *j2 + *k2;
+
+        CHECK_EQ(true, run_Unaligned<float>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
+                             __ Uswc1(f0, MemOperand(a0, out_offset), t0);
+                           }));
+      }
+    }
+  }
+}
+
+TEST(Uldc1) {
+  CcTest::InitializeVM();
+
+  static const int kBufferSize = 300 * KB;
+  char memory_buffer[kBufferSize];
+  char* buffer_middle = memory_buffer + (kBufferSize / 2);
+
+  FOR_UINT64_INPUTS(i, unsigned_test_values) {
+    FOR_INT32_INPUTS2(j1, j2, unsigned_test_offset) {
+      FOR_INT32_INPUTS2(k1, k2, unsigned_test_offset_increment) {
+        double value = static_cast<double>(*i);
+        int32_t in_offset = *j1 + *k1;
+        int32_t out_offset = *j2 + *k2;
+
+        CHECK_EQ(true, run_Unaligned<double>(
+                           buffer_middle, in_offset, out_offset, value,
+                           [](MacroAssembler* masm, int32_t in_offset,
+                              int32_t out_offset) {
+                             __ Uldc1(f0, MemOperand(a0, in_offset), t0);
+                             __ Usdc1(f0, MemOperand(a0, out_offset), t0);
+                           }));
+      }
+    }
   }
 }
 
