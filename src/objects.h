@@ -9682,7 +9682,7 @@ class JSProxy: public JSReceiver {
   // ES6 9.5.8
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
-      Handle<Object> receiver);
+      Handle<Object> receiver, bool* was_found);
 
   // ES6 9.5.9
   MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
