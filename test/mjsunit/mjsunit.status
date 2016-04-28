@@ -827,8 +827,6 @@
 
 ['(ignition or ignition_turbofan) and gc_stress == True', {
   # TODO(oth,4680): failures from the bots.
-  'es6/debug-step-destructuring-bind': [SKIP],
-  'es6/debug-stepin-collections-foreach': [SKIP],
   'ignition/elided-instruction': [SKIP],
   'regress/regress-269': [SKIP],
    # TODO(yangguo,4961): issues with the compiler pipeline.
