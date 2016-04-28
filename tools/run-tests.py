@@ -105,6 +105,7 @@ TIMEOUT_DEFAULT = 60
 VARIANTS = ["default", "stress", "turbofan"]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + [
+  "ignition",
   "nocrankshaft",
   "turbofan_opt",
 ]

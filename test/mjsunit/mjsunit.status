@@ -282,6 +282,53 @@
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
+
+  ############################################################################
+  # Ignition
+
+  # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
+  'debug-liveedit-restart-frame': [PASS, NO_IGNITION],
+  'debug-liveedit-literals': [PASS, NO_IGNITION],
+  'debug-liveedit-3': [PASS, NO_IGNITION],
+  'debug-liveedit-1': [PASS, NO_IGNITION],
+  'debug-liveedit-2': [PASS, NO_IGNITION],
+  'debug-liveedit-patch-positions-replace': [PASS, NO_IGNITION],
+  'debug-liveedit-patch-positions': [PASS, NO_IGNITION],
+  'debug-liveedit-stepin': [PASS, NO_IGNITION],
+  'debug-liveedit-newsource': [PASS, NO_IGNITION],
+  'debug-liveedit-stack-padding': [PASS, NO_IGNITION],
+  'debug-liveedit-breakpoints': [PASS, NO_IGNITION],
+  'es6/debug-liveedit-new-target-1': [PASS, NO_IGNITION],
+  'es6/debug-liveedit-new-target-2': [PASS, NO_IGNITION],
+  'es6/debug-liveedit-new-target-3': [PASS, NO_IGNITION],
+  'es6/generators-debug-liveedit': [PASS, NO_IGNITION],
+
+  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
+  'array-literal-feedback': [PASS, NO_IGNITION],
+  'regress/regress-4121': [PASS, NO_IGNITION],
+
+  # TODO(mythria, 4764): lack of osr support.
+  'regress/regress-2618': [PASS, NO_IGNITION],
+  # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
+  # till it is optimized. So test timeouts.
+  'array-literal-transitions': [PASS, NO_IGNITION],
+
+  # TODO(mythria, 4680): Relate to GC and ignition holding references to
+  # objects.
+  'es6/mirror-collections': [PASS, NO_IGNITION],
+
+  # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
+  # eager compile of the whole script instead of during lazy compile of the function
+  # f(), so we can't catch the exception in the try/catch. Skip because on some
+  # platforms the stack limit is different and the exception doesn't fire.
+  'regress/regress-crbug-589472': [PASS, NO_IGNITION],
+
+  # Debugger test cases that pass with ignition, but not full-codegen.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction-no-ignition': [PASS, NO_IGNITION],
+
+  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', NO_IGNITION]],
+  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', NO_IGNITION]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -361,6 +408,16 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # TODO(oth,4680): failures from the bots.
+  'ignition/elided-instruction': [PASS, NO_IGNITION],
+  'regress/regress-269': [PASS, NO_IGNITION],
+
+   # TODO(yangguo,4961): issues with the compiler pipeline.
+  'es6/typedarray-copywithin': [PASS, NO_IGNITION],
+  'es6/block-conflicts': [PASS, NO_IGNITION],
+  'es6/block-conflicts-sloppy': [PASS, NO_IGNITION],
+  'mul-exhaustive-part10': [PASS, NO_IGNITION],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -450,6 +507,13 @@
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
   'whitespaces': [PASS, TIMEOUT, SLOW],
+
+  # TODO(rmcilroy,4680): Arm64 specific timeouts.
+  'asm/construct-double': [PASS, NO_IGNITION],
+  'compiler/osr-one': [PASS, NO_IGNITION],
+  'compiler/osr-two': [PASS, NO_IGNITION],
+  'wasm/asm-wasm-i32': [PASS, NO_IGNITION],
+  'wasm/asm-wasm-u32': [PASS, NO_IGNITION],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -488,6 +552,17 @@
   'deep-recursion': [SKIP],
   'regress/regress-builtinbust-7': [SKIP],
   'string-localecompare': [SKIP],
+
+  # TODO(mythria,4680): All of these tests have large loops and hence slow
+  # and timeout.
+  'compiler/osr-big': [PASS, NO_IGNITION],
+  'compiler/osr-nested': [PASS, NO_IGNITION],
+  'regress/regress-298269': [PASS, NO_IGNITION],
+  'regress/regress-crbug-319860': [PASS, NO_IGNITION],
+  'regress/regress-deep-proto': [PASS, NO_IGNITION],
+  'try': [PASS, NO_IGNITION],
+  # Too slow for interpreter and msan.
+  'es6/tail-call-megatest*': [PASS, NO_IGNITION],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -533,6 +608,11 @@
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, TIMEOUT],
+
+  # TODO(rmcilroy,4680): Arm specific timeouts.
+  'compiler/osr-one': [PASS, NO_IGNITION],
+  'compiler/osr-two': [PASS, NO_IGNITION],
+  'regress/regress-1257': [PASS, NO_IGNITION],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
