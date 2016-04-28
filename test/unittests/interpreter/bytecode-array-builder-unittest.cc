@@ -208,7 +208,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .JumpIfFalse(&start);
 
   // Emit stack check bytecode.
-  builder.StackCheck();
+  builder.StackCheck(0);
 
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.

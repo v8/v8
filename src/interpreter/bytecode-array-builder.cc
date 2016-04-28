@@ -860,7 +860,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
   return OutputJump(Bytecode::kJumpIfUndefined, label);
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck() {
+BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
+  if (position != RelocInfo::kNoPosition) {
+    // We need to attach a non-breakable source position to a stack check,
+    // so we simply add it as expression position.
+    source_position_table_builder_.AddExpressionPosition(bytecodes_.size(),
+                                                         position);
+  }
   Output(Bytecode::kStackCheck);
   return *this;
 }

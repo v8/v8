@@ -638,7 +638,7 @@ void BytecodeGenerator::MakeBytecodeBody() {
   VisitDeclarations(scope()->declarations());
 
   // Perform a stack-check before the body.
-  builder()->StackCheck();
+  builder()->StackCheck(info()->literal()->start_position());
 
   // Visit statements in the function body.
   VisitStatements(info()->literal()->body());
@@ -1036,7 +1036,7 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
 void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
                                            LoopBuilder* loop_builder) {
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
-  builder()->StackCheck();
+  builder()->StackCheck(stmt->position());
   Visit(stmt->body());
 }
 

@@ -223,7 +223,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
 
-  BytecodeArrayBuilder& StackCheck();
+  BytecodeArrayBuilder& StackCheck(int position);
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
