@@ -466,8 +466,8 @@ PASS Invalid: "for (var a = -6, b in b) break"
 PASS Invalid: "function f() { for (var a = -6, b in b) break }"
 PASS Invalid: "for (var a, b = 8 in b) break"
 PASS Invalid: "function f() { for (var a, b = 8 in b) break }"
-PASS Valid:   "for (var a = (b in c) in d) break"
-PASS Valid:   "function f() { for (var a = (b in c) in d) break }"
+FAIL Valid:   "for (var a = (b in c) in d) break" should NOT throw
+FAIL Valid:   "function f() { for (var a = (b in c) in d) break }" should NOT throw
 PASS Invalid: "for (var a = (b in c in d) break"
 PASS Invalid: "function f() { for (var a = (b in c in d) break }"
 PASS Invalid: "for (var (a) in b) { }"
