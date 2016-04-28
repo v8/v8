@@ -546,11 +546,11 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
     // let array = [];
     // while (!done) {
+    //   done = true;  // If .next, .done or .value throws, don't close.
     //   result = IteratorNext(iterator);
-    //   if (result.done) {
-    //     done = true;
-    //   } else {
+    //   if (!result.done) {
     //     %AppendElement(array, result.value);
+    //     done = false;
     //   }
     // }
 
@@ -565,17 +565,17 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           node->literal_index(), RelocInfo::kNoPosition));
     }
 
-    // result = IteratorNext(iterator);
-    Statement* get_next = factory()->NewExpressionStatement(
-        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
-                                         result, nopos),
-        nopos);
-
     // done = true;
     Statement* set_done = factory()->NewExpressionStatement(
         factory()->NewAssignment(
             Token::ASSIGN, factory()->NewVariableProxy(done),
             factory()->NewBooleanLiteral(true, nopos), nopos),
+        nopos);
+
+    // result = IteratorNext(iterator);
+    Statement* get_next = factory()->NewExpressionStatement(
+        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
+                                         result, nopos),
         nopos);
 
     // %AppendElement(array, result.value);
@@ -594,29 +594,44 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           nopos);
     }
 
-    // if (result.done) { #set_done } else { #append_element }
-    Statement* set_done_or_append;
+    // done = false;
+    Statement* unset_done = factory()->NewExpressionStatement(
+        factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(done),
+            factory()->NewBooleanLiteral(false, nopos), nopos),
+        nopos);
+
+    // if (!result.done) { #append_element; #unset_done }
+    Statement* maybe_append_and_unset_done;
     {
       Expression* result_done =
           factory()->NewProperty(factory()->NewVariableProxy(result),
                                  factory()->NewStringLiteral(
                                      ast_value_factory()->done_string(), nopos),
                                  nopos);
-      set_done_or_append = factory()->NewIfStatement(result_done, set_done,
-                                                     append_element, nopos);
+
+      Block* then = factory()->NewBlock(nullptr, 2, true, nopos);
+      then->statements()->Add(append_element, zone());
+      then->statements()->Add(unset_done, zone());
+
+      maybe_append_and_unset_done = factory()->NewIfStatement(
+          factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
+          factory()->NewEmptyStatement(nopos), nopos);
     }
 
     // while (!done) {
+    //   #set_done;
     //   #get_next;
-    //   #set_done_or_append;
+    //   #maybe_append_and_unset_done;
     // }
     WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);
-      Block* body = factory()->NewBlock(nullptr, 2, true, nopos);
+      Block* body = factory()->NewBlock(nullptr, 3, true, nopos);
+      body->statements()->Add(set_done, zone());
       body->statements()->Add(get_next, zone());
-      body->statements()->Add(set_done_or_append, zone());
+      body->statements()->Add(maybe_append_and_unset_done, zone());
       loop->Initialize(condition, body);
     }
 
