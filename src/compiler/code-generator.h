@@ -90,11 +90,14 @@ class CodeGenerator final : public GapResolver::Assembler {
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
                                 Heap::RootListIndex* index_return);
 
+  enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
+
   // Assemble instructions for the specified block.
-  void AssembleBlock(const InstructionBlock* block);
+  CodeGenResult AssembleBlock(const InstructionBlock* block);
 
   // Assemble code for the specified instruction.
-  void AssembleInstruction(Instruction* instr, const InstructionBlock* block);
+  CodeGenResult AssembleInstruction(Instruction* instr,
+                                    const InstructionBlock* block);
   void AssembleSourcePosition(Instruction* instr);
   void AssembleGaps(Instruction* instr);
 
@@ -102,15 +105,15 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
-  void AssembleArchInstruction(Instruction* instr);
+  CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
-  void AssembleDeoptimizerCall(int deoptimization_id,
-                               Deoptimizer::BailoutType bailout_type);
+  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
+                                        Deoptimizer::BailoutType bailout_type);
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
