@@ -225,8 +225,14 @@ class LiteralBuffer {
     } else {
       is_one_byte_ = other->is_one_byte_;
       position_ = other->position_;
-      backing_store_.Dispose();
-      backing_store_ = other->backing_store_.Clone();
+      if (position_ < backing_store_.length()) {
+        std::copy(other->backing_store_.begin(),
+                  other->backing_store_.begin() + position_,
+                  backing_store_.begin());
+      } else {
+        backing_store_.Dispose();
+        backing_store_ = other->backing_store_.Clone();
+      }
     }
   }
 
