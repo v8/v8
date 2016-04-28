@@ -2601,7 +2601,7 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
-  inline size_t AllocatedSinceLastGC();
+  V8_INLINE size_t AllocatedSinceLastGC();
 
   bool ReplaceWithEmptyPage(Page* page) {
     // This method is called after flipping the semispace.

@@ -1256,8 +1256,8 @@ class Heap {
     return static_cast<intptr_t>(total);
   }
 
-  inline void UpdateNewSpaceAllocationCounter();
-  inline size_t NewSpaceAllocationCounter();
+  V8_INLINE void UpdateNewSpaceAllocationCounter();
+  V8_INLINE size_t NewSpaceAllocationCounter();
 
   // This should be used only for testing.
   void set_new_space_allocation_counter(size_t new_value) {
