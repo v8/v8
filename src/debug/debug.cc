@@ -1323,7 +1323,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       "prepare for break points");
 
-  bool is_interpreted = shared->HasBytecodeArray();
+  bool is_interpreted = shared->IsInterpreted();
 
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
@@ -1532,7 +1532,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  if (shared->HasBytecodeArray()) {
+  if (shared->IsInterpreted()) {
     // To prepare bytecode for debugging, we already need to have the debug
     // info (containing the debug copy) upfront, but since we do not recompile,
     // preparing for break points cannot fail.

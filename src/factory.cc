@@ -2232,7 +2232,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
-  if (shared->HasBytecodeArray()) {
+  if (shared->IsInterpreted()) {
     // We need to create a copy, but delay since this may cause heap
     // verification.
     debug_info->set_abstract_code(AbstractCode::cast(shared->bytecode_array()));
@@ -2240,7 +2240,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
     debug_info->set_abstract_code(AbstractCode::cast(shared->code()));
   }
   debug_info->set_break_points(*break_points);
-  if (shared->HasBytecodeArray()) {
+  if (shared->IsInterpreted()) {
     // Create a copy for debugging.
     Handle<BytecodeArray> original(shared->bytecode_array());
     Handle<BytecodeArray> copy = CopyBytecodeArray(original);

@@ -498,6 +498,7 @@ void EnsureFeedbackVector(CompilationInfo* info) {
 }
 
 bool UseIgnition(CompilationInfo* info) {
+  if (info->is_debug()) return false;
   if (info->shared_info()->is_generator() && !FLAG_ignition_generators) {
     return false;
   }
@@ -569,7 +570,7 @@ void InstallSharedScopeInfo(CompilationInfo* info,
 void InstallSharedCompilationResult(CompilationInfo* info,
                                     Handle<SharedFunctionInfo> shared) {
   // Assert that we are not overwriting (possibly patched) debug code.
-  DCHECK(!shared->HasDebugCode());
+  DCHECK(!shared->HasDebugInfo());
   DCHECK(!info->code().is_null());
   shared->ReplaceCode(*info->code());
   if (info->has_bytecode_array()) {
@@ -1319,6 +1320,11 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
+  if (shared->HasBytecodeArray() &&
+      HasInterpreterActivations(info->isolate(), *shared)) {
+    // Do not tier up from here if we have bytecode on the stack.
+    return false;
+  }
   if (!shared->has_deoptimization_support()) {
     Zone zone(info->isolate()->allocator());
     CompilationInfo unoptimized(info->parse_info(), info->closure());
