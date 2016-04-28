@@ -387,7 +387,7 @@ void ArmDebugger::Debug() {
         end = cur + words;
 
         while (cur < end) {
-          PrintF("  0x%08x:  0x%08x %10d",
+          PrintF("  0x%08" V8PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
@@ -449,8 +449,8 @@ void ArmDebugger::Debug() {
         while (cur < end) {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
-          PrintF("  0x%08x  %s\n",
-                 reinterpret_cast<intptr_t>(prev), buffer.start());
+          PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
+                 buffer.start());
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -1271,7 +1271,7 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 
 // Unsupported instructions use Format to print an error and stop execution.
 void Simulator::Format(Instruction* instr, const char* format) {
-  PrintF("Simulator found unsupported instruction:\n 0x%08x: %s\n",
+  PrintF("Simulator found unsupported instruction:\n 0x%08" V8PRIxPTR ": %s\n",
          reinterpret_cast<intptr_t>(instr), format);
   UNIMPLEMENTED();
 }
@@ -4087,7 +4087,8 @@ void Simulator::InstructionDecode(Instruction* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(instr),
+           buffer.start());
   }
   if (instr->ConditionField() == kSpecialCondition) {
     DecodeSpecialCondition(instr);
