@@ -2258,8 +2258,10 @@ void Debug::PrintBreakLocation() {
     Handle<Script> script = Handle<Script>::cast(script_obj);
     Handle<String> source(String::cast(script->source()));
     Script::InitLineEnds(script);
-    int line = Script::GetLineNumber(script, source_position);
-    int column = Script::GetColumnNumber(script, source_position);
+    int line =
+        Script::GetLineNumber(script, source_position) - script->line_offset();
+    int column = Script::GetColumnNumber(script, source_position) -
+                 (line == 0 ? script->column_offset() : 0);
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
     int line_start =
         line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value() + 1;
