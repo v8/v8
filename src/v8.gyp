@@ -192,8 +192,18 @@
           'action_name': 'run_mksnapshot',
           'inputs': [
             '<(mksnapshot_exec)',
-            '<(embed_script)',
-            '<(warmup_script)',
+          ],
+          'conditions': [
+            ['embed_script!=""', {
+              'inputs': [
+                '<(embed_script)',
+              ],
+            }],
+            ['warmup_script!=""', {
+              'inputs': [
+                '<(warmup_script)',
+              ],
+            }],
           ],
           'outputs': [
             '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -299,8 +309,6 @@
               'action_name': 'run_mksnapshot (external)',
               'inputs': [
                 '<(mksnapshot_exec)',
-                '<(embed_script)',
-                '<(warmup_script)',
               ],
               'variables': {
                 'mksnapshot_flags': [],
@@ -314,6 +322,16 @@
                 ],
               },
               'conditions': [
+                ['embed_script!=""', {
+                  'inputs': [
+                    '<(embed_script)',
+                  ],
+                }],
+                ['warmup_script!=""', {
+                  'inputs': [
+                    '<(warmup_script)',
+                  ],
+                }],
                 ['want_separate_host_toolset==1', {
                   'target_conditions': [
                     ['_toolset=="host"', {
