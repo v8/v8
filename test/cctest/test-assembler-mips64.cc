@@ -3315,6 +3315,8 @@ TEST(jump_tables1) {
   __ jr(ra);
   __ nop();
 
+  CHECK_EQ(assm.UnboundLabelsCount(), 0);
+
   CodeDesc desc;
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(

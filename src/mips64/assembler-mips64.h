@@ -1215,6 +1215,8 @@ class Assembler : public AssemblerBase {
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
+  inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
  protected:
   // Load Scaled Address instructions.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
