@@ -834,6 +834,8 @@
    # TODO(yangguo,4961): issues with the compiler pipeline.
   'es6/typedarray-copywithin': [SKIP],
   'es6/block-conflicts': [SKIP],
+  'es6/block-conflicts-sloppy': [SKIP],
+  'mul-exhaustive-part10': [SKIP],
 }],  # (ignition or ignition_turbofan) and gc_stress == True
 
 ['ignition == False and ignition_turbofan == False', {
