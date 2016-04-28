@@ -101,13 +101,6 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['msan', {
-  # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [PASS, NO_IGNITION],
-  'dfg-int-overflow-in-loop': [PASS, NO_IGNITION],
-}],  # msan
-
-##############################################################################
 ['(ignition or ignition_turbofan) and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
