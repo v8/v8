@@ -110,7 +110,7 @@ class SamplingHeapProfiler {
   // loaded scripts keyed by their script id.
   v8::AllocationProfile::Node* TranslateAllocationNode(
       AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
-      const std::map<int, Script*>& scripts);
+      const std::map<int, Handle<Script>>& scripts);
   v8::AllocationProfile::Allocation ScaleSample(size_t size,
                                                 unsigned int count);
   AllocationNode* AddStack();

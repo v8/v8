@@ -196,7 +196,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
 
 v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
-    const std::map<int, Script*>& scripts) {
+    const std::map<int, Handle<Script>>& scripts) {
   Local<v8::String> script_name =
       ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(""));
   int line = v8::AllocationProfile::kNoLineNumberInfo;
@@ -206,18 +206,17 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
   if (node->script_id_ != v8::UnboundScript::kNoScriptId &&
       scripts.find(node->script_id_) != scripts.end()) {
     // Cannot use std::map<T>::at because it is not available on android.
-    auto non_const_scripts = const_cast<std::map<int, Script*>&>(scripts);
-    Script* script = non_const_scripts[node->script_id_];
-    if (script) {
+    auto non_const_scripts =
+        const_cast<std::map<int, Handle<Script>>&>(scripts);
+    Handle<Script> script = non_const_scripts[node->script_id_];
+    if (!script.is_null()) {
       if (script->name()->IsName()) {
         Name* name = Name::cast(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }
-      Handle<Script> script_handle(script);
-      line = 1 + Script::GetLineNumber(script_handle, node->script_position_);
-      column =
-          1 + Script::GetColumnNumber(script_handle, node->script_position_);
+      line = 1 + Script::GetLineNumber(script, node->script_position_);
+      column = 1 + Script::GetColumnNumber(script, node->script_position_);
     }
     for (auto alloc : node->allocations_) {
       allocations.push_back(ScaleSample(alloc.first, alloc.second));
@@ -246,19 +245,15 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
 v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   // To resolve positions to line/column numbers, we will need to look up
   // scripts. Build a map to allow fast mapping from script id to script.
-  std::map<int, Script*> scripts;
+  std::map<int, Handle<Script>> scripts;
   {
     Script::Iterator iterator(isolate_);
-    Script* script;
-    while ((script = iterator.Next())) {
-      scripts[script->id()] = script;
+    while (Script* script = iterator.Next()) {
+      scripts[script->id()] = handle(script);
     }
   }
-
   auto profile = new v8::internal::AllocationProfile();
-
   TranslateAllocationNode(profile, &profile_root_, scripts);
-
   return profile;
 }
 
