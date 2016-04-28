@@ -1801,10 +1801,11 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
  public:
   EvacuateNewSpacePageVisitor() : promoted_size_(0) {}
 
-  static void MoveToOldSpace(Page* page, PagedSpace* owner) {
-    page->heap()->new_space()->ReplaceWithEmptyPage(page);
-    Page* new_page = Page::ConvertNewToOld(page, owner);
-    new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+  static void TryMoveToOldSpace(Page* page, PagedSpace* owner) {
+    if (page->heap()->new_space()->ReplaceWithEmptyPage(page)) {
+      Page* new_page = Page::ConvertNewToOld(page, owner);
+      new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+    }
   }
 
   inline bool Visit(HeapObject* object) {
@@ -3293,7 +3294,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
         page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
         !page->Contains(age_mark)) {
-      EvacuateNewSpacePageVisitor::MoveToOldSpace(page, heap()->old_space());
+      EvacuateNewSpacePageVisitor::TryMoveToOldSpace(page, heap()->old_space());
     }
     job.AddPage(page, &abandoned_pages);
   }

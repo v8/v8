@@ -2381,7 +2381,7 @@ class SemiSpace : public Space {
   // Resets the space to using the first page.
   void Reset();
 
-  void ReplaceWithEmptyPage(Page* page);
+  bool ReplaceWithEmptyPage(Page* page);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -2603,10 +2603,10 @@ class NewSpace : public Space {
 
   inline size_t AllocatedSinceLastGC();
 
-  void ReplaceWithEmptyPage(Page* page) {
+  bool ReplaceWithEmptyPage(Page* page) {
     // This method is called after flipping the semispace.
     DCHECK(page->InFromSpace());
-    from_space_.ReplaceWithEmptyPage(page);
+    return from_space_.ReplaceWithEmptyPage(page);
   }
 
   // Return the maximum capacity of a semispace.

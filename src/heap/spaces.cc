@@ -1826,9 +1826,12 @@ void SemiSpace::Reset() {
   current_page_ = anchor_.next_page();
 }
 
-void SemiSpace::ReplaceWithEmptyPage(Page* old_page) {
+bool SemiSpace::ReplaceWithEmptyPage(Page* old_page) {
+  // TODO(mlippautz): We do not have to get a new page here when the semispace
+  // is uncommitted later on.
   Page* new_page = heap()->memory_allocator()->AllocatePage(
       Page::kAllocatableMemory, this, executable());
+  if (new_page == nullptr) return false;
   Bitmap::Clear(new_page);
   new_page->SetFlags(old_page->GetFlags(), Page::kCopyAllFlags);
   new_page->set_next_page(old_page->next_page());
@@ -1837,6 +1840,7 @@ void SemiSpace::ReplaceWithEmptyPage(Page* old_page) {
   old_page->prev_page()->set_next_page(new_page);
   heap()->CreateFillerObjectAt(new_page->area_start(), new_page->area_size(),
                                ClearRecordedSlots::kNo);
+  return true;
 }
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
