@@ -20,6 +20,7 @@ class JSGraph;
 class Graph;
 class Operator;
 class SourcePositionTable;
+class WasmCompilationUnit;
 }
 
 namespace wasm {
@@ -35,9 +36,9 @@ typedef compiler::JSGraph TFGraph;
 
 namespace compiler {
 // Compiles a single function, producing a code object.
-Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
+Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction& function);
+                                 const wasm::WasmFunction* function);
 
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
@@ -51,6 +52,16 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 Handle<JSFunction> CompileJSToWasmWrapper(
     Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
     Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index);
+
+WasmCompilationUnit* CreateWasmCompilationUnit(
+    wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
+    const wasm::WasmFunction* function);
+
+void ExecuteCompilation(WasmCompilationUnit* unit);
+
+int GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
+
+Handle<Code> FinishCompilation(WasmCompilationUnit* unit);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.

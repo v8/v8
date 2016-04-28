@@ -2856,8 +2856,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 }
 
 std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
-    Zone* zone, wasm::ErrorThrower& thrower, Isolate* isolate,
-    wasm::ModuleEnv*& module_env, const wasm::WasmFunction& function,
+    Zone* zone, wasm::ErrorThrower* thrower, Isolate* isolate,
+    wasm::ModuleEnv*& module_env, const wasm::WasmFunction* function,
     double* decode_ms) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
@@ -2873,16 +2873,16 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
       new (zone) JSGraph(isolate, graph, common, nullptr, nullptr, machine);
   SourcePositionTable* source_position_table =
       new (zone) SourcePositionTable(graph);
-  WasmGraphBuilder builder(zone, jsgraph, function.sig, source_position_table);
+  WasmGraphBuilder builder(zone, jsgraph, function->sig, source_position_table);
   wasm::FunctionBody body = {
-      module_env, function.sig, module_env->module->module_start,
-      module_env->module->module_start + function.code_start_offset,
-      module_env->module->module_start + function.code_end_offset};
+      module_env, function->sig, module_env->module->module_start,
+      module_env->module->module_start + function->code_start_offset,
+      module_env->module->module_start + function->code_end_offset};
   wasm::TreeResult result =
       wasm::BuildTFGraph(isolate->allocator(), &builder, body);
 
   if (machine->Is32()) {
-    Int64Lowering r(graph, machine, common, zone, function.sig);
+    Int64Lowering r(graph, machine, common, zone, function->sig);
     r.LowerGraph();
   }
 
@@ -2893,14 +2893,14 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
     }
     // Add the function as another context for the exception
     ScopedVector<char> buffer(128);
-    wasm::WasmName name =
-        module_env->module->GetName(function.name_offset, function.name_length);
+    wasm::WasmName name = module_env->module->GetName(function->name_offset,
+                                                      function->name_length);
     SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
-             function.func_index, name.length(), name.start());
-    thrower.Failed(buffer.start(), result);
+             function->func_index, name.length(), name.start());
+    thrower->Failed(buffer.start(), result);
     return std::make_pair(nullptr, nullptr);
   }
-  int index = static_cast<int>(function.func_index);
+  int index = static_cast<int>(function->func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     PrintAst(isolate->allocator(), body);
   }
@@ -2911,15 +2911,15 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
 }
 
 // Helper function to compile a single function.
-Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
+Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction& function) {
+                                 const wasm::WasmFunction* function) {
   HistogramTimerScope wasm_compile_function_time_scope(
       isolate->counters()->wasm_compile_function_time());
   if (FLAG_trace_wasm_compiler) {
     OFStream os(stdout);
     os << "Compiling WASM function "
-       << wasm::WasmFunctionName(&function, module_env) << std::endl;
+       << wasm::WasmFunctionName(function, module_env) << std::endl;
     os << std::endl;
   }
 
@@ -2942,7 +2942,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   }
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
-      jsgraph->graph()->zone(), function.sig);
+      jsgraph->graph()->zone(), function->sig);
   if (jsgraph->machine()->Is32()) {
     descriptor = module_env->GetI32WasmCallDescriptor(jsgraph->graph()->zone(),
                                                       descriptor);
@@ -2956,12 +2956,12 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
       FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
 #endif
   Vector<const char> func_name = module_env->module->GetNameOrNull(
-      function.name_offset, function.name_length);
+      function->name_offset, function->name_length);
   Vector<char> buffer;
   if (func_name.is_empty()) {
     if (debugging) {
       buffer = Vector<char>::New(128);
-      int chars = SNPrintF(buffer, "WASM_function_#%d", function.func_index);
+      int chars = SNPrintF(buffer, "WASM_function_#%d", function->func_index);
       func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
     } else {
       func_name = ArrayVector("wasm");
@@ -2978,10 +2978,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 
   buffer.Dispose();
   if (!code.is_null()) {
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "WASM_function",
-                              function.func_index,
-                              module_env->module->GetName(
-                                  function.name_offset, function.name_length));
+    RecordFunctionCompilation(
+        Logger::FUNCTION_TAG, &info, "WASM_function", function->func_index,
+        module_env->module->GetName(function->name_offset,
+                                    function->name_length));
   }
 
   if (FLAG_trace_wasm_decode_time) {
@@ -2989,7 +2989,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     PrintF(
         "wasm-compile ok: %d bytes, %0.3f ms decode, %d nodes, %0.3f ms "
         "compile\n",
-        static_cast<int>(function.code_end_offset - function.code_start_offset),
+        static_cast<int>(function->code_end_offset -
+                         function->code_start_offset),
         decode_ms, static_cast<int>(jsgraph->graph()->NodeCount()), compile_ms);
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
@@ -2999,6 +3000,49 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   return code;
 }
 
+class WasmCompilationUnit {
+ public:
+  WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
+                      wasm::ModuleEnv* module_env,
+                      const wasm::WasmFunction* function)
+      : thrower_(thrower),
+        isolate_(isolate),
+        module_env_(module_env),
+        function_(function) {}
+
+  void ExecuteCompilation() {
+    if (function_->external) {
+      return;
+    }
+    // TODO(ahaas): The parallelizable parts of the compilation should move from
+    // FinishCompilation to here.
+  }
+
+  Handle<Code> FinishCompilation() {
+    return CompileWasmFunction(thrower_, isolate_, module_env_, function_);
+  }
+
+  wasm::ErrorThrower* thrower_;
+  Isolate* isolate_;
+  wasm::ModuleEnv* module_env_;
+  const wasm::WasmFunction* function_;
+};
+
+WasmCompilationUnit* CreateWasmCompilationUnit(
+    wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
+    const wasm::WasmFunction* function) {
+  return new WasmCompilationUnit(thrower, isolate, module_env, function);
+}
+
+void ExecuteCompilation(WasmCompilationUnit* unit) {
+  unit->ExecuteCompilation();
+}
+
+Handle<Code> FinishCompilation(WasmCompilationUnit* unit) {
+  Handle<Code> result = unit->FinishCompilation();
+  delete unit;
+  return result;
+}
 
 }  // namespace compiler
 }  // namespace internal

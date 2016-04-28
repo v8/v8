@@ -491,12 +491,37 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     isolate->counters()->wasm_functions_per_module()->AddSample(
         static_cast<int>(functions.size()));
 
+    std::vector<compiler::WasmCompilationUnit*> compilation_units(
+        functions.size());
+    if (FLAG_wasm_parallel_compilation) {
+      // Create a placeholder code object for all functions.
+      // TODO(ahaas): Maybe we could skip this for external functions.
+      for (uint32_t i = 0; i < functions.size(); i++) {
+        linker.GetFunctionCode(i);
+      }
+
+      for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+           i++) {
+        if (!functions[i].external) {
+          compilation_units[i] = compiler::CreateWasmCompilationUnit(
+              &thrower, isolate, &module_env, &functions[i]);
+        }
+      }
+
+      for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+           i++) {
+        if (!functions[i].external) {
+          compiler::ExecuteCompilation(compilation_units[i]);
+        }
+      }
+    }
+
     // First pass: compile each function and initialize the code table.
-    index = FLAG_skip_compiling_wasm_funcs;
-    while (index < functions.size()) {
-      const WasmFunction& func = functions[index];
+    for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+         i++) {
+      const WasmFunction& func = functions[i];
       if (thrower.error()) break;
-      DCHECK_EQ(index, func.func_index);
+      DCHECK_EQ(i, func.func_index);
 
       WasmName str = GetName(func.name_offset, func.name_length);
       WasmName str_null = {nullptr, 0};
@@ -506,36 +531,39 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       if (func.external) {
         // Lookup external function in FFI object.
         MaybeHandle<JSFunction> function =
-            LookupFunction(thrower, factory, ffi, index, str, str_null);
+            LookupFunction(thrower, factory, ffi, i, str, str_null);
         if (function.is_null()) return MaybeHandle<JSObject>();
         code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
                                                 function.ToHandleChecked(),
                                                 func.sig, str, str_null);
       } else {
-        // Compile the function.
-        code =
-            compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
+        if (FLAG_wasm_parallel_compilation) {
+          code = compiler::FinishCompilation(compilation_units[i]);
+        } else {
+          // Compile the function.
+          code = compiler::CompileWasmFunction(&thrower, isolate, &module_env,
+                                               &func);
+        }
         if (code.is_null()) {
-          thrower.Error("Compilation of #%d:%.*s failed.", index, str.length(),
+          thrower.Error("Compilation of #%d:%.*s failed.", i, str.length(),
                         str.start());
           return MaybeHandle<JSObject>();
         }
         if (func.exported) {
           function = compiler::CompileJSToWasmWrapper(
-              isolate, &module_env, name, code, instance.js_object, index);
+              isolate, &module_env, name, code, instance.js_object, i);
         }
       }
       if (!code.is_null()) {
         // Install the code into the linker table.
-        linker.Finish(index, code);
-        code_table->set(index, *code);
+        linker.Finish(i, code);
+        code_table->set(i, *code);
       }
       if (func.exported) {
         // Exported functions are installed as read-only properties on the
         // module.
         JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
       }
-      index++;
     }
 
     // Second pass: patch all direct call sites.
@@ -547,7 +575,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     // Create and populate the exports object.
     //-------------------------------------------------------------------------
     if (export_table.size() > 0 || mem_export) {
-      index = 0;
       // Create the "exports" object.
       Handle<JSFunction> object_function = Handle<JSFunction>(
           isolate->native_context()->object_function(), isolate);
@@ -682,7 +709,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
     if (!func.external) {
       // Compile the function and install it in the code table.
       Handle<Code> code =
-          compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
+          compiler::CompileWasmFunction(&thrower, isolate, &module_env, &func);
       if (!code.is_null()) {
         if (func.exported) {
           main_code = code;

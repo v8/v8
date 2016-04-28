@@ -16,6 +16,7 @@ namespace internal {
 
 namespace compiler {
 class CallDescriptor;
+class WasmCompilationUnit;
 }
 
 namespace wasm {
