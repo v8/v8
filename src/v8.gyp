@@ -372,10 +372,6 @@
         # To be able to find base/trace_event/common/trace_event_common.h
         '../..',
       ],
-      'defines': [
-        # TODO(jochen): Remove again after this is globally turned on.
-        'V8_IMMINENT_DEPRECATION_WARNINGS',
-      ],
       'sources': [  ### gcmole(all) ###
         '../include/v8-debug.h',
         '../include/v8-experimental.h',
