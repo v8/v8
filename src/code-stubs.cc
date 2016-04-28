@@ -3549,7 +3549,8 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef CodeStubAssembler::Label Label;
 
   Node* value = assembler->Parameter(0);
-  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
+  Label if_valueissmi(assembler), if_valueisnotsmi(assembler),
+      return_true(assembler), return_false(assembler);
 
   // Check if {value} is a Smi or a HeapObject.
   assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
@@ -3558,21 +3559,15 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->Bind(&if_valueissmi);
   {
     // The {value} is a Smi, only need to check against zero.
-    Label if_valueiszero(assembler), if_valueisnotzero(assembler);
     assembler->Branch(assembler->SmiEqual(value, assembler->SmiConstant(0)),
-                      &if_valueiszero, &if_valueisnotzero);
-
-    assembler->Bind(&if_valueiszero);
-    assembler->Return(assembler->BooleanConstant(false));
-
-    assembler->Bind(&if_valueisnotzero);
-    assembler->Return(assembler->BooleanConstant(true));
+                      &return_false, &return_true);
   }
 
   assembler->Bind(&if_valueisnotsmi);
   {
-    Label if_valueisstring(assembler), if_valueisheapnumber(assembler),
-        if_valueisoddball(assembler), if_valueisother(assembler);
+    Label if_valueisstring(assembler), if_valueisnotstring(assembler),
+        if_valueisheapnumber(assembler), if_valueisoddball(assembler),
+        if_valueisother(assembler);
 
     // The {value} is a HeapObject, load its map.
     Node* value_map = assembler->LoadMap(value);
@@ -3584,24 +3579,20 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 
     // Dispatch based on the instance type; we distinguish all String instance
     // types, the HeapNumber type and the Oddball type.
-    size_t const kNumCases = FIRST_NONSTRING_TYPE + 2;
+    assembler->Branch(assembler->Int32LessThan(
+                          value_instance_type,
+                          assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                      &if_valueisstring, &if_valueisnotstring);
+    assembler->Bind(&if_valueisnotstring);
+    size_t const kNumCases = 2;
     Label* case_labels[kNumCases];
     int32_t case_values[kNumCases];
-    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-      case_labels[i] = new Label(assembler);
-      case_values[i] = i;
-    }
-    case_labels[FIRST_NONSTRING_TYPE + 0] = &if_valueisheapnumber;
-    case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
-    case_labels[FIRST_NONSTRING_TYPE + 1] = &if_valueisoddball;
-    case_values[FIRST_NONSTRING_TYPE + 1] = ODDBALL_TYPE;
+    case_labels[0] = &if_valueisheapnumber;
+    case_values[0] = HEAP_NUMBER_TYPE;
+    case_labels[1] = &if_valueisoddball;
+    case_values[1] = ODDBALL_TYPE;
     assembler->Switch(value_instance_type, &if_valueisother, case_values,
                       case_labels, arraysize(case_values));
-    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-      assembler->Bind(case_labels[i]);
-      assembler->Goto(&if_valueisstring);
-      delete case_labels[i];
-    }
 
     assembler->Bind(&if_valueisstring);
     {
@@ -3610,16 +3601,9 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           assembler->LoadObjectField(value, String::kLengthOffset);
 
       // Check if the {value} is the empty string.
-      Label if_valueisempty(assembler), if_valueisnotempty(assembler);
       assembler->Branch(
           assembler->SmiEqual(value_length, assembler->SmiConstant(0)),
-          &if_valueisempty, &if_valueisnotempty);
-
-      assembler->Bind(&if_valueisempty);
-      assembler->Return(assembler->BooleanConstant(false));
-
-      assembler->Bind(&if_valueisnotempty);
-      assembler->Return(assembler->BooleanConstant(true));
+          &return_false, &return_true);
     }
 
     assembler->Bind(&if_valueisheapnumber);
@@ -3628,25 +3612,15 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           MachineType::Float64(), value,
           assembler->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
 
-      Label if_valueispositive(assembler), if_valueisnotpositive(assembler),
-          if_valueisnegative(assembler), if_valueisnanorzero(assembler);
+      Label if_valueisnotpositive(assembler);
       assembler->Branch(assembler->Float64LessThan(
                             assembler->Float64Constant(0.0), value_value),
-                        &if_valueispositive, &if_valueisnotpositive);
-
-      assembler->Bind(&if_valueispositive);
-      assembler->Return(assembler->BooleanConstant(true));
+                        &return_true, &if_valueisnotpositive);
 
       assembler->Bind(&if_valueisnotpositive);
       assembler->Branch(assembler->Float64LessThan(
                             value_value, assembler->Float64Constant(0.0)),
-                        &if_valueisnegative, &if_valueisnanorzero);
-
-      assembler->Bind(&if_valueisnegative);
-      assembler->Return(assembler->BooleanConstant(true));
-
-      assembler->Bind(&if_valueisnanorzero);
-      assembler->Return(assembler->BooleanConstant(false));
+                        &return_true, &return_false);
     }
 
     assembler->Bind(&if_valueisoddball);
@@ -3667,19 +3641,16 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
           assembler->Int32Constant(1 << Map::kIsUndetectable));
 
       // Check if the {value} is undetectable.
-      Label if_valueisundetectable(assembler),
-          if_valueisnotundetectable(assembler);
       assembler->Branch(assembler->Word32Equal(value_map_undetectable,
                                                assembler->Int32Constant(0)),
-                        &if_valueisnotundetectable, &if_valueisundetectable);
-
-      assembler->Bind(&if_valueisundetectable);
-      assembler->Return(assembler->BooleanConstant(false));
-
-      assembler->Bind(&if_valueisnotundetectable);
-      assembler->Return(assembler->BooleanConstant(true));
+                        &return_true, &return_false);
     }
   }
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
 }
 
 void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
