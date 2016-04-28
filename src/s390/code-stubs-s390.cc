@@ -5546,7 +5546,11 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+
+  // new target
+  __ PushRoot(Heap::kUndefinedValueRootIndex);
 
   // context save
   __ push(context);
@@ -5582,10 +5586,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   // S390 LINUX ABI:
   //
-  // Create 5 extra slots on stack:
+  // Create 4 extra slots on stack:
   //    [0] space for DirectCEntryStub's LR save
-  //    [1-4] FunctionCallbackInfo
-  const int kApiStackSpace = 5;
+  //    [1-3] FunctionCallbackInfo
+  const int kApiStackSpace = 4;
   const int kFunctionCallbackInfoOffset =
       (kStackFrameExtraParamSlot + 1) * kPointerSize;
 
@@ -5604,9 +5608,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // FunctionCallbackInfo::length_ = argc
   __ LoadImmP(ip, Operand(argc()));
   __ StoreW(ip, MemOperand(r2, 2 * kPointerSize));
-  // FunctionCallbackInfo::is_construct_call_ = 0
-  __ LoadImmP(ip, Operand::Zero());
-  __ StoreW(ip, MemOperand(r2, 2 * kPointerSize + kIntSize));
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_function_callback(masm->isolate());
@@ -5623,9 +5624,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   int stack_space = 0;
-  MemOperand is_construct_call_operand =
-      MemOperand(sp, kFunctionCallbackInfoOffset + 2 * kPointerSize + kIntSize);
-  MemOperand* stack_space_operand = &is_construct_call_operand;
+  MemOperand length_operand =
+      MemOperand(sp, kFunctionCallbackInfoOffset + 2 * kPointerSize);
+  MemOperand* stack_space_operand = &length_operand;
   stack_space = argc() + FCA::kArgsLength + 1;
   stack_space_operand = NULL;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
