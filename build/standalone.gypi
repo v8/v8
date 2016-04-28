@@ -1039,6 +1039,13 @@
               'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',  # -std=c++11
             },
             'conditions': [
+              ['clang_xcode==0', {
+                'xcode_settings': {
+                  'CC': '<(clang_dir)/bin/clang',
+                  'LDPLUSPLUS': '<(clang_dir)/bin/clang++',
+                  'CLANG_CXX_LIBRARY': 'libc++'
+                },
+              }],
               ['v8_target_arch=="x64" or v8_target_arch=="arm64" \
                 or v8_target_arch=="mips64el"', {
                 'xcode_settings': {'WARNING_CFLAGS': ['-Wshorten-64-to-32']},
