@@ -724,7 +724,7 @@ bytecodes: [
   B(InvokeIntrinsic), U16(Runtime::k_IsJSReceiver), R(3), U8(1),
   B(JumpIfToBooleanFalse), U8(4),
   B(Jump), U8(16),
-  B(LdaSmi), U8(60),
+  B(LdaSmi), U8(61),
   B(Star), R(3),
   B(LdaConstant), U8(0),
   B(Star), R(4),

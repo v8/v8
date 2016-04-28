@@ -501,7 +501,7 @@ bytecodes: [
   B(TestEqualStrict), R(10),
   B(JumpIfFalse), U8(4),
   B(Jump), U8(18),
-  B(Wide), B(LdaSmi), U16(129),
+  B(Wide), B(LdaSmi), U16(130),
   B(Star), R(10),
   B(LdaConstant), U8(14),
   B(Star), R(11),

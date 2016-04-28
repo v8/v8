@@ -28,6 +28,14 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
+
+  if (source->was_neutered() || target->was_neutered()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "ArrayBuffer.prototype.slice")));
+  }
+
   RUNTIME_ASSERT(!source.is_identical_to(target));
   size_t start = 0, target_length = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
