@@ -887,7 +887,9 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
-  CompilationInfoWithZone info(function);
+  Zone zone(isolate->allocator());
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info, function);
 
   // Reset profiler ticks, function is no longer considered hot.
   if (function->shared()->HasBytecodeArray()) {
@@ -998,7 +1000,9 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return Handle<Code>(function->shared()->code());
   }
 
-  CompilationInfoWithZone info(function);
+  Zone zone(isolate->allocator());
+  ParseInfo parse_info(&zone, function);
+  CompilationInfo info(&parse_info, function);
   Handle<Code> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCode(&info), Code);
 
@@ -1226,7 +1230,9 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     if (function->shared()->is_compiled()) {
       code = handle(function->shared()->code(), isolate);
     } else {
-      CompilationInfoWithZone info(function);
+      Zone zone(isolate->allocator());
+      ParseInfo parse_info(&zone, function);
+      CompilationInfo info(&parse_info, function);
       if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
         return false;
       }
