@@ -2227,9 +2227,8 @@ HValue* HGraphBuilder::BuildToNumber(HValue* input) {
   Callable callable = CodeFactory::ToNumber(isolate());
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {context(), input};
-  HCallWithDescriptor* instr =
-      Add<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                               Vector<HValue*>(values, arraysize(values)));
+  HCallWithDescriptor* instr = Add<HCallWithDescriptor>(
+      stub, 0, callable.descriptor(), ArrayVector(values));
   instr->set_type(HType::TaggedNumber());
   return instr;
 }
@@ -5670,8 +5669,8 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
     FastNewClosureDescriptor descriptor(isolate());
     HValue* values[] = {context(), shared_info_value};
     HConstant* stub_value = Add<HConstant>(stub.GetCode());
-    instr = New<HCallWithDescriptor>(
-        stub_value, 0, descriptor, Vector<HValue*>(values, arraysize(values)));
+    instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
+                                     ArrayVector(values));
   } else {
     Add<HPushArguments>(shared_info_value);
     Runtime::FunctionId function_id =
@@ -5949,9 +5948,8 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
       context(), AddThisFunction(), Add<HConstant>(expr->literal_index()),
       Add<HConstant>(expr->pattern()), Add<HConstant>(expr->flags())};
   HConstant* stub_value = Add<HConstant>(callable.code());
-  HInstruction* instr =
-      New<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
-                               Vector<HValue*>(values, arraysize(values)));
+  HInstruction* instr = New<HCallWithDescriptor>(
+      stub_value, 0, callable.descriptor(), ArrayVector(values));
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8173,7 +8171,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                                  Vector<HValue*>(op_vals, arraysize(op_vals)),
+                                  ArrayVector(op_vals),
                                   syntactic_tail_call_mode);
 }
 
@@ -8198,7 +8196,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                                  Vector<HValue*>(op_vals, arraysize(op_vals)),
+                                  ArrayVector(op_vals),
                                   syntactic_tail_call_mode);
 }
 
@@ -10237,9 +10235,8 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   Callable callable = CodeFactory::Construct(isolate());
   HConstant* stub = Add<HConstant>(callable.code());
   PushArgumentsFromEnvironment(argument_count);
-  HInstruction* construct =
-      New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                               Vector<HValue*>(op_vals, arraysize(op_vals)));
+  HInstruction* construct = New<HCallWithDescriptor>(
+      stub, argument_count, callable.descriptor(), ArrayVector(op_vals));
   return ast_context()->ReturnInstruction(construct, expr->id());
 }
 
@@ -11306,13 +11303,12 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
     HValue* values[] = {context(), left, right};
-#define GET_STUB(Name)                                \
-  do {                                                \
-    Callable callable = CodeFactory::Name(isolate()); \
-    HValue* stub = Add<HConstant>(callable.code());   \
-    instr = AddUncasted<HCallWithDescriptor>(         \
-        stub, 0, callable.descriptor(),               \
-        Vector<HValue*>(values, arraysize(values)));  \
+#define GET_STUB(Name)                                                       \
+  do {                                                                       \
+    Callable callable = CodeFactory::Name(isolate());                        \
+    HValue* stub = Add<HConstant>(callable.code());                          \
+    instr = AddUncasted<HCallWithDescriptor>(stub, 0, callable.descriptor(), \
+                                             ArrayVector(values));           \
   } while (false)
 
     switch (op) {
@@ -12445,9 +12441,8 @@ void HOptimizedGraphBuilder::GenerateToInteger(CallRuntime* call) {
     Callable callable = CodeFactory::ToInteger(isolate());
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {context(), input};
-    HInstruction* result =
-        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                                 Vector<HValue*>(values, arraysize(values)));
+    HInstruction* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return ast_context()->ReturnInstruction(result, call->id());
   }
 }
@@ -12469,9 +12464,8 @@ void HOptimizedGraphBuilder::GenerateToName(CallRuntime* call) {
     Callable callable = CodeFactory::ToName(isolate());
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {context(), input};
-    HInstruction* result =
-        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                                 Vector<HValue*>(values, arraysize(values)));
+    HInstruction* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return ast_context()->ReturnInstruction(result, call->id());
   }
 }
@@ -12496,9 +12490,8 @@ void HOptimizedGraphBuilder::GenerateToString(CallRuntime* call) {
     Callable callable = CodeFactory::ToString(isolate());
     HValue* stub = Add<HConstant>(callable.code());
     HValue* values[] = {context(), input};
-    HInstruction* result =
-        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                                 Vector<HValue*>(values, arraysize(values)));
+    HInstruction* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
     return ast_context()->ReturnInstruction(result, call->id());
   }
 }
@@ -12511,9 +12504,8 @@ void HOptimizedGraphBuilder::GenerateToLength(CallRuntime* call) {
   HValue* input = Pop();
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {context(), input};
-  HInstruction* result =
-      New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                               Vector<HValue*>(values, arraysize(values)));
+  HInstruction* result = New<HCallWithDescriptor>(
+      stub, 0, callable.descriptor(), ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -12686,9 +12678,9 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   Callable callable = CodeFactory::SubString(isolate());
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {context()};
-  HInstruction* result = New<HCallWithDescriptor>(
-      stub, call->arguments()->length(), callable.descriptor(),
-      Vector<HValue*>(values, arraysize(values)));
+  HInstruction* result =
+      New<HCallWithDescriptor>(stub, call->arguments()->length(),
+                               callable.descriptor(), ArrayVector(values));
   result->set_type(HType::String());
   return ast_context()->ReturnInstruction(result, call->id());
 }
@@ -12701,8 +12693,8 @@ void HOptimizedGraphBuilder::GenerateNewObject(CallRuntime* call) {
   FastNewObjectDescriptor descriptor(isolate());
   HValue* values[] = {context(), Pop(), Pop()};
   HConstant* stub_value = Add<HConstant>(stub.GetCode());
-  HInstruction* result = New<HCallWithDescriptor>(
-      stub_value, 0, descriptor, Vector<HValue*>(values, arraysize(values)));
+  HInstruction* result =
+      New<HCallWithDescriptor>(stub_value, 0, descriptor, ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -12714,9 +12706,9 @@ void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   Callable callable = CodeFactory::RegExpExec(isolate());
   HValue* stub = Add<HConstant>(callable.code());
   HValue* values[] = {context()};
-  HInstruction* result = New<HCallWithDescriptor>(
-      stub, call->arguments()->length(), callable.descriptor(),
-      Vector<HValue*>(values, arraysize(values)));
+  HInstruction* result =
+      New<HCallWithDescriptor>(stub, call->arguments()->length(),
+                               callable.descriptor(), ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -12843,9 +12835,9 @@ void HOptimizedGraphBuilder::GenerateCall(CallRuntime* call) {
   HValue* target = Pop();
   HValue* values[] = {context(), target,
                       Add<HConstant>(call->arguments()->length() - 2)};
-  HInstruction* result = New<HCallWithDescriptor>(
-      trampoline, call->arguments()->length() - 1, descriptor,
-      Vector<HValue*>(values, arraysize(values)));
+  HInstruction* result =
+      New<HCallWithDescriptor>(trampoline, call->arguments()->length() - 1,
+                               descriptor, ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

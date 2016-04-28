@@ -461,8 +461,7 @@ static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
   const v8::CpuProfileNode* result = FindChild(context, node, name);
   if (!result) {
     char buffer[100];
-    i::SNPrintF(Vector<char>(buffer, arraysize(buffer)),
-                "Failed to GetChild: %s", name);
+    i::SNPrintF(i::ArrayVector(buffer), "Failed to GetChild: %s", name);
     FATAL(buffer);
   }
   return result;

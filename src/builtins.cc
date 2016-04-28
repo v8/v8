@@ -3113,8 +3113,7 @@ BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
   double const time_val = JSDate::CurrentTimeValue(isolate);
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
-  ToDateString(time_val, str, isolate->date_cache());
+  ToDateString(time_val, ArrayVector(buffer), isolate->date_cache());
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -3697,8 +3696,8 @@ BUILTIN(DatePrototypeToDateString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toDateString");
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
-  ToDateString(date->value()->Number(), str, isolate->date_cache(), kDateOnly);
+  ToDateString(date->value()->Number(), ArrayVector(buffer),
+               isolate->date_cache(), kDateOnly);
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -3721,18 +3720,17 @@ BUILTIN(DatePrototypeToISOString) {
   isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
                                        &hour, &min, &sec, &ms);
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
   if (year >= 0 && year <= 9999) {
-    SNPrintF(str, "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", year, month + 1, day,
-             hour, min, sec, ms);
+    SNPrintF(ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
+             month + 1, day, hour, min, sec, ms);
   } else if (year < 0) {
-    SNPrintF(str, "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", -year, month + 1, day,
-             hour, min, sec, ms);
+    SNPrintF(ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", -year,
+             month + 1, day, hour, min, sec, ms);
   } else {
-    SNPrintF(str, "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", year, month + 1, day,
-             hour, min, sec, ms);
+    SNPrintF(ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ", year,
+             month + 1, day, hour, min, sec, ms);
   }
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
 
@@ -3741,8 +3739,8 @@ BUILTIN(DatePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toString");
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
-  ToDateString(date->value()->Number(), str, isolate->date_cache());
+  ToDateString(date->value()->Number(), ArrayVector(buffer),
+               isolate->date_cache());
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -3756,8 +3754,8 @@ BUILTIN(DatePrototypeToTimeString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTimeString");
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
-  ToDateString(date->value()->Number(), str, isolate->date_cache(), kTimeOnly);
+  ToDateString(date->value()->Number(), ArrayVector(buffer),
+               isolate->date_cache(), kTimeOnly);
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -3775,14 +3773,14 @@ BUILTIN(DatePrototypeToUTCString) {
     return *isolate->factory()->NewStringFromAsciiChecked("Invalid Date");
   }
   char buffer[128];
-  Vector<char> str(buffer, arraysize(buffer));
   int64_t time_ms = static_cast<int64_t>(time_val);
   int year, month, day, weekday, hour, min, sec, ms;
   isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
                                        &hour, &min, &sec, &ms);
-  SNPrintF(str, "%s, %02d %s %4d %02d:%02d:%02d GMT", kShortWeekDays[weekday],
-           day, kShortMonths[month], year, hour, min, sec);
-  return *isolate->factory()->NewStringFromAsciiChecked(str.start());
+  SNPrintF(ArrayVector(buffer), "%s, %02d %s %4d %02d:%02d:%02d GMT",
+           kShortWeekDays[weekday], day, kShortMonths[month], year, hour, min,
+           sec);
+  return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
 

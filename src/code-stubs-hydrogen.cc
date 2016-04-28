@@ -1637,9 +1637,9 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       // Convert the primitive to a string value.
       ToStringStub stub(isolate());
       HValue* values[] = {context(), Pop()};
-      Push(AddUncasted<HCallWithDescriptor>(
-          Add<HConstant>(stub.GetCode()), 0, stub.GetCallInterfaceDescriptor(),
-          Vector<HValue*>(values, arraysize(values))));
+      Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(stub.GetCode()), 0,
+                                            stub.GetCallInterfaceDescriptor(),
+                                            ArrayVector(values)));
     }
     if_inputisstring.End();
   }

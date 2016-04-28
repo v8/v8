@@ -602,8 +602,7 @@ const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) {
 const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
   double double_value = parser_->scanner()->DoubleValue();
   char array[100];
-  const char* string =
-      DoubleToCString(double_value, Vector<char>(array, arraysize(array)));
+  const char* string = DoubleToCString(double_value, ArrayVector(array));
   return parser_->ast_value_factory()->GetOneByteString(string);
 }
 
