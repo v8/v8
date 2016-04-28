@@ -412,6 +412,12 @@ class MacroAssembler : public Assembler {
 
   void mov(Register dst, const Operand& src);
 
+  void CleanUInt32(Register x) {
+#ifdef V8_TARGET_ARCH_S390X
+    llgfr(x, x);
+#endif
+  }
+
   // ---------------------------------------------------------------------------
   // GC Support
 

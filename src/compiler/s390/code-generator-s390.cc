@@ -466,6 +466,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                              \
     auto ool = new (zone()) OutOfLineLoadNAN##width(this, result); \
     __ bge(ool->entry());                                          \
+    __ CleanUInt32(offset);                                        \
     __ asm_instr(result, operand);                                 \
     __ bind(ool->exit());                                          \
   } while (0)
@@ -484,6 +485,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                        \
     auto ool = new (zone()) OutOfLineLoadZero(this, result); \
     __ bge(ool->entry());                                    \
+    __ CleanUInt32(offset);                                  \
     __ asm_instr(result, operand);                           \
     __ bind(ool->exit());                                    \
   } while (0)
@@ -502,6 +504,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                   \
     __ bge(&done);                                      \
     DoubleRegister value = i.InputDoubleRegister(3);    \
+    __ CleanUInt32(offset);                             \
     __ StoreFloat32(value, operand);                    \
     __ bind(&done);                                     \
   } while (0)
@@ -521,6 +524,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                   \
     __ bge(&done);                                      \
     DoubleRegister value = i.InputDoubleRegister(3);    \
+    __ CleanUInt32(offset);                             \
     __ StoreDouble(value, operand);                     \
     __ bind(&done);                                     \
   } while (0)
@@ -539,6 +543,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     }                                                   \
     __ bge(&done);                                      \
     Register value = i.InputRegister(3);                \
+    __ CleanUInt32(offset);                             \
     __ asm_instr(value, operand);                       \
     __ bind(&done);                                     \
   } while (0)
