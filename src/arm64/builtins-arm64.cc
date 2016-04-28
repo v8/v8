@@ -1194,7 +1194,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Label loop_top, loop_bottom;
 
   Register closure = x1;
-  Register new_target = x3;
   Register map = x13;
   Register index = x2;
   __ Ldr(map, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
