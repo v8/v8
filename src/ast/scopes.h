@@ -243,7 +243,7 @@ class Scope: public ZoneObject {
 
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
-    DCHECK(!is_module_scope());
+    DCHECK(!is_module_scope() || is_strict(language_mode));
     language_mode_ = language_mode;
   }
 

@@ -105,6 +105,7 @@ class ParserBase : public Traits {
         ast_value_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
+        parsing_module_(false),
         stack_limit_(stack_limit),
         zone_(zone),
         scanner_(scanner),
@@ -519,9 +520,9 @@ class ParserBase : public Traits {
 
   bool peek_any_identifier() {
     Token::Value next = peek();
-    return next == Token::IDENTIFIER || next == Token::FUTURE_RESERVED_WORD ||
-           next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-           next == Token::STATIC || next == Token::YIELD;
+    return next == Token::IDENTIFIER || next == Token::AWAIT ||
+           next == Token::ENUM || next == Token::FUTURE_STRICT_RESERVED_WORD ||
+           next == Token::LET || next == Token::STATIC || next == Token::YIELD;
   }
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
@@ -983,6 +984,7 @@ class ParserBase : public Traits {
   AstValueFactory* ast_value_factory_;  // Not owned.
   ParserRecorder* log_;
   Mode mode_;
+  bool parsing_module_;
   uintptr_t stack_limit_;
 
  private:
@@ -1057,7 +1059,8 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
     case Token::IDENTIFIER:
       *message = MessageTemplate::kUnexpectedTokenIdentifier;
       break;
-    case Token::FUTURE_RESERVED_WORD:
+    case Token::AWAIT:
+    case Token::ENUM:
       *message = MessageTemplate::kUnexpectedReserved;
       break;
     case Token::LET:
@@ -1132,7 +1135,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
                                                bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
+  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_)) {
     IdentifierT name = this->GetSymbol(scanner());
     // When this function is used to read a formal parameter, we don't always
     // know whether the function is going to be strict or sloppy.  Indeed for
@@ -1196,7 +1199,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
     bool is_generator, bool* is_strict_reserved, bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
+  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_)) {
     *is_strict_reserved = false;
   } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
              next == Token::STATIC || (next == Token::YIELD && !is_generator)) {
@@ -1212,14 +1215,13 @@ ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
   return name;
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
-  if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
-      next != Token::LET && next != Token::STATIC && next != Token::YIELD &&
-      next != Token::FUTURE_STRICT_RESERVED_WORD &&
+  if (next != Token::IDENTIFIER && next != Token::ENUM &&
+      next != Token::AWAIT && next != Token::LET && next != Token::STATIC &&
+      next != Token::YIELD && next != Token::FUTURE_STRICT_RESERVED_WORD &&
       next != Token::ESCAPED_KEYWORD &&
       next != Token::ESCAPED_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
     this->ReportUnexpectedToken(next);
@@ -1316,6 +1318,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::LET:
     case Token::STATIC:
     case Token::YIELD:
+    case Token::AWAIT:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
@@ -1683,8 +1686,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                                  *is_computed_name);
     }
 
-    if (Token::IsIdentifier(name_token, language_mode(),
-                            this->is_generator()) &&
+    if (Token::IsIdentifier(name_token, language_mode(), this->is_generator(),
+                            parsing_module_) &&
         (peek() == Token::COMMA || peek() == Token::RBRACE ||
          peek() == Token::ASSIGN)) {
       // PropertyDefinition
@@ -2866,6 +2869,7 @@ bool ParserBase<Traits>::IsNextLetKeyword() {
     case Token::STATIC:
     case Token::LET:  // Yes, you can do let let = ... in sloppy mode
     case Token::YIELD:
+    case Token::AWAIT:
       return true;
     default:
       return false;
