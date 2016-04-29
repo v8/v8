@@ -217,7 +217,7 @@ struct WasmModule {
   // Checks the given offset range is contained within the module bytes.
   bool BoundsCheck(uint32_t start, uint32_t end) const {
     size_t size = module_end - module_start;
-    return start < size && end < size;
+    return start <= size && end <= size;
   }
 
   // Creates a new instantiation of the module in the given isolate.
