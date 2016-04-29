@@ -1792,7 +1792,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> receiver = isolate->global_proxy();
+  i::Handle<i::Object> receiver(isolate->global_proxy(), isolate);
   Local<Value> result;
   has_pending_exception =
       !ToLocal<Value>(i::Execution::Call(isolate, fun, receiver, 0, NULL),

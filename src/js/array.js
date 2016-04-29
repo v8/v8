@@ -1024,9 +1024,9 @@ function InnerArraySort(array, length, comparefn) {
   var num_non_undefined = %RemoveArrayHoles(array, length);
 
   if (num_non_undefined == -1) {
-    // There were indexed accessors in the array.
+    // The array is observed, or there were indexed accessors in the array.
     // Move array holes and undefineds to the end using a Javascript function
-    // that is safe in the presence of accessors.
+    // that is safe in the presence of accessors and is observable.
     num_non_undefined = SafeRemoveArrayHoles(array);
   }
 

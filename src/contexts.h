@@ -114,6 +114,10 @@ enum BindingFlags {
   V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number)   \
   V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)       \
   V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)       \
+  V(NATIVE_OBJECT_GET_NOTIFIER_INDEX, JSFunction, native_object_get_notifier) \
+  V(NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE, JSFunction,                        \
+    native_object_notifier_perform_change)                                    \
+  V(NATIVE_OBJECT_OBSERVE_INDEX, JSFunction, native_object_observe)           \
   V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                          \
     no_side_effects_to_string_fun)                                            \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \

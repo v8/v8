@@ -126,14 +126,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(ObjectAssign, kNone)                                       \
   V(ObjectCreate, kNone)                                       \
-  V(ObjectDefineGetter, kNone)                                 \
   V(ObjectDefineProperties, kNone)                             \
   V(ObjectDefineProperty, kNone)                               \
-  V(ObjectDefineSetter, kNone)                                 \
-  V(ObjectEntries, kNone)                                      \
   V(ObjectFreeze, kNone)                                       \
   V(ObjectGetOwnPropertyDescriptor, kNone)                     \
-  V(ObjectGetOwnPropertyDescriptors, kNone)                    \
   V(ObjectGetOwnPropertyNames, kNone)                          \
   V(ObjectGetOwnPropertySymbols, kNone)                        \
   V(ObjectGetPrototypeOf, kNone)                               \
@@ -142,12 +138,12 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ObjectIsFrozen, kNone)                                     \
   V(ObjectIsSealed, kNone)                                     \
   V(ObjectKeys, kNone)                                         \
-  V(ObjectLookupGetter, kNone)                                 \
-  V(ObjectLookupSetter, kNone)                                 \
-  V(ObjectPreventExtensions, kNone)                            \
-  V(ObjectProtoToString, kNone)                                \
-  V(ObjectSeal, kNone)                                         \
   V(ObjectValues, kNone)                                       \
+  V(ObjectEntries, kNone)                                      \
+  V(ObjectGetOwnPropertyDescriptors, kNone)                    \
+  V(ObjectPreventExtensions, kNone)                            \
+  V(ObjectSeal, kNone)                                         \
+  V(ObjectProtoToString, kNone)                                \
                                                                \
   V(ProxyConstructor, kNone)                                   \
   V(ProxyConstructor_ConstructStub, kTarget)                   \

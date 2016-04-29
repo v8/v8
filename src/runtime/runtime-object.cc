@@ -270,6 +270,85 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   return *obj;
 }
 
+
+// Enumerator used as indices into the array returned from GetOwnProperty
+enum PropertyDescriptorIndices {
+  IS_ACCESSOR_INDEX,
+  VALUE_INDEX,
+  GETTER_INDEX,
+  SETTER_INDEX,
+  WRITABLE_INDEX,
+  ENUMERABLE_INDEX,
+  CONFIGURABLE_INDEX,
+  DESCRIPTOR_SIZE
+};
+
+
+MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
+                                                          Handle<JSObject> obj,
+                                                          Handle<Name> name) {
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+
+  // Get attributes.
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name, obj,
+                                                        LookupIterator::HIDDEN);
+  Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
+
+  if (!maybe.IsJust()) return MaybeHandle<Object>();
+  PropertyAttributes attrs = maybe.FromJust();
+  if (attrs == ABSENT) return factory->undefined_value();
+
+  DCHECK(!isolate->has_pending_exception());
+  Handle<FixedArray> elms = factory->NewFixedArray(DESCRIPTOR_SIZE);
+  elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
+  elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
+
+  bool is_accessor_pair = it.state() == LookupIterator::ACCESSOR &&
+                          it.GetAccessors()->IsAccessorPair();
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(is_accessor_pair));
+
+  if (is_accessor_pair) {
+    Handle<AccessorPair> accessors =
+        Handle<AccessorPair>::cast(it.GetAccessors());
+    Handle<Object> getter =
+        AccessorPair::GetComponent(accessors, ACCESSOR_GETTER);
+    Handle<Object> setter =
+        AccessorPair::GetComponent(accessors, ACCESSOR_SETTER);
+    elms->set(GETTER_INDEX, *getter);
+    elms->set(SETTER_INDEX, *setter);
+  } else {
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::GetProperty(&it),
+                               Object);
+    elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
+    elms->set(VALUE_INDEX, *value);
+  }
+
+  return factory->NewJSArrayWithElements(elms);
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+// TODO(jkummerow): Deprecated. Remove all callers and delete.
+RUNTIME_FUNCTION(Runtime_GetOwnProperty_Legacy) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     GetOwnProperty(isolate, obj, name));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -654,6 +733,30 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
   initial_map->CompleteInobjectSlackTracking();
 
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GlobalProxy) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  return function->context()->global_proxy();
+}
+
+
+RUNTIME_FUNCTION(Runtime_LookupAccessor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_SMI_ARG_CHECKED(flag, 2);
+  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
+  if (!receiver->IsJSObject()) return isolate->heap()->undefined_value();
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::GetAccessor(Handle<JSObject>::cast(receiver), name, component));
+  return *result;
 }
 
 

@@ -625,7 +625,9 @@ class Isolate {
   inline Handle<JSGlobalObject> global_object();
 
   // Returns the global proxy object of the current context.
-  inline Handle<JSObject> global_proxy();
+  JSObject* global_proxy() {
+    return context()->global_proxy();
+  }
 
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top_.Free(); }

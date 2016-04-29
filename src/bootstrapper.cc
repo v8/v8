@@ -1115,20 +1115,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         object_function, "keys", Builtins::kObjectKeys, 1, false);
     native_context()->set_object_keys(*object_keys);
 
-    SimpleInstallFunction(isolate->initial_object_prototype(),
-                          "__defineGetter__", Builtins::kObjectDefineGetter, 2,
-                          true);
-    SimpleInstallFunction(isolate->initial_object_prototype(),
-                          "__defineSetter__", Builtins::kObjectDefineSetter, 2,
-                          true);
     SimpleInstallFunction(isolate->initial_object_prototype(), "hasOwnProperty",
                           Builtins::kObjectHasOwnProperty, 1, true);
-    SimpleInstallFunction(isolate->initial_object_prototype(),
-                          "__lookupGetter__", Builtins::kObjectLookupGetter, 1,
-                          true);
-    SimpleInstallFunction(isolate->initial_object_prototype(),
-                          "__lookupSetter__", Builtins::kObjectLookupSetter, 1,
-                          true);
   }
 
   Handle<JSObject> global(native_context()->global_object());

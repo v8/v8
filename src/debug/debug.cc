@@ -1898,7 +1898,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               exec_state,
                               event_data,
                               event_listener_data_ };
-    Handle<JSReceiver> global = isolate_->global_proxy();
+    Handle<JSReceiver> global(isolate_->global_proxy());
     Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
                        global, arraysize(argv), argv);
   }

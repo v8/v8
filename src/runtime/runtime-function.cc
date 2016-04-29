@@ -280,7 +280,10 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
+  if (receiver->IsNull() || receiver->IsUndefined()) {
+    return isolate->global_proxy();
+  }
+  return *Object::ToObject(isolate, receiver).ToHandleChecked();
 }
 
 
