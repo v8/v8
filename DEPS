@@ -7,10 +7,8 @@ vars = {
 }
 
 deps = {
-  # TODO(machenbach): Add this. Need to be committed locally as trybots run
-  # gclient sync on a deps change before applying any other change.
-  # "v8/build":
-  #  Var("git_url") + "/chromium/src/build.git" + "@" + "7181610b0c84e2cd87852a7f7d30c4e7e4ca32cd",
+  "v8/build":
+    Var("git_url") + "/chromium/src/build.git" + "@" + "7181610b0c84e2cd87852a7f7d30c4e7e4ca32cd",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e24c83726b7294179f479a683eeb351568fcc4ee",
   "v8/third_party/icu":
