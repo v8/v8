@@ -764,6 +764,9 @@ ClassLiteral* ParserTraits::ParseClassLiteral(
                                     name_is_strict_reserved, pos, ok);
 }
 
+void ParserTraits::MarkTailPosition(Expression* expression) {
+  expression->MarkTail();
+}
 
 Parser::Parser(ParseInfo* info)
     : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
@@ -3594,6 +3597,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewBlock(NULL, 3, false, RelocInfo::kNoPosition);
 
         {
+          DontCollectExpressionsInTailPositionScope no_tail_calls(
+              function_state_);
           BlockState block_state(&scope_, body_scope);
 
           Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
@@ -4650,7 +4655,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   const List<Expression*>& expressions_in_tail_position =
       function_state_->expressions_in_tail_position();
   for (int i = 0; i < expressions_in_tail_position.length(); ++i) {
-    expressions_in_tail_position[i]->MarkTail();
+    MarkTailPosition(expressions_in_tail_position[i]);
   }
   return result;
 }
