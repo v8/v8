@@ -27,6 +27,30 @@ class X87OperandGenerator final : public OperandGenerator {
     return DefineAsRegister(node);
   }
 
+  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input) {
+    if (input->opcode() != IrOpcode::kLoad ||
+        !selector()->CanCover(node, input)) {
+      return false;
+    }
+    MachineRepresentation rep =
+        LoadRepresentationOf(input->op()).representation();
+    switch (opcode) {
+      case kX87Cmp:
+      case kX87Test:
+        return rep == MachineRepresentation::kWord32 ||
+               rep == MachineRepresentation::kTagged;
+      case kX87Cmp16:
+      case kX87Test16:
+        return rep == MachineRepresentation::kWord16;
+      case kX87Cmp8:
+      case kX87Test8:
+        return rep == MachineRepresentation::kWord8;
+      default:
+        break;
+    }
+    return false;
+  }
+
   InstructionOperand CreateImmediate(int imm) {
     return sequence()->AddImmediate(Constant(imm));
   }
@@ -599,8 +623,9 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   Emit(kX87MulPair, 2, outputs, 4, inputs, 1, temps);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) {
-  X87OperandGenerator g(this);
+void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
+                          Node* node) {
+  X87OperandGenerator g(selector);
 
   Node* shift = node->InputAt(2);
   InstructionOperand shift_operand;
@@ -617,49 +642,19 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
       g.DefineAsFixed(node, eax),
       g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
 
-  Emit(kX87ShlPair, 2, outputs, 3, inputs);
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitWord32PairShift(this, kX87ShlPair, node);
 }
 
 void InstructionSelector::VisitWord32PairShr(Node* node) {
-  X87OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kX87ShrPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kX87ShrPair, node);
 }
 
 void InstructionSelector::VisitWord32PairSar(Node* node) {
-  X87OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kX87SarPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kX87SarPair, node);
 }
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
@@ -1148,21 +1143,6 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   }
 }
 
-// Determines if {input} of {node} can be replaced by a memory operand.
-bool CanUseMemoryOperand(InstructionSelector* selector, InstructionCode opcode,
-                         Node* node, Node* input) {
-  if (input->opcode() != IrOpcode::kLoad || !selector->CanCover(node, input)) {
-    return false;
-  }
-  MachineRepresentation load_representation =
-      LoadRepresentationOf(input->op()).representation();
-  if (load_representation == MachineRepresentation::kWord32 ||
-      load_representation == MachineRepresentation::kTagged) {
-    return opcode == kX87Cmp || opcode == kX87Test;
-  }
-  return false;
-}
-
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
@@ -1193,6 +1173,36 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
+// Tries to match the size of the given opcode to that of the operands, if
+// possible.
+InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
+                                    Node* right) {
+  if (opcode != kX87Cmp && opcode != kX87Test) {
+    return opcode;
+  }
+  // Currently, if one of the two operands is not a Load, we don't know what its
+  // machine representation is, so we bail out.
+  // TODO(epertoso): we can probably get some size information out of immediates
+  // and phi nodes.
+  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
+    return opcode;
+  }
+  // If the load representations don't match, both operands will be
+  // zero/sign-extended to 32bit.
+  LoadRepresentation left_representation = LoadRepresentationOf(left->op());
+  if (left_representation != LoadRepresentationOf(right->op())) {
+    return opcode;
+  }
+  switch (left_representation.representation()) {
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+      return opcode == kX87Cmp ? kX87Cmp8 : kX87Test8;
+    case MachineRepresentation::kWord16:
+      return opcode == kX87Cmp ? kX87Cmp16 : kX87Test16;
+    default:
+      return opcode;
+  }
+}
 
 // Shared routine for multiple float32 compare operations (inputs commuted).
 void VisitFloat32Compare(InstructionSelector* selector, Node* node,
@@ -1242,15 +1252,22 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // If one of the two inputs is an immediate, make sure it's on the right.
-  if (!g.CanBeImmediate(right) && g.CanBeImmediate(left)) {
+  InstructionCode narrowed_opcode = TryNarrowOpcodeSize(opcode, left, right);
+
+  // If one of the two inputs is an immediate, make sure it's on the right, or
+  // if one of the two inputs is a memory operand, make sure it's on the left.
+  if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
+      (g.CanBeMemoryOperand(narrowed_opcode, node, right) &&
+       !g.CanBeMemoryOperand(narrowed_opcode, node, left))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (CanUseMemoryOperand(selector, opcode, node, left)) {
+    if (g.CanBeMemoryOperand(opcode, node, left)) {
+      // TODO(epertoso): we should use `narrowed_opcode' here once we match
+      // immediates too.
       return VisitCompareWithMemoryOperand(selector, opcode, left,
                                            g.UseImmediate(right), cont);
     }
@@ -1258,15 +1275,21 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
                         cont);
   }
 
+  // Match memory operands on left side of comparison.
+  if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
+    bool needs_byte_register =
+        narrowed_opcode == kX87Test8 || narrowed_opcode == kX87Cmp8;
+    return VisitCompareWithMemoryOperand(
+        selector, narrowed_opcode, left,
+        needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
+        cont);
+  }
+
   if (g.CanBeBetterLeftOperand(right)) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
-  if (CanUseMemoryOperand(selector, opcode, node, left)) {
-    return VisitCompareWithMemoryOperand(selector, opcode, left,
-                                         g.UseRegister(right), cont);
-  }
   return VisitCompare(selector, opcode, left, right, cont,
                       node->op()->HasProperty(Operator::kCommutative));
 }

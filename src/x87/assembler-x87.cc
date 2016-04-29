@@ -1128,6 +1128,39 @@ void Assembler::test_b(const Operand& op, Immediate imm8) {
   emit_b(imm8);
 }
 
+void Assembler::test_w(Register reg, Immediate imm16) {
+  DCHECK(imm16.is_int16() || imm16.is_uint16());
+  EnsureSpace ensure_space(this);
+  if (reg.is(eax)) {
+    EMIT(0xA9);
+    emit_w(imm16);
+  } else {
+    EMIT(0x66);
+    EMIT(0xF7);
+    EMIT(0xc0 | reg.code());
+    emit_w(imm16);
+  }
+}
+
+void Assembler::test_w(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x85);
+  emit_operand(reg, op);
+}
+
+void Assembler::test_w(const Operand& op, Immediate imm16) {
+  DCHECK(imm16.is_int16() || imm16.is_uint16());
+  if (op.is_reg_only()) {
+    test_w(op.reg(), imm16);
+    return;
+  }
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0xF7);
+  emit_operand(eax, op);
+  emit_w(imm16);
+}
 
 void Assembler::xor_(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
