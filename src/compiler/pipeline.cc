@@ -572,6 +572,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
   return SUCCEEDED;
 }
 
+}  // namespace
+
 class PipelineWasmCompilationJob final : public CompilationJob {
  public:
   explicit PipelineWasmCompilationJob(CompilationInfo* info, Graph* graph,
@@ -602,6 +604,18 @@ PipelineWasmCompilationJob::CreateGraphImpl() {
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::OptimizeGraphImpl() {
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(info(), nullptr, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of << "{\"function\":\"" << info()->GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+      fclose(json_file);
+    }
+  }
+
+  pipeline_.RunPrintAndVerify("Machine", true);
+
   if (!pipeline_.ScheduleAndSelectInstructions(&linkage_)) return FAILED;
   return SUCCEEDED;
 }
@@ -611,8 +625,6 @@ PipelineWasmCompilationJob::GenerateCodeImpl() {
   pipeline_.GenerateCode(&linkage_);
   return SUCCEEDED;
 }
-
-}  // namespace
 
 
 template <typename Phase>
@@ -1452,10 +1464,18 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   }
 
   Pipeline pipeline(&data);
-  if (data.schedule() == nullptr) {
-    // TODO(rossberg): Should this really be untyped?
-    pipeline.RunPrintAndVerify("Machine", true);
+
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      json_of << "{\"function\":\"" << info->GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+      fclose(json_file);
+    }
   }
+  // TODO(rossberg): Should this really be untyped?
+  pipeline.RunPrintAndVerify("Machine", true);
 
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }

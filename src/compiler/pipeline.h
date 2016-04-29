@@ -80,10 +80,11 @@ class Pipeline {
       CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions);
 
-  // TODO(mstarzinger, bmeurer): This shouldn't be public!
-  bool ScheduleAndSelectInstructions(Linkage* linkage);
-
  private:
+  // The wasm compilation job calls ScheduleAndSelectInstructions and
+  // RunPrintAndVerify, so we make it a member class.
+  friend class PipelineWasmCompilationJob;
+
   // Helpers for executing pipeline phases.
   template <typename Phase>
   void Run();
@@ -94,6 +95,7 @@ class Pipeline {
 
   void BeginPhaseKind(const char* phase_kind);
   void EndPhaseKind();
+  bool ScheduleAndSelectInstructions(Linkage* linkage);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
