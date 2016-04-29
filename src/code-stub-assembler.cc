@@ -435,8 +435,12 @@ Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
   return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
+Node* CodeStubAssembler::InnerAllocate(Node* previous, Node* offset) {
+  return BitcastWordToTagged(IntPtrAdd(previous, offset));
+}
+
 Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
-  return BitcastWordToTagged(IntPtrAdd(previous, IntPtrConstant(offset)));
+  return InnerAllocate(previous, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,

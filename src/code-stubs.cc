@@ -3747,13 +3747,34 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
                              slot, vector);
 }
 
-void FastCloneShallowObjectStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  typedef CodeStubAssembler::Label Label;
+// static
+bool FastCloneShallowObjectStub::IsSupported(ObjectLiteral* expr) {
+  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
+  // support copy-on-write (COW) elements for now.
+  // TODO(mvstanton): make object literals support COW elements.
+  return expr->fast_elements() && expr->has_shallow_properties() &&
+         expr->properties_count() <= kMaximumClonedProperties;
+}
+
+// static
+int FastCloneShallowObjectStub::PropertiesCount(int literal_length) {
+  // This heuristic of setting empty literals to have
+  // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the
+  // runtime.
+  // TODO(verwaest): Unify this with the heuristic in the runtime.
+  return literal_length == 0
+             ? JSObject::kInitialGlobalObjectUnusedPropertiesCount
+             : literal_length;
+}
+
+// static
+compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
+    CodeStubAssembler* assembler, compiler::CodeAssembler::Label* call_runtime,
+    compiler::Node* closure, compiler::Node* literals_index,
+    compiler::Node* properties_count) {
   typedef compiler::Node Node;
-  Label call_runtime(assembler);
-  Node* closure = assembler->Parameter(0);
-  Node* literals_index = assembler->Parameter(1);
+  typedef compiler::CodeAssembler::Label Label;
+  typedef compiler::CodeAssembler::Variable Variable;
 
   Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
@@ -3762,38 +3783,52 @@ void FastCloneShallowObjectStub::GenerateAssembly(
       literals_array, literals_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize);
   assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    &call_runtime);
+                    call_runtime);
 
+  // Calculate the object and allocation size based on the properties count.
+  Node* object_size = assembler->IntPtrAdd(
+      assembler->WordShl(properties_count, kPointerSizeLog2),
+      assembler->IntPtrConstant(JSObject::kHeaderSize));
+  Node* allocation_size = object_size;
+  if (FLAG_allocation_site_pretenuring) {
+    allocation_size = assembler->IntPtrAdd(
+        object_size, assembler->IntPtrConstant(AllocationMemento::kSize));
+  }
   Node* boilerplate = assembler->LoadObjectField(
       allocation_site, AllocationSite::kTransitionInfoOffset);
-
-  int length = this->length();
-  if (length == 0) {
-    length = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
-  }
-  int allocation_size = JSObject::kHeaderSize + length * kPointerSize;
-  int object_size = allocation_size;
-  if (FLAG_allocation_site_pretenuring) {
-    allocation_size += AllocationMemento::kSize;
-  }
-
   Node* boilerplate_map = assembler->LoadMap(boilerplate);
   Node* instance_size = assembler->LoadMapInstanceSize(boilerplate_map);
-  Node* size_in_words =
-      assembler->Int32Constant(object_size >> kPointerSizeLog2);
+  Node* size_in_words = assembler->WordShr(object_size, kPointerSizeLog2);
   assembler->GotoUnless(assembler->Word32Equal(instance_size, size_in_words),
-                        &call_runtime);
+                        call_runtime);
 
   Node* copy = assembler->Allocate(allocation_size);
 
-  for (int i = 0; i < object_size; i += kPointerSize) {
+  // Copy boilerplate elements.
+  Variable offset(assembler, MachineType::PointerRepresentation());
+  offset.Bind(assembler->IntPtrConstant(-kHeapObjectTag));
+  Node* end_offset = assembler->IntPtrAdd(object_size, offset.value());
+  Label loop_body(assembler, &offset), loop_check(assembler, &offset);
+  // We should always have an object size greater than zero.
+  assembler->Goto(&loop_body);
+  assembler->Bind(&loop_body);
+  {
     // The Allocate above guarantees that the copy lies in new space. This
     // allows us to skip write barriers. This is necessary since we may also be
     // copying unboxed doubles.
     Node* field =
-        assembler->LoadObjectField(boilerplate, i, MachineType::IntPtr());
-    assembler->StoreObjectFieldNoWriteBarrier(
-        copy, i, field, MachineType::PointerRepresentation());
+        assembler->Load(MachineType::IntPtr(), boilerplate, offset.value());
+    assembler->StoreNoWriteBarrier(MachineType::PointerRepresentation(), copy,
+                                   offset.value(), field);
+    assembler->Goto(&loop_check);
+  }
+  assembler->Bind(&loop_check);
+  {
+    offset.Bind(assembler->IntPtrAdd(offset.value(),
+                                     assembler->IntPtrConstant(kPointerSize)));
+    assembler->GotoUnless(
+        assembler->IntPtrGreaterThanOrEqual(offset.value(), end_offset),
+        &loop_body);
   }
 
   if (FLAG_allocation_site_pretenuring) {
@@ -3813,6 +3848,21 @@ void FastCloneShallowObjectStub::GenerateAssembly(
   }
 
   // TODO(verwaest): Allocate and fill in double boxes.
+  return copy;
+}
+
+void FastCloneShallowObjectStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  Label call_runtime(assembler);
+  Node* closure = assembler->Parameter(0);
+  Node* literals_index = assembler->Parameter(1);
+
+  Node* properties_count =
+      assembler->IntPtrConstant(PropertiesCount(this->length()));
+  Node* copy = GenerateFastPath(assembler, &call_runtime, closure,
+                                literals_index, properties_count);
   assembler->Return(copy);
 
   assembler->Bind(&call_runtime);

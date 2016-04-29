@@ -1134,6 +1134,14 @@ class FastCloneShallowObjectStub : public TurboFanCodeStub {
     minor_key_ = LengthBits::encode(LengthBits::encode(length));
   }
 
+  static compiler::Node* GenerateFastPath(
+      CodeStubAssembler* assembler,
+      compiler::CodeAssembler::Label* call_runtime, compiler::Node* closure,
+      compiler::Node* literals_index, compiler::Node* properties_count);
+
+  static bool IsSupported(ObjectLiteral* expr);
+  static int PropertiesCount(int literal_length);
+
   int length() const { return LengthBits::decode(minor_key_); }
 
  private:

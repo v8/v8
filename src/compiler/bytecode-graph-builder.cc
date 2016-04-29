@@ -882,7 +882,9 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<FixedArray> constant_properties = Handle<FixedArray>::cast(
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
-  int literal_flags = bytecode_iterator().GetFlagOperand(2);
+  int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
+  int literal_flags =
+      interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   // TODO(mstarzinger): Thread through number of properties.
   int number_of_properties = constant_properties->length() / 2;
   const Operator* op = javascript()->CreateLiteralObject(

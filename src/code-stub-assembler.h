@@ -72,6 +72,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);
   compiler::Node* Allocate(int size, AllocationFlags flags = kNone);
   compiler::Node* InnerAllocate(compiler::Node* previous, int offset);
+  compiler::Node* InnerAllocate(compiler::Node* previous,
+                                compiler::Node* offset);
 
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);

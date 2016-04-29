@@ -1395,23 +1395,6 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
-void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
-                                  InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
-  Node* constant_elements = __ LoadConstantPoolEntry(index);
-  Node* literal_index_raw = __ BytecodeOperandIdx(1);
-  Node* literal_index = __ SmiTag(literal_index_raw);
-  Node* flags_raw = __ BytecodeOperandFlag(2);
-  Node* flags = __ SmiTag(flags_raw);
-  Node* closure = __ LoadRegister(Register::function_closure());
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(function_id, context, closure, literal_index,
-                                constant_elements, flags);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
 //
 // Creates a regular expression literal for literal index <literal_idx> with
@@ -1438,15 +1421,71 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
 // Creates an array literal for literal index <literal_idx> with flags <flags>
 // and constant elements in <element_idx>.
 void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateArrayLiteral, assembler);
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant_elements = __ LoadConstantPoolEntry(index);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* flags_raw = __ BytecodeOperandFlag(2);
+  Node* flags = __ SmiTag(flags_raw);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* context = __ GetContext();
+  Node* result = __ CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
+                                literal_index, constant_elements, flags);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 // CreateObjectLiteral <element_idx> <literal_idx> <flags>
 //
-// Creates an object literal for literal index <literal_idx> with flags <flags>
-// and constant elements in <element_idx>.
+// Creates an object literal for literal index <literal_idx> with
+// CreateObjectLiteralFlags <flags> and constant elements in <element_idx>.
 void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateObjectLiteral, assembler);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* bytecode_flags = __ BytecodeOperandFlag(2);
+  Node* closure = __ LoadRegister(Register::function_closure());
+
+  Variable result(assembler, MachineRepresentation::kTagged);
+
+  // Check if we can do a fast clone or have to call the runtime.
+  Label end(assembler), if_fast_clone(assembler),
+      if_not_fast_clone(assembler, Label::kDeferred);
+  Node* fast_clone_properties_count =
+      __ BitFieldDecode<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
+          bytecode_flags);
+  __ BranchIf(fast_clone_properties_count, &if_fast_clone, &if_not_fast_clone);
+
+  __ Bind(&if_fast_clone);
+  {
+    // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
+    Node* clone = FastCloneShallowObjectStub::GenerateFastPath(
+        assembler, &if_not_fast_clone, closure, literal_index,
+        fast_clone_properties_count);
+    result.Bind(clone);
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_not_fast_clone);
+  {
+    // If we can't do a fast clone, call into the runtime.
+    Node* index = __ BytecodeOperandIdx(0);
+    Node* constant_elements = __ LoadConstantPoolEntry(index);
+    Node* context = __ GetContext();
+
+    STATIC_ASSERT(CreateObjectLiteralFlags::FlagsBits::kShift == 0);
+    Node* flags_raw = __ Word32And(
+        bytecode_flags,
+        __ Int32Constant(CreateObjectLiteralFlags::FlagsBits::kMask));
+    Node* flags = __ SmiTag(flags_raw);
+
+    result.Bind(__ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                               literal_index, constant_elements, flags));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  __ SetAccumulator(result.value());
+  __ Dispatch();
 }
 
 // CreateClosure <index> <tenured>

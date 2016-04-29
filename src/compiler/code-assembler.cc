@@ -160,6 +160,10 @@ Node* CodeAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, IntPtrConstant(shift));
 }
 
+Node* CodeAssembler::WordShr(Node* value, int shift) {
+  return raw_assembler_->WordShr(value, IntPtrConstant(shift));
+}
+
 Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
   if (raw_assembler_->machine()->Is64()) {
     value = raw_assembler_->ChangeUint32ToUint64(value);

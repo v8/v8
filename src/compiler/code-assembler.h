@@ -52,6 +52,8 @@ class Schedule;
   V(Int32LessThanOrEqual)                        \
   V(IntPtrLessThan)                              \
   V(IntPtrLessThanOrEqual)                       \
+  V(IntPtrGreaterThan)                           \
+  V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
   V(UintPtrGreaterThanOrEqual)                   \
@@ -237,6 +239,7 @@ class CodeAssembler {
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
 
   Node* WordShl(Node* value, int shift);
+  Node* WordShr(Node* value, int shift);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name) Node* name(Node* a);

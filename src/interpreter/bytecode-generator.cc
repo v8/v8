@@ -5,6 +5,7 @@
 #include "src/interpreter/bytecode-generator.h"
 
 #include "src/ast/scopes.h"
+#include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
@@ -1596,10 +1597,21 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  // Deep-copy the literal boilerplate.
+  // Copy the literal boilerplate.
+  int fast_clone_properties_count = 0;
+  if (FastCloneShallowObjectStub::IsSupported(expr)) {
+    STATIC_ASSERT(
+        FastCloneShallowObjectStub::kMaximumClonedProperties <=
+        1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
+    fast_clone_properties_count =
+        FastCloneShallowObjectStub::PropertiesCount(expr->properties_count());
+  }
+  uint8_t flags =
+      CreateObjectLiteralFlags::FlagsBits::encode(expr->ComputeFlags()) |
+      CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
+          fast_clone_properties_count);
   builder()->CreateObjectLiteral(expr->constant_properties(),
-                                 expr->literal_index(),
-                                 expr->ComputeFlags(true));
+                                 expr->literal_index(), flags);
 
   // Allocate in the outer scope since this register is used to return the
   // expression's results to the caller.

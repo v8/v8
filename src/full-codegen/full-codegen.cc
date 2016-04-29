@@ -144,13 +144,8 @@ int FullCodeGenerator::NewHandlerTableEntry() {
 
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
-  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
-  // support copy-on-write (COW) elements for now.
-  // TODO(mvstanton): make object literals support COW elements.
-  return masm()->serializer_enabled() || !expr->fast_elements() ||
-         !expr->has_shallow_properties() ||
-         expr->properties_count() >
-             FastCloneShallowObjectStub::kMaximumClonedProperties;
+  return masm()->serializer_enabled() ||
+         !FastCloneShallowObjectStub::IsSupported(expr);
 }
 
 

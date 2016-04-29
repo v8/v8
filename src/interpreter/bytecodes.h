@@ -583,6 +583,14 @@ class Bytecodes {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
 };
 
+class CreateObjectLiteralFlags {
+ public:
+  class FlagsBits : public BitField8<int, 0, 3> {};
+  class FastClonePropertiesCountBits
+      : public BitField8<int, FlagsBits::kNext, 3> {};
+  STATIC_ASSERT((FlagsBits::kMask & FastClonePropertiesCountBits::kMask) == 0);
+};
+
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
 std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
 std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
