@@ -5361,9 +5361,14 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
+  STATIC_ASSERT(FCA::kArgsLength == 8);
 
   __ pop(return_address);
+
+  // new target
+  __ PushRoot(Heap::kUndefinedValueRootIndex);
+
   // context save.
   __ push(context);
 
@@ -5408,7 +5413,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.
-  const int kApiStackSpace = 4;
+  const int kApiStackSpace = 3;
 
   PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace);
 
@@ -5419,8 +5424,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ mov(ApiParameterOperand(3), scratch);
   // FunctionCallbackInfo::length_.
   __ Move(ApiParameterOperand(4), Immediate(argc()));
-  // FunctionCallbackInfo::is_construct_call_.
-  __ Move(ApiParameterOperand(5), Immediate(0));
 
   // v8::InvocationCallback's argument.
   __ lea(scratch, ApiParameterOperand(2));
@@ -5440,8 +5443,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   }
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
   int stack_space = 0;
-  Operand is_construct_call_operand = ApiParameterOperand(5);
-  Operand* stack_space_operand = &is_construct_call_operand;
+  Operand length_operand = ApiParameterOperand(4);
+  Operand* stack_space_operand = &length_operand;
   stack_space = argc() + FCA::kArgsLength + 1;
   stack_space_operand = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
