@@ -112,7 +112,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 #define TRACE_GC(tracer, scope_id)                             \
   GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
   GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"),                \
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),             \
                GCTracer::Scope::Name(gc_tracer_scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
