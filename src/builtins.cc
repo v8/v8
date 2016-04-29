@@ -1838,6 +1838,132 @@ BUILTIN(ObjectDefineProperty) {
   return JSReceiver::DefineProperty(isolate, target, key, attributes);
 }
 
+namespace {
+
+template <AccessorComponent which_accessor>
+Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
+                             Handle<Object> name, Handle<Object> accessor) {
+  // 1. Let O be ? ToObject(this value).
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, object));
+  // 2. If IsCallable(getter) is false, throw a TypeError exception.
+  if (!accessor->IsCallable()) {
+    MessageTemplate::Template message =
+        which_accessor == ACCESSOR_GETTER
+            ? MessageTemplate::kObjectGetterExpectingFunction
+            : MessageTemplate::kObjectSetterExpectingFunction;
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message));
+  }
+  // 3. Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true,
+  //                                   [[Configurable]]: true}.
+  PropertyDescriptor desc;
+  if (which_accessor == ACCESSOR_GETTER) {
+    desc.set_get(accessor);
+  } else {
+    DCHECK(which_accessor == ACCESSOR_SETTER);
+    desc.set_set(accessor);
+  }
+  desc.set_enumerable(true);
+  desc.set_configurable(true);
+  // 4. Let key be ? ToPropertyKey(P).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToPropertyKey(isolate, name));
+  // 5. Perform ? DefinePropertyOrThrow(O, key, desc).
+  // To preserve legacy behavior, we ignore errors silently rather than
+  // throwing an exception.
+  Maybe<bool> success = JSReceiver::DefineOwnProperty(
+      isolate, receiver, name, &desc, Object::DONT_THROW);
+  MAYBE_RETURN(success, isolate->heap()->exception());
+  // 6. Return undefined.
+  return isolate->heap()->undefined_value();
+}
+
+Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
+                             Handle<Object> key, AccessorComponent component) {
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
+                                     Object::ConvertReceiver(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                     Object::ToPropertyKey(isolate, key));
+  bool success = false;
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, key, &success,
+      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  DCHECK(success);
+
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
+
+      case LookupIterator::ACCESS_CHECK:
+        if (it.HasAccess()) continue;
+        isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
+        RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+        return isolate->heap()->undefined_value();
+
+      case LookupIterator::JSPROXY:
+        return isolate->heap()->undefined_value();
+
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        return isolate->heap()->undefined_value();
+      case LookupIterator::DATA:
+        continue;
+      case LookupIterator::ACCESSOR: {
+        Handle<Object> maybe_pair = it.GetAccessors();
+        if (maybe_pair->IsAccessorPair()) {
+          return *AccessorPair::GetComponent(
+              Handle<AccessorPair>::cast(maybe_pair), component);
+        }
+      }
+    }
+  }
+
+  return isolate->heap()->undefined_value();
+}
+
+}  // namespace
+
+// ES6 B.2.2.2 a.k.a.
+// https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
+BUILTIN(ObjectDefineGetter) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);  // Receiver.
+  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> getter = args.at<Object>(2);
+  return ObjectDefineAccessor<ACCESSOR_GETTER>(isolate, object, name, getter);
+}
+
+// ES6 B.2.2.3 a.k.a.
+// https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
+BUILTIN(ObjectDefineSetter) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);  // Receiver.
+  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> setter = args.at<Object>(2);
+  return ObjectDefineAccessor<ACCESSOR_SETTER>(isolate, object, name, setter);
+}
+
+// ES6 B.2.2.4 a.k.a.
+// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
+BUILTIN(ObjectLookupGetter) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> name = args.at<Object>(1);
+  return ObjectLookupAccessor(isolate, object, name, ACCESSOR_GETTER);
+}
+
+// ES6 B.2.2.5 a.k.a.
+// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
+BUILTIN(ObjectLookupSetter) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> name = args.at<Object>(1);
+  return ObjectLookupAccessor(isolate, object, name, ACCESSOR_SETTER);
+}
+
 // ES6 section 19.1.2.5 Object.freeze ( O )
 BUILTIN(ObjectFreeze) {
   HandleScope scope(isolate);
@@ -4750,12 +4876,9 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
     DCHECK(function->IsFunctionTemplateInfo() || function->IsJSFunction());
     if (function->IsFunctionTemplateInfo() ||
         is_sloppy(JSFunction::cast(*function)->shared()->language_mode())) {
-      if (receiver->IsUndefined() || receiver->IsNull()) {
-        receiver = handle(isolate->global_proxy(), isolate);
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                   Object::ToObject(isolate, receiver), Object);
-      }
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                 Object::ConvertReceiver(isolate, receiver),
+                                 Object);
     }
   }
   // Construct BuiltinArguments object:

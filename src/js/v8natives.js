@@ -142,52 +142,6 @@ function ObjectPropertyIsEnumerable(V) {
   return %PropertyIsEnumerable(TO_OBJECT(this), P);
 }
 
-
-// Extensions for providing property getters and setters.
-function ObjectDefineGetter(name, fun) {
-  var receiver = this;
-  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
-    receiver = %GlobalProxy(ObjectDefineGetter);
-  }
-  if (!IS_CALLABLE(fun)) {
-    throw MakeTypeError(kObjectGetterExpectingFunction);
-  }
-  var desc = {get: fun, enumerable: true, configurable: true};
-  %reflect_define_property(receiver, name, desc);
-}
-
-
-function ObjectLookupGetter(name) {
-  var receiver = this;
-  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
-    receiver = %GlobalProxy(ObjectLookupGetter);
-  }
-  return %LookupAccessor(TO_OBJECT(receiver), TO_NAME(name), GETTER);
-}
-
-
-function ObjectDefineSetter(name, fun) {
-  var receiver = this;
-  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
-    receiver = %GlobalProxy(ObjectDefineSetter);
-  }
-  if (!IS_CALLABLE(fun)) {
-    throw MakeTypeError(kObjectSetterExpectingFunction);
-  }
-  var desc = {set: fun, enumerable: true, configurable: true};
-  %reflect_define_property(receiver, name, desc);
-}
-
-
-function ObjectLookupSetter(name) {
-  var receiver = this;
-  if (IS_NULL(receiver) || IS_UNDEFINED(receiver)) {
-    receiver = %GlobalProxy(ObjectLookupSetter);
-  }
-  return %LookupAccessor(TO_OBJECT(receiver), TO_NAME(name), SETTER);
-}
-
-
 // ES6 7.3.9
 function GetMethod(obj, p) {
   var func = obj[p];
@@ -195,7 +149,6 @@ function GetMethod(obj, p) {
   if (IS_CALLABLE(func)) return func;
   throw MakeTypeError(kCalledNonCallable, typeof func);
 }
-
 
 // ES6 section 19.1.2.18.
 function ObjectSetPrototypeOf(obj, proto) {
@@ -211,7 +164,6 @@ function ObjectSetPrototypeOf(obj, proto) {
 
   return obj;
 }
-
 
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
@@ -255,10 +207,10 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "valueOf", ObjectValueOf,
   "isPrototypeOf", ObjectIsPrototypeOf,
   "propertyIsEnumerable", ObjectPropertyIsEnumerable,
-  "__defineGetter__", ObjectDefineGetter,
-  "__lookupGetter__", ObjectLookupGetter,
-  "__defineSetter__", ObjectDefineSetter,
-  "__lookupSetter__", ObjectLookupSetter
+  // __defineGetter__ is added in bootstrapper.cc.
+  // __lookupGetter__ is added in bootstrapper.cc.
+  // __defineSetter__ is added in bootstrapper.cc.
+  // __lookupSetter__ is added in bootstrapper.cc.
 ]);
 utils.InstallGetterSetter(
     GlobalObject.prototype, "__proto__", ObjectGetProto, ObjectSetProto);

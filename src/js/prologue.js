@@ -195,8 +195,6 @@ function PostNatives(utils) {
     "MaxSimple",
     "MinSimple",
     "NumberIsInteger",
-    "ObserveArrayMethods",
-    "ObserveObjectMethods",
     "PromiseChain",
     "PromiseDeferred",
     "PromiseResolved",
