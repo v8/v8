@@ -13164,7 +13164,9 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
   for (PrototypeIterator iter(isolate, this,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
-    JSFunction* func = iter.GetCurrent<JSFunction>();
+    JSReceiver* current = iter.GetCurrent<JSReceiver>();
+    if (!current->IsJSFunction()) break;
+    JSFunction* func = JSFunction::cast(current);
     SharedFunctionInfo* shared = func->shared();
     expected_nof_properties += shared->expected_nof_properties();
     if (!IsSubclassConstructor(shared->kind())) {
