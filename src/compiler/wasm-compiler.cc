@@ -2977,7 +2977,24 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower, Isolate* isolate,
   }
 
   buffer.Dispose();
+
   if (!code.is_null()) {
+    DCHECK(code->deoptimization_data() == nullptr ||
+           code->deoptimization_data()->length() == 0);
+    Handle<FixedArray> deopt_data =
+        isolate->factory()->NewFixedArray(2, TENURED);
+    if (!module_env->instance->js_object.is_null()) {
+      deopt_data->set(0, *module_env->instance->js_object);
+      deopt_data->set(1, Smi::FromInt(function->func_index));
+    } else if (func_name.start() != nullptr) {
+      MaybeHandle<String> maybe_name =
+          isolate->factory()->NewStringFromUtf8(func_name);
+      if (!maybe_name.is_null())
+        deopt_data->set(0, *maybe_name.ToHandleChecked());
+    }
+    deopt_data->set_length(2);
+    code->set_deoptimization_data(*deopt_data);
+
     RecordFunctionCompilation(
         Logger::FUNCTION_TAG, &info, "WASM_function", function->func_index,
         module_env->module->GetName(function->name_offset,

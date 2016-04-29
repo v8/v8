@@ -195,6 +195,11 @@ struct WasmModule {
             static_cast<int>(length)};
   }
 
+  // Get a string stored in the module bytes representing a function name.
+  WasmName GetName(WasmFunction* function) const {
+    return GetName(function->name_offset, function->name_length);
+  }
+
   // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(uint32_t offset, uint32_t length) const {
     if (length == 0) return {NULL, 0};  // no name.
@@ -202,6 +207,11 @@ struct WasmModule {
     DCHECK_GE(static_cast<int>(length), 0);
     return {reinterpret_cast<const char*>(module_start + offset),
             static_cast<int>(length)};
+  }
+
+  // Get a string stored in the module bytes representing a function name.
+  WasmName GetNameOrNull(WasmFunction* function) const {
+    return GetNameOrNull(function->name_offset, function->name_length);
   }
 
   // Checks the given offset range is contained within the module bytes.
@@ -320,6 +330,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // For testing. Decode, verify, and run the last exported function in the
 // given decoded module.
 int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module);
+
+// Extract a function name from the given wasm object.
+// Returns undefined if the function is unnamed or the function index is
+// invalid.
+Handle<Object> GetWasmFunctionName(Handle<JSObject> wasm, uint32_t func_index);
 
 }  // namespace wasm
 }  // namespace internal

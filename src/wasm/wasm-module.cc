@@ -11,6 +11,7 @@
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-function-name-table.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 
@@ -201,11 +202,12 @@ class WasmLinker {
 
 namespace {
 // Internal constants for the layout of the module object.
-const int kWasmModuleInternalFieldCount = 4;
+const int kWasmModuleInternalFieldCount = 5;
 const int kWasmModuleFunctionTable = 0;
 const int kWasmModuleCodeTable = 1;
 const int kWasmMemArrayBuffer = 2;
 const int kWasmGlobalsArrayBuffer = 3;
+const int kWasmFunctionNamesArray = 4;
 
 size_t AllocateGlobalsOffsets(std::vector<WasmGlobal>& globals) {
   uint32_t offset = 0;
@@ -630,6 +632,15 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     }
   }
 
+  //-------------------------------------------------------------------------
+  // Attach an array with function names and an array with offsets into that
+  // first array.
+  //-------------------------------------------------------------------------
+  {
+    Handle<Object> arr = BuildFunctionNamesTable(isolate, module_env.module);
+    instance.js_object->SetInternalField(kWasmFunctionNamesArray, *arr);
+  }
+
   if (FLAG_print_wasm_code_size)
     printf("Total generated wasm code: %u bytes\n", total_code_size);
 
@@ -783,6 +794,16 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   thrower.Error("WASM.compileRun() failed: Return value should be number");
   return -1;
 }
+
+Handle<Object> GetWasmFunctionName(Handle<JSObject> wasm, uint32_t func_index) {
+  Handle<Object> func_names_arr_obj = handle(
+      wasm->GetInternalField(kWasmFunctionNamesArray), wasm->GetIsolate());
+  if (func_names_arr_obj->IsUndefined())
+    return func_names_arr_obj;  // Return undefined.
+  return GetWasmFunctionNameFromTable(
+      Handle<ByteArray>::cast(func_names_arr_obj), func_index);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

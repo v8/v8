@@ -213,7 +213,7 @@ config("toolchain") {
   }
   if (v8_target_arch == "s390") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-  } 
+  }
   if (v8_target_arch == "s390x") {
     defines += [
       "V8_TARGET_ARCH_S390",
@@ -226,7 +226,7 @@ config("toolchain") {
   if (v8_target_arch == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
   }
-     
+
   if (is_win) {
     defines += [ "WIN32" ]
     # TODO(jochen): Support v8_enable_prof.
@@ -1425,6 +1425,8 @@ source_set("v8_base") {
     "src/wasm/switch-logic.h",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
+    "src/wasm/wasm-function-name-table.cc",
+    "src/wasm/wasm-function-name-table.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
     "src/wasm/wasm-macro-gen.h",
