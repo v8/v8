@@ -1505,7 +1505,6 @@ i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyNewTarget,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
   kAllowHarmonyExponentiationOperator,
@@ -5106,7 +5105,7 @@ TEST(ScanTemplateLiterals) {
       "`foo${\r a}`",
       "`foo${'a' in a}`",
       NULL};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 
@@ -5141,7 +5140,7 @@ TEST(ScanTaggedTemplateLiterals) {
       "tag`foo${\r a}`",
       "tag`foo${'a' in a}`",
       NULL};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 
@@ -5168,7 +5167,7 @@ TEST(TemplateMaterializedLiterals) {
     NULL
   };
 
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 
@@ -5202,7 +5201,7 @@ TEST(ScanUnterminatedTemplateLiterals) {
       "`foo${fn(}`",
       "`foo${1 if}`",
       NULL};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, data, kError);
 }
 
 
@@ -5222,7 +5221,7 @@ TEST(TemplateLiteralsIllegalTokens) {
       "`hello${1}\\x\n${2}`",
       NULL};
 
-  RunParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, data, kError);
 }
 
 
@@ -7028,7 +7027,7 @@ TEST(MiscSyntaxErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 
@@ -7057,7 +7056,7 @@ TEST(EscapeSequenceErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 
