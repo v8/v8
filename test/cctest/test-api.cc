@@ -24986,6 +24986,24 @@ TEST(MemoryPressure) {
   CHECK(!CcTest::i_isolate()->heap()->ShouldOptimizeForMemoryUsage());
 }
 
+TEST(SetIntegrityLevel) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  CHECK(context->Global()->Set(context.local(), v8_str("o"), obj).FromJust());
+
+  v8::Local<v8::Value> is_frozen = CompileRun("Object.isFrozen(o)");
+  CHECK(!is_frozen->BooleanValue(context.local()).FromJust());
+
+  CHECK(obj->SetIntegrityLevel(context.local(), v8::IntegrityLevel::kFrozen)
+            .FromJust());
+
+  is_frozen = CompileRun("Object.isFrozen(o)");
+  CHECK(is_frozen->BooleanValue(context.local()).FromJust());
+}
+
 TEST(PrivateForApiIsNumber) {
   LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
