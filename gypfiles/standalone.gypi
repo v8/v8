@@ -677,7 +677,7 @@
               ],
             },
             'dependencies': [
-              '<(DEPTH)/build/mac/asan.gyp:asan_dynamic_runtime',
+              '<(DEPTH)/gypfiles/mac/asan.gyp:asan_dynamic_runtime',
             ],
             'target_conditions': [
               ['_type!="static_library"', {
@@ -1327,10 +1327,10 @@
         ['coverage==1', {
           # Wrap goma with coverage wrapper.
           'make_global_settings': [
-            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
-            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
-            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
-            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CC_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CC.host_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX.host_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py <(gomadir)/gomacc'],
           ],
         }, {
           # Use only goma wrapper.
@@ -1347,10 +1347,10 @@
         ['coverage==1', {
           # Use only coverage wrapper.
           'make_global_settings': [
-            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
-            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
-            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
-            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CC_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py'],
+            ['CXX_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py'],
+            ['CC.host_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py'],
+            ['CXX.host_wrapper', '<(base_dir)/gypfiles/coverage_wrapper.py'],
           ],
         }],
       ],

@@ -37,7 +37,7 @@
     'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
   },
-  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'v8',

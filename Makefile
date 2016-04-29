@@ -261,8 +261,9 @@ NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
-	   build/shim_headers.gypi build/features.gypi build/standalone.gypi \
-	   build/toolchain.gypi build/all.gyp build/mac/asan.gyp \
+	   gypfiles/shim_headers.gypi gypfiles/features.gypi \
+           gypfiles/standalone.gypi \
+	   gypfiles/toolchain.gypi gypfiles/all.gyp gypfiles/mac/asan.gyp \
 	   test/cctest/cctest.gyp test/fuzzer/fuzzer.gyp \
 	   test/unittests/unittests.gyp src/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
@@ -449,8 +450,8 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	tools/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. \
+	tools/gyp/gyp --generator-output="$(OUTDIR)" gypfiles/all.gyp \
+	              -Igypfiles/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
 	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
@@ -460,8 +461,8 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
-	tools/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
+	tools/gyp/gyp --generator-output="$(OUTDIR)" gypfiles/all.gyp \
+	              -Igypfiles/standalone.gypi --depth=. -S.native $(GYPFLAGS)
 
 # Note that NACL_SDK_ROOT must be set to point to an appropriate
 # Native Client SDK before using this makefile. You can download

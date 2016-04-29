@@ -30,7 +30,7 @@
     'v8_code': 1,
     'v8_enable_i18n_support%': 1,
   },
-  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'target_defaults': {
     'type': 'executable',
     'dependencies': [

@@ -7,6 +7,10 @@ vars = {
 }
 
 deps = {
+  # TODO(machenbach): Add this. Need to be committed locally as trybots run
+  # gclient sync on a deps change before applying any other change.
+  # "v8/build":
+  #  Var("git_url") + "/chromium/src/build.git" + "@" + "7181610b0c84e2cd87852a7f7d30c4e7e4ca32cd",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e24c83726b7294179f479a683eeb351568fcc4ee",
   "v8/third_party/icu":
@@ -53,6 +57,7 @@ include_rules = [
 # checkdeps.py shouldn't check for includes in these directories:
 skip_child_includes = [
   "build",
+  "gypfiles",
   "third_party",
 ]
 
@@ -65,7 +70,7 @@ hooks = [
     'pattern': '.',
     'action': [
         'python',
-        'v8/build/landmines.py',
+        'v8/gypfiles/landmines.py',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
@@ -190,7 +195,7 @@ hooks = [
     # Update the Windows toolchain if necessary.
     'name': 'win_toolchain',
     'pattern': '.',
-    'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
+    'action': ['python', 'v8/gypfiles/vs_toolchain.py', 'update'],
   },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
@@ -208,7 +213,7 @@ hooks = [
     # Note: This must run before the clang update.
     'name': 'gold_plugin',
     'pattern': '.',
-    'action': ['python', 'v8/build/download_gold_plugin.py'],
+    'action': ['python', 'v8/gypfiles/download_gold_plugin.py'],
   },
   {
     # Pull clang if needed or requested via GYP_DEFINES.
@@ -220,6 +225,6 @@ hooks = [
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",
-    "action": ["python", "v8/build/gyp_v8"],
+    "action": ["python", "v8/gypfiles/gyp_v8"],
   },
 ]

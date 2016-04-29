@@ -4,7 +4,7 @@
 {
   'includes': [
     '../third_party/icu/icu.isolate',
-    '../build/config/win/msvs_dependencies.isolate',
+    '../gypfiles/config/win/msvs_dependencies.isolate',
   ],
   'conditions': [
     ['use_custom_libcxx==1', {

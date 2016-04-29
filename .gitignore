@@ -41,10 +41,7 @@ shell
 shell_g
 /_*
 /base
-/build/Debug
-/build/ipch
-/build/Release
-/build/win_toolchain.json
+/gypfiles/win_toolchain.json
 /buildtools
 /hydrogen.cfg
 /obj

@@ -17,7 +17,7 @@
 #           'foo_test',
 #         ],
 #         'includes': [
-#           '../build/isolate.gypi',
+#           '../gypfiles/isolate.gypi',
 #         ],
 #         'sources': [
 #           'foo_test.isolate',

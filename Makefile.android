@@ -77,6 +77,6 @@ $(ANDROID_MAKEFILES):
 	GYP_GENERATORS=make-android \
 	GYP_DEFINES="${DEFINES}" \
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
-	tools/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. \
+	tools/gyp/gyp --generator-output="${OUTDIR}" gypfiles/all.gyp \
+	              -Igypfiles/standalone.gypi --depth=. \
 	              -S$(suffix $(basename $@))$(suffix $@) ${GYPFLAGS}

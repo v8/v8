@@ -198,7 +198,7 @@ def process_options():
   parser = optparse.OptionParser()
   parser.add_option(
       '-s', '--landmine-scripts', action='append',
-      default=[os.path.join(SRC_DIR, 'build', 'get_landmines.py')],
+      default=[os.path.join(SRC_DIR, 'gypfiles', 'get_landmines.py')],
       help='Path to the script which emits landmines to stdout. The target '
            'is passed to this script via option -t. Note that an extra '
            'script can be specified via an env var EXTRA_LANDMINES_SCRIPT.')

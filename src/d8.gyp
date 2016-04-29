@@ -33,7 +33,7 @@
     'v8_enable_i18n_support%': 1,
     'v8_toolset_for_d8%': 'target',
   },
-  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'd8',
@@ -150,7 +150,7 @@
             'd8',
           ],
           'includes': [
-            '../build/isolate.gypi',
+            '../gypfiles/isolate.gypi',
           ],
           'sources': [
             'd8.isolate',

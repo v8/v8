@@ -25,35 +25,49 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# This file is meant to be included into a target to handle shim headers
+# in a consistent manner. To use this the following variables need to be
+# defined:
+#   headers_root_path: string: path to directory containing headers
+#   header_filenames: list: list of header file names
+
 {
   'variables': {
-    'v8_code': 1,
-    'v8_enable_i18n_support%': 1,
+    'shim_headers_path': '<(SHARED_INTERMEDIATE_DIR)/shim_headers/<(_target_name)/<(_toolset)',
+    'shim_generator_additional_args%': [],
   },
-  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
-  'targets': [
+  'include_dirs++': [
+    '<(shim_headers_path)',
+  ],
+  'all_dependent_settings': {
+    'include_dirs+++': [
+      '<(shim_headers_path)',
+    ],
+  },
+  'actions': [
     {
-      'target_name': 'parser-shell',
-      'type': 'executable',
-      'dependencies': [
-        '../src/v8.gyp:v8',
-        '../src/v8.gyp:v8_libplatform',
+      'variables': {
+        'generator_path': '<(DEPTH)/tools/generate_shim_headers/generate_shim_headers.py',
+        'generator_args': [
+          '--headers-root', '<(headers_root_path)',
+          '--output-directory', '<(shim_headers_path)',
+          '<@(shim_generator_additional_args)',
+          '<@(header_filenames)',
+        ],
+      },
+      'action_name': 'generate_<(_target_name)_shim_headers',
+      'inputs': [
+        '<(generator_path)',
       ],
-      'conditions': [
-        ['v8_enable_i18n_support==1', {
-          'dependencies': [
-            '<(icu_gyp_path):icui18n',
-            '<(icu_gyp_path):icuuc',
-          ],
-        }],
+      'outputs': [
+        '<!@pymod_do_main(generate_shim_headers <@(generator_args) --outputs)',
       ],
-      'include_dirs+': [
-        '..',
+      'action': ['python',
+                 '<(generator_path)',
+                 '<@(generator_args)',
+                 '--generate',
       ],
-      'sources': [
-        'parser-shell.cc',
-        'shell-utils.h',
-      ],
+      'message': 'Generating <(_target_name) shim headers.',
     },
   ],
 }

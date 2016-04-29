@@ -30,7 +30,7 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
   },
-  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'cctest',
@@ -420,7 +420,7 @@
             'cctest',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'cctest_exe.isolate',
@@ -433,7 +433,7 @@
             'cctest_exe_run',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'cctest.isolate',

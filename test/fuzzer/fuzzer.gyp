@@ -6,7 +6,7 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'json_fuzzer',
@@ -174,7 +174,7 @@
             'regexp_fuzzer',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'fuzzer.isolate',

@@ -90,7 +90,7 @@ def additional_include_files(args=[]):
       result.append(path)
 
   # Always include standalone.gypi
-  AddInclude(os.path.join(v8_root, 'build', 'standalone.gypi'))
+  AddInclude(os.path.join(v8_root, 'gypfiles', 'standalone.gypi'))
 
   # Optionally add supplemental .gypi files if present.
   supplements = glob.glob(os.path.join(v8_root, '*', 'supplement.gypi'))
