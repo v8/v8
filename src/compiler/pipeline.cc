@@ -538,7 +538,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
   }
-  if (!info()->shared_info()->HasBytecodeArray()) {
+  if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
