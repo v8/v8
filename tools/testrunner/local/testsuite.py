@@ -42,7 +42,7 @@ ALL_VARIANT_FLAGS = {
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition", "--turbo"]],
-  "ignition_turbofan": [["--ignition", "--turbo"]],
+  "ignition_turbofan": [["--ignition", "--turbo", "--turbo-from-bytecode"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
@@ -53,7 +53,7 @@ FAST_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition", "--turbo"]],
-  "ignition_turbofan": [["--ignition", "--turbo"]],
+  "ignition_turbofan": [["--ignition", "--turbo", "--turbo-from-bytecode"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 

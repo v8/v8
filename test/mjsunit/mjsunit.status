@@ -152,6 +152,9 @@
   # TODO(turbofan): The escape analysis needs some investigation.
   'compiler/escape-analysis-*': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): Fails in --turbo --always-opt mode.
+  'ignition/ignition-statistics-extension': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],

@@ -188,7 +188,7 @@ class FunctionTester : public InitializedHandleScope {
     if (flags_ & CompilationInfo::kInliningEnabled) {
       info.MarkAsInliningEnabled();
     }
-    if (function->shared()->HasBytecodeArray()) {
+    if (FLAG_turbo_from_bytecode && function->shared()->HasBytecodeArray()) {
       info.MarkAsOptimizeFromBytecode();
     } else {
       CHECK(Compiler::Analyze(info.parse_info()));

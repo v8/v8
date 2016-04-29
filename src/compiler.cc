@@ -839,7 +839,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
                    : new HCompilationJob(info.get()));
 
   // TruboFan can optimize directly from existing bytecode.
-  if (use_turbofan && info->shared_info()->HasBytecodeArray()) {
+  if (FLAG_turbo_from_bytecode && use_turbofan &&
+      info->shared_info()->HasBytecodeArray()) {
     info->MarkAsOptimizeFromBytecode();
   }
 
