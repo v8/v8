@@ -413,6 +413,15 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   PropertyDescriptor desc;
   desc.set_writable(false);
 
+  // If FLAG_print_wasm_code_size is set, this aggregates the sum of all code
+  // objects created for this module.
+  // TODO(titzer): switch this to TRACE_EVENT
+  uint32_t total_code_size = 0;
+  auto record_code_size = [&total_code_size](Code* code) {
+    if (FLAG_print_wasm_code_size)
+      total_code_size += code->body_size() + code->relocation_info()->length();
+  };
+
   //-------------------------------------------------------------------------
   // Allocate the instance and its JS counterpart.
   //-------------------------------------------------------------------------
@@ -484,6 +493,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
           isolate, &module_env, function.ToHandleChecked(), import.sig,
           module_name, function_name);
       instance.import_code.push_back(code);
+      record_code_size(*code);
       index++;
     }
   }
@@ -556,12 +566,14 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         if (func.exported) {
           function = compiler::CompileJSToWasmWrapper(
               isolate, &module_env, name, code, instance.js_object, i);
+          record_code_size(function->code());
         }
       }
       if (!code.is_null()) {
         // Install the code into the linker table.
         linker.Finish(i, code);
         code_table->set(i, *code);
+        record_code_size(*code);
       }
       if (func.exported) {
         // Exported functions are installed as read-only properties on the
@@ -601,6 +613,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
             isolate, &module_env, name, code, instance.js_object,
             exp.func_index);
+        record_code_size(function->code());
         desc.set_value(function);
         Maybe<bool> status = JSReceiver::DefineOwnProperty(
             isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
@@ -616,6 +629,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       }
     }
   }
+
+  if (FLAG_print_wasm_code_size)
+    printf("Total generated wasm code: %u bytes\n", total_code_size);
 
   // Run the start function if one was specified.
   if (this->start_function_index >= 0) {
