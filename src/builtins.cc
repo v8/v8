@@ -351,6 +351,39 @@ BUILTIN(Illegal) {
 
 BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
 
+void Builtins::Generate_ArrayIsArray(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* object = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+
+  Label call_runtime(assembler), return_true(assembler),
+      return_false(assembler);
+
+  assembler->GotoIf(assembler->WordIsSmi(object), &return_false);
+  Node* instance_type = assembler->LoadInstanceType(object);
+
+  assembler->GotoIf(assembler->Word32Equal(
+                        instance_type, assembler->Int32Constant(JS_ARRAY_TYPE)),
+                    &return_true);
+
+  // TODO(verwaest): Handle proxies in-place.
+  assembler->Branch(assembler->Word32Equal(
+                        instance_type, assembler->Int32Constant(JS_PROXY_TYPE)),
+                    &call_runtime, &return_false);
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+
+  assembler->Bind(&call_runtime);
+  assembler->Return(
+      assembler->CallRuntime(Runtime::kArrayIsArray, context, object));
+}
+
 void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
@@ -1608,16 +1641,6 @@ BUILTIN(ArrayConcat) {
   return Slow_ArrayConcat(&args, species, isolate);
 }
 
-
-// ES6 22.1.2.2 Array.isArray
-BUILTIN(ArrayIsArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> object = args.at<Object>(1);
-  Maybe<bool> result = Object::IsArray(object);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return *isolate->factory()->ToBoolean(result.FromJust());
-}
 
 namespace {
 

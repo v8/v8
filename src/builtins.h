@@ -60,7 +60,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(EmptyFunction, kNone)                                      \
                                                                \
   V(ArrayConcat, kNone)                                        \
-  V(ArrayIsArray, kNone)                                       \
   V(ArrayPop, kNone)                                           \
   V(ArrayPush, kNone)                                          \
   V(ArrayShift, kNone)                                         \
@@ -313,6 +312,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathSqrt, 2)                  \
   V(MathTrunc, 2)                 \
   V(ObjectHasOwnProperty, 2)      \
+  V(ArrayIsArray, 2)              \
   V(StringPrototypeCharAt, 2)     \
   V(StringPrototypeCharCodeAt, 2) \
   V(AtomicsLoad, 3)
@@ -627,6 +627,9 @@ class Builtins {
 
   // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
   static void Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler);
+
+  // ES6 section 22.1.2.2 Array.isArray
+  static void Generate_ArrayIsArray(CodeStubAssembler* assembler);
 
   // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
   static void Generate_StringPrototypeCharAt(CodeStubAssembler* assembler);
