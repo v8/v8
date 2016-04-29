@@ -1043,6 +1043,8 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
+CQ_INCLUDE_TRYBOTS=tryserver.blink:linux_blink_rel
+
 TBR=reviewer@chromium.org"""
 
   # Snippet from the original DEPS file.
