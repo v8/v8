@@ -51,37 +51,35 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
 typedef Vector<const char> WasmName;
 
-// TODO(titzer): Renumber all the opcodes to fill in holes.
-
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
   V(Nop, 0x00, _)                 \
   V(Block, 0x01, _)               \
   V(Loop, 0x02, _)                \
   V(If, 0x03, _)                  \
-  V(IfElse, 0x04, _)              \
+  V(Else, 0x04, _)                \
   V(Select, 0x05, _)              \
   V(Br, 0x06, _)                  \
   V(BrIf, 0x07, _)                \
   V(BrTable, 0x08, _)             \
-  V(Return, 0x14, _)              \
-  V(Unreachable, 0x15, _)
+  V(Return, 0x09, _)              \
+  V(Unreachable, 0x0a, _)         \
+  V(End, 0x0F, _)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V) \
-  V(I8Const, 0x09, _)          \
-  V(I32Const, 0x0a, _)         \
-  V(I64Const, 0x0b, _)         \
-  V(F64Const, 0x0c, _)         \
-  V(F32Const, 0x0d, _)         \
-  V(GetLocal, 0x0e, _)         \
-  V(SetLocal, 0x0f, _)         \
-  V(LoadGlobal, 0x10, _)       \
-  V(StoreGlobal, 0x11, _)      \
-  V(CallFunction, 0x12, _)     \
-  V(CallIndirect, 0x13, _)     \
-  V(CallImport, 0x1F, _)       \
-  V(DeclLocals, 0x1E, _)
+  V(I32Const, 0x10, _)         \
+  V(I64Const, 0x11, _)         \
+  V(F64Const, 0x12, _)         \
+  V(F32Const, 0x13, _)         \
+  V(GetLocal, 0x14, _)         \
+  V(SetLocal, 0x15, _)         \
+  V(CallFunction, 0x16, _)     \
+  V(CallIndirect, 0x17, _)     \
+  V(CallImport, 0x18, _)       \
+  V(I8Const, 0xcb, _)          \
+  V(LoadGlobal, 0xcc, _)       \
+  V(StoreGlobal, 0xcd, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -349,6 +347,7 @@ class WasmOpcodes {
  public:
   static bool IsSupported(WasmOpcode opcode);
   static const char* OpcodeName(WasmOpcode opcode);
+  static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);

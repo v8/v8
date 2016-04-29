@@ -156,7 +156,7 @@ TEST(Run_CallJS_Add_jswrapped) {
   WasmFunctionCompiler t(sigs.i_i(), &module);
   uint32_t js_index =
       module.AddJsFunction(sigs.i_i(), "(function(a) { return a + 99; })");
-  BUILD(t, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
+  BUILD(t, WASM_CALL_FUNCTION1(js_index, WASM_GET_LOCAL(0)));
 
   Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
 
@@ -182,11 +182,13 @@ void RunJSSelectTest(int which) {
 
     {
       std::vector<byte> code;
-      ADD_CODE(code, kExprCallFunction, static_cast<byte>(js_index));
 
       for (int i = 0; i < num_params; i++) {
         ADD_CODE(code, WASM_F64(inputs.arg_d(i)));
       }
+
+      ADD_CODE(code, kExprCallFunction, static_cast<byte>(num_params),
+               static_cast<byte>(js_index));
 
       size_t end = code.size();
       code.push_back(0);
@@ -370,11 +372,12 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
 
   // Build the calling code.
   std::vector<byte> code;
-  ADD_CODE(code, kExprCallFunction, 0);
 
   for (int i = 0; i < num_params; i++) {
     ADD_CODE(code, WASM_GET_LOCAL(i));
   }
+
+  ADD_CODE(code, kExprCallFunction, static_cast<byte>(num_params), 0);
 
   size_t end = code.size();
   code.push_back(0);

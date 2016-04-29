@@ -189,6 +189,16 @@ void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
   EmitVarInt(immediate);
 }
 
+void WasmFunctionBuilder::EmitI32Const(int32_t value) {
+  // TODO(titzer): variable-length signed and unsigned i32 constants.
+  if (-128 <= value && value <= 127) {
+    EmitWithU8(kExprI8Const, static_cast<byte>(value));
+  } else {
+    byte code[] = {WASM_I32V_5(value)};
+    EmitCode(code, sizeof(code));
+  }
+}
+
 uint32_t WasmFunctionBuilder::EmitEditableVarIntImmediate() {
   // Guess that the immediate will be 1 byte. If it is more, we'll have to
   // shift everything down.

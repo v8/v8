@@ -294,6 +294,15 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
   InstallFunc(isolate, wasm_object, "instantiateModuleFromAsm",
               InstantiateModuleFromAsm);
+
+  {
+    // Add the Wasm.experimentalVersion property.
+    Handle<String> name = v8_str(isolate, "experimentalVersion");
+    PropertyAttributes attributes =
+        static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+    Handle<Smi> value = Handle<Smi>(Smi::FromInt(wasm::kWasmVersion), isolate);
+    JSObject::AddProperty(wasm_object, name, value, attributes);
+  }
 }
 
 

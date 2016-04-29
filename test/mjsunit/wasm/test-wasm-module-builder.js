@@ -25,7 +25,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     var index = module.addImport("print", [kAstStmt, kAstI32]);
     module.addFunction("foo", [kAstStmt])
-        .addBody([kExprCallImport, index, kExprI8Const, 13])
+        .addBody([kExprI8Const, 13, kExprCallImport, kArity1, index])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
@@ -38,7 +38,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     module.addFunction(undefined, [kAstI32, kAstI32])
         .addLocals({i32_count: 1})
-        .addBody([kExprSetLocal, 1, kExprGetLocal, 0])
+        .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
@@ -60,7 +60,7 @@ var debug = false;
       var module = new WasmModuleBuilder();
       module.addFunction(undefined, [p.type, p.type])
         .addLocals(p.locals)
-        .addBody([kExprSetLocal, 1, kExprGetLocal, 0])
+        .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
         .exportAs("main");
 
       var buffer = module.toBuffer(debug);
@@ -73,9 +73,9 @@ var debug = false;
 (function CallTest() {
     var module = new WasmModuleBuilder();
     module.addFunction("add", [kAstI32, kAstI32, kAstI32])
-        .addBody([kExprI32Add, kExprGetLocal, 0, kExprGetLocal, 1]);
+        .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
     module.addFunction("main", [kAstI32, kAstI32, kAstI32])
-        .addBody([kExprCallFunction, 0, kExprGetLocal, 0, kExprGetLocal, 1])
+        .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, kArity2, 0])
         .exportAs("main");
 
     var instance = module.instantiate();
@@ -86,10 +86,10 @@ var debug = false;
 (function IndirectCallTest() {
     var module = new WasmModuleBuilder();
     module.addFunction("add", [kAstI32, kAstI32, kAstI32])
-        .addBody([kExprI32Add, kExprGetLocal, 0, kExprGetLocal, 1]);
+        .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
     module.addFunction("main", [kAstI32, kAstI32, kAstI32, kAstI32])
-        .addBody([kExprCallIndirect, 0, kExprGetLocal,
-                  0, kExprGetLocal, 1, kExprGetLocal, 2])
+        .addBody([kExprGetLocal,
+                  0, kExprGetLocal, 1, kExprGetLocal, 2, kExprCallIndirect, kArity2, 0])
         .exportAs("main");
     module.appendToFunctionTable([0]);
 
@@ -103,7 +103,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     module.addMemory(1, 1, false);
     module.addFunction("load", [kAstI32, kAstI32])
-        .addBody([kExprI32LoadMem, 0, 0, kExprGetLocal, 0])
+        .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
         .exportAs("load");
     module.addDataSegment(0, [9, 9, 9, 9], true);
 
@@ -143,7 +143,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     var index = module.addImportWithModule("mod", "print", [kAstStmt, kAstI32]);
     module.addFunction("foo", [kAstStmt])
-        .addBody([kExprCallImport, index, kExprI8Const, 19])
+        .addBody([kExprI8Const, 19, kExprCallImport, kArity1, index])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);

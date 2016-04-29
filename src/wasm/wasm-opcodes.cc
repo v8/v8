@@ -25,6 +25,18 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   return "Unknown";
 }
 
+const char* WasmOpcodes::ShortOpcodeName(WasmOpcode opcode) {
+  switch (opcode) {
+#define DECLARE_NAME_CASE(name, opcode, sig) \
+  case kExpr##name:                          \
+    return #name;
+    FOREACH_OPCODE(DECLARE_NAME_CASE)
+#undef DECLARE_NAME_CASE
+    default:
+      break;
+  }
+  return "Unknown";
+}
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";

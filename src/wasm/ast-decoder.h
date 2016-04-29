@@ -89,66 +89,81 @@ struct GlobalIndexOperand {
   }
 };
 
-struct Block;
+struct Control;
 struct BreakDepthOperand {
+  uint32_t arity;
   uint32_t depth;
-  Block* target;
+  Control* target;
   int length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
+    int len1 = 0;
+    int len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    depth = decoder->checked_read_u32v(pc, 1 + len1, &len2, "break depth");
+    length = len1 + len2;
     target = nullptr;
   }
 };
 
-struct BlockCountOperand {
-  uint32_t count;
-  int length;
-  inline BlockCountOperand(Decoder* decoder, const byte* pc) {
-    count = decoder->checked_read_u32v(pc, 1, &length, "block count");
-  }
-};
-
-struct SignatureIndexOperand {
+struct CallIndirectOperand {
+  uint32_t arity;
   uint32_t index;
   FunctionSig* sig;
   int length;
-  inline SignatureIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "signature index");
+  inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
+    int len1 = 0;
+    int len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "signature index");
+    length = len1 + len2;
     sig = nullptr;
   }
 };
 
-struct FunctionIndexOperand {
+struct CallFunctionOperand {
+  uint32_t arity;
   uint32_t index;
   FunctionSig* sig;
   int length;
-  inline FunctionIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "function index");
+  inline CallFunctionOperand(Decoder* decoder, const byte* pc) {
+    int len1 = 0;
+    int len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
+    length = len1 + len2;
     sig = nullptr;
   }
 };
 
-struct ImportIndexOperand {
+struct CallImportOperand {
+  uint32_t arity;
   uint32_t index;
   FunctionSig* sig;
   int length;
-  inline ImportIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "import index");
+  inline CallImportOperand(Decoder* decoder, const byte* pc) {
+    int len1 = 0;
+    int len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
+    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "import index");
+    length = len1 + len2;
     sig = nullptr;
   }
 };
 
 struct BranchTableOperand {
+  uint32_t arity;
   uint32_t table_count;
   const byte* table;
   int length;
   inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    int varint_length;
+    int len1 = 0;
+    int len2 = 0;
+    arity = decoder->checked_read_u32v(pc, 1, &len1, "argument count");
     table_count =
-        decoder->checked_read_u32v(pc, 1, &varint_length, "expected #entries");
-    length = varint_length + (table_count + 1) * sizeof(uint32_t);
+        decoder->checked_read_u32v(pc, 1 + len1, &len2, "table count");
+    length = len1 + len2 + (table_count + 1) * sizeof(uint32_t);
 
-    uint32_t table_start = 1 + varint_length;
+    uint32_t table_start = 1 + len1 + len2;
     if (decoder->check(pc, table_start, (table_count + 1) * sizeof(uint32_t),
                        "expected <table entries>")) {
       table = pc + table_start;
@@ -174,6 +189,15 @@ struct MemoryAccessOperand {
     offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
                                         &offset_length, "offset");
     length = alignment_length + offset_length;
+  }
+};
+
+struct ReturnArityOperand {
+  uint32_t arity;
+  int length;
+
+  inline ReturnArityOperand(Decoder* decoder, const byte* pc) {
+    arity = decoder->checked_read_u32v(pc, 1, &length, "return count");
   }
 };
 

@@ -15,17 +15,25 @@ function genModule(memory) {
   builder.addMemory(1, 1, true);
   builder.addFunction("main", [kAstI32, kAstI32])
     .addBody([
-      kExprBlock,2,
-        kExprLoop,1,
-          kExprIf,
+    // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
+      kExprLoop,
+        kExprGetLocal,0,
+        kExprIf,
             kExprGetLocal,0,
-            kExprBr, 0,
-              kExprIfElse,
-                kExprI32LoadMem,0,0,kExprGetLocal,0,
-                kExprBr,2, kExprI8Const, 255,
-                kExprSetLocal,0,
-                  kExprI32Sub,kExprGetLocal,0,kExprI8Const,4,
-        kExprI8Const,0])
+          kExprI32LoadMem,0,0,
+          kExprIf,
+            kExprI8Const,255,
+            kExprReturn, kArity1,
+          kExprEnd,
+              kExprGetLocal,0,
+              kExprI8Const,4,
+            kExprI32Sub,
+          kExprSetLocal,0,
+        kExprBr, kArity1, 1,
+        kExprEnd,
+      kExprEnd,
+      kExprI8Const,0
+    ])
     .exportFunc();
 
   return builder.instantiate(null, memory);
@@ -122,12 +130,14 @@ function testOOBThrows() {
   builder.addMemory(1, 1, true);
   builder.addFunction("geti", [kAstI32, kAstI32, kAstI32])
     .addBody([
-      kExprI32StoreMem, 0, 0, kExprGetLocal, 0, kExprI32LoadMem, 0, 0, kExprGetLocal, 1
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprI32LoadMem, 0, 0,
+      kExprI32StoreMem, 0, 0
     ])
     .exportFunc();
 
   var module = builder.instantiate();
-
   var offset;
 
   function read() { return module.exports.geti(0, offset); }

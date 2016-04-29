@@ -14,9 +14,10 @@ function makeFFI(func) {
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
-      kExprGetLocal, 0,         // --
-      kExprGetLocal, 1])        // --
+      kExprGetLocal, 0,            // --
+      kExprGetLocal, 1,            // --
+      kExprCallImport, kArity2, 0, // --
+    ])
     .exportFunc()
 
   return builder.instantiate({func: func}).exports.main;

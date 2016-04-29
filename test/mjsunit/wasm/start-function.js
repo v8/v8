@@ -79,7 +79,7 @@ assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", [kAstStmt])
-    .addBody([kExprI32StoreMem, 0, 0, kExprI8Const, 0, kExprI8Const, 77]);
+    .addBody([kExprI8Const, 0, kExprI8Const, 77, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
@@ -102,7 +102,7 @@ assertFails([kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
 
   builder.addImport("foo", sig_index);
   var func = builder.addFunction("", sig_index)
-    .addBody([kExprCallImport, 0]);
+    .addBody([kExprCallImport, kArity0, 0]);
 
   builder.addStart(func.index);
 

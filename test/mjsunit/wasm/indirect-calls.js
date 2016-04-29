@@ -14,18 +14,21 @@ var module = (function () {
   builder.addImport("add", sig_index);
   builder.addFunction("add", sig_index)
     .addBody([
-      kExprCallImport, 0, kExprGetLocal, 0, kExprGetLocal, 1
+      kExprGetLocal, 0, kExprGetLocal, 1, kExprCallImport, kArity2, 0
     ]);
   builder.addFunction("sub", sig_index)
     .addBody([
-      kExprI32Sub, kExprGetLocal, 0, kExprGetLocal, 1
+      kExprGetLocal, 0,             // --
+      kExprGetLocal, 1,             // --
+      kExprI32Sub,                  // --
     ]);
   builder.addFunction("main", [kAstI32, kAstI32, kAstI32, kAstI32])
     .addBody([
-      kExprCallIndirect, sig_index,
       kExprGetLocal, 0,
       kExprGetLocal, 1,
-      kExprGetLocal, 2])
+      kExprGetLocal, 2,
+      kExprCallIndirect, kArity2, sig_index
+    ])
     .exportFunc()
   builder.appendToFunctionTable([0, 1, 2]);
 

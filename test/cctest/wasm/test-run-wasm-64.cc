@@ -24,8 +24,8 @@
 
 #define asu64(x) static_cast<uint64_t>(x)
 
-#define B2(a, b) kExprBlock, 2, a, b
-#define B1(a) kExprBlock, 1, a
+#define B2(a, b) kExprBlock, a, b, kExprEnd
+#define B1(a) kExprBlock, a, kExprEnd
 
 // Can't bridge macro land with nested macros.
 #if V8_TARGET_ARCH_MIPS
@@ -116,7 +116,7 @@ TEST(Run_Wasm_Return_I64) {
   REQUIRE(I64Return);
   WasmRunner<int64_t> r(MachineType::Int64());
 
-  BUILD(r, WASM_RETURN(WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_RETURN1(WASM_GET_LOCAL(0)));
 
   FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
 }
@@ -816,8 +816,8 @@ TEST(Run_WasmCallI64Parameter) {
     WasmRunner<int32_t> r(&module);
     BUILD(
         r,
-        WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
-            index, WASM_I64V_9(0xbcd12340000000b),
+        WASM_I32_CONVERT_I64(WASM_CALL_FUNCTIONN(
+            19, index, WASM_I64V_9(0xbcd12340000000b),
             WASM_I64V_9(0xbcd12340000000c), WASM_I32V_1(0xd),
             WASM_I32_CONVERT_I64(WASM_I64V_9(0xbcd12340000000e)),
             WASM_I64V_9(0xbcd12340000000f), WASM_I64V_10(0xbcd1234000000010),
@@ -1093,7 +1093,7 @@ TEST(Run_WasmCall_Int64Sub) {
 
   // Build the caller function.
   WasmRunner<int64_t> r(&module, MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  BUILD(r, WASM_CALL_FUNCTION2(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -1120,12 +1120,16 @@ TEST(Run_Wasm_LoadStoreI64_sx) {
     byte* memory = module.AddMemoryElems<byte>(16);
     WasmRunner<int64_t> r(&module);
 
-    byte code[] = {kExprI64StoreMem, ZERO_ALIGNMENT,
-                   ZERO_OFFSET,          // --
-                   kExprI8Const,     8,  // --
-                   loads[m],         ZERO_ALIGNMENT,
-                   ZERO_OFFSET,           // --
-                   kExprI8Const,     0};  // --
+    byte code[] = {
+        kExprI8Const,     8,  // --
+        kExprI8Const,     0,  // --
+        loads[m],             // --
+        ZERO_ALIGNMENT,       // --
+        ZERO_OFFSET,          // --
+        kExprI64StoreMem,     // --
+        ZERO_ALIGNMENT,       // --
+        ZERO_OFFSET           // --
+    };
 
     r.Build(code, code + arraysize(code));
 

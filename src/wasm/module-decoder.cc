@@ -572,11 +572,10 @@ class ModuleDecoder : public Decoder {
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(uint32_t func_num, ModuleEnv* menv,
                           WasmFunction* function) {
-    if (FLAG_trace_wasm_decode_time) {
+    if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
       OFStream os(stdout);
       os << "Verifying WASM function " << WasmFunctionName(function, menv)
          << std::endl;
-      os << std::endl;
     }
     FunctionBody body = {menv, function->sig, start_,
                          start_ + function->code_start_offset,

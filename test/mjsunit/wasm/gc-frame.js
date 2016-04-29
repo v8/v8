@@ -17,7 +17,6 @@ function makeFFI(func, t) {
   // the different parts of the stack.
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,       // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -28,7 +27,7 @@ function makeFFI(func, t) {
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
       kExprGetLocal, 9,         // --
-      kExprCallImport, 0,       // --
+      kExprCallImport, 10, 0,   // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -38,7 +37,8 @@ function makeFFI(func, t) {
       kExprGetLocal, 6,         // --
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
-      kExprGetLocal, 9          // --
+      kExprGetLocal, 9,         // --
+      kExprCallImport, 10, 0    // --
     ])                          // --
     .exportFunc();
 

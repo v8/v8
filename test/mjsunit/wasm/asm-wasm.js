@@ -23,6 +23,20 @@ function EmptyTest() {
 
 assertWasm(11, EmptyTest);
 
+function VoidReturnTest() {
+  "use asm";
+  function caller() {
+    empty();
+    return 19;
+  }
+  function empty() {
+    var x = 0;
+    if (x) return;
+  }
+  return {caller: caller};
+}
+
+assertWasm(19, VoidReturnTest);
 
 function IntTest() {
   "use asm";
@@ -193,6 +207,55 @@ function TestReturnInWhileWithoutBraces() {
 assertWasm(7, TestReturnInWhileWithoutBraces);
 
 
+function TestBreakInIf() {
+  "use asm";
+
+  function caller() {
+    label: {
+      if(1) break label;
+      return 11;
+    }
+    return 12;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(12, TestBreakInIf);
+
+function TestBreakInIfInDoWhileFalse() {
+  "use asm";
+
+  function caller() {
+    do {
+      if(1) break;
+      return 11;
+    } while(0);
+    return 12;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(12, TestBreakInIfInDoWhileFalse);
+
+function TestBreakInElse() {
+  "use asm";
+
+  function caller() {
+    do {
+      if(0) ;
+      else break;
+      return 14;
+    } while(0);
+    return 15;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(15, TestBreakInElse);
+
 function TestBreakInWhile() {
   "use asm";
 
@@ -208,6 +271,22 @@ function TestBreakInWhile() {
 
 assertWasm(8, TestBreakInWhile);
 
+
+function TestBreakInIfInWhile() {
+  "use asm";
+
+  function caller() {
+    while(1) {
+      if (1) break;
+      else break;
+    }
+    return 8;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(8, TestBreakInIfInWhile);
 
 function TestBreakInNestedWhile() {
   "use asm";

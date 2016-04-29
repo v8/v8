@@ -14,9 +14,10 @@ function testCallFFI(ffi) {
   builder.addImport("fun", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, 0,   // --
-      kExprGetLocal, 0,     // --
-      kExprGetLocal, 1])    // --
+      kExprGetLocal, 0,              // --
+      kExprGetLocal, 1,              // --
+      kExprCallFunction, kArity2, 0, // --
+    ])    // --
     .exportFunc();
 
   var module = builder.instantiate(ffi);

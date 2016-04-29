@@ -184,7 +184,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
       WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_GET_LOCAL(kSum)),
       WASM_GET_LOCAL(kIter))};
 
-  BitVector* assigned = Analyze(code + 2, code + arraysize(code));
+  BitVector* assigned = Analyze(code + 1, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == kIter || j == kSum;
     CHECK_EQ(expected, assigned->Contains(j));

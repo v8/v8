@@ -31,6 +31,7 @@ namespace wasm {
     if (HasStackOverflow()) return; \
   } while (false)
 
+enum AsmScope { kModuleScope, kInitScope, kFuncScope, kExportScope };
 
 class AsmWasmBuilderImpl : public AstVisitor {
  public:
@@ -44,9 +45,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         global_variables_(HashMap::PointersMatch,
                           ZoneHashMap::kDefaultHashMapCapacity,
                           ZoneAllocationPolicy(zone)),
-        in_function_(false),
-        is_set_op_(false),
-        marking_exported(false),
+        scope_(kModuleScope),
         builder_(new (zone) WasmModuleBuilder(zone)),
         current_function_builder_(nullptr),
         literal_(literal),
@@ -56,7 +55,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
         typer_(typer),
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
-        block_size_(0),
         init_function_index_(0),
         next_table_index_(0),
         function_tables_(HashMap::PointersMatch,
@@ -82,13 +80,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitVariableDeclaration(VariableDeclaration* decl) {}
 
   void VisitFunctionDeclaration(FunctionDeclaration* decl) {
-    DCHECK(!in_function_);
+    DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
     uint16_t index = LookupOrInsertFunction(decl->proxy()->var());
     current_function_builder_ = builder_->FunctionAt(index);
-    in_function_ = true;
+    scope_ = kFuncScope;
     RECURSE(Visit(decl->fun()));
-    in_function_ = false;
+    scope_ = kModuleScope;
     current_function_builder_ = nullptr;
     local_variables_.Clear();
   }
@@ -102,7 +100,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       Statement* stmt = stmts->at(i);
       ExpressionStatement* e = stmt->AsExpressionStatement();
       if (e != nullptr && e->expression()->IsUndefinedLiteral()) {
-        block_size_--;
         continue;
       }
       RECURSE(Visit(stmt));
@@ -121,12 +118,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
         }
       }
     }
-    if (in_function_) {
+    if (scope_ == kFuncScope) {
       BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock,
-                           false,
-                           static_cast<byte>(stmt->statements()->length()));
+                           false);
       RECURSE(VisitStatements(stmt->statements()));
-      DCHECK(block_size_ >= 0);
     } else {
       RECURSE(VisitStatements(stmt->statements()));
     }
@@ -134,25 +129,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   class BlockVisitor {
    private:
-    int prev_block_size_;
-    uint32_t index_;
     AsmWasmBuilderImpl* builder_;
 
    public:
     BlockVisitor(AsmWasmBuilderImpl* builder, BreakableStatement* stmt,
-                 WasmOpcode opcode, bool is_loop, int initial_block_size)
+                 WasmOpcode opcode, bool is_loop)
         : builder_(builder) {
       builder_->breakable_blocks_.push_back(std::make_pair(stmt, is_loop));
       builder_->current_function_builder_->Emit(opcode);
-      index_ =
-          builder_->current_function_builder_->EmitEditableVarIntImmediate();
-      prev_block_size_ = builder_->block_size_;
-      builder_->block_size_ = initial_block_size;
     }
     ~BlockVisitor() {
-      builder_->current_function_builder_->EditVarIntImmediate(
-          index_, builder_->block_size_);
-      builder_->block_size_ = prev_block_size_;
+      builder_->current_function_builder_->Emit(kExprEnd);
       builder_->breakable_blocks_.pop_back();
     }
   };
@@ -166,25 +153,24 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitEmptyParentheses(EmptyParentheses* paren) { UNREACHABLE(); }
 
   void VisitIfStatement(IfStatement* stmt) {
-    DCHECK(in_function_);
-    if (stmt->HasElseStatement()) {
-      current_function_builder_->Emit(kExprIfElse);
-    } else {
-      current_function_builder_->Emit(kExprIf);
-    }
+    DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));
+    current_function_builder_->Emit(kExprIf);
+    // WASM ifs come with implement blocks for both arms.
+    breakable_blocks_.push_back(std::make_pair(nullptr, false));
     if (stmt->HasThenStatement()) {
       RECURSE(Visit(stmt->then_statement()));
-    } else {
-      current_function_builder_->Emit(kExprNop);
     }
     if (stmt->HasElseStatement()) {
+      current_function_builder_->Emit(kExprElse);
       RECURSE(Visit(stmt->else_statement()));
     }
+    current_function_builder_->Emit(kExprEnd);
+    breakable_blocks_.pop_back();
   }
 
   void VisitContinueStatement(ContinueStatement* stmt) {
-    DCHECK(in_function_);
+    DCHECK_EQ(kFuncScope, scope_);
     DCHECK_NOT_NULL(stmt->target());
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
     int block_distance = 0;
@@ -200,12 +186,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
     current_function_builder_->Emit(kExprNop);
+    current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
+    current_function_builder_->EmitVarInt(block_distance);
   }
 
   void VisitBreakStatement(BreakStatement* stmt) {
-    DCHECK(in_function_);
+    DCHECK_EQ(kFuncScope, scope_);
     DCHECK_NOT_NULL(stmt->target());
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
     int block_distance = 0;
@@ -223,80 +210,93 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
     current_function_builder_->Emit(kExprNop);
+    current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
+    current_function_builder_->EmitVarInt(block_distance);
   }
 
   void VisitReturnStatement(ReturnStatement* stmt) {
-    if (in_function_) {
-      current_function_builder_->Emit(kExprReturn);
+    if (scope_ == kModuleScope) {
+      scope_ = kExportScope;
+      RECURSE(Visit(stmt->expression()));
+      scope_ = kModuleScope;
+    } else if (scope_ == kFuncScope) {
+      RECURSE(Visit(stmt->expression()));
+      uint8_t arity =
+          TypeOf(stmt->expression()) == kAstStmt ? ARITY_0 : ARITY_1;
+      current_function_builder_->EmitWithU8(kExprReturn, arity);
     } else {
-      marking_exported = true;
-    }
-    RECURSE(Visit(stmt->expression()));
-    if (!in_function_) {
-      marking_exported = false;
+      UNREACHABLE();
     }
   }
 
   void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
 
-  void GenerateCaseComparisonCode(int value, WasmOpcode op,
-                                  VariableProxy* tag) {
-    current_function_builder_->Emit(kExprIfElse);
-    current_function_builder_->Emit(op);
-    VisitVariableProxy(tag);
-    byte code[] = {WASM_I32V(value)};
-    current_function_builder_->EmitCode(code, sizeof(code));
-  }
-
   void HandleCase(CaseNode* node,
                   const ZoneMap<int, unsigned int>& case_to_block,
-                  VariableProxy* tag, int default_block) {
+                  VariableProxy* tag, int default_block, int if_depth) {
+    int prev_if_depth = if_depth;
     if (node->left != nullptr) {
-      GenerateCaseComparisonCode(node->begin, kExprI32LtS, tag);
-      HandleCase(node->left, case_to_block, tag, default_block);
+      VisitVariableProxy(tag);
+      current_function_builder_->EmitI32Const(node->begin);
+      current_function_builder_->Emit(kExprI32LtS);
+      current_function_builder_->Emit(kExprIf);
+      if_depth++;
+      breakable_blocks_.push_back(std::make_pair(nullptr, false));
+      HandleCase(node->left, case_to_block, tag, default_block, if_depth);
+      current_function_builder_->Emit(kExprElse);
     }
     if (node->right != nullptr) {
-      GenerateCaseComparisonCode(node->end, kExprI32GtS, tag);
-      HandleCase(node->right, case_to_block, tag, default_block);
+      VisitVariableProxy(tag);
+      current_function_builder_->EmitI32Const(node->end);
+      current_function_builder_->Emit(kExprI32GtS);
+      current_function_builder_->Emit(kExprIf);
+      if_depth++;
+      breakable_blocks_.push_back(std::make_pair(nullptr, false));
+      HandleCase(node->right, case_to_block, tag, default_block, if_depth);
+      current_function_builder_->Emit(kExprElse);
     }
     if (node->begin == node->end) {
-      current_function_builder_->Emit(kExprIf);
-      current_function_builder_->Emit(kExprI32Eq);
       VisitVariableProxy(tag);
-      byte code[] = {WASM_I32V(node->begin)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      current_function_builder_->EmitI32Const(node->begin);
+      current_function_builder_->Emit(kExprI32Eq);
+      current_function_builder_->Emit(kExprIf);
       DCHECK(case_to_block.find(node->begin) != case_to_block.end());
-      current_function_builder_->EmitWithVarInt(kExprBr,
-                                                case_to_block.at(node->begin));
       current_function_builder_->Emit(kExprNop);
+      current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
+      current_function_builder_->EmitVarInt(1 + if_depth +
+                                            case_to_block.at(node->begin));
+      current_function_builder_->Emit(kExprEnd);
     } else {
-      current_function_builder_->Emit(kExprBrTable);
+      current_function_builder_->Emit(kExprNop);
+      if (node->begin != 0) {
+        VisitVariableProxy(tag);
+        current_function_builder_->EmitI32Const(node->begin);
+        current_function_builder_->Emit(kExprI32Sub);
+      } else {
+        VisitVariableProxy(tag);
+      }
+      current_function_builder_->EmitWithU8(kExprBrTable, ARITY_0);
       current_function_builder_->EmitVarInt(node->end - node->begin + 1);
       for (int v = node->begin; v <= node->end; v++) {
         if (case_to_block.find(v) != case_to_block.end()) {
-          byte break_code[] = {BR_TARGET(case_to_block.at(v))};
+          byte break_code[] = {BR_TARGET(if_depth + case_to_block.at(v))};
           current_function_builder_->EmitCode(break_code, sizeof(break_code));
         } else {
-          byte break_code[] = {BR_TARGET(default_block)};
+          byte break_code[] = {BR_TARGET(if_depth + default_block)};
           current_function_builder_->EmitCode(break_code, sizeof(break_code));
         }
         if (v == kMaxInt) {
           break;
         }
       }
-      byte break_code[] = {BR_TARGET(default_block)};
+      byte break_code[] = {BR_TARGET(if_depth + default_block)};
       current_function_builder_->EmitCode(break_code, sizeof(break_code));
-      // TODO(aseemgarg): remove the if once sub 0 is fixed
-      if (node->begin != 0) {
-        current_function_builder_->Emit(kExprI32Sub);
-        VisitVariableProxy(tag);
-        byte code[] = {WASM_I32V(node->begin)};
-        current_function_builder_->EmitCode(code, sizeof(code));
-      } else {
-        VisitVariableProxy(tag);
-      }
+    }
+
+    while (if_depth-- != prev_if_depth) {
+      breakable_blocks_.pop_back();
+      current_function_builder_->Emit(kExprEnd);
     }
   }
 
@@ -306,19 +306,16 @@ class AsmWasmBuilderImpl : public AstVisitor {
     ZoneList<CaseClause*>* clauses = stmt->cases();
     int case_count = clauses->length();
     if (case_count == 0) {
-      block_size_--;
       return;
     }
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
-                         1);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false);
     ZoneVector<BlockVisitor*> blocks(zone_);
     ZoneVector<int32_t> cases(zone_);
     ZoneMap<int, unsigned int> case_to_block(zone_);
     bool has_default = false;
     for (int i = case_count - 1; i >= 0; i--) {
       CaseClause* clause = clauses->at(i);
-      blocks.push_back(new BlockVisitor(this, nullptr, kExprBlock, false,
-                                        clause->statements()->length() + 1));
+      blocks.push_back(new BlockVisitor(this, nullptr, kExprBlock, false));
       if (!clause->is_default()) {
         Literal* label = clause->label()->AsLiteral();
         Handle<Object> value = label->value();
@@ -337,17 +334,15 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
     if (!has_default || case_count > 1) {
       int default_block = has_default ? case_count - 1 : case_count;
-      BlockVisitor switch_logic_block(this, nullptr, kExprBlock, false, 1);
+      BlockVisitor switch_logic_block(this, nullptr, kExprBlock, false);
       CaseNode* root = OrderCases(&cases, zone_);
-      HandleCase(root, case_to_block, tag, default_block);
+      HandleCase(root, case_to_block, tag, default_block, 0);
       if (root->left != nullptr || root->right != nullptr ||
           root->begin == root->end) {
-        block_size_++;
-        current_function_builder_->EmitWithVarInt(kExprBr, default_block);
+        current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
+        current_function_builder_->EmitVarInt(default_block);
         current_function_builder_->Emit(kExprNop);
       }
-    } else {
-      block_size_ = clauses->at(0)->statements()->length();
     }
     for (int i = 0; i < case_count; i++) {
       CaseClause* clause = clauses->at(i);
@@ -361,53 +356,49 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
 
   void VisitDoWhileStatement(DoWhileStatement* stmt) {
-    DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
-                         2);
+    DCHECK_EQ(kFuncScope, scope_);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     RECURSE(Visit(stmt->body()));
-    current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
-    current_function_builder_->EmitWithVarInt(kExprBr, 0);
-    current_function_builder_->Emit(kExprNop);
+    current_function_builder_->Emit(kExprIf);
+    current_function_builder_->EmitWithU8U8(kExprBr, ARITY_0, 1);
+    current_function_builder_->Emit(kExprEnd);
   }
 
   void VisitWhileStatement(WhileStatement* stmt) {
-    DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
-                         1);
-    current_function_builder_->Emit(kExprIf);
+    DCHECK_EQ(kFuncScope, scope_);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     RECURSE(Visit(stmt->cond()));
-    current_function_builder_->EmitWithVarInt(kExprBr, 0);
+    breakable_blocks_.push_back(std::make_pair(nullptr, false));
+    current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->body()));
+    current_function_builder_->EmitWithU8U8(kExprBr, ARITY_0, 1);
+    current_function_builder_->Emit(kExprEnd);
+    breakable_blocks_.pop_back();
   }
 
   void VisitForStatement(ForStatement* stmt) {
-    DCHECK(in_function_);
+    DCHECK_EQ(kFuncScope, scope_);
     if (stmt->init() != nullptr) {
-      block_size_++;
       RECURSE(Visit(stmt->init()));
     }
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
-                         0);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     if (stmt->cond() != nullptr) {
-      block_size_++;
-      current_function_builder_->Emit(kExprIf);
-      current_function_builder_->Emit(kExprI32Eqz);
       RECURSE(Visit(stmt->cond()));
-      current_function_builder_->EmitWithVarInt(kExprBr, 1);
+      current_function_builder_->Emit(kExprI32Eqz);
+      current_function_builder_->Emit(kExprIf);
       current_function_builder_->Emit(kExprNop);
+      current_function_builder_->EmitWithU8U8(kExprBr, ARITY_0, 2);
+      current_function_builder_->Emit(kExprEnd);
     }
     if (stmt->body() != nullptr) {
-      block_size_++;
       RECURSE(Visit(stmt->body()));
     }
     if (stmt->next() != nullptr) {
-      block_size_++;
       RECURSE(Visit(stmt->next()));
     }
-    block_size_++;
-    current_function_builder_->EmitWithVarInt(kExprBr, 0);
     current_function_builder_->Emit(kExprNop);
+    current_function_builder_->EmitWithU8U8(kExprBr, ARITY_0, 0);
   }
 
   void VisitForInStatement(ForInStatement* stmt) { UNREACHABLE(); }
@@ -422,7 +413,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitFunctionLiteral(FunctionLiteral* expr) {
     Scope* scope = expr->scope();
-    if (in_function_) {
+    if (scope_ == kFuncScope) {
       if (expr->bounds().lower->IsFunction()) {
         FunctionType* func_type = expr->bounds().lower->AsFunction();
         LocalType return_type = TypeFrom(func_type->Result());
@@ -445,11 +436,16 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void VisitConditional(Conditional* expr) {
-    DCHECK(in_function_);
-    current_function_builder_->Emit(kExprIfElse);
+    DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(expr->condition()));
+    // WASM ifs come with implicit blocks for both arms.
+    breakable_blocks_.push_back(std::make_pair(nullptr, false));
+    current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(expr->then_expression()));
+    current_function_builder_->Emit(kExprElse);
     RECURSE(Visit(expr->else_expression()));
+    current_function_builder_->Emit(kExprEnd);
+    breakable_blocks_.pop_back();
   }
 
   bool VisitStdlibConstant(Variable* var) {
@@ -505,36 +501,26 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void VisitVariableProxy(VariableProxy* expr) {
-    if (in_function_) {
+    if (scope_ == kFuncScope || scope_ == kInitScope) {
       Variable* var = expr->var();
+      if (VisitStdlibConstant(var)) {
+        return;
+      }
       LocalType var_type = TypeOf(expr);
-      if (is_set_op_) {
-        is_set_op_ = false;
-        if (var->IsContextSlot()) {
-          return current_function_builder_->EmitWithVarInt(
-              kExprStoreGlobal, LookupOrInsertGlobal(var, var_type));
-        } else {
-          return current_function_builder_->EmitSetLocal(
-              LookupOrInsertLocal(var, var_type));
-        }
+      DCHECK_NE(kAstStmt, var_type);
+      if (var->IsContextSlot()) {
+        current_function_builder_->EmitWithVarInt(
+            kExprLoadGlobal, LookupOrInsertGlobal(var, var_type));
       } else {
-        if (VisitStdlibConstant(var)) {
-          return;
-        }
-        if (var->IsContextSlot()) {
-          return current_function_builder_->EmitWithVarInt(
-              kExprLoadGlobal, LookupOrInsertGlobal(var, var_type));
-        } else {
-          return current_function_builder_->EmitGetLocal(
-              LookupOrInsertLocal(var, var_type));
-        }
+        current_function_builder_->EmitGetLocal(
+            LookupOrInsertLocal(var, var_type));
       }
     }
   }
 
   void VisitLiteral(Literal* expr) {
     Handle<Object> value = expr->value();
-    if (!in_function_ || !value->IsNumber()) {
+    if (!value->IsNumber() || (scope_ != kFuncScope && scope_ != kInitScope)) {
       return;
     }
     Type* type = expr->bounds().upper;
@@ -568,7 +554,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     ZoneList<ObjectLiteralProperty*>* props = expr->properties();
     for (int i = 0; i < props->length(); ++i) {
       ObjectLiteralProperty* prop = props->at(i);
-      DCHECK(marking_exported);
+      DCHECK_EQ(kExportScope, scope_);
       VariableProxy* expr = prop->value()->AsVariableProxy();
       DCHECK_NOT_NULL(expr);
       Variable* var = expr->var();
@@ -589,11 +575,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void LoadInitFunction() {
     current_function_builder_ = builder_->FunctionAt(init_function_index_);
-    in_function_ = true;
+    scope_ = kInitScope;
   }
 
   void UnLoadInitFunction() {
-    in_function_ = false;
+    scope_ = kModuleScope;
     current_function_builder_ = nullptr;
   }
 
@@ -696,33 +682,98 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   };
 
-  void VisitAssignment(Assignment* expr) {
-    bool in_init = false;
-    if (!in_function_) {
-      BinaryOperation* binop = expr->value()->AsBinaryOperation();
-      if (binop != nullptr) {
+  void EmitAssignmentLhs(Expression* target, MachineType* mtype) {
+    // Match the left hand side of the assignment.
+    VariableProxy* target_var = target->AsVariableProxy();
+    if (target_var != nullptr) {
+      // Left hand side is a local or a global variable, no code on LHS.
+      return;
+    }
+
+    Property* target_prop = target->AsProperty();
+    if (target_prop != nullptr) {
+      // Left hand side is a property access, i.e. the asm.js heap.
+      VisitPropertyAndEmitIndex(target_prop, mtype);
+      return;
+    }
+
+    if (target_var == nullptr && target_prop == nullptr) {
+      UNREACHABLE();  // invalid assignment.
+    }
+  }
+
+  void EmitAssignmentRhs(Expression* target, Expression* value, bool* is_nop) {
+    BinaryOperation* binop = value->AsBinaryOperation();
+    if (binop != nullptr) {
+      if (scope_ == kInitScope) {
+        // Handle foreign variables in the initialization scope.
         Property* prop = binop->left()->AsProperty();
-        DCHECK_NOT_NULL(prop);
-        LoadInitFunction();
-        is_set_op_ = true;
-        RECURSE(Visit(expr->target()));
-        DCHECK(!is_set_op_);
         if (binop->op() == Token::MUL) {
           DCHECK(binop->right()->IsLiteral());
           DCHECK_EQ(1.0, binop->right()->AsLiteral()->raw_value()->AsNumber());
           DCHECK(binop->right()->AsLiteral()->raw_value()->ContainsDot());
           VisitForeignVariable(true, prop);
+          return;
         } else if (binop->op() == Token::BIT_OR) {
           DCHECK(binop->right()->IsLiteral());
           DCHECK_EQ(0.0, binop->right()->AsLiteral()->raw_value()->AsNumber());
           DCHECK(!binop->right()->AsLiteral()->raw_value()->ContainsDot());
           VisitForeignVariable(false, prop);
+          return;
         } else {
           UNREACHABLE();
         }
-        UnLoadInitFunction();
-        return;
       }
+      if (MatchBinaryOperation(binop) == kAsIs) {
+        VariableProxy* target_var = target->AsVariableProxy();
+        VariableProxy* effective_value_var = GetLeft(binop)->AsVariableProxy();
+        if (target_var != nullptr && effective_value_var != nullptr &&
+            target_var->var() == effective_value_var->var()) {
+          *is_nop = true;
+          return;
+        }
+      }
+    }
+    RECURSE(Visit(value));
+  }
+
+  void EmitAssignment(Assignment* expr, MachineType mtype) {
+    // Match the left hand side of the assignment.
+    VariableProxy* target_var = expr->target()->AsVariableProxy();
+    if (target_var != nullptr) {
+      // Left hand side is a local or a global variable.
+      Variable* var = target_var->var();
+      LocalType var_type = TypeOf(expr);
+      DCHECK_NE(kAstStmt, var_type);
+      if (var->IsContextSlot()) {
+        current_function_builder_->EmitWithVarInt(
+            kExprStoreGlobal, LookupOrInsertGlobal(var, var_type));
+      } else {
+        current_function_builder_->EmitSetLocal(
+            LookupOrInsertLocal(var, var_type));
+      }
+    }
+
+    Property* target_prop = expr->target()->AsProperty();
+    if (target_prop != nullptr) {
+      // Left hand side is a property access, i.e. the asm.js heap.
+      if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
+          expr->target()->AsProperty()->obj()->bounds().lower->Is(
+              cache_.kFloat32Array)) {
+        current_function_builder_->Emit(kExprF32ConvertF64);
+      }
+      current_function_builder_->EmitWithU8U8(
+          WasmOpcodes::LoadStoreOpcodeOf(mtype, true), 0, 0);
+    }
+
+    if (target_var == nullptr && target_prop == nullptr) {
+      UNREACHABLE();  // invalid assignment.
+    }
+  }
+
+  void VisitAssignment(Assignment* expr) {
+    bool as_init = false;
+    if (scope_ == kModuleScope) {
       Property* prop = expr->value()->AsProperty();
       if (prop != nullptr) {
         VariableProxy* vp = prop->obj()->AsVariableProxy();
@@ -752,32 +803,18 @@ class AsmWasmBuilderImpl : public AstVisitor {
         // No init code to emit for CallNew nodes.
         return;
       }
-      in_init = true;
-      LoadInitFunction();
+      as_init = true;
     }
-    BinaryOperation* value_op = expr->value()->AsBinaryOperation();
-    if (value_op != nullptr && MatchBinaryOperation(value_op) == kAsIs) {
-      VariableProxy* target_var = expr->target()->AsVariableProxy();
-      VariableProxy* effective_value_var = GetLeft(value_op)->AsVariableProxy();
-      if (target_var != nullptr && effective_value_var != nullptr &&
-          target_var->var() == effective_value_var->var()) {
-        block_size_--;
-        return;
-      }
+
+    if (as_init) LoadInitFunction();
+    MachineType mtype;
+    bool is_nop = false;
+    EmitAssignmentLhs(expr->target(), &mtype);
+    EmitAssignmentRhs(expr->target(), expr->value(), &is_nop);
+    if (!is_nop) {
+      EmitAssignment(expr, mtype);
     }
-    is_set_op_ = true;
-    RECURSE(Visit(expr->target()));
-    DCHECK(!is_set_op_);
-    // Assignment to heapf32 from float64 converts.
-    if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
-        expr->target()->AsProperty()->obj()->bounds().lower->Is(
-            cache_.kFloat32Array)) {
-      current_function_builder_->Emit(kExprF32ConvertF64);
-    }
-    RECURSE(Visit(expr->value()));
-    if (in_init) {
-      UnLoadInitFunction();
-    }
+    if (as_init) UnLoadInitFunction();
   }
 
   void VisitYield(Yield* expr) { UNREACHABLE(); }
@@ -816,9 +853,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
             Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
             if (nvalue->IsNumber()) {
               int32_t val = static_cast<int32_t>(nvalue->Number());
-              // TODO(bradnelson): variable size
-              byte code[] = {WASM_I32V(val)};
-              current_function_builder_->EmitCode(code, sizeof(code));
+              current_function_builder_->EmitI32Const(val);
               return;
             }
           }
@@ -834,46 +869,41 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitProperty(Property* expr) {
+  void VisitPropertyAndEmitIndex(Property* expr, MachineType* mtype) {
     Expression* obj = expr->obj();
     DCHECK_EQ(obj->bounds().lower, obj->bounds().upper);
     Type* type = obj->bounds().lower;
-    MachineType mtype;
     int size;
     if (type->Is(cache_.kUint8Array)) {
-      mtype = MachineType::Uint8();
+      *mtype = MachineType::Uint8();
       size = 1;
     } else if (type->Is(cache_.kInt8Array)) {
-      mtype = MachineType::Int8();
+      *mtype = MachineType::Int8();
       size = 1;
     } else if (type->Is(cache_.kUint16Array)) {
-      mtype = MachineType::Uint16();
+      *mtype = MachineType::Uint16();
       size = 2;
     } else if (type->Is(cache_.kInt16Array)) {
-      mtype = MachineType::Int16();
+      *mtype = MachineType::Int16();
       size = 2;
     } else if (type->Is(cache_.kUint32Array)) {
-      mtype = MachineType::Uint32();
+      *mtype = MachineType::Uint32();
       size = 4;
     } else if (type->Is(cache_.kInt32Array)) {
-      mtype = MachineType::Int32();
+      *mtype = MachineType::Int32();
       size = 4;
     } else if (type->Is(cache_.kUint32Array)) {
-      mtype = MachineType::Uint32();
+      *mtype = MachineType::Uint32();
       size = 4;
     } else if (type->Is(cache_.kFloat32Array)) {
-      mtype = MachineType::Float32();
+      *mtype = MachineType::Float32();
       size = 4;
     } else if (type->Is(cache_.kFloat64Array)) {
-      mtype = MachineType::Float64();
+      *mtype = MachineType::Float64();
       size = 8;
     } else {
       UNREACHABLE();
     }
-    // TODO(titzer): use special asm-compatibility opcodes?
-    current_function_builder_->EmitWithU8U8(
-        WasmOpcodes::LoadStoreOpcodeOf(mtype, is_set_op_), 0, 0);
-    is_set_op_ = false;
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec
       // strictly permits.
@@ -881,34 +911,40 @@ class AsmWasmBuilderImpl : public AstVisitor {
       // places that strictly should be HEAP8[HEAP32[..]>>0].
       RECURSE(Visit(expr->key()));
       return;
-    } else {
-      Literal* value = expr->key()->AsLiteral();
-      if (value) {
-        DCHECK(value->raw_value()->IsNumber());
-        DCHECK_EQ(kAstI32, TypeOf(value));
-        int val = static_cast<int>(value->raw_value()->AsNumber());
-        // TODO(bradnelson): variable size
-        byte code[] = {WASM_I32V(val * size)};
-        current_function_builder_->EmitCode(code, sizeof(code));
-        return;
-      }
-      BinaryOperation* binop = expr->key()->AsBinaryOperation();
-      if (binop) {
-        DCHECK_EQ(Token::SAR, binop->op());
-        DCHECK(binop->right()->AsLiteral()->raw_value()->IsNumber());
-        DCHECK(kAstI32 == TypeOf(binop->right()->AsLiteral()));
-        DCHECK_EQ(size,
-                  1 << static_cast<int>(
-                      binop->right()->AsLiteral()->raw_value()->AsNumber()));
-        // Mask bottom bits to match asm.js behavior.
-        current_function_builder_->Emit(kExprI32And);
-        byte code[] = {WASM_I8(~(size - 1))};
-        current_function_builder_->EmitCode(code, sizeof(code));
-        RECURSE(Visit(binop->left()));
-        return;
-      }
+    }
+
+    Literal* value = expr->key()->AsLiteral();
+    if (value) {
+      DCHECK(value->raw_value()->IsNumber());
+      DCHECK_EQ(kAstI32, TypeOf(value));
+      int32_t val = static_cast<int32_t>(value->raw_value()->AsNumber());
+      // TODO(titzer): handle overflow here.
+      current_function_builder_->EmitI32Const(val * size);
+      return;
+    }
+    BinaryOperation* binop = expr->key()->AsBinaryOperation();
+    if (binop) {
+      DCHECK_EQ(Token::SAR, binop->op());
+      DCHECK(binop->right()->AsLiteral()->raw_value()->IsNumber());
+      DCHECK(kAstI32 == TypeOf(binop->right()->AsLiteral()));
+      DCHECK_EQ(size,
+                1 << static_cast<int>(
+                    binop->right()->AsLiteral()->raw_value()->AsNumber()));
+      // Mask bottom bits to match asm.js behavior.
+      byte mask = static_cast<byte>(~(size - 1));
+      RECURSE(Visit(binop->left()));
+      current_function_builder_->EmitWithU8(kExprI8Const, mask);
+      current_function_builder_->Emit(kExprI32And);
+      return;
     }
     UNREACHABLE();
+  }
+
+  void VisitProperty(Property* expr) {
+    MachineType mtype;
+    VisitPropertyAndEmitIndex(expr, &mtype);
+    current_function_builder_->EmitWithU8U8(
+        WasmOpcodes::LoadStoreOpcodeOf(mtype, false), 0, 0);
   }
 
   bool VisitStdlibFunction(Call* call, VariableProxy* expr) {
@@ -917,51 +953,61 @@ class AsmWasmBuilderImpl : public AstVisitor {
         typer_->VariableAsStandardMember(var);
     ZoneList<Expression*>* args = call->arguments();
     LocalType call_type = TypeOf(call);
+
     switch (standard_object) {
       case AsmTyper::kNone: {
         return false;
       }
       case AsmTyper::kMathAcos: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Acos);
         break;
       }
       case AsmTyper::kMathAsin: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Asin);
         break;
       }
       case AsmTyper::kMathAtan: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Atan);
         break;
       }
       case AsmTyper::kMathCos: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Cos);
         break;
       }
       case AsmTyper::kMathSin: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Sin);
         break;
       }
       case AsmTyper::kMathTan: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Tan);
         break;
       }
       case AsmTyper::kMathExp: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Exp);
         break;
       }
       case AsmTyper::kMathLog: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Log);
         break;
       }
       case AsmTyper::kMathCeil: {
+        VisitCallArgs(call);
         if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Ceil);
         } else if (call_type == kAstF64) {
@@ -972,6 +1018,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathFloor: {
+        VisitCallArgs(call);
         if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Floor);
         } else if (call_type == kAstF64) {
@@ -982,6 +1029,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathSqrt: {
+        VisitCallArgs(call);
         if (call_type == kAstF32) {
           current_function_builder_->Emit(kExprF32Sqrt);
         } else if (call_type == kAstF64) {
@@ -992,19 +1040,33 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathAbs: {
-        // TODO(bradnelson): Should this be cast to float?
         if (call_type == kAstI32) {
-          current_function_builder_->Emit(kExprIfElse);
-          current_function_builder_->Emit(kExprI32LtS);
-          Visit(args->at(0));
+          uint16_t tmp = current_function_builder_->AddLocal(kAstI32);
+
+          // if set_local(tmp, x) < 0
+          Visit(call->arguments()->at(0));
+          current_function_builder_->EmitSetLocal(tmp);
           byte code[] = {WASM_I8(0)};
           current_function_builder_->EmitCode(code, sizeof(code));
-          current_function_builder_->Emit(kExprI32Sub);
+          current_function_builder_->Emit(kExprI32LtS);
+          current_function_builder_->Emit(kExprIf);
+
+          // then (0 - tmp)
           current_function_builder_->EmitCode(code, sizeof(code));
-          Visit(args->at(0));
+          current_function_builder_->EmitGetLocal(tmp);
+          current_function_builder_->Emit(kExprI32Sub);
+
+          // else tmp
+          current_function_builder_->Emit(kExprElse);
+          current_function_builder_->EmitGetLocal(tmp);
+          // end
+          current_function_builder_->Emit(kExprEnd);
+
         } else if (call_type == kAstF32) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Abs);
         } else if (call_type == kAstF64) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Abs);
         } else {
           UNREACHABLE();
@@ -1014,13 +1076,32 @@ class AsmWasmBuilderImpl : public AstVisitor {
       case AsmTyper::kMathMin: {
         // TODO(bradnelson): Change wasm to match Math.min in asm.js mode.
         if (call_type == kAstI32) {
-          current_function_builder_->Emit(kExprIfElse);
+          uint16_t tmp_x = current_function_builder_->AddLocal(kAstI32);
+          uint16_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+
+          // if set_local(tmp_x, x) < set_local(tmp_y, y)
+          Visit(call->arguments()->at(0));
+          current_function_builder_->EmitSetLocal(tmp_x);
+
+          Visit(call->arguments()->at(1));
+          current_function_builder_->EmitSetLocal(tmp_y);
+
           current_function_builder_->Emit(kExprI32LeS);
-          Visit(args->at(0));
-          Visit(args->at(1));
+          current_function_builder_->Emit(kExprIf);
+
+          // then tmp_x
+          current_function_builder_->EmitGetLocal(tmp_x);
+
+          // else tmp_y
+          current_function_builder_->Emit(kExprElse);
+          current_function_builder_->EmitGetLocal(tmp_y);
+          current_function_builder_->Emit(kExprEnd);
+
         } else if (call_type == kAstF32) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Min);
         } else if (call_type == kAstF64) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Min);
         } else {
           UNREACHABLE();
@@ -1030,13 +1111,33 @@ class AsmWasmBuilderImpl : public AstVisitor {
       case AsmTyper::kMathMax: {
         // TODO(bradnelson): Change wasm to match Math.max in asm.js mode.
         if (call_type == kAstI32) {
-          current_function_builder_->Emit(kExprIfElse);
-          current_function_builder_->Emit(kExprI32GtS);
-          Visit(args->at(0));
-          Visit(args->at(1));
+          uint16_t tmp_x = current_function_builder_->AddLocal(kAstI32);
+          uint16_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+
+          // if set_local(tmp_x, x) < set_local(tmp_y, y)
+          Visit(call->arguments()->at(0));
+
+          current_function_builder_->EmitSetLocal(tmp_x);
+
+          Visit(call->arguments()->at(1));
+          current_function_builder_->EmitSetLocal(tmp_y);
+
+          current_function_builder_->Emit(kExprI32LeS);
+          current_function_builder_->Emit(kExprIf);
+
+          // then tmp_y
+          current_function_builder_->EmitGetLocal(tmp_y);
+
+          // else tmp_x
+          current_function_builder_->Emit(kExprElse);
+          current_function_builder_->EmitGetLocal(tmp_x);
+          current_function_builder_->Emit(kExprEnd);
+
         } else if (call_type == kAstF32) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Max);
         } else if (call_type == kAstF64) {
+          VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Max);
         } else {
           UNREACHABLE();
@@ -1044,16 +1145,19 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
       case AsmTyper::kMathAtan2: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Atan2);
         break;
       }
       case AsmTyper::kMathPow: {
+        VisitCallArgs(call);
         DCHECK_EQ(kAstF64, call_type);
         current_function_builder_->Emit(kExprF64Pow);
         break;
       }
       case AsmTyper::kMathImul: {
+        VisitCallArgs(call);
         current_function_builder_->Emit(kExprI32Mul);
         break;
       }
@@ -1061,6 +1165,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         DCHECK(args->length() == 1);
         Literal* literal = args->at(0)->AsLiteral();
         if (literal != nullptr) {
+          // constant fold Math.fround(#const);
           if (literal->raw_value()->IsNumber()) {
             float val = static_cast<float>(literal->raw_value()->AsNumber());
             byte code[] = {WASM_F32(val)};
@@ -1068,6 +1173,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
             return true;
           }
         }
+        VisitCallArgs(call);
         switch (TypeIndexOf(args->at(0))) {
           case kInt32:
           case kFixnum:
@@ -1091,7 +1197,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
         break;
       }
     }
-    VisitCallArgs(call);
     return true;
   }
 
@@ -1107,7 +1212,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     Call::CallType call_type = expr->GetCallType(isolate_);
     switch (call_type) {
       case Call::OTHER_CALL: {
-        DCHECK(in_function_);
+        DCHECK_EQ(kFuncScope, scope_);
         VariableProxy* proxy = expr->expression()->AsVariableProxy();
         if (proxy != nullptr) {
           if (VisitStdlibFunction(expr, proxy)) {
@@ -1133,30 +1238,31 @@ class AsmWasmBuilderImpl : public AstVisitor {
         } else {
           index = LookupOrInsertFunction(vp->var());
         }
+        VisitCallArgs(expr);
         current_function_builder_->Emit(kExprCallFunction);
+        current_function_builder_->EmitVarInt(expr->arguments()->length());
         current_function_builder_->EmitVarInt(index);
         break;
       }
       case Call::KEYED_PROPERTY_CALL: {
-        DCHECK(in_function_);
+        DCHECK_EQ(kFuncScope, scope_);
         Property* p = expr->expression()->AsProperty();
         DCHECK_NOT_NULL(p);
         VariableProxy* var = p->obj()->AsVariableProxy();
         DCHECK_NOT_NULL(var);
         FunctionTableIndices* indices = LookupFunctionTable(var->var());
-        current_function_builder_->EmitWithVarInt(kExprCallIndirect,
-                                                  indices->signature_index);
-        current_function_builder_->Emit(kExprI32Add);
-        // TODO(bradnelson): variable size
-        byte code[] = {WASM_I32V(indices->start_index)};
-        current_function_builder_->EmitCode(code, sizeof(code));
         RECURSE(Visit(p->key()));
+        current_function_builder_->EmitI32Const(indices->start_index);
+        current_function_builder_->Emit(kExprI32Add);
+        VisitCallArgs(expr);
+        current_function_builder_->Emit(kExprCallIndirect);
+        current_function_builder_->EmitVarInt(expr->arguments()->length());
+        current_function_builder_->EmitVarInt(indices->signature_index);
         break;
       }
       default:
         UNREACHABLE();
     }
-    VisitCallArgs(expr);
   }
 
   void VisitCallNew(CallNew* expr) { UNREACHABLE(); }
@@ -1164,6 +1270,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitCallRuntime(CallRuntime* expr) { UNREACHABLE(); }
 
   void VisitUnaryOperation(UnaryOperation* expr) {
+    RECURSE(Visit(expr->expression()));
     switch (expr->op()) {
       case Token::NOT: {
         DCHECK_EQ(kAstI32, TypeOf(expr->expression()));
@@ -1173,7 +1280,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       default:
         UNREACHABLE();
     }
-    RECURSE(Visit(expr->expression()));
   }
 
   void VisitCountOperation(CountOperation* expr) { UNREACHABLE(); }
@@ -1319,6 +1425,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitBinaryOperation(BinaryOperation* expr) {
     ConvertOperation convertOperation = MatchBinaryOperation(expr);
     if (convertOperation == kToDouble) {
+      RECURSE(Visit(expr->left()));
       TypeIndex type = TypeIndexOf(expr->left());
       if (type == kInt32 || type == kFixnum) {
         current_function_builder_->Emit(kExprF64SConvertI32);
@@ -1329,8 +1436,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       } else {
         UNREACHABLE();
       }
-      RECURSE(Visit(expr->left()));
     } else if (convertOperation == kToInt) {
+      RECURSE(Visit(GetLeft(expr)));
       TypeIndex type = TypeIndexOf(GetLeft(expr));
       if (type == kFloat32) {
         current_function_builder_->Emit(kExprI32SConvertF32);
@@ -1339,10 +1446,20 @@ class AsmWasmBuilderImpl : public AstVisitor {
       } else {
         UNREACHABLE();
       }
-      RECURSE(Visit(GetLeft(expr)));
     } else if (convertOperation == kAsIs) {
       RECURSE(Visit(GetLeft(expr)));
     } else {
+      if (expr->op() == Token::COMMA) {
+        current_function_builder_->Emit(kExprBlock);
+      }
+
+      RECURSE(Visit(expr->left()));
+      RECURSE(Visit(expr->right()));
+
+      if (expr->op() == Token::COMMA) {
+        current_function_builder_->Emit(kExprEnd);
+      }
+
       switch (expr->op()) {
         BINOP_CASE(Token::ADD, Add, NON_SIGNED_BINOP, true);
         BINOP_CASE(Token::SUB, Sub, NON_SIGNED_BINOP, true);
@@ -1369,18 +1486,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
           break;
         }
         case Token::COMMA: {
-          current_function_builder_->EmitWithVarInt(kExprBlock, 2);
           break;
         }
         default:
           UNREACHABLE();
       }
-      RECURSE(Visit(expr->left()));
-      RECURSE(Visit(expr->right()));
     }
   }
 
   void VisitCompareOperation(CompareOperation* expr) {
+    RECURSE(Visit(expr->left()));
+    RECURSE(Visit(expr->right()));
     switch (expr->op()) {
       BINOP_CASE(Token::EQ, Eq, NON_SIGNED_BINOP, false);
       BINOP_CASE(Token::LT, Lt, SIGNED_BINOP, false);
@@ -1390,8 +1506,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       default:
         UNREACHABLE();
     }
-    RECURSE(Visit(expr->left()));
-    RECURSE(Visit(expr->right()));
   }
 
 #undef BINOP_CASE
@@ -1553,9 +1667,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   ZoneHashMap local_variables_;
   ZoneHashMap functions_;
   ZoneHashMap global_variables_;
-  bool in_function_;
-  bool is_set_op_;
-  bool marking_exported;
+  AsmScope scope_;
   WasmModuleBuilder* builder_;
   WasmFunctionBuilder* current_function_builder_;
   FunctionLiteral* literal_;
@@ -1565,7 +1677,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
   AsmTyper* typer_;
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
-  int block_size_;
   uint16_t init_function_index_;
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;

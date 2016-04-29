@@ -4,6 +4,32 @@
 
 // Flags: --expose-wasm
 
+(function TestSwitch0() {
+  function asmModule() {
+    "use asm"
+
+    function caller() {
+      var ret = 0;
+      var x = 7;
+      switch (x) {
+        case 1: {
+          return 0;
+        }
+        case 7: {
+          ret = 5;
+          break;
+        }
+        default: return 0;
+      }
+      return ret|0;
+    }
+
+    return {caller:caller};
+  }
+  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  assertEquals(5, wasm.caller());
+})();
+
 (function TestSwitch() {
   function asmModule() {
     "use asm"
