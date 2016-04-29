@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function makeFFI(func, t) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([t,t,t,t,t,t,t,t,t,t,t]);
+  var sig_index = builder.addSignature([10,t,t,t,t,t,t,t,t,t,t,1,t]);
   builder.addImport("func", sig_index);
   // Try to create a frame with lots of spilled values and parameters
   // on the stack to try to catch GC bugs in the reference maps for

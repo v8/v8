@@ -80,17 +80,18 @@ void FixupSection(byte* start, byte* end) {
 
 // Returns the start of the section, where the section VarInt size is.
 byte* EmitSection(WasmSection::Code code, byte** b) {
-  // Emit a placeholder for the length.
-  byte* start = *b;
-  for (size_t padding = 0; padding != kPaddedVarintSize; ++padding) {
-    EmitUint8(b, 0xff);  // Will get fixed up later.
-  }
   // Emit the section name.
   const char* name = WasmSection::getName(code);
   TRACE("emit section: %s\n", name);
   size_t length = WasmSection::getNameLength(code);
   EmitVarInt(b, length);  // Section name string size.
   for (size_t i = 0; i != length; ++i) EmitUint8(b, name[i]);
+
+  // Emit a placeholder for the length.
+  byte* start = *b;
+  for (size_t padding = 0; padding != kPaddedVarintSize; ++padding) {
+    EmitUint8(b, 0xff);  // Will get fixed up later.
+  }
 
   return start;
 }
@@ -586,7 +587,9 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     sizes.AddSection(WasmSection::Code::Signatures, signatures_.size());
     for (auto sig : signatures_) {
       sizes.Add(1 + LEBHelper::sizeof_u32v(sig->parameter_count()) +
-                    sig->parameter_count(),
+                    sig->parameter_count() +
+                    LEBHelper::sizeof_u32v(sig->return_count()) +
+                    sig->return_count(),
                 0);
     }
     TRACE("Size after signatures: %u, %u\n", (unsigned)sizes.header_size,
@@ -594,7 +597,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   }
 
   if (functions_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::Functions, functions_.size());
+    sizes.AddSection(WasmSection::Code::OldFunctions, functions_.size());
     for (auto function : functions_) {
       sizes.Add(function->HeaderSize() + function->BodySize(),
                 function->NameSize());
@@ -669,14 +672,14 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
     EmitVarInt(&header, signatures_.size());
 
     for (FunctionSig* sig : signatures_) {
+      EmitUint8(&header, kWasmFunctionTypeForm);
       EmitVarInt(&header, sig->parameter_count());
-      if (sig->return_count() > 0) {
-        EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetReturn()));
-      } else {
-        EmitUint8(&header, kLocalVoid);
-      }
       for (size_t j = 0; j < sig->parameter_count(); j++) {
         EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetParam(j)));
+      }
+      EmitVarInt(&header, sig->return_count());
+      for (size_t j = 0; j < sig->return_count(); j++) {
+        EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetReturn(j)));
       }
     }
     FixupSection(section, header);
@@ -684,7 +687,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
 
   // -- emit functions ---------------------------------------------------------
   if (functions_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::Functions, &header);
+    byte* section = EmitSection(WasmSection::Code::OldFunctions, &header);
     EmitVarInt(&header, functions_.size());
 
     for (auto func : functions_) {

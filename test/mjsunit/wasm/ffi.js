@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function testCallFFI(func, check) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([kAstI32, kAstF64, kAstF64]);
+  var sig_index = builder.addSignature(kSig_i_dd);
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
@@ -185,8 +185,8 @@ function testCallBinopVoid(type, func, check) {
 
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("func", [kAstStmt, type, type]);
-  builder.addFunction("main", [kAstI32, type, type])
+  builder.addImport("func", makeSig_v_xx(type));
+  builder.addFunction("main", makeSig_r_xx(kAstI32, type))
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
@@ -241,9 +241,9 @@ testCallBinopVoid(kAstF64);
 function testCallPrint() {
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("print", [kAstStmt, kAstI32]);
-  builder.addImport("print", [kAstStmt, kAstF64]);
-  builder.addFunction("main", [kAstStmt, kAstF64])
+  builder.addImport("print", makeSig_v_x(kAstI32));
+  builder.addImport("print", makeSig_v_x(kAstF64));
+  builder.addFunction("main", makeSig_v_x(kAstF64))
     .addBody([
       kExprI8Const, 97,             // --
       kExprCallImport, kArity1, 0,  // --

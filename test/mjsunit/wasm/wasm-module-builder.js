@@ -53,7 +53,7 @@ WasmModuleBuilder.prototype.addExplicitSection = function(bytes) {
   return this;
 }
 
-// Add a signature; format is [rettype, param0, param1, ...]
+// Add a signature; format is [param_count, param0, param1, ..., retcount, ret0]
 WasmModuleBuilder.prototype.addSignature = function(sig) {
     // TODO: canonicalize signatures?
     this.signatures.push(sig);
@@ -132,12 +132,14 @@ function emit_bytes(bytes, data) {
 }
 
 function emit_section(bytes, section_code, content_generator) {
-    // Start the section in a temporary buffer: its full length isn't know yet.
+    // Emit section name.
+    emit_string(bytes, section_names[section_code]);
+    // Emit the section to a temporary buffer: its full length isn't know yet.
     var tmp_bytes = [];
-    emit_string(tmp_bytes, section_names[section_code]);
     content_generator(tmp_bytes);
-    // Now that we know the section length, emit it and copy the section.
+    // Emit section length.
     emit_varint(bytes, tmp_bytes.length);
+    // Copy the temporary buffer.
     Array.prototype.push.apply(bytes, tmp_bytes);
 }
 
@@ -155,8 +157,7 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
         emit_section(bytes, kDeclSignatures, function(bytes) {
             emit_varint(bytes, wasm.signatures.length);
             for (sig of wasm.signatures) {
-                var params = sig.length - 1;
-                emit_varint(bytes, params);
+                emit_u8(bytes, kWasmFunctionTypeForm);
                 for (var j = 0; j < sig.length; j++) {
                     emit_u8(bytes, sig[j]);
                 }

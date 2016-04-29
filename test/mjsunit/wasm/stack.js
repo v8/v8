@@ -36,24 +36,24 @@ function STACK() {
 
 var builder = new WasmModuleBuilder();
 
-builder.addImport("func", [kAstStmt]);
+builder.addImport("func", kSig_v_v);
 
-builder.addFunction("main", [kAstStmt])
+builder.addFunction("main", kSig_v_v)
   .addBody([kExprCallImport, kArity0, 0])
   .exportAs("main");
 
-builder.addFunction("exec_unreachable", [kAstStmt])
+builder.addFunction("exec_unreachable", kSig_v_v)
   .addBody([kExprUnreachable])
   .exportAs("exec_unreachable");
 
 // make this function unnamed, just to test also this case
-var mem_oob_func = builder.addFunction(undefined, [kAstStmt])
+var mem_oob_func = builder.addFunction(undefined, kSig_v_v)
   // access the memory at offset -1
   .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
   .exportAs("mem_out_of_bounds");
 
 // call the mem_out_of_bounds function, in order to have two WASM stack frames
-builder.addFunction("call_mem_out_of_bounds", [kAstStmt])
+builder.addFunction("call_mem_out_of_bounds", kSig_v_v)
   .addBody([kExprCallFunction, kArity0, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");
 

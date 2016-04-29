@@ -13,7 +13,7 @@ function genModule(memory) {
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1, 1, true);
-  builder.addFunction("main", [kAstI32, kAstI32])
+  builder.addFunction("main", kSig_i_i)
     .addBody([
     // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       kExprLoop,
@@ -128,7 +128,7 @@ function testOOBThrows() {
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1, 1, true);
-  builder.addFunction("geti", [kAstI32, kAstI32, kAstI32])
+  builder.addFunction("geti", kSig_i_ii)
     .addBody([
       kExprGetLocal, 0,
       kExprGetLocal, 1,

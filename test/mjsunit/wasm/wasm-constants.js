@@ -21,7 +21,7 @@ var kWasmH1 = 0x61;
 var kWasmH2 = 0x73;
 var kWasmH3 = 0x6d;
 
-var kWasmV0 = 10;
+var kWasmV0 = 11;
 var kWasmV1 = 0;
 var kWasmV2 = 0;
 var kWasmV3 = 0;
@@ -69,11 +69,12 @@ var kArity0 = 0;
 var kArity1 = 1;
 var kArity2 = 2;
 var kArity3 = 3;
+var kWasmFunctionTypeForm = 0x40;
 
 var section_names = [
-  "memory", "signatures", "functions", "globals", "data_segments",
-  "function_table", "end", "start_function", "import_table", "export_table",
-  "function_signatures", "function_bodies", "names"];
+  "memory", "type", "old_function", "global", "data",
+  "table", "end", "start", "import", "export",
+  "function", "code", "name"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;
@@ -87,6 +88,33 @@ var kAstI32 = 1;
 var kAstI64 = 2;
 var kAstF32 = 3;
 var kAstF64 = 4;
+
+// Useful signatures
+var kSig_i = [0, 1, kAstI32];
+var kSig_d = [0, 1, kAstF64];
+var kSig_i_i = [1, kAstI32, 1, kAstI32];
+var kSig_i_ii = [2, kAstI32, kAstI32, 1, kAstI32];
+var kSig_i_iii = [3, kAstI32, kAstI32, kAstI32, 1, kAstI32];
+var kSig_d_dd = [2, kAstF64, kAstF64, 1, kAstF64];
+var kSig_l_ll = [2, kAstI64, kAstI64, 1, kAstI64];
+var kSig_i_dd = [2, kAstF64, kAstF64, 1, kAstI32];
+var kSig_v_v = [0, 0];
+
+function makeSig_v_xx(x) {
+  return [2, x, x, 0];
+}
+
+function makeSig_v_x(x) {
+  return [1, x, 0];
+}
+
+function makeSig_r_xx(r, x) {
+  return [2, x, x, 1, r];
+}
+
+function makeSig_r_x(r, x) {
+  return [1, x, 1, r];
+}
 
 // Opcodes
 var kExprNop = 0x00;

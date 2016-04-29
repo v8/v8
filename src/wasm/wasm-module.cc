@@ -4,6 +4,7 @@
 
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "src/property-descriptor.h"
 #include "src/v8.h"
 
 #include "src/simulator.h"
@@ -409,6 +410,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
 
+  PropertyDescriptor desc;
+  desc.set_writable(false);
+
   //-------------------------------------------------------------------------
   // Allocate the instance and its JS counterpart.
   //-------------------------------------------------------------------------
@@ -562,7 +566,11 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       if (func.exported) {
         // Exported functions are installed as read-only properties on the
         // module.
-        JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
+        desc.set_value(function);
+        Maybe<bool> status = JSReceiver::DefineOwnProperty(
+            isolate, instance.js_object, name, &desc, Object::THROW_ON_ERROR);
+        if (!status.IsJust())
+          thrower.Error("export of %.*s failed.", str.length(), str.start());
       }
     }
 
@@ -593,7 +601,11 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
             isolate, &module_env, name, code, instance.js_object,
             exp.func_index);
-        JSObject::AddProperty(exports_object, name, function, READ_ONLY);
+        desc.set_value(function);
+        Maybe<bool> status = JSReceiver::DefineOwnProperty(
+            isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
+        if (!status.IsJust())
+          thrower.Error("export of %.*s failed.", str.length(), str.start());
       }
 
       if (mem_export) {

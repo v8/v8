@@ -107,6 +107,20 @@ class ModuleDecoder : public Decoder {
       TRACE("DecodeSection\n");
       pos = pc_;
 
+      // Read the section name.
+      int string_leb_length = 0;
+      uint32_t string_length =
+          consume_u32v(&string_leb_length, "section name length");
+      const byte* section_name_start = pc_;
+      consume_bytes(string_length);
+      if (failed()) {
+        TRACE("Section name of length %u couldn't be read\n", string_length);
+        break;
+      }
+
+      WasmSection::Code section =
+          WasmSection::lookup(section_name_start, string_length);
+
       // Read and check the section size.
       int section_leb_length = 0;
       uint32_t section_length =
@@ -118,25 +132,6 @@ class ModuleDecoder : public Decoder {
       const byte* section_start = pc_;
       const byte* expected_section_end = pc_ + section_length;
 
-      // Read the section name.
-      int string_leb_length = 0;
-      uint32_t string_length =
-          consume_u32v(&string_leb_length, "section name length");
-      const byte* section_name_start = pc_;
-      consume_bytes(string_length);
-      if (failed()) {
-        TRACE("Section name of length %u couldn't be read\n", string_length);
-        break;
-      }
-      if (pc_ > expected_section_end) {
-        error(section_name_start, pc_,
-              "section name string %u longer than total section bytes %u",
-              string_length, section_length);
-      }
-
-      WasmSection::Code section =
-          WasmSection::lookup(section_name_start, string_length);
-
       current_order = CheckSectionOrder(current_order, section);
 
       switch (section) {
@@ -144,12 +139,13 @@ class ModuleDecoder : public Decoder {
           // Terminate section decoding.
           limit_ = pc_;
           break;
-        case WasmSection::Code::Memory:
+        case WasmSection::Code::Memory: {
           int length;
           module->min_mem_pages = consume_u32v(&length, "min memory");
           module->max_mem_pages = consume_u32v(&length, "max memory");
           module->mem_export = consume_u8("export memory") != 0;
           break;
+        }
         case WasmSection::Code::Signatures: {
           int length;
           uint32_t signatures_count = consume_u32v(&length, "signatures count");
@@ -159,7 +155,7 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            FunctionSig* s = consume_sig();  // read function sig.
+            FunctionSig* s = consume_sig();
             module->signatures.push_back(s);
           }
           break;
@@ -202,7 +198,7 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
-        case WasmSection::Code::Functions: {
+        case WasmSection::Code::OldFunctions: {
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
@@ -385,7 +381,7 @@ class ModuleDecoder : public Decoder {
             TRACE("%c", *(section_name_start + i));
           }
           TRACE("'\n");
-          consume_bytes(section_length - string_length - string_leb_length);
+          consume_bytes(section_length);
           break;
       }
 
@@ -700,20 +696,48 @@ class ModuleDecoder : public Decoder {
     }
   }
 
-  // Parses an inline function signature.
+  // Parses a type entry, which is currently limited to functions only.
   FunctionSig* consume_sig() {
+    const byte* pos = pc_;
+    byte form = consume_u8("type form");
+    if (form != kWasmFunctionTypeForm) {
+      error(pos, pos, "expected function type form (0x%02x), got: 0x%02x",
+            kWasmFunctionTypeForm, form);
+      return nullptr;
+    }
     int length;
-    byte count = consume_u32v(&length, "param count");
-    LocalType ret = consume_local_type();
-    FunctionSig::Builder builder(module_zone, ret == kAstStmt ? 0 : 1, count);
-    if (ret != kAstStmt) builder.AddReturn(ret);
-
-    for (int i = 0; i < count; i++) {
+    // parse parameter types
+    uint32_t param_count = consume_u32v(&length, "param count");
+    std::vector<LocalType> params;
+    for (uint32_t i = 0; i < param_count; i++) {
       LocalType param = consume_local_type();
       if (param == kAstStmt) error(pc_ - 1, "invalid void parameter type");
-      builder.AddParam(param);
+      params.push_back(param);
     }
-    return builder.Build();
+
+    // parse return types
+    const byte* pt = pc_;
+    uint32_t return_count = consume_u32v(&length, "return count");
+    if (return_count > kMaxReturnCount) {
+      error(pt, pt, "return count of %u exceeds maximum of %u", return_count,
+            kMaxReturnCount);
+      return nullptr;
+    }
+    std::vector<LocalType> returns;
+    for (uint32_t i = 0; i < return_count; i++) {
+      LocalType ret = consume_local_type();
+      if (ret == kAstStmt) error(pc_ - 1, "invalid void return type");
+      returns.push_back(ret);
+    }
+
+    // FunctionSig stores the return types first.
+    LocalType* buffer =
+        module_zone->NewArray<LocalType>(param_count + return_count);
+    uint32_t b = 0;
+    for (uint32_t i = 0; i < return_count; i++) buffer[b++] = returns[i];
+    for (uint32_t i = 0; i < param_count; i++) buffer[b++] = params[i];
+
+    return new (module_zone) FunctionSig(return_count, param_count, buffer);
   }
 };
 

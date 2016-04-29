@@ -12,7 +12,7 @@ var debug = false;
 (function BasicTest() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", [kAstI32])
+    module.addFunction("foo", kSig_i)
         .addBody([kExprI8Const, 11])
         .exportAs("blarg");
 
@@ -23,8 +23,8 @@ var debug = false;
 
 (function ImportTest() {
     var module = new WasmModuleBuilder();
-    var index = module.addImport("print", [kAstStmt, kAstI32]);
-    module.addFunction("foo", [kAstStmt])
+    var index = module.addImport("print", makeSig_v_x(kAstI32));
+    module.addFunction("foo", kSig_v_v)
         .addBody([kExprI8Const, 13, kExprCallImport, kArity1, index])
         .exportAs("main");
 
@@ -36,7 +36,7 @@ var debug = false;
 
 (function LocalsTest() {
     var module = new WasmModuleBuilder();
-    module.addFunction(undefined, [kAstI32, kAstI32])
+    module.addFunction(undefined, kSig_i_i)
         .addLocals({i32_count: 1})
         .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
         .exportAs("main");
@@ -58,7 +58,7 @@ var debug = false;
 
     for (p of types) {
       var module = new WasmModuleBuilder();
-      module.addFunction(undefined, [p.type, p.type])
+      module.addFunction(undefined, makeSig_r_x(p.type, p.type))
         .addLocals(p.locals)
         .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
         .exportAs("main");
@@ -72,9 +72,9 @@ var debug = false;
 
 (function CallTest() {
     var module = new WasmModuleBuilder();
-    module.addFunction("add", [kAstI32, kAstI32, kAstI32])
+    module.addFunction("add", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
-    module.addFunction("main", [kAstI32, kAstI32, kAstI32])
+    module.addFunction("main", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, kArity2, 0])
         .exportAs("main");
 
@@ -85,9 +85,9 @@ var debug = false;
 
 (function IndirectCallTest() {
     var module = new WasmModuleBuilder();
-    module.addFunction("add", [kAstI32, kAstI32, kAstI32])
+    module.addFunction("add", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
-    module.addFunction("main", [kAstI32, kAstI32, kAstI32, kAstI32])
+    module.addFunction("main", kSig_i_iii)
         .addBody([kExprGetLocal,
                   0, kExprGetLocal, 1, kExprGetLocal, 2, kExprCallIndirect, kArity2, 0])
         .exportAs("main");
@@ -102,7 +102,7 @@ var debug = false;
 (function DataSegmentTest() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 1, false);
-    module.addFunction("load", [kAstI32, kAstI32])
+    module.addFunction("load", kSig_i_i)
         .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
         .exportAs("load");
     module.addDataSegment(0, [9, 9, 9, 9], true);
@@ -116,7 +116,7 @@ var debug = false;
 (function BasicTestWithUint8Array() {
     var module = new WasmModuleBuilder();
     module.addMemory(1, 2, false);
-    module.addFunction("foo", [kAstI32])
+    module.addFunction("foo", kSig_i)
         .addBody([kExprI8Const, 17])
         .exportAs("blarg");
 
@@ -141,8 +141,8 @@ var debug = false;
 
 (function ImportTestTwoLevel() {
     var module = new WasmModuleBuilder();
-    var index = module.addImportWithModule("mod", "print", [kAstStmt, kAstI32]);
-    module.addFunction("foo", [kAstStmt])
+    var index = module.addImportWithModule("mod", "print", makeSig_v_x(kAstI32));
+    module.addFunction("foo", kSig_v_v)
         .addBody([kExprI8Const, 19, kExprCallImport, kArity1, index])
         .exportAs("main");
 

@@ -33,7 +33,7 @@ function assertTraps(code, msg) {
 function makeBinop(opcode) {
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", [kAstI32, kAstI32, kAstI32])
+  builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprGetLocal, 0,           // --
       kExprGetLocal, 1,           // --

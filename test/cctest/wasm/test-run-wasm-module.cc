@@ -18,8 +18,6 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
-
-// TODO(titzer): fix arm64 frame alignment.
 namespace {
 void TestModule(WasmModuleIndex* module, int32_t expected_result) {
   Isolate* isolate = CcTest::InitIsolateOnce();
@@ -30,43 +28,6 @@ void TestModule(WasmModuleIndex* module, int32_t expected_result) {
   CHECK_EQ(expected_result, result);
 }
 }  // namespace
-
-
-// A raw test that skips the WasmModuleBuilder.
-TEST(Run_WasmModule_CallAdd_rev) {
-  static const byte data[] = {
-      WASM_MODULE_HEADER,
-      // sig#0 ------------------------------------------
-      WASM_SECTION_SIGNATURES_SIZE + 7,    // Section size.
-      WASM_SECTION_SIGNATURES, 2,          // --
-      0, kLocalI32,                        // void -> int
-      2, kLocalI32, kLocalI32, kLocalI32,  // int,int -> int
-      // func#0 (main) ----------------------------------
-      WASM_SECTION_FUNCTIONS_SIZE + 25, WASM_SECTION_FUNCTIONS, 2,
-      kDeclFunctionExport, 0, 0,  // sig index
-      8, 0,                       // body size
-      0,                          // locals
-      kExprI8Const, 77,           // --
-      kExprI8Const, 22,           // --
-      kExprCallFunction, 2, 1,    // --
-      // func#1 -----------------------------------------
-      0,                 // no name, not exported
-      1, 0,              // sig index
-      6, 0,              // body size
-      0,                 // locals
-      kExprGetLocal, 0,  // --
-      kExprGetLocal, 1,  // --
-      kExprI32Add,       // --
-  };
-
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  HandleScope scope(isolate);
-  WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
-  int32_t result =
-      CompileAndRunWasmModule(isolate, data, data + arraysize(data));
-  CHECK_EQ(99, result);
-}
-
 
 TEST(Run_WasmModule_Return114) {
   static const int32_t kReturnValue = 114;

@@ -564,4 +564,23 @@ class LocalDeclEncoder {
 #define WASM_I32_REINTERPRET_F32(x) x, kExprI32ReinterpretF32
 #define WASM_I64_REINTERPRET_F64(x) x, kExprI64ReinterpretF64
 
+#define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
+#define SIZEOF_SIG_ENTRY_v_v 3
+
+#define SIG_ENTRY_v_x(a) kWasmFunctionTypeForm, 1, a, 0
+#define SIG_ENTRY_v_xx(a, b) kWasmFunctionTypeForm, 2, a, b, 0
+#define SIG_ENTRY_v_xxx(a, b, c) kWasmFunctionTypeForm, 3, a, b, c, 0
+#define SIZEOF_SIG_ENTRY_v_x 4
+#define SIZEOF_SIG_ENTRY_v_xx 5
+#define SIZEOF_SIG_ENTRY_v_xxx 6
+
+#define SIG_ENTRY_x(r) kWasmFunctionTypeForm, 0, 1, r
+#define SIG_ENTRY_x_x(r, a) kWasmFunctionTypeForm, 1, a, 1, r
+#define SIG_ENTRY_x_xx(r, a, b) kWasmFunctionTypeForm, 2, a, b, 1, r
+#define SIG_ENTRY_x_xxx(r, a, b, c) kWasmFunctionTypeForm, 3, a, b, c, 1, r
+#define SIZEOF_SIG_ENTRY_x 4
+#define SIZEOF_SIG_ENTRY_x_x 5
+#define SIZEOF_SIG_ENTRY_x_xx 6
+#define SIZEOF_SIG_ENTRY_x_xxx 7
+
 #endif  // V8_WASM_MACRO_GEN_H_

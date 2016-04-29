@@ -45,7 +45,7 @@ function assertFunction(module, func) {
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1, 1, true);
-  builder.addFunction("sub", [kAstI64, kAstI64, kAstI64])
+  builder.addFunction("sub", kSig_l_ll)
     .addBody([           // --
       kExprGetLocal, 0,  // --
       kExprGetLocal, 1,  // --
@@ -67,7 +67,7 @@ function assertFunction(module, func) {
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1, 1, true);
-  builder.addFunction("sub", [kAstI32, kAstI32, kAstI32])
+  builder.addFunction("sub", kSig_i_ii)
     .addBody([
       kExprGetLocal, 0,             // --
       kExprGetLocal, 1,             // --
@@ -92,7 +92,7 @@ function assertFunction(module, func) {
 
   var kPages = 2;
   builder.addMemory(kPages, kPages, true);
-  builder.addFunction("nop", [kAstStmt])
+  builder.addFunction("nop", kSig_v_v)
     .addBody([kExprNop])
     .exportFunc();
 
@@ -109,7 +109,7 @@ function assertFunction(module, func) {
 
   var kPages = 3;
   builder.addMemory(kPages, kPages, true);
-  builder.addFunction("flt", [kAstI32, kAstF64, kAstF64])
+  builder.addFunction("flt", kSig_i_dd)
     .addBody([
       kExprGetLocal, 0,     // --
       kExprGetLocal, 1,     // --

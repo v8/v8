@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var module = (function () {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([kAstI32, kAstI32, kAstI32]);
+  var sig_index = builder.addSignature(kSig_i_ii);
   builder.addImport("add", sig_index);
   builder.addFunction("add", sig_index)
     .addBody([
@@ -22,7 +22,7 @@ var module = (function () {
       kExprGetLocal, 1,             // --
       kExprI32Sub,                  // --
     ]);
-  builder.addFunction("main", [kAstI32, kAstI32, kAstI32, kAstI32])
+  builder.addFunction("main", kSig_i_iii)
     .addBody([
       kExprGetLocal, 0,
       kExprGetLocal, 1,

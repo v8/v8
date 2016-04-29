@@ -24,65 +24,59 @@ const size_t kMaxModuleSize = 1024 * 1024 * 1024;
 const size_t kMaxFunctionSize = 128 * 1024;
 const size_t kMaxStringSize = 256;
 const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x0a;
+const uint32_t kWasmVersion = 0x0b;
+const uint8_t kWasmFunctionTypeForm = 0x40;
 
 // WebAssembly sections are named as strings in the binary format, but
 // internally V8 uses an enum to handle them.
 //
-// Entries have the form F(enumerator, order, string).
-#define FOR_EACH_WASM_SECTION_TYPE(F)             \
-  F(Signatures, 1, "signatures")                  \
-  F(ImportTable, 2, "import_table")               \
-  F(FunctionSignatures, 3, "function_signatures") \
-  F(FunctionTable, 4, "function_table")           \
-  F(Memory, 5, "memory")                          \
-  F(ExportTable, 6, "export_table")               \
-  F(StartFunction, 7, "start_function")           \
-  F(FunctionBodies, 8, "function_bodies")         \
-  F(DataSegments, 9, "data_segments")             \
-  F(Names, 10, "names")                           \
-  F(Globals, 0, "globals")                        \
-  F(Functions, 0, "functions")                    \
+// Entries have the form F(enumerator, string).
+#define FOR_EACH_WASM_SECTION_TYPE(F)  \
+  F(Signatures, 1, "type")             \
+  F(ImportTable, 2, "import")          \
+  F(FunctionSignatures, 3, "function") \
+  F(FunctionTable, 4, "table")         \
+  F(Memory, 5, "memory")               \
+  F(ExportTable, 6, "export")          \
+  F(StartFunction, 7, "start")         \
+  F(FunctionBodies, 8, "code")         \
+  F(DataSegments, 9, "data")           \
+  F(Names, 10, "name")                 \
+  F(OldFunctions, 0, "old_function")   \
+  F(Globals, 0, "global")              \
   F(End, 0, "end")
 
 // Contants for the above section types: {LEB128 length, characters...}.
 #define WASM_SECTION_MEMORY 6, 'm', 'e', 'm', 'o', 'r', 'y'
-#define WASM_SECTION_SIGNATURES \
-  10, 's', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e', 's'
-#define WASM_SECTION_FUNCTIONS 9, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', 's'
-#define WASM_SECTION_GLOBALS 7, 'g', 'l', 'o', 'b', 'a', 'l', 's'
-#define WASM_SECTION_DATA_SEGMENTS \
-  13, 'd', 'a', 't', 'a', '_', 's', 'e', 'g', 'm', 'e', 'n', 't', 's'
-#define WASM_SECTION_FUNCTION_TABLE \
-  14, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 't', 'a', 'b', 'l', 'e'
+#define WASM_SECTION_SIGNATURES 4, 't', 'y', 'p', 'e'
+#define WASM_SECTION_OLD_FUNCTIONS \
+  12, 'o', 'l', 'd', '_', 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
+#define WASM_SECTION_GLOBALS 6, 'g', 'l', 'o', 'b', 'a', 'l'
+#define WASM_SECTION_DATA_SEGMENTS 4, 'd', 'a', 't', 'a'
+#define WASM_SECTION_FUNCTION_TABLE 5, 't', 'a', 'b', 'l', 'e'
 #define WASM_SECTION_END 3, 'e', 'n', 'd'
-#define WASM_SECTION_START_FUNCTION \
-  14, 's', 't', 'a', 'r', 't', '_', 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
-#define WASM_SECTION_IMPORT_TABLE \
-  12, 'i', 'm', 'p', 'o', 'r', 't', '_', 't', 'a', 'b', 'l', 'e'
-#define WASM_SECTION_EXPORT_TABLE \
-  12, 'e', 'x', 'p', 'o', 'r', 't', '_', 't', 'a', 'b', 'l', 'e'
-#define WASM_SECTION_FUNCTION_SIGNATURES                                    \
-  19, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 's', 'i', 'g', 'n', 'a', \
-      't', 'u', 'r', 'e', 's'
-#define WASM_SECTION_FUNCTION_BODIES \
-  15, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '_', 'b', 'o', 'd', 'i', 'e', 's'
-#define WASM_SECTION_NAMES 5, 'n', 'a', 'm', 'e', 's'
+#define WASM_SECTION_START_FUNCTION 5, 's', 't', 'a', 'r', 't'
+#define WASM_SECTION_IMPORT_TABLE 6, 'i', 'm', 'p', 'o', 'r', 't'
+#define WASM_SECTION_EXPORT_TABLE 6, 'e', 'x', 'p', 'o', 'r', 't'
+#define WASM_SECTION_FUNCTION_SIGNATURES \
+  8, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
+#define WASM_SECTION_FUNCTION_BODIES 4, 'c', 'o', 'd', 'e'
+#define WASM_SECTION_NAMES 4, 'n', 'a', 'm', 'e'
 
 // Constants for the above section headers' size (LEB128 + characters).
 #define WASM_SECTION_MEMORY_SIZE ((size_t)7)
-#define WASM_SECTION_SIGNATURES_SIZE ((size_t)11)
-#define WASM_SECTION_FUNCTIONS_SIZE ((size_t)10)
-#define WASM_SECTION_GLOBALS_SIZE ((size_t)8)
-#define WASM_SECTION_DATA_SEGMENTS_SIZE ((size_t)14)
-#define WASM_SECTION_FUNCTION_TABLE_SIZE ((size_t)15)
+#define WASM_SECTION_SIGNATURES_SIZE ((size_t)5)
+#define WASM_SECTION_OLD_FUNCTIONS_SIZE ((size_t)13)
+#define WASM_SECTION_GLOBALS_SIZE ((size_t)7)
+#define WASM_SECTION_DATA_SEGMENTS_SIZE ((size_t)5)
+#define WASM_SECTION_FUNCTION_TABLE_SIZE ((size_t)6)
 #define WASM_SECTION_END_SIZE ((size_t)4)
-#define WASM_SECTION_START_FUNCTION_SIZE ((size_t)15)
-#define WASM_SECTION_IMPORT_TABLE_SIZE ((size_t)13)
-#define WASM_SECTION_EXPORT_TABLE_SIZE ((size_t)13)
-#define WASM_SECTION_FUNCTION_SIGNATURES_SIZE ((size_t)20)
-#define WASM_SECTION_FUNCTION_BODIES_SIZE ((size_t)16)
-#define WASM_SECTION_NAMES_SIZE ((size_t)6)
+#define WASM_SECTION_START_FUNCTION_SIZE ((size_t)6)
+#define WASM_SECTION_IMPORT_TABLE_SIZE ((size_t)7)
+#define WASM_SECTION_EXPORT_TABLE_SIZE ((size_t)7)
+#define WASM_SECTION_FUNCTION_SIGNATURES_SIZE ((size_t)9)
+#define WASM_SECTION_FUNCTION_BODIES_SIZE ((size_t)5)
+#define WASM_SECTION_NAMES_SIZE ((size_t)5)
 
 struct WasmSection {
   enum class Code : uint32_t {
@@ -110,6 +104,8 @@ enum WasmFunctionDeclBit {
 // Constants for fixed-size elements within a module.
 static const size_t kDeclMemorySize = 3;
 static const size_t kDeclDataSegmentSize = 13;
+
+static const uint32_t kMaxReturnCount = 1;
 
 // Static representation of a WASM function.
 struct WasmFunction {

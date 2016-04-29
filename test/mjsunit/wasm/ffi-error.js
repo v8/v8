@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function testCallFFI(ffi) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = [kAstI32, kAstF64, kAstF64];
+  var sig_index = kSig_i_dd;
   builder.addImport("fun", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
