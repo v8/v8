@@ -19,6 +19,7 @@ const Register kReturnRegister1 = {Register::kCode_edx};
 const Register kReturnRegister2 = {Register::kCode_edi};
 const Register kJSFunctionRegister = {Register::kCode_edi};
 const Register kContextRegister = {Register::kCode_esi};
+const Register kAllocateSizeRegister = {Register::kCode_edx};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};

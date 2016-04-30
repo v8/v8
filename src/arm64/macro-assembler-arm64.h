@@ -39,6 +39,7 @@ namespace internal {
 #define kReturnRegister2 x2
 #define kJSFunctionRegister x1
 #define kContextRegister cp
+#define kAllocateSizeRegister x1
 #define kInterpreterAccumulatorRegister x0
 #define kInterpreterBytecodeOffsetRegister x19
 #define kInterpreterBytecodeArrayRegister x20

@@ -839,9 +839,9 @@ EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
                                                      Node* control) {
   effect = graph()->NewNode(common()->BeginRegion(), effect);
-  Node* result = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
-                       jsgraph()->Constant(HeapNumber::kSize), effect, control);
+  Node* result = effect = graph()->NewNode(
+      simplified()->Allocate(NOT_TENURED),
+      jsgraph()->Int32Constant(HeapNumber::kSize), effect, control);
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             result, jsgraph()->HeapNumberMapConstant(), effect,
                             control);

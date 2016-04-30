@@ -135,7 +135,6 @@ class CodeFactory final {
   static Callable Allocate##Type(Isolate* isolate);
   SIMD128_TYPES(SIMD128_ALLOC)
 #undef SIMD128_ALLOC
-  static Callable Allocate(Isolate* isolate, PretenureFlag pretenure_flag);
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,

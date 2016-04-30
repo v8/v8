@@ -58,7 +58,6 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                          \
   V(AllocateUint8x16)                         \
   V(AllocateBool8x16)                         \
-  V(Allocate)                                 \
   V(ArrayConstructorConstantArgCount)         \
   V(ArrayConstructor)                         \
   V(InternalArrayConstructorConstantArgCount) \
@@ -576,11 +575,6 @@ class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(AllocateMutableHeapNumberDescriptor,
                      CallInterfaceDescriptor)
-};
-
-class AllocateDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(AllocateDescriptor, CallInterfaceDescriptor)
 };
 
 

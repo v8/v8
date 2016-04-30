@@ -333,6 +333,7 @@ class Linkage : public ZoneObject {
       MachineType return_type = MachineType::AnyTagged(),
       size_t return_count = 1);
 
+  static CallDescriptor* GetAllocateCallDescriptor(Zone* zone);
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count);

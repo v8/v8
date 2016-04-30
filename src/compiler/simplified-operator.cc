@@ -214,6 +214,15 @@ struct SimplifiedOperatorGlobalCache final {
   PURE_OP_LIST(PURE)
 #undef PURE
 
+  template <PretenureFlag kPretenure>
+  struct AllocateOperator final : public Operator1<PretenureFlag> {
+    AllocateOperator()
+        : Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
+                                   "Allocate", 1, 1, 1, 1, 1, 0, kPretenure) {}
+  };
+  AllocateOperator<NOT_TENURED> kAllocateNotTenuredOperator;
+  AllocateOperator<TENURED> kAllocateTenuredOperator;
+
 #define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
   struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
     LoadBuffer##Type##Operator()                                              \
@@ -258,9 +267,14 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
 
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
-  return new (zone())
-      Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
-                               "Allocate", 1, 1, 1, 1, 1, 0, pretenure);
+  switch (pretenure) {
+    case NOT_TENURED:
+      return &cache_.kAllocateNotTenuredOperator;
+    case TENURED:
+      return &cache_.kAllocateTenuredOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
 

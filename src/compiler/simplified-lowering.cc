@@ -1108,7 +1108,7 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kAllocate: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
+        ProcessInput(node, 0, UseInfo::TruncatingWord32());
         ProcessRemainingInputs(node, 1);
         SetOutput(node, MachineRepresentation::kTagged);
         break;
