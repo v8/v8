@@ -57,8 +57,24 @@
 */
 #include <string.h>
 
+#ifdef WIN32
+#include <hash_map>
+using namespace std;
+#else
+// To avoid GCC 4.4 compilation warning about hash_map being deprecated.
+#define OLD_DEPRECATED __DEPRECATED
+#undef __DEPRECATED
+#if defined (ANDROID)
+#include <hash_map>
+using namespace std;
+#else
+#include <ext/hash_map>
+using namespace __gnu_cxx;
+#endif
+#define __DEPRECATED OLD_DEPRECATED
+#endif
+
 #include <list>
-#include <unordered_map>
 
 #include "v8-vtune.h"
 #include "vtune-jit.h"
@@ -110,8 +126,11 @@ struct HashForCodeObject {
   }
 };
 
-typedef std::unordered_map<void*, void*, HashForCodeObject, SameCodeObjects>
-    JitInfoMap;
+#ifdef WIN32
+typedef hash_map<void*, void*> JitInfoMap;
+#else
+typedef hash_map<void*, void*, HashForCodeObject, SameCodeObjects> JitInfoMap;
+#endif
 
 static JitInfoMap* GetEntries() {
   static JitInfoMap* entries;
