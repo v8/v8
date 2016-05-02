@@ -119,11 +119,7 @@
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
 
-  # Missing lastIndex support
-  'built-ins/RegExp/prototype/Symbol.split/str-result-coerce-length-err': [FAIL],
-
   # Times out
-  'built-ins/RegExp/prototype/Symbol.split/str-coerce-lastindex': [SKIP],
   'built-ins/RegExp/prototype/Symbol.match/coerce-global': [SKIP],
   'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-global': [SKIP],
 

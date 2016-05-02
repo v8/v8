@@ -513,7 +513,7 @@ function RegExpSubclassSplit(string, limit) {
       stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
     } else {
       var end = MinSimple(TO_LENGTH(splitter.lastIndex), size);
-      if (end === stringIndex) {
+      if (end === prevStringIndex) {
         stringIndex += AdvanceStringIndex(string, stringIndex, unicode);
       } else {
         %AddElement(
