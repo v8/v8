@@ -667,6 +667,9 @@
                     'ldflags': ['-mips32r2'],
                   }],
                   ['mips_arch_variant=="r1"', {
+                    'defines': [
+                      'FPU_MODE_FP32',
+                    ],
                     'cflags!': ['-mfp64', '-mfpxx'],
                     'conditions': [
                       [ 'clang==0', {
