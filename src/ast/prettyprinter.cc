@@ -1609,7 +1609,9 @@ void AstPrinter::VisitAssignment(Assignment* node) {
 
 
 void AstPrinter::VisitYield(Yield* node) {
-  IndentedScope indent(this, "YIELD", node->position());
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "YIELD id %d", node->yield_id());
+  IndentedScope indent(this, buf.start(), node->position());
   Visit(node->expression());
 }
 

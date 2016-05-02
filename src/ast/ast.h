@@ -647,8 +647,12 @@ class IterationStatement : public BreakableStatement {
   Statement* body() const { return body_; }
   void set_body(Statement* s) { body_ = s; }
 
-  int yield_count() { return yield_count_; }
+  int yield_count() const { return yield_count_; }
+  int first_yield_id() const { return first_yield_id_; }
   void set_yield_count(int yield_count) { yield_count_ = yield_count; }
+  void set_first_yield_id(int first_yield_id) {
+    first_yield_id_ = first_yield_id;
+  }
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId OsrEntryId() const { return BailoutId(local_id(0)); }
@@ -662,7 +666,8 @@ class IterationStatement : public BreakableStatement {
   IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
         body_(NULL),
-        yield_count_(0) {}
+        yield_count_(0),
+        first_yield_id_(0) {}
   static int parent_num_ids() { return BreakableStatement::num_ids(); }
   void Initialize(Statement* body) { body_ = body; }
 
@@ -672,6 +677,7 @@ class IterationStatement : public BreakableStatement {
   Statement* body_;
   Label continue_target_;
   int yield_count_;
+  int first_yield_id_;
 };
 
 
@@ -2531,20 +2537,24 @@ class Yield final : public Expression {
 
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
+  int yield_id() const { return yield_id_; }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
+  void set_yield_id(int yield_id) { yield_id_ = yield_id; }
 
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
         int pos)
       : Expression(zone, pos),
         generator_object_(generator_object),
-        expression_(expression) {}
+        expression_(expression),
+        yield_id_(-1) {}
 
  private:
   Expression* generator_object_;
   Expression* expression_;
+  int yield_id_;
 };
 
 

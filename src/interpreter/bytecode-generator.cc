@@ -571,7 +571,6 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
       generator_state_(),
-      generator_yields_seen_(0),
       try_catch_nesting_level_(0),
       try_finally_nesting_level_(0) {
   InitializeAstVisitor(isolate());
@@ -668,8 +667,8 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
   // that they can be bound to the loop header below. Also create fresh labels
   // for these resume points, to be used inside the loop.
   ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
-  for (size_t id = generator_yields_seen_;
-       id < generator_yields_seen_ + stmt->yield_count(); id++) {
+  size_t first_yield = stmt->first_yield_id();
+  for (size_t id = first_yield; id < first_yield + stmt->yield_count(); id++) {
     DCHECK(0 <= id && id < generator_resume_points_.size());
     auto& label = generator_resume_points_[id];
     resume_points_in_loop.push_back(label);
@@ -686,8 +685,8 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
         ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
         .CompareOperation(Token::Value::EQ, generator_state_)
         .JumpIfTrue(&not_resuming);
-    BuildIndexedJump(generator_state_, generator_yields_seen_,
-                     stmt->yield_count(), generator_resume_points_);
+    BuildIndexedJump(generator_state_, first_yield,
+        stmt->yield_count(), generator_resume_points_);
     builder()->Bind(&not_resuming);
   }
 }
@@ -2278,8 +2277,6 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 void BytecodeGenerator::VisitYield(Yield* expr) {
-  size_t id = generator_yields_seen_++;
-
   builder()->SetExpressionPosition(expr);
   Register value = VisitForRegisterValue(expr->expression());
 
@@ -2287,12 +2284,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
   // Save context, registers, and state. Then return.
   builder()
-      ->LoadLiteral(Smi::FromInt(static_cast<int>(id)))
+      ->LoadLiteral(Smi::FromInt(expr->yield_id()))
       .SuspendGenerator(generator)
       .LoadAccumulatorWithRegister(value)
       .Return();  // Hard return (ignore any finally blocks).
 
-  builder()->Bind(&(generator_resume_points_[id]));
+  builder()->Bind(&(generator_resume_points_[expr->yield_id()]));
   // Upon resume, we continue here.
 
   {

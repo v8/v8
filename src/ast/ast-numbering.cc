@@ -72,17 +72,6 @@ class AstNumberingVisitor final : public AstVisitor {
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
-  int GetAndResetYieldCount() {
-    int old_yield_count = yield_count_;
-    yield_count_ = 0;
-    return old_yield_count;
-  }
-
-  void StoreAndUpdateYieldCount(IterationStatement* node, int old_yield_count) {
-    node->set_yield_count(yield_count_);
-    yield_count_ += old_yield_count;
-  }
-
   Isolate* isolate_;
   Zone* zone_;
   int next_id_;
@@ -228,6 +217,7 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
 
 
 void AstNumberingVisitor::VisitYield(Yield* node) {
+  node->set_yield_id(yield_count_);
   yield_count_++;
   IncrementNodeCount();
   DisableOptimization(kYield);
@@ -296,10 +286,10 @@ void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(DoWhileStatement::num_ids()));
-  int old_yield_count = GetAndResetYieldCount();
+  node->set_first_yield_id(yield_count_);
   Visit(node->body());
   Visit(node->cond());
-  StoreAndUpdateYieldCount(node, old_yield_count);
+  node->set_yield_count(yield_count_ - node->first_yield_id());
 }
 
 
@@ -307,10 +297,10 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
   IncrementNodeCount();
   DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(WhileStatement::num_ids()));
-  int old_yield_count = GetAndResetYieldCount();
+  node->set_first_yield_id(yield_count_);
   Visit(node->cond());
   Visit(node->body());
-  StoreAndUpdateYieldCount(node, old_yield_count);
+  node->set_yield_count(yield_count_ - node->first_yield_id());
 }
 
 
@@ -394,10 +384,10 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(ForInStatement::num_ids()));
   Visit(node->enumerable());  // Not part of loop.
-  int old_yield_count = GetAndResetYieldCount();
+  node->set_first_yield_id(yield_count_);
   Visit(node->each());
   Visit(node->body());
-  StoreAndUpdateYieldCount(node, old_yield_count);
+  node->set_yield_count(yield_count_ - node->first_yield_id());
   ReserveFeedbackSlots(node);
 }
 
@@ -407,12 +397,12 @@ void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   DisableCrankshaft(kForOfStatement);
   node->set_base_id(ReserveIdRange(ForOfStatement::num_ids()));
   Visit(node->assign_iterator());  // Not part of loop.
-  int old_yield_count = GetAndResetYieldCount();
+  node->set_first_yield_id(yield_count_);
   Visit(node->next_result());
   Visit(node->result_done());
   Visit(node->assign_each());
   Visit(node->body());
-  StoreAndUpdateYieldCount(node, old_yield_count);
+  node->set_yield_count(yield_count_ - node->first_yield_id());
   ReserveFeedbackSlots(node);
 }
 
@@ -461,11 +451,11 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
   DisableSelfOptimization();
   node->set_base_id(ReserveIdRange(ForStatement::num_ids()));
   if (node->init() != NULL) Visit(node->init());  // Not part of loop.
-  int old_yield_count = GetAndResetYieldCount();
+  node->set_first_yield_id(yield_count_);
   if (node->cond() != NULL) Visit(node->cond());
   if (node->next() != NULL) Visit(node->next());
   Visit(node->body());
-  StoreAndUpdateYieldCount(node, old_yield_count);
+  node->set_yield_count(yield_count_ - node->first_yield_id());
 }
 
 

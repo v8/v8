@@ -210,7 +210,6 @@ class BytecodeGenerator final : public AstVisitor {
   RegisterAllocationScope* register_allocator_;
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;
-  size_t generator_yields_seen_;
   int try_catch_nesting_level_;
   int try_finally_nesting_level_;
 };
