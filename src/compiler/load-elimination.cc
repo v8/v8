@@ -34,8 +34,9 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
        effect = NodeProperties::GetEffectInput(effect)) {
     switch (effect->opcode()) {
       case IrOpcode::kLoadField: {
+        FieldAccess const effect_access = FieldAccessOf(effect->op());
         if (object == NodeProperties::GetValueInput(effect, 0) &&
-            access == FieldAccessOf(effect->op())) {
+            access == effect_access && effect_access.type->Is(access.type)) {
           Node* const value = effect;
           ReplaceWithValue(node, value);
           return Replace(value);
