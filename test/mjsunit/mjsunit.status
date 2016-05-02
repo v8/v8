@@ -449,12 +449,6 @@
   # TODO(oth,4680): failures from the bots.
   'ignition/elided-instruction': [PASS, NO_IGNITION],
   'regress/regress-269': [PASS, NO_IGNITION],
-
-   # TODO(yangguo,4961): issues with the compiler pipeline.
-  'es6/typedarray-copywithin': [PASS, NO_IGNITION],
-  'es6/block-conflicts': [PASS, NO_IGNITION],
-  'es6/block-conflicts-sloppy': [PASS, NO_IGNITION],
-  'mul-exhaustive-part10': [PASS, NO_IGNITION],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -951,11 +945,6 @@
   # TODO(oth,4680): failures from the bots.
   'ignition/elided-instruction': [SKIP],
   'regress/regress-269': [SKIP],
-   # TODO(yangguo,4961): issues with the compiler pipeline.
-  'es6/typedarray-copywithin': [SKIP],
-  'es6/block-conflicts': [SKIP],
-  'es6/block-conflicts-sloppy': [SKIP],
-  'mul-exhaustive-part10': [SKIP],
 }],  # (ignition or ignition_turbofan) and gc_stress == True
 
 ['ignition == False and ignition_turbofan == False', {
