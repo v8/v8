@@ -139,7 +139,7 @@ struct InlinedFunctionInfo {
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
-class CompilationInfo {
+class CompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
@@ -167,7 +167,7 @@ class CompilationInfo {
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
-  virtual ~CompilationInfo();
+  ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
 
@@ -573,7 +573,6 @@ class CompilationInfo {
 // as well. When failing we distinguish between the following levels:
 //  a) AbortOptimization: Persistent failure, disable future optimization.
 //  b) RetryOptimzation: Transient failure, try again next time.
-// TODO(mstarzinger): Make CompilationInfo base embedded.
 class CompilationJob {
  public:
   explicit CompilationJob(CompilationInfo* info, const char* compiler_name)

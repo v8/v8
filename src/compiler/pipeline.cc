@@ -65,6 +65,7 @@
 #include "src/compiler/zone-pool.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
+#include "src/parsing/parser.h"
 #include "src/register-configuration.h"
 #include "src/type-info.h"
 #include "src/utils.h"
@@ -502,13 +503,18 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  explicit PipelineCompilationJob(CompilationInfo* info)
-      : CompilationJob(info, "TurboFan"),
-        zone_pool_(info->isolate()->allocator()),
-        pipeline_statistics_(CreatePipelineStatistics(info, &zone_pool_)),
-        data_(&zone_pool_, info, pipeline_statistics_.get()),
+  PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
+      // Note that the CompilationInfo is not initialized at the time we pass it
+      // to the CompilationJob constructor, but it is not dereferenced there.
+      : CompilationJob(&info_, "TurboFan"),
+        zone_(isolate->allocator()),
+        zone_pool_(isolate->allocator()),
+        parse_info_(&zone_, function),
+        info_(&parse_info_, function),
+        pipeline_statistics_(CreatePipelineStatistics(info(), &zone_pool_)),
+        data_(&zone_pool_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
-        linkage_(Linkage::ComputeIncoming(info->zone(), info)) {}
+        linkage_(nullptr) {}
 
  protected:
   Status CreateGraphImpl() final;
@@ -516,11 +522,14 @@ class PipelineCompilationJob final : public CompilationJob {
   Status GenerateCodeImpl() final;
 
  private:
+  Zone zone_;
   ZonePool zone_pool_;
+  ParseInfo parse_info_;
+  CompilationInfo info_;
   base::SmartPointer<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   Pipeline pipeline_;
-  Linkage linkage_;
+  Linkage* linkage_;
 };
 
 PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
@@ -542,6 +551,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
+  linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
+
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
     return AbortOptimization(kGraphBuildingFailed);
@@ -551,12 +562,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::OptimizeGraphImpl() {
-  if (!pipeline_.OptimizeGraph(&linkage_)) return FAILED;
+  if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
   return SUCCEEDED;
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
-  Handle<Code> code = pipeline_.GenerateCode(&linkage_);
+  Handle<Code> code = pipeline_.GenerateCode(linkage_);
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
@@ -1523,8 +1534,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(CompilationInfo* info) {
-  return new PipelineCompilationJob(info);
+CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
+  return new PipelineCompilationJob(function->GetIsolate(), function);
 }
 
 // static

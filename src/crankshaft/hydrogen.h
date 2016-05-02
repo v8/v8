@@ -13,6 +13,7 @@
 #include "src/compiler.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
+#include "src/parsing/parser.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -32,8 +33,13 @@ class LiveRange;
 
 class HCompilationJob final : public CompilationJob {
  public:
-  explicit HCompilationJob(CompilationInfo* info)
-      : CompilationJob(info, "Crankshaft"), graph_(nullptr), chunk_(nullptr) {}
+  explicit HCompilationJob(Handle<JSFunction> function)
+      : CompilationJob(&info_, "Crankshaft"),
+        zone_(function->GetIsolate()->allocator()),
+        parse_info_(&zone_, function),
+        info_(&parse_info_, function),
+        graph_(nullptr),
+        chunk_(nullptr) {}
 
  protected:
   virtual Status CreateGraphImpl();
@@ -41,6 +47,9 @@ class HCompilationJob final : public CompilationJob {
   virtual Status GenerateCodeImpl();
 
  private:
+  Zone zone_;
+  ParseInfo parse_info_;
+  CompilationInfo info_;
   HGraph* graph_;
   LChunk* chunk_;
 };

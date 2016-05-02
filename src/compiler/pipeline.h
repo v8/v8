@@ -72,8 +72,8 @@ class Pipeline {
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
 
-  // Returns a new compilation job for the given compilation info.
-  static CompilationJob* NewCompilationJob(CompilationInfo* info);
+  // Returns a new compilation job for the given function.
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static CompilationJob* NewWasmCompilationJob(

@@ -16,14 +16,11 @@ namespace internal {
 namespace {
 
 void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
-  // The recompile job is allocated in the CompilationInfo's zone.
-  CompilationInfo* info = job->info();
   if (restore_function_code) {
-    Handle<JSFunction> function = info->closure();
+    Handle<JSFunction> function = job->info()->closure();
     function->ReplaceCode(function->shared()->code());
   }
   delete job;
-  delete info;
 }
 
 }  // namespace

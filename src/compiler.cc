@@ -77,28 +77,6 @@ class CompilationHandleScope BASE_EMBEDDED {
   CompilationInfo* info_;
 };
 
-// Exactly like a CompilationInfo, except being allocated via {new} and it also
-// creates and enters a Zone on construction and deallocates it on destruction.
-class CompilationInfoWithZone : public CompilationInfo {
- public:
-  explicit CompilationInfoWithZone(Handle<JSFunction> function)
-      : CompilationInfo(new ParseInfo(&zone_, function), function),
-        zone_(function->GetIsolate()->allocator()) {}
-
-  // Virtual destructor because a CompilationInfoWithZone has to exit the
-  // zone scope and get rid of dependent maps even when the destructor is
-  // called when cast as a CompilationInfo.
-  virtual ~CompilationInfoWithZone() {
-    DisableFutureOptimization();
-    dependencies()->Rollback();
-    delete parse_info_;
-    parse_info_ = nullptr;
-  }
-
- private:
-  Zone zone_;
-};
-
 // Helper that times a scoped region and records the elapsed time.
 struct ScopedTimer {
   explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
@@ -168,12 +146,8 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
 
 CompilationInfo::~CompilationInfo() {
   DisableFutureOptimization();
+  dependencies()->Rollback();
   delete deferred_handles_;
-#ifdef DEBUG
-  // Check that no dependent maps have been added or added dependent maps have
-  // been rolled back or committed.
-  DCHECK(dependencies()->IsEmpty());
-#endif  // DEBUG
 }
 
 
@@ -669,15 +643,14 @@ bool Renumber(ParseInfo* parse_info) {
   return true;
 }
 
-bool UseTurboFan(CompilationInfo* info) {
-  bool optimization_disabled = info->shared_info()->optimization_disabled();
-  bool dont_crankshaft = info->shared_info()->dont_crankshaft();
+bool UseTurboFan(Handle<SharedFunctionInfo> shared, BailoutId osr_ast_id) {
+  bool optimization_disabled = shared->optimization_disabled();
+  bool dont_crankshaft = shared->dont_crankshaft();
 
   // Check the enabling conditions for Turbofan.
   // 1. "use asm" code.
-  bool is_turbofanable_asm = FLAG_turbo_asm &&
-                             info->shared_info()->asm_function() &&
-                             !optimization_disabled;
+  bool is_turbofanable_asm =
+      FLAG_turbo_asm && shared->asm_function() && !optimization_disabled;
 
   // 2. Fallback for features unsupported by Crankshaft.
   bool is_unsupported_by_crankshaft_but_turbofanable =
@@ -685,11 +658,10 @@ bool UseTurboFan(CompilationInfo* info) {
       !optimization_disabled;
 
   // 3. Explicitly enabled by the command-line filter.
-  bool passes_turbo_filter =
-      info->shared_info()->PassesFilter(FLAG_turbo_filter);
+  bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
 
   // If this is OSR request, OSR must be enabled by Turbofan.
-  bool passes_osr_test = FLAG_turbo_osr || !info->is_osr();
+  bool passes_osr_test = FLAG_turbo_osr || osr_ast_id.IsNone();
 
   return (is_turbofanable_asm ||
           is_unsupported_by_crankshaft_but_turbofanable ||
@@ -800,11 +772,14 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  base::SmartPointer<CompilationInfo> info(
-      new CompilationInfoWithZone(function));
   VMState<COMPILER> state(isolate);
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
+  bool use_turbofan = UseTurboFan(shared, osr_ast_id);
+  base::SmartPointer<CompilationJob> job(
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
+                   : new HCompilationJob(function));
+  CompilationInfo* info = job->info();
 
   info->SetOptimizingForOsr(osr_ast_id);
 
@@ -833,12 +808,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   TRACE_EVENT0("v8", "V8.OptimizeCode");
 
-  bool use_turbofan = UseTurboFan(info.get());
-  base::SmartPointer<CompilationJob> job(
-      use_turbofan ? compiler::Pipeline::NewCompilationJob(info.get())
-                   : new HCompilationJob(info.get()));
-
-  // TruboFan can optimize directly from existing bytecode.
+  // TurboFan can optimize directly from existing bytecode.
   if (FLAG_turbo_from_bytecode && use_turbofan &&
       info->shared_info()->HasBytecodeArray()) {
     info->MarkAsOptimizeFromBytecode();
@@ -846,7 +816,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(job.get())) {
-      info.Detach();  // The background recompile job owns this now.
       job.Detach();   // The background recompile job owns this now.
       return isolate->builtins()->InOptimizationQueue();
     }
@@ -1755,10 +1724,10 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
   return GetOptimizedCode(function, NOT_CONCURRENT, osr_ast_id, osr_frame);
 }
 
-void Compiler::FinalizeCompilationJob(CompilationJob* job) {
-  // Take ownership of compilation info.  Deleting compilation info
-  // also tears down the zone.
-  base::SmartPointer<CompilationInfo> info(job->info());
+void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
+  // Take ownership of compilation job.  Deleting job also tears down the zone.
+  base::SmartPointer<CompilationJob> job(raw_job);
+  CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
   VMState<COMPILER> state(isolate);
@@ -1782,10 +1751,10 @@ void Compiler::FinalizeCompilationJob(CompilationJob* job) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->GenerateCode() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizationStats();
-      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get());
+      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
                                          info->osr_ast_id()).code == nullptr) {
-        InsertCodeIntoOptimizedCodeMap(info.get());
+        InsertCodeIntoOptimizedCodeMap(info);
       }
       if (FLAG_trace_opt) {
         PrintF("[completed optimizing ");
@@ -1793,7 +1762,6 @@ void Compiler::FinalizeCompilationJob(CompilationJob* job) {
         PrintF("]\n");
       }
       info->closure()->ReplaceCode(*info->code());
-      delete job;
       return;
     }
   }
@@ -1805,7 +1773,6 @@ void Compiler::FinalizeCompilationJob(CompilationJob* job) {
     PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
   info->closure()->ReplaceCode(shared->code());
-  delete job;
 }
 
 void Compiler::PostInstantiation(Handle<JSFunction> function,
