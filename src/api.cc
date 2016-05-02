@@ -7522,7 +7522,16 @@ bool Isolate::GetHeapObjectStatisticsAtLastGC(
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::TickSample::GetStackSample(isolate, state, i::TickSample::kSkipCEntryFrame,
+#if defined(USE_SIMULATOR)
+  RegisterState regs;
+  regs.pc = state.pc;
+  regs.sp = state.sp;
+  regs.fp = state.fp;
+  i::SimulatorHelper::FillRegisters(isolate, &regs);
+#else
+  const RegisterState& regs = state;
+#endif
+  i::TickSample::GetStackSample(isolate, regs, i::TickSample::kSkipCEntryFrame,
                                 frames, frames_limit, sample_info);
 }
 

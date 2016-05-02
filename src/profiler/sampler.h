@@ -141,6 +141,16 @@ class Sampler {
 };
 
 
+#if defined(USE_SIMULATOR)
+class SimulatorHelper : AllStatic {
+ public:
+  // Returns true if register values were successfully retrieved
+  // from the simulator, otherwise returns false.
+  static bool FillRegisters(Isolate* isolate, v8::RegisterState* state);
+};
+#endif  // USE_SIMULATOR
+
+
 }  // namespace internal
 }  // namespace v8
 

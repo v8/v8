@@ -332,71 +332,57 @@ class Sampler::PlatformData : public PlatformDataCommon {
 
 
 #if defined(USE_SIMULATOR)
-class SimulatorHelper {
- public:
-  inline bool Init(Isolate* isolate) {
-    simulator_ = isolate->thread_local_top()->simulator_;
-    // Check if there is active simulator.
-    return simulator_ != NULL;
-  }
-
-  inline void FillRegisters(v8::RegisterState* state) {
+bool SimulatorHelper::FillRegisters(Isolate* isolate,
+                                    v8::RegisterState* state) {
+  Simulator *simulator = isolate->thread_local_top()->simulator_;
+  // Check if there is active simulator.
+  if (simulator == NULL) return false;
 #if V8_TARGET_ARCH_ARM
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::sp));
-    state->fp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::r11));
-#elif V8_TARGET_ARCH_ARM64
-    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
-      // It's possible that the simulator is interrupted while it is updating
-      // the sp or fp register. ARM64 simulator does this in two steps:
-      // first setting it to zero and then setting it to a new value.
-      // Bailout if sp/fp doesn't contain the new value.
-      //
-      // FIXME: The above doesn't really solve the issue.
-      // If a 64-bit target is executed on a 32-bit host even the final
-      // write is non-atomic, so it might obtain a half of the result.
-      // Moreover as long as the register set code uses memcpy (as of now),
-      // it is not guaranteed to be atomic even when both host and target
-      // are of same bitness.
-      return;
-    }
-    state->pc = reinterpret_cast<Address>(simulator_->pc());
-    state->sp = reinterpret_cast<Address>(simulator_->sp());
-    state->fp = reinterpret_cast<Address>(simulator_->fp());
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::sp));
-    state->fp = reinterpret_cast<Address>(simulator_->get_register(
-        Simulator::fp));
-#elif V8_TARGET_ARCH_PPC
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
-    state->fp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
-#elif V8_TARGET_ARCH_S390
-    if (!simulator_->has_bad_pc()) {
-      state->pc = reinterpret_cast<Address>(simulator_->get_pc());
-    }
-    state->sp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::sp));
-    state->fp =
-        reinterpret_cast<Address>(simulator_->get_register(Simulator::fp));
-#endif
+  if (!simulator->has_bad_pc()) {
+    state->pc = reinterpret_cast<Address>(simulator->get_pc());
   }
-
- private:
-  Simulator* simulator_;
-};
+  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<Address>(simulator->get_register(
+      Simulator::r11));
+#elif V8_TARGET_ARCH_ARM64
+  state->pc = reinterpret_cast<Address>(simulator->pc());
+  state->sp = reinterpret_cast<Address>(simulator->sp());
+  state->fp = reinterpret_cast<Address>(simulator->fp());
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  if (!simulator->has_bad_pc()) {
+    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+  }
+  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+#elif V8_TARGET_ARCH_PPC
+  if (!simulator->has_bad_pc()) {
+    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+  }
+  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+#elif V8_TARGET_ARCH_S390
+  if (!simulator->has_bad_pc()) {
+    state->pc = reinterpret_cast<Address>(simulator->get_pc());
+  }
+  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+#endif
+  if (state->sp == 0 || state->fp == 0) {
+    // It possible that the simulator is interrupted while it is updating
+    // the sp or fp register. ARM64 simulator does this in two steps:
+    // first setting it to zero and then setting it to the new value.
+    // Bailout if sp/fp doesn't contain the new value.
+    //
+    // FIXME: The above doesn't really solve the issue.
+    // If a 64-bit target is executed on a 32-bit host even the final
+    // write is non-atomic, so it might obtain a half of the result.
+    // Moreover as long as the register set code uses memcpy (as of now),
+    // it is not guaranteed to be atomic even when both host and target
+    // are of same bitness.
+    return false;
+  }
+  return true;
+}
 #endif  // USE_SIMULATOR
 
 
@@ -487,14 +473,7 @@ void SignalHandler::CollectSample(void* context, Sampler* sampler) {
   v8::RegisterState state;
 
 #if defined(USE_SIMULATOR)
-  SimulatorHelper helper;
-  if (!helper.Init(isolate)) return;
-  helper.FillRegisters(&state);
-  // It possible that the simulator is interrupted while it is updating
-  // the sp or fp register. ARM64 simulator does this in two steps:
-  // first setting it to zero and then setting it to the new value.
-  // Bailout if sp/fp doesn't contain the new value.
-  if (state.sp == 0 || state.fp == 0) return;
+  if (!SimulatorHelper::FillRegisters(isolate, &state)) return;
 #else
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -1023,11 +1002,6 @@ void Sampler::DoSample() {
   HANDLE profiled_thread = platform_data()->profiled_thread();
   if (profiled_thread == NULL) return;
 
-#if defined(USE_SIMULATOR)
-  SimulatorHelper helper;
-  if (!helper.Init(isolate())) return;
-#endif
-
   const DWORD kSuspendFailed = static_cast<DWORD>(-1);
   if (SuspendThread(profiled_thread) == kSuspendFailed) return;
 
@@ -1038,7 +1012,10 @@ void Sampler::DoSample() {
   if (GetThreadContext(profiled_thread, &context) != 0) {
     v8::RegisterState state;
 #if defined(USE_SIMULATOR)
-    helper.FillRegisters(&state);
+    if (!SimulatorHelper::FillRegisters(isolate(), &state)) {
+      ResumeThread(profiled_thread);
+      return;
+    }
 #else
 #if V8_HOST_ARCH_X64
     state.pc = reinterpret_cast<Address>(context.Rip);
