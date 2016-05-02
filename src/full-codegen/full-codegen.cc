@@ -678,11 +678,15 @@ void FullCodeGenerator::SetCallPosition(Expression* expr,
 void FullCodeGenerator::VisitSuperPropertyReference(
     SuperPropertyReference* super) {
   __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
+  // Even though this expression doesn't produce a value, we need to simulate
+  // plugging of the value context to ensure stack depth tracking is in sync.
+  if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
 
 void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
+  // Handled by VisitCall
+  UNREACHABLE();
 }
 
 
