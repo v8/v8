@@ -2734,6 +2734,40 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+// static
+void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r4 : requested object size (untagged)
+  //  -- lr : return address
+  // -----------------------------------
+  Label runtime;
+  __ Allocate(r4, r3, r5, r6, &runtime, NO_ALLOCATION_FLAGS);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ SmiTag(r4);
+  __ Push(r4);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ TailCallRuntime(Runtime::kAllocateInNewSpace);
+}
+
+// static
+void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r4 : requested object size (untagged)
+  //  -- lr : return address
+  // -----------------------------------
+  Label runtime;
+  __ Allocate(r4, r3, r5, r6, &runtime, PRETENURE);
+  __ Ret();
+
+  __ bind(&runtime);
+  __ SmiTag(r4);
+  __ LoadSmiLiteral(r5, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
+  __ Push(r4, r5);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
+}
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
