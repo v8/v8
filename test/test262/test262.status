@@ -180,15 +180,6 @@
   'built-ins/DataView/prototype/setUint8/index-check-before-value-conversion': [FAIL],
   'built-ins/DataView/prototype/setInt8/index-check-before-value-conversion': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4706
-  'language/statements/class/subclass/builtin-objects/NativeError/EvalError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/NativeError/RangeError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/NativeError/ReferenceError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/NativeError/SyntaxError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/NativeError/TypeError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/NativeError/URIError-message': [FAIL],
-  'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
-
   # https://code.google.com/p/chromium/issues/detail?id=581577
   'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
@@ -203,6 +194,149 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4890
+  'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4901
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
+  'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4895
+  'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
+  # Some TypedArray methods throw due to the same bug, from Get
+  'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/forEach/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4648
+  'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/entries/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/find/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/findIndex/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/forEach/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/includes/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/indexOf/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/join/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/keys/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/set/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/slice/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/some/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/sort/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
+  'built-ins/TypedArray/prototype/values/detached-buffer': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4925
+  'built-ins/ThrowTypeError/forbidden-arguments': [FAIL],
+  'built-ins/ThrowTypeError/forbidden-caller': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4034
+  'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4902
+  'built-ins/TypedArray/prototype/byteLength/prop-desc': [FAIL],
+  'built-ins/TypedArray/prototype/byteOffset/prop-desc': [FAIL],
+  'built-ins/TypedArray/prototype/copyWithin/get-length-ignores-length-prop': [FAIL],
+  'built-ins/TypedArray/prototype/every/get-length-ignores-length-prop': [FAIL],
+  'built-ins/TypedArray/prototype/every/get-length-uses-internal-arraylength': [FAIL],
+  'built-ins/TypedArray/prototype/fill/get-length-ignores-length-prop': [FAIL],
+  'built-ins/TypedArray/prototype/find/get-length-ignores-length-prop': [FAIL],
+  'built-ins/TypedArray/prototype/findIndex/get-length-ignores-length-prop': [FAIL],
+  'built-ins/TypedArray/prototype/indexOf/get-length-uses-internal-arraylength': [FAIL],
+  'built-ins/TypedArray/prototype/lastIndexOf/get-length-uses-internal-arraylength': [FAIL],
+  'built-ins/TypedArray/prototype/length/prop-desc': [FAIL],
+  'built-ins/TypedArray/prototype/some/get-length-uses-internal-arraylength': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4231
+  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
+  'language/statements/try/early-catch-lex': [FAIL],
+  'language/statements/try/early-catch-var': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4951
+  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close-null': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-iter-thrw-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-iter-thrw-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-thrw-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-thrw-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-thrw-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-thrw-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close-null': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-iter-thrw-close': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-iter-thrw-close-err': [FAIL],
+  'language/expressions/assignment/destructuring/array-rest-lref-err': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=896
+  'language/literals/regexp/early-err-pattern': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4468
+  'language/eval-code/direct/non-definable-function-with-function': [FAIL],
+  'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
+  'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
+  'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4955
+  'language/eval-code/direct/var-env-global-lex-non-strict': [FAIL],
+  'language/eval-code/direct/var-env-lower-lex-non-strict': [FAIL],
+  'language/eval-code/indirect/var-env-global-lex-non-strict': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4124
+  'built-ins/Simd/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4958
+  'built-ins/Function/prototype/toString/Function': [FAIL],
+  'built-ins/Function/prototype/toString/GeneratorFunction': [FAIL],
+  'built-ins/Function/prototype/toString/function-declaration': [FAIL],
+  'built-ins/Function/prototype/toString/function-declaration-non-simple-parameter-list': [FAIL],
+  'built-ins/Function/prototype/toString/function-expression': [FAIL],
+  'built-ins/Function/prototype/toString/generator-function-declaration': [FAIL],
+  'built-ins/Function/prototype/toString/generator-function-expression': [FAIL],
+  'built-ins/Function/prototype/toString/generator-method': [FAIL],
+  'built-ins/Function/prototype/toString/getter-class': [FAIL],
+  'built-ins/Function/prototype/toString/getter-class-static': [FAIL],
+  'built-ins/Function/prototype/toString/getter-object': [FAIL],
+  'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [FAIL],
+  'built-ins/Function/prototype/toString/line-terminator-normalisation-CR-LF': [FAIL],
+  'built-ins/Function/prototype/toString/line-terminator-normalisation-LF': [FAIL],
+  'built-ins/Function/prototype/toString/method-class': [FAIL],
+  'built-ins/Function/prototype/toString/method-class-static': [FAIL],
+  'built-ins/Function/prototype/toString/method-computed-property-name': [FAIL],
+  'built-ins/Function/prototype/toString/method-object': [FAIL],
+  'built-ins/Function/prototype/toString/setter-class': [FAIL],
+  'built-ins/Function/prototype/toString/setter-class-static': [FAIL],
+  'built-ins/Function/prototype/toString/setter-object': [FAIL],
+  'built-ins/Function/prototype/toString/unicode': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -233,36 +367,24 @@
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
 
-  ############################ INVALID TESTS #############################
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4953
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-abrupt': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-inherited': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-ctor-returns-throws': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-abrupt': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-invocation': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-returns-another-instance': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-custom-ctor-throws': [FAIL],
+  'built-ins/TypedArray/prototype/subarray/speciesctor-get-species-returns-throws': [FAIL],
 
-  # The reference value calculated by Test262 is incorrect if you run these
-  # tests in PST/PDT between first Sunday in March and first Sunday in April.
-  # The DST switch was moved in 2007 whereas Test262 bases the reference value
-  # on 2000. Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
-  'built-ins/Date/S15.9.3.1_A5_T1': [PASS, FAIL_OK],
-  'built-ins/Date/S15.9.3.1_A5_T2': [PASS, FAIL_OK],
-  'built-ins/Date/S15.9.3.1_A5_T3': [PASS, FAIL_OK],
-  'built-ins/Date/S15.9.3.1_A5_T4': [PASS, FAIL_OK],
-  'built-ins/Date/S15.9.3.1_A5_T5': [PASS, FAIL_OK],
-  'built-ins/Date/S15.9.3.1_A5_T6': [PASS, FAIL_OK],
+  ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
-
-  # Test bug https://github.com/tc39/test262/issues/518
-  'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
-  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
-  'built-ins/Object/getOwnPropertyDescriptors/symbols-included': [FAIL],
-
-  # Test bug https://github.com/tc39/test262/issues/521
-  'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
-
-  # Test bug https://github.com/tc39/test262/issues/529
-  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
-  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
-  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
-  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
 
   ############################ SKIPPED TESTS #############################
 
