@@ -2037,6 +2037,7 @@ if (current_toolchain == snapshot_toolchain) {
       ":v8_libplatform",
       ":v8_nosnapshot",
       "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
     ]
   }
 }
@@ -2106,6 +2107,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       ":v8",
       ":v8_libplatform",
       "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
     ]
 
     # TODO(jochen): Add support for vtunejit.
