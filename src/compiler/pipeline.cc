@@ -768,6 +768,31 @@ struct TyperPhase {
   }
 };
 
+#ifdef DEBUG
+
+struct UntyperPhase {
+  static const char* phase_name() { return "untyper"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    class RemoveTypeReducer final : public Reducer {
+     public:
+      Reduction Reduce(Node* node) final {
+        if (NodeProperties::IsTyped(node)) {
+          NodeProperties::RemoveType(node);
+          return Changed(node);
+        }
+        return NoChange();
+      }
+    };
+
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    RemoveTypeReducer remove_type_reducer;
+    AddReducer(data, &graph_reducer, &remove_type_reducer);
+    graph_reducer.ReduceGraph();
+  }
+};
+
+#endif  // DEBUG
 
 struct OsrDeconstructionPhase {
   static const char* phase_name() { return "OSR deconstruction"; }
@@ -1313,37 +1338,59 @@ bool Pipeline::CreateGraph() {
     GraphReplayPrinter::PrintReplay(data->graph());
   }
 
-  // Type the graph.
-  Typer typer(isolate(), data->graph(), info()->is_deoptimization_enabled()
-                                            ? Typer::kDeoptimizationEnabled
-                                            : Typer::kNoFlags,
-              info()->dependencies());
-  Run<TyperPhase>(&typer);
-  RunPrintAndVerify("Typed");
+  // Run the type-sensitive lowerings and optimizations on the graph.
+  {
+    // Type the graph and keep the Typer running on newly created nodes within
+    // this scope; the Typer is automatically unlinked from the Graph once we
+    // leave this scope below.
+    Typer typer(isolate(), data->graph(), info()->is_deoptimization_enabled()
+                                              ? Typer::kDeoptimizationEnabled
+                                              : Typer::kNoFlags,
+                info()->dependencies());
+    Run<TyperPhase>(&typer);
+    RunPrintAndVerify("Typed");
 
-  BeginPhaseKind("lowering");
+    BeginPhaseKind("lowering");
 
-  // Lower JSOperators where we can determine types.
-  Run<TypedLoweringPhase>();
-  RunPrintAndVerify("Lowered typed");
+    // Lower JSOperators where we can determine types.
+    Run<TypedLoweringPhase>();
+    RunPrintAndVerify("Lowered typed");
 
-  if (FLAG_turbo_stress_loop_peeling) {
-    Run<StressLoopPeelingPhase>();
-    RunPrintAndVerify("Loop peeled");
+    if (FLAG_turbo_stress_loop_peeling) {
+      Run<StressLoopPeelingPhase>();
+      RunPrintAndVerify("Loop peeled");
+    }
+
+    if (FLAG_experimental_turbo_escape) {
+      Run<EscapeAnalysisPhase>();
+      RunPrintAndVerify("Escape Analysed");
+    }
+
+    // Select representations.
+    Run<RepresentationSelectionPhase>();
+    RunPrintAndVerify("Representations selected");
+
+    // Run early optimization pass.
+    Run<EarlyOptimizationPhase>();
+    RunPrintAndVerify("Early optimized");
   }
 
-  if (FLAG_experimental_turbo_escape) {
-    Run<EscapeAnalysisPhase>();
-    RunPrintAndVerify("Escape Analysed");
-  }
-
-  // Select representations.
-  Run<RepresentationSelectionPhase>();
-  RunPrintAndVerify("Representations selected");
-
-  // Run early optimization pass.
-  Run<EarlyOptimizationPhase>();
-  RunPrintAndVerify("Early optimized");
+#ifdef DEBUG
+  // From now on it is invalid to look at types on the nodes, because:
+  //
+  //  (a) The remaining passes (might) run concurrent to the main thread and
+  //      therefore must not access the Heap or the Isolate in an uncontrolled
+  //      way (as done by the type system), and
+  //  (b) the types on the nodes might not make sense after representation
+  //      selection due to the way we handle truncations; if we'd want to look
+  //      at types afterwards we'd essentially need to re-type (large portions
+  //      of) the graph.
+  //
+  // In order to catch bugs related to type access after this point we remove
+  // the types from the nodes at this point (currently only in Debug builds).
+  Run<UntyperPhase>();
+  RunPrintAndVerify("Untyped", true);
+#endif
 
   EndPhaseKind();
 
