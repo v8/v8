@@ -214,9 +214,6 @@ class MacroAssembler : public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  void InsertDoubleLow(DoubleRegister dst, Register src);
-  void InsertDoubleHigh(DoubleRegister dst, Register src);
-
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
 

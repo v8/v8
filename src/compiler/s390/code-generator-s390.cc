@@ -1302,8 +1302,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kS390_Push:
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         __ lay(sp, MemOperand(sp, -kDoubleSize));
+        __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else {
         __ Push(i.InputRegister(0));
@@ -1312,14 +1312,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_PushFrame: {
       int num_slots = i.InputInt32(1);
+      __ lay(sp, MemOperand(sp, -num_slots * kPointerSize));
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ StoreDouble(i.InputDoubleRegister(0),
-                       MemOperand(sp, -num_slots * kPointerSize));
+                 MemOperand(sp));
       } else {
         __ StoreP(i.InputRegister(0),
-                  MemOperand(sp, -num_slots * kPointerSize));
+                  MemOperand(sp));
       }
-      __ lay(sp, MemOperand(sp, -num_slots * kPointerSize));
       break;
     }
     case kS390_StoreToStackSlot: {
@@ -1494,36 +1494,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ldebr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kS390_DoubleExtractLowWord32:
-      // TODO(john.yan): this can cause problem when interrupting,
-      //                 use freg->greg instruction
-      __ stdy(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
-      __ LoadlW(i.OutputRegister(),
-                MemOperand(sp, -kDoubleSize + Register::kMantissaOffset));
+      __ lgdr(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ llgfr(i.OutputRegister(), i.OutputRegister());
       break;
     case kS390_DoubleExtractHighWord32:
-      // TODO(john.yan): this can cause problem when interrupting,
-      //                 use freg->greg instruction
-      __ stdy(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
-      __ LoadlW(i.OutputRegister(),
-                MemOperand(sp, -kDoubleSize + Register::kExponentOffset));
+      __ lgdr(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ srlg(i.OutputRegister(), i.OutputRegister(), Operand(32));
       break;
     case kS390_DoubleInsertLowWord32:
-      __ InsertDoubleLow(i.OutputDoubleRegister(), i.InputRegister(1));
+      __ lgdr(kScratchReg, i.OutputDoubleRegister());
+      __ lr(kScratchReg, i.InputRegister(1));
+      __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_DoubleInsertHighWord32:
-      __ InsertDoubleHigh(i.OutputDoubleRegister(), i.InputRegister(1));
+      __ sllg(kScratchReg, i.InputRegister(1), Operand(32));
+      __ lgdr(r0, i.OutputDoubleRegister());
+      __ lr(kScratchReg, r0);
+      __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_DoubleConstruct:
-// TODO(john.yan): this can cause problem when interrupting,
-//                 use greg->freg instruction
-#if V8_TARGET_LITTLE_ENDIAN
-      __ StoreW(i.InputRegister(0), MemOperand(sp, -kDoubleSize / 2));
-      __ StoreW(i.InputRegister(1), MemOperand(sp, -kDoubleSize));
-#else
-      __ StoreW(i.InputRegister(1), MemOperand(sp, -kDoubleSize / 2));
-      __ StoreW(i.InputRegister(0), MemOperand(sp, -kDoubleSize));
-#endif
-      __ ldy(i.OutputDoubleRegister(), MemOperand(sp, -kDoubleSize));
+      __ sllg(kScratchReg, i.InputRegister(0), Operand(32));
+      __ lr(kScratchReg, i.InputRegister(1));
+
+      // Bitwise convert from GPR to FPR
+      __ ldgr(i.OutputDoubleRegister(), kScratchReg);
       break;
     case kS390_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(LoadlB);
