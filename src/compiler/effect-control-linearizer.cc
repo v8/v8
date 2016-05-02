@@ -290,12 +290,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
       node->opcode() == IrOpcode::kBeginRegion) {
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-
-    // TODO(jarin) Enable this once we make sure everything with side effects
-    // is marked as effectful.
-    if (false) {
-      return RemoveRegionNode(node);
-    }
+    return RemoveRegionNode(node);
   }
 
   if (node->opcode() == IrOpcode::kIfSuccess) {
@@ -346,6 +341,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
                                                    Node** control) {
   ValueEffectControl state(nullptr, nullptr, nullptr);
   switch (node->opcode()) {
+    case IrOpcode::kChangeBitToTagged:
+      state = LowerChangeBitToTagged(node, *effect, *control);
+      break;
+    case IrOpcode::kChangeInt31ToTaggedSigned:
+      state = LowerChangeInt31ToTaggedSigned(node, *effect, *control);
+      break;
     case IrOpcode::kChangeInt32ToTagged:
       state = LowerChangeInt32ToTagged(node, *effect, *control);
       break;
@@ -354,6 +355,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
       break;
     case IrOpcode::kChangeFloat64ToTagged:
       state = LowerChangeFloat64ToTagged(node, *effect, *control);
+      break;
+    case IrOpcode::kChangeTaggedSignedToInt32:
+      state = LowerChangeTaggedSignedToInt32(node, *effect, *control);
+      break;
+    case IrOpcode::kChangeTaggedToBit:
+      state = LowerChangeTaggedToBit(node, *effect, *control);
       break;
     case IrOpcode::kChangeTaggedToInt32:
       state = LowerChangeTaggedToInt32(node, *effect, *control);
@@ -375,6 +382,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
       break;
     case IrOpcode::kObjectIsReceiver:
       state = LowerObjectIsReceiver(node, *effect, *control);
+      break;
+    case IrOpcode::kObjectIsSmi:
+      state = LowerObjectIsSmi(node, *effect, *control);
       break;
     case IrOpcode::kObjectIsString:
       state = LowerObjectIsString(node, *effect, *control);
@@ -461,6 +471,35 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeBitToTagged(Node* node, Node* effect,
+                                                Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* branch = graph()->NewNode(common()->Branch(), value, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* vtrue = jsgraph()->TrueConstant();
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = jsgraph()->FalseConstant();
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vtrue, vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeInt31ToTaggedSigned(Node* node,
+                                                        Node* effect,
+                                                        Node* control) {
+  Node* value = node->InputAt(0);
+  value = ChangeInt32ToSmi(value);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node, Node* effect,
                                                   Node* control) {
   Node* value = node->InputAt(0);
@@ -518,18 +557,35 @@ EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeTaggedSignedToInt32(Node* node,
+                                                        Node* effect,
+                                                        Node* control) {
+  Node* value = node->InputAt(0);
+  value = ChangeSmiToInt32(value);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeTaggedToBit(Node* node, Node* effect,
+                                                Node* control) {
+  Node* value = node->InputAt(0);
+  value = graph()->NewNode(machine()->WordEqual(), value,
+                           jsgraph()->TrueConstant());
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node, Node* effect,
                                                   Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
-  Node* vtrue =
-      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+  Node* vtrue = ChangeSmiToInt32(value);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
@@ -555,14 +611,13 @@ EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node, Node* effect,
                                                    Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
-  Node* vtrue =
-      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+  Node* vtrue = ChangeSmiToInt32(value);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
@@ -588,7 +643,7 @@ EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                     Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
@@ -596,7 +651,7 @@ EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node, Node* effect,
   Node* etrue = effect;
   Node* vtrue;
   {
-    vtrue = graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+    vtrue = ChangeSmiToInt32(value);
     vtrue = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue);
   }
 
@@ -623,14 +678,13 @@ EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node, Node* effect,
                                                      Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
-  Node* vtrue =
-      graph()->NewNode(simplified()->ChangeTaggedSignedToInt32(), value);
+  Node* vtrue = ChangeSmiToInt32(value);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
@@ -656,7 +710,7 @@ EffectControlLinearizer::LowerObjectIsCallable(Node* node, Node* effect,
                                                Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
@@ -696,7 +750,7 @@ EffectControlLinearizer::LowerObjectIsNumber(Node* node, Node* effect,
                                              Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch = graph()->NewNode(common()->Branch(), check, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -727,7 +781,7 @@ EffectControlLinearizer::LowerObjectIsReceiver(Node* node, Node* effect,
                                                Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
@@ -760,11 +814,19 @@ EffectControlLinearizer::LowerObjectIsReceiver(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerObjectIsSmi(Node* node, Node* effect,
+                                          Node* control) {
+  Node* value = node->InputAt(0);
+  value = ObjectIsSmi(value);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerObjectIsString(Node* node, Node* effect,
                                              Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
@@ -799,7 +861,7 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
                                                    Node* control) {
   Node* value = node->InputAt(0);
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  Node* check = ObjectIsSmi(value);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
@@ -838,7 +900,6 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
                                                      Node* control) {
-  effect = graph()->NewNode(common()->BeginRegion(), effect);
   Node* result = effect = graph()->NewNode(
       simplified()->Allocate(NOT_TENURED),
       jsgraph()->Int32Constant(HeapNumber::kSize), effect, control);
@@ -848,7 +909,6 @@ EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForHeapNumberValue()), result,
       value, effect, control);
-  result = effect = graph()->NewNode(common()->FinishRegion(), result, effect);
   return ValueEffectControl(result, effect, control);
 }
 
@@ -872,6 +932,22 @@ Node* EffectControlLinearizer::ChangeInt32ToFloat64(Node* value) {
 
 Node* EffectControlLinearizer::ChangeUint32ToFloat64(Node* value) {
   return graph()->NewNode(machine()->ChangeUint32ToFloat64(), value);
+}
+
+Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
+  value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
+  if (machine()->Is64()) {
+    value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
+  }
+  return value;
+}
+
+Node* EffectControlLinearizer::ObjectIsSmi(Node* value) {
+  return graph()->NewNode(
+      machine()->WordEqual(),
+      graph()->NewNode(machine()->WordAnd(), value,
+                       jsgraph()->IntPtrConstant(kSmiTagMask)),
+      jsgraph()->IntPtrConstant(kSmiTag));
 }
 
 Node* EffectControlLinearizer::SmiMaxValueConstant() {

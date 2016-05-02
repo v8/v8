@@ -41,12 +41,20 @@ class EffectControlLinearizer {
   };
 
   bool TryWireInStateEffect(Node* node, Node** effect, Node** control);
+  ValueEffectControl LowerChangeBitToTagged(Node* node, Node* effect,
+                                            Node* control);
+  ValueEffectControl LowerChangeInt31ToTaggedSigned(Node* node, Node* effect,
+                                                    Node* control);
   ValueEffectControl LowerChangeInt32ToTagged(Node* node, Node* effect,
                                               Node* control);
   ValueEffectControl LowerChangeUint32ToTagged(Node* node, Node* effect,
                                                Node* control);
   ValueEffectControl LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                 Node* control);
+  ValueEffectControl LowerChangeTaggedSignedToInt32(Node* node, Node* effect,
+                                                    Node* control);
+  ValueEffectControl LowerChangeTaggedToBit(Node* node, Node* effect,
+                                            Node* control);
   ValueEffectControl LowerChangeTaggedToInt32(Node* node, Node* effect,
                                               Node* control);
   ValueEffectControl LowerChangeTaggedToUint32(Node* node, Node* effect,
@@ -61,6 +69,7 @@ class EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerObjectIsReceiver(Node* node, Node* effect,
                                            Node* control);
+  ValueEffectControl LowerObjectIsSmi(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerObjectIsString(Node* node, Node* effect,
                                          Node* control);
   ValueEffectControl LowerObjectIsUndetectable(Node* node, Node* effect,
@@ -72,6 +81,8 @@ class EffectControlLinearizer {
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeInt32ToFloat64(Node* value);
   Node* ChangeUint32ToFloat64(Node* value);
+  Node* ChangeSmiToInt32(Node* value);
+  Node* ObjectIsSmi(Node* value);
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();

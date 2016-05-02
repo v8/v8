@@ -803,7 +803,7 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
-    case IrOpcode::kChangeInt31ToTagged: {
+    case IrOpcode::kChangeInt31ToTaggedSigned: {
       // Signed31 /\ UntaggedInt32 -> Signed31 /\ Tagged
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type* from =Type::Intersect(Type::Signed31(), Type::UntaggedInt32());
@@ -839,7 +839,7 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
-    case IrOpcode::kChangeBoolToBit: {
+    case IrOpcode::kChangeTaggedToBit: {
       // Boolean /\ TaggedPtr -> Boolean /\ UntaggedInt1
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type* from = Type::Intersect(Type::Boolean(), Type::TaggedPtr());
@@ -848,7 +848,7 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
-    case IrOpcode::kChangeBitToBool: {
+    case IrOpcode::kChangeBitToTagged: {
       // Boolean /\ UntaggedInt1 -> Boolean /\ TaggedPtr
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type* from = Type::Intersect(Type::Boolean(), Type::UntaggedInt1());

@@ -105,33 +105,6 @@ class ChangeLoweringCommonTest
   MachineRepresentation WordRepresentation() const final { return GetParam(); }
 };
 
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
-  Node* value = Parameter(Type::Boolean());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeBitToBool(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSelect(MachineRepresentation::kTagged, value,
-                                        IsTrueConstant(), IsFalseConstant()));
-}
-
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
-  Node* value = Parameter(Type::Number());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeBoolToBit(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsWordEqual(value, IsTrueConstant()));
-}
-
-TARGET_TEST_P(ChangeLoweringCommonTest, ChangeInt31ToTagged) {
-  Node* value = Parameter(Type::SignedSmall());
-  Reduction r =
-      Reduce(graph()->NewNode(simplified()->ChangeInt31ToTagged(), value));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsChangeInt32ToSmi(value));
-}
-
 TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
   FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                         Handle<Name>::null(), Type::Any(),

@@ -200,12 +200,12 @@
   V(ChangeTaggedToInt32)           \
   V(ChangeTaggedToUint32)          \
   V(ChangeTaggedToFloat64)         \
-  V(ChangeInt31ToTagged)           \
+  V(ChangeInt31ToTaggedSigned)     \
   V(ChangeInt32ToTagged)           \
   V(ChangeUint32ToTagged)          \
   V(ChangeFloat64ToTagged)         \
-  V(ChangeBoolToBit)               \
-  V(ChangeBitToBool)               \
+  V(ChangeTaggedToBit)             \
+  V(ChangeBitToTagged)             \
   V(TruncateTaggedToWord32)        \
   V(Allocate)                      \
   V(LoadField)                     \

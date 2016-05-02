@@ -439,13 +439,14 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
 
 
 TEST(SingleChanges) {
-  CheckChange(IrOpcode::kChangeBoolToBit, MachineRepresentation::kTagged,
+  CheckChange(IrOpcode::kChangeTaggedToBit, MachineRepresentation::kTagged,
               Type::None(), MachineRepresentation::kBit);
-  CheckChange(IrOpcode::kChangeBitToBool, MachineRepresentation::kBit,
+  CheckChange(IrOpcode::kChangeBitToTagged, MachineRepresentation::kBit,
               Type::None(), MachineRepresentation::kTagged);
 
-  CheckChange(IrOpcode::kChangeInt31ToTagged, MachineRepresentation::kWord32,
-              Type::Signed31(), MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeInt31ToTaggedSigned,
+              MachineRepresentation::kWord32, Type::Signed31(),
+              MachineRepresentation::kTagged);
   CheckChange(IrOpcode::kChangeInt32ToTagged, MachineRepresentation::kWord32,
               Type::Signed32(), MachineRepresentation::kTagged);
   CheckChange(IrOpcode::kChangeUint32ToTagged, MachineRepresentation::kWord32,
@@ -453,7 +454,7 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeFloat64ToTagged, MachineRepresentation::kFloat64,
               Type::Number(), MachineRepresentation::kTagged);
   CheckTwoChanges(IrOpcode::kChangeFloat64ToInt32,
-                  IrOpcode::kChangeInt31ToTagged,
+                  IrOpcode::kChangeInt31ToTaggedSigned,
                   MachineRepresentation::kFloat64, Type::Signed31(),
                   MachineRepresentation::kTagged);
   CheckTwoChanges(IrOpcode::kChangeFloat64ToInt32,
