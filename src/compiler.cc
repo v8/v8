@@ -859,7 +859,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   return MaybeHandle<Code>();
 }
 
-class InterpreterActivationsFinder : public ThreadVisitor {
+class InterpreterActivationsFinder : public ThreadVisitor,
+                                     public OptimizedFunctionVisitor {
  public:
   SharedFunctionInfo* shared_;
   bool has_activations_;
@@ -875,12 +876,25 @@ class InterpreterActivationsFinder : public ThreadVisitor {
       if (frame->function()->shared() == shared_) has_activations_ = true;
     }
   }
+
+  void VisitFunction(JSFunction* function) {
+    if (function->Inlines(shared_)) has_activations_ = true;
+  }
+
+  void EnterContext(Context* context) {}
+  void LeaveContext(Context* context) {}
 };
 
 bool HasInterpreterActivations(Isolate* isolate, SharedFunctionInfo* shared) {
   InterpreterActivationsFinder activations_finder(shared);
   activations_finder.VisitThread(isolate, isolate->thread_local_top());
   isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
+  if (FLAG_turbo_from_bytecode) {
+    // If we are able to optimize functions directly from bytecode, then there
+    // might be optimized functions that rely on bytecode being around. We need
+    // to prevent switching the given function to baseline code in those cases.
+    Deoptimizer::VisitAllOptimizedFunctions(isolate, &activations_finder);
+  }
   return activations_finder.has_activations_;
 }
 
@@ -1327,15 +1341,20 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  if (shared->HasBytecodeArray() &&
-      HasInterpreterActivations(info->isolate(), *shared)) {
-    // Do not tier up from here if we have bytecode on the stack.
-    return false;
-  }
   if (!shared->has_deoptimization_support()) {
     Zone zone(info->isolate()->allocator());
     CompilationInfo unoptimized(info->parse_info(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
+    // TODO(4280): For now we disable switching to baseline code in the presence
+    // of interpreter activations of the given function. The reasons are:
+    //  1) The debugger assumes each function is either full-code or bytecode.
+    //  2) The underlying bytecode is cleared below, breaking stack unwinding.
+    // The expensive check for activations only needs to be done when the given
+    // function has bytecode, otherwise we can be sure there are no activations.
+    if (shared->HasBytecodeArray() &&
+        HasInterpreterActivations(info->isolate(), *shared)) {
+      return false;
+    }
     // If the current code has reloc info for serialization, also include
     // reloc info for serialization for the new code, so that deopt support
     // can be added without losing IC state.
@@ -1346,13 +1365,19 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     EnsureFeedbackVector(&unoptimized);
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
-    shared->EnableDeoptimizationSupport(*unoptimized.code());
+    // TODO(4280): For now we play it safe and remove the bytecode array when we
+    // switch to baseline code. We might consider keeping around the bytecode so
+    // that it can be used as the "source of truth" eventually.
+    shared->ClearBytecodeArray();
 
     // The scope info might not have been set if a lazily compiled
     // function is inlined before being called for the first time.
     if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
       InstallSharedScopeInfo(info, shared);
     }
+
+    // Install compilation result on the shared function info
+    shared->EnableDeoptimizationSupport(*unoptimized.code());
 
     // The existing unoptimized code was replaced with the new one.
     RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized);
