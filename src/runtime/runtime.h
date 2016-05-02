@@ -284,7 +284,7 @@ namespace internal {
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowGeneratorRunning, 0, 1)                    \
   F(ThrowStackOverflow, 0, 1)                       \
-  F(ThrowWasmError, 1, 1)                           \
+  F(ThrowWasmError, 2, 1)                           \
   F(PromiseRejectEvent, 3, 1)                       \
   F(PromiseRevokeReject, 1, 1)                      \
   F(StackGuard, 0, 1)                               \

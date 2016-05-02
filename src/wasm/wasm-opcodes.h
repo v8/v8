@@ -51,6 +51,9 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
 typedef Vector<const char> WasmName;
 
+typedef int WasmCodePosition;
+const WasmCodePosition kNoCodePosition = -1;
+
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
   V(Nop, 0x00, _)                 \

@@ -98,10 +98,13 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewError(static_cast<MessageTemplate::Template>(message_id)));
+  CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
+  USE(byte_offset);  // TODO(clemensh): patch the stack trace with this offset
+  Handle<Object> error = isolate->factory()->NewError(
+      static_cast<MessageTemplate::Template>(message_id));
+  return isolate->Throw(*error);
 }
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {

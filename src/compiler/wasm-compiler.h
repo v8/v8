@@ -99,12 +99,14 @@ class WasmGraphBuilder {
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
   Node* Constant(Handle<Object> value);
-  Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right);
-  Node* Unop(wasm::WasmOpcode opcode, Node* input);
+  Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
+              wasm::WasmCodePosition position = wasm::kNoCodePosition);
+  Node* Unop(wasm::WasmOpcode opcode, Node* input,
+             wasm::WasmCodePosition position = wasm::kNoCodePosition);
   unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   void AppendToMerge(Node* merge, Node* from);
-  void AppendToPhi(Node* merge, Node* phi, Node* from);
+  void AppendToPhi(Node* phi, Node* from);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
@@ -115,11 +117,14 @@ class WasmGraphBuilder {
   Node* IfDefault(Node* sw);
   Node* Return(unsigned count, Node** vals);
   Node* ReturnVoid();
-  Node* Unreachable();
+  Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Node** args);
-  Node* CallImport(uint32_t index, Node** args);
-  Node* CallIndirect(uint32_t index, Node** args);
+  Node* CallDirect(uint32_t index, Node** args,
+                   wasm::WasmCodePosition position);
+  Node* CallImport(uint32_t index, Node** args,
+                   wasm::WasmCodePosition position);
+  Node* CallIndirect(uint32_t index, Node** args,
+                     wasm::WasmCodePosition position);
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSFunction> function,
                             wasm::FunctionSig* sig);
@@ -136,8 +141,9 @@ class WasmGraphBuilder {
   Node* LoadGlobal(uint32_t index);
   Node* StoreGlobal(uint32_t index, Node* val);
   Node* LoadMem(wasm::LocalType type, MachineType memtype, Node* index,
-                uint32_t offset);
-  Node* StoreMem(MachineType type, Node* index, uint32_t offset, Node* val);
+                uint32_t offset, wasm::WasmCodePosition position);
+  Node* StoreMem(MachineType type, Node* index, uint32_t offset, Node* val,
+                 wasm::WasmCodePosition position);
 
   static void PrintDebugName(Node* node);
 
@@ -154,7 +160,7 @@ class WasmGraphBuilder {
 
   void Int64LoweringForTesting();
 
-  void SetSourcePosition(Node* node, int position);
+  void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
  private:
   static const int kDefaultBufferSize = 16;
@@ -184,13 +190,15 @@ class WasmGraphBuilder {
 
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
-  void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset);
+  void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
+                      wasm::WasmCodePosition position);
 
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
 
   Node* BuildCCall(MachineSignature* sig, Node** args);
-  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
+  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args,
+                      wasm::WasmCodePosition position);
 
   Node* BuildF32Neg(Node* input);
   Node* BuildF64Neg(Node* input);
@@ -200,10 +208,10 @@ class WasmGraphBuilder {
   Node* BuildF32Max(Node* left, Node* right);
   Node* BuildF64Min(Node* left, Node* right);
   Node* BuildF64Max(Node* left, Node* right);
-  Node* BuildI32SConvertF32(Node* input);
-  Node* BuildI32SConvertF64(Node* input);
-  Node* BuildI32UConvertF32(Node* input);
-  Node* BuildI32UConvertF64(Node* input);
+  Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI32UConvertF64(Node* input, wasm::WasmCodePosition position);
   Node* BuildI32Ctz(Node* input);
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
@@ -248,23 +256,24 @@ class WasmGraphBuilder {
   Node* BuildFloatToIntConversionInstruction(
       Node* input, ExternalReference ref,
       MachineRepresentation parameter_representation,
-      const MachineType result_type);
-  Node* BuildI64SConvertF32(Node* input);
-  Node* BuildI64UConvertF32(Node* input);
-  Node* BuildI64SConvertF64(Node* input);
-  Node* BuildI64UConvertF64(Node* input);
+      const MachineType result_type, wasm::WasmCodePosition position);
+  Node* BuildI64SConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI64UConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI64SConvertF64(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI64UConvertF64(Node* input, wasm::WasmCodePosition position);
 
-  Node* BuildI32DivS(Node* left, Node* right);
-  Node* BuildI32RemS(Node* left, Node* right);
-  Node* BuildI32DivU(Node* left, Node* right);
-  Node* BuildI32RemU(Node* left, Node* right);
+  Node* BuildI32DivS(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI32RemS(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI32DivU(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI32RemU(Node* left, Node* right, wasm::WasmCodePosition position);
 
-  Node* BuildI64DivS(Node* left, Node* right);
-  Node* BuildI64RemS(Node* left, Node* right);
-  Node* BuildI64DivU(Node* left, Node* right);
-  Node* BuildI64RemU(Node* left, Node* right);
+  Node* BuildI64DivS(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI64RemS(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI64DivU(Node* left, Node* right, wasm::WasmCodePosition position);
+  Node* BuildI64RemU(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildDiv64Call(Node* left, Node* right, ExternalReference ref,
-                       MachineType result_type, int trap_zero);
+                       MachineType result_type, int trap_zero,
+                       wasm::WasmCodePosition position);
 
   Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
                                 Node* control);

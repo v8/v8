@@ -615,13 +615,13 @@ class SR_WasmDecoder : public WasmDecoder {
         switch (sig->parameter_count()) {
           case 1: {
             Value val = Pop(0, sig->GetParam(0));
-            node = BUILD(Unop, opcode, val.node);
+            node = BUILD(Unop, opcode, val.node, position());
             break;
           }
           case 2: {
             Value rval = Pop(1, sig->GetParam(1));
             Value lval = Pop(0, sig->GetParam(0));
-            node = BUILD(Binop, opcode, lval.node, rval.node);
+            node = BUILD(Binop, opcode, lval.node, rval.node, position());
             break;
           }
           default:
@@ -829,8 +829,7 @@ class SR_WasmDecoder : public WasmDecoder {
             break;
           }
           case kExprUnreachable: {
-            // TODO(clemensh): add source position for unreachable
-            Push(kAstEnd, BUILD0(Unreachable));
+            Push(kAstEnd, BUILD(Unreachable, position()));
             ssa_env_->Kill(SsaEnv::kControlEnd);
             break;
           }
@@ -988,9 +987,9 @@ class SR_WasmDecoder : public WasmDecoder {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
               TFNode** buffer = PopArgs(operand.sig);
-              TFNode* call = BUILD(CallDirect, operand.index, buffer);
+              TFNode* call =
+                  BUILD(CallDirect, operand.index, buffer, position());
               Push(GetReturnType(operand.sig), call);
-              AddSourcePosition(call, pc_);
             }
             len = 1 + operand.length;
             break;
@@ -1001,9 +1000,9 @@ class SR_WasmDecoder : public WasmDecoder {
               TFNode** buffer = PopArgs(operand.sig);
               Value index = Pop(0, kAstI32);
               if (buffer) buffer[0] = index.node;
-              TFNode* call = BUILD(CallIndirect, operand.index, buffer);
+              TFNode* call =
+                  BUILD(CallIndirect, operand.index, buffer, position());
               Push(GetReturnType(operand.sig), call);
-              AddSourcePosition(call, pc_);
             }
             len = 1 + operand.length;
             break;
@@ -1012,9 +1011,9 @@ class SR_WasmDecoder : public WasmDecoder {
             CallImportOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
               TFNode** buffer = PopArgs(operand.sig);
-              TFNode* call = BUILD(CallImport, operand.index, buffer);
+              TFNode* call =
+                  BUILD(CallImport, operand.index, buffer, position());
               Push(GetReturnType(operand.sig), call);
-              AddSourcePosition(call, pc_);
             }
             len = 1 + operand.length;
             break;
@@ -1108,7 +1107,8 @@ class SR_WasmDecoder : public WasmDecoder {
   int DecodeLoadMem(LocalType type, MachineType mem_type) {
     MemoryAccessOperand operand(this, pc_);
     Value index = Pop(0, kAstI32);
-    TFNode* node = BUILD(LoadMem, type, mem_type, index.node, operand.offset);
+    TFNode* node =
+        BUILD(LoadMem, type, mem_type, index.node, operand.offset, position());
     Push(type, node);
     return 1 + operand.length;
   }
@@ -1117,7 +1117,7 @@ class SR_WasmDecoder : public WasmDecoder {
     MemoryAccessOperand operand(this, pc_);
     Value val = Pop(1, type);
     Value index = Pop(0, kAstI32);
-    BUILD(StoreMem, mem_type, index.node, operand.offset, val.node);
+    BUILD(StoreMem, mem_type, index.node, operand.offset, val.node, position());
     Push(type, val.node);
     return 1 + operand.length;
   }
@@ -1295,7 +1295,7 @@ class SR_WasmDecoder : public WasmDecoder {
         builder_->AppendToMerge(merge, from->control);
         // Merge effects.
         if (builder_->IsPhiWithMerge(to->effect, merge)) {
-          builder_->AppendToPhi(merge, to->effect, from->effect);
+          builder_->AppendToPhi(to->effect, from->effect);
         } else if (to->effect != from->effect) {
           uint32_t count = builder_->InputCount(merge);
           TFNode** effects = builder_->Buffer(count);
@@ -1310,7 +1310,7 @@ class SR_WasmDecoder : public WasmDecoder {
           TFNode* tnode = to->locals[i];
           TFNode* fnode = from->locals[i];
           if (builder_->IsPhiWithMerge(tnode, merge)) {
-            builder_->AppendToPhi(merge, tnode, fnode);
+            builder_->AppendToPhi(tnode, fnode);
           } else if (tnode != fnode) {
             uint32_t count = builder_->InputCount(merge);
             TFNode** vals = builder_->Buffer(count);
@@ -1333,7 +1333,7 @@ class SR_WasmDecoder : public WasmDecoder {
   TFNode* CreateOrMergeIntoPhi(LocalType type, TFNode* merge, TFNode* tnode,
                                TFNode* fnode) {
     if (builder_->IsPhiWithMerge(tnode, merge)) {
-      builder_->AppendToPhi(merge, tnode, fnode);
+      builder_->AppendToPhi(tnode, fnode);
     } else if (tnode != fnode) {
       uint32_t count = builder_->InputCount(merge);
       TFNode** vals = builder_->Buffer(count);
@@ -1468,12 +1468,10 @@ class SR_WasmDecoder : public WasmDecoder {
     return assigned;
   }
 
-  void AddSourcePosition(TFNode* node, const byte* pc) {
-    if (node) {
-      int offset = static_cast<int>(pc - start_);
-      DCHECK_EQ(pc - start_, offset);  // overflows cannot happen
-      builder_->SetSourcePosition(node, offset);
-    }
+  inline wasm::WasmCodePosition position() {
+    int offset = static_cast<int>(pc_ - start_);
+    DCHECK_EQ(pc_ - start_, offset);  // overflows cannot happen
+    return offset;
   }
 };
 
