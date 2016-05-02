@@ -2049,18 +2049,15 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
 class WasmOpcodeArityTest : public TestWithZone {
  public:
   WasmOpcodeArityTest() : TestWithZone() {}
-  TestModuleEnv module;
-  TestSignatures sigs;
 };
 
-#define EXPECT_ARITY(expected, ...)                                            \
-  {                                                                            \
-    static const byte code[] = {__VA_ARGS__};                                  \
-    EXPECT_EQ(expected, OpcodeArity(&module, sig, code, code + sizeof(code))); \
+#define EXPECT_ARITY(expected, ...)                              \
+  {                                                              \
+    static const byte code[] = {__VA_ARGS__};                    \
+    EXPECT_EQ(expected, OpcodeArity(code, code + sizeof(code))); \
   }
 
 TEST_F(WasmOpcodeArityTest, Control) {
-  FunctionSig* sig = sigs.v_v();
   EXPECT_ARITY(0, kExprNop);
 
   EXPECT_ARITY(0, kExprBlock, 0);
@@ -2086,16 +2083,13 @@ TEST_F(WasmOpcodeArityTest, Control) {
   EXPECT_ARITY(2, kExprBrTable, ARITY_1);
 
   {
-    sig = sigs.v_v();
     EXPECT_ARITY(0, kExprReturn, ARITY_0);
-    sig = sigs.i_i();
     EXPECT_ARITY(1, kExprReturn, ARITY_1);
   }
 }
 
 
 TEST_F(WasmOpcodeArityTest, Misc) {
-  FunctionSig* sig = sigs.v_v();
   EXPECT_ARITY(0, kExprI8Const);
   EXPECT_ARITY(0, kExprI32Const);
   EXPECT_ARITY(0, kExprF32Const);
@@ -2109,18 +2103,7 @@ TEST_F(WasmOpcodeArityTest, Misc) {
 
 
 TEST_F(WasmOpcodeArityTest, Calls) {
-  module.AddFunction(sigs.i_ii());
-  module.AddFunction(sigs.i_i());
-
-  module.AddSignature(sigs.f_ff());
-  module.AddSignature(sigs.i_d());
-
-  module.AddImport(sigs.f_ff());
-  module.AddImport(sigs.i_d());
-
   {
-    FunctionSig* sig = sigs.i_ii();
-
     EXPECT_ARITY(2, kExprCallFunction, 2, 0);
     EXPECT_ARITY(2, kExprCallImport, 2, 0);
     EXPECT_ARITY(3, kExprCallIndirect, 2, 0);
@@ -2135,8 +2118,6 @@ TEST_F(WasmOpcodeArityTest, Calls) {
   }
 
   {
-    FunctionSig* sig = sigs.v_v();
-
     EXPECT_ARITY(1, kExprCallFunction, ARITY_1, 1);
     EXPECT_ARITY(1, kExprCallImport, ARITY_1, 1);
     EXPECT_ARITY(2, kExprCallIndirect, ARITY_1, 1);
@@ -2153,7 +2134,6 @@ TEST_F(WasmOpcodeArityTest, Calls) {
 
 
 TEST_F(WasmOpcodeArityTest, LoadsAndStores) {
-  FunctionSig* sig = sigs.v_v();
   EXPECT_ARITY(1, kExprI32LoadMem8S);
   EXPECT_ARITY(1, kExprI32LoadMem8U);
   EXPECT_ARITY(1, kExprI32LoadMem16S);
@@ -2183,14 +2163,12 @@ TEST_F(WasmOpcodeArityTest, LoadsAndStores) {
 
 
 TEST_F(WasmOpcodeArityTest, MiscMemExpressions) {
-  FunctionSig* sig = sigs.v_v();
   EXPECT_ARITY(0, kExprMemorySize);
   EXPECT_ARITY(1, kExprGrowMemory);
 }
 
 
 TEST_F(WasmOpcodeArityTest, SimpleExpressions) {
-  FunctionSig* sig = sigs.v_v();
   EXPECT_ARITY(2, kExprI32Add);
   EXPECT_ARITY(2, kExprI32Sub);
   EXPECT_ARITY(2, kExprI32Mul);

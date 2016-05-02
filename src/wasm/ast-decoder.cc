@@ -287,21 +287,19 @@ class WasmDecoder : public Decoder {
 
       case kExprCallFunction: {
         CallFunctionOperand operand(this, pc);
-        return static_cast<int>(
-            module_->GetFunctionSignature(operand.index)->parameter_count());
+        return operand.arity;
       }
       case kExprCallIndirect: {
         CallIndirectOperand operand(this, pc);
-        return 1 + static_cast<int>(
-                       module_->GetSignature(operand.index)->parameter_count());
+        return 1 + operand.arity;
       }
       case kExprCallImport: {
         CallImportOperand operand(this, pc);
-        return static_cast<int>(
-            module_->GetImportSignature(operand.index)->parameter_count());
+        return operand.arity;
       }
       case kExprReturn: {
-        return static_cast<int>(sig_->return_count());
+        ReturnArityOperand operand(this, pc);
+        return operand.arity;
       }
 
 #define DECLARE_OPCODE_CASE(name, opcode, sig) \
@@ -1521,9 +1519,8 @@ int OpcodeLength(const byte* pc, const byte* end) {
   return decoder.OpcodeLength(pc);
 }
 
-int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
-                const byte* end) {
-  WasmDecoder decoder(module, sig, pc, end);
+int OpcodeArity(const byte* pc, const byte* end) {
+  WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeArity(pc);
 }
 

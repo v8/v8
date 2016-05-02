@@ -262,8 +262,8 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
 int OpcodeLength(const byte* pc, const byte* end);
 
 // Computes the arity (number of sub-nodes) of the opcode at the given address.
-int OpcodeArity(ModuleEnv* module, FunctionSig* sig, const byte* pc,
-                const byte* end);
+int OpcodeArity(const byte* pc, const byte* end);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
