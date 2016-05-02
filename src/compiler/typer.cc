@@ -1871,7 +1871,7 @@ Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 
-Type* Typer::Visitor::TypeChangeInt31ToTaggedSigned(Node* node) {
+Type* Typer::Visitor::TypeChangeInt31ToTagged(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg->Is(Type::Signed31()));
   Type* rep =
@@ -1901,13 +1901,15 @@ Type* Typer::Visitor::TypeChangeFloat64ToTagged(Node* node) {
   return ChangeRepresentation(arg, Type::Tagged(), zone());
 }
 
-Type* Typer::Visitor::TypeChangeTaggedToBit(Node* node) {
+
+Type* Typer::Visitor::TypeChangeBoolToBit(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return ChangeRepresentation(arg, Type::UntaggedBit(), zone());
 }
 
-Type* Typer::Visitor::TypeChangeBitToTagged(Node* node) {
+
+Type* Typer::Visitor::TypeChangeBitToBool(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return ChangeRepresentation(arg, Type::TaggedPointer(), zone());

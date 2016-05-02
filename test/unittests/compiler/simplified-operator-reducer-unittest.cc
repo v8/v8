@@ -150,54 +150,60 @@ TEST_F(SimplifiedOperatorReducerTest, BooleanNotWithTrueConstant) {
 
 
 // -----------------------------------------------------------------------------
-// ChangeTaggedToBit
+// ChangeBoolToBit
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeBitToTaggedWithChangeTaggedToBit) {
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBitToBoolWithChangeBoolToBit) {
   Node* param0 = Parameter(0);
   Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->ChangeBitToTagged(),
-      graph()->NewNode(simplified()->ChangeTaggedToBit(), param0)));
+      simplified()->ChangeBitToBool(),
+      graph()->NewNode(simplified()->ChangeBoolToBit(), param0)));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(param0, reduction.replacement());
 }
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeBitToTaggedWithZeroConstant) {
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBitToBoolWithZeroConstant) {
   Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->ChangeBitToTagged(), Int32Constant(0)));
+      graph()->NewNode(simplified()->ChangeBitToBool(), Int32Constant(0)));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_THAT(reduction.replacement(), IsFalseConstant());
 }
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeBitToTaggedWithOneConstant) {
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBitToBoolWithOneConstant) {
   Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->ChangeBitToTagged(), Int32Constant(1)));
+      graph()->NewNode(simplified()->ChangeBitToBool(), Int32Constant(1)));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_THAT(reduction.replacement(), IsTrueConstant());
 }
 
 
 // -----------------------------------------------------------------------------
-// ChangeTaggedToBit
+// ChangeBoolToBit
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToBitWithFalseConstant) {
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBoolToBitWithFalseConstant) {
   Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->ChangeTaggedToBit(), FalseConstant()));
+      graph()->NewNode(simplified()->ChangeBoolToBit(), FalseConstant()));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_THAT(reduction.replacement(), IsInt32Constant(0));
 }
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToBitWithTrueConstant) {
-  Reduction reduction = Reduce(
-      graph()->NewNode(simplified()->ChangeTaggedToBit(), TrueConstant()));
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBoolToBitWithTrueConstant) {
+  Reduction reduction =
+      Reduce(graph()->NewNode(simplified()->ChangeBoolToBit(), TrueConstant()));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_THAT(reduction.replacement(), IsInt32Constant(1));
 }
 
-TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToBitWithChangeBitToTagged) {
+
+TEST_F(SimplifiedOperatorReducerTest, ChangeBoolToBitWithChangeBitToBool) {
   Node* param0 = Parameter(0);
   Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->ChangeTaggedToBit(),
-      graph()->NewNode(simplified()->ChangeBitToTagged(), param0)));
+      simplified()->ChangeBoolToBit(),
+      graph()->NewNode(simplified()->ChangeBitToBool(), param0)));
   ASSERT_TRUE(reduction.Changed());
   EXPECT_EQ(param0, reduction.replacement());
 }

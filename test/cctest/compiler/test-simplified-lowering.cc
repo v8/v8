@@ -843,7 +843,7 @@ TEST(LowerBooleanNot_bit_tagged) {
   Node* use = t.Use(inv, MachineType::AnyTagged());
   t.Return(use);
   t.Lower();
-  CHECK_EQ(IrOpcode::kChangeBitToTagged, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeBitToBool, use->InputAt(0)->opcode());
   Node* cmp = use->InputAt(0)->InputAt(0);
   CHECK_EQ(t.machine()->Word32Equal()->opcode(), cmp->opcode());
   CHECK(b == cmp->InputAt(0) || b == cmp->InputAt(1));
@@ -875,7 +875,7 @@ TEST(LowerBooleanNot_tagged_tagged) {
   Node* use = t.Use(inv, MachineType::AnyTagged());
   t.Return(use);
   t.Lower();
-  CHECK_EQ(IrOpcode::kChangeBitToTagged, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeBitToBool, use->InputAt(0)->opcode());
   Node* cmp = use->InputAt(0)->InputAt(0);
   CHECK_EQ(t.machine()->WordEqual()->opcode(), cmp->opcode());
   CHECK(b == cmp->InputAt(0) || b == cmp->InputAt(1));
@@ -920,7 +920,7 @@ TEST(LowerBooleanToNumber_bit_tagged) {
   t.Return(use);
   t.Lower();
   CHECK_EQ(b, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeInt31ToTagged, use->InputAt(0)->opcode());
 }
 
 
@@ -933,7 +933,7 @@ TEST(LowerBooleanToNumber_tagged_tagged) {
   t.Return(use);
   t.Lower();
   CHECK_EQ(cnv, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
+  CHECK_EQ(IrOpcode::kChangeInt31ToTagged, use->InputAt(0)->opcode());
   CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
   CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
   Node* c = t.jsgraph.TrueConstant();
@@ -1221,7 +1221,7 @@ TEST(InsertChangesAroundInt32Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToBool);
   }
 }
 
@@ -1234,7 +1234,7 @@ TEST(InsertChangesAroundUint32Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToUint32,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToBool);
   }
 }
 
@@ -1264,7 +1264,7 @@ TEST(InsertChangesAroundFloat64Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToFloat64,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToBool);
   }
 }
 

@@ -168,11 +168,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
   Node* ChangeFloat64ToTagged(Node* a) {
     return NewNode(simplified()->ChangeFloat64ToTagged(), a);
   }
-  Node* ChangeTaggedToBit(Node* a) {
-    return NewNode(simplified()->ChangeTaggedToBit(), a);
+  Node* ChangeBoolToBit(Node* a) {
+    return NewNode(simplified()->ChangeBoolToBit(), a);
   }
-  Node* ChangeBitToTagged(Node* a) {
-    return NewNode(simplified()->ChangeBitToTagged(), a);
+  Node* ChangeBitToBool(Node* a) {
+    return NewNode(simplified()->ChangeBitToBool(), a);
   }
 
   Node* LoadField(const FieldAccess& access, Node* object) {

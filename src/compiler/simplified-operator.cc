@@ -186,12 +186,12 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)       \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1)      \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)     \
-  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1) \
+  V(ChangeInt31ToTagged, Operator::kNoProperties, 1)       \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1)       \
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1)      \
   V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)     \
-  V(ChangeTaggedToBit, Operator::kNoProperties, 1)         \
-  V(ChangeBitToTagged, Operator::kNoProperties, 1)         \
+  V(ChangeBoolToBit, Operator::kNoProperties, 1)           \
+  V(ChangeBitToBool, Operator::kNoProperties, 1)           \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1)    \
   V(ObjectIsCallable, Operator::kNoProperties, 1)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1)            \
