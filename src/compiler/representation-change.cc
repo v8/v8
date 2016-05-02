@@ -188,10 +188,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   // Select the correct X -> Tagged operator.
   const Operator* op;
   if (output_rep == MachineRepresentation::kBit) {
-    op = simplified()->ChangeBitToBool();
+    op = simplified()->ChangeBitToTagged();
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed31())) {
-      op = simplified()->ChangeInt31ToTagged();
+      op = simplified()->ChangeInt31ToTaggedSigned();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeInt32ToTagged();
     } else if (output_type->Is(Type::Unsigned32())) {
@@ -208,7 +208,7 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   } else if (output_rep == MachineRepresentation::kFloat64) {
     if (output_type->Is(Type::Signed31())) {  // float64 -> int32 -> tagged
       node = InsertChangeFloat64ToInt32(node);
-      op = simplified()->ChangeInt31ToTagged();
+      op = simplified()->ChangeInt31ToTaggedSigned();
     } else if (output_type->Is(
                    Type::Signed32())) {  // float64 -> int32 -> tagged
       node = InsertChangeFloat64ToInt32(node);
@@ -418,7 +418,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   // Select the correct X -> Bit operator.
   const Operator* op;
   if (output_rep == MachineRepresentation::kTagged) {
-    op = simplified()->ChangeBoolToBit();
+    op = simplified()->ChangeTaggedToBit();
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kBit);

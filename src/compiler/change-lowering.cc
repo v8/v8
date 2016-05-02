@@ -4,14 +4,12 @@
 
 #include "src/compiler/change-lowering.h"
 
-#include "src/address-map.h"
-#include "src/code-factory.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,16 +19,7 @@ ChangeLowering::~ChangeLowering() {}
 
 
 Reduction ChangeLowering::Reduce(Node* node) {
-  Node* control = graph()->start();
   switch (node->opcode()) {
-    case IrOpcode::kChangeBitToBool:
-      return ReduceChangeBitToBool(node->InputAt(0), control);
-    case IrOpcode::kChangeBoolToBit:
-      return ReduceChangeBoolToBit(node->InputAt(0));
-    case IrOpcode::kChangeInt31ToTagged:
-      return ReduceChangeInt31ToTagged(node->InputAt(0), control);
-    case IrOpcode::kChangeTaggedSignedToInt32:
-      return ReduceChangeTaggedSignedToInt32(node->InputAt(0));
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kStoreField:
@@ -41,57 +30,11 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ReduceStoreElement(node);
     case IrOpcode::kAllocate:
       return ReduceAllocate(node);
-    case IrOpcode::kObjectIsSmi:
-      return ReduceObjectIsSmi(node);
     default:
       return NoChange();
   }
   UNREACHABLE();
   return NoChange();
-}
-
-Node* ChangeLowering::SmiShiftBitsConstant() {
-  return jsgraph()->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
-}
-
-Node* ChangeLowering::ChangeInt32ToSmi(Node* value) {
-  if (machine()->Is64()) {
-    value = graph()->NewNode(machine()->ChangeInt32ToInt64(), value);
-  }
-  return graph()->NewNode(machine()->WordShl(), value, SmiShiftBitsConstant());
-}
-
-Node* ChangeLowering::ChangeSmiToWord32(Node* value) {
-  value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
-  if (machine()->Is64()) {
-    value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
-  }
-  return value;
-}
-
-
-Node* ChangeLowering::ChangeUint32ToFloat64(Node* value) {
-  return graph()->NewNode(machine()->ChangeUint32ToFloat64(), value);
-}
-
-Reduction ChangeLowering::ReduceChangeBitToBool(Node* value, Node* control) {
-  return Replace(
-      graph()->NewNode(common()->Select(MachineRepresentation::kTagged), value,
-                       jsgraph()->TrueConstant(), jsgraph()->FalseConstant()));
-}
-
-Reduction ChangeLowering::ReduceChangeBoolToBit(Node* value) {
-  return Replace(graph()->NewNode(machine()->WordEqual(), value,
-                                  jsgraph()->TrueConstant()));
-}
-
-Reduction ChangeLowering::ReduceChangeInt31ToTagged(Node* value,
-                                                    Node* control) {
-  return Replace(ChangeInt32ToSmi(value));
-}
-
-Reduction ChangeLowering::ReduceChangeTaggedSignedToInt32(Node* value) {
-  return Replace(ChangeSmiToWord32(value));
 }
 
 namespace {
@@ -202,15 +145,6 @@ Reduction ChangeLowering::ReduceAllocate(Node* node) {
     allocate_operator_.set(common()->Call(descriptor));
   }
   NodeProperties::ChangeOp(node, allocate_operator_.get());
-  return Changed(node);
-}
-
-Reduction ChangeLowering::ReduceObjectIsSmi(Node* node) {
-  node->ReplaceInput(0,
-                     graph()->NewNode(machine()->WordAnd(), node->InputAt(0),
-                                      jsgraph()->IntPtrConstant(kSmiTagMask)));
-  node->AppendInput(graph()->zone(), jsgraph()->IntPtrConstant(kSmiTag));
-  NodeProperties::ChangeOp(node, machine()->WordEqual());
   return Changed(node);
 }
 
