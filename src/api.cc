@@ -8361,9 +8361,11 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
 
 
 void CpuProfiler::SetIdle(bool is_idle) {
-  i::Isolate* isolate = reinterpret_cast<i::CpuProfiler*>(this)->isolate();
+  i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(this);
+  if (!profiler->is_profiling()) return;
+  i::Isolate* isolate = profiler->isolate();
   v8::StateTag state = isolate->current_vm_state();
-  DCHECK(state == v8::JS || state == v8::EXTERNAL || state == v8::IDLE);
+  DCHECK(state == v8::EXTERNAL || state == v8::IDLE);
   if (isolate->js_entry_sp() != NULL) return;
   if (is_idle) {
     isolate->set_current_vm_state(v8::IDLE);
