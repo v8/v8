@@ -27,7 +27,7 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InstallFunctions = utils.InstallFunctions;
 var InstallGetter = utils.InstallGetter;
-var InternalPackedArray = utils.InternalPackedArray;
+var InternalArray = utils.InternalArray;
 var InternalRegExpMatch;
 var InternalRegExpReplace
 var IsFinite;
@@ -305,7 +305,7 @@ function supportedLocalesOf(service, locales, options) {
  * Locales appear in the same order in the returned list as in the input list.
  */
 function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
-  var matchedLocales = [];
+  var matchedLocales = new InternalArray();
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove -u- extension.
     var locale = InternalRegExpReplace(
@@ -565,14 +565,16 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
 
 
 /**
- * Converts all OwnProperties into
+ * Given an array-like, outputs an Array with the numbered
+ * properties copied over and defined
  * configurable: false, writable: false, enumerable: true.
  */
-function freezeArray(array) {
-  var l = array.length;
+function freezeArray(input) {
+  var array = [];
+  var l = input.length;
   for (var i = 0; i < l; i++) {
-    if (i in array) {
-      %object_define_property(array, i, {value: array[i],
+    if (i in input) {
+      %object_define_property(array, i, {value: input[i],
                                          configurable: false,
                                          writable: false,
                                          enumerable: true});
@@ -749,11 +751,8 @@ function canonicalizeLanguageTag(localeID) {
  * Throws on locales that are not well formed BCP47 tags.
  */
 function initializeLocaleList(locales) {
-  var seen = [];
-  if (IS_UNDEFINED(locales)) {
-    // Constructor is called without arguments.
-    seen = [];
-  } else {
+  var seen = new InternalArray();
+  if (!IS_UNDEFINED(locales)) {
     // We allow single string localeID.
     if (typeof locales === 'string') {
       %_Call(ArrayPush, seen, canonicalizeLanguageTag(locales));
@@ -808,8 +807,8 @@ function isValidLanguageTag(locale) {
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
-  var variants = [];
-  var extensions = [];
+  var variants = new InternalArray();
+  var extensions = new InternalArray();
   var parts = %_Call(StringSplit, locale, '-');
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];

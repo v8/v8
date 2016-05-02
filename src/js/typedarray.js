@@ -21,7 +21,6 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
 var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;

@@ -211,8 +211,6 @@
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/6.2.3': [FAIL],
-  'intl402/9.2.1_2': [FAIL],
-  'intl402/9.2.6_2': [FAIL],
   'intl402/Collator/10.1.2.1_4': [FAIL],
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
