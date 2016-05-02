@@ -273,6 +273,25 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(2, *promise_value);
     result->set(3, *value_obj);
     return factory->NewJSArrayWithElements(result);
+  } else if (object->IsJSProxy()) {
+    Handle<JSProxy> js_proxy = Handle<JSProxy>::cast(object);
+    Handle<FixedArray> result = factory->NewFixedArray(3 * 2);
+
+    Handle<String> handler_str =
+        factory->NewStringFromAsciiChecked("[[Handler]]");
+    result->set(0, *handler_str);
+    result->set(1, js_proxy->handler());
+
+    Handle<String> target_str =
+        factory->NewStringFromAsciiChecked("[[Target]]");
+    result->set(2, *target_str);
+    result->set(3, js_proxy->target());
+
+    Handle<String> is_revoked_str =
+        factory->NewStringFromAsciiChecked("[[IsRevoked]]");
+    result->set(4, *is_revoked_str);
+    result->set(5, isolate->heap()->ToBoolean(js_proxy->IsRevoked()));
+    return factory->NewJSArrayWithElements(result);
   } else if (object->IsJSValue()) {
     Handle<JSValue> js_value = Handle<JSValue>::cast(object);
 
