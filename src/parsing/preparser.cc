@@ -285,7 +285,7 @@ PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
   } else {
     Scope* body_scope = NewScope(scope_, BLOCK_SCOPE);
     BlockState block_state(&scope_, body_scope);
-    return ParseFunctionDeclaration(CHECK_OK);
+    return ParseFunctionDeclaration(ok);
   }
 }
 
