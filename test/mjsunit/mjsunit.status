@@ -343,6 +343,7 @@
   'elements-transition-hoisting': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft-sloppy': [PASS, NO_IGNITION],
+  'es6/new-target': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
   'getters-on-elements': [PASS, NO_IGNITION],
   'harmony/do-expressions': [PASS, NO_IGNITION],
   'ignition/elided-instruction': [PASS, NO_IGNITION],
@@ -566,6 +567,11 @@
   'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
+
+  # Ignition.
+  'es6/templates': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
+  'harmony/generators': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
+  'regress/regress-crbug-364374': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
