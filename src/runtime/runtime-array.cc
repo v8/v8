@@ -213,7 +213,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     }
     accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    JSObject::CollectOwnElementKeys(current, &accumulator, ALL_PROPERTIES);
+    accumulator.CollectOwnElementKeys(current);
   }
   // Erase any keys >= length.
   Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);

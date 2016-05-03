@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
+#include "src/keys.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -271,7 +272,8 @@ Handle<Object> CallSite::GetMethodName() {
     if (!current->IsJSObject()) break;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys = JSObject::GetEnumPropertyKeys(current_obj);
+    Handle<FixedArray> keys =
+        KeyAccumulator::GetEnumPropertyKeys(isolate_, current_obj);
     for (int i = 0; i < keys->length(); i++) {
       HandleScope inner_scope(isolate_);
       if (!keys->get(i)->IsName()) continue;

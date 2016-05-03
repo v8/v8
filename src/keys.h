@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_KEY_ACCUMULATOR_H_
-#define V8_KEY_ACCUMULATOR_H_
+#ifndef V8_KEYS_H_
+#define V8_KEYS_H_
 
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -53,12 +53,28 @@ class KeyAccumulator final BASE_EMBEDDED {
   int length() { return length_; }
   Isolate* isolate() { return isolate_; }
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
+  PropertyFilter filter() { return filter_; }
+
+  Maybe<bool> GetKeys_Internal(Handle<JSReceiver> receiver,
+                               Handle<JSReceiver> object,
+                               KeyCollectionType type);
+  static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
+                                                Handle<JSObject> object);
+
+  void CollectOwnElementKeys(Handle<JSObject> object);
+  void CollectOwnPropertyNames(Handle<JSObject> object);
 
  private:
   bool AddIntegerKey(uint32_t key);
   bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
   bool AddSymbolKey(Handle<Object> array);
   void SortCurrentElementsListRemoveDuplicates();
+
+  Maybe<bool> JSProxyOwnPropertyKeys(Handle<JSReceiver> receiver,
+                                     Handle<JSProxy> proxy);
+  Maybe<bool> GetKeysFromJSObject(Handle<JSReceiver> receiver,
+                                  Handle<JSObject> object,
+                                  KeyCollectionType type);
 
   Isolate* isolate_;
   KeyCollectionType type_;
@@ -126,4 +142,4 @@ class FastKeyAccumulator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_KEY_ACCUMULATOR_H_
+#endif  // V8_KEYS_H_
