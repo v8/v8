@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/address-map.h"
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
@@ -18,6 +19,7 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/source-position.h"
+#include "src/conversions-inl.h"
 #include "src/objects.h"
 #include "src/type-cache.h"
 
@@ -709,6 +711,71 @@ class RepresentationSelector {
     return changer_->Float64OperatorFor(node->opcode());
   }
 
+  WriteBarrierKind WriteBarrierKindFor(
+      BaseTaggedness base_taggedness,
+      MachineRepresentation field_representation, Type* field_type,
+      Node* value) {
+    if (base_taggedness == kTaggedBase &&
+        field_representation == MachineRepresentation::kTagged) {
+      Type* value_type = NodeProperties::GetType(value);
+      if (field_type->Is(Type::TaggedSigned()) ||
+          value_type->Is(Type::TaggedSigned())) {
+        // Write barriers are only for stores of heap objects.
+        return kNoWriteBarrier;
+      }
+      if (field_type->Is(Type::BooleanOrNullOrUndefined()) ||
+          value_type->Is(Type::BooleanOrNullOrUndefined())) {
+        // Write barriers are not necessary when storing true, false, null or
+        // undefined, because these special oddballs are always in the root set.
+        return kNoWriteBarrier;
+      }
+      if (value_type->IsConstant() &&
+          value_type->AsConstant()->Value()->IsHeapObject()) {
+        Handle<HeapObject> value_object =
+            Handle<HeapObject>::cast(value_type->AsConstant()->Value());
+        if (value_object->IsMap()) {
+          // Write barriers for storing maps are cheaper.
+          return kMapWriteBarrier;
+        }
+        RootIndexMap root_index_map(jsgraph_->isolate());
+        int root_index = root_index_map.Lookup(*value_object);
+        if (root_index != RootIndexMap::kInvalidRootIndex &&
+            jsgraph_->isolate()->heap()->RootIsImmortalImmovable(root_index)) {
+          // Write barriers are unnecessary for immortal immovable roots.
+          return kNoWriteBarrier;
+        }
+      }
+      if (field_type->Is(Type::TaggedPointer()) ||
+          value_type->Is(Type::TaggedPointer())) {
+        // Write barriers for heap objects are cheaper.
+        return kPointerWriteBarrier;
+      }
+      NumberMatcher m(value);
+      if (m.HasValue()) {
+        if (IsSmiDouble(m.Value())) {
+          // Storing a smi doesn't need a write barrier.
+          return kNoWriteBarrier;
+        }
+        // The NumberConstant will be represented as HeapNumber.
+        return kPointerWriteBarrier;
+      }
+      return kFullWriteBarrier;
+    }
+    return kNoWriteBarrier;
+  }
+
+  WriteBarrierKind WriteBarrierKindFor(
+      BaseTaggedness base_taggedness,
+      MachineRepresentation field_representation, int field_offset,
+      Type* field_type, Node* value) {
+    if (base_taggedness == kTaggedBase &&
+        field_offset == HeapObject::kMapOffset) {
+      return kMapWriteBarrier;
+    }
+    return WriteBarrierKindFor(base_taggedness, field_representation,
+                               field_type, value);
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -1136,6 +1203,16 @@ class RepresentationSelector {
                                   access.machine_type.representation()));
         ProcessRemainingInputs(node, 2);
         SetOutput(node, MachineRepresentation::kNone);
+        if (lower()) {
+          WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
+              access.base_is_tagged, access.machine_type.representation(),
+              access.offset, access.type, node->InputAt(1));
+          if (write_barrier_kind < access.write_barrier_kind) {
+            access.write_barrier_kind = write_barrier_kind;
+            NodeProperties::ChangeOp(
+                node, jsgraph_->simplified()->StoreField(access));
+          }
+        }
         break;
       }
       case IrOpcode::kLoadBuffer: {
@@ -1201,6 +1278,16 @@ class RepresentationSelector {
                          access.machine_type.representation()));  // value
         ProcessRemainingInputs(node, 3);
         SetOutput(node, MachineRepresentation::kNone);
+        if (lower()) {
+          WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
+              access.base_is_tagged, access.machine_type.representation(),
+              access.type, node->InputAt(2));
+          if (write_barrier_kind < access.write_barrier_kind) {
+            access.write_barrier_kind = write_barrier_kind;
+            NodeProperties::ChangeOp(
+                node, jsgraph_->simplified()->StoreElement(access));
+          }
+        }
         break;
       }
       case IrOpcode::kObjectIsCallable:

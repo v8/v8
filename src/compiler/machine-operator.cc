@@ -12,22 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
-  switch (kind) {
-    case kNoWriteBarrier:
-      return os << "NoWriteBarrier";
-    case kMapWriteBarrier:
-      return os << "MapWriteBarrier";
-    case kPointerWriteBarrier:
-      return os << "PointerWriteBarrier";
-    case kFullWriteBarrier:
-      return os << "FullWriteBarrier";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 bool operator==(StoreRepresentation lhs, StoreRepresentation rhs) {
   return lhs.representation() == rhs.representation() &&
          lhs.write_barrier_kind() == rhs.write_barrier_kind();
