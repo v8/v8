@@ -904,8 +904,12 @@ class ParserBase : public Traits {
   void CheckPossibleEvalCall(ExpressionT expression, Scope* scope) {
     if (Traits::IsIdentifier(expression) &&
         Traits::IsEval(Traits::AsIdentifier(expression))) {
-      scope->DeclarationScope()->RecordEvalCall();
       scope->RecordEvalCall();
+      if (is_sloppy(scope->language_mode())) {
+        // For sloppy scopes we also have to record the call at function level,
+        // in case it includes declarations that will be hoisted.
+        scope->DeclarationScope()->RecordEvalCall();
+      }
     }
   }
 

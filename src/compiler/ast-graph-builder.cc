@@ -3080,7 +3080,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
 
 LanguageMode AstGraphBuilder::language_mode() const {
-  return info()->language_mode();
+  return current_scope()->language_mode();
 }
 
 
