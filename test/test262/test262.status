@@ -338,6 +338,10 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4985
+  'language/reserved-words/await-module': [SKIP],
+  'language/module-code/strict-mode': [SKIP],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
