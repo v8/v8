@@ -55,13 +55,13 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 
 WasmCompilationUnit* CreateWasmCompilationUnit(
     wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
-    const wasm::WasmFunction* function);
+    const wasm::WasmFunction* function, uint32_t index);
 
 void ExecuteCompilation(WasmCompilationUnit* unit);
 
-int GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
-
 Handle<Code> FinishCompilation(WasmCompilationUnit* unit);
+
+uint32_t GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
