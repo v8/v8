@@ -290,12 +290,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
       node->opcode() == IrOpcode::kBeginRegion) {
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-
-    // TODO(jarin) Enable this once we make sure everything with side effects
-    // is marked as effectful.
-    if (false) {
-      return RemoveRegionNode(node);
-    }
+    return RemoveRegionNode(node);
   }
 
   if (node->opcode() == IrOpcode::kIfSuccess) {
@@ -906,7 +901,6 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
                                                      Node* control) {
-  effect = graph()->NewNode(common()->BeginRegion(), effect);
   Node* result = effect = graph()->NewNode(
       simplified()->Allocate(NOT_TENURED),
       jsgraph()->Int32Constant(HeapNumber::kSize), effect, control);
@@ -916,7 +910,6 @@ EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForHeapNumberValue()), result,
       value, effect, control);
-  result = effect = graph()->NewNode(common()->FinishRegion(), result, effect);
   return ValueEffectControl(result, effect, control);
 }
 
