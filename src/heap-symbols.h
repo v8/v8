@@ -149,7 +149,6 @@
   V(formatted_stack_trace_symbol)           \
   V(frozen_symbol)                          \
   V(hash_code_symbol)                       \
-  V(hidden_properties_symbol)               \
   V(home_object_symbol)                     \
   V(internal_error_symbol)                  \
   V(intl_impl_object_symbol)                \

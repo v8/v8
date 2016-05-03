@@ -4357,59 +4357,6 @@ int v8::Object::GetIdentityHash() {
 }
 
 
-bool v8::Object::SetHiddenValue(v8::Local<v8::String> key,
-                                v8::Local<v8::Value> value) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
-  if (!self->IsJSObject()) return false;
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_string =
-      isolate->factory()->InternalizeString(key_obj);
-  if (value.IsEmpty()) {
-    i::JSObject::DeleteHiddenProperty(i::Handle<i::JSObject>::cast(self),
-                                      key_string);
-    return true;
-  }
-  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  i::Handle<i::Object> result = i::JSObject::SetHiddenProperty(
-      i::Handle<i::JSObject>::cast(self), key_string, value_obj);
-  return *result == *self;
-}
-
-
-v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Local<v8::String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
-  if (!self->IsJSObject()) return v8::Local<v8::Value>();
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_string =
-      isolate->factory()->InternalizeString(key_obj);
-  i::Handle<i::Object> result(
-      i::Handle<i::JSObject>::cast(self)->GetHiddenProperty(key_string),
-      isolate);
-  if (result->IsTheHole()) return v8::Local<v8::Value>();
-  return Utils::ToLocal(result);
-}
-
-
-bool v8::Object::DeleteHiddenValue(v8::Local<v8::String> key) {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
-  if (!self->IsJSObject()) return false;
-  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_string =
-      isolate->factory()->InternalizeString(key_obj);
-  i::JSObject::DeleteHiddenProperty(i::Handle<i::JSObject>::cast(self),
-                                    key_string);
-  return true;
-}
-
-
 bool v8::Object::IsCallable() {
   auto self = Utils::OpenHandle(this);
   return self->IsCallable();
