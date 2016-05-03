@@ -49,11 +49,6 @@ namespace compiler {
 
 namespace {
 const Operator* UnsupportedOpcode(wasm::WasmOpcode opcode) {
-  if (wasm::WasmOpcodes::IsSupported(opcode)) {
-    V8_Fatal(__FILE__, __LINE__,
-             "Unsupported opcode #%d:%s reported as supported", opcode,
-             wasm::WasmOpcodes::OpcodeName(opcode));
-  }
   V8_Fatal(__FILE__, __LINE__, "Unsupported opcode #%d:%s", opcode,
            wasm::WasmOpcodes::OpcodeName(opcode));
   return nullptr;
@@ -471,62 +466,46 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
     case wasm::kExprI64And:
       op = m->Word64And();
       break;
-    // todo(ahaas): I added a list of missing instructions here to make merging
-    // easier when I do them one by one.
-    // kExprI64Add:
     case wasm::kExprI64Add:
       op = m->Int64Add();
       break;
-    // kExprI64Sub:
     case wasm::kExprI64Sub:
       op = m->Int64Sub();
       break;
-    // kExprI64Mul:
     case wasm::kExprI64Mul:
       op = m->Int64Mul();
       break;
-    // kExprI64DivS:
     case wasm::kExprI64DivS:
       return BuildI64DivS(left, right, position);
-    // kExprI64DivU:
     case wasm::kExprI64DivU:
       return BuildI64DivU(left, right, position);
-    // kExprI64RemS:
     case wasm::kExprI64RemS:
       return BuildI64RemS(left, right, position);
-    // kExprI64RemU:
     case wasm::kExprI64RemU:
       return BuildI64RemU(left, right, position);
     case wasm::kExprI64Ior:
       op = m->Word64Or();
       break;
-// kExprI64Xor:
     case wasm::kExprI64Xor:
       op = m->Word64Xor();
       break;
-// kExprI64Shl:
     case wasm::kExprI64Shl:
       op = m->Word64Shl();
       right = MaskShiftCount64(right);
       break;
-    // kExprI64ShrU:
     case wasm::kExprI64ShrU:
       op = m->Word64Shr();
       right = MaskShiftCount64(right);
       break;
-    // kExprI64ShrS:
     case wasm::kExprI64ShrS:
       op = m->Word64Sar();
       right = MaskShiftCount64(right);
       break;
-    // kExprI64Eq:
     case wasm::kExprI64Eq:
       op = m->Word64Equal();
       break;
-// kExprI64Ne:
     case wasm::kExprI64Ne:
       return Invert(Binop(wasm::kExprI64Eq, left, right));
-// kExprI64LtS:
     case wasm::kExprI64LtS:
       op = m->Int64LessThan();
       break;
@@ -795,31 +774,24 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprF64Log: {
       return BuildF64Log(input);
     }
-    // kExprI32ConvertI64:
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
       break;
-    // kExprI64SConvertI32:
     case wasm::kExprI64SConvertI32:
       op = m->ChangeInt32ToInt64();
       break;
-    // kExprI64UConvertI32:
     case wasm::kExprI64UConvertI32:
       op = m->ChangeUint32ToUint64();
       break;
-    // kExprF64ReinterpretI64:
     case wasm::kExprF64ReinterpretI64:
       op = m->BitcastInt64ToFloat64();
       break;
-    // kExprI64ReinterpretF64:
     case wasm::kExprI64ReinterpretF64:
       op = m->BitcastFloat64ToInt64();
       break;
-    // kExprI64Clz:
     case wasm::kExprI64Clz:
       op = m->Word64Clz();
       break;
-    // kExprI64Ctz:
     case wasm::kExprI64Ctz: {
       if (m->Word64Ctz().IsSupported()) {
         op = m->Word64Ctz().op();
@@ -835,7 +807,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
         return BuildI64Ctz(input);
       }
     }
-    // kExprI64Popcnt:
     case wasm::kExprI64Popcnt: {
       if (m->Word64Popcnt().IsSupported()) {
         op = m->Word64Popcnt().op();
@@ -846,7 +817,6 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       }
       break;
     }
-    // kExprF32SConvertI64:
     case wasm::kExprI64Eqz:
       op = m->Word64Equal();
       return graph()->NewNode(op, input, jsgraph()->Int64Constant(0));
@@ -856,40 +826,33 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       }
       op = m->RoundInt64ToFloat32();
       break;
-    // kExprF32UConvertI64:
     case wasm::kExprF32UConvertI64:
       if (m->Is32()) {
         return BuildF32UConvertI64(input);
       }
       op = m->RoundUint64ToFloat32();
       break;
-    // kExprF64SConvertI64:
     case wasm::kExprF64SConvertI64:
       if (m->Is32()) {
         return BuildF64SConvertI64(input);
       }
       op = m->RoundInt64ToFloat64();
       break;
-    // kExprF64UConvertI64:
     case wasm::kExprF64UConvertI64:
       if (m->Is32()) {
         return BuildF64UConvertI64(input);
       }
       op = m->RoundUint64ToFloat64();
       break;
-// kExprI64SConvertF32:
     case wasm::kExprI64SConvertF32: {
       return BuildI64SConvertF32(input, position);
     }
-    // kExprI64SConvertF64:
     case wasm::kExprI64SConvertF64: {
       return BuildI64SConvertF64(input, position);
     }
-    // kExprI64UConvertF32:
     case wasm::kExprI64UConvertF32: {
       return BuildI64UConvertF32(input, position);
     }
-    // kExprI64UConvertF64:
     case wasm::kExprI64UConvertF64: {
       return BuildI64UConvertF64(input, position);
     }

@@ -1750,8 +1750,6 @@ TEST(Run_Wasm_Infinite_Loop_not_taken2_brif) {
 
 
 static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
-  if (!WasmOpcodes::IsSupported(opcode)) return;
-
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator());
   HandleScope scope(isolate);

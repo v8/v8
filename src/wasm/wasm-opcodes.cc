@@ -99,66 +99,6 @@ FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
 #define WASM_64 0
 #endif
 
-
-bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
-#if !WASM_64
-  switch (opcode) {
-    // Opcodes not supported on 32-bit platforms.
-    case kExprI64Add:
-    case kExprI64Sub:
-    case kExprI64Mul:
-    case kExprI64DivS:
-    case kExprI64DivU:
-    case kExprI64RemS:
-    case kExprI64RemU:
-    case kExprI64And:
-    case kExprI64Ior:
-    case kExprI64Xor:
-    case kExprI64Shl:
-    case kExprI64ShrU:
-    case kExprI64ShrS:
-    case kExprI64Ror:
-    case kExprI64Rol:
-    case kExprI64Eq:
-    case kExprI64Ne:
-    case kExprI64LtS:
-    case kExprI64LeS:
-    case kExprI64LtU:
-    case kExprI64LeU:
-    case kExprI64GtS:
-    case kExprI64GeS:
-    case kExprI64GtU:
-    case kExprI64GeU:
-
-    case kExprI32ConvertI64:
-    case kExprI64SConvertI32:
-    case kExprI64UConvertI32:
-
-    case kExprF64ReinterpretI64:
-    case kExprI64ReinterpretF64:
-
-    case kExprI64Clz:
-    case kExprI64Ctz:
-    case kExprI64Popcnt:
-
-    case kExprF32SConvertI64:
-    case kExprF32UConvertI64:
-    case kExprF64SConvertI64:
-    case kExprF64UConvertI64:
-    case kExprI64SConvertF32:
-    case kExprI64SConvertF64:
-    case kExprI64UConvertF32:
-    case kExprI64UConvertF64:
-
-      return false;
-    default:
-      return true;
-  }
-#else
-  return true;
-#endif
-}
-
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \

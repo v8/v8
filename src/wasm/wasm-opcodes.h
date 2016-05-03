@@ -348,7 +348,6 @@ enum TrapReason {
 // A collection of opcode-related static methods.
 class WasmOpcodes {
  public:
-  static bool IsSupported(WasmOpcode opcode);
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
