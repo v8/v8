@@ -753,11 +753,11 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
       function_token_position, type, language_mode, ok);
 }
 
-
 ClassLiteral* ParserTraits::ParseClassLiteral(
-    const AstRawString* name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
-  return parser_->ParseClassLiteral(name, class_name_location,
+    Type::ExpressionClassifier* classifier, const AstRawString* name,
+    Scanner::Location class_name_location, bool name_is_strict_reserved,
+    int pos, bool* ok) {
+  return parser_->ParseClassLiteral(classifier, name, class_name_location,
                                     name_is_strict_reserved, pos, ok);
 }
 
@@ -1564,9 +1564,9 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       if (peek() == Token::EXTENDS || peek() == Token::LBRACE) {
         // ClassDeclaration[+Default] ::
         //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
-        default_export =
-            ParseClassLiteral(default_string, Scanner::Location::invalid(),
-                              false, position(), CHECK_OK);
+        default_export = ParseClassLiteral(nullptr, default_string,
+                                           Scanner::Location::invalid(), false,
+                                           position(), CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseClassDeclaration(&names, CHECK_OK);
@@ -2130,7 +2130,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   bool is_strict_reserved = false;
   const AstRawString* name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
+  ClassLiteral* value = ParseClassLiteral(nullptr, name, scanner()->location(),
                                           is_strict_reserved, pos, CHECK_OK);
 
   VariableProxy* proxy = NewUnresolved(name, LET);
@@ -4630,8 +4630,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   return result;
 }
 
-
-ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
+ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
+                                        const AstRawString* name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool* ok) {
@@ -4664,9 +4664,13 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   Expression* extends = NULL;
   if (Check(Token::EXTENDS)) {
     block_scope->set_start_position(scanner()->location().end_pos);
-    ExpressionClassifier classifier(this);
-    extends = ParseLeftHandSideExpression(&classifier, CHECK_OK);
-    RewriteNonPattern(&classifier, CHECK_OK);
+    ExpressionClassifier extends_classifier(this);
+    extends = ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
+    RewriteNonPattern(&extends_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&extends_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
   } else {
     block_scope->set_start_position(scanner()->location().end_pos);
   }

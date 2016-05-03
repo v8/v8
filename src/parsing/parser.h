@@ -567,7 +567,8 @@ class ParserTraits {
       const ParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+  ClassLiteral* ParseClassLiteral(Type::ExpressionClassifier* classifier,
+                                  const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
                                   bool* ok);
@@ -958,8 +959,8 @@ class Parser : public ParserBase<ParserTraits> {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool* ok);
 
-
-  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+  ClassLiteral* ParseClassLiteral(ExpressionClassifier* classifier,
+                                  const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
                                   bool* ok);

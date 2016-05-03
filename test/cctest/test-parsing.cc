@@ -2332,6 +2332,10 @@ TEST(NoErrorsGenerator) {
     "(yield) \n ? yield : yield",
     // If there is a newline before the next token, we don't look for RHS.
     "yield\nfor (;;) {}",
+    "x = class extends (yield) {}",
+    "x = class extends f(yield) {}",
+    "x = class extends (null, yield) { }",
+    "x = class extends (a ? null : yield) { }",
     NULL
   };
   // clang-format on
@@ -2396,6 +2400,7 @@ TEST(ErrorsYieldGenerator) {
     "for (yield 'x' of {});",
     "for (yield 'x' in {} in {});",
     "for (yield 'x' in {} of {});",
+    "class C extends yield { }",
     NULL
   };
   // clang-format on
@@ -6730,6 +6735,9 @@ TEST(DefaultParametersYieldInInitializers) {
   const char* generator_context_data[][2] = {
     {"'use strict'; (function *g(", ") { });"},
     {"(function *g(", ") { });"},
+    // Arrow function within generator has the same rules.
+    {"'use strict'; (function *g() { (", ") => {} });"},
+    {"(function *g() { (", ") => {} });"},
     {NULL, NULL}
   };
 
@@ -6760,6 +6768,17 @@ TEST(DefaultParametersYieldInInitializers) {
     NULL
   };
 
+  // Because classes are always in strict mode, these are always errors.
+  const char* always_error_param_data[] = {
+    "x = class extends (yield) { }",
+    "x = class extends f(yield) { }",
+    "x = class extends (null, yield) { }",
+    "x = class extends (a ? null : yield) { }",
+    "[x] = [class extends (a ? null : yield) { }]",
+    "[x = class extends (a ? null : yield) { }]",
+    "[x = class extends (a ? null : yield) { }] = [null]",
+    NULL
+  };
   // clang-format on
 
   RunParserSyncTest(sloppy_function_context_data, parameter_data, kSuccess);
@@ -6769,8 +6788,8 @@ TEST(DefaultParametersYieldInInitializers) {
   RunParserSyncTest(strict_arrow_context_data, parameter_data, kError);
 
   RunParserSyncTest(generator_context_data, parameter_data, kError);
+  RunParserSyncTest(generator_context_data, always_error_param_data, kError);
 }
-
 
 TEST(SpreadArray) {
   const char* context_data[][2] = {

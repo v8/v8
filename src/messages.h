@@ -117,8 +117,7 @@ class CallSite {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
-  T(DetachedOperation,                                                         \
-    "Cannot perform % on a detached ArrayBuffer")                              \
+  T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \
     "Class extends value % may not be a generator function")                   \
@@ -463,6 +462,7 @@ class CallSite {
   T(InvalidHexEscapeSequence, "Invalid hexadecimal escape sequence")           \
   T(InvalidUnicodeEscapeSequence, "Invalid Unicode escape sequence")           \
   T(UndefinedUnicodeCodePoint, "Undefined Unicode code-point")                 \
+  T(YieldInParameter, "Yield expression not allowed in formal parameter")      \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \
