@@ -64,23 +64,20 @@
 #define DEPTH_1 1
 
 #define WASM_BLOCK(count, ...) kExprBlock, __VA_ARGS__, kExprEnd
-#define WASM_INFINITE_LOOP \
-  kExprLoop, kExprNop, kExprBr, ARITY_0, DEPTH_0, kExprEnd
+#define WASM_INFINITE_LOOP kExprLoop, kExprBr, ARITY_0, DEPTH_0, kExprEnd
 #define WASM_LOOP(count, ...) kExprLoop, __VA_ARGS__, kExprEnd
 #define WASM_IF(cond, tstmt) cond, kExprIf, tstmt, kExprEnd
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, tstmt, kExprElse, fstmt, kExprEnd
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
-#define WASM_BR(depth) kExprNop, kExprBr, ARITY_0, static_cast<byte>(depth)
+#define WASM_BR(depth) kExprBr, ARITY_0, static_cast<byte>(depth)
 #define WASM_BR_IF(depth, cond) \
   cond, kExprBrIf, ARITY_0, static_cast<byte>(depth)
 #define WASM_BRV(depth, val) val, kExprBr, ARITY_1, static_cast<byte>(depth)
 #define WASM_BRV_IF(depth, val, cond) \
   val, cond, kExprBrIf, ARITY_1, static_cast<byte>(depth)
-#define WASM_BREAK(depth) \
-  kExprNop, kExprBr, ARITY_0, static_cast<byte>(depth + 1)
-#define WASM_CONTINUE(depth) \
-  kExprNop, kExprBr, ARITY_0, static_cast<byte>(depth)
+#define WASM_BREAK(depth) kExprBr, ARITY_0, static_cast<byte>(depth + 1)
+#define WASM_CONTINUE(depth) kExprBr, ARITY_0, static_cast<byte>(depth)
 #define WASM_BREAKV(depth, val) \
   val, kExprBr, ARITY_1, static_cast<byte>(depth + 1)
 #define WASM_RETURN0 kExprReturn, ARITY_0
