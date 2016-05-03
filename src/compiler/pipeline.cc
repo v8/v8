@@ -287,6 +287,18 @@ class PipelineData {
                                sequence(), debug_name_.get());
   }
 
+  void BeginPhaseKind(const char* phase_kind_name) {
+    if (pipeline_statistics() != nullptr) {
+      pipeline_statistics()->BeginPhaseKind(phase_kind_name);
+    }
+  }
+
+  void EndPhaseKind() {
+    if (pipeline_statistics() != nullptr) {
+      pipeline_statistics()->EndPhaseKind();
+    }
+  }
+
  private:
   Isolate* const isolate_;
   CompilationInfo* const info_;
@@ -1284,18 +1296,6 @@ struct VerifyGraphPhase {
 };
 
 
-void Pipeline::BeginPhaseKind(const char* phase_kind_name) {
-  if (data_->pipeline_statistics() != nullptr) {
-    data_->pipeline_statistics()->BeginPhaseKind(phase_kind_name);
-  }
-}
-
-void Pipeline::EndPhaseKind() {
-  if (data_->pipeline_statistics() != nullptr) {
-    data_->pipeline_statistics()->EndPhaseKind();
-  }
-}
-
 void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
   if (FLAG_trace_turbo) {
     Run<PrintGraphPhase>(phase);
@@ -1308,7 +1308,7 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 bool Pipeline::CreateGraph() {
   PipelineData* data = this->data_;
 
-  BeginPhaseKind("graph creation");
+  data->BeginPhaseKind("graph creation");
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
@@ -1329,7 +1329,7 @@ bool Pipeline::CreateGraph() {
 
   Run<GraphBuilderPhase>();
   if (data->compilation_failed()) {
-    EndPhaseKind();
+    data->EndPhaseKind();
     return false;
   }
   RunPrintAndVerify("Initial untyped", true);
@@ -1365,7 +1365,7 @@ bool Pipeline::CreateGraph() {
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 
-    BeginPhaseKind("lowering");
+    data->BeginPhaseKind("lowering");
 
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
@@ -1407,7 +1407,7 @@ bool Pipeline::CreateGraph() {
   RunPrintAndVerify("Untyped", true);
 #endif
 
-  EndPhaseKind();
+  data->EndPhaseKind();
 
   return true;
 }
@@ -1415,7 +1415,7 @@ bool Pipeline::CreateGraph() {
 bool Pipeline::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
-  BeginPhaseKind("block building");
+  data->BeginPhaseKind("block building");
 
   Run<EffectControlLinearizationPhase>();
   RunPrintAndVerify("Effect and control linearized", true);
@@ -1441,16 +1441,6 @@ bool Pipeline::OptimizeGraph(Linkage* linkage) {
   data->source_positions()->RemoveDecorator();
 
   return ScheduleAndSelectInstructions(linkage);
-}
-
-Handle<Code> Pipeline::GenerateCode() {
-  PipelineData* data = this->data_;
-
-  Linkage linkage(Linkage::ComputeIncoming(data->instruction_zone(), info()));
-
-  if (!CreateGraph()) return Handle<Code>::null();
-  if (!OptimizeGraph(&linkage)) return Handle<Code>::null();
-  return GenerateCode(&linkage);
 }
 
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
@@ -1494,7 +1484,12 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
       CreatePipelineStatistics(info, &zone_pool));
   PipelineData data(&zone_pool, info, pipeline_statistics.get());
   Pipeline pipeline(&data);
-  return pipeline.GenerateCode();
+
+  Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
+
+  if (!pipeline.CreateGraph()) return Handle<Code>::null();
+  if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
+  return pipeline.GenerateCode(&linkage);
 }
 
 // static
@@ -1598,7 +1593,7 @@ bool Pipeline::ScheduleAndSelectInstructions(Linkage* linkage) {
 
   data->DeleteGraphZone();
 
-  BeginPhaseKind("register allocation");
+  data->BeginPhaseKind("register allocation");
 
   bool run_verifier = FLAG_turbo_verify_allocation;
 
@@ -1609,7 +1604,7 @@ bool Pipeline::ScheduleAndSelectInstructions(Linkage* linkage) {
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
-    EndPhaseKind();
+    data->EndPhaseKind();
     return false;
   }
 
@@ -1621,7 +1616,7 @@ bool Pipeline::ScheduleAndSelectInstructions(Linkage* linkage) {
     Run<JumpThreadingPhase>(generate_frame_at_start);
   }
 
-  EndPhaseKind();
+  data->EndPhaseKind();
 
   return true;
 }
@@ -1629,7 +1624,7 @@ bool Pipeline::ScheduleAndSelectInstructions(Linkage* linkage) {
 Handle<Code> Pipeline::GenerateCode(Linkage* linkage) {
   PipelineData* data = this->data_;
 
-  BeginPhaseKind("code generation");
+  data->BeginPhaseKind("code generation");
 
   // Generate final machine code.
   Run<GenerateCodePhase>(linkage);

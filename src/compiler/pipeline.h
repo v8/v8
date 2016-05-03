@@ -89,11 +89,6 @@ class Pipeline {
   // Perform the actual code generation and return handle to a code object.
   Handle<Code> GenerateCode(Linkage* linkage);
 
-  // Run the entire pipeline and generate a handle to a code object.
-  Handle<Code> GenerateCode();
-
-  void BeginPhaseKind(const char* phase_kind);
-  void EndPhaseKind();
   bool ScheduleAndSelectInstructions(Linkage* linkage);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
