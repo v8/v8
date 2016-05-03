@@ -1443,11 +1443,6 @@ HValue* CodeStubGraphBuilder<InternalArrayNoArgumentConstructorStub>::
 }
 
 
-Handle<Code> InternalArrayNoArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<InternalArraySingleArgumentConstructorStub>::
     BuildCodeStub() {

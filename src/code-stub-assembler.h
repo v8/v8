@@ -144,6 +144,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);
 
+  compiler::Node* LoadJSArrayElementsMap(ElementsKind kind,
+                                         compiler::Node* native_context);
+
   // Store the floating point value of a HeapNumber.
   compiler::Node* StoreHeapNumberValue(compiler::Node* object,
                                        compiler::Node* value);
@@ -185,9 +188,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Allocate a SeqTwoByteString with the given length.
   compiler::Node* AllocateSeqTwoByteString(int length);
   // Allocated an JSArray
-  compiler::Node* AllocateJSArray(ElementsKind kind,
-                                  compiler::Node* native_context, int capacity,
-                                  int length,
+  compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
+                                  int capacity, int length,
                                   compiler::Node* allocation_site = nullptr);
 
   // Allocation site manipulation

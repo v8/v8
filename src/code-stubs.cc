@@ -4382,9 +4382,24 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
           ? assembler->Parameter(
                 ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex)
           : nullptr;
-  Node* array = assembler->AllocateJSArray(elements_kind(), native_context,
+  Node* array_map =
+      assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
+  Node* array = assembler->AllocateJSArray(elements_kind(), array_map,
                                            JSArray::kPreallocatedArrayElements,
                                            0, allocation_site);
+  assembler->Return(array);
+}
+
+void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* array_map = assembler->LoadObjectField(
+      assembler->Parameter(
+          ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
+      JSFunction::kPrototypeOrInitialMapOffset);
+  Node* array = assembler->AllocateJSArray(elements_kind(), array_map,
+                                           JSArray::kPreallocatedArrayElements,
+                                           0, nullptr);
   assembler->Return(array);
 }
 

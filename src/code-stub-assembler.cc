@@ -560,6 +560,12 @@ Node* CodeStubAssembler::LoadNativeContext(Node* context) {
                                             Context::NATIVE_CONTEXT_INDEX);
 }
 
+Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
+                                                Node* native_context) {
+  return LoadFixedArrayElementConstantIndex(native_context,
+                                            Context::ArrayMapIndex(kind));
+}
+
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
   return StoreNoWriteBarrier(
       MachineRepresentation::kFloat64, object,
@@ -674,9 +680,8 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   return result;
 }
 
-Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind,
-                                         Node* native_context, int capacity,
-                                         int length,
+Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
+                                         int capacity, int length,
                                          compiler::Node* allocation_site) {
   bool is_double = IsFastDoubleElementsKind(kind);
   int element_size = is_double ? kDoubleSize : kPointerSize;
@@ -692,8 +697,6 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind,
   // Allocate both array and elements object, and initialize the JSArray.
   Heap* heap = isolate()->heap();
   Node* array = Allocate(total_size);
-  Node* array_map = LoadFixedArrayElementConstantIndex(
-      native_context, Context::ArrayMapIndex(kind));
   StoreMapNoWriteBarrier(array, array_map);
   Node* empty_properties =
       HeapConstant(Handle<HeapObject>(heap->empty_fixed_array()));
