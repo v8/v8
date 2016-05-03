@@ -1398,10 +1398,10 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         VisitIterationBody(stmt, &for_loop);
       }
       test_value.End();
-      index = environment()->Peek(0);
       for_loop.EndBody();
 
       // Increment counter and continue.
+      index = environment()->Peek(0);
       index = NewNode(javascript()->ForInStep(), index);
       environment()->Poke(0, index);
     }
