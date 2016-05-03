@@ -8172,28 +8172,6 @@ bool JSObject::HasEnumerableElements() {
   return true;
 }
 
-// Tests for the fast common case for property enumeration:
-// - This object and all prototypes has an enum cache (which means that
-//   it is no proxy, has no interceptors and needs no access checks).
-// - This object has no elements.
-// - No prototype has enumerable properties/elements.
-bool JSReceiver::IsSimpleEnum() {
-  for (PrototypeIterator iter(GetIsolate(), this,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (!iter.GetCurrent()->IsJSObject()) return false;
-    JSObject* current = iter.GetCurrent<JSObject>();
-    int enum_length = current->map()->EnumLength();
-    if (enum_length == kInvalidEnumCacheSentinel) return false;
-    if (current->IsAccessCheckNeeded()) return false;
-    DCHECK(!current->HasNamedInterceptor());
-    DCHECK(!current->HasIndexedInterceptor());
-    if (current->HasEnumerableElements()) return false;
-    if (current != this && enum_length != 0) return false;
-  }
-  return true;
-}
-
 
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
                                      PropertyFilter filter) {
@@ -10689,25 +10667,6 @@ const uc16* String::GetTwoByteData(unsigned start) {
   }
   UNREACHABLE();
   return NULL;
-}
-
-
-base::SmartArrayPointer<uc16> String::ToWideCString(
-    RobustnessFlag robust_flag) {
-  if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return base::SmartArrayPointer<uc16>();
-  }
-  StringCharacterStream stream(this);
-
-  uc16* result = NewArray<uc16>(length() + 1);
-
-  int i = 0;
-  while (stream.HasMore()) {
-    uint16_t character = stream.GetNext();
-    result[i++] = character;
-  }
-  result[i] = 0;
-  return base::SmartArrayPointer<uc16>(result);
 }
 
 
@@ -15953,22 +15912,6 @@ MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern, Flags flags) {
       Handle<JSRegExp>::cast(isolate->factory()->NewJSObject(constructor));
 
   return JSRegExp::Initialize(regexp, pattern, flags);
-}
-
-
-// static
-MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern,
-                                    Handle<String> flags_string) {
-  Isolate* isolate = pattern->GetIsolate();
-  bool success = false;
-  Flags flags = RegExpFlagsFromString(flags_string, &success);
-  if (!success) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
-        JSRegExp);
-  }
-  return New(pattern, flags);
 }
 
 
