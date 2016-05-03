@@ -1071,7 +1071,7 @@ void AsmTyper::VisitCallNew(CallNew* expr) {
 
 
 void AsmTyper::VisitCallRuntime(CallRuntime* expr) {
-  // Allow runtime calls for now.
+  FAIL(expr, "runtime call not allowed");
 }
 
 
