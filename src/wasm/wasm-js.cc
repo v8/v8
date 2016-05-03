@@ -134,6 +134,11 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
     return nullptr;
   }
 
+  if (info->scope()->declarations()->length() == 0) {
+    thrower->Error("Asm.js validation failed: no declarations in scope");
+    return nullptr;
+  }
+
   info->set_literal(
       info->scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
