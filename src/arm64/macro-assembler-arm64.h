@@ -21,12 +21,15 @@
   #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
   __ Debug(message, __LINE__,                                                \
            FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
-  #define ASM_LOCATION(message)                                              \
-  __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
+#if DEBUG
+#define ASM_LOCATION(message) __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
 #else
-  #define ASM_UNIMPLEMENTED(message)
-  #define ASM_UNIMPLEMENTED_BREAK(message)
-  #define ASM_LOCATION(message)
+#define ASM_LOCATION(message)
+#endif
+#else
+#define ASM_UNIMPLEMENTED(message)
+#define ASM_UNIMPLEMENTED_BREAK(message)
+#define ASM_LOCATION(message)
 #endif
 
 
