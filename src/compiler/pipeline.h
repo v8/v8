@@ -21,12 +21,10 @@ namespace compiler {
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
-class Linkage;
-class PipelineData;
 class Schedule;
 class SourcePositionTable;
 
-class Pipeline {
+class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
   static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
@@ -67,40 +65,7 @@ class Pipeline {
                                              Schedule* schedule = nullptr);
 
  private:
-  friend class PipelineCompilationJob;
-  friend class PipelineWasmCompilationJob;
-
-  explicit Pipeline(PipelineData* data) : data_(data) {}
-
-  // Helpers for executing pipeline phases.
-  template <typename Phase>
-  void Run();
-  template <typename Phase, typename Arg0>
-  void Run(Arg0 arg_0);
-  template <typename Phase, typename Arg0, typename Arg1>
-  void Run(Arg0 arg_0, Arg1 arg_1);
-
-  // Run the graph creation and initial optimization passes.
-  bool CreateGraph();
-
-  // Run the concurrent optimization passes.
-  bool OptimizeGraph(Linkage* linkage);
-
-  // Perform the actual code generation and return handle to a code object.
-  Handle<Code> GenerateCode(Linkage* linkage);
-
-  bool ScheduleAndSelectInstructions(Linkage* linkage);
-  void RunPrintAndVerify(const char* phase, bool untyped = false);
-  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
-  void AllocateRegisters(const RegisterConfiguration* config,
-                         CallDescriptor* descriptor, bool run_verifier);
-
-  CompilationInfo* info() const;
-  Isolate* isolate() const;
-
-  PipelineData* const data_;
-
-  DISALLOW_COPY_AND_ASSIGN(Pipeline);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);
 };
 
 }  // namespace compiler
