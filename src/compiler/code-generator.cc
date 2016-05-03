@@ -507,10 +507,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     handlers_.push_back({caught, GetLabel(handler_rpo), masm()->pc_offset()});
   }
 
-  if (flags & CallDescriptor::kNeedsNopAfterCall) {
-    AddNopForSmiCodeInlining();
-  }
-
   if (needs_frame_state) {
     MarkLazyDeoptSite();
     // If the frame state is present, it starts at argument 1 (just after the

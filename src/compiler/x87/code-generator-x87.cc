@@ -2455,9 +2455,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 
-void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
-
-
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
   if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
     return;

@@ -1657,11 +1657,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 
-void CodeGenerator::AddNopForSmiCodeInlining() {
-  // On 32-bit ARM we do not insert nops for inlined Smi code.
-}
-
-
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
   if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
     return;

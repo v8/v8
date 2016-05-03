@@ -47,18 +47,6 @@ Reduction JSGenericLowering::Reduce(Node* node) {
   }
   return Changed(node);
 }
-
-#define REPLACE_BINARY_OP_IC_CALL(Op, token)                                \
-  void JSGenericLowering::Lower##Op(Node* node) {                           \
-    CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);           \
-    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token),    \
-                        CallDescriptor::kPatchableCallSiteWithNop | flags); \
-  }
-REPLACE_BINARY_OP_IC_CALL(JSShiftLeft, Token::SHL)
-REPLACE_BINARY_OP_IC_CALL(JSShiftRight, Token::SAR)
-REPLACE_BINARY_OP_IC_CALL(JSShiftRightLogical, Token::SHR)
-#undef REPLACE_BINARY_OP_IC_CALL
-
 #define REPLACE_RUNTIME_CALL(op, fun)             \
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
@@ -82,6 +70,9 @@ REPLACE_STUB_CALL(Modulus)
 REPLACE_STUB_CALL(BitwiseAnd)
 REPLACE_STUB_CALL(BitwiseOr)
 REPLACE_STUB_CALL(BitwiseXor)
+REPLACE_STUB_CALL(ShiftLeft)
+REPLACE_STUB_CALL(ShiftRight)
+REPLACE_STUB_CALL(ShiftRightLogical)
 REPLACE_STUB_CALL(LessThan)
 REPLACE_STUB_CALL(LessThanOrEqual)
 REPLACE_STUB_CALL(GreaterThan)
