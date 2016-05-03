@@ -1408,12 +1408,6 @@ HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
   return BuildArrayConstructor(kind, override_mode, NONE);
 }
 
-
-Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
     BuildCodeStub() {

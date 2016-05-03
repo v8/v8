@@ -4250,6 +4250,26 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
   entry_hook(function, stack_pointer);
 }
 
+void ArrayNoArgumentConstructorStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* native_context = assembler->LoadObjectField(
+      assembler->Parameter(
+          ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
+      JSFunction::kContextOffset);
+  bool track_allocation_site =
+      AllocationSite::GetMode(elements_kind()) == TRACK_ALLOCATION_SITE &&
+      override_mode() != DISABLE_ALLOCATION_SITES;
+  Node* allocation_site =
+      track_allocation_site
+          ? assembler->Parameter(
+                ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex)
+          : nullptr;
+  Node* array = assembler->AllocateJSArray(elements_kind(), native_context,
+                                           JSArray::kPreallocatedArrayElements,
+                                           0, allocation_site);
+  assembler->Return(array);
+}
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {

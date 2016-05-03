@@ -139,6 +139,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadFixedArrayElementConstantIndex(compiler::Node* object,
                                                      int index);
 
+  // Context manipulation
+  compiler::Node* LoadNativeContext(compiler::Node* context);
+
   // Store the floating point value of a HeapNumber.
   compiler::Node* StoreHeapNumberValue(compiler::Node* object,
                                        compiler::Node* value);
@@ -158,6 +161,18 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
                                                        compiler::Node* index,
                                                        compiler::Node* value);
+  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
+                                                         compiler::Node* index,
+                                                         compiler::Node* value);
+  compiler::Node* StoreFixedArrayElementInt32Index(compiler::Node* object,
+                                                   int index,
+                                                   compiler::Node* value);
+  compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
+                                                       int index,
+                                                       compiler::Node* value);
+  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
+                                                         int index,
+                                                         compiler::Node* value);
 
   // Allocate a HeapNumber without initializing its value.
   compiler::Node* AllocateHeapNumber();
@@ -167,6 +182,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqOneByteString(int length);
   // Allocate a SeqTwoByteString with the given length.
   compiler::Node* AllocateSeqTwoByteString(int length);
+  // Allocated an JSArray
+  compiler::Node* AllocateJSArray(ElementsKind kind,
+                                  compiler::Node* native_context, int capacity,
+                                  int length,
+                                  compiler::Node* allocation_site = nullptr);
+
+  // Allocation site manipulation
+  void InitializeAllocationMemento(compiler::Node* base_allocation,
+                                   int base_allocation_size,
+                                   compiler::Node* allocation_site);
 
   compiler::Node* TruncateTaggedToFloat64(compiler::Node* context,
                                           compiler::Node* value);
@@ -211,6 +236,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        AllocationFlags flags,
                                        compiler::Node* top_adddress,
                                        compiler::Node* limit_address);
+
+  static const int kElementLoopUnrollThreshold = 8;
 };
 
 }  // namespace internal

@@ -242,6 +242,16 @@ void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
 
+void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // rax -- number of arguments
+  // rdi -- function
+  // rbx -- allocation site with elements kind
+  Register registers[] = {rdi, rbx, rax};
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+}
+
 void ArrayConstructorConstantArgCountDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // register state

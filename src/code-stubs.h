@@ -2801,26 +2801,48 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   DEFINE_CODE_STUB_BASE(ArrayConstructorStubBase, HydrogenCodeStub);
 };
 
-
-class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
+class ArrayNoArgumentConstructorStub : public TurboFanCodeStub {
  public:
   ArrayNoArgumentConstructorStub(
-      Isolate* isolate,
-      ElementsKind kind,
+      Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(isolate, kind, override_mode) {
+      : TurboFanCodeStub(isolate) {
+    // It only makes sense to override local allocation site behavior
+    // if there is a difference between the global allocation site policy
+    // for an ElementsKind and the desired usage of the stub.
+    DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
+           AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
+    set_sub_minor_key(ElementsKindBits::encode(kind) |
+                      AllocationSiteOverrideModeBits::encode(override_mode));
+  }
+
+  void set_sub_minor_key(uint32_t key) { minor_key_ = key; }
+
+  uint32_t sub_minor_key() const { return minor_key_; }
+
+  ElementsKind elements_kind() const {
+    return ElementsKindBits::decode(sub_minor_key());
+  }
+
+  AllocationSiteOverrideMode override_mode() const {
+    return AllocationSiteOverrideModeBits::decode(sub_minor_key());
   }
 
  private:
   void PrintName(std::ostream& os) const override {  // NOLINT
-    BasePrintName(os, "ArrayNoArgumentConstructorStub");
+    os << "ArrayNoArgumentConstructorStub";
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructorConstantArgCount);
-  DEFINE_HYDROGEN_CODE_STUB(ArrayNoArgumentConstructor,
-                            ArrayConstructorStubBase);
-};
+  // Ensure data fits within available bits.
+  STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
 
+  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
+  class AllocationSiteOverrideModeBits
+      : public BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNoArgumentConstructor);
+  DEFINE_TURBOFAN_CODE_STUB(ArrayNoArgumentConstructor, TurboFanCodeStub);
+};
 
 class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
  public:

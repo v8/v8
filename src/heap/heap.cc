@@ -2722,8 +2722,6 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
-  CreateFixedStubs();
-
   // Allocate the dictionary of intrinsic function names.
   Handle<NameDictionary> intrinsic_names =
       NameDictionary::New(isolate(), Runtime::kNumFunctions, TENURED);
@@ -2865,6 +2863,8 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+
+  CreateFixedStubs();
 }
 
 

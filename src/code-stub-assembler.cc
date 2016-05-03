@@ -238,9 +238,7 @@ Node* CodeStubAssembler::Float64Trunc(Node* x) {
 }
 
 Node* CodeStubAssembler::SmiFromWord32(Node* value) {
-  if (Is64()) {
-    value = ChangeInt32ToInt64(value);
-  }
+  value = ChangeInt32ToIntPtr(value);
   return WordShl(value, SmiShiftBitsConstant());
 }
 
@@ -520,9 +518,7 @@ Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
     Node* object, Node* index, int additional_offset) {
   Node* header_size = IntPtrConstant(additional_offset +
                                      FixedArray::kHeaderSize - kHeapObjectTag);
-  if (Is64()) {
-    index = ChangeInt32ToInt64(index);
-  }
+  index = ChangeInt32ToIntPtr(index);
   Node* scaled_index = WordShl(index, IntPtrConstant(kPointerSizeLog2));
   Node* offset = IntPtrAdd(scaled_index, header_size);
   return Load(MachineType::AnyTagged(), object, offset);
@@ -555,6 +551,11 @@ Node* CodeStubAssembler::LoadFixedArrayElementConstantIndex(Node* object,
   return Load(MachineType::AnyTagged(), object, offset);
 }
 
+Node* CodeStubAssembler::LoadNativeContext(Node* context) {
+  return LoadFixedArrayElementConstantIndex(context,
+                                            Context::NATIVE_CONTEXT_INDEX);
+}
+
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
   return StoreNoWriteBarrier(
       MachineRepresentation::kFloat64, object,
@@ -582,6 +583,7 @@ Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
 Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
                                                               Node* index,
                                                               Node* value) {
+  index = ChangeInt32ToIntPtr(index);
   Node* offset =
       IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
                 IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -592,13 +594,48 @@ Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
 Node* CodeStubAssembler::StoreFixedArrayElementInt32Index(Node* object,
                                                           Node* index,
                                                           Node* value) {
-  if (Is64()) {
-    index = ChangeInt32ToInt64(index);
-  }
+  index = ChangeInt32ToIntPtr(index);
   Node* offset =
       IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
                 IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
   return Store(MachineRepresentation::kTagged, object, offset, value);
+}
+
+Node* CodeStubAssembler::StoreFixedDoubleArrayElementInt32Index(Node* object,
+                                                                Node* index,
+                                                                Node* value) {
+  index = ChangeInt32ToIntPtr(index);
+  Node* offset =
+      IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
+                IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
+  return StoreNoWriteBarrier(MachineRepresentation::kFloat64, object, offset,
+                             value);
+}
+
+Node* CodeStubAssembler::StoreFixedArrayElementInt32Index(Node* object,
+                                                          int index,
+                                                          Node* value) {
+  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
+                                index * kPointerSize);
+  return Store(MachineRepresentation::kTagged, object, offset, value);
+}
+
+Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
+                                                              int index,
+                                                              Node* value) {
+  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
+                                index * kPointerSize);
+  return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                             value);
+}
+
+Node* CodeStubAssembler::StoreFixedDoubleArrayElementInt32Index(Node* object,
+                                                                int index,
+                                                                Node* value) {
+  Node* offset = IntPtrConstant(FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+                                index * kDoubleSize);
+  return StoreNoWriteBarrier(MachineRepresentation::kFloat64, object, offset,
+                             value);
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber() {
@@ -631,6 +668,85 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField));
   return result;
+}
+
+Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind,
+                                         Node* native_context, int capacity,
+                                         int length,
+                                         compiler::Node* allocation_site) {
+  bool is_double = IsFastDoubleElementsKind(kind);
+  int element_size = is_double ? kDoubleSize : kPointerSize;
+  int total_size =
+      JSArray::kSize + FixedArray::kHeaderSize + element_size * capacity;
+  int elements_offset = JSArray::kSize;
+
+  if (allocation_site != nullptr) {
+    total_size += AllocationMemento::kSize;
+    elements_offset += AllocationMemento::kSize;
+  }
+
+  // Allocate both array and elements object, and initialize the JSArray.
+  Heap* heap = isolate()->heap();
+  Node* array = Allocate(total_size);
+  Node* array_map = LoadFixedArrayElementConstantIndex(
+      native_context, Context::ArrayMapIndex(kind));
+  StoreMapNoWriteBarrier(array, array_map);
+  Node* empty_properties =
+      HeapConstant(Handle<HeapObject>(heap->empty_fixed_array()));
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kPropertiesOffset,
+                                 empty_properties);
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,
+                                 SmiConstant(Smi::FromInt(length)));
+
+  if (allocation_site != nullptr) {
+    InitializeAllocationMemento(array, JSArray::kSize, allocation_site);
+  }
+
+  // Setup elements object.
+  Node* elements = InnerAllocate(array, elements_offset);
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
+  Handle<Map> elements_map(is_double ? heap->fixed_double_array_map()
+                                     : heap->fixed_array_map());
+  StoreMapNoWriteBarrier(elements, HeapConstant(elements_map));
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                 SmiConstant(Smi::FromInt(capacity)));
+
+  Node* double_hole = Float64Constant(bit_cast<double>(kHoleNanInt64));
+  Node* hole = HeapConstant(Handle<HeapObject>(heap->the_hole_value()));
+  if (capacity <= kElementLoopUnrollThreshold) {
+    for (int i = 0; i < capacity; ++i) {
+      if (is_double) {
+        StoreFixedDoubleArrayElementInt32Index(elements, i, double_hole);
+      } else {
+        StoreFixedArrayElementNoWriteBarrier(elements, i, hole);
+      }
+    }
+  } else {
+    // TODO(danno): Add a loop for initialization
+    UNIMPLEMENTED();
+  }
+
+  return array;
+}
+
+void CodeStubAssembler::InitializeAllocationMemento(
+    compiler::Node* base_allocation, int base_allocation_size,
+    compiler::Node* allocation_site) {
+  StoreObjectFieldNoWriteBarrier(
+      base_allocation, AllocationMemento::kMapOffset + base_allocation_size,
+      HeapConstant(Handle<Map>(isolate()->heap()->allocation_memento_map())));
+  StoreObjectFieldNoWriteBarrier(
+      base_allocation,
+      AllocationMemento::kAllocationSiteOffset + base_allocation_size,
+      allocation_site);
+  if (FLAG_allocation_site_pretenuring) {
+    Node* count = LoadObjectField(allocation_site,
+                                  AllocationSite::kPretenureCreateCountOffset);
+    Node* incremented_count = IntPtrAdd(count, SmiConstant(Smi::FromInt(1)));
+    StoreObjectFieldNoWriteBarrier(allocation_site,
+                                   AllocationSite::kPretenureCreateCountOffset,
+                                   incremented_count);
+  }
 }
 
 Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {

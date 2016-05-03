@@ -58,6 +58,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                          \
   V(AllocateUint8x16)                         \
   V(AllocateBool8x16)                         \
+  V(ArrayNoArgumentConstructor)               \
   V(ArrayConstructorConstantArgCount)         \
   V(ArrayConstructor)                         \
   V(InternalArrayConstructorConstantArgCount) \
@@ -577,6 +578,17 @@ class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
+class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ArrayNoArgumentConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kContextIndex
+  };
+};
 
 class ArrayConstructorConstantArgCountDescriptor
     : public CallInterfaceDescriptor {
