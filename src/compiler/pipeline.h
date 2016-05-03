@@ -28,19 +28,13 @@ class SourcePositionTable;
 
 class Pipeline {
  public:
-  explicit Pipeline(PipelineData* data) : data_(data) {}
+  // Returns a new compilation job for the given function.
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
 
-  // Run the graph creation and initial optimization passes.
-  bool CreateGraph();
-
-  // Run the concurrent optimization passes.
-  bool OptimizeGraph(Linkage* linkage);
-
-  // Perform the actual code generation and return handle to a code object.
-  Handle<Code> GenerateCode(Linkage* linkage);
-
-  // Run the entire pipeline and generate a handle to a code object.
-  Handle<Code> GenerateCode();
+  // Returns a new compilation job for the WebAssembly compilation info.
+  static CompilationJob* NewWasmCompilationJob(
+      CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
+      SourcePositionTable* source_positions);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
@@ -72,18 +66,11 @@ class Pipeline {
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
 
-  // Returns a new compilation job for the given function.
-  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
-
-  // Returns a new compilation job for the WebAssembly compilation info.
-  static CompilationJob* NewWasmCompilationJob(
-      CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
-      SourcePositionTable* source_positions);
-
  private:
-  // The wasm compilation job calls ScheduleAndSelectInstructions and
-  // RunPrintAndVerify, so we make it a member class.
+  friend class PipelineCompilationJob;
   friend class PipelineWasmCompilationJob;
+
+  explicit Pipeline(PipelineData* data) : data_(data) {}
 
   // Helpers for executing pipeline phases.
   template <typename Phase>
@@ -92,6 +79,18 @@ class Pipeline {
   void Run(Arg0 arg_0);
   template <typename Phase, typename Arg0, typename Arg1>
   void Run(Arg0 arg_0, Arg1 arg_1);
+
+  // Run the graph creation and initial optimization passes.
+  bool CreateGraph();
+
+  // Run the concurrent optimization passes.
+  bool OptimizeGraph(Linkage* linkage);
+
+  // Perform the actual code generation and return handle to a code object.
+  Handle<Code> GenerateCode(Linkage* linkage);
+
+  // Run the entire pipeline and generate a handle to a code object.
+  Handle<Code> GenerateCode();
 
   void BeginPhaseKind(const char* phase_kind);
   void EndPhaseKind();

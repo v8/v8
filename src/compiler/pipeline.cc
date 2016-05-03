@@ -505,6 +505,8 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
   return pipeline_statistics;
 }
 
+}  // namespace
+
 class PipelineCompilationJob final : public CompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
@@ -586,8 +588,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::GenerateCodeImpl() {
   }
   return SUCCEEDED;
 }
-
-}  // namespace
 
 class PipelineWasmCompilationJob final : public CompilationJob {
  public:
