@@ -328,13 +328,14 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
     DCHECK(node->op()->EffectOutputCount() == 0 ||
            node->opcode() == IrOpcode::kStart);
   }
-  // Rewire control inputs of control nodes, and update the current control
-  // input.
-  if (node->op()->ControlOutputCount() > 0) {
-    DCHECK_EQ(1, node->op()->ControlInputCount());
-    NodeProperties::ReplaceControlInput(node, *control);
-    *control = node;
 
+  // Rewire control inputs.
+  for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+    NodeProperties::ReplaceControlInput(node, *control, i);
+  }
+  // Update the current control and wire IfSuccess right after calls.
+  if (node->op()->ControlOutputCount() > 0) {
+    *control = node;
     if (node->opcode() == IrOpcode::kCall) {
       // Schedule the call's IfSuccess node (if there is no exception use).
       TryScheduleCallIfSuccess(node, control);
