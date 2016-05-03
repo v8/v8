@@ -42,8 +42,12 @@ namespace typesystem {
 
 enum CoverFormalParametersEnum {
   kNoCover = 0,
+  // Allow type annotation, in the case of a function's formal parameters.
   kAllowType = 1 << 0,
+  // Allow optional sign, in the case of a function's formal parameters.
   kAllowOptional = 1 << 1,
+  // Disallow type annotation, to avoid ambiguity in conditionals.
+  kDisallowType = 1 << 2,
   kCover = kAllowType | kAllowOptional
 };
 
@@ -2156,7 +2160,7 @@ ParserBase<Traits>::ParseAssignmentExpression(
                   Check(Token::CONDITIONAL);
   if (optional) ExpressionUnexpectedToken(classifier);
   // Parse optional type annotation in typed mode.
-  if (scope_->typed() &&
+  if (scope_->typed() && !(cover & typesystem::kDisallowType) &&
       (maybe_arrow_formals || (cover & typesystem::kAllowType)) &&
       peek() == Token::COLON) {
     // This is not valid in an expression, unless followed by an arrow.
@@ -2387,7 +2391,7 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
-  ExpressionT left = ParseAssignmentExpression(true, typesystem::kNoCover,
+  ExpressionT left = ParseAssignmentExpression(true, typesystem::kDisallowType,
                                                classifier, CHECK_OK);
   Traits::RewriteNonPattern(classifier, CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
