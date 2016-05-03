@@ -166,3 +166,10 @@ function InvalidArrowFunctions(size) {
     new TestGen(1, InvalidArrowFunctions, [CheckInvalidArrow]),
   ]);
 })(test_size);
+
+(function TestConditionalExpressions() {
+  CheckValid("var v = {x: 17}; true ? (42) : v.x");
+  CheckValid("var v = 'abcd'; true ? (42) : v.indexOf('c')");
+  CheckValid("true ? (42) : {x: 17}.x");
+  CheckValid("true ? (42) : 'abcd'.indexOf('c')");
+})();
