@@ -275,18 +275,40 @@ void S390Debugger::Debug() {
               reinterpret_cast<Instruction*>(sim_->get_pc()));
         }
 
-        if (argc == 2 && last_pc != sim_->get_pc() && GetValue(arg1, &value)) {
-          for (int i = 1; (!sim_->has_bad_pc()) && i < value; i++) {
-            disasm::NameConverter converter;
-            disasm::Disassembler dasm(converter);
-            // use a reasonably large buffer
-            v8::internal::EmbeddedVector<char, 256> buffer;
-            dasm.InstructionDecode(buffer,
-                                   reinterpret_cast<byte*>(sim_->get_pc()));
-            PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                   buffer.start());
-            sim_->ExecuteInstruction(
-                reinterpret_cast<Instruction*>(sim_->get_pc()));
+        if (argc == 2 && last_pc != sim_->get_pc()) {
+          disasm::NameConverter converter;
+          disasm::Disassembler dasm(converter);
+          // use a reasonably large buffer
+          v8::internal::EmbeddedVector<char, 256> buffer;
+
+          if (GetValue(arg1, &value)) {
+            // Interpret a numeric argument as the number of instructions to
+            // step past.
+            for (int i = 1; (!sim_->has_bad_pc()) &&  i < value; i++) {
+              dasm.InstructionDecode(buffer,
+                                    reinterpret_cast<byte*>(sim_->get_pc()));
+              PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
+                    buffer.start());
+              sim_->ExecuteInstruction(
+                      reinterpret_cast<Instruction*>(sim_->get_pc()));
+            }
+          } else {
+            // Otherwise treat it as the mnemonic of the opcode to stop at.
+            char mnemonic[256];
+            while (!sim_->has_bad_pc()) {
+              dasm.InstructionDecode(buffer,
+                                    reinterpret_cast<byte*>(sim_->get_pc()));
+              char* mnemonicStart = buffer.start();
+              while (*mnemonicStart != 0 && *mnemonicStart != ' ')
+                mnemonicStart++;
+              SScanF(mnemonicStart, "%s", mnemonic);
+              if (!strcmp(arg1, mnemonic)) break;
+
+              PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
+                    buffer.start());
+              sim_->ExecuteInstruction(
+                      reinterpret_cast<Instruction*>(sim_->get_pc()));
+            }
           }
         }
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
@@ -575,6 +597,8 @@ void S390Debugger::Debug() {
         } else {
           PrintF("Wrong usage. Use help command for more information.\n");
         }
+      } else if (strcmp(cmd, "icount") == 0) {
+        PrintF("%05d\n", sim_->icount_);
       } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
         ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
         PrintF("Trace of executed instructions is %s\n",
@@ -5563,6 +5587,8 @@ int Simulator::DecodeInstruction(Instruction* instr) {
 
 // Executes the current instruction.
 void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
+  icount_++;
+
   if (v8::internal::FLAG_check_icache) {
     CheckICache(isolate_->simulator_i_cache(), instr);
   }
@@ -5608,7 +5634,6 @@ void Simulator::Execute() {
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
       ExecuteInstruction(instr);
       program_counter = get_pc();
     }
@@ -5617,7 +5642,6 @@ void Simulator::Execute() {
     // we reach the particular instuction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
-      icount_++;
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
         S390Debugger dbg(this);
         dbg.Debug();
