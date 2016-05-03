@@ -279,8 +279,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
             simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
             this_storage, this_effect, this_control);
       }
-      FieldAccess field_access = {kTaggedBase, field_index.offset(), name,
-                                  field_type, MachineType::AnyTagged()};
+      FieldAccess field_access = {
+          kTaggedBase, field_index.offset(),     name,
+          field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
       if (access_mode == AccessMode::kLoad) {
         if (field_type->Is(Type::UntaggedFloat64())) {
           if (!field_index.is_inobject() || field_index.is_hidden_field() ||
@@ -723,7 +724,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       element_type = type_cache_.kSmi;
     }
     ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
-                                    element_type, element_machine_type};
+                                    element_type, element_machine_type,
+                                    kFullWriteBarrier};
 
     // Access the actual element.
     // TODO(bmeurer): Refactor this into separate methods or even a separate
