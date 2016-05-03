@@ -471,31 +471,35 @@ class PipelineRunScope {
 
 PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
                                              ZonePool* zone_pool) {
-  if (!FLAG_turbo_stats) return nullptr;
+  PipelineStatistics* pipeline_statistics = nullptr;
 
-  PipelineStatistics* pipeline_statistics =
-      new PipelineStatistics(info, zone_pool);
-  pipeline_statistics->BeginPhaseKind("initializing");
+  if (FLAG_turbo_stats) {
+    pipeline_statistics = new PipelineStatistics(info, zone_pool);
+    pipeline_statistics->BeginPhaseKind("initializing");
+  }
 
-  FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "w+");
-  if (json_file != nullptr) {
-    OFStream json_of(json_file);
-    Handle<Script> script = info->script();
-    base::SmartArrayPointer<char> function_name = info->GetDebugName();
-    int pos = info->shared_info()->start_position();
-    json_of << "{\"function\":\"" << function_name.get()
-            << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-      DisallowHeapAllocation no_allocation;
-      int start = info->shared_info()->start_position();
-      int len = info->shared_info()->end_position() - start;
-      String::SubStringRange source(String::cast(script->source()), start, len);
-      for (const auto& c : source) {
-        json_of << AsEscapedUC16ForJSON(c);
+  if (FLAG_trace_turbo) {
+    FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "w+");
+    if (json_file != nullptr) {
+      OFStream json_of(json_file);
+      Handle<Script> script = info->script();
+      base::SmartArrayPointer<char> function_name = info->GetDebugName();
+      int pos = info->shared_info()->start_position();
+      json_of << "{\"function\":\"" << function_name.get()
+              << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
+      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+        DisallowHeapAllocation no_allocation;
+        int start = info->shared_info()->start_position();
+        int len = info->shared_info()->end_position() - start;
+        String::SubStringRange source(String::cast(script->source()), start,
+                                      len);
+        for (const auto& c : source) {
+          json_of << AsEscapedUC16ForJSON(c);
+        }
       }
+      json_of << "\",\n\"phases\":[";
+      fclose(json_file);
     }
-    json_of << "\",\n\"phases\":[";
-    fclose(json_file);
   }
 
   return pipeline_statistics;
