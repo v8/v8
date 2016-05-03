@@ -45,8 +45,6 @@ class CodeSerializer : public Serializer {
 
   void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  void SerializeIC(Code* ic, HowToCode how_to_code,
-                   WhereToPoint where_to_point);
   void SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
                          WhereToPoint where_to_point);
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,

@@ -73,12 +73,10 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                          where_to_point);
         return;
       case Code::STUB:
-        SerializeCodeStub(code_object->stub_key(), how_to_code, where_to_point);
-        return;
 #define IC_KIND_CASE(KIND) case Code::KIND:
         IC_KIND_LIST(IC_KIND_CASE)
 #undef IC_KIND_CASE
-        SerializeIC(code_object, how_to_code, where_to_point);
+        SerializeCodeStub(code_object->stub_key(), how_to_code, where_to_point);
         return;
       case Code::FUNCTION:
         DCHECK(code_object->has_reloc_info_for_serialization());
@@ -147,37 +145,6 @@ void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
 
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");
   sink_->PutInt(index, "CodeStub key");
-}
-
-void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
-                                 WhereToPoint where_to_point) {
-  // The IC may be implemented as a stub.
-  uint32_t stub_key = ic->stub_key();
-  if (stub_key != CodeStub::NoCacheKey()) {
-    if (FLAG_trace_serializer) {
-      PrintF(" %s is a code stub\n", Code::Kind2String(ic->kind()));
-    }
-    SerializeCodeStub(stub_key, how_to_code, where_to_point);
-    return;
-  }
-  // The IC may be implemented as builtin. Only real builtins have an
-  // actual builtin_index value attached (otherwise it's just garbage).
-  // Compare to make sure we are really dealing with a builtin.
-  int builtin_index = ic->builtin_index();
-  if (builtin_index < Builtins::builtin_count) {
-    Builtins::Name name = static_cast<Builtins::Name>(builtin_index);
-    Code* builtin = isolate()->builtins()->builtin(name);
-    if (builtin == ic) {
-      if (FLAG_trace_serializer) {
-        PrintF(" %s is a builtin\n", Code::Kind2String(ic->kind()));
-      }
-      DCHECK(ic->kind() == Code::KEYED_LOAD_IC ||
-             ic->kind() == Code::KEYED_STORE_IC);
-      SerializeBuiltin(builtin_index, how_to_code, where_to_point);
-      return;
-    }
-  }
-  UNREACHABLE();
 }
 
 int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
