@@ -62,13 +62,6 @@ function AtomicsCompareExchangeJS(sta, index, oldValue, newValue) {
   return %_AtomicsCompareExchange(sta, index, oldValue, newValue);
 }
 
-function AtomicsStoreJS(sta, index, value) {
-  CheckSharedIntegerTypedArray(sta);
-  index = ValidateIndex(index, %_TypedArrayGetLength(sta));
-  value = TO_NUMBER(value);
-  return %_AtomicsStore(sta, index, value);
-}
-
 function AtomicsAddJS(ia, index, value) {
   CheckSharedIntegerTypedArray(ia);
   index = ValidateIndex(index, %_TypedArrayGetLength(ia));
@@ -172,7 +165,6 @@ utils.InstallFunctions(Atomics, DONT_ENUM, [
   // TODO(binji): remove the rest of the (non futex) Atomics functions as they
   // become builtins.
   "compareExchange", AtomicsCompareExchangeJS,
-  "store", AtomicsStoreJS,
   "add", AtomicsAddJS,
   "sub", AtomicsSubJS,
   "and", AtomicsAndJS,

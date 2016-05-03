@@ -5376,6 +5376,58 @@ void Builtins::Generate_AtomicsLoad(CodeStubAssembler* a) {
   a->Return(a->Int32Constant(0));
 }
 
+void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
+  using namespace compiler;
+  Node* array = a->Parameter(1);
+  Node* index = a->Parameter(2);
+  Node* value = a->Parameter(3);
+  Node* context = a->Parameter(4 + 2);
+
+  Node* instance_type;
+  Node* backing_store;
+  ValidateSharedTypedArray(a, array, context, &instance_type, &backing_store);
+
+  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(a, index, context);
+  Node* array_length_word32 = a->TruncateTaggedToWord32(
+      context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
+  ValidateAtomicIndex(a, index_word32, array_length_word32, context);
+  Node* index_word = a->ChangeUint32ToWord(index_word32);
+
+  Callable to_integer = CodeFactory::ToInteger(a->isolate());
+  Node* value_integer = a->CallStub(to_integer, context, value);
+  Node* value_word32 = a->TruncateTaggedToWord32(context, value_integer);
+
+  CodeStubAssembler::Label u8(a), u16(a), u32(a), other(a);
+  int32_t case_values[] = {
+      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
+      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
+  };
+  CodeStubAssembler::Label* case_labels[] = {
+      &u8, &u8, &u16, &u16, &u32, &u32,
+  };
+  a->Switch(instance_type, &other, case_values, case_labels,
+            arraysize(case_labels));
+
+  a->Bind(&u8);
+  a->AtomicStore(MachineRepresentation::kWord8, backing_store, index_word,
+                 value_word32);
+  a->Return(value_integer);
+
+  a->Bind(&u16);
+  a->SmiTag(a->AtomicStore(MachineRepresentation::kWord16, backing_store,
+                           a->WordShl(index_word, 1), value_word32));
+  a->Return(value_integer);
+
+  a->Bind(&u32);
+  a->AtomicStore(MachineRepresentation::kWord32, backing_store,
+                 a->WordShl(index_word, 2), value_word32);
+  a->Return(value_integer);
+
+  // This shouldn't happen, we've already validated the type.
+  a->Bind(&other);
+  a->Return(a->Int32Constant(0));
+}
+
 #define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)               \
 Handle<Code> Builtins::name() {                               \
   Code** code_address =                                       \

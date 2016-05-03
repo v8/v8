@@ -655,6 +655,8 @@ class Assembler : public AssemblerBase {
   // Exchange
   void xchg(Register dst, Register src);
   void xchg(Register dst, const Operand& src);
+  void xchg_b(Register reg, const Operand& op);
+  void xchg_w(Register reg, const Operand& op);
 
   // Arithmetics
   void adc(Register dst, int32_t imm32);

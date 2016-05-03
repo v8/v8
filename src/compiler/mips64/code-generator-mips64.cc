@@ -1596,6 +1596,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
       break;
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
+      // TODO(binji): implement
+      __ nop();
+      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

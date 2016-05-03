@@ -234,6 +234,11 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
   return raw_assembler_->Store(rep, base, index, value, kNoWriteBarrier);
 }
 
+Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
+                                 Node* index, Node* value) {
+  return raw_assembler_->AtomicStore(rep, base, index, value);
+}
+
 Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
 }

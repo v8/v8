@@ -137,6 +137,10 @@ class RawMachineAssembler {
   Node* AtomicLoad(MachineType rep, Node* base, Node* index) {
     return AddNode(machine()->AtomicLoad(rep), base, index);
   }
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+                    Node* value) {
+    return AddNode(machine()->AtomicStore(rep), base, index, value);
+  }
 
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {

@@ -784,6 +784,9 @@ class Assembler : public AssemblerBase {
   void decb(Register dst);
   void decb(const Operand& dst);
 
+  void xchgb(Register reg, const Operand& op);
+  void xchgw(Register reg, const Operand& op);
+
   // Sign-extends rax into rdx:rax.
   void cqo();
   // Sign-extends eax into edx:eax.

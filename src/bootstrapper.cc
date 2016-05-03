@@ -2500,6 +2500,8 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
 
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("load"),
                         Builtins::kAtomicsLoad, 2, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("store"),
+                        Builtins::kAtomicsStore, 3, true);
 }
 
 

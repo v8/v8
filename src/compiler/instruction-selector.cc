@@ -1188,6 +1188,8 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitAtomicLoad(node);
     }
+    case IrOpcode::kAtomicStore:
+      return VisitAtomicStore(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());

@@ -322,7 +322,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ArrayIsArray, 2)              \
   V(StringPrototypeCharAt, 2)     \
   V(StringPrototypeCharCodeAt, 2) \
-  V(AtomicsLoad, 3)
+  V(AtomicsLoad, 3)               \
+  V(AtomicsStore, 4)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -681,6 +682,7 @@ class Builtins {
   static void Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm);
 
   static void Generate_AtomicsLoad(CodeStubAssembler* assembler);
+  static void Generate_AtomicsStore(CodeStubAssembler* assembler);
 
   static void InitBuiltinFunctionTable();
 

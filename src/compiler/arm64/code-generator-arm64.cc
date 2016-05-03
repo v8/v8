@@ -479,6 +479,14 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Dmb(InnerShareable, BarrierAll);                               \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                      \
+  do {                                                                \
+    __ Dmb(InnerShareable, BarrierAll);                               \
+    __ asm_instr(i.InputRegister(2),                                  \
+                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
+    __ Dmb(InnerShareable, BarrierAll);                               \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   const CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->IsCFunctionCall() || descriptor->UseNativeStack()) {
@@ -1428,6 +1436,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicLoadWord32:
       __ Ldr(i.OutputRegister32(),
+             MemOperand(i.InputRegister(0), i.InputRegister(1)));
+      __ Dmb(InnerShareable, BarrierAll);
+      break;
+    case kAtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Strb);
+      break;
+    case kAtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Strh);
+      break;
+    case kAtomicStoreWord32:
+      __ Dmb(InnerShareable, BarrierAll);
+      __ Str(i.InputRegister32(2),
              MemOperand(i.InputRegister(0), i.InputRegister(1)));
       __ Dmb(InnerShareable, BarrierAll);
       break;

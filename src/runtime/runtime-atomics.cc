@@ -33,11 +33,6 @@ inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
 }
 
 template <typename T>
-inline void StoreSeqCst(T* p, T value) {
-  __atomic_store_n(p, value, __ATOMIC_SEQ_CST);
-}
-
-template <typename T>
 inline T AddSeqCst(T* p, T value) {
   return __atomic_fetch_add(p, value, __ATOMIC_SEQ_CST);
 }
@@ -109,10 +104,6 @@ inline T ExchangeSeqCst(T* p, T value) {
     return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
                                               bit_cast<vctype>(newval),     \
                                               bit_cast<vctype>(oldval));    \
-  }                                                                         \
-  inline void StoreSeqCst(type* p, type value) {                            \
-    InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),               \
-                                bit_cast<vctype>(value));                   \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -208,15 +199,6 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
 
 
 template <typename T>
-inline Object* DoStore(Isolate* isolate, void* buffer, size_t index,
-                       Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  StoreSeqCst(static_cast<T*>(buffer) + index, value);
-  return *obj;
-}
-
-
-template <typename T>
 inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
   T value = FromObject<T>(obj);
@@ -289,15 +271,6 @@ inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
   uint8_t result = CompareExchangeSeqCst(static_cast<uint8_t*>(buffer) + index,
                                          oldval, newval);
   return ToObject(isolate, result);
-}
-
-
-inline Object* DoStoreUint8Clamped(Isolate* isolate, void* buffer, size_t index,
-                                   Handle<Object> obj) {
-  typedef int32_t convert_type;
-  uint8_t value = ClampToUint8(FromObject<convert_type>(obj));
-  StoreSeqCst(static_cast<uint8_t*>(buffer) + index, value);
-  return *obj;
 }
 
 
@@ -398,38 +371,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     case kExternalUint8ClampedArray:
       return DoCompareExchangeUint8Clamped(isolate, source, index, oldobj,
                                            newobj);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_AtomicsStore) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(isolate, sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoStore<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoStoreUint8Clamped(isolate, source, index, value);
 
     default:
       break;

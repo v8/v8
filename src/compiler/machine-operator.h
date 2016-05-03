@@ -78,6 +78,8 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
 MachineRepresentation StackSlotRepresentationOf(Operator const* op);
 
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
@@ -501,6 +503,8 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // atomic-load [base + index]
   const Operator* AtomicLoad(LoadRepresentation rep);
+  // atomic-store [base + index], value
+  const Operator* AtomicStore(MachineRepresentation rep);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

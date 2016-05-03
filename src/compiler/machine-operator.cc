@@ -63,6 +63,11 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   return OpParameter<MachineRepresentation>(op);
 }
 
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kAtomicStore, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
+
 #define PURE_OP_LIST(V)                                                       \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
@@ -400,6 +405,11 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Int32)                  \
   V(Uint32)
 
+#define ATOMIC_REPRESENTATION_LIST(V) \
+  V(kWord8)                           \
+  V(kWord16)                          \
+  V(kWord32)
+
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -491,7 +501,7 @@ struct MachineOperatorGlobalCache {
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
-#define ATOMIC(Type)                                                          \
+#define ATOMIC_LOAD(Type)                                                     \
   struct AtomicLoad##Type##Operator final                                     \
       : public Operator1<LoadRepresentation> {                                \
     AtomicLoad##Type##Operator()                                              \
@@ -500,8 +510,20 @@ struct MachineOperatorGlobalCache {
               "AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
   };                                                                          \
   AtomicLoad##Type##Operator kAtomicLoad##Type;
-  ATOMIC_TYPE_LIST(ATOMIC)
-#undef ATOMIC
+  ATOMIC_TYPE_LIST(ATOMIC_LOAD)
+#undef ATOMIC_LOAD
+
+#define ATOMIC_STORE(Type)                                                     \
+  struct AtomicStore##Type##Operator                                           \
+      : public Operator1<MachineRepresentation> {                              \
+    AtomicStore##Type##Operator()                                              \
+        : Operator1<MachineRepresentation>(                                    \
+              IrOpcode::kAtomicStore, Operator::kNoRead | Operator::kNoThrow,  \
+              "AtomicStore", 3, 1, 1, 0, 1, 0, MachineRepresentation::Type) {} \
+  };                                                                           \
+  AtomicStore##Type##Operator kAtomicStore##Type;
+  ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
+#undef STORE
 };
 
 
@@ -631,6 +653,17 @@ const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {
   }
   ATOMIC_TYPE_LIST(LOAD)
 #undef LOAD
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
+#define STORE(kRep)                         \
+  if (rep == MachineRepresentation::kRep) { \
+    return &cache_.kAtomicStore##kRep;      \
+  }
+  ATOMIC_REPRESENTATION_LIST(STORE)
+#undef STORE
   UNREACHABLE();
   return nullptr;
 }

@@ -232,6 +232,8 @@ class CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
                             Node* value);
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+                    Node* value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name) Node* name(Node* a, Node* b);

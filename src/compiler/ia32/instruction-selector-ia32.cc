@@ -1576,6 +1576,44 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
   VisitLoad(node);
 }
 
+void InstructionSelector::VisitAtomicStore(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kIA32Xchgb;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kIA32Xchgw;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kIA32Xchgl;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 0, nullptr, input_count, inputs);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

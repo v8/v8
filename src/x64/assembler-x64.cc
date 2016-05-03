@@ -1908,6 +1908,25 @@ void Assembler::shrd(Register dst, Register src) {
   emit_modrm(src, dst);
 }
 
+void Assembler::xchgb(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  if (!reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg, op);
+  } else {
+    emit_optional_rex_32(reg, op);
+  }
+  emit(0x86);
+  emit_operand(reg, op);
+}
+
+void Assembler::xchgw(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg, op);
+  emit(0x87);
+  emit_operand(reg, op);
+}
 
 void Assembler::emit_xchg(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);

@@ -357,7 +357,8 @@
   V(Word32PairShl)              \
   V(Word32PairShr)              \
   V(Word32PairSar)              \
-  V(AtomicLoad)
+  V(AtomicLoad)                 \
+  V(AtomicStore)
 
 #define MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \
   V(CreateFloat32x4)                        \

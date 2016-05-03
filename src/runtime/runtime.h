@@ -59,7 +59,6 @@ namespace internal {
   F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
   F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
   F(AtomicsCompareExchange, 4, 1)               \
-  F(AtomicsStore, 3, 1)                         \
   F(AtomicsAdd, 3, 1)                           \
   F(AtomicsSub, 3, 1)                           \
   F(AtomicsAnd, 3, 1)                           \
