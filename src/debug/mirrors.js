@@ -16,8 +16,8 @@ var MakeError;
 var MapEntries;
 var MapIteratorNext;
 var MathMin = global.Math.min;
-var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
-var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
+var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
 var SymbolToString;
@@ -115,7 +115,7 @@ function ClearMirrorCache(value) {
 
 function ObjectIsPromise(value) {
   return IS_RECEIVER(value) &&
-         !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
+         !IS_UNDEFINED(%DebugGetProperty(value, promiseStateSymbol));
 }
 
 
@@ -1272,7 +1272,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 function PromiseGetStatus_(value) {
-  var status = %DebugGetProperty(value, promiseStatusSymbol);
+  var status = %DebugGetProperty(value, promiseStateSymbol);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1280,7 +1280,7 @@ function PromiseGetStatus_(value) {
 
 
 function PromiseGetValue_(value) {
-  return %DebugGetProperty(value, promiseValueSymbol);
+  return %DebugGetProperty(value, promiseResultSymbol);
 }
 
 

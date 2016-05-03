@@ -595,7 +595,7 @@ bool Object::IsPromise(Handle<Object> object) {
   auto isolate = js_object->GetIsolate();
   // TODO(dcarney): this should just be read from the symbol registry so as not
   // to be context dependent.
-  auto key = isolate->factory()->promise_status_symbol();
+  auto key = isolate->factory()->promise_state_symbol();
   // Shouldn't be possible to throw here.
   return JSObject::HasRealNamedProperty(js_object, key).FromJust();
 }
