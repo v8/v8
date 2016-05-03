@@ -22,8 +22,9 @@ void FrameElider::MarkBlocks() {
   for (InstructionBlock* block : instruction_blocks()) {
     if (block->needs_frame()) continue;
     for (int i = block->code_start(); i < block->code_end(); ++i) {
-      if (InstructionAt(i)->IsCall() ||
-          InstructionAt(i)->opcode() == ArchOpcode::kArchDeoptimize) {
+      const Instruction* instr = InstructionAt(i);
+      if (instr->IsCall() || instr->IsDeoptimizeCall() ||
+          instr->arch_opcode() == ArchOpcode::kArchStackPointer) {
         block->mark_needs_frame();
         break;
       }
@@ -50,6 +51,16 @@ void FrameElider::MarkDeConstruction() {
       for (RpoNumber& succ : block->successors()) {
         if (!InstructionBlockAt(succ)->needs_frame()) {
           DCHECK_EQ(1U, block->SuccessorCount());
+          const Instruction* last =
+              InstructionAt(block->last_instruction_index());
+          if (last->IsThrow() || last->IsTailCall() ||
+              last->IsDeoptimizeCall()) {
+            // We need to keep the frame if we exit the block through any
+            // of these.
+            continue;
+          }
+          // The only cases when we need to deconstruct are ret and jump.
+          DCHECK(last->IsRet() || last->IsJump());
           block->mark_must_deconstruct_frame();
         }
       }

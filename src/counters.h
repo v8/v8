@@ -588,7 +588,9 @@ class RuntimeCallTimerScope {
      101)                                                                     \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
+  /* Asm/Wasm. */                                                             \
+  HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                              \
   /* Garbage collection timers. */                                            \
@@ -619,8 +621,18 @@ class RuntimeCallTimerScope {
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
   /* Total compilation time incl. caching/parsing */                          \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
-
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  /* Asm/Wasm */                                                              \
+  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,      \
+     1000000, MICROSECOND)                                                    \
+  HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,       \
+     MICROSECOND)                                                             \
+  HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,   \
+     MICROSECOND)                                                             \
+  HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,     \
+     MICROSECOND)                                                             \
+  HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000, \
+     MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -651,10 +663,17 @@ class RuntimeCallTimerScope {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-#define HISTOGRAM_MEMORY_LIST(HM)                   \
-  HM(memory_heap_committed, V8.MemoryHeapCommitted) \
-  HM(memory_heap_used, V8.MemoryHeapUsed)
-
+#define HISTOGRAM_MEMORY_LIST(HM)                                              \
+  HM(memory_heap_committed, V8.MemoryHeapCommitted)                            \
+  HM(memory_heap_used, V8.MemoryHeapUsed)                                      \
+  /* Asm/Wasm */                                                               \
+  HM(wasm_decode_module_peak_memory_bytes, V8.WasmDecodeModulePeakMemoryBytes) \
+  HM(wasm_compile_function_peak_memory_bytes,                                  \
+     V8.WasmCompileFunctionPeakMemoryBytes)                                    \
+  HM(wasm_min_mem_pages_count, V8.WasmMinMemPagesCount)                        \
+  HM(wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount)                        \
+  HM(wasm_function_size_bytes, V8.WasmFunctionSizeBytes)                       \
+  HM(wasm_module_size_bytes, V8.WasmModuleSizeBytes)
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
@@ -703,7 +722,6 @@ class RuntimeCallTimerScope {
   /* The store-buffer implementation of the write barrier. */         \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
-
 #define STATS_COUNTER_LIST_2(SC)                                               \
   /* Number of code stubs. */                                                  \
   SC(code_stubs, V8.CodeStubs)                                                 \
@@ -743,8 +761,6 @@ class RuntimeCallTimerScope {
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
-  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)            \
-  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized)    \
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(string_add_native, V8.StringAddNative)                                    \
   SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
@@ -757,15 +773,12 @@ class RuntimeCallTimerScope {
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
   SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
-  SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \
-  SC(math_round_runtime, V8.MathRoundRuntime)                                  \
-  SC(math_sqrt_runtime, V8.MathSqrtRuntime)                                    \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
-  SC(runtime_calls, V8.RuntimeCalls)                          \
+  SC(runtime_calls, V8.RuntimeCalls)                                           \
   SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)                      \
   SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                            \
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \

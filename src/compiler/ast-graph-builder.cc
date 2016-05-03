@@ -568,7 +568,7 @@ bool AstGraphBuilder::CreateGraph(bool stack_check) {
   }
 
   // Build local context only if there are context allocated variables.
-  if (info()->num_heap_slots() > 0) {
+  if (scope->num_heap_slots() > 0) {
     // Push a new inner context scope for the current activation.
     Node* inner_context = BuildLocalActivationContext(GetFunctionContext());
     ContextScope top_context(this, scope, inner_context);
@@ -1083,7 +1083,7 @@ void AstGraphBuilder::Visit(Expression* expr) {
 void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
   VariableMode mode = decl->mode();
-  bool hole_init = mode == CONST || mode == CONST_LEGACY || mode == LET;
+  bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
@@ -1442,9 +1442,11 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control.EndTry();
 
-  // Clear message object as we enter the catch block.
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  NewNode(javascript()->StoreMessage(), the_hole);
+  // If requested, clear message object as we enter the catch block.
+  if (stmt->clear_pending_message()) {
+    Node* the_hole = jsgraph()->TheHoleConstant();
+    NewNode(javascript()->StoreMessage(), the_hole);
+  }
 
   // Create a catch scope that binds the exception.
   Node* exception = try_control.GetExceptionNode();
@@ -2454,11 +2456,13 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     // provide a fully resolved callee to patch into the environment.
     Node* function = GetFunctionClosure();
     Node* language = jsgraph()->Constant(language_mode());
-    Node* position = jsgraph()->Constant(current_scope()->start_position());
+    Node* eval_scope_position =
+        jsgraph()->Constant(current_scope()->start_position());
+    Node* eval_position = jsgraph()->Constant(expr->position());
     const Operator* op =
         javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval);
-    Node* new_callee =
-        NewNode(op, callee, source, function, language, position);
+    Node* new_callee = NewNode(op, callee, source, function, language,
+                               eval_scope_position, eval_position);
     PrepareFrameState(new_callee, expr->EvalId(),
                       OutputFrameStateCombine::PokeAt(arg_count + 1));
 
@@ -3289,16 +3293,6 @@ Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
 }
 
 
-Node* AstGraphBuilder::BuildHoleCheckSilent(Node* value, Node* for_hole,
-                                            Node* not_hole) {
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
-  return NewNode(
-      common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-      check, for_hole, not_hole);
-}
-
-
 Node* AstGraphBuilder::BuildHoleCheckThenThrow(Node* value, Variable* variable,
                                                Node* not_hole,
                                                BailoutId bailout_id) {
@@ -3372,15 +3366,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::LOCAL: {
       // Local var, const, or let variable.
       Node* value = environment()->Lookup(variable);
-      if (mode == CONST_LEGACY) {
-        // Perform check for uninitialized legacy const variables.
-        if (value->op() == the_hole->op()) {
-          value = jsgraph()->UndefinedConstant();
-        } else if (value->opcode() == IrOpcode::kPhi) {
-          Node* undefined = jsgraph()->UndefinedConstant();
-          value = BuildHoleCheckSilent(value, undefined, value);
-        }
-      } else if (mode == LET || mode == CONST) {
+      if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
         if (value->op() == the_hole->op()) {
           value = BuildThrowReferenceError(variable, bailout_id);
@@ -3400,11 +3386,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // TODO(titzer): initialization checks are redundant for already
       // initialized immutable context loads, but only specialization knows.
       // Maybe specializer should be a parameter to the graph builder?
-      if (mode == CONST_LEGACY) {
-        // Perform check for uninitialized legacy const variables.
-        Node* undefined = jsgraph()->UndefinedConstant();
-        value = BuildHoleCheckSilent(value, undefined, value);
-      } else if (mode == LET || mode == CONST) {
+      if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
         value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
       }
@@ -3481,13 +3463,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       // Local var, const, or let variable.
-      if (mode == CONST_LEGACY && op == Token::INIT) {
-        // Perform an initialization check for legacy const variables.
-        Node* current = environment()->Lookup(variable);
-        if (current->op() != the_hole->op()) {
-          value = BuildHoleCheckSilent(current, value, current);
-        }
-      } else if (mode == CONST_LEGACY && op != Token::INIT) {
+      if (mode == CONST_LEGACY && op != Token::INIT) {
         // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
@@ -3532,13 +3508,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::CONTEXT: {
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
-      if (mode == CONST_LEGACY && op == Token::INIT) {
-        // Perform an initialization check for legacy const variables.
-        const Operator* op =
-            javascript()->LoadContext(depth, variable->index(), false);
-        Node* current = NewNode(op, current_context());
-        value = BuildHoleCheckSilent(current, value, current);
-      } else if (mode == CONST_LEGACY && op != Token::INIT) {
+      if (mode == CONST_LEGACY && op != Token::INIT) {
         // Non-initializing assignment to legacy const is
         // - exception in strict mode.
         // - ignored in sloppy mode.
@@ -3576,8 +3546,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     case VariableLocation::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Handle<Name> name = variable->name();
-      // TODO(mstarzinger): Use Runtime::kInitializeLegacyConstLookupSlot for
-      // initializations of const declarations.
       Node* store = BuildDynamicStore(name, value);
       PrepareFrameState(store, bailout_id, combine);
       return store;

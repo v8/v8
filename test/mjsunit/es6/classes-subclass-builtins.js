@@ -919,7 +919,13 @@ function TestMapSetSubclassing(container, is_map) {
 
   var o = Reflect.construct(RegExp, [pattern], f);
   assertEquals(["match", "tostring"], log);
-  assertEquals(/biep/, o);
+  // TODO(littledan): Is the RegExp constructor correct to create
+  // the internal slots and do these type checks this way?
+  assertEquals("biep", %_RegExpSource(o));
+  assertThrows(() => Object.getOwnPropertyDescriptor(RegExp.prototype,
+                                                     'source').get(o),
+               TypeError);
+  assertEquals("/undefined/undefined", RegExp.prototype.toString.call(o));
   assertTrue(o.__proto__ === p2);
   assertTrue(f.prototype === p3);
 })();

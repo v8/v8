@@ -43,13 +43,13 @@ const imul = Math.imul;
 function u32_add(a, b) {
   a = a | 0;
   b = b | 0;
-  return +((a >>> 0) + (b >>> 0));
+  return +(((a >>> 0) + (b >>> 0)) >>> 0);
 }
 
 function u32_sub(a, b) {
   a = a | 0;
   b = b | 0;
-  return +((a >>> 0) - (b >>> 0));
+  return +(((a >>> 0) - (b >>> 0)) >>> 0);
 }
 
 function u32_mul(a, b) {
@@ -61,13 +61,13 @@ function u32_mul(a, b) {
 function u32_div(a, b) {
   a = a | 0;
   b = b | 0;
-  return ((a >>> 0) / (b >>> 0)) | 0;
+  return +(((a >>> 0) / (b >>> 0)) >>> 0);
 }
 
 function u32_mod(a, b) {
   a = a | 0;
   b = b | 0;
-  return ((a >>> 0) % (b >>> 0)) | 0;
+  return +(((a >>> 0) % (b >>> 0)) >>> 0);
 }
 
 function u32_and(a, b) {
@@ -188,18 +188,17 @@ var inputs = [
 ];
 
 var funcs = [
-// TODO(bradnelson):  u32_add,
-// TODO(bradnelson): u32_sub,
-// TODO(titzer): u32_mul requires Math.imul
-// TODO(titzer): u32_div by zero is incorrect
-// TODO(titzer): u32_mod by zero is incorrect
+  u32_add,
+  u32_sub,
+  u32_div,
+  u32_mod,
 // TODO(titzer): u32_mul crashes turbofan in asm.js mode
   u32_and,
   u32_or,
   u32_xor,
-// TODO(titzer): u32_shl on arm
-// TODO(titzer): u32_shr on arm
-// TODO(titzer): u32_sar on arm
+  u32_shl,
+  u32_shr,
+  u32_sar,
   u32_eq,
   u32_ne,
   u32_lt,

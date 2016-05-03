@@ -123,7 +123,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
   if (mode == TRACK_ALLOCATION_SITE) {
     DCHECK(allocation_memento_found != NULL);
-    __ JumpIfJSArrayHasAllocationMemento(receiver, scratch_elements,
+    __ JumpIfJSArrayHasAllocationMemento(receiver, scratch_elements, r1,
                                          allocation_memento_found);
   }
 
@@ -153,7 +153,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                      scratch2));
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, scratch2, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -172,7 +172,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiToDoubleArrayOffset(r14, length);
   __ AddP(r14, Operand(FixedDoubleArray::kHeaderSize));
   __ Allocate(r14, array, r9, scratch2, &gc_required, DOUBLE_ALIGNMENT);
-
+  __ SubP(array, array, Operand(kHeapObjectTag));
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch2, Heap::kFixedDoubleArrayMapRootIndex);
   __ StoreP(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
@@ -278,7 +278,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                      scratch));
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, scratch3, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -302,12 +302,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AddP(array_size, r0);
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
-  // array: destination FixedArray, not tagged as heap object
+  // array: destination FixedArray, tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
-  __ StoreP(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ StoreP(scratch, MemOperand(array, HeapObject::kMapOffset));
-  __ AddP(array, Operand(kHeapObjectTag));
+  __ StoreP(length, FieldMemOperand(array, FixedDoubleArray::kLengthOffset),
+            r0);
+  __ StoreP(scratch, FieldMemOperand(array, HeapObject::kMapOffset), r0);
 
   // Prepare for conversion loop.
   Register src_elements = elements;

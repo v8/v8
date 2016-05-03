@@ -35,13 +35,17 @@ void AdvanceToOffsetForTracing(
          offset) {
     bytecode_iterator.Advance();
   }
-  DCHECK_EQ(offset, bytecode_iterator.current_offset());
+  DCHECK(bytecode_iterator.current_offset() == offset ||
+         ((bytecode_iterator.current_offset() + 1) == offset &&
+          bytecode_iterator.current_operand_scale() >
+              interpreter::OperandScale::kSingle));
 }
 
 void PrintRegisters(std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
-  static const int kRegFieldWidth = static_cast<int>(strlen("accumulator"));
+  static const char kAccumulator[] = "accumulator";
+  static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
   static const char* kInputColourCode = "\033[0;36m";
   static const char* kOutputColourCode = "\033[0;35m";
   static const char* kNormalColourCode = "\033[0;m";
@@ -50,20 +54,21 @@ void PrintRegisters(std::ostream& os, bool is_input,
     os << (is_input ? kInputColourCode : kOutputColourCode);
   }
 
-  // Print accumulator.
-  os << "      [ accumulator" << kArrowDirection;
-  accumulator->ShortPrint();
-  os << " ]" << std::endl;
+  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
 
-  // Find the location of the register file.
-  JavaScriptFrameIterator frame_iterator(
-      bytecode_iterator.bytecode_array()->GetIsolate());
-  JavaScriptFrame* frame = frame_iterator.frame();
-  Address register_file =
-      frame->fp() + InterpreterFrameConstants::kRegisterFilePointerFromFp;
+  // Print accumulator.
+  if ((is_input && interpreter::Bytecodes::ReadsAccumulator(bytecode)) ||
+      (!is_input && interpreter::Bytecodes::WritesAccumulator(bytecode))) {
+    os << "      [ " << kAccumulator << kArrowDirection;
+    accumulator->ShortPrint();
+    os << " ]" << std::endl;
+  }
 
   // Print the registers.
-  interpreter::Bytecode bytecode = bytecode_iterator.current_bytecode();
+  JavaScriptFrameIterator frame_iterator(
+      bytecode_iterator.bytecode_array()->GetIsolate());
+  InterpretedFrame* frame =
+      reinterpret_cast<InterpretedFrame*>(frame_iterator.frame());
   int operand_count = interpreter::Bytecodes::NumberOfOperands(bytecode);
   for (int operand_index = 0; operand_index < operand_count; operand_index++) {
     interpreter::OperandType operand_type =
@@ -78,8 +83,7 @@ void PrintRegisters(std::ostream& os, bool is_input,
       int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
       for (int reg_index = first_reg.index();
            reg_index < first_reg.index() + range; reg_index++) {
-        Address reg_location = register_file - reg_index * kPointerSize;
-        Object* reg_object = Memory::Object_at(reg_location);
+        Object* reg_object = frame->ReadInterpreterRegister(reg_index);
         os << "      [ " << std::setw(kRegFieldWidth)
            << interpreter::Register(reg_index).ToString(
                   bytecode_iterator.bytecode_array()->parameter_count())
@@ -109,11 +113,10 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   AdvanceToOffsetForTracing(bytecode_iterator, offset);
   if (offset == bytecode_iterator.current_offset()) {
     // Print bytecode.
-    const uint8_t* bytecode_address =
-        reinterpret_cast<const uint8_t*>(*bytecode_array) + bytecode_offset;
-    Vector<char> buf = Vector<char>::New(50);
-    SNPrintF(buf, "%p", bytecode_address);
-    os << " -> " << buf.start() << " (" << bytecode_offset << ") : ";
+    const uint8_t* base_address = bytecode_array->GetFirstBytecodeAddress();
+    const uint8_t* bytecode_address = base_address + offset;
+    os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
+       << std::setw(4) << offset << " : ";
     interpreter::Bytecodes::Decode(os, bytecode_address,
                                    bytecode_array->parameter_count());
     os << std::endl;

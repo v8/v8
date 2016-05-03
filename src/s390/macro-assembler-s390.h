@@ -19,8 +19,8 @@ const Register kReturnRegister1 = {Register::kCode_r3};
 const Register kReturnRegister2 = {Register::kCode_r4};
 const Register kJSFunctionRegister = {Register::kCode_r3};
 const Register kContextRegister = {Register::kCode_r13};
+const Register kAllocateSizeRegister = {Register::kCode_r3};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r2};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r4};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
@@ -214,9 +214,6 @@ class MacroAssembler : public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  void InsertDoubleLow(DoubleRegister dst, Register src);
-  void InsertDoubleHigh(DoubleRegister dst, Register src);
-
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
 
@@ -333,8 +330,11 @@ class MacroAssembler : public Assembler {
   void Load(Register dst, const MemOperand& opnd);
   void Load(Register dst, const Operand& opnd);
   void LoadW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadW(Register dst, Register src);
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadlW(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
+  void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
 
   // Load And Test
@@ -411,6 +411,12 @@ class MacroAssembler : public Assembler {
   void NotP(Register dst);
 
   void mov(Register dst, const Operand& src);
+
+  void CleanUInt32(Register x) {
+#ifdef V8_TARGET_ARCH_S390X
+    llgfr(x, x);
+#endif
+  }
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -983,7 +989,6 @@ class MacroAssembler : public Assembler {
   // when control continues at the gc_required label.
   void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
                           Register heap_number_map, Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result, DoubleRegister value,
                                    Register scratch1, Register scratch2,
@@ -1179,22 +1184,6 @@ class MacroAssembler : public Assembler {
   void TryInt32Floor(Register result, DoubleRegister double_input,
                      Register input_high, Register scratch,
                      DoubleRegister double_scratch, Label* done, Label* exact);
-
-  // Perform ceiling of float in input_register and store in double_output.
-  void FloatCeiling32(DoubleRegister double_output, DoubleRegister double_input,
-                      Register scratch, DoubleRegister double_scratch);
-
-  // Perform floor of float in input_register and store in double_output.
-  void FloatFloor32(DoubleRegister double_output, DoubleRegister double_input,
-                    Register scratch);
-
-  // Perform ceiling of double in input_register and store in double_output.
-  void FloatCeiling64(DoubleRegister double_output, DoubleRegister double_input,
-                      Register scratch, DoubleRegister double_scratch);
-
-  // Perform floor of double in input_register and store in double_output.
-  void FloatFloor64(DoubleRegister double_output, DoubleRegister double_input,
-                    Register scratch);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -1676,6 +1665,10 @@ class MacroAssembler : public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
 
@@ -1788,13 +1781,15 @@ class MacroAssembler : public Assembler {
   // If allocation info is present, condition flags are set to eq.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
                                        Register scratch_reg,
+                                       Register scratch2_reg,
                                        Label* no_memento_found);
 
   void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
                                          Register scratch_reg,
+                                         Register scratch2_reg,
                                          Label* memento_found) {
     Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg, scratch2_reg,
                                     &no_memento_found);
     beq(memento_found);
     bind(&no_memento_found);

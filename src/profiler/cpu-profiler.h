@@ -226,8 +226,7 @@ class CpuProfiler : public CodeEventListener {
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        Name* name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* script_name) override;
+                       SharedFunctionInfo* shared, Name* script_name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, CompilationInfo* info,
                        Name* script_name, int line, int column) override;

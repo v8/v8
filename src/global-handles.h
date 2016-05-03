@@ -96,7 +96,6 @@ struct ObjectGroupRetainerInfo {
   RetainedObjectInfo* info;
 };
 
-
 enum WeaknessType {
   NORMAL_WEAK,  // Embedder gets a handle to the dying object.
   // In the following cases, the embedder gets the parameter they passed in
@@ -105,9 +104,10 @@ enum WeaknessType {
   // objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
-  PHANTOM_WEAK_2_INTERNAL_FIELDS
+  PHANTOM_WEAK_2_INTERNAL_FIELDS,
+  // Like NORMAL_WEAK, but uses WeakCallbackInfo instead of WeakCallbackData.
+  FINALIZER_WEAK,
 };
-
 
 class GlobalHandles {
  public:
@@ -165,7 +165,7 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Clear the weakness of a global handle.
+  // Mark the reference to this object independent of any object group.
   static void MarkIndependent(Object** location);
 
   // Mark the reference to this object externaly unreachable.

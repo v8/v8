@@ -175,7 +175,10 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the language mode from the parent scope.
-  language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
+  language_mode_ =
+      is_module_scope()
+          ? STRICT
+          : (outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY);
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   typed_ = outer_scope != NULL && outer_scope->typed_;
@@ -194,6 +197,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   scope_info_ = scope_info;
   start_position_ = RelocInfo::kNoPosition;
   end_position_ = RelocInfo::kNoPosition;
+  is_hidden_ = false;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
@@ -210,7 +214,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   while (!context->IsNativeContext()) {
-    if (context->IsWithContext()) {
+    if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
+      // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
           Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null(),
                 script_scope->ast_value_factory_);
@@ -289,6 +294,7 @@ bool Scope::Analyze(ParseInfo* info) {
                                : FLAG_print_scopes) {
     scope->Print();
   }
+  scope->CheckScopePositions();
 #endif
 
   info->set_scope(scope);
@@ -793,8 +799,7 @@ Handle<ScopeInfo> Scope::GetScopeInfo(Isolate* isolate) {
   return scope_info_;
 }
 
-
-void Scope::CollectNonLocals(HashMap* non_locals) {
+Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
   // Collect non-local variables referenced in the scope.
   // TODO(yangguo): store non-local variables explicitly if we can no longer
   //                rely on unresolved_ to find them.
@@ -802,13 +807,12 @@ void Scope::CollectNonLocals(HashMap* non_locals) {
     VariableProxy* proxy = unresolved_[i];
     if (proxy->is_resolved() && proxy->var()->IsStackAllocated()) continue;
     Handle<String> name = proxy->name();
-    void* key = reinterpret_cast<void*>(name.location());
-    HashMap::Entry* entry = non_locals->LookupOrInsert(key, name->Hash());
-    entry->value = key;
+    non_locals = StringSet::Add(non_locals, name);
   }
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->CollectNonLocals(non_locals);
+    non_locals = inner_scopes_[i]->CollectNonLocals(non_locals);
   }
+  return non_locals;
 }
 
 
@@ -1013,6 +1017,16 @@ void Scope::Print(int n) {
   }
 
   Indent(n0, "}\n");
+}
+
+void Scope::CheckScopePositions() {
+  // A scope is allowed to have invalid positions if it is hidden and has no
+  // inner scopes
+  if (!is_hidden() && inner_scopes_.length() == 0) {
+    CHECK_NE(RelocInfo::kNoPosition, start_position());
+    CHECK_NE(RelocInfo::kNoPosition, end_position());
+  }
+  for (Scope* scope : inner_scopes_) scope->CheckScopePositions();
 }
 #endif  // DEBUG
 

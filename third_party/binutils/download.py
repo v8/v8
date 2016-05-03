@@ -23,7 +23,7 @@ BINUTILS_TOOLS = ['bin/ld.gold', 'bin/objcopy', 'bin/objdump']
 BINUTILS_OUT = 'Release'
 
 DETECT_HOST_ARCH = os.path.abspath(os.path.join(
-    BINUTILS_DIR, '../../build/detect_v8_host_arch.py'))
+    BINUTILS_DIR, '../../gypfiles/detect_v8_host_arch.py'))
 
 
 def ReadFile(filename):

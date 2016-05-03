@@ -44,19 +44,18 @@ assertEquals(2, get_count);
 // Overridden flag getters affects the flags getter.
 assertEquals("gi", r3.flags);
 assertEquals(4, get_count);
-// Overridden flag getters do not affect the internal flags.
+// Overridden flag getters affect string.replace
+// TODO(adamk): Add more tests here once we've switched
+// to use [[OriginalFlags]] in more cases.
 assertEquals(expected, string.replace(r3, "X"));
-assertEquals(4, get_count);
+assertEquals(5, get_count);
 
 
 function testName(name) {
-  // TODO(littledan): For web compatibility, we don't throw an exception,
-  // but ES2015 expects an exception to be thrown from this getter.
-  if (name === "source") {
-    assertThrows(() => RegExp.prototype[name], TypeError);
-  } else {
-    assertEquals(undefined, RegExp.prototype[name]);
-  }
+  // Test for ES2017 RegExp web compatibility semantics
+  // https://github.com/tc39/ecma262/pull/511
+  assertEquals(name === "source" ? "(?:)" : undefined,
+               RegExp.prototype[name]);
   assertEquals(
       "get " + name,
       Object.getOwnPropertyDescriptor(RegExp.prototype, name).get.name);

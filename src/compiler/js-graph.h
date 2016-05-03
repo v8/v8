@@ -39,8 +39,11 @@ class JSGraph : public ZoneObject {
   }
 
   // Canonicalized global constants.
+  Node* AllocateInNewSpaceStubConstant();
+  Node* AllocateInOldSpaceStubConstant();
   Node* CEntryStubConstant(int result_size);
   Node* EmptyFixedArrayConstant();
+  Node* HeapNumberMapConstant();
   Node* OptimizedOutConstant();
   Node* UndefinedConstant();
   Node* TheHoleConstant();
@@ -96,6 +99,10 @@ class JSGraph : public ZoneObject {
     return IntPtrConstant(bit_cast<intptr_t>(value));
   }
 
+  Node* RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode);
+  Node* RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode);
+  Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode rmode);
+
   // Creates a Float32Constant node, usually canonicalized.
   Node* Float32Constant(float value);
 
@@ -135,8 +142,11 @@ class JSGraph : public ZoneObject {
 
  private:
   enum CachedNode {
+    kAllocateInNewSpaceStubConstant,
+    kAllocateInOldSpaceStubConstant,
     kCEntryStubConstant,
     kEmptyFixedArrayConstant,
+    kHeapNumberMapConstant,
     kOptimizedOutConstant,
     kUndefinedConstant,
     kTheHoleConstant,

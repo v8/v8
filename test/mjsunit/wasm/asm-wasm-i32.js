@@ -213,15 +213,14 @@ var funcs = [
   i32_add,
   i32_sub,
   i32_mul,
-  // TODO(titzer): i32_mul requires Math.imul
-  // TODO(titzer): i32_div divide by zero is incorrect
-  // TODO(titzer): i32_mod by zero is incorrect
+  i32_div,
+  i32_mod,
   i32_and,
   i32_or,
   i32_xor,
-  // TODO(titzer): i32_shl on arm
-  // TODO(titzer): i32_shr on arm
-  // TODO(titzer): i32_sar on arm
+  i32_shl,
+  i32_shr,
+  i32_sar,
   i32_eq,
   i32_ne,
   i32_lt,

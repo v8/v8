@@ -36,12 +36,7 @@ struct PositionTableEntry {
 
 class SourcePositionTableBuilder : public PositionsRecorder {
  public:
-  enum OnDuplicateCodeOffset {
-    DISCARD_DUPLICATE,
-    OVERWRITE_DUPLICATE,
-  };
-
-  explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
+  SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
         bytes_(zone),
 #ifdef ENABLE_SLOW_DCHECKS
@@ -50,17 +45,14 @@ class SourcePositionTableBuilder : public PositionsRecorder {
         candidate_(kUninitializedCandidateOffset, 0, false) {
   }
 
-  void AddStatementPosition(
-      size_t bytecode_offset, int source_position,
-      OnDuplicateCodeOffset on_duplicate = DISCARD_DUPLICATE);
+  void AddStatementPosition(size_t bytecode_offset, int source_position);
   void AddExpressionPosition(size_t bytecode_offset, int source_position);
   Handle<ByteArray> ToSourcePositionTable();
 
  private:
   static const int kUninitializedCandidateOffset = -1;
 
-  void AddEntry(const PositionTableEntry& entry,
-                OnDuplicateCodeOffset on_duplicate = DISCARD_DUPLICATE);
+  void AddEntry(const PositionTableEntry& entry);
   void CommitEntry();
 
   Isolate* isolate_;

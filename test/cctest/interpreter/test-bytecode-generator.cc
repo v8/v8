@@ -560,14 +560,9 @@ TEST(CallRuntime) {
 }
 
 TEST(IfConditions) {
-  if (FLAG_harmony_instanceof) {
-    // TODO(mvstanton): when ES6 instanceof ships, regenerate the bytecode
-    // expectations and remove this flag check.
-    return;
-  }
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
-                                      ConstantPoolType::kNumber);
+                                      ConstantPoolType::kMixed);
   printer.set_wrap(false);
   printer.set_test_function_name("f");
 
@@ -2152,6 +2147,29 @@ TEST(ClassAndSuperClass) {
 
   CHECK_EQ(BuildActual(printer, snippets),
            LoadGolden("ClassAndSuperClass.golden"));
+}
+
+TEST(Generators) {
+  bool old_flag = FLAG_ignition_generators;
+  FLAG_ignition_generators = true;
+
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate(),
+                                      ConstantPoolType::kMixed);
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function* f() { }",
+
+      "function* f() { yield 42 }",
+
+      "function* f() { for (let x of [42]) yield x }",
+  };
+
+  CHECK_EQ(BuildActual(printer, snippets), LoadGolden("Generators.golden"));
+
+  FLAG_ignition_generators = old_flag;
 }
 
 }  // namespace interpreter

@@ -13,7 +13,6 @@ namespace internal {
 
 // Forward declarations.
 class Callable;
-class TypeCache;
 
 
 namespace compiler {
@@ -46,7 +45,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
-  Reduction ReduceMathClz32(Node* node);
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
@@ -63,6 +61,7 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceToPrimitive(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
+  Reduction ReduceNewObject(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
   Reduction ReduceGetOrdinaryHasInstance(Node* node);
 
@@ -71,7 +70,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
                    Node* d);
-  Reduction ChangeToUndefined(Node* node, Node* effect = nullptr);
   Reduction Change(Node* node, Callable const& callable,
                    int stack_parameter_count);
 
@@ -83,11 +81,9 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
   DeoptimizationMode mode() const { return mode_; }
-  TypeCache const& type_cache() const { return type_cache_; }
 
   JSGraph* const jsgraph_;
   DeoptimizationMode const mode_;
-  TypeCache const& type_cache_;
 };
 
 }  // namespace compiler

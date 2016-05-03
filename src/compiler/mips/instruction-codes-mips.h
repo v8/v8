@@ -30,9 +30,13 @@ namespace compiler {
   V(MipsClz)                       \
   V(MipsCtz)                       \
   V(MipsPopcnt)                    \
+  V(MipsLsa)                       \
   V(MipsShl)                       \
   V(MipsShr)                       \
   V(MipsSar)                       \
+  V(MipsShlPair)                   \
+  V(MipsShrPair)                   \
+  V(MipsSarPair)                   \
   V(MipsExt)                       \
   V(MipsIns)                       \
   V(MipsRor)                       \
@@ -59,6 +63,9 @@ namespace compiler {
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \
+  V(MipsAddPair)                   \
+  V(MipsSubPair)                   \
+  V(MipsMulPair)                   \
   V(MipsFloat32RoundDown)          \
   V(MipsFloat32RoundTruncate)      \
   V(MipsFloat32RoundUp)            \

@@ -157,13 +157,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Perform map check on {receiver}.
     Type* receiver_type = access_info.receiver_type();
     if (receiver_type->Is(Type::String())) {
-      // Emit an instance type check for strings.
-      Node* receiver_instance_type = this_effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-          receiver_map, this_effect, fallthrough_control);
-      Node* check =
-          graph()->NewNode(machine()->Uint32LessThan(), receiver_instance_type,
-                           jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
+      Node* check = graph()->NewNode(simplified()->ObjectIsString(), receiver);
       if (j == access_infos.size() - 1) {
         this_control =
             graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,

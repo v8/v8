@@ -79,7 +79,11 @@ bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
 Parser::PatternRewriter::PatternContext
 Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   PatternContext old_context = context();
-  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN) {
+  // AssignmentExpressions may occur in the Initializer position of a
+  // SingleNameBinding. Such expressions should not prompt a change in the
+  // pattern's context.
+  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN &&
+      !IsInitializerContext()) {
     set_context(ASSIGNMENT);
   }
   return old_context;
@@ -268,15 +272,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
           factory()->NewExpressionStatement(initialize, initialize->position()),
           zone());
     }
-  } else if (value != nullptr && (descriptor_->mode == CONST_LEGACY ||
-                                  IsLexicalVariableMode(descriptor_->mode))) {
-    // Constant initializations always assign to the declared constant which
-    // is always at the function scope level. This is only relevant for
-    // dynamically looked-up variables and constants (the
-    // start context for constant lookups is always the function context,
-    // while it is the top context for var declared variables). Sigh...
-    // For 'let' and 'const' declared variables in harmony mode the
-    // initialization also always assigns to the declared variable.
+  } else if (value != nullptr && IsLexicalVariableMode(descriptor_->mode)) {
+    // For 'let' and 'const' declared variables the initialization always
+    // assigns to the declared variable.
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
@@ -547,39 +545,97 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // RecurseIntoSubpattern above.
 
     // let array = [];
-    // if (!done) %concat_iterable_to_array(array, iterator);
+    // while (!done) {
+    //   done = true;  // If .next, .done or .value throws, don't close.
+    //   result = IteratorNext(iterator);
+    //   if (!result.done) {
+    //     %AppendElement(array, result.value);
+    //     done = false;
+    //   }
+    // }
+
+    // let array = [];
+    Variable* array;
+    {
+      auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
+      array = CreateTempVar(factory()->NewArrayLiteral(
+          empty_exprs,
+          // Reuse pattern's literal index - it is unused since there is no
+          // actual literal allocated.
+          node->literal_index(), RelocInfo::kNoPosition));
+    }
+
     // done = true;
+    Statement* set_done = factory()->NewExpressionStatement(
+        factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(done),
+            factory()->NewBooleanLiteral(true, nopos), nopos),
+        nopos);
 
-    auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
-    auto array = CreateTempVar(factory()->NewArrayLiteral(
-        empty_exprs,
-        // Reuse pattern's literal index - it is unused since there is no
-        // actual literal allocated.
-        node->literal_index(), RelocInfo::kNoPosition));
+    // result = IteratorNext(iterator);
+    Statement* get_next = factory()->NewExpressionStatement(
+        parser_->BuildIteratorNextResult(factory()->NewVariableProxy(iterator),
+                                         result, nopos),
+        nopos);
 
-    auto arguments = new (zone()) ZoneList<Expression*>(2, zone());
-    arguments->Add(factory()->NewVariableProxy(array), zone());
-    arguments->Add(factory()->NewVariableProxy(iterator), zone());
-    auto spread_into_array_call =
-        factory()->NewCallRuntime(Context::CONCAT_ITERABLE_TO_ARRAY_INDEX,
-                                  arguments, RelocInfo::kNoPosition);
+    // %AppendElement(array, result.value);
+    Statement* append_element;
+    {
+      auto args = new (zone()) ZoneList<Expression*>(2, zone());
+      args->Add(factory()->NewVariableProxy(array), zone());
+      args->Add(factory()->NewProperty(
+                    factory()->NewVariableProxy(result),
+                    factory()->NewStringLiteral(
+                        ast_value_factory()->value_string(), nopos),
+                    nopos),
+                zone());
+      append_element = factory()->NewExpressionStatement(
+          factory()->NewCallRuntime(Runtime::kAppendElement, args, nopos),
+          nopos);
+    }
 
-    auto if_statement = factory()->NewIfStatement(
-        factory()->NewUnaryOperation(Token::NOT,
-                                     factory()->NewVariableProxy(done),
-                                     RelocInfo::kNoPosition),
-        factory()->NewExpressionStatement(spread_into_array_call,
-                                          RelocInfo::kNoPosition),
-        factory()->NewEmptyStatement(RelocInfo::kNoPosition),
-        RelocInfo::kNoPosition);
-    block_->statements()->Add(if_statement, zone());
+    // done = false;
+    Statement* unset_done = factory()->NewExpressionStatement(
+        factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(done),
+            factory()->NewBooleanLiteral(false, nopos), nopos),
+        nopos);
 
-    auto set_done = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(done),
-        factory()->NewBooleanLiteral(true, nopos), nopos);
-    block_->statements()->Add(
-        factory()->NewExpressionStatement(set_done, nopos), zone());
+    // if (!result.done) { #append_element; #unset_done }
+    Statement* maybe_append_and_unset_done;
+    {
+      Expression* result_done =
+          factory()->NewProperty(factory()->NewVariableProxy(result),
+                                 factory()->NewStringLiteral(
+                                     ast_value_factory()->done_string(), nopos),
+                                 nopos);
 
+      Block* then = factory()->NewBlock(nullptr, 2, true, nopos);
+      then->statements()->Add(append_element, zone());
+      then->statements()->Add(unset_done, zone());
+
+      maybe_append_and_unset_done = factory()->NewIfStatement(
+          factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
+          factory()->NewEmptyStatement(nopos), nopos);
+    }
+
+    // while (!done) {
+    //   #set_done;
+    //   #get_next;
+    //   #maybe_append_and_unset_done;
+    // }
+    WhileStatement* loop = factory()->NewWhileStatement(nullptr, nopos);
+    {
+      Expression* condition = factory()->NewUnaryOperation(
+          Token::NOT, factory()->NewVariableProxy(done), nopos);
+      Block* body = factory()->NewBlock(nullptr, 3, true, nopos);
+      body->statements()->Add(set_done, zone());
+      body->statements()->Add(get_next, zone());
+      body->statements()->Add(maybe_append_and_unset_done, zone());
+      loop->Initialize(condition, body);
+    }
+
+    block_->statements()->Add(loop, zone());
     RecurseIntoSubpattern(spread->expression(),
                           factory()->NewVariableProxy(array));
   }

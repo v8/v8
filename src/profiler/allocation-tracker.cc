@@ -149,8 +149,7 @@ void AddressToTraceMap::Clear() {
 
 
 void AddressToTraceMap::Print() {
-  PrintF("[AddressToTraceMap (%" V8_SIZET_PREFIX V8PRIuPTR "): \n",
-         ranges_.size());
+  PrintF("[AddressToTraceMap (%" PRIuS "): \n", ranges_.size());
   for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
     PrintF("[%p - %p] => %u\n", it->second.start, it->first,
         it->second.trace_node_id);
@@ -233,7 +232,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   int length = 0;
   StackTraceFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
-    JavaScriptFrame* frame = it.frame();
+    StandardFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
     SnapshotObjectId id = ids_->FindOrAddEntry(
         shared->address(), shared->Size(), false);

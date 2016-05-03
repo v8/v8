@@ -11,9 +11,9 @@ wrap: yes
 snippet: "
   eval('var x = 10;'); return x;
 "
-frame size: 9
+frame size: 10
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 71
 bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(0),
@@ -36,7 +36,9 @@ bytecodes: [
   B(Star), R(7),
   B(LdaSmi), U8(30),
   B(Star), R(8),
-  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(5),
+  B(LdaSmi), U8(34),
+  B(Star), R(9),
+  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
   B(Star), R(1),
   B(Call), R(1), R(2), U8(2), U8(0),
   B(LdaLookupSlot), U8(2),
@@ -54,9 +56,9 @@ handlers: [
 snippet: "
   eval('var x = 10;'); return typeof x;
 "
-frame size: 9
+frame size: 10
 parameter count: 1
-bytecode array length: 68
+bytecode array length: 72
 bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(0),
@@ -79,7 +81,9 @@ bytecodes: [
   B(Star), R(7),
   B(LdaSmi), U8(30),
   B(Star), R(8),
-  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(5),
+  B(LdaSmi), U8(34),
+  B(Star), R(9),
+  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
   B(Star), R(1),
   B(Call), R(1), R(2), U8(2), U8(0),
   B(LdaLookupSlotInsideTypeof), U8(2),
@@ -98,9 +102,9 @@ handlers: [
 snippet: "
   x = 20; return eval('');
 "
-frame size: 9
+frame size: 10
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 73
 bytecodes: [
   B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
   B(PushContext), R(0),
@@ -125,7 +129,9 @@ bytecodes: [
   B(Star), R(7),
   B(LdaSmi), U8(30),
   B(Star), R(8),
-  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(5),
+  B(LdaSmi), U8(49),
+  B(Star), R(9),
+  B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
   B(Star), R(1),
   B(Call), R(1), R(2), U8(2), U8(0),
   B(Return),

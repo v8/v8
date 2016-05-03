@@ -716,16 +716,6 @@ class FunctionInfoListener {
     current_parent_index_ = info.GetParentIndex();
   }
 
-  // Saves only function code, because for a script function we
-  // may never create a SharedFunctionInfo object.
-  void FunctionCode(Handle<Code> function_code) {
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
-        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
-             .ToHandleChecked());
-    info.SetFunctionCode(function_code,
-                         Handle<HeapObject>(isolate()->heap()->null_value()));
-  }
-
   // Saves full information about a function: its code, its scope info
   // and a SharedFunctionInfo object.
   void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope,
@@ -1374,8 +1364,7 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_type(original->type());
   copy->set_context_data(original->context_data());
   copy->set_eval_from_shared(original->eval_from_shared());
-  copy->set_eval_from_instructions_offset(
-      original->eval_from_instructions_offset());
+  copy->set_eval_from_position(original->eval_from_position());
 
   // Copy all the flags, but clear compilation state.
   copy->set_flags(original->flags());
@@ -1700,7 +1689,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
                                                      TARGET& target,  // NOLINT
                                                      bool do_drop) {
   Debug* debug = isolate->debug();
-  Zone zone;
+  Zone zone(isolate->allocator());
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 
@@ -2028,11 +2017,6 @@ void LiveEditFunctionTracker::RecordFunctionInfo(
     isolate_->active_function_info_listener()->FunctionInfo(info, lit->scope(),
                                                             zone);
   }
-}
-
-
-void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
-  isolate_->active_function_info_listener()->FunctionCode(code);
 }
 
 

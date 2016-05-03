@@ -545,7 +545,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
         if (!obj->needs_access_check() &&
             obj->named_property_handler()->IsUndefined() &&
             obj->indexed_property_handler()->IsUndefined()) {
-          type = JS_OBJECT_TYPE;
+          type = JS_API_OBJECT_TYPE;
         } else {
           type = JS_SPECIAL_API_OBJECT_TYPE;
         }

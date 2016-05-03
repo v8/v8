@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+class CompilationJob;
 class RegisterConfiguration;
 
 namespace compiler {
@@ -23,10 +24,20 @@ class InstructionSequence;
 class Linkage;
 class PipelineData;
 class Schedule;
+class SourcePositionTable;
 
 class Pipeline {
  public:
-  explicit Pipeline(CompilationInfo* info) : info_(info) {}
+  explicit Pipeline(PipelineData* data) : data_(data) {}
+
+  // Run the graph creation and initial optimization passes.
+  bool CreateGraph();
+
+  // Run the concurrent optimization passes.
+  bool OptimizeGraph(Linkage* linkage);
+
+  // Perform the actual code generation and return handle to a code object.
+  Handle<Code> GenerateCode(Linkage* linkage);
 
   // Run the entire pipeline and generate a handle to a code object.
   Handle<Code> GenerateCode();
@@ -38,6 +49,10 @@ class Pipeline {
                                               Graph* graph, Schedule* schedule,
                                               Code::Flags flags,
                                               const char* debug_name);
+
+  // Run the entire pipeline and generate a handle to a code object suitable for
+  // testing.
+  static Handle<Code> GenerateCodeForTesting(CompilationInfo* info);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
@@ -57,7 +72,19 @@ class Pipeline {
                                              Graph* graph,
                                              Schedule* schedule = nullptr);
 
+  // Returns a new compilation job for the given function.
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
+
+  // Returns a new compilation job for the WebAssembly compilation info.
+  static CompilationJob* NewWasmCompilationJob(
+      CompilationInfo* info, Graph* graph, CallDescriptor* descriptor,
+      SourcePositionTable* source_positions);
+
  private:
+  // The wasm compilation job calls ScheduleAndSelectInstructions and
+  // RunPrintAndVerify, so we make it a member class.
+  friend class PipelineWasmCompilationJob;
+
   // Helpers for executing pipeline phases.
   template <typename Phase>
   void Run();
@@ -67,16 +94,17 @@ class Pipeline {
   void Run(Arg0 arg_0, Arg1 arg_1);
 
   void BeginPhaseKind(const char* phase_kind);
+  void EndPhaseKind();
+  bool ScheduleAndSelectInstructions(Linkage* linkage);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* descriptor, bool run_verifier);
 
-  CompilationInfo* info() const { return info_; }
+  CompilationInfo* info() const;
   Isolate* isolate() const;
 
-  CompilationInfo* const info_;
-  PipelineData* data_;
+  PipelineData* const data_;
 
   DISALLOW_COPY_AND_ASSIGN(Pipeline);
 };

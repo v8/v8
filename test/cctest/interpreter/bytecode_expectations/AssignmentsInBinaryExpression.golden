@@ -247,7 +247,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 37
 bytecodes: [
   B(StackCheck),
   B(LdaSmi), U8(17),
@@ -266,7 +266,6 @@ bytecodes: [
   B(Add), R(2),
   B(Star), R(3),
   B(Ldar), R(0),
-  B(ToNumber),
   B(Inc),
   B(Star), R(0),
   B(Add), R(3),

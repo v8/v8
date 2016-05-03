@@ -22,6 +22,7 @@ class X64OperandGenerator final : public OperandGenerator {
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
+      case IrOpcode::kRelocatableInt32Constant:
         return true;
       case IrOpcode::kInt64Constant: {
         const int64_t value = OpParameter<int64_t>(node);
@@ -618,6 +619,75 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
+  X64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+      m.right().Is(32)) {
+    // Just load and sign-extend the interesting 4 bytes instead. This happens,
+    // for example, when we're loading and untagging SMIs.
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    if (mleft.matches() && (mleft.displacement() == nullptr ||
+                            g.CanBeImmediate(mleft.displacement()))) {
+      size_t input_count = 0;
+      InstructionOperand inputs[3];
+      AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+          m.left().node(), inputs, &input_count);
+      if (mleft.displacement() == nullptr) {
+        // Make sure that the addressing mode indicates the presence of an
+        // immediate displacement. It seems that we never use M1 and M2, but we
+        // handle them here anyways.
+        switch (mode) {
+          case kMode_MR:
+            mode = kMode_MRI;
+            break;
+          case kMode_MR1:
+            mode = kMode_MR1I;
+            break;
+          case kMode_MR2:
+            mode = kMode_MR2I;
+            break;
+          case kMode_MR4:
+            mode = kMode_MR4I;
+            break;
+          case kMode_MR8:
+            mode = kMode_MR8I;
+            break;
+          case kMode_M1:
+            mode = kMode_M1I;
+            break;
+          case kMode_M2:
+            mode = kMode_M2I;
+            break;
+          case kMode_M4:
+            mode = kMode_M4I;
+            break;
+          case kMode_M8:
+            mode = kMode_M8I;
+            break;
+          case kMode_None:
+          case kMode_MRI:
+          case kMode_MR1I:
+          case kMode_MR2I:
+          case kMode_MR4I:
+          case kMode_MR8I:
+          case kMode_M1I:
+          case kMode_M2I:
+          case kMode_M4I:
+          case kMode_M8I:
+            UNREACHABLE();
+        }
+        inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
+      } else {
+        ImmediateOperand* op = ImmediateOperand::cast(&inputs[input_count - 1]);
+        int32_t displacement = sequence()->GetImmediate(op).ToInt32();
+        *op = ImmediateOperand(ImmediateOperand::INLINE, displacement + 4);
+      }
+      InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+      InstructionCode code = kX64Movsxlq | AddressingModeField::encode(mode);
+      Emit(code, 1, outputs, input_count, inputs);
+      return;
+    }
+  }
   VisitWord64Shift(this, node, kX64Sar);
 }
 
@@ -895,9 +965,15 @@ void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  Emit(kSSEFloat64ToUint32 | MiscField::encode(1), g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ToUint32 | MiscField::encode(0), g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
   X64OperandGenerator g(this);
@@ -1065,15 +1141,8 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToFloat32);
 }
 
-
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, node, kArchTruncateDoubleToI);
-    case TruncationMode::kRoundToZero:
-      return VisitRO(this, node, kSSEFloat64ToInt32);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, node, kArchTruncateDoubleToI);
 }
 
 
@@ -1099,6 +1168,9 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToInt32);
+}
 
 void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
   X64OperandGenerator g(this);
@@ -1948,6 +2020,14 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.Use(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
+         load_rep.representation() == MachineRepresentation::kWord16 ||
+         load_rep.representation() == MachineRepresentation::kWord32);
+  USE(load_rep);
+  VisitLoad(node);
+}
 
 // static
 MachineOperatorBuilder::Flags

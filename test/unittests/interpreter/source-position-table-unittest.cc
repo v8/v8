@@ -37,15 +37,7 @@ TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
   SourcePositionTableBuilder builder(isolate(), zone());
   for (int i = 0; i < arraysize(offsets); i++) {
     builder.AddStatementPosition(offsets[i], offsets[i]);
-    builder.AddStatementPosition(
-        offsets[i], offsets[i],
-        (i % 2 == 0) ? SourcePositionTableBuilder::OVERWRITE_DUPLICATE
-                     : SourcePositionTableBuilder::DISCARD_DUPLICATE);
-    builder.AddStatementPosition(offsets[i], offsets[i]);
-    builder.AddStatementPosition(
-        offsets[i], offsets[i],
-        (i % 2 == 0) ? SourcePositionTableBuilder::OVERWRITE_DUPLICATE
-                     : SourcePositionTableBuilder::DISCARD_DUPLICATE);
+    builder.AddStatementPosition(offsets[i], offsets[i] + 1);
   }
 
   // To test correctness, we rely on the assertions in ToSourcePositionTable().

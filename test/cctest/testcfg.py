@@ -58,7 +58,7 @@ class CcTestSuite(testsuite.TestSuite):
     for test_desc in output.stdout.strip().split():
       test = testcase.TestCase(self, test_desc)
       tests.append(test)
-    tests.sort()
+    tests.sort(key=lambda t: t.path)
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):

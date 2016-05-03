@@ -256,6 +256,11 @@ class Factory final {
                                  Handle<Context> previous,
                                  Handle<JSReceiver> extension);
 
+  Handle<Context> NewDebugEvaluateContext(Handle<Context> previous,
+                                          Handle<JSReceiver> extension,
+                                          Handle<Context> wrapped,
+                                          Handle<StringSet> whitelist);
+
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
@@ -264,8 +269,6 @@ class Factory final {
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
-
-  Handle<CodeCache> NewCodeCache();
 
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
@@ -389,6 +392,8 @@ class Factory final {
   // JSObject that should have a memento pointing to the allocation site.
   Handle<JSObject> NewJSObjectWithMemento(Handle<JSFunction> constructor,
                                           Handle<AllocationSite> site);
+  // JSObject without a prototype.
+  Handle<JSObject> NewJSObjectWithNullProto();
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);

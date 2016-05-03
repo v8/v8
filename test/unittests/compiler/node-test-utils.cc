@@ -2204,6 +2204,10 @@ Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kLoadFramePointer));
 }
 
+Matcher<Node*> IsLoadParentFramePointer() {
+  return MakeMatcher(new NodeMatcher(IrOpcode::kLoadParentFramePointer));
+}
+
 #define IS_QUADOP_MATCHER(Name)                                               \
   Matcher<Node*> Is##Name(                                                    \
       const Matcher<Node*>& a_matcher, const Matcher<Node*>& b_matcher,       \
@@ -2214,6 +2218,7 @@ Matcher<Node*> IsLoadFramePointer() {
 
 IS_QUADOP_MATCHER(Int32PairAdd)
 IS_QUADOP_MATCHER(Int32PairSub)
+IS_QUADOP_MATCHER(Int32PairMul)
 
 #define IS_TERNOP_MATCHER(Name)                                            \
   Matcher<Node*> Is##Name(const Matcher<Node*>& lhs_matcher,               \
@@ -2282,6 +2287,7 @@ IS_BINOP_MATCHER(Float64InsertHighWord32)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(BooleanNot)
+IS_UNOP_MATCHER(TruncateFloat64ToWord32)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToUint32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)
@@ -2289,7 +2295,6 @@ IS_UNOP_MATCHER(ChangeInt32ToInt64)
 IS_UNOP_MATCHER(ChangeUint32ToFloat64)
 IS_UNOP_MATCHER(ChangeUint32ToUint64)
 IS_UNOP_MATCHER(TruncateFloat64ToFloat32)
-IS_UNOP_MATCHER(TruncateFloat64ToInt32)
 IS_UNOP_MATCHER(TruncateInt64ToInt32)
 IS_UNOP_MATCHER(Float32Abs)
 IS_UNOP_MATCHER(Float64Abs)

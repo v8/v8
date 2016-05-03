@@ -3371,6 +3371,69 @@ void Assembler::vcmp(const SwVfpRegister src1, const float src2,
        0x5 * B9 | B6);
 }
 
+void Assembler::vsel(Condition cond, const DwVfpRegister dst,
+                     const DwVfpRegister src1, const DwVfpRegister src2) {
+  // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |
+  // vsel_cond=XX(21-20) | Vn(19-16) | Vd(15-12) | 101(11-9) | sz=1(8) | N(7) |
+  // 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int sz = 1;
+
+  // VSEL has a special (restricted) condition encoding.
+  //   eq(0b0000)... -> 0b00
+  //   ge(0b1010)... -> 0b10
+  //   gt(0b1100)... -> 0b11
+  //   vs(0b0110)... -> 0b01
+  // No other conditions are supported.
+  int vsel_cond = (cond >> 30) & 0x3;
+  if ((cond != eq) && (cond != ge) && (cond != gt) && (cond != vs)) {
+    // We can implement some other conditions by swapping the inputs.
+    DCHECK((cond == ne) | (cond == lt) | (cond == le) | (cond == vc));
+    std::swap(vn, vm);
+    std::swap(n, m);
+  }
+
+  emit(kSpecialCondition | 0x1C * B23 | d * B22 | vsel_cond * B20 | vn * B16 |
+       vd * B12 | 0x5 * B9 | sz * B8 | n * B7 | m * B5 | vm);
+}
+
+void Assembler::vsel(Condition cond, const SwVfpRegister dst,
+                     const SwVfpRegister src1, const SwVfpRegister src2) {
+  // cond=kSpecialCondition(31-28) | 11100(27-23) | D(22) |
+  // vsel_cond=XX(21-20) | Vn(19-16) | Vd(15-12) | 101(11-9) | sz=0(8) | N(7) |
+  // 0(6) | M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int sz = 0;
+
+  // VSEL has a special (restricted) condition encoding.
+  //   eq(0b0000)... -> 0b00
+  //   ge(0b1010)... -> 0b10
+  //   gt(0b1100)... -> 0b11
+  //   vs(0b0110)... -> 0b01
+  // No other conditions are supported.
+  int vsel_cond = (cond >> 30) & 0x3;
+  if ((cond != eq) && (cond != ge) && (cond != gt) && (cond != vs)) {
+    // We can implement some other conditions by swapping the inputs.
+    DCHECK((cond == ne) | (cond == lt) | (cond == le) | (cond == vc));
+    std::swap(vn, vm);
+    std::swap(n, m);
+  }
+
+  emit(kSpecialCondition | 0x1C * B23 | d * B22 | vsel_cond * B20 | vn * B16 |
+       vd * B12 | 0x5 * B9 | sz * B8 | n * B7 | m * B5 | vm);
+}
 
 void Assembler::vsqrt(const DwVfpRegister dst,
                       const DwVfpRegister src,

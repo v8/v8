@@ -135,11 +135,11 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in edi.
-    int slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    int slots = info_->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
       __ push(edi);
@@ -3480,6 +3480,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   __ sub(esp, Immediate(kPointerSize));
   __ fist_s(Operand(esp, 0));
   __ pop(output_reg);
+  __ X87SetRC(0x0000);
   __ X87CheckIA();
   DeoptimizeIf(equal, instr, Deoptimizer::kOverflow);
   __ fnclex();
@@ -3512,6 +3513,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Clear exception bits.
   __ fnclex();
   __ fistp_s(MemOperand(esp, 0));
+  // Restore round mode.
+  __ X87SetRC(0x0000);
   // Check overflow.
   __ X87CheckIA();
   __ pop(result);
@@ -3546,6 +3549,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Clear exception bits.
   __ fnclex();
   __ fistp_s(MemOperand(esp, 0));
+  // Restore round mode.
+  __ X87SetRC(0x0000);
   // Check overflow.
   __ X87CheckIA();
   __ pop(result);
@@ -4358,7 +4363,15 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      __ mov(ebx, ToImmediate(key, Representation::Smi()));
+      LConstantOperand* constant_key = LConstantOperand::cast(key);
+      int32_t int_key = ToInteger32(constant_key);
+      if (Smi::IsValid(int_key)) {
+        __ mov(ebx, Immediate(Smi::FromInt(int_key)));
+      } else {
+        // We should never get here at runtime because there is a smi check on
+        // the key before this point.
+        __ int3();
+      }
     } else {
       __ Move(ebx, ToRegister(key));
       __ SmiTag(ebx);
@@ -5390,7 +5403,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register temp = ToRegister(instr->temp());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5820,13 +5833,6 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ bind(deferred->exit());
   __ bind(&done);
 }
-
-
-void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
-  Register context = ToRegister(instr->context());
-  __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), context);
-}
-
 
 #undef __
 

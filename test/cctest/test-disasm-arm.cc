@@ -860,6 +860,51 @@ TEST(ARMv8_vrintX_disasm) {
 }
 
 
+TEST(ARMv8_vselX_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    // Native instructions.
+    COMPARE(vsel(eq, d0, d1, d2),
+            "fe010b02       vseleq.f64 d0, d1, d2");
+    COMPARE(vsel(eq, s0, s1, s2),
+            "fe000a81       vseleq.f32 s0, s1, s2");
+    COMPARE(vsel(ge, d0, d1, d2),
+            "fe210b02       vselge.f64 d0, d1, d2");
+    COMPARE(vsel(ge, s0, s1, s2),
+            "fe200a81       vselge.f32 s0, s1, s2");
+    COMPARE(vsel(gt, d0, d1, d2),
+            "fe310b02       vselgt.f64 d0, d1, d2");
+    COMPARE(vsel(gt, s0, s1, s2),
+            "fe300a81       vselgt.f32 s0, s1, s2");
+    COMPARE(vsel(vs, d0, d1, d2),
+            "fe110b02       vselvs.f64 d0, d1, d2");
+    COMPARE(vsel(vs, s0, s1, s2),
+            "fe100a81       vselvs.f32 s0, s1, s2");
+
+    // Inverted conditions (and swapped inputs).
+    COMPARE(vsel(ne, d0, d1, d2),
+            "fe020b01       vseleq.f64 d0, d2, d1");
+    COMPARE(vsel(ne, s0, s1, s2),
+            "fe010a20       vseleq.f32 s0, s2, s1");
+    COMPARE(vsel(lt, d0, d1, d2),
+            "fe220b01       vselge.f64 d0, d2, d1");
+    COMPARE(vsel(lt, s0, s1, s2),
+            "fe210a20       vselge.f32 s0, s2, s1");
+    COMPARE(vsel(le, d0, d1, d2),
+            "fe320b01       vselgt.f64 d0, d2, d1");
+    COMPARE(vsel(le, s0, s1, s2),
+            "fe310a20       vselgt.f32 s0, s2, s1");
+    COMPARE(vsel(vc, d0, d1, d2),
+            "fe120b01       vselvs.f64 d0, d2, d1");
+    COMPARE(vsel(vc, s0, s1, s2),
+            "fe110a20       vselvs.f32 s0, s2, s1");
+  }
+
+  VERIFY_RUN();
+}
+
+
 TEST(Neon) {
   SET_UP();
 

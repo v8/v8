@@ -148,10 +148,12 @@ namespace internal {
   T(IDENTIFIER, NULL, 0)                                             \
                                                                      \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */           \
-  T(FUTURE_RESERVED_WORD, NULL, 0)                                   \
   T(FUTURE_STRICT_RESERVED_WORD, NULL, 0)                            \
+  /* `await` is a reserved word in module code only */               \
+  K(AWAIT, "await", 0)                                               \
   K(CLASS, "class", 0)                                               \
   K(CONST, "const", 0)                                               \
+  K(ENUM, "enum", 0)                                                 \
   K(EXPORT, "export", 0)                                             \
   K(EXTENDS, "extends", 0)                                           \
   K(IMPORT, "import", 0)                                             \
@@ -172,7 +174,6 @@ namespace internal {
   /* ES6 Template Literals */                                        \
   T(TEMPLATE_SPAN, NULL, 0)                                          \
   T(TEMPLATE_TAIL, NULL, 0)
-
 
 class Token {
  public:
@@ -197,7 +198,7 @@ class Token {
   }
 
   static bool IsIdentifier(Value tok, LanguageMode language_mode,
-                           bool is_generator) {
+                           bool is_generator, bool is_module) {
     switch (tok) {
       case IDENTIFIER:
         return true;
@@ -208,6 +209,8 @@ class Token {
         return is_sloppy(language_mode);
       case YIELD:
         return !is_generator && is_sloppy(language_mode);
+      case AWAIT:
+        return !is_module;
       default:
         return false;
     }

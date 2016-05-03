@@ -1135,6 +1135,8 @@ uc32 Scanner::ScanUnicodeEscape() {
 // Keyword Matcher
 
 #define KEYWORDS(KEYWORD_GROUP, KEYWORD)                    \
+  KEYWORD_GROUP('a')                                        \
+  KEYWORD("await", Token::AWAIT)                            \
   KEYWORD_GROUP('b')                                        \
   KEYWORD("break", Token::BREAK)                            \
   KEYWORD_GROUP('c')                                        \
@@ -1150,7 +1152,7 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD("do", Token::DO)                                  \
   KEYWORD_GROUP('e')                                        \
   KEYWORD("else", Token::ELSE)                              \
-  KEYWORD("enum", Token::FUTURE_RESERVED_WORD)              \
+  KEYWORD("enum", Token::ENUM)                              \
   KEYWORD("export", Token::EXPORT)                          \
   KEYWORD("extends", Token::EXTENDS)                        \
   KEYWORD_GROUP('f')                                        \
@@ -1195,7 +1197,6 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD("with", Token::WITH)                              \
   KEYWORD_GROUP('y')                                        \
   KEYWORD("yield", Token::YIELD)
-
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length, bool escaped) {

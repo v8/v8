@@ -31,15 +31,6 @@ TEST(OperandConversion, Registers) {
     Register reg2 = Register::FromOperand(operand2);
     CHECK_EQ(i, reg2.index());
   }
-
-  for (int i = 0; i <= kMaxUInt8; i++) {
-    Register reg = Register::FromOperand(i);
-    if (i > 0) {
-      CHECK(reg.is_parameter());
-    } else {
-      CHECK(!reg.is_parameter());
-    }
-  }
 }
 
 TEST(OperandConversion, Parameters) {
@@ -186,40 +177,93 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
   };
 
 #define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
+#define REG_OPERAND(i) \
+  (InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize - (i))
+#define REG8(i) static_cast<uint8_t>(REG_OPERAND(i))
+#if V8_TARGET_LITTLE_ENDIAN
+#define REG16(i)                        \
+  static_cast<uint8_t>(REG_OPERAND(i)), \
+      static_cast<uint8_t>(REG_OPERAND(i) >> 8)
+#elif V8_TARGET_BIG_ENDIAN
+#define REG16(i)                             \
+  static_cast<uint8_t>(REG_OPERAND(i) >> 8), \
+      static_cast<uint8_t>(REG_OPERAND(i))
+#else
+#error "Unknown Architecture"
+#endif
   const BytecodesAndResult cases[] = {
-      {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
-      {{B(Wide), B(LdaSmi), 0xe8, 0x03}, 4, 0, "      LdaSmi.Wide [1000]"},
-      {{B(ExtraWide), B(LdaSmi), 0xa0, 0x86, 0x01, 0x00},
-       6,
-       0,
-       "LdaSmi.ExtraWide [100000]"},
-      {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
-      {{B(Wide), B(LdaSmi), 0x18, 0xfc}, 4, 0, "      LdaSmi.Wide [-1000]"},
-      {{B(ExtraWide), B(LdaSmi), 0x60, 0x79, 0xfe, 0xff},
-       6,
-       0,
-       "LdaSmi.ExtraWide [-100000]"},
-      {{B(Star), 0xfb}, 2, 0, "            Star r5"},
-      {{B(Wide), B(Star), 0x78, 0xff}, 4, 0, "      Star.Wide r136"},
-      {{B(Wide), B(Call), 0x7a, 0xff, 0x79, 0xff, 0x02, 0x00, 0xb1, 0x00},
-       10,
-       0,
-       "Call.Wide r134, r135, #2, [177]"},
-      {{B(Ldar),
-        static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
-       2,
-       3,
-       "            Ldar a1"},
-      {{B(Wide), B(CreateObjectLiteral), 0x01, 0x02, 0x03, 0x04, 0xa5},
-       7,
-       0,
-       "CreateObjectLiteral.Wide [513], [1027], #165"},
-      {{B(ExtraWide), B(JumpIfNull), 0x15, 0xcd, 0x5b, 0x07},
-       6,
-       0,
-       "JumpIfNull.ExtraWide [123456789]"},
+#if V8_TARGET_LITTLE_ENDIAN
+    {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
+    {{B(Wide), B(LdaSmi), 0xe8, 0x03}, 4, 0, "      LdaSmi.Wide [1000]"},
+    {{B(ExtraWide), B(LdaSmi), 0xa0, 0x86, 0x01, 0x00},
+     6,
+     0,
+     "LdaSmi.ExtraWide [100000]"},
+    {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
+    {{B(Wide), B(LdaSmi), 0x18, 0xfc}, 4, 0, "      LdaSmi.Wide [-1000]"},
+    {{B(ExtraWide), B(LdaSmi), 0x60, 0x79, 0xfe, 0xff},
+     6,
+     0,
+     "LdaSmi.ExtraWide [-100000]"},
+    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), REG16(134), REG16(135), 0x02, 0x00, 0xb1, 0x00},
+     10,
+     0,
+     "Call.Wide r134, r135, #2, [177]"},
+    {{B(Ldar),
+      static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
+     2,
+     3,
+     "            Ldar a1"},
+    {{B(Wide), B(CreateObjectLiteral), 0x01, 0x02, 0x03, 0x04, 0xa5},
+     7,
+     0,
+     "CreateObjectLiteral.Wide [513], [1027], #165"},
+    {{B(ExtraWide), B(JumpIfNull), 0x15, 0xcd, 0x5b, 0x07},
+     6,
+     0,
+     "JumpIfNull.ExtraWide [123456789]"},
+#elif V8_TARGET_BIG_ENDIAN
+    {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
+    {{B(Wide), B(LdaSmi), 0x03, 0xe8}, 4, 0, "      LdaSmi.Wide [1000]"},
+    {{B(ExtraWide), B(LdaSmi), 0x00, 0x01, 0x86, 0xa0},
+     6,
+     0,
+     "LdaSmi.ExtraWide [100000]"},
+    {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
+    {{B(Wide), B(LdaSmi), 0xfc, 0x18}, 4, 0, "      LdaSmi.Wide [-1000]"},
+    {{B(ExtraWide), B(LdaSmi), 0xff, 0xfe, 0x79, 0x60},
+     6,
+     0,
+     "LdaSmi.ExtraWide [-100000]"},
+    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
+    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
+    {{B(Wide), B(Call), REG16(134), REG16(135), 0x00, 0x02, 0x00, 0xb1},
+     10,
+     0,
+     "Call.Wide r134, r135, #2, [177]"},
+    {{B(Ldar),
+      static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
+     2,
+     3,
+     "            Ldar a1"},
+    {{B(Wide), B(CreateObjectLiteral), 0x02, 0x01, 0x04, 0x03, 0xa5},
+     7,
+     0,
+     "CreateObjectLiteral.Wide [513], [1027], #165"},
+    {{B(ExtraWide), B(JumpIfNull), 0x07, 0x5b, 0xcd, 0x15},
+     6,
+     0,
+     "JumpIfNull.ExtraWide [123456789]"},
+#else
+#error "Unknown Architecture"
+#endif
   };
 #undef B
+#undef REG_OPERAND
+#undef REG8
+#undef REG16
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.
@@ -278,6 +322,41 @@ TEST(OperandScale, PrefixesRequired) {
         Bytecode::kWide);
   CHECK(Bytecodes::OperandScaleToPrefixBytecode(OperandScale::kQuadruple) ==
         Bytecode::kExtraWide);
+}
+
+TEST(AccumulatorUse, LogicalOperators) {
+  CHECK_EQ(AccumulatorUse::kNone | AccumulatorUse::kRead,
+           AccumulatorUse::kRead);
+  CHECK_EQ(AccumulatorUse::kRead | AccumulatorUse::kWrite,
+           AccumulatorUse::kReadWrite);
+  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kReadWrite,
+           AccumulatorUse::kRead);
+  CHECK_EQ(AccumulatorUse::kRead & AccumulatorUse::kWrite,
+           AccumulatorUse::kNone);
+}
+
+TEST(AccumulatorUse, SampleBytecodes) {
+  CHECK(Bytecodes::ReadsAccumulator(Bytecode::kStar));
+  CHECK(!Bytecodes::WritesAccumulator(Bytecode::kStar));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kStar),
+           AccumulatorUse::kRead);
+  CHECK(!Bytecodes::ReadsAccumulator(Bytecode::kLdar));
+  CHECK(Bytecodes::WritesAccumulator(Bytecode::kLdar));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kLdar),
+           AccumulatorUse::kWrite);
+  CHECK(Bytecodes::ReadsAccumulator(Bytecode::kAdd));
+  CHECK(Bytecodes::WritesAccumulator(Bytecode::kAdd));
+  CHECK_EQ(Bytecodes::GetAccumulatorUse(Bytecode::kAdd),
+           AccumulatorUse::kReadWrite);
+}
+
+TEST(AccumulatorUse, AccumulatorUseToString) {
+  std::set<std::string> names;
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kNone));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kRead));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kWrite));
+  names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kReadWrite));
+  CHECK_EQ(names.size(), 4);
 }
 
 }  // namespace interpreter

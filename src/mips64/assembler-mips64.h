@@ -535,7 +535,11 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kCallTargetAddressOffset = 5 * kInstrSize;
+#else
   static const int kCallTargetAddressOffset = 6 * kInstrSize;
+#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
@@ -545,7 +549,11 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 4;
 
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kDebugBreakSlotInstructions = 5;
+#else
   static const int kDebugBreakSlotInstructions = 6;
+#endif
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
@@ -840,6 +848,9 @@ class Assembler : public AssemblerBase {
   void tltu(Register rs, Register rt, uint16_t code);
   void teq(Register rs, Register rt, uint16_t code);
   void tne(Register rs, Register rt, uint16_t code);
+
+  // Memory barrier instruction.
+  void sync();
 
   // Move from HI/LO register.
   void mfhi(Register rd);
@@ -1204,10 +1215,15 @@ class Assembler : public AssemblerBase {
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
+  inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
  protected:
   // Load Scaled Address instructions.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
   void dlsa(Register rd, Register rt, Register rs, uint8_t sa);
+
+  // Helpers.
+  void LoadRegPlusOffsetToAt(const MemOperand& src);
 
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
@@ -1404,9 +1420,6 @@ class Assembler : public AssemblerBase {
 
   void GenInstrJump(Opcode opcode,
                      uint32_t address);
-
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
 
   // Labels.
   void print(Label* L);

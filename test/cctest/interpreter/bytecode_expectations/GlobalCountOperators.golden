@@ -16,11 +16,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   B(StackCheck),
   B(LdaGlobal), U8(0), U8(1),
-  B(ToNumber),
   B(Inc),
   B(StaGlobalSloppy), U8(0), U8(3),
   B(Return),
@@ -64,11 +63,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   B(StackCheck),
   B(LdaGlobal), U8(0), U8(1),
-  B(ToNumber),
   B(Dec),
   B(StaGlobalStrict), U8(0), U8(3),
   B(Return),

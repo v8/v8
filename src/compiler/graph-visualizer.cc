@@ -197,7 +197,8 @@ class JSONGraphEdgeWriter {
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   os << "{\n\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
   os << "],\n\"edges\":[";
@@ -554,7 +555,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->kind() == DOUBLE_REGISTERS) {
+        if (top->kind() == FP_REGISTERS) {
           os_ << " \"double_stack:" << index << "\"";
         } else if (top->kind() == GENERAL_REGISTERS) {
           os_ << " \"stack:" << index << "\"";
@@ -583,14 +584,16 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
@@ -599,7 +602,8 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
 }
@@ -609,7 +613,8 @@ const int kOnStack = 1;
 const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
-  Zone local_zone;
+  base::AccountingAllocator allocator;
+  Zone local_zone(&allocator);
   ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
@@ -635,7 +640,13 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
         if (j++ > 0) os << ", ";
         os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
       }
-      os << ")" << std::endl;
+      os << ")";
+      if (NodeProperties::IsTyped(n)) {
+        os << "  [Type: ";
+        NodeProperties::GetType(n)->PrintTo(os);
+        os << "]";
+      }
+      os << std::endl;
     }
   }
   return os;

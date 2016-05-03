@@ -47,6 +47,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Mul64:
     case kPPC_MulHigh32:
     case kPPC_MulHighU32:
+    case kPPC_MulPair:
     case kPPC_MulDouble:
     case kPPC_Div32:
     case kPPC_Div64:
@@ -112,6 +113,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadWordS16:
     case kPPC_LoadWordU16:
     case kPPC_LoadWordS32:
+    case kPPC_LoadWordU32:
     case kPPC_LoadWord64:
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:

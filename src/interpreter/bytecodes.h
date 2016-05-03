@@ -9,6 +9,7 @@
 
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter here!
+#include "src/frames.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -48,192 +49,225 @@ namespace interpreter {
   REGISTER_OPERAND_TYPE_LIST(V)
 
 // Define one debug break bytecode for each possible size of unscaled
-// bytecodes.
-#define DEBUG_BREAK_PLAIN_BYTECODE_LIST(V)                                \
-  V(DebugBreak0, OperandType::kNone)                                      \
-  V(DebugBreak1, OperandType::kReg)                                       \
-  V(DebugBreak2, OperandType::kReg, OperandType::kReg)                    \
-  V(DebugBreak3, OperandType::kReg, OperandType::kReg, OperandType::kReg) \
-  V(DebugBreak4, OperandType::kReg, OperandType::kReg, OperandType::kReg, \
-    OperandType::kReg)                                                    \
-  V(DebugBreak5, OperandType::kRuntimeId, OperandType::kReg,              \
-    OperandType::kReg)                                                    \
-  V(DebugBreak6, OperandType::kRuntimeId, OperandType::kReg,              \
-    OperandType::kReg, OperandType::kReg)
+// bytecodes. Format is V(<bytecode>, <accumulator_use>, <operands>).
+#define DEBUG_BREAK_PLAIN_BYTECODE_LIST(V)                                    \
+  V(DebugBreak0, AccumulatorUse::kRead)                                       \
+  V(DebugBreak1, AccumulatorUse::kRead, OperandType::kReg)                    \
+  V(DebugBreak2, AccumulatorUse::kRead, OperandType::kReg, OperandType::kReg) \
+  V(DebugBreak3, AccumulatorUse::kRead, OperandType::kReg, OperandType::kReg, \
+    OperandType::kReg)                                                        \
+  V(DebugBreak4, AccumulatorUse::kRead, OperandType::kReg, OperandType::kReg, \
+    OperandType::kReg, OperandType::kReg)                                     \
+  V(DebugBreak5, AccumulatorUse::kRead, OperandType::kRuntimeId,              \
+    OperandType::kReg, OperandType::kReg)                                     \
+  V(DebugBreak6, AccumulatorUse::kRead, OperandType::kRuntimeId,              \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg)
 
 // Define one debug break for each widening prefix.
 #define DEBUG_BREAK_PREFIX_BYTECODE_LIST(V) \
-  V(DebugBreakWide, OperandType::kNone)     \
-  V(DebugBreakExtraWide, OperandType::kNone)
+  V(DebugBreakWide, AccumulatorUse::kRead)  \
+  V(DebugBreakExtraWide, AccumulatorUse::kRead)
 
 #define DEBUG_BREAK_BYTECODE_LIST(V) \
   DEBUG_BREAK_PLAIN_BYTECODE_LIST(V) \
   DEBUG_BREAK_PREFIX_BYTECODE_LIST(V)
 
 // The list of bytecodes which are interpreted by the interpreter.
-#define BYTECODE_LIST(V)                                                    \
-  /* Extended width operands */                                             \
-  V(Wide, OperandType::kNone)                                               \
-  V(ExtraWide, OperandType::kNone)                                          \
-                                                                            \
-  /* Loading the accumulator */                                             \
-  V(LdaZero, OperandType::kNone)                                            \
-  V(LdaSmi, OperandType::kImm)                                              \
-  V(LdaUndefined, OperandType::kNone)                                       \
-  V(LdaNull, OperandType::kNone)                                            \
-  V(LdaTheHole, OperandType::kNone)                                         \
-  V(LdaTrue, OperandType::kNone)                                            \
-  V(LdaFalse, OperandType::kNone)                                           \
-  V(LdaConstant, OperandType::kIdx)                                         \
-                                                                            \
-  /* Globals */                                                             \
-  V(LdaGlobal, OperandType::kIdx, OperandType::kIdx)                        \
-  V(LdaGlobalInsideTypeof, OperandType::kIdx, OperandType::kIdx)            \
-  V(StaGlobalSloppy, OperandType::kIdx, OperandType::kIdx)                  \
-  V(StaGlobalStrict, OperandType::kIdx, OperandType::kIdx)                  \
-                                                                            \
-  /* Context operations */                                                  \
-  V(PushContext, OperandType::kReg)                                         \
-  V(PopContext, OperandType::kReg)                                          \
-  V(LdaContextSlot, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaContextSlot, OperandType::kReg, OperandType::kIdx)                   \
-                                                                            \
-  /* Load-Store lookup slots */                                             \
-  V(LdaLookupSlot, OperandType::kIdx)                                       \
-  V(LdaLookupSlotInsideTypeof, OperandType::kIdx)                           \
-  V(StaLookupSlotSloppy, OperandType::kIdx)                                 \
-  V(StaLookupSlotStrict, OperandType::kIdx)                                 \
-                                                                            \
-  /* Register-accumulator transfers */                                      \
-  V(Ldar, OperandType::kReg)                                                \
-  V(Star, OperandType::kRegOut)                                             \
-                                                                            \
-  /* Register-register transfers */                                         \
-  V(Mov, OperandType::kReg, OperandType::kRegOut)                           \
-                                                                            \
-  /* LoadIC operations */                                                   \
-  V(LoadIC, OperandType::kReg, OperandType::kIdx, OperandType::kIdx)        \
-  V(KeyedLoadIC, OperandType::kReg, OperandType::kIdx)                      \
-                                                                            \
-  /* StoreIC operations */                                                  \
-  V(StoreICSloppy, OperandType::kReg, OperandType::kIdx, OperandType::kIdx) \
-  V(StoreICStrict, OperandType::kReg, OperandType::kIdx, OperandType::kIdx) \
-  V(KeyedStoreICSloppy, OperandType::kReg, OperandType::kReg,               \
-    OperandType::kIdx)                                                      \
-  V(KeyedStoreICStrict, OperandType::kReg, OperandType::kReg,               \
-    OperandType::kIdx)                                                      \
-                                                                            \
-  /* Binary Operators */                                                    \
-  V(Add, OperandType::kReg)                                                 \
-  V(Sub, OperandType::kReg)                                                 \
-  V(Mul, OperandType::kReg)                                                 \
-  V(Div, OperandType::kReg)                                                 \
-  V(Mod, OperandType::kReg)                                                 \
-  V(BitwiseOr, OperandType::kReg)                                           \
-  V(BitwiseXor, OperandType::kReg)                                          \
-  V(BitwiseAnd, OperandType::kReg)                                          \
-  V(ShiftLeft, OperandType::kReg)                                           \
-  V(ShiftRight, OperandType::kReg)                                          \
-  V(ShiftRightLogical, OperandType::kReg)                                   \
-                                                                            \
-  /* Unary Operators */                                                     \
-  V(Inc, OperandType::kNone)                                                \
-  V(Dec, OperandType::kNone)                                                \
-  V(LogicalNot, OperandType::kNone)                                         \
-  V(TypeOf, OperandType::kNone)                                             \
-  V(DeletePropertyStrict, OperandType::kReg)                                \
-  V(DeletePropertySloppy, OperandType::kReg)                                \
-                                                                            \
-  /* Call operations */                                                     \
-  V(Call, OperandType::kReg, OperandType::kReg, OperandType::kRegCount,     \
-    OperandType::kIdx)                                                      \
-  V(TailCall, OperandType::kReg, OperandType::kReg, OperandType::kRegCount, \
-    OperandType::kIdx)                                                      \
-  V(CallRuntime, OperandType::kRuntimeId, OperandType::kMaybeReg,           \
-    OperandType::kRegCount)                                                 \
-  V(CallRuntimeForPair, OperandType::kRuntimeId, OperandType::kMaybeReg,    \
-    OperandType::kRegCount, OperandType::kRegOutPair)                       \
-  V(CallJSRuntime, OperandType::kIdx, OperandType::kReg,                    \
-    OperandType::kRegCount)                                                 \
-                                                                            \
-  /* Intrinsics */                                                          \
-  V(InvokeIntrinsic, OperandType::kRuntimeId, OperandType::kMaybeReg,       \
-    OperandType::kRegCount)                                                 \
-                                                                            \
-  /* New operator */                                                        \
-  V(New, OperandType::kReg, OperandType::kMaybeReg, OperandType::kRegCount) \
-                                                                            \
-  /* Test Operators */                                                      \
-  V(TestEqual, OperandType::kReg)                                           \
-  V(TestNotEqual, OperandType::kReg)                                        \
-  V(TestEqualStrict, OperandType::kReg)                                     \
-  V(TestLessThan, OperandType::kReg)                                        \
-  V(TestGreaterThan, OperandType::kReg)                                     \
-  V(TestLessThanOrEqual, OperandType::kReg)                                 \
-  V(TestGreaterThanOrEqual, OperandType::kReg)                              \
-  V(TestInstanceOf, OperandType::kReg)                                      \
-  V(TestIn, OperandType::kReg)                                              \
-                                                                            \
-  /* Cast operators */                                                      \
-  V(ToName, OperandType::kNone)                                             \
-  V(ToNumber, OperandType::kNone)                                           \
-  V(ToObject, OperandType::kNone)                                           \
-                                                                            \
-  /* Literals */                                                            \
-  V(CreateRegExpLiteral, OperandType::kIdx, OperandType::kIdx,              \
-    OperandType::kFlag8)                                                    \
-  V(CreateArrayLiteral, OperandType::kIdx, OperandType::kIdx,               \
-    OperandType::kFlag8)                                                    \
-  V(CreateObjectLiteral, OperandType::kIdx, OperandType::kIdx,              \
-    OperandType::kFlag8)                                                    \
-                                                                            \
-  /* Closure allocation */                                                  \
-  V(CreateClosure, OperandType::kIdx, OperandType::kFlag8)                  \
-                                                                            \
-  /* Arguments allocation */                                                \
-  V(CreateMappedArguments, OperandType::kNone)                              \
-  V(CreateUnmappedArguments, OperandType::kNone)                            \
-  V(CreateRestParameter, OperandType::kNone)                                \
-                                                                            \
-  /* Control Flow */                                                        \
-  V(Jump, OperandType::kImm)                                                \
-  V(JumpConstant, OperandType::kIdx)                                        \
-  V(JumpIfTrue, OperandType::kImm)                                          \
-  V(JumpIfTrueConstant, OperandType::kIdx)                                  \
-  V(JumpIfFalse, OperandType::kImm)                                         \
-  V(JumpIfFalseConstant, OperandType::kIdx)                                 \
-  V(JumpIfToBooleanTrue, OperandType::kImm)                                 \
-  V(JumpIfToBooleanTrueConstant, OperandType::kIdx)                         \
-  V(JumpIfToBooleanFalse, OperandType::kImm)                                \
-  V(JumpIfToBooleanFalseConstant, OperandType::kIdx)                        \
-  V(JumpIfNull, OperandType::kImm)                                          \
-  V(JumpIfNullConstant, OperandType::kIdx)                                  \
-  V(JumpIfUndefined, OperandType::kImm)                                     \
-  V(JumpIfUndefinedConstant, OperandType::kIdx)                             \
-  V(JumpIfNotHole, OperandType::kImm)                                       \
-  V(JumpIfNotHoleConstant, OperandType::kIdx)                               \
-                                                                            \
-  /* Complex flow control For..in */                                        \
-  V(ForInPrepare, OperandType::kRegOutTriple)                               \
-  V(ForInDone, OperandType::kReg, OperandType::kReg)                        \
-  V(ForInNext, OperandType::kReg, OperandType::kReg, OperandType::kRegPair, \
-    OperandType::kIdx)                                                      \
-  V(ForInStep, OperandType::kReg)                                           \
-                                                                            \
-  /* Perform a stack guard check */                                         \
-  V(StackCheck, OperandType::kNone)                                         \
-                                                                            \
-  /* Non-local flow control */                                              \
-  V(Throw, OperandType::kNone)                                              \
-  V(ReThrow, OperandType::kNone)                                            \
-  V(Return, OperandType::kNone)                                             \
-                                                                            \
-  /* Debugger */                                                            \
-  V(Debugger, OperandType::kNone)                                           \
-  DEBUG_BREAK_BYTECODE_LIST(V)                                              \
-                                                                            \
-  /* Illegal bytecode (terminates execution) */                             \
-  V(Illegal, OperandType::kNone)
+#define BYTECODE_LIST(V)                                                      \
+  /* Extended width operands */                                               \
+  V(Wide, AccumulatorUse::kNone)                                              \
+  V(ExtraWide, AccumulatorUse::kNone)                                         \
+                                                                              \
+  /* Loading the accumulator */                                               \
+  V(LdaZero, AccumulatorUse::kWrite)                                          \
+  V(LdaSmi, AccumulatorUse::kWrite, OperandType::kImm)                        \
+  V(LdaUndefined, AccumulatorUse::kWrite)                                     \
+  V(LdaNull, AccumulatorUse::kWrite)                                          \
+  V(LdaTheHole, AccumulatorUse::kWrite)                                       \
+  V(LdaTrue, AccumulatorUse::kWrite)                                          \
+  V(LdaFalse, AccumulatorUse::kWrite)                                         \
+  V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                   \
+                                                                              \
+  /* Globals */                                                               \
+  V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)  \
+  V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,         \
+    OperandType::kIdx)                                                        \
+  V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                \
+    OperandType::kIdx)                                                        \
+  V(StaGlobalStrict, AccumulatorUse::kRead, OperandType::kIdx,                \
+    OperandType::kIdx)                                                        \
+                                                                              \
+  /* Context operations */                                                    \
+  V(PushContext, AccumulatorUse::kRead, OperandType::kReg)                    \
+  V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                     \
+  V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                \
+    OperandType::kIdx)                                                        \
+  V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                 \
+    OperandType::kIdx)                                                        \
+                                                                              \
+  /* Load-Store lookup slots */                                               \
+  V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                 \
+  V(LdaLookupSlotInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)     \
+  V(StaLookupSlotSloppy, AccumulatorUse::kReadWrite, OperandType::kIdx)       \
+  V(StaLookupSlotStrict, AccumulatorUse::kReadWrite, OperandType::kIdx)       \
+                                                                              \
+  /* Register-accumulator transfers */                                        \
+  V(Ldar, AccumulatorUse::kWrite, OperandType::kReg)                          \
+  V(Star, AccumulatorUse::kRead, OperandType::kRegOut)                        \
+                                                                              \
+  /* Register-register transfers */                                           \
+  V(Mov, AccumulatorUse::kNone, OperandType::kReg, OperandType::kRegOut)      \
+                                                                              \
+  /* LoadIC operations */                                                     \
+  V(LoadIC, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx,     \
+    OperandType::kIdx)                                                        \
+  V(KeyedLoadIC, AccumulatorUse::kReadWrite, OperandType::kReg,               \
+    OperandType::kIdx)                                                        \
+                                                                              \
+  /* StoreIC operations */                                                    \
+  V(StoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,                  \
+    OperandType::kIdx, OperandType::kIdx)                                     \
+  V(StoreICStrict, AccumulatorUse::kRead, OperandType::kReg,                  \
+    OperandType::kIdx, OperandType::kIdx)                                     \
+  V(KeyedStoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,             \
+    OperandType::kReg, OperandType::kIdx)                                     \
+  V(KeyedStoreICStrict, AccumulatorUse::kRead, OperandType::kReg,             \
+    OperandType::kReg, OperandType::kIdx)                                     \
+                                                                              \
+  /* Binary Operators */                                                      \
+  V(Add, AccumulatorUse::kReadWrite, OperandType::kReg)                       \
+  V(Sub, AccumulatorUse::kReadWrite, OperandType::kReg)                       \
+  V(Mul, AccumulatorUse::kReadWrite, OperandType::kReg)                       \
+  V(Div, AccumulatorUse::kReadWrite, OperandType::kReg)                       \
+  V(Mod, AccumulatorUse::kReadWrite, OperandType::kReg)                       \
+  V(BitwiseOr, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
+  V(BitwiseXor, AccumulatorUse::kReadWrite, OperandType::kReg)                \
+  V(BitwiseAnd, AccumulatorUse::kReadWrite, OperandType::kReg)                \
+  V(ShiftLeft, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
+  V(ShiftRight, AccumulatorUse::kReadWrite, OperandType::kReg)                \
+  V(ShiftRightLogical, AccumulatorUse::kReadWrite, OperandType::kReg)         \
+                                                                              \
+  /* Unary Operators */                                                       \
+  V(Inc, AccumulatorUse::kReadWrite)                                          \
+  V(Dec, AccumulatorUse::kReadWrite)                                          \
+  V(LogicalNot, AccumulatorUse::kReadWrite)                                   \
+  V(TypeOf, AccumulatorUse::kReadWrite)                                       \
+  V(DeletePropertyStrict, AccumulatorUse::kReadWrite, OperandType::kReg)      \
+  V(DeletePropertySloppy, AccumulatorUse::kReadWrite, OperandType::kReg)      \
+                                                                              \
+  /* Call operations */                                                       \
+  V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kRegCount, OperandType::kIdx)                                \
+  V(TailCall, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,   \
+    OperandType::kRegCount, OperandType::kIdx)                                \
+  V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,             \
+    OperandType::kMaybeReg, OperandType::kRegCount)                           \
+  V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,       \
+    OperandType::kMaybeReg, OperandType::kRegCount, OperandType::kRegOutPair) \
+  V(CallJSRuntime, AccumulatorUse::kWrite, OperandType::kIdx,                 \
+    OperandType::kReg, OperandType::kRegCount)                                \
+                                                                              \
+  /* Intrinsics */                                                            \
+  V(InvokeIntrinsic, AccumulatorUse::kWrite, OperandType::kRuntimeId,         \
+    OperandType::kMaybeReg, OperandType::kRegCount)                           \
+                                                                              \
+  /* New operator */                                                          \
+  V(New, AccumulatorUse::kReadWrite, OperandType::kReg,                       \
+    OperandType::kMaybeReg, OperandType::kRegCount)                           \
+                                                                              \
+  /* Test Operators */                                                        \
+  V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
+  V(TestNotEqual, AccumulatorUse::kReadWrite, OperandType::kReg)              \
+  V(TestEqualStrict, AccumulatorUse::kReadWrite, OperandType::kReg)           \
+  V(TestLessThan, AccumulatorUse::kReadWrite, OperandType::kReg)              \
+  V(TestGreaterThan, AccumulatorUse::kReadWrite, OperandType::kReg)           \
+  V(TestLessThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg)       \
+  V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg)    \
+  V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)            \
+  V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                    \
+                                                                              \
+  /* Cast operators */                                                        \
+  V(ToName, AccumulatorUse::kReadWrite)                                       \
+  V(ToNumber, AccumulatorUse::kReadWrite)                                     \
+  V(ToObject, AccumulatorUse::kReadWrite)                                     \
+                                                                              \
+  /* Literals */                                                              \
+  V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,           \
+    OperandType::kIdx, OperandType::kFlag8)                                   \
+  V(CreateArrayLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
+    OperandType::kIdx, OperandType::kFlag8)                                   \
+  V(CreateObjectLiteral, AccumulatorUse::kWrite, OperandType::kIdx,           \
+    OperandType::kIdx, OperandType::kFlag8)                                   \
+                                                                              \
+  /* Closure allocation */                                                    \
+  V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                 \
+    OperandType::kFlag8)                                                      \
+                                                                              \
+  /* Arguments allocation */                                                  \
+  V(CreateMappedArguments, AccumulatorUse::kWrite)                            \
+  V(CreateUnmappedArguments, AccumulatorUse::kWrite)                          \
+  V(CreateRestParameter, AccumulatorUse::kWrite)                              \
+                                                                              \
+  /* Control Flow */                                                          \
+  V(Jump, AccumulatorUse::kNone, OperandType::kImm)                           \
+  V(JumpConstant, AccumulatorUse::kNone, OperandType::kIdx)                   \
+  V(JumpIfTrue, AccumulatorUse::kRead, OperandType::kImm)                     \
+  V(JumpIfTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)             \
+  V(JumpIfFalse, AccumulatorUse::kRead, OperandType::kImm)                    \
+  V(JumpIfFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)            \
+  V(JumpIfToBooleanTrue, AccumulatorUse::kRead, OperandType::kImm)            \
+  V(JumpIfToBooleanTrueConstant, AccumulatorUse::kRead, OperandType::kIdx)    \
+  V(JumpIfToBooleanFalse, AccumulatorUse::kRead, OperandType::kImm)           \
+  V(JumpIfToBooleanFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)   \
+  V(JumpIfNull, AccumulatorUse::kRead, OperandType::kImm)                     \
+  V(JumpIfNullConstant, AccumulatorUse::kRead, OperandType::kIdx)             \
+  V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kImm)                \
+  V(JumpIfUndefinedConstant, AccumulatorUse::kRead, OperandType::kIdx)        \
+  V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kImm)                  \
+  V(JumpIfNotHoleConstant, AccumulatorUse::kRead, OperandType::kIdx)          \
+                                                                              \
+  /* Complex flow control For..in */                                          \
+  V(ForInPrepare, AccumulatorUse::kRead, OperandType::kRegOutTriple)          \
+  V(ForInDone, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg)  \
+  V(ForInNext, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,  \
+    OperandType::kRegPair, OperandType::kIdx)                                 \
+  V(ForInStep, AccumulatorUse::kWrite, OperandType::kReg)                     \
+                                                                              \
+  /* Perform a stack guard check */                                           \
+  V(StackCheck, AccumulatorUse::kNone)                                        \
+                                                                              \
+  /* Non-local flow control */                                                \
+  V(Throw, AccumulatorUse::kRead)                                             \
+  V(ReThrow, AccumulatorUse::kRead)                                           \
+  V(Return, AccumulatorUse::kNone)                                            \
+                                                                              \
+  /* Generators */                                                            \
+  V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg)               \
+  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg)               \
+                                                                              \
+  /* Debugger */                                                              \
+  V(Debugger, AccumulatorUse::kNone)                                          \
+  DEBUG_BREAK_BYTECODE_LIST(V)                                                \
+                                                                              \
+  /* Illegal bytecode (terminates execution) */                               \
+  V(Illegal, AccumulatorUse::kNone)
+
+enum class AccumulatorUse : uint8_t {
+  kNone = 0,
+  kRead = 1 << 0,
+  kWrite = 1 << 1,
+  kReadWrite = kRead | kWrite
+};
+
+V8_INLINE AccumulatorUse operator&(AccumulatorUse lhs, AccumulatorUse rhs) {
+  int result = static_cast<int>(lhs) & static_cast<int>(rhs);
+  return static_cast<AccumulatorUse>(result);
+}
+
+V8_INLINE AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
+  int result = static_cast<int>(lhs) | static_cast<int>(rhs);
+  return static_cast<AccumulatorUse>(result);
+}
 
 // Enumeration of scaling factors applicable to scalable operands. Code
 // relies on being able to cast values to integer scaling values.
@@ -306,8 +340,6 @@ class Register {
   int index() const { return index_; }
   bool is_parameter() const { return index() < 0; }
   bool is_valid() const { return index_ != kInvalidIndex; }
-  bool is_byte_operand() const;
-  bool is_short_operand() const;
 
   static Register FromParameterIndex(int index, int parameter_count);
   int ToParameterIndex(int parameter_count) const;
@@ -327,8 +359,20 @@ class Register {
   static Register new_target();
   bool is_new_target() const;
 
-  int32_t ToOperand() const { return -index_; }
-  static Register FromOperand(int32_t operand) { return Register(-operand); }
+  // Returns the register for the bytecode array.
+  static Register bytecode_array();
+  bool is_bytecode_array() const;
+
+  // Returns the register for the saved bytecode offset.
+  static Register bytecode_offset();
+  bool is_bytecode_offset() const;
+
+  OperandSize SizeOfOperand() const;
+
+  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
+  static Register FromOperand(int32_t operand) {
+    return Register(kRegisterFileStartOffset - operand);
+  }
 
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),
@@ -358,6 +402,8 @@ class Register {
 
  private:
   static const int kInvalidIndex = kMaxInt;
+  static const int kRegisterFileStartOffset =
+      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
 
   void* operator new(size_t size);
   void operator delete(void* p);
@@ -373,6 +419,9 @@ class Bytecodes {
 
   // Returns string representation of |bytecode|.
   static std::string ToString(Bytecode bytecode, OperandScale operand_scale);
+
+  // Returns string representation of |accumulator_use|.
+  static const char* AccumulatorUseToString(AccumulatorUse accumulator_use);
 
   // Returns string representation of |operand_type|.
   static const char* OperandTypeToString(OperandType operand_type);
@@ -405,6 +454,15 @@ class Bytecodes {
   // Returns the scaling applied to scalable operands if bytecode is
   // is a scaling prefix.
   static OperandScale PrefixBytecodeToOperandScale(Bytecode bytecode);
+
+  // Returns how accumulator is used by |bytecode|.
+  static AccumulatorUse GetAccumulatorUse(Bytecode bytecode);
+
+  // Returns true if |bytecode| reads the accumulator.
+  static bool ReadsAccumulator(Bytecode bytecode);
+
+  // Returns true if |bytecode| writes the accumulator.
+  static bool WritesAccumulator(Bytecode bytecode);
 
   // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
@@ -512,6 +570,12 @@ class Bytecodes {
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
                               int number_of_parameters);
 
+  // Returns true if a handler is generated for a bytecode at a given
+  // operand scale. All bytecodes have handlers at OperandScale::kSingle,
+  // but only bytecodes with scalable operands have handlers with larger
+  // OperandScale values.
+  static bool BytecodeHasHandler(Bytecode bytecode, OperandScale operand_scale);
+
   // Return the next larger operand scale.
   static OperandScale NextOperandScale(OperandScale operand_scale);
 
@@ -519,7 +583,16 @@ class Bytecodes {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
 };
 
+class CreateObjectLiteralFlags {
+ public:
+  class FlagsBits : public BitField8<int, 0, 3> {};
+  class FastClonePropertiesCountBits
+      : public BitField8<int, FlagsBits::kNext, 3> {};
+  STATIC_ASSERT((FlagsBits::kMask & FastClonePropertiesCountBits::kMask) == 0);
+};
+
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
+std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
 std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
 std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);

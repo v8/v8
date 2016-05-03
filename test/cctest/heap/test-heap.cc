@@ -1546,10 +1546,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   Handle<Object> g_value =
       Object::GetProperty(isolate->global_object(), g_name).ToHandleChecked();
   Handle<JSFunction> g_function = Handle<JSFunction>::cast(g_value);
-  // TODO(mvstanton): change to check that g is *not* compiled when optimized
-  // cache
-  // map lookup moves to the compile lazy builtin.
-  CHECK(g_function->is_compiled());
+  CHECK(!g_function->is_compiled());
 
   SimulateIncrementalMarking(heap);
   CompileRun("%OptimizeFunctionOnNextCall(f); f();");
@@ -1590,22 +1587,8 @@ TEST(CompilationCacheCachingBehavior) {
     CompileRun(raw_source);
   }
 
-  // On first compilation, only a hash is inserted in the code cache. We can't
-  // find that value.
+  // The script should be in the cache now.
   MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
-  CHECK(info.is_null());
-
-  {
-    v8::HandleScope scope(CcTest::isolate());
-    CompileRun(raw_source);
-  }
-
-  // On second compilation, the hash is replaced by a real cache entry mapping
-  // the source to the shared function info containing the code.
-  info = compilation_cache->LookupScript(
       source, Handle<Object>(), 0, 0,
       v8::ScriptOriginOptions(false, true, false), native_context,
       language_mode);
@@ -1635,36 +1618,6 @@ TEST(CompilationCacheCachingBehavior) {
 
   heap->CollectAllGarbage();
   // Ensure code aging cleared the entry from the cache.
-  info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
-  CHECK(info.is_null());
-
-  {
-    v8::HandleScope scope(CcTest::isolate());
-    CompileRun(raw_source);
-  }
-
-  // On first compilation, only a hash is inserted in the code cache. We can't
-  // find that value.
-  info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
-  CHECK(info.is_null());
-
-  for (int i = 0; i < CompilationCacheTable::kHashGenerations; i++) {
-    compilation_cache->MarkCompactPrologue();
-  }
-
-  {
-    v8::HandleScope scope(CcTest::isolate());
-    CompileRun(raw_source);
-  }
-
-  // If we aged the cache before caching the script, ensure that we didn't cache
-  // on next compilation.
   info = compilation_cache->LookupScript(
       source, Handle<Object>(), 0, 0,
       v8::ScriptOriginOptions(false, true, false), native_context,
@@ -2296,16 +2249,20 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   // on the heap.
   if (size_of_objects_1 > size_of_objects_2) {
     intptr_t delta = size_of_objects_1 - size_of_objects_2;
-    PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
-           "Iterator: %" V8_PTR_PREFIX "d, "
-           "delta: %" V8_PTR_PREFIX "d\n",
+    PrintF("Heap::SizeOfObjects: %" V8PRIdPTR
+           ", "
+           "Iterator: %" V8PRIdPTR
+           ", "
+           "delta: %" V8PRIdPTR "\n",
            size_of_objects_1, size_of_objects_2, delta);
     CHECK_GT(size_of_objects_1 / 20, delta);
   } else {
     intptr_t delta = size_of_objects_2 - size_of_objects_1;
-    PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
-           "Iterator: %" V8_PTR_PREFIX "d, "
-           "delta: %" V8_PTR_PREFIX "d\n",
+    PrintF("Heap::SizeOfObjects: %" V8PRIdPTR
+           ", "
+           "Iterator: %" V8PRIdPTR
+           ", "
+           "delta: %" V8PRIdPTR "\n",
            size_of_objects_1, size_of_objects_2, delta);
     CHECK_GT(size_of_objects_2 / 20, delta);
   }
@@ -2333,11 +2290,7 @@ TEST(GrowAndShrinkNewSpace) {
   Heap* heap = CcTest::heap();
   NewSpace* new_space = heap->new_space();
 
-  if (heap->ReservedSemiSpaceSize() == heap->InitialSemiSpaceSize() ||
-      heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    // The max size cannot exceed the reserved size, since semispaces must be
-    // always within the reserved space.  We can't test new space growing and
-    // shrinking if the reserved size is the same as the minimum (initial) size.
+  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
     return;
   }
 
@@ -2382,11 +2335,7 @@ TEST(GrowAndShrinkNewSpace) {
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
-  if (heap->ReservedSemiSpaceSize() == heap->InitialSemiSpaceSize() ||
-      heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    // The max size cannot exceed the reserved size, since semispaces must be
-    // always within the reserved space.  We can't test new space growing and
-    // shrinking if the reserved size is the same as the minimum (initial) size.
+  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
     return;
   }
 
@@ -2665,6 +2614,14 @@ TEST(InstanceOfStubWriteBarrier) {
   CcTest::heap()->CollectGarbage(OLD_SPACE);
 }
 
+namespace {
+
+int GetProfilerTicks(SharedFunctionInfo* shared) {
+  return FLAG_ignition ? shared->profiler_ticks()
+                       : shared->code()->profiler_ticks();
+}
+
+}  // namespace
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   i::FLAG_stress_compaction = false;
@@ -2695,16 +2652,18 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
   CHECK(f->IsOptimized());
 
-  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
+  // Make sure incremental marking it not running.
+  CcTest::heap()->incremental_marking()->Stop();
+
   CcTest::heap()->StartIncrementalMarking();
   // The following calls will increment CcTest::heap()->global_ic_age().
   CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
+
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
-  CHECK_EQ(0, f->shared()->code()->profiler_ticks());
+  CHECK_EQ(0, GetProfilerTicks(f->shared()));
 }
 
 
@@ -2735,9 +2694,9 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   i::Handle<JSFunction> f = i::Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
-
   CHECK(f->IsOptimized());
 
+  // Make sure incremental marking it not running.
   CcTest::heap()->incremental_marking()->Stop();
 
   // The following two calls will increment CcTest::heap()->global_ic_age().
@@ -2746,7 +2705,7 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
-  CHECK_EQ(0, f->shared()->code()->profiler_ticks());
+  CHECK_EQ(0, GetProfilerTicks(f->shared()));
 }
 
 
@@ -3565,6 +3524,8 @@ TEST(ReleaseOverReservedPages) {
   // Concurrent sweeping adds non determinism, depending on when memory is
   // available for further reuse.
   i::FLAG_concurrent_sweeping = false;
+  // Fast evacuation of pages may result in a different page count in old space.
+  i::FLAG_page_promotion = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -4644,7 +4605,7 @@ TEST(LargeObjectSlotRecording) {
   // Start incremental marking to active write barrier.
   SimulateIncrementalMarking(heap, false);
   heap->incremental_marking()->AdvanceIncrementalMarking(
-      10000000, 10000000, IncrementalMarking::IdleStepActions());
+      10000000, IncrementalMarking::IdleStepActions());
 
   // Create references from the large object to the object on the evacuation
   // candidate.
@@ -5555,19 +5516,21 @@ UNINITIALIZED_TEST(Regress538257) {
   isolate->Enter();
   {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    Heap* heap = i_isolate->heap();
     HandleScope handle_scope(i_isolate);
-    PagedSpace* old_space = i_isolate->heap()->old_space();
+    PagedSpace* old_space = heap->old_space();
     const int kMaxObjects = 10000;
     const int kFixedArrayLen = 512;
     Handle<FixedArray> objects[kMaxObjects];
-    for (int i = 0; (i < kMaxObjects) && old_space->CanExpand(Page::kPageSize);
+    for (int i = 0; (i < kMaxObjects) &&
+                    heap->CanExpandOldGeneration(old_space->AreaSize());
          i++) {
       objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen, TENURED);
       Page::FromAddress(objects[i]->address())
           ->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
     }
     SimulateFullSpace(old_space);
-    i_isolate->heap()->CollectGarbage(OLD_SPACE);
+    heap->CollectGarbage(OLD_SPACE);
     // If we get this far, we've successfully aborted compaction. Any further
     // allocations might trigger OOM.
   }
@@ -6312,6 +6275,28 @@ TEST(CanonicalSharedFunctionInfo) {
       "check(g1, g2);");
 }
 
+TEST(RemoveCodeFromSharedFunctionInfoButNotFromClosure) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+  global->Set(isolate, "check", v8::FunctionTemplate::New(
+                                    isolate, CheckEqualSharedFunctionInfos));
+  global->Set(isolate, "remove",
+              v8::FunctionTemplate::New(isolate, RemoveCodeAndGC));
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope cscope(context);
+  CompileRun(
+      "function f() { return function g() {}; }"
+      "var g1 = f();"
+      "var g2 = f();"
+      "check(g1, g2);"
+      "g1();"
+      "g2();"
+      "remove(g1);"
+      "g2();"
+      "check(g1, g2);");
+}
 
 TEST(OldGenerationAllocationThroughput) {
   CcTest::InitializeVM();
@@ -6325,14 +6310,14 @@ TEST(OldGenerationAllocationThroughput) {
   int time2 = 200;
   size_t counter2 = 2000;
   tracer->SampleAllocation(time2, 0, counter2);
-  size_t throughput =
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100);
+  size_t throughput = static_cast<size_t>(
+      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ((counter2 - counter1) / (time2 - time1), throughput);
   int time3 = 1000;
   size_t counter3 = 30000;
   tracer->SampleAllocation(time3, 0, counter3);
-  throughput =
-      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100);
+  throughput = static_cast<size_t>(
+      tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ((counter3 - counter1) / (time3 - time1), throughput);
 }
 
@@ -6349,7 +6334,8 @@ TEST(AllocationThroughput) {
   int time2 = 200;
   size_t counter2 = 2000;
   tracer->SampleAllocation(time2, counter2, counter2);
-  size_t throughput = tracer->AllocationThroughputInBytesPerMillisecond(100);
+  size_t throughput = static_cast<size_t>(
+      tracer->AllocationThroughputInBytesPerMillisecond(100));
   CHECK_EQ(2 * (counter2 - counter1) / (time2 - time1), throughput);
   int time3 = 1000;
   size_t counter3 = 30000;
@@ -6609,6 +6595,51 @@ HEAP_TEST(Regress589413) {
   // Force allocation from the free list.
   heap->set_force_oom(true);
   heap->CollectGarbage(OLD_SPACE);
+}
+
+UNINITIALIZED_TEST(PagePromotion) {
+  FLAG_page_promotion = true;
+  FLAG_page_promotion_threshold = 0;  // %
+  i::FLAG_min_semi_space_size = 8 * (Page::kPageSize / MB);
+  // We cannot optimize for size as we require a new space with more than one
+  // page.
+  i::FLAG_optimize_for_size = false;
+  // Set max_semi_space_size because it could've been initialized by an
+  // implication of optimize_for_size.
+  i::FLAG_max_semi_space_size = i::FLAG_min_semi_space_size;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    Heap* heap = i_isolate->heap();
+    std::vector<Handle<FixedArray>> handles;
+    SimulateFullSpace(heap->new_space(), &handles);
+    heap->CollectGarbage(NEW_SPACE);
+    CHECK_GT(handles.size(), 0u);
+    // First object in handle should be on the first page.
+    Handle<FixedArray> first_object = handles.front();
+    Page* first_page = Page::FromAddress(first_object->address());
+    // The age mark should not be on the first page.
+    CHECK(!first_page->ContainsLimit(heap->new_space()->age_mark()));
+    // To perform a sanity check on live bytes we need to mark the heap.
+    SimulateIncrementalMarking(heap, true);
+    // Sanity check that the page meets the requirements for promotion.
+    const int threshold_bytes =
+        FLAG_page_promotion_threshold * Page::kAllocatableMemory / 100;
+    CHECK_GE(first_page->LiveBytes(), threshold_bytes);
+
+    // Actual checks: The page is in new space first, but is moved to old space
+    // during a full GC.
+    CHECK(heap->new_space()->ContainsSlow(first_page->address()));
+    CHECK(!heap->old_space()->ContainsSlow(first_page->address()));
+    heap->CollectGarbage(OLD_SPACE);
+    CHECK(!heap->new_space()->ContainsSlow(first_page->address()));
+    CHECK(heap->old_space()->ContainsSlow(first_page->address()));
+  }
 }
 
 }  // namespace internal

@@ -21,7 +21,7 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  Zone* zone = new Zone();
+  Zone* zone = new Zone(isolate->allocator());
   ParseInfo* info = new ParseInfo(zone);
   source->zone.Reset(zone);
   source->info.Reset(info);

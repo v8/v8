@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
+#include "src/assembler.h"
 #include "src/compiler/frame-states.h"
 #include "src/machine-type.h"
 #include "src/zone-containers.h"
@@ -13,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class ExternalReference;
 class Type;
 
 namespace compiler {
@@ -88,6 +88,7 @@ std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
 SelectParameters const& SelectParametersOf(const Operator* const);
 
+CallDescriptor const* CallDescriptorOf(const Operator* const);
 
 size_t ProjectionIndexOf(const Operator* const);
 
@@ -114,6 +115,25 @@ std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 int ParameterIndexOf(const Operator* const);
 const ParameterInfo& ParameterInfoOf(const Operator* const);
 
+class RelocatablePtrConstantInfo final {
+ public:
+  RelocatablePtrConstantInfo(intptr_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode) {}
+
+  intptr_t value() const { return value_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
+
+ private:
+  intptr_t value_;
+  RelocInfo::Mode rmode_;
+};
+
+bool operator==(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs);
+bool operator!=(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs);
+std::ostream& operator<<(std::ostream&, RelocatablePtrConstantInfo const&);
+size_t hash_value(RelocatablePtrConstantInfo const& p);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -154,6 +174,11 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);
   const Operator* HeapConstant(const Handle<HeapObject>&);
+
+  const Operator* RelocatableInt32Constant(int32_t value,
+                                           RelocInfo::Mode rmode);
+  const Operator* RelocatableInt64Constant(int64_t value,
+                                           RelocInfo::Mode rmode);
 
   const Operator* Select(MachineRepresentation, BranchHint = BranchHint::kNone);
   const Operator* Phi(MachineRepresentation representation,

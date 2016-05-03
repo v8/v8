@@ -1484,7 +1484,6 @@ void Assembler::movq(Register dst, uint64_t value, RelocInfo::Mode rmode) {
   movq(dst, static_cast<int64_t>(value), rmode);
 }
 
-
 // Loads the ip-relative location of the src label into the target location
 // (as a 32-bit offset sign extended to 64-bit).
 void Assembler::movl(const Operand& dst, Label* src) {

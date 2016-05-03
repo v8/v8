@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_SPACES_H_
 #define V8_HEAP_SPACES_H_
 
+#include <list>
+
 #include "src/allocation.h"
 #include "src/atomic-utils.h"
 #include "src/base/atomicops.h"
@@ -418,6 +420,10 @@ class MemoryChunk {
     // to grey transition is performed in the value.
     HAS_PROGRESS_BAR,
 
+    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
+    // from new to old space during evacuation.
+    PAGE_NEW_OLD_PROMOTION,
+
     // A black page has all mark bits set to 1 (black). A black page currently
     // cannot be iterated because it is not swept. Moreover live bytes are also
     // not updated.
@@ -436,9 +442,16 @@ class MemoryChunk {
     // still has to be performed.
     PRE_FREED,
 
+    // |POOLED|: When actually freeing this chunk, only uncommit and do not
+    // give up the reservation as we still reuse the chunk at some point.
+    POOLED,
+
     // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
     //   has been aborted and needs special handling by the sweeper.
     COMPACTION_WAS_ABORTED,
+
+    // |ANCHOR|: Flag is set if page is an anchor.
+    ANCHOR,
 
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
@@ -477,6 +490,8 @@ class MemoryChunk {
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
   static const intptr_t kSizeOffset = 0;
+
+  static const intptr_t kFlagsOffset = kSizeOffset + kPointerSize;
 
   static const intptr_t kLiveBytesOffset =
       kSizeOffset + kPointerSize  // size_t size
@@ -525,8 +540,6 @@ class MemoryChunk {
       kBodyOffset - 1 +
       (kObjectStartAlignment - (kBodyOffset - 1) % kObjectStartAlignment);
 
-  static const int kFlagsOffset = kPointerSize;
-
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
@@ -547,7 +560,7 @@ class MemoryChunk {
     if (mark == nullptr) return;
     // Need to subtract one from the mark because when a chunk is full the
     // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromAllocationTop.
+    // to another chunk. See the comment to Page::FromTopOrLimit.
     MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
     intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
     intptr_t old_mark = 0;
@@ -557,9 +570,9 @@ class MemoryChunk {
              !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
   }
 
-  Address address() { return reinterpret_cast<Address>(this); }
+  static bool IsValid(MemoryChunk* chunk) { return chunk != nullptr; }
 
-  bool is_valid() { return address() != NULL; }
+  Address address() { return reinterpret_cast<Address>(this); }
 
   base::Mutex* mutex() { return mutex_; }
 
@@ -816,59 +829,15 @@ class MemoryChunk {
 //
 // The only way to get a page pointer is by calling factory methods:
 //   Page* p = Page::FromAddress(addr); or
-//   Page* p = Page::FromAllocationTop(top);
+//   Page* p = Page::FromTopOrLimit(top);
 class Page : public MemoryChunk {
  public:
-  // Returns the page containing a given address. The address ranges
-  // from [page_addr .. page_addr + kPageSize[
-  // This only works if the object is in fact in a page.  See also MemoryChunk::
-  // FromAddress() and FromAnyAddress().
-  INLINE(static Page* FromAddress(Address a)) {
-    return reinterpret_cast<Page*>(OffsetFrom(a) & ~kPageAlignmentMask);
-  }
+  static const intptr_t kCopyAllFlags = ~0;
 
-  // Only works for addresses in pointer spaces, not code space.
-  inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
-
-  // Returns the page containing an allocation top. Because an allocation
-  // top address can be the upper bound of the page, we need to subtract
-  // it with kPointerSize first. The address ranges from
-  // [page_addr + kObjectStartOffset .. page_addr + kPageSize].
-  INLINE(static Page* FromAllocationTop(Address top)) {
-    Page* p = FromAddress(top - kPointerSize);
-    return p;
-  }
-
-  // Returns the next page in the chain of pages owned by a space.
-  inline Page* next_page() {
-    DCHECK(next_chunk()->owner() == owner());
-    return static_cast<Page*>(next_chunk());
-  }
-  inline Page* prev_page() {
-    DCHECK(prev_chunk()->owner() == owner());
-    return static_cast<Page*>(prev_chunk());
-  }
-  inline void set_next_page(Page* page);
-  inline void set_prev_page(Page* page);
-
-  // Checks whether an address is page aligned.
-  static bool IsAlignedToPageSize(Address a) {
-    return 0 == (OffsetFrom(a) & kPageAlignmentMask);
-  }
-
-  // Returns the offset of a given address to this page.
-  INLINE(int Offset(Address a)) {
-    int offset = static_cast<int>(a - address());
-    return offset;
-  }
-
-  // Returns the address for a given offset to the this page.
-  Address OffsetToAddress(int offset) {
-    DCHECK_PAGE_OFFSET(offset);
-    return address() + offset;
-  }
-
-  // ---------------------------------------------------------------------
+  // Page flags copied from from-space to to-space when flipping semispaces.
+  static const intptr_t kCopyOnFlipFlagsMask =
+      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
+      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
   // Maximum object size that gets allocated into regular pages. Objects larger
   // than that size are allocated in large object space and are never moved in
@@ -879,12 +848,71 @@ class Page : public MemoryChunk {
   // short living objects >256K.
   static const int kMaxRegularHeapObjectSize = 600 * KB;
 
-  inline void ClearGCFields();
+  static inline Page* ConvertNewToOld(Page* old_page, PagedSpace* new_owner);
 
-  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
-                                 Executability executable, PagedSpace* owner);
+  // Returns the page containing a given address. The address ranges
+  // from [page_addr .. page_addr + kPageSize[. This only works if the object
+  // is in fact in a page.
+  static Page* FromAddress(Address addr) {
+    return reinterpret_cast<Page*>(OffsetFrom(addr) & ~kPageAlignmentMask);
+  }
 
-  void InitializeAsAnchor(PagedSpace* owner);
+  // Returns the page containing the address provided. The address can
+  // potentially point righter after the page. To be also safe for tagged values
+  // we subtract a hole word. The valid address ranges from
+  // [page_addr + kObjectStartOffset .. page_addr + kPageSize + kPointerSize].
+  static Page* FromAllocationAreaAddress(Address address) {
+    return Page::FromAddress(address - kPointerSize);
+  }
+
+  // Checks if address1 and address2 are on the same new space page.
+  static bool OnSamePage(Address address1, Address address2) {
+    return Page::FromAddress(address1) == Page::FromAddress(address2);
+  }
+
+  // Checks whether an address is page aligned.
+  static bool IsAlignedToPageSize(Address addr) {
+    return (OffsetFrom(addr) & kPageAlignmentMask) == 0;
+  }
+
+  static bool IsAtObjectStart(Address addr) {
+    return (reinterpret_cast<intptr_t>(addr) & kPageAlignmentMask) ==
+           kObjectStartOffset;
+  }
+
+  inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
+
+  // Create a Page object that is only used as anchor for the doubly-linked
+  // list of real pages.
+  explicit Page(Space* owner) { InitializeAsAnchor(owner); }
+
+  inline void MarkNeverAllocateForTesting();
+  inline void MarkEvacuationCandidate();
+  inline void ClearEvacuationCandidate();
+
+  Page* next_page() { return static_cast<Page*>(next_chunk()); }
+  Page* prev_page() { return static_cast<Page*>(prev_chunk()); }
+  void set_next_page(Page* page) { set_next_chunk(page); }
+  void set_prev_page(Page* page) { set_prev_chunk(page); }
+
+  template <typename Callback>
+  inline void ForAllFreeListCategories(Callback callback) {
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+      callback(&categories_[i]);
+    }
+  }
+
+  // Returns the offset of a given address to this page.
+  inline int Offset(Address a) {
+    int offset = static_cast<int>(a - address());
+    return offset;
+  }
+
+  // Returns the address for a given offset to the this page.
+  Address OffsetToAddress(int offset) {
+    DCHECK_PAGE_OFFSET(offset);
+    return address() + offset;
+  }
 
   // WaitUntilSweepingCompleted only works when concurrent sweeping is in
   // progress. In particular, when we know that right before this call a
@@ -906,41 +934,38 @@ class Page : public MemoryChunk {
                             available_in_free_list());
   }
 
-  template <typename Callback>
-  inline void ForAllFreeListCategories(Callback callback) {
-    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-      callback(&categories_[i]);
-    }
-  }
-
   FreeListCategory* free_list_category(FreeListCategoryType type) {
     return &categories_[type];
   }
 
-#define FRAGMENTATION_STATS_ACCESSORS(type, name)        \
-  type name() { return name##_.Value(); }                \
-  void set_##name(type name) { name##_.SetValue(name); } \
-  void add_##name(type name) { name##_.Increment(name); }
+  bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
 
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, wasted_memory)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_free_list)
-
-#undef FRAGMENTATION_STATS_ACCESSORS
+  intptr_t wasted_memory() { return wasted_memory_.Value(); }
+  void add_wasted_memory(intptr_t waste) { wasted_memory_.Increment(waste); }
+  intptr_t available_in_free_list() { return available_in_free_list_.Value(); }
+  void add_available_in_free_list(intptr_t available) {
+    available_in_free_list_.Increment(available);
+  }
 
 #ifdef DEBUG
   void Print();
 #endif  // DEBUG
 
-  inline void MarkNeverAllocateForTesting();
-  inline void MarkEvacuationCandidate();
-  inline void ClearEvacuationCandidate();
-
  private:
+  enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
+
+  template <InitializationMode mode = kFreeMemory>
+  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                                 Executability executable, PagedSpace* owner);
+  static inline Page* Initialize(Heap* heap, MemoryChunk* chunk,
+                                 Executability executable, SemiSpace* owner);
+
   inline void InitializeFreeListCategories();
+
+  void InitializeAsAnchor(Space* owner);
 
   friend class MemoryAllocator;
 };
-
 
 class LargePage : public MemoryChunk {
  public:
@@ -959,7 +984,8 @@ class LargePage : public MemoryChunk {
   static const int kMaxCodePageSize = 512 * MB;
 
  private:
-  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk);
+  static inline LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
+                                      Executability executable, Space* owner);
 
   friend class MemoryAllocator;
 };
@@ -1035,11 +1061,6 @@ class Space : public Malloced {
     }
   }
 
-#ifdef DEBUG
-  virtual void Print() = 0;
-#endif
-
- protected:
   void AccountCommitted(intptr_t bytes) {
     DCHECK_GE(bytes, 0);
     committed_ += bytes;
@@ -1054,6 +1075,11 @@ class Space : public Malloced {
     DCHECK_GE(committed_, 0);
   }
 
+#ifdef DEBUG
+  virtual void Print() = 0;
+#endif
+
+ protected:
   v8::base::SmartPointer<List<AllocationObserver*>> allocation_observers_;
   bool allocation_observers_paused_;
 
@@ -1241,34 +1267,113 @@ class SkipList {
 // A space acquires chunks of memory from the operating system. The memory
 // allocator allocated and deallocates pages for the paged heap spaces and large
 // pages for large object space.
-//
-// Each space has to manage it's own pages.
-//
 class MemoryAllocator {
  public:
+  // Unmapper takes care of concurrently unmapping and uncommitting memory
+  // chunks.
+  class Unmapper {
+   public:
+    class UnmapFreeMemoryTask;
+
+    explicit Unmapper(MemoryAllocator* allocator)
+        : allocator_(allocator),
+          pending_unmapping_tasks_semaphore_(0),
+          concurrent_unmapping_tasks_active_(0) {}
+
+    void AddMemoryChunkSafe(MemoryChunk* chunk) {
+      if ((chunk->size() == Page::kPageSize) &&
+          (chunk->executable() != EXECUTABLE)) {
+        AddMemoryChunkSafe<kRegular>(chunk);
+      } else {
+        AddMemoryChunkSafe<kNonRegular>(chunk);
+      }
+    }
+
+    MemoryChunk* TryGetPooledMemoryChunkSafe() {
+      // Procedure:
+      // (1) Try to get a chunk that was declared as pooled and already has
+      // been uncommitted.
+      // (2) Try to steal any memory chunk of kPageSize that would've been
+      // unmapped.
+      MemoryChunk* chunk = GetMemoryChunkSafe<kPooled>();
+      if (chunk == nullptr) {
+        chunk = GetMemoryChunkSafe<kRegular>();
+        if (chunk != nullptr) {
+          // For stolen chunks we need to manually free any allocated memory.
+          chunk->ReleaseAllocatedMemory();
+        }
+      }
+      return chunk;
+    }
+
+    void FreeQueuedChunks();
+    bool WaitUntilCompleted();
+
+   private:
+    enum ChunkQueueType {
+      kRegular,     // Pages of kPageSize that do not live in a CodeRange and
+                    // can thus be used for stealing.
+      kNonRegular,  // Large chunks and executable chunks.
+      kPooled,      // Pooled chunks, already uncommited and ready for reuse.
+      kNumberOfChunkQueues,
+    };
+
+    template <ChunkQueueType type>
+    void AddMemoryChunkSafe(MemoryChunk* chunk) {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      chunks_[type].push_back(chunk);
+    }
+
+    template <ChunkQueueType type>
+    MemoryChunk* GetMemoryChunkSafe() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      if (chunks_[type].empty()) return nullptr;
+      MemoryChunk* chunk = chunks_[type].front();
+      chunks_[type].pop_front();
+      return chunk;
+    }
+
+    void PerformFreeMemoryOnQueuedChunks();
+
+    base::Mutex mutex_;
+    MemoryAllocator* allocator_;
+    std::list<MemoryChunk*> chunks_[kNumberOfChunkQueues];
+    base::Semaphore pending_unmapping_tasks_semaphore_;
+    intptr_t concurrent_unmapping_tasks_active_;
+
+    friend class MemoryAllocator;
+  };
+
+  enum AllocationMode {
+    kRegular,
+    kPooled,
+  };
+  enum FreeMode {
+    kFull,
+    kPreFreeAndQueue,
+    kPooledAndQueue,
+  };
+
   explicit MemoryAllocator(Isolate* isolate);
 
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable);
+  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable,
+             intptr_t code_range_size);
 
   void TearDown();
 
-  Page* AllocatePage(intptr_t size, PagedSpace* owner,
-                     Executability executable);
+  // Allocates a Page from the allocator. AllocationMode is used to indicate
+  // whether pooled allocation, which only works for MemoryChunk::kPageSize,
+  // should be tried first.
+  template <MemoryAllocator::AllocationMode alloc_mode = kRegular,
+            typename SpaceType>
+  Page* AllocatePage(intptr_t size, SpaceType* owner, Executability executable);
 
-  LargePage* AllocateLargePage(intptr_t object_size, Space* owner,
+  LargePage* AllocateLargePage(intptr_t size, LargeObjectSpace* owner,
                                Executability executable);
 
-  // PreFree logically frees the object, i.e., it takes care of the size
-  // bookkeeping and calls the allocation callback.
-  void PreFreeMemory(MemoryChunk* chunk);
-
-  // FreeMemory can be called concurrently when PreFree was executed before.
-  void PerformFreeMemory(MemoryChunk* chunk);
-
-  // Free is a wrapper method, which calls PreFree and PerformFreeMemory
-  // together.
+  template <MemoryAllocator::FreeMode mode = kFull>
   void Free(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
@@ -1322,8 +1427,6 @@ class MemoryAllocator {
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
-  void FreeNewSpaceMemory(Address addr, base::VirtualMemory* reservation,
-                          Executability executable);
   void FreeMemory(base::VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
@@ -1375,8 +1478,25 @@ class MemoryAllocator {
                                               Address start, size_t commit_size,
                                               size_t reserved_size);
 
+  CodeRange* code_range() { return code_range_; }
+  Unmapper* unmapper() { return &unmapper_; }
+
  private:
+  // PreFree logically frees the object, i.e., it takes care of the size
+  // bookkeeping and calls the allocation callback.
+  void PreFreeMemory(MemoryChunk* chunk);
+
+  // FreeMemory can be called concurrently when PreFree was executed before.
+  void PerformFreeMemory(MemoryChunk* chunk);
+
+  // See AllocatePage for public interface. Note that currently we only support
+  // pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
+  template <typename SpaceType>
+  MemoryChunk* AllocatePagePooled(SpaceType* owner);
+
   Isolate* isolate_;
+
+  CodeRange* code_range_;
 
   // Maximum space size in bytes.
   intptr_t capacity_;
@@ -1428,6 +1548,11 @@ class MemoryAllocator {
       ptr = highest_ever_allocated_.Value();
     } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
   }
+
+  base::VirtualMemory last_chunk_;
+  Unmapper unmapper_;
+
+  friend class TestCodeRangeScope;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
@@ -1552,7 +1677,8 @@ class AllocationInfo {
 
 #ifdef DEBUG
   bool VerifyPagedAllocation() {
-    return (Page::FromAllocationTop(top_) == Page::FromAllocationTop(limit_)) &&
+    return (Page::FromAllocationAreaAddress(top_) ==
+            Page::FromAllocationAreaAddress(limit_)) &&
            (top_ <= limit_);
   }
 #endif
@@ -2132,12 +2258,6 @@ class PagedSpace : public Space {
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  // This function tries to steal size_in_bytes memory from the sweeper threads
-  // free-lists. If it does not succeed stealing enough memory, it will wait
-  // for the sweeper threads to finish sweeping.
-  // It returns true when sweeping is completed and false otherwise.
-  bool EnsureSweeperProgress(intptr_t size_in_bytes);
-
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
@@ -2263,81 +2383,7 @@ class HistogramInfo : public NumberAndSizeInfo {
   const char* name_;
 };
 
-
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
-
-
-class NewSpacePage : public MemoryChunk {
- public:
-  static bool IsAtStart(Address addr) {
-    return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) ==
-           kObjectStartOffset;
-  }
-
-  static bool IsAtEnd(Address addr) {
-    return (reinterpret_cast<intptr_t>(addr) & Page::kPageAlignmentMask) == 0;
-  }
-
-  // Finds the NewSpacePage containing the given address.
-  static inline NewSpacePage* FromAddress(Address address_in_page) {
-    Address page_start =
-        reinterpret_cast<Address>(reinterpret_cast<uintptr_t>(address_in_page) &
-                                  ~Page::kPageAlignmentMask);
-    NewSpacePage* page = reinterpret_cast<NewSpacePage*>(page_start);
-    return page;
-  }
-
-  // Find the page for a limit address. A limit address is either an address
-  // inside a page, or the address right after the last byte of a page.
-  static inline NewSpacePage* FromLimit(Address address_limit) {
-    return NewSpacePage::FromAddress(address_limit - 1);
-  }
-
-  // Checks if address1 and address2 are on the same new space page.
-  static inline bool OnSamePage(Address address1, Address address2) {
-    return NewSpacePage::FromAddress(address1) ==
-           NewSpacePage::FromAddress(address2);
-  }
-
-  inline NewSpacePage* next_page() {
-    return static_cast<NewSpacePage*>(next_chunk());
-  }
-
-  inline void set_next_page(NewSpacePage* page) { set_next_chunk(page); }
-
-  inline NewSpacePage* prev_page() {
-    return static_cast<NewSpacePage*>(prev_chunk());
-  }
-
-  inline void set_prev_page(NewSpacePage* page) { set_prev_chunk(page); }
-
-  SemiSpace* semi_space() { return reinterpret_cast<SemiSpace*>(owner()); }
-
-  bool is_anchor() { return !this->InNewSpace(); }
-
- private:
-  // GC related flags copied from from-space to to-space when
-  // flipping semispaces.
-  static const intptr_t kCopyOnFlipFlagsMask =
-      (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-
-  // Create a NewSpacePage object that is only used as anchor
-  // for the doubly-linked list of real pages.
-  explicit NewSpacePage(SemiSpace* owner) { InitializeAsAnchor(owner); }
-
-  static NewSpacePage* Initialize(Heap* heap, Address start,
-                                  SemiSpace* semi_space);
-
-  // Intialize a fake NewSpacePage used as sentinel at the ends
-  // of a doubly-linked list of real NewSpacePages.
-  // Only uses the prev/next links, and sets flags to not be in new-space.
-  void InitializeAsAnchor(SemiSpace* owner);
-
-  friend class SemiSpace;
-  friend class SemiSpaceIterator;
-};
-
 
 // -----------------------------------------------------------------------------
 // SemiSpace in young generation
@@ -2354,7 +2400,6 @@ class SemiSpace : public Space {
         current_capacity_(0),
         maximum_capacity_(0),
         minimum_capacity_(0),
-        start_(nullptr),
         age_mark_(nullptr),
         committed_(false),
         id_(semispace),
@@ -2365,44 +2410,43 @@ class SemiSpace : public Space {
   inline bool Contains(Object* o);
   inline bool ContainsSlow(Address a);
 
-  // Creates a space in the young generation. The constructor does not
-  // allocate memory from the OS.
-  void SetUp(Address start, int initial_capacity, int maximum_capacity);
-
-  // Tear down the space.  Heap memory was not allocated by the space, so it
-  // is not deallocated here.
+  void SetUp(int initial_capacity, int maximum_capacity);
   void TearDown();
+  bool HasBeenSetUp() { return maximum_capacity_ != 0; }
 
-  // True if the space has been set up but not torn down.
-  bool HasBeenSetUp() { return start_ != nullptr; }
+  bool Commit();
+  bool Uncommit();
+  bool is_committed() { return committed_; }
 
-  // Grow the semispace to the new capacity.  The new capacity
-  // requested must be larger than the current capacity and less than
-  // the maximum capacity.
+  // Grow the semispace to the new capacity.  The new capacity requested must
+  // be larger than the current capacity and less than the maximum capacity.
   bool GrowTo(int new_capacity);
 
-  // Shrinks the semispace to the new capacity.  The new capacity
-  // requested must be more than the amount of used memory in the
-  // semispace and less than the current capacity.
+  // Shrinks the semispace to the new capacity.  The new capacity requested
+  // must be more than the amount of used memory in the semispace and less
+  // than the current capacity.
   bool ShrinkTo(int new_capacity);
 
   // Returns the start address of the first page of the space.
   Address space_start() {
-    DCHECK_NE(anchor_.next_page(), &anchor_);
+    DCHECK_NE(anchor_.next_page(), anchor());
     return anchor_.next_page()->area_start();
   }
 
-  // Returns the start address of the current page of the space.
-  Address page_low() { return current_page_->area_start(); }
+  Page* first_page() { return anchor_.next_page(); }
+  Page* current_page() { return current_page_; }
 
   // Returns one past the end address of the space.
   Address space_end() { return anchor_.prev_page()->area_end(); }
+
+  // Returns the start address of the current page of the space.
+  Address page_low() { return current_page_->area_start(); }
 
   // Returns one past the end address of the current page of the space.
   Address page_high() { return current_page_->area_end(); }
 
   bool AdvancePage() {
-    NewSpacePage* next_page = current_page_->next_page();
+    Page* next_page = current_page_->next_page();
     if (next_page == anchor()) return false;
     current_page_ = next_page;
     return true;
@@ -2411,21 +2455,16 @@ class SemiSpace : public Space {
   // Resets the space to using the first page.
   void Reset();
 
+  bool ReplaceWithEmptyPage(Page* page);
+
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
   void set_age_mark(Address mark);
 
-  bool is_committed() { return committed_; }
-  bool Commit();
-  bool Uncommit();
-
-  NewSpacePage* first_page() { return anchor_.next_page(); }
-  NewSpacePage* current_page() { return current_page_; }
-
-  // Returns the current total capacity of the semispace.
+  // Returns the current capacity of the semispace.
   int current_capacity() { return current_capacity_; }
 
-  // Returns the maximum total capacity of the semispace.
+  // Returns the maximum capacity of the semispace.
   int maximum_capacity() { return maximum_capacity_; }
 
   // Returns the initial capacity of the semispace.
@@ -2467,11 +2506,9 @@ class SemiSpace : public Space {
 #endif
 
  private:
-  NewSpacePage* anchor() { return &anchor_; }
+  void RewindPages(Page* start, int num_pages);
 
-  void set_current_capacity(int new_capacity) {
-    current_capacity_ = new_capacity;
-  }
+  inline Page* anchor() { return &anchor_; }
 
   // Copies the flags into the masked positions on all pages in the space.
   void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
@@ -2482,19 +2519,17 @@ class SemiSpace : public Space {
   // The maximum capacity that can be used by this space.
   int maximum_capacity_;
 
-  // The mimnimum capacity for the space. A space cannot shrink below this size.
+  // The minimum capacity for the space. A space cannot shrink below this size.
   int minimum_capacity_;
 
-  // The start address of the space.
-  Address start_;
   // Used to govern object promotion during mark-compact collection.
   Address age_mark_;
 
   bool committed_;
   SemiSpaceId id_;
 
-  NewSpacePage anchor_;
-  NewSpacePage* current_page_;
+  Page anchor_;
+  Page* current_page_;
 
   friend class SemiSpaceIterator;
   friend class NewSpacePageIterator;
@@ -2542,15 +2577,15 @@ class NewSpacePageIterator BASE_EMBEDDED {
   inline NewSpacePageIterator(Address start, Address limit);
 
   inline bool has_next();
-  inline NewSpacePage* next();
+  inline Page* next();
 
  private:
-  NewSpacePage* prev_page_;  // Previous page returned.
+  Page* prev_page_;  // Previous page returned.
   // Next page that will be returned.  Cached here so that we can use this
   // iterator for operations that deallocate pages.
-  NewSpacePage* next_page_;
+  Page* next_page_;
   // Last page returned.
-  NewSpacePage* last_page_;
+  Page* last_page_;
 };
 
 
@@ -2562,20 +2597,21 @@ class NewSpacePageIterator BASE_EMBEDDED {
 
 class NewSpace : public Space {
  public:
-  // Constructor.
   explicit NewSpace(Heap* heap)
       : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        top_on_previous_step_(0) {}
+        pages_used_(0),
+        top_on_previous_step_(0),
+        allocated_histogram_(nullptr),
+        promoted_histogram_(nullptr) {}
 
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
 
-  // Sets up the new space using the given chunk.
-  bool SetUp(int reserved_semispace_size_, int max_semi_space_size);
+  bool SetUp(int initial_semispace_capacity, int max_semispace_capacity);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -2598,7 +2634,7 @@ class NewSpace : public Space {
 
   // Return the allocated bytes in the active semispace.
   intptr_t Size() override {
-    return pages_used_ * NewSpacePage::kAllocatableMemory +
+    return pages_used_ * Page::kAllocatableMemory +
            static_cast<int>(top() - to_space_.page_low());
   }
 
@@ -2611,7 +2647,7 @@ class NewSpace : public Space {
   intptr_t Capacity() {
     SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
     return (to_space_.current_capacity() / Page::kPageSize) *
-           NewSpacePage::kAllocatableMemory;
+           Page::kAllocatableMemory;
   }
 
   // Return the current size of a semispace, allocatable and non-allocatable
@@ -2638,23 +2674,47 @@ class NewSpace : public Space {
   // Return the available bytes without growing.
   intptr_t Available() override { return Capacity() - Size(); }
 
-  intptr_t PagesFromStart(Address addr) {
-    return static_cast<intptr_t>(addr - bottom()) / Page::kPageSize;
-  }
-
   size_t AllocatedSinceLastGC() {
-    intptr_t allocated = top() - to_space_.age_mark();
-    if (allocated < 0) {
-      // Runtime has lowered the top below the age mark.
+    bool seen_age_mark = false;
+    Address age_mark = to_space_.age_mark();
+    Page* current_page = to_space_.first_page();
+    Page* age_mark_page = Page::FromAddress(age_mark);
+    Page* last_page = Page::FromAddress(top() - kPointerSize);
+    if (age_mark_page == last_page) {
+      if (top() - age_mark >= 0) {
+        return top() - age_mark;
+      }
+      // Top was reset at some point, invalidating this metric.
       return 0;
     }
-    // Correctly account for non-allocatable regions at the beginning of
-    // each page from the age_mark() to the top().
-    intptr_t pages =
-        PagesFromStart(top()) - PagesFromStart(to_space_.age_mark());
-    allocated -= pages * (NewSpacePage::kObjectStartOffset);
-    DCHECK(0 <= allocated && allocated <= Size());
+    while (current_page != last_page) {
+      if (current_page == age_mark_page) {
+        seen_age_mark = true;
+        break;
+      }
+      current_page = current_page->next_page();
+    }
+    if (!seen_age_mark) {
+      // Top was reset at some point, invalidating this metric.
+      return 0;
+    }
+    intptr_t allocated = age_mark_page->area_end() - age_mark;
+    DCHECK_EQ(current_page, age_mark_page);
+    current_page = age_mark_page->next_page();
+    while (current_page != last_page) {
+      allocated += Page::kAllocatableMemory;
+      current_page = current_page->next_page();
+    }
+    allocated += top() - current_page->area_start();
+    DCHECK_LE(0, allocated);
+    DCHECK_LE(allocated, Size());
     return static_cast<size_t>(allocated);
+  }
+
+  bool ReplaceWithEmptyPage(Page* page) {
+    // This method is called after flipping the semispace.
+    DCHECK(page->InFromSpace());
+    return from_space_.ReplaceWithEmptyPage(page);
   }
 
   // Return the maximum capacity of a semispace.
@@ -2690,10 +2750,6 @@ class NewSpace : public Space {
   Address age_mark() { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
-
-  // The start address of the space and a bit mask. Anding an address in the
-  // new space with the mask will result in the start address.
-  Address start() { return start_; }
 
   // The allocation top and limit address.
   Address* allocation_top_address() { return allocation_info_.top_address(); }
@@ -2809,17 +2865,11 @@ class NewSpace : public Space {
 
   base::Mutex mutex_;
 
-  Address chunk_base_;
-  uintptr_t chunk_size_;
-
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
   int pages_used_;
-
-  // Start address and bit mask for containment testing.
-  Address start_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.

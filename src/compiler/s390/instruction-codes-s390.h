@@ -43,6 +43,7 @@ namespace compiler {
   V(S390_SubFloat)                 \
   V(S390_SubDouble)                \
   V(S390_SubPair)                  \
+  V(S390_MulPair)                  \
   V(S390_Mul32)                    \
   V(S390_Mul64)                    \
   V(S390_MulHigh32)                \
@@ -125,6 +126,7 @@ namespace compiler {
   V(S390_LoadWordS16)              \
   V(S390_LoadWordU16)              \
   V(S390_LoadWordS32)              \
+  V(S390_LoadWordU32)              \
   V(S390_LoadWord64)               \
   V(S390_LoadFloat32)              \
   V(S390_LoadDouble)               \

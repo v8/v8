@@ -37,6 +37,7 @@ class JsonParser BASE_EMBEDDED {
         source_length_(source->length()),
         isolate_(source->map()->GetHeap()->isolate()),
         factory_(isolate_->factory()),
+        zone_(isolate_->allocator()),
         object_constructor_(isolate_->native_context()->object_function(),
                             isolate_),
         position_(-1) {

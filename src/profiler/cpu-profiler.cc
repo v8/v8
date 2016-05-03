@@ -242,7 +242,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   AbstractCode* code,
                                   SharedFunctionInfo* shared,
-                                  CompilationInfo* info, Name* script_name) {
+                                  Name* script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
@@ -253,9 +253,6 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       NULL, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
-  if (info) {
-    rec->entry->set_inlined_function_infos(info->inlined_function_infos());
-  }
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);

@@ -55,6 +55,12 @@ class PreParserIdentifier {
   static PreParserIdentifier Constructor() {
     return PreParserIdentifier(kConstructorIdentifier);
   }
+  static PreParserIdentifier Enum() {
+    return PreParserIdentifier(kEnumIdentifier);
+  }
+  static PreParserIdentifier Await() {
+    return PreParserIdentifier(kAwaitIdentifier);
+  }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
@@ -64,7 +70,8 @@ class PreParserIdentifier {
   bool IsYield() const { return type_ == kYieldIdentifier; }
   bool IsPrototype() const { return type_ == kPrototypeIdentifier; }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
-  bool IsFutureReserved() const { return type_ == kFutureReservedIdentifier; }
+  bool IsEnum() const { return type_ == kEnumIdentifier; }
+  bool IsAwait() const { return type_ == kAwaitIdentifier; }
   bool IsFutureStrictReserved() const {
     return type_ == kFutureStrictReservedIdentifier ||
            type_ == kLetIdentifier || type_ == kStaticIdentifier ||
@@ -91,7 +98,9 @@ class PreParserIdentifier {
     kArgumentsIdentifier,
     kUndefinedIdentifier,
     kPrototypeIdentifier,
-    kConstructorIdentifier
+    kConstructorIdentifier,
+    kEnumIdentifier,
+    kAwaitIdentifier
   };
 
   explicit PreParserIdentifier(Type type) : type_(type) {}
@@ -1239,10 +1248,13 @@ class PreParserTraits {
       LanguageMode language_mode, bool is_typed,
       typesystem::TypeFlags type_flags, bool* ok);
 
-  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
+  PreParserExpression ParseClassLiteral(Type::ExpressionClassifier* classifier,
+                                        PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool ambient, bool* ok);
+
+  V8_INLINE void MarkTailPosition(PreParserExpression) {}
 
   PreParserExpressionList PrepareSpreadArguments(PreParserExpressionList list) {
     return list;
@@ -1320,19 +1332,30 @@ class PreParser : public ParserBase<PreParserTraits> {
   PreParser(Zone* zone, Scanner* scanner, AstValueFactory* ast_value_factory,
             ParserRecorder* log, uintptr_t stack_limit)
       : ParserBase<PreParserTraits>(zone, scanner, stack_limit, NULL,
-                                    ast_value_factory, log, this) {}
+                                    ast_value_factory, log, this),
+        use_counts_(nullptr) {}
 
   // Pre-parse the program from the character stream; returns true on
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(int* materialized_literals = 0) {
+  PreParseResult PreParseProgram(int* materialized_literals = 0,
+                                 bool is_module = false) {
     Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
+
+    // ModuleDeclarationInstantiation for Source Text Module Records creates a
+    // new Module Environment Record whose outer lexical environment record is
+    // the global scope.
+    if (is_module) {
+      scope = NewScope(scope, MODULE_SCOPE);
+    }
+
     PreParserFactory factory(NULL);
     FunctionState top_scope(&function_state_, &scope_, scope, kNormalFunction,
                             &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
+    parsing_module_ = is_module;
     ParseStatementList(Token::EOS, &ok);
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
@@ -1355,10 +1378,12 @@ class PreParser : public ParserBase<PreParserTraits> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
-  PreParseResult PreParseLazyFunction(
-      LanguageMode language_mode, bool is_typed, FunctionKind kind,
-      bool has_simple_parameters, ParserRecorder* log,
-      Scanner::BookmarkScope* bookmark = nullptr);
+  PreParseResult PreParseLazyFunction(LanguageMode language_mode, bool is_typed,
+                                      FunctionKind kind,
+                                      bool has_simple_parameters,
+                                      bool parsing_module, ParserRecorder* log,
+                                      Scanner::BookmarkScope* bookmark,
+                                      int* use_counts);
 
  private:
   friend class PreParserTraits;
@@ -1382,6 +1407,9 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseSubStatement(AllowLabelledFunctionStatement allow_function,
                               bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
+  Statement ParseHoistableDeclaration(bool ambient, bool* ok);
+  Statement ParseHoistableDeclaration(int pos, bool is_generator, bool ambient,
+                                      bool* ok);
   Statement ParseFunctionDeclaration(bool ambient, bool* ok);
   Statement ParseClassDeclaration(bool ambient, bool* ok);
   Statement ParseBlock(bool* ok);
@@ -1429,10 +1457,13 @@ class PreParser : public ParserBase<PreParserTraits> {
   void ParseLazyFunctionLiteralBody(bool* ok,
                                     Scanner::BookmarkScope* bookmark = nullptr);
 
-  PreParserExpression ParseClassLiteral(PreParserIdentifier name,
+  PreParserExpression ParseClassLiteral(ExpressionClassifier* classifier,
+                                        PreParserIdentifier name,
                                         Scanner::Location class_name_location,
                                         bool name_is_strict_reserved, int pos,
                                         bool ambient, bool* ok);
+
+  int* use_counts_;
 };
 
 
@@ -1509,8 +1540,14 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  ParseStatementList(Token::RBRACE, ok);
-  if (!*ok) return PreParserStatementList();
+  Scope* inner_scope = scope_;
+  if (!parameters.is_simple) inner_scope = NewScope(scope_, BLOCK_SCOPE);
+
+  {
+    BlockState block_state(&scope_, inner_scope);
+    ParseStatementList(Token::RBRACE, ok);
+    if (!*ok) return PreParserStatementList();
+  }
 
   Expect(Token::RBRACE, ok);
   return PreParserStatementList();

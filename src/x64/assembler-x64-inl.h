@@ -78,7 +78,8 @@ void Assembler::emit_code_target(Handle<Code> target,
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
   RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - isolate()->code_range()->start()));
+  emitl(static_cast<uint32_t>(
+      entry - isolate()->heap()->memory_allocator()->code_range()->start()));
 }
 
 
@@ -299,7 +300,8 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
 
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return Memory::int32_at(pc) + isolate()->code_range()->start();
+  return Memory::int32_at(pc) +
+         isolate()->heap()->memory_allocator()->code_range()->start();
 }
 
 // -----------------------------------------------------------------------------
@@ -538,7 +540,7 @@ void RelocInfo::set_debug_call_address(Address target) {
   }
 }
 
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

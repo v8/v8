@@ -42,27 +42,6 @@ utils.ImportFromExperimental(function(from) {
    ---------------------------------
 */
 
-function ConcatIterableToArray(target, iterable) {
-   var index = target.length;
-   for (var element of iterable) {
-     AddIndexedProperty(target, index++, element);
-   }
-   return target;
-}
-
-
-// This function should be called rather than %AddElement in contexts where the
-// argument might not be less than 2**32-1. ES2015 ToLength semantics mean that
-// this is a concern at basically all callsites.
-function AddIndexedProperty(obj, index, value) {
-  if (index === TO_UINT32(index) && index !== kMaxUint32) {
-    %AddElement(obj, index, value);
-  } else {
-    %AddNamedProperty(obj, TO_STRING(index), value, NONE);
-  }
-}
-%SetForceInlineFlag(AddIndexedProperty);
-
 
 function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER_MAP_MINUS_ZERO(x);
@@ -130,15 +109,10 @@ function SpeciesConstructor(object, defaultConstructor, conservative) {
 // Exports
 
 utils.Export(function(to) {
-  to.AddIndexedProperty = AddIndexedProperty;
   to.MaxSimple = MaxSimple;
   to.MinSimple = MinSimple;
   to.ToPositiveInteger = ToPositiveInteger;
   to.SpeciesConstructor = SpeciesConstructor;
 });
-
-%InstallToContext([
-  "concat_iterable_to_array", ConcatIterableToArray,
-]);
 
 })

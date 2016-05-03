@@ -243,6 +243,7 @@ class Scope: public ZoneObject {
 
   // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
+    DCHECK(!is_module_scope() || is_strict(language_mode));
     language_mode_ = language_mode;
   }
 
@@ -297,6 +298,10 @@ class Scope: public ZoneObject {
   void set_end_position(int statement_pos) {
     end_position_ = statement_pos;
   }
+
+  // Scopes created for desugaring are hidden. I.e. not visible to the debugger.
+  bool is_hidden() const { return is_hidden_; }
+  void set_is_hidden() { is_hidden_ = true; }
 
   // In some cases we want to force context allocation for a whole scope.
   void ForceContextAllocation() {
@@ -547,7 +552,7 @@ class Scope: public ZoneObject {
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
-  void CollectNonLocals(HashMap* non_locals);
+  Handle<StringSet> CollectNonLocals(Handle<StringSet> non_locals);
 
   // ---------------------------------------------------------------------------
   // Strict mode support.
@@ -581,6 +586,9 @@ class Scope: public ZoneObject {
 
 #ifdef DEBUG
   void Print(int n = 0);  // n = indentation; n < 0 => don't print recursively
+
+  // Check that the scope has positions assigned.
+  void CheckScopePositions();
 #endif
 
   // ---------------------------------------------------------------------------
@@ -654,6 +662,7 @@ class Scope: public ZoneObject {
   // Source positions.
   int start_position_;
   int end_position_;
+  bool is_hidden_;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;

@@ -33,7 +33,7 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 
 CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
                              InstructionSequence* code, CompilationInfo* info)
-    : frame_access_state_(new (code->zone()) FrameAccessState(frame)),
+    : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
       info_(info),
@@ -56,11 +56,13 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
-  if (code->ContainsCall()) {
-    frame->MarkNeedsFrame();
-  }
+  CreateFrameAccessState(frame);
 }
 
+void CodeGenerator::CreateFrameAccessState(Frame* frame) {
+  FinishFrame(frame);
+  frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
+}
 
 Handle<Code> CodeGenerator::GenerateCode() {
   CompilationInfo* info = this->info();
@@ -80,10 +82,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());
-  AssemblePrologue();
-  if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
-    masm()->InitializeRootRegister();
-  }
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
@@ -143,10 +141,29 @@ Handle<Code> CodeGenerator::GenerateCode() {
         SNPrintF(buffer, " --");
         masm()->RecordComment(buffer_start);
       }
+
+      frame_access_state()->MarkHasFrame(block->needs_frame());
+
       masm()->bind(GetLabel(current_block_));
-      for (int i = block->code_start(); i < block->code_end(); ++i) {
-        AssembleInstruction(code()->InstructionAt(i));
+      if (block->must_construct_frame()) {
+        AssembleConstructFrame();
+        // We need to setup the root register after we assemble the prologue, to
+        // avoid clobbering callee saved registers in case of C linkage and
+        // using the roots.
+        // TODO(mtrofin): investigate how we can avoid doing this repeatedly.
+        if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+          masm()->InitializeRootRegister();
+        }
       }
+
+      CodeGenResult result;
+      if (FLAG_enable_embedded_constant_pool && !block->needs_frame()) {
+        ConstantPoolUnavailableScope constant_pool_unavailable(masm());
+        result = AssembleBlock(block);
+      } else {
+        result = AssembleBlock(block);
+      }
+      if (result != kSuccess) return Handle<Code>();
     }
   }
 
@@ -262,8 +279,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
 bool CodeGenerator::IsMaterializableFromFrame(Handle<HeapObject> object,
                                               int* slot_return) {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    if (info()->has_context() && object.is_identical_to(info()->context()) &&
-        !info()->is_osr()) {
+    if (object.is_identical_to(info()->context()) && !info()->is_osr()) {
       *slot_return = Frame::kContextSlot;
       return true;
     } else if (object.is_identical_to(info()->closure())) {
@@ -290,12 +306,30 @@ bool CodeGenerator::IsMaterializableFromRoot(
   return false;
 }
 
+CodeGenerator::CodeGenResult CodeGenerator::AssembleBlock(
+    const InstructionBlock* block) {
+  for (int i = block->code_start(); i < block->code_end(); ++i) {
+    Instruction* instr = code()->InstructionAt(i);
+    CodeGenResult result = AssembleInstruction(instr, block);
+    if (result != kSuccess) return result;
+  }
+  return kSuccess;
+}
 
-void CodeGenerator::AssembleInstruction(Instruction* instr) {
+CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
+    Instruction* instr, const InstructionBlock* block) {
   AssembleGaps(instr);
+  DCHECK_IMPLIES(
+      block->must_deconstruct_frame(),
+      instr != code()->InstructionAt(block->last_instruction_index()) ||
+          instr->IsRet() || instr->IsJump());
+  if (instr->IsJump() && block->must_deconstruct_frame()) {
+    AssembleDeconstructFrame();
+  }
   AssembleSourcePosition(instr);
   // Assemble architecture-specific code for the instruction.
-  AssembleArchInstruction(instr);
+  CodeGenResult result = AssembleArchInstruction(instr);
+  if (result != kSuccess) return result;
 
   FlagsMode mode = FlagsModeField::decode(instr->opcode());
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
@@ -311,7 +345,7 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
         if (!IsNextInAssemblyOrder(true_rpo)) {
           AssembleArchJump(true_rpo);
         }
-        return;
+        return kSuccess;
       }
       if (IsNextInAssemblyOrder(true_rpo)) {
         // true block is next, can fall through if condition negated.
@@ -353,6 +387,7 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
       break;
     }
   }
+  return kSuccess;
 }
 
 
@@ -470,10 +505,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     bool caught = flags & CallDescriptor::kHasLocalCatchHandler;
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
     handlers_.push_back({caught, GetLabel(handler_rpo), masm()->pc_offset()});
-  }
-
-  if (flags & CallDescriptor::kNeedsNopAfterCall) {
-    AddNopForSmiCodeInlining();
   }
 
   if (needs_frame_state) {
@@ -761,13 +792,11 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
 }
 
 int CodeGenerator::TailCallFrameStackSlotDelta(int stack_param_delta) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int spill_slots = frame()->GetSpillSlotCount();
-  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
   // Leave the PC on the stack on platforms that have that as part of their ABI
   int pc_slots = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
-  int sp_slot_delta =
-      has_frame ? (frame()->GetTotalFrameSlotCount() - pc_slots) : 0;
+  int sp_slot_delta = frame_access_state()->has_frame()
+                          ? (frame()->GetTotalFrameSlotCount() - pc_slots)
+                          : 0;
   // Discard only slots that won't be used by new parameters.
   sp_slot_delta += stack_param_delta;
   return sp_slot_delta;

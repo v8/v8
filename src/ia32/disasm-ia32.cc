@@ -8,6 +8,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/base/compiler-specific.h"
 #include "src/disasm.h"
 
 namespace disasm {
@@ -281,7 +282,7 @@ class DisassemblerIA32 {
   bool vex_128() {
     DCHECK(vex_byte0_ == 0xc4 || vex_byte0_ == 0xc5);
     byte checked = vex_byte0_ == 0xc4 ? vex_byte2_ : vex_byte1_;
-    return (checked & 4) != 1;
+    return (checked & 4) == 0;
   }
 
   bool vex_none() {
@@ -389,8 +390,7 @@ class DisassemblerIA32 {
   int MemoryFPUInstruction(int escape_opcode, int regop, byte* modrm_start);
   int RegisterFPUInstruction(int escape_opcode, byte modrm_byte);
   int AVXInstruction(byte* data);
-  void AppendToBuffer(const char* format, ...);
-
+  PRINTF_FORMAT(2, 3) void AppendToBuffer(const char* format, ...);
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
@@ -1274,7 +1274,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
     const InstructionDesc& idesc = instruction_table_->Get(*data);
     switch (idesc.type) {
       case ZERO_OPERANDS_INSTR:
-        AppendToBuffer(idesc.mnem);
+        AppendToBuffer("%s", idesc.mnem);
         data++;
         break;
 

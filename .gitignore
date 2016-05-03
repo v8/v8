@@ -41,11 +41,8 @@ shell
 shell_g
 /_*
 /base
-/build/Debug
-/build/gyp
-/build/ipch
-/build/Release
-/build/win_toolchain.json
+/build
+/gypfiles/win_toolchain.json
 /buildtools
 /hydrogen.cfg
 /obj
@@ -69,6 +66,7 @@ shell_g
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
+/tools/gyp
 /tools/jsfunfuzz/jsfunfuzz
 /tools/jsfunfuzz/jsfunfuzz.tar.gz
 /tools/luci-go/linux64/isolate
@@ -87,6 +85,7 @@ GTAGS
 GRTAGS
 GSYMS
 GPATH
+tags
 gtags.files
 turbo*.cfg
 turbo*.dot

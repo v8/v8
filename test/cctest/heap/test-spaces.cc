@@ -107,13 +107,12 @@ TEST(Page) {
 class TestMemoryAllocatorScope {
  public:
   TestMemoryAllocatorScope(Isolate* isolate, MemoryAllocator* allocator)
-      : isolate_(isolate),
-        old_allocator_(isolate->memory_allocator_) {
-    isolate->memory_allocator_ = allocator;
+      : isolate_(isolate), old_allocator_(isolate->heap()->memory_allocator()) {
+    isolate->heap()->memory_allocator_ = allocator;
   }
 
   ~TestMemoryAllocatorScope() {
-    isolate_->memory_allocator_ = old_allocator_;
+    isolate_->heap()->memory_allocator_ = old_allocator_;
   }
 
  private:
@@ -129,12 +128,12 @@ class TestCodeRangeScope {
  public:
   TestCodeRangeScope(Isolate* isolate, CodeRange* code_range)
       : isolate_(isolate),
-        old_code_range_(isolate->code_range_) {
-    isolate->code_range_ = code_range;
+        old_code_range_(isolate->heap()->memory_allocator()->code_range()) {
+    isolate->heap()->memory_allocator()->code_range_ = code_range;
   }
 
   ~TestCodeRangeScope() {
-    isolate_->code_range_ = old_code_range_;
+    isolate_->heap()->memory_allocator()->code_range_ = old_code_range_;
   }
 
  private:
@@ -153,50 +152,49 @@ static void VerifyMemoryChunk(Isolate* isolate,
                               size_t second_commit_area_size,
                               Executability executable) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
-                                heap->MaxExecutableSize()));
-  TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
-  TestCodeRangeScope test_code_range_scope(isolate, code_range);
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
+  {
+    TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
+    TestCodeRangeScope test_code_range_scope(isolate, code_range);
 
-  size_t header_size = (executable == EXECUTABLE)
-                       ? MemoryAllocator::CodePageGuardStartOffset()
-                       : MemoryChunk::kObjectStartOffset;
-  size_t guard_size = (executable == EXECUTABLE)
-                       ? MemoryAllocator::CodePageGuardSize()
-                       : 0;
+    size_t header_size = (executable == EXECUTABLE)
+                             ? MemoryAllocator::CodePageGuardStartOffset()
+                             : MemoryChunk::kObjectStartOffset;
+    size_t guard_size =
+        (executable == EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
 
-  MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(reserve_area_size,
-                                                              commit_area_size,
-                                                              executable,
-                                                              NULL);
-  size_t alignment = code_range != NULL && code_range->valid()
-                         ? MemoryChunk::kAlignment
-                         : base::OS::CommitPageSize();
-  size_t reserved_size =
-      ((executable == EXECUTABLE))
-          ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
-                    alignment)
-          : RoundUp(header_size + reserve_area_size,
-                    base::OS::CommitPageSize());
-  CHECK(memory_chunk->size() == reserved_size);
-  CHECK(memory_chunk->area_start() < memory_chunk->address() +
-                                     memory_chunk->size());
-  CHECK(memory_chunk->area_end() <= memory_chunk->address() +
-                                    memory_chunk->size());
-  CHECK(static_cast<size_t>(memory_chunk->area_size()) == commit_area_size);
+    MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
+        reserve_area_size, commit_area_size, executable, NULL);
+    size_t alignment = code_range != NULL && code_range->valid()
+                           ? MemoryChunk::kAlignment
+                           : base::OS::CommitPageSize();
+    size_t reserved_size =
+        ((executable == EXECUTABLE))
+            ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
+                      alignment)
+            : RoundUp(header_size + reserve_area_size,
+                      base::OS::CommitPageSize());
+    CHECK(memory_chunk->size() == reserved_size);
+    CHECK(memory_chunk->area_start() <
+          memory_chunk->address() + memory_chunk->size());
+    CHECK(memory_chunk->area_end() <=
+          memory_chunk->address() + memory_chunk->size());
+    CHECK(static_cast<size_t>(memory_chunk->area_size()) == commit_area_size);
 
-  Address area_start = memory_chunk->area_start();
+    Address area_start = memory_chunk->area_start();
 
-  memory_chunk->CommitArea(second_commit_area_size);
-  CHECK(area_start == memory_chunk->area_start());
-  CHECK(memory_chunk->area_start() < memory_chunk->address() +
-                                     memory_chunk->size());
-  CHECK(memory_chunk->area_end() <= memory_chunk->address() +
-                                    memory_chunk->size());
-  CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
-      second_commit_area_size);
+    memory_chunk->CommitArea(second_commit_area_size);
+    CHECK(area_start == memory_chunk->area_start());
+    CHECK(memory_chunk->area_start() <
+          memory_chunk->address() + memory_chunk->size());
+    CHECK(memory_chunk->area_end() <=
+          memory_chunk->address() + memory_chunk->size());
+    CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
+          second_commit_area_size);
 
-  memory_allocator->Free(memory_chunk);
+    memory_allocator->Free<MemoryAllocator::kFull>(memory_chunk);
+  }
   memory_allocator->TearDown();
   delete memory_allocator;
 }
@@ -207,8 +205,8 @@ TEST(Regress3540) {
   Heap* heap = isolate->heap();
   const int pageSize = Page::kPageSize;
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(
-      memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
   const size_t code_range_size = 4 * pageSize;
@@ -310,18 +308,19 @@ TEST(MemoryAllocator) {
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator != nullptr);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
-                                heap->MaxExecutableSize()));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   {
     int total_pages = 0;
     OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
     Page* first_page = memory_allocator->AllocatePage(
-        faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
+        faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
+        NOT_EXECUTABLE);
 
     first_page->InsertAfter(faked_space.anchor()->prev_page());
-    CHECK(first_page->is_valid());
+    CHECK(Page::IsValid(first_page));
     CHECK(first_page->next_page() == faked_space.anchor());
     total_pages++;
 
@@ -330,9 +329,10 @@ TEST(MemoryAllocator) {
     }
 
     // Again, we should get n or n - 1 pages.
-    Page* other = memory_allocator->AllocatePage(faked_space.AreaSize(),
-                                                 &faked_space, NOT_EXECUTABLE);
-    CHECK(other->is_valid());
+    Page* other = memory_allocator->AllocatePage(
+        faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
+        NOT_EXECUTABLE);
+    CHECK(Page::IsValid(other));
     total_pages++;
     other->InsertAfter(first_page);
     int page_count = 0;
@@ -343,7 +343,7 @@ TEST(MemoryAllocator) {
     CHECK(total_pages == page_count);
 
     Page* second_page = first_page->next_page();
-    CHECK(second_page->is_valid());
+    CHECK(Page::IsValid(second_page));
 
     // OldSpace's destructor will tear down the space and free up all pages.
   }
@@ -356,14 +356,14 @@ TEST(NewSpace) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
-                                heap->MaxExecutableSize()));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   NewSpace new_space(heap);
 
-  CHECK(new_space.SetUp(CcTest::heap()->ReservedSemiSpaceSize(),
-                        CcTest::heap()->ReservedSemiSpaceSize()));
+  CHECK(new_space.SetUp(CcTest::heap()->InitialSemiSpaceSize(),
+                        CcTest::heap()->InitialSemiSpaceSize()));
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
@@ -383,8 +383,8 @@ TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
-                                heap->MaxExecutableSize()));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
@@ -407,8 +407,8 @@ TEST(CompactionSpace) {
   Heap* heap = isolate->heap();
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator != nullptr);
-  CHECK(
-      memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
+                                0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   CompactionSpace* compaction_space =

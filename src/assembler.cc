@@ -838,6 +838,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at return";
     case DEBUG_BREAK_SLOT_AT_CALL:
       return "debug break slot at call";
+    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
+      return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
     case GENERATOR_CONTINUATION:
@@ -936,6 +938,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_POSITION:
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
+    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
     case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
     case NONE32:
@@ -1067,6 +1070,12 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->interpreter()->dispatch_table_address());
+}
+
+ExternalReference ExternalReference::interpreter_dispatch_counters(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->interpreter()->bytecode_dispatch_counters_table());
 }
 
 ExternalReference::ExternalReference(StatsCounter* counter)
@@ -1252,6 +1261,26 @@ ExternalReference ExternalReference::wasm_uint64_mod(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_word32_ctz(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ctz_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word64_ctz(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word64_ctz_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_popcnt(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_popcnt_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
+}
+
 static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
@@ -1402,12 +1431,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit(
     Isolate* isolate) {
   return ExternalReference(isolate->regexp_stack()->limit_address());
 }
-
-
-ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceStart());
-}
-
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
@@ -1632,6 +1655,10 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
+ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
+}
 
 ExternalReference ExternalReference::debug_is_active_address(
     Isolate* isolate) {
@@ -1702,34 +1729,12 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
-     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
-    defined(V8_OS_AIX)
-  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
-  // special cases that are different.
-  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
-    double f;
-    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
-    /* retain sign if odd integer exponent */
-    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
-               ? copysign(result, x)
-               : result;
-  }
-
-  if (x == 2.0) {
-    int y_int = static_cast<int>(y);
-    if (y == y_int) {
-      return std::ldexp(1.0, y_int);
-    }
-  }
-#endif
-
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  return std::pow(x, y);
+  return Pow(x, y);
 }
 
 
