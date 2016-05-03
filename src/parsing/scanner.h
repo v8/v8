@@ -588,7 +588,7 @@ class Scanner {
   }
 
   void PushBack(uc32 ch) {
-    if (ch > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+    if (c0_ > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
       source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
     } else {
