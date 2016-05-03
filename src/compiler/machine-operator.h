@@ -32,6 +32,16 @@ class OptionalOperator final {
   const Operator* const op_;
 };
 
+// Supported write barrier modes.
+enum WriteBarrierKind {
+  kNoWriteBarrier,
+  kMapWriteBarrier,
+  kPointerWriteBarrier,
+  kFullWriteBarrier
+};
+
+std::ostream& operator<<(std::ostream& os, WriteBarrierKind);
+
 
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;

@@ -9,6 +9,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +37,38 @@ Reduction ChangeLowering::Reduce(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                         MachineRepresentation representation,
+                                         Node* value) {
+  // TODO(bmeurer): Optimize write barriers based on input.
+  if (base_is_tagged == kTaggedBase &&
+      representation == MachineRepresentation::kTagged) {
+    if (value->opcode() == IrOpcode::kHeapConstant) {
+      return kPointerWriteBarrier;
+    } else if (value->opcode() == IrOpcode::kNumberConstant) {
+      double const number_value = OpParameter<double>(value);
+      if (IsSmiDouble(number_value)) return kNoWriteBarrier;
+      return kPointerWriteBarrier;
+    }
+    return kFullWriteBarrier;
+  }
+  return kNoWriteBarrier;
+}
+
+WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                         MachineRepresentation representation,
+                                         int field_offset, Node* value) {
+  if (base_is_tagged == kTaggedBase && field_offset == HeapObject::kMapOffset) {
+    // Write barriers for storing maps are cheaper.
+    return kMapWriteBarrier;
+  }
+  return ComputeWriteBarrierKind(base_is_tagged, representation, value);
+}
+
+}  // namespace
+
 Reduction ChangeLowering::ReduceLoadField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
@@ -46,11 +79,14 @@ Reduction ChangeLowering::ReduceLoadField(Node* node) {
 
 Reduction ChangeLowering::ReduceStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
+  WriteBarrierKind kind = ComputeWriteBarrierKind(
+      access.base_is_tagged, access.machine_type.representation(),
+      access.offset, node->InputAt(1));
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  NodeProperties::ChangeOp(node, machine()->Store(StoreRepresentation(
-                                     access.machine_type.representation(),
-                                     access.write_barrier_kind)));
+  NodeProperties::ChangeOp(node,
+                           machine()->Store(StoreRepresentation(
+                               access.machine_type.representation(), kind)));
   return Changed(node);
 }
 
@@ -88,9 +124,12 @@ Reduction ChangeLowering::ReduceLoadElement(Node* node) {
 Reduction ChangeLowering::ReduceStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  NodeProperties::ChangeOp(node, machine()->Store(StoreRepresentation(
-                                     access.machine_type.representation(),
-                                     access.write_barrier_kind)));
+  NodeProperties::ChangeOp(
+      node, machine()->Store(StoreRepresentation(
+                access.machine_type.representation(),
+                ComputeWriteBarrierKind(access.base_is_tagged,
+                                        access.machine_type.representation(),
+                                        node->InputAt(2)))));
   return Changed(node);
 }
 

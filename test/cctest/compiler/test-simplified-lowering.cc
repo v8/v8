@@ -1350,7 +1350,7 @@ TEST(LowerStoreField_to_store) {
 
       StoreRepresentation rep = StoreRepresentationOf(store->op());
       if (kMachineReps[i].representation() == MachineRepresentation::kTagged) {
-        CHECK_EQ(kNoWriteBarrier, rep.write_barrier_kind());
+        CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
       }
       CHECK_EQ(kMachineReps[i].representation(), rep.representation());
     }
@@ -1370,7 +1370,7 @@ TEST(LowerStoreField_to_store) {
     CHECK_EQ(IrOpcode::kStore, store->opcode());
     CHECK_EQ(t.p1, store->InputAt(2));
     StoreRepresentation rep = StoreRepresentationOf(store->op());
-    CHECK_EQ(kNoWriteBarrier, rep.write_barrier_kind());
+    CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
   }
 }
 
@@ -1415,7 +1415,7 @@ TEST(LowerStoreElement_to_store) {
 
       StoreRepresentation rep = StoreRepresentationOf(store->op());
       if (kMachineReps[i].representation() == MachineRepresentation::kTagged) {
-        CHECK_EQ(kNoWriteBarrier, rep.write_barrier_kind());
+        CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
       }
       CHECK_EQ(kMachineReps[i].representation(), rep.representation());
     }
@@ -1435,7 +1435,7 @@ TEST(LowerStoreElement_to_store) {
     CHECK_EQ(IrOpcode::kStore, store->opcode());
     CHECK_EQ(t.p2, store->InputAt(2));
     StoreRepresentation rep = StoreRepresentationOf(store->op());
-    CHECK_EQ(kNoWriteBarrier, rep.write_barrier_kind());
+    CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
   }
 }
 

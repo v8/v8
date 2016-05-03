@@ -142,6 +142,12 @@ class AccessBuilder final : public AllStatic {
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
 
+  // ===========================================================================
+  // Access to global per-isolate variables (based on external reference).
+
+  // Provides access to the backing store of a StatsCounter.
+  static FieldAccess ForStatsCounter();
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };
