@@ -71,6 +71,7 @@ class PlatformInterfaceDescriptor;
   V(StringCompare)                            \
   V(Keyed)                                    \
   V(Named)                                    \
+  V(HasProperty)                              \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
   V(ApiCallbackWith0Args)                     \
@@ -432,6 +433,15 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   static const Register ArgumentRegister();
 };
 
+class HasPropertyDescriptor final : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kKeyIndex, kObjectIndex };
+
+  DECLARE_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor)
+
+  static const Register KeyRegister();
+  static const Register ObjectRegister();
+};
 
 class TypeofDescriptor : public CallInterfaceDescriptor {
  public:

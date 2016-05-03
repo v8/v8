@@ -407,153 +407,17 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
 
   Variable var_index(assembler, MachineRepresentation::kWord32);
 
-  Label if_keyissmi(assembler), if_keyisnotsmi(assembler),
-      keyisindex(assembler);
-  assembler->Branch(assembler->WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
-  assembler->Bind(&if_keyissmi);
-  {
-    // Negative smi keys are named properties. Handle in the runtime.
-    Label if_keyispositive(assembler);
-    assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositive,
-                      &call_runtime);
-    assembler->Bind(&if_keyispositive);
+  Label keyisindex(assembler), if_iskeyunique(assembler);
+  assembler->TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
+                       &call_runtime);
 
-    var_index.Bind(assembler->SmiUntag(key));
-    assembler->Goto(&keyisindex);
-  }
-
-  assembler->Bind(&if_keyisnotsmi);
-
-  Node* key_instance_type = assembler->LoadInstanceType(key);
-  Label if_iskeyunique(assembler), if_iskeynotsymbol(assembler);
-  assembler->Branch(
-      assembler->Word32Equal(key_instance_type,
-                             assembler->Int32Constant(SYMBOL_TYPE)),
-      &if_iskeyunique, &if_iskeynotsymbol);
-  assembler->Bind(&if_iskeynotsymbol);
-  {
-    Label if_iskeyinternalized(assembler);
-    Node* bits = assembler->WordAnd(
-        key_instance_type,
-        assembler->Int32Constant(kIsNotStringMask | kIsNotInternalizedMask));
-    assembler->Branch(
-        assembler->Word32Equal(
-            bits, assembler->Int32Constant(kStringTag | kInternalizedTag)),
-        &if_iskeyinternalized, &call_runtime);
-    assembler->Bind(&if_iskeyinternalized);
-
-    // Check whether the key is an array index passed in as string. Handle
-    // uniform with smi keys if so.
-    // TODO(verwaest): Also support non-internalized strings.
-    Node* hash = assembler->LoadNameHash(key);
-    Node* bit = assembler->Word32And(
-        hash, assembler->Int32Constant(internal::Name::kIsNotArrayIndexMask));
-    Label if_isarrayindex(assembler);
-    assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
-                      &if_isarrayindex, &if_iskeyunique);
-    assembler->Bind(&if_isarrayindex);
-    var_index.Bind(
-        assembler->BitFieldDecode<internal::Name::ArrayIndexValueBits>(hash));
-    assembler->Goto(&keyisindex);
-  }
   assembler->Bind(&if_iskeyunique);
-
-  {
-    Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type,
-                          assembler->Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-                      &call_runtime, &if_objectissimple);
-    assembler->Bind(&if_objectissimple);
-  }
-
-  // TODO(verwaest): Perform a dictonary lookup on slow-mode receivers.
-  Node* bit_field3 = assembler->LoadMapBitField3(map);
-  Node* bit = assembler->BitFieldDecode<Map::DictionaryMap>(bit_field3);
-  Label if_isfastmap(assembler);
-  assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
-                    &if_isfastmap, &call_runtime);
-  assembler->Bind(&if_isfastmap);
-  Node* nof =
-      assembler->BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
-  // Bail out to the runtime for large numbers of own descriptors. The stub only
-  // does linear search, which becomes too expensive in that case.
-  {
-    static const int32_t kMaxLinear = 256;
-    Label above_max(assembler), below_max(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          nof, assembler->Int32Constant(kMaxLinear)),
-                      &below_max, &call_runtime);
-    assembler->Bind(&below_max);
-  }
-  Node* descriptors = assembler->LoadMapDescriptors(map);
-
-  Variable var_descriptor(assembler, MachineRepresentation::kWord32);
-  Label loop(assembler, &var_descriptor);
-  var_descriptor.Bind(assembler->Int32Constant(0));
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    Node* index = var_descriptor.value();
-    Node* offset = assembler->Int32Constant(DescriptorArray::ToKeyIndex(0));
-    Node* factor = assembler->Int32Constant(DescriptorArray::kDescriptorSize);
-    Label if_notdone(assembler);
-    assembler->Branch(assembler->Word32Equal(index, nof), &return_false,
-                      &if_notdone);
-    assembler->Bind(&if_notdone);
-    {
-      Node* array_index =
-          assembler->Int32Add(offset, assembler->Int32Mul(index, factor));
-      Node* current =
-          assembler->LoadFixedArrayElementInt32Index(descriptors, array_index);
-      Label if_unequal(assembler);
-      assembler->Branch(assembler->WordEqual(current, key), &return_true,
-                        &if_unequal);
-      assembler->Bind(&if_unequal);
-
-      var_descriptor.Bind(
-          assembler->Int32Add(index, assembler->Int32Constant(1)));
-      assembler->Goto(&loop);
-    }
-  }
+  assembler->TryLookupProperty(object, map, instance_type, key, &return_true,
+                               &return_false, &call_runtime);
 
   assembler->Bind(&keyisindex);
-  {
-    Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type, assembler->Int32Constant(
-                                             LAST_CUSTOM_ELEMENTS_RECEIVER)),
-                      &call_runtime, &if_objectissimple);
-    assembler->Bind(&if_objectissimple);
-  }
-
-  Node* index = var_index.value();
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
-
-  // TODO(verwaest): Support other elements kinds as well.
-  Label if_isobjectorsmi(assembler);
-  assembler->Branch(
-      assembler->Int32LessThanOrEqual(
-          elements_kind, assembler->Int32Constant(FAST_HOLEY_ELEMENTS)),
-      &if_isobjectorsmi, &call_runtime);
-  assembler->Bind(&if_isobjectorsmi);
-  {
-    Node* elements = assembler->LoadElements(object);
-    Node* length = assembler->LoadFixedArrayBaseLength(elements);
-
-    Label if_iskeyinrange(assembler);
-    assembler->Branch(
-        assembler->Int32LessThan(index, assembler->SmiToWord32(length)),
-        &if_iskeyinrange, &return_false);
-
-    assembler->Bind(&if_iskeyinrange);
-    Node* element = assembler->LoadFixedArrayElementInt32Index(elements, index);
-    Node* the_hole = assembler->LoadRoot(Heap::kTheHoleValueRootIndex);
-    assembler->Branch(assembler->WordEqual(element, the_hole), &return_false,
-                      &return_true);
-  }
+  assembler->TryLookupElement(object, map, instance_type, var_index.value(),
+                              &return_true, &return_false, &call_runtime);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));

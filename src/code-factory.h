@@ -144,6 +144,7 @@ class CodeFactory final {
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable HasProperty(Isolate* isolate);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate,
                                              TailCallMode tail_call_mode);

@@ -420,6 +420,9 @@ void FullCodeGenerator::EmitReturnSequence() {
   }
 }
 
+void FullCodeGenerator::RestoreContext() {
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+}
 
 void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
   DCHECK(var->IsStackAllocated() || var->IsContextSlot());
@@ -1337,7 +1340,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ mov(edx, Immediate(Smi::FromInt(flags)));
     FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
     __ CallStub(&stub);
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    RestoreContext();
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
 
@@ -1772,8 +1775,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   __ j(equal, &post_runtime);
   __ push(eax);  // generator object
   __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
-  __ mov(context_register(),
-         Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
   __ bind(&post_runtime);
   PopOperand(result_register());
   EmitReturnSequence();
@@ -2415,10 +2417,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
-
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-
+  RestoreContext();
   context()->DropAndPlug(1, eax);
 }
 
@@ -2520,8 +2519,7 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
           RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(arg_count + 1);
   RecordJSReturnSite(expr);
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
   context()->DropAndPlug(1, eax);
 }
 
@@ -2561,8 +2559,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ call(stub.GetCode(), RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(arg_count + 1);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
   context()->Plug(eax);
 }
 
@@ -2603,9 +2600,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
-
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
   context()->Plug(eax);
 }
 
@@ -3006,8 +3001,7 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   __ mov(eax, Immediate(argc));
   __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(argc + 1);
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
   // Discard the function left on TOS.
   context()->DropAndPlug(1, eax);
 }
@@ -3128,9 +3122,7 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kNullOrUndefined),
           RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(arg_count + 1);
-
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  RestoreContext();
 }
 
 
@@ -3604,7 +3596,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     case Token::IN:
       VisitForStackValue(expr->right());
       SetExpressionPosition(expr);
-      CallRuntimeWithOperands(Runtime::kHasProperty);
+      EmitHasProperty();
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ cmp(eax, isolate()->factory()->true_value());
       Split(equal, if_true, if_false, fall_through);

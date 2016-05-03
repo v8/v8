@@ -4094,6 +4094,123 @@ void TypeofStub::GenerateAheadOfTime(Isolate* isolate) {
   stub.GetCode();
 }
 
+void HasPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* key = assembler->Parameter(0);
+  Node* object = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label call_runtime(assembler), return_true(assembler),
+      return_false(assembler);
+
+  // Ensure object is JSReceiver, otherwise call runtime to throw error.
+  Label if_objectisnotsmi(assembler);
+  assembler->Branch(assembler->WordIsSmi(object), &call_runtime,
+                    &if_objectisnotsmi);
+  assembler->Bind(&if_objectisnotsmi);
+
+  Node* map = assembler->LoadMap(object);
+  Node* instance_type = assembler->LoadMapInstanceType(map);
+  {
+    Label if_objectisreceiver(assembler);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    assembler->Branch(
+        assembler->Int32GreaterThanOrEqual(
+            instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+        &if_objectisreceiver, &call_runtime);
+    assembler->Bind(&if_objectisreceiver);
+  }
+
+  Variable var_index(assembler, MachineRepresentation::kWord32);
+
+  Label keyisindex(assembler), if_iskeyunique(assembler);
+  assembler->TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
+                       &call_runtime);
+
+  assembler->Bind(&if_iskeyunique);
+  {
+    Variable var_object(assembler, MachineRepresentation::kTagged);
+    Variable var_map(assembler, MachineRepresentation::kTagged);
+    Variable var_instance_type(assembler, MachineRepresentation::kWord8);
+
+    Variable* merged_variables[] = {&var_object, &var_map, &var_instance_type};
+    Label loop(assembler, arraysize(merged_variables), merged_variables);
+    var_object.Bind(object);
+    var_map.Bind(map);
+    var_instance_type.Bind(instance_type);
+    assembler->Goto(&loop);
+    assembler->Bind(&loop);
+    {
+      Label next_proto(assembler);
+      assembler->TryLookupProperty(var_object.value(), var_map.value(),
+                                   var_instance_type.value(), key, &return_true,
+                                   &next_proto, &call_runtime);
+      assembler->Bind(&next_proto);
+
+      Node* proto = assembler->LoadMapPrototype(var_map.value());
+
+      Label if_not_null(assembler);
+      assembler->Branch(assembler->WordEqual(proto, assembler->NullConstant()),
+                        &return_false, &if_not_null);
+      assembler->Bind(&if_not_null);
+
+      Node* map = assembler->LoadMap(proto);
+      Node* instance_type = assembler->LoadMapInstanceType(map);
+
+      var_object.Bind(proto);
+      var_map.Bind(map);
+      var_instance_type.Bind(instance_type);
+      assembler->Goto(&loop);
+    }
+  }
+  assembler->Bind(&keyisindex);
+  {
+    Variable var_object(assembler, MachineRepresentation::kTagged);
+    Variable var_map(assembler, MachineRepresentation::kTagged);
+    Variable var_instance_type(assembler, MachineRepresentation::kWord8);
+
+    Variable* merged_variables[] = {&var_object, &var_map, &var_instance_type};
+    Label loop(assembler, arraysize(merged_variables), merged_variables);
+    var_object.Bind(object);
+    var_map.Bind(map);
+    var_instance_type.Bind(instance_type);
+    assembler->Goto(&loop);
+    assembler->Bind(&loop);
+    {
+      Label next_proto(assembler);
+      assembler->TryLookupElement(var_object.value(), var_map.value(),
+                                  var_instance_type.value(), var_index.value(),
+                                  &return_true, &next_proto, &call_runtime);
+      assembler->Bind(&next_proto);
+
+      Node* proto = assembler->LoadMapPrototype(var_map.value());
+
+      Label if_not_null(assembler);
+      assembler->Branch(assembler->WordEqual(proto, assembler->NullConstant()),
+                        &return_false, &if_not_null);
+      assembler->Bind(&if_not_null);
+
+      Node* map = assembler->LoadMap(proto);
+      Node* instance_type = assembler->LoadMapInstanceType(map);
+
+      var_object.Bind(proto);
+      var_map.Bind(map);
+      var_instance_type.Bind(instance_type);
+      assembler->Goto(&loop);
+    }
+  }
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+
+  assembler->Bind(&call_runtime);
+  assembler->TailCallRuntime(Runtime::kHasProperty, context, key, object);
+}
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);

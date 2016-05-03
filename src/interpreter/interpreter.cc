@@ -1137,7 +1137,7 @@ void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kHasProperty, assembler);
+  DoBinaryOp(CodeFactory::HasProperty(isolate_), assembler);
 }
 
 

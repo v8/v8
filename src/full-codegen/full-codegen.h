@@ -537,6 +537,12 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
 
+  // Emits call to respective code stub.
+  void EmitHasProperty();
+
+  // Platform-specific code for restoring context from current JS frame.
+  void RestoreContext();
+
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                      TypeofMode typeof_mode, Label* slow);

@@ -604,6 +604,13 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::RegExpConstructResult(isolate()));
 }
 
+void FullCodeGenerator::EmitHasProperty() {
+  Callable callable = CodeFactory::HasProperty(isolate());
+  PopOperand(callable.descriptor().GetRegisterParameter(1));
+  PopOperand(callable.descriptor().GetRegisterParameter(0));
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  RestoreContext();
+}
 
 bool RecordStatementPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;

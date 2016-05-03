@@ -121,6 +121,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceType(compiler::Node* map);
   // Load the instance descriptors of a map.
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
+  // Load the prototype of a map.
+  compiler::Node* LoadMapPrototype(compiler::Node* map);
 
   // Load the hash field of a name.
   compiler::Node* LoadNameHash(compiler::Node* name);
@@ -226,6 +228,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
+
+  // Various building blocks for stubs doing property lookups.
+  void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
+                 Label* if_keyisunique, Label* call_runtime);
+
+  void TryLookupProperty(compiler::Node* object, compiler::Node* map,
+                         compiler::Node* instance_type, compiler::Node* name,
+                         Label* if_found, Label* if_not_found,
+                         Label* call_runtime);
+
+  void TryLookupElement(compiler::Node* object, compiler::Node* map,
+                        compiler::Node* instance_type, compiler::Node* index,
+                        Label* if_found, Label* if_not_found,
+                        Label* call_runtime);
 
  private:
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,

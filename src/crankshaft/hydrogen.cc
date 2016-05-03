@@ -11694,9 +11694,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnInstruction(result, expr->id());
 
   } else if (op == Token::IN) {
-    Add<HPushArguments>(left, right);
+    Callable callable = CodeFactory::HasProperty(isolate());
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), left, right};
     HInstruction* result =
-        New<HCallRuntime>(Runtime::FunctionForId(Runtime::kHasProperty), 2);
+        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                                 Vector<HValue*>(values, arraysize(values)));
     return ast_context()->ReturnInstruction(result, expr->id());
   }
 

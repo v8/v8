@@ -496,6 +496,10 @@ Node* CodeStubAssembler::LoadMapDescriptors(Node* map) {
   return LoadObjectField(map, Map::kDescriptorsOffset);
 }
 
+Node* CodeStubAssembler::LoadMapPrototype(Node* map) {
+  return LoadObjectField(map, Map::kPrototypeOffset);
+}
+
 Node* CodeStubAssembler::LoadNameHash(Node* name) {
   return Load(MachineType::Uint32(), name,
               IntPtrConstant(Name::kHashFieldOffset - kHeapObjectTag));
@@ -1262,6 +1266,146 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),
                    Int32Constant(shift));
+}
+
+void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
+                                  Variable* var_index, Label* if_keyisunique,
+                                  Label* call_runtime) {
+  DCHECK_EQ(MachineRepresentation::kWord32, var_index->rep());
+
+  Label if_keyissmi(this), if_keyisnotsmi(this);
+  Branch(WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
+  Bind(&if_keyissmi);
+  {
+    // Negative smi keys are named properties. Handle in the runtime.
+    Label if_keyispositive(this);
+    Branch(WordIsPositiveSmi(key), &if_keyispositive, call_runtime);
+    Bind(&if_keyispositive);
+
+    var_index->Bind(SmiToWord32(key));
+    Goto(if_keyisindex);
+  }
+
+  Bind(&if_keyisnotsmi);
+
+  Node* key_instance_type = LoadInstanceType(key);
+  Label if_keyisnotsymbol(this);
+  Branch(Word32Equal(key_instance_type, Int32Constant(SYMBOL_TYPE)),
+         if_keyisunique, &if_keyisnotsymbol);
+  Bind(&if_keyisnotsymbol);
+  {
+    Label if_keyisinternalized(this);
+    Node* bits =
+        WordAnd(key_instance_type,
+                Int32Constant(kIsNotStringMask | kIsNotInternalizedMask));
+    Branch(Word32Equal(bits, Int32Constant(kStringTag | kInternalizedTag)),
+           &if_keyisinternalized, call_runtime);
+    Bind(&if_keyisinternalized);
+
+    // Check whether the key is an array index passed in as string. Handle
+    // uniform with smi keys if so.
+    // TODO(verwaest): Also support non-internalized strings.
+    Node* hash = LoadNameHash(key);
+    Node* bit =
+        Word32And(hash, Int32Constant(internal::Name::kIsNotArrayIndexMask));
+    Label if_isarrayindex(this);
+    Branch(Word32Equal(bit, Int32Constant(0)), &if_isarrayindex,
+           if_keyisunique);
+    Bind(&if_isarrayindex);
+    var_index->Bind(BitFieldDecode<internal::Name::ArrayIndexValueBits>(hash));
+    Goto(if_keyisindex);
+  }
+}
+
+void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
+                                          Node* instance_type, Node* name,
+                                          Label* if_found, Label* if_not_found,
+                                          Label* call_runtime) {
+  {
+    Label if_objectissimple(this);
+    Branch(Int32LessThanOrEqual(instance_type,
+                                Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+           call_runtime, &if_objectissimple);
+    Bind(&if_objectissimple);
+  }
+
+  // TODO(verwaest): Perform a dictonary lookup on slow-mode receivers.
+  Node* bit_field3 = LoadMapBitField3(map);
+  Node* bit = BitFieldDecode<Map::DictionaryMap>(bit_field3);
+  Label if_isfastmap(this);
+  Branch(Word32Equal(bit, Int32Constant(0)), &if_isfastmap, call_runtime);
+  Bind(&if_isfastmap);
+  Node* nof = BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
+  // Bail out to the runtime for large numbers of own descriptors. The stub only
+  // does linear search, which becomes too expensive in that case.
+  {
+    static const int32_t kMaxLinear = 210;
+    Label above_max(this), below_max(this);
+    Branch(Int32LessThanOrEqual(nof, Int32Constant(kMaxLinear)), &below_max,
+           call_runtime);
+    Bind(&below_max);
+  }
+  Node* descriptors = LoadMapDescriptors(map);
+
+  Variable var_descriptor(this, MachineRepresentation::kWord32);
+  Label loop(this, &var_descriptor);
+  var_descriptor.Bind(Int32Constant(0));
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_descriptor.value();
+    Node* offset = Int32Constant(DescriptorArray::ToKeyIndex(0));
+    Node* factor = Int32Constant(DescriptorArray::kDescriptorSize);
+    Label if_notdone(this);
+    Branch(Word32Equal(index, nof), if_not_found, &if_notdone);
+    Bind(&if_notdone);
+    {
+      Node* array_index = Int32Add(offset, Int32Mul(index, factor));
+      Node* current = LoadFixedArrayElementInt32Index(descriptors, array_index);
+      Label if_unequal(this);
+      Branch(WordEqual(current, name), if_found, &if_unequal);
+      Bind(&if_unequal);
+
+      var_descriptor.Bind(Int32Add(index, Int32Constant(1)));
+      Goto(&loop);
+    }
+  }
+}
+
+void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
+                                         Node* instance_type, Node* index,
+                                         Label* if_found, Label* if_not_found,
+                                         Label* call_runtime) {
+  {
+    Label if_objectissimple(this);
+    Branch(Int32LessThanOrEqual(instance_type,
+                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+           call_runtime, &if_objectissimple);
+    Bind(&if_objectissimple);
+  }
+
+  Node* bit_field2 = LoadMapBitField2(map);
+  Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+
+  // TODO(verwaest): Support other elements kinds as well.
+  Label if_isobjectorsmi(this);
+  Branch(
+      Int32LessThanOrEqual(elements_kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+      &if_isobjectorsmi, call_runtime);
+  Bind(&if_isobjectorsmi);
+  {
+    Node* elements = LoadElements(object);
+    Node* length = LoadFixedArrayBaseLength(elements);
+
+    Label if_iskeyinrange(this);
+    Branch(Int32LessThan(index, SmiToWord32(length)), &if_iskeyinrange,
+           if_not_found);
+
+    Bind(&if_iskeyinrange);
+    Node* element = LoadFixedArrayElementInt32Index(elements, index);
+    Node* the_hole = LoadRoot(Heap::kTheHoleValueRootIndex);
+    Branch(WordEqual(element, the_hole), if_not_found, if_found);
+  }
 }
 
 }  // namespace internal

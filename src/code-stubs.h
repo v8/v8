@@ -139,6 +139,7 @@ namespace internal {
   V(ToBoolean)                              \
   V(ToInteger)                              \
   V(ToLength)                               \
+  V(HasProperty)                            \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(KeyedLoadSloppyArguments)               \
@@ -946,6 +947,15 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
+};
+
+// ES6 section 12.10.3 "in" operator evaluation.
+class HasPropertyStub : public TurboFanCodeStub {
+ public:
+  explicit HasPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(HasProperty);
+  DEFINE_TURBOFAN_CODE_STUB(HasProperty, TurboFanCodeStub);
 };
 
 enum StringAddFlags {

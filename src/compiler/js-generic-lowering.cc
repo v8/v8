@@ -77,6 +77,7 @@ REPLACE_STUB_CALL(LessThan)
 REPLACE_STUB_CALL(LessThanOrEqual)
 REPLACE_STUB_CALL(GreaterThan)
 REPLACE_STUB_CALL(GreaterThanOrEqual)
+REPLACE_STUB_CALL(HasProperty)
 REPLACE_STUB_CALL(Equal)
 REPLACE_STUB_CALL(NotEqual)
 REPLACE_STUB_CALL(ToInteger)
@@ -339,11 +340,6 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   ReplaceWithRuntimeCall(node, is_strict(language_mode)
                                    ? Runtime::kDeleteProperty_Strict
                                    : Runtime::kDeleteProperty_Sloppy);
-}
-
-
-void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kHasProperty);
 }
 
 

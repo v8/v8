@@ -54,6 +54,9 @@ const Register MathPowIntegerDescriptor::exponent() {
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r2; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r5; }
 
+const Register HasPropertyDescriptor::ObjectRegister() { return r2; }
+const Register HasPropertyDescriptor::KeyRegister() { return r5; }
+
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r4};

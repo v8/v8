@@ -549,6 +549,11 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
                   ConstructTrampolineDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::HasProperty(Isolate* isolate) {
+  HasPropertyStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
