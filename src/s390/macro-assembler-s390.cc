@@ -5215,12 +5215,12 @@ void MacroAssembler::ShiftRight(Register dst, Register src,
 
 // Shift right logical for 32-bit integer types.
 void MacroAssembler::ShiftRight(Register dst, Register src, Register val) {
-  DCHECK(!dst.is(val));  // The lr/srl path clobbers val.
   if (dst.is(src)) {
     srl(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srlk(dst, src, val);
   } else {
+    DCHECK(!dst.is(val));  // The lr/srl path clobbers val.
     lr(dst, src);
     srl(dst, val);
   }
@@ -5241,12 +5241,12 @@ void MacroAssembler::ShiftLeftArith(Register dst, Register src,
 
 // Shift left arithmetic for 32-bit integer types.
 void MacroAssembler::ShiftLeftArith(Register dst, Register src, Register val) {
-  DCHECK(!dst.is(val));  // The lr/sla path clobbers val.
   if (dst.is(src)) {
     sla(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     slak(dst, src, val);
   } else {
+    DCHECK(!dst.is(val));  // The lr/sla path clobbers val.
     lr(dst, src);
     sla(dst, val);
   }
@@ -5267,12 +5267,12 @@ void MacroAssembler::ShiftRightArith(Register dst, Register src,
 
 // Shift right arithmetic for 32-bit integer types.
 void MacroAssembler::ShiftRightArith(Register dst, Register src, Register val) {
-  DCHECK(!dst.is(val));  // The lr/sra path clobbers val.
   if (dst.is(src)) {
     sra(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srak(dst, src, val);
   } else {
+    DCHECK(!dst.is(val));  // The lr/sra path clobbers val.
     lr(dst, src);
     sra(dst, val);
   }
