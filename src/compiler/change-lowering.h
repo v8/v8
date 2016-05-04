@@ -19,9 +19,10 @@ class Linkage;
 class MachineOperatorBuilder;
 class Operator;
 
-class ChangeLowering final : public Reducer {
+class ChangeLowering final : public AdvancedReducer {
  public:
-  explicit ChangeLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
+  ChangeLowering(Editor* editor, JSGraph* jsgraph)
+      : AdvancedReducer(editor), jsgraph_(jsgraph) {}
   ~ChangeLowering() final;
 
   Reduction Reduce(Node* node) final;

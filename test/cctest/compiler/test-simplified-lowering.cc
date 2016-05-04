@@ -67,8 +67,8 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
     linearizer.Run();
 
-    ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
+    ChangeLowering lowering(&reducer, &jsgraph);
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());
@@ -738,8 +738,8 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
     linearizer.Run();
 
-    ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
+    ChangeLowering lowering(&reducer, &jsgraph);
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());

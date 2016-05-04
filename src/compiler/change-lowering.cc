@@ -95,18 +95,74 @@ Reduction ChangeLowering::ReduceStoreElement(Node* node) {
 }
 
 Reduction ChangeLowering::ReduceAllocate(Node* node) {
-  PretenureFlag pretenure = OpParameter<PretenureFlag>(node->op());
-  Node* target = pretenure == NOT_TENURED
-                     ? jsgraph()->AllocateInNewSpaceStubConstant()
-                     : jsgraph()->AllocateInOldSpaceStubConstant();
-  node->InsertInput(graph()->zone(), 0, target);
-  if (!allocate_operator_.is_set()) {
-    CallDescriptor* descriptor =
-        Linkage::GetAllocateCallDescriptor(graph()->zone());
-    allocate_operator_.set(common()->Call(descriptor));
+  PretenureFlag const pretenure = OpParameter<PretenureFlag>(node->op());
+
+  Node* size = node->InputAt(0);
+  Node* effect = node->InputAt(1);
+  Node* control = node->InputAt(2);
+
+  if (machine()->Is64()) {
+    size = graph()->NewNode(machine()->ChangeInt32ToInt64(), size);
   }
-  NodeProperties::ChangeOp(node, allocate_operator_.get());
-  return Changed(node);
+
+  Node* top_address = jsgraph()->ExternalConstant(
+      pretenure == NOT_TENURED
+          ? ExternalReference::new_space_allocation_top_address(isolate())
+          : ExternalReference::old_space_allocation_top_address(isolate()));
+  Node* limit_address = jsgraph()->ExternalConstant(
+      pretenure == NOT_TENURED
+          ? ExternalReference::new_space_allocation_limit_address(isolate())
+          : ExternalReference::old_space_allocation_limit_address(isolate()));
+
+  Node* top = effect =
+      graph()->NewNode(machine()->Load(MachineType::Pointer()), top_address,
+                       jsgraph()->IntPtrConstant(0), effect, control);
+  Node* limit = effect =
+      graph()->NewNode(machine()->Load(MachineType::Pointer()), limit_address,
+                       jsgraph()->IntPtrConstant(0), effect, control);
+
+  Node* new_top = graph()->NewNode(machine()->IntAdd(), top, size);
+
+  Node* check = graph()->NewNode(machine()->UintLessThan(), new_top, limit);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue;
+  {
+    etrue = graph()->NewNode(
+        machine()->Store(StoreRepresentation(
+            MachineType::PointerRepresentation(), kNoWriteBarrier)),
+        top_address, jsgraph()->IntPtrConstant(0), new_top, etrue, if_true);
+    vtrue = graph()->NewNode(machine()->BitcastWordToTagged(),
+                             graph()->NewNode(machine()->IntAdd(), top,
+                                              jsgraph()->IntPtrConstant(1)));
+  }
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse;
+  {
+    Node* target = pretenure == NOT_TENURED
+                       ? jsgraph()->AllocateInNewSpaceStubConstant()
+                       : jsgraph()->AllocateInOldSpaceStubConstant();
+    if (!allocate_operator_.is_set()) {
+      CallDescriptor* descriptor =
+          Linkage::GetAllocateCallDescriptor(graph()->zone());
+      allocate_operator_.set(common()->Call(descriptor));
+    }
+    vfalse = efalse = graph()->NewNode(allocate_operator_.get(), target, size,
+                                       efalse, if_false);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  Node* value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+
+  ReplaceWithValue(node, value, effect);
+  return Replace(value);
 }
 
 Isolate* ChangeLowering::isolate() const { return jsgraph()->isolate(); }
