@@ -855,7 +855,6 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
 
 void FullCodeGenerator::VisitDoExpression(DoExpression* expr) {
   Comment cmnt(masm_, "[ Do Expression");
-  NestedStatement nested_block(this);
   SetExpressionPosition(expr);
   VisitBlock(expr->block());
   EmitVariableLoad(expr->result());
