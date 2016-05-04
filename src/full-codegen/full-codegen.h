@@ -211,6 +211,23 @@ class FullCodeGenerator: public AstVisitor {
     }
   };
 
+  // A class literal expression
+  class NestedClassLiteral : public NestedStatement {
+   public:
+    NestedClassLiteral(FullCodeGenerator* codegen, ClassLiteral* lit)
+        : NestedStatement(codegen),
+          needs_context_(lit->scope() != nullptr &&
+                         lit->scope()->NeedsContext()) {}
+
+    NestedStatement* Exit(int* context_length) override {
+      if (needs_context_) ++(*context_length);
+      return previous_;
+    }
+
+   private:
+    const bool needs_context_;
+  };
+
   class DeferredCommands {
    public:
     enum Command { kReturn, kThrow, kBreak, kContinue };
