@@ -370,11 +370,10 @@ void LookupIterator::Delete() {
   state_ = NOT_FOUND;
 }
 
-
 void LookupIterator::TransitionToAccessorProperty(
-    AccessorComponent component, Handle<Object> accessor,
+    Handle<Object> getter, Handle<Object> setter,
     PropertyAttributes attributes) {
-  DCHECK(!accessor->IsNull());
+  DCHECK(!getter->IsNull() || !setter->IsNull());
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
@@ -393,7 +392,7 @@ void LookupIterator::TransitionToAccessorProperty(
         IsFound() ? static_cast<int>(number_) : DescriptorArray::kNotFound;
 
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
-        old_map, name_, descriptor, component, accessor, attributes);
+        isolate_, old_map, name_, descriptor, getter, setter, attributes);
     bool simple_transition = new_map->GetBackPointer() == receiver->map();
     JSObject::MigrateToMap(receiver, new_map);
 
@@ -413,18 +412,18 @@ void LookupIterator::TransitionToAccessorProperty(
   if (state() == ACCESSOR && GetAccessors()->IsAccessorPair()) {
     pair = Handle<AccessorPair>::cast(GetAccessors());
     // If the component and attributes are identical, nothing has to be done.
-    if (pair->get(component) == *accessor) {
+    if (pair->Equals(*getter, *setter)) {
       if (property_details().attributes() == attributes) {
         if (!IsElement()) JSObject::ReoptimizeIfPrototype(receiver);
         return;
       }
     } else {
       pair = AccessorPair::Copy(pair);
-      pair->set(component, *accessor);
+      pair->SetComponents(*getter, *setter);
     }
   } else {
     pair = factory()->NewAccessorPair();
-    pair->set(component, *accessor);
+    pair->SetComponents(*getter, *setter);
   }
 
   TransitionToAccessorPair(pair, attributes);

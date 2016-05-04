@@ -8283,14 +8283,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
          getter->IsFunctionTemplateInfo());
   DCHECK(setter->IsCallable() || setter->IsUndefined() || setter->IsNull() ||
          getter->IsFunctionTemplateInfo());
-  // At least one of the accessors needs to be a new value.
-  DCHECK(!getter->IsNull() || !setter->IsNull());
-  if (!getter->IsNull()) {
-    it->TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
-  }
-  if (!setter->IsNull()) {
-    it->TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
-  }
+  it->TransitionToAccessorProperty(getter, setter, attributes);
 
   return isolate->factory()->undefined_value();
 }
@@ -9088,13 +9081,14 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   return new_map;
 }
 
-Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
+Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name, int descriptor,
-                                              AccessorComponent component,
-                                              Handle<Object> accessor,
+                                              Handle<Object> getter,
+                                              Handle<Object> setter,
                                               PropertyAttributes attributes) {
+  // At least one of the accessors needs to be a new value.
+  DCHECK(!getter->IsNull() || !setter->IsNull());
   DCHECK(name->IsUniqueName());
-  Isolate* isolate = name->GetIsolate();
 
   // Dictionary maps can always have additional data properties.
   if (map->is_dictionary_map()) return map;
@@ -9123,7 +9117,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
     }
 
     Handle<AccessorPair> pair = Handle<AccessorPair>::cast(maybe_pair);
-    if (pair->get(component) != *accessor) {
+    if (!pair->Equals(*getter, *setter)) {
       return Map::Normalize(map, mode, "TransitionToDifferentAccessor");
     }
 
@@ -9150,10 +9144,19 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
       return Map::Normalize(map, mode, "AccessorsOverwritingNonPair");
     }
 
-    Object* current = Handle<AccessorPair>::cast(maybe_pair)->get(component);
-    if (current == *accessor) return map;
+    Handle<AccessorPair> current_pair = Handle<AccessorPair>::cast(maybe_pair);
+    if (current_pair->Equals(*getter, *setter)) return map;
 
-    if (!current->IsNull()) {
+    bool overwriting_accessor = false;
+    if (!getter->IsNull() && !current_pair->get(ACCESSOR_GETTER)->IsNull() &&
+        current_pair->get(ACCESSOR_GETTER) != *getter) {
+      overwriting_accessor = true;
+    }
+    if (!setter->IsNull() && !current_pair->get(ACCESSOR_SETTER)->IsNull() &&
+        current_pair->get(ACCESSOR_SETTER) != *setter) {
+      overwriting_accessor = true;
+    }
+    if (overwriting_accessor) {
       return Map::Normalize(map, mode, "AccessorsOverwritingAccessors");
     }
 
@@ -9165,7 +9168,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
     pair = isolate->factory()->NewAccessorPair();
   }
 
-  pair->set(component, *accessor);
+  pair->SetComponents(*getter, *setter);
+
   TransitionFlag flag = INSERT_TRANSITION;
   AccessorConstantDescriptor new_desc(name, pair, attributes);
   return Map::CopyInsertDescriptor(map, &new_desc, flag);

@@ -401,15 +401,8 @@ class Expectations {
 
     int descriptor =
         map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
-    map = Map::TransitionToAccessorProperty(
-        map, name, descriptor, ACCESSOR_GETTER, getter, attributes);
-    CHECK(!map->is_deprecated());
-    CHECK(!map->is_dictionary_map());
-
-    descriptor =
-        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
-    map = Map::TransitionToAccessorProperty(
-        map, name, descriptor, ACCESSOR_SETTER, setter, attributes);
+    map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
+                                            getter, setter, attributes);
     CHECK(!map->is_deprecated());
     CHECK(!map->is_dictionary_map());
     return map;
