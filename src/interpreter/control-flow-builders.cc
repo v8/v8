@@ -109,19 +109,11 @@ void LoopBuilder::EndLoop() {
   DCHECK(loop_header_.is_bound());
   builder()->Bind(&loop_end_);
   SetBreakTarget(loop_end_);
-  if (next_.is_bound()) {
-    DCHECK(!condition_.is_bound() || next_.offset() >= condition_.offset());
-    SetContinueTarget(next_);
-  } else {
-    DCHECK(condition_.is_bound());
-    DCHECK_GE(condition_.offset(), loop_header_.offset());
-    DCHECK_LE(condition_.offset(), loop_end_.offset());
-    SetContinueTarget(condition_);
-  }
 }
 
-
-void LoopBuilder::SetContinueTarget(const BytecodeLabel& target) {
+void LoopBuilder::SetContinueTarget() {
+  BytecodeLabel target;
+  builder()->Bind(&target);
   BindLabels(target, &continue_sites_);
 }
 
