@@ -8528,11 +8528,11 @@ SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream,
   return heap_profiler->PushHeapObjectsStats(stream, timestamp_us);
 }
 
-
 bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
-                                             int stack_depth) {
-  return reinterpret_cast<i::HeapProfiler*>(this)
-      ->StartSamplingHeapProfiler(sample_interval, stack_depth);
+                                             int stack_depth,
+                                             SamplingFlags flags) {
+  return reinterpret_cast<i::HeapProfiler*>(this)->StartSamplingHeapProfiler(
+      sample_interval, stack_depth, flags);
 }
 
 

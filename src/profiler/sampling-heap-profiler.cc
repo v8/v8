@@ -47,8 +47,9 @@ v8::AllocationProfile::Allocation SamplingHeapProfiler::ScaleSample(
   return {size, static_cast<unsigned int>(count * scale + 0.5)};
 }
 
-SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
-                                           uint64_t rate, int stack_depth)
+SamplingHeapProfiler::SamplingHeapProfiler(
+    Heap* heap, StringsStorage* names, uint64_t rate, int stack_depth,
+    v8::HeapProfiler::SamplingFlags flags)
     : isolate_(heap->isolate()),
       heap_(heap),
       new_space_observer_(new SamplingAllocationObserver(
@@ -61,7 +62,8 @@ SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0),
       samples_(),
       stack_depth_(stack_depth),
-      rate_(rate) {
+      rate_(rate),
+      flags_(flags) {
   CHECK_GT(rate_, 0);
   heap->new_space()->AddAllocationObserver(new_space_observer_.get());
   AllSpaces spaces(heap);
@@ -257,6 +259,10 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
 }
 
 v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
+  if (flags_ & v8::HeapProfiler::kSamplingForceGC) {
+    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                        "SamplingHeapProfiler");
+  }
   // To resolve positions to line/column numbers, we will need to look up
   // scripts. Build a map to allow fast mapping from script id to script.
   std::map<int, Handle<Script>> scripts;

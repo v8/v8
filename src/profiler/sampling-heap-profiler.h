@@ -41,7 +41,7 @@ class AllocationProfile : public v8::AllocationProfile {
 class SamplingHeapProfiler {
  public:
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
-                       int stack_depth);
+                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
   ~SamplingHeapProfiler();
 
   v8::AllocationProfile* GetAllocationProfile();
@@ -130,6 +130,7 @@ class SamplingHeapProfiler {
   std::set<Sample*> samples_;
   const int stack_depth_;
   const uint64_t rate_;
+  v8::HeapProfiler::SamplingFlags flags_;
 
   friend class SamplingAllocationObserver;
 };
