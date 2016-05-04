@@ -190,8 +190,8 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
-  accessors->set_getter(*the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
   return accessors;
 }
 

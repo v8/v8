@@ -9153,7 +9153,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
     Object* current = Handle<AccessorPair>::cast(maybe_pair)->get(component);
     if (current == *accessor) return map;
 
-    if (!current->IsTheHole()) {
+    if (!current->IsNull()) {
       return Map::Normalize(map, mode, "AccessorsOverwritingAccessors");
     }
 
@@ -9767,7 +9767,7 @@ Handle<Object> AccessorPair::GetComponent(Handle<AccessorPair> accessor_pair,
         .ToHandleChecked();
   }
   Isolate* isolate = accessor_pair->GetIsolate();
-  if (accessor->IsTheHole()) {
+  if (accessor->IsNull()) {
     return isolate->factory()->undefined_value();
   }
   return handle(accessor, isolate);
