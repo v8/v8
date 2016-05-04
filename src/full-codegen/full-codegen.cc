@@ -442,10 +442,7 @@ void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  DCHECK(DeclareGlobalsLanguageMode::is_valid(language_mode()));
-  return DeclareGlobalsEvalFlag::encode(is_eval()) |
-         DeclareGlobalsNativeFlag::encode(is_native()) |
-         DeclareGlobalsLanguageMode::encode(language_mode());
+  return info_->GetDeclareGlobalsFlags();
 }
 
 void FullCodeGenerator::PushOperand(Handle<Object> handle) {

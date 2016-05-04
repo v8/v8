@@ -175,9 +175,6 @@ class CompilationInfo final {
   // TODO(titzer): inline and delete accessors of ParseInfo
   // -----------------------------------------------------------
   Handle<Script> script() const;
-  bool is_eval() const;
-  bool is_native() const;
-  bool is_module() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
   Handle<Context> context() const;
@@ -459,6 +456,8 @@ class CompilationInfo final {
   }
 
   StackFrame::Type GetOutputStackFrameType() const;
+
+  int GetDeclareGlobalsFlags() const;
 
  protected:
   ParseInfo* parse_info_;

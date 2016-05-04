@@ -726,8 +726,6 @@ class FullCodeGenerator: public AstVisitor {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   Handle<Script> script() { return info_->script(); }
-  bool is_eval() { return info_->is_eval(); }
-  bool is_native() { return info_->is_native(); }
   LanguageMode language_mode() { return scope()->language_mode(); }
   bool has_simple_parameters() { return info_->has_simple_parameters(); }
   FunctionLiteral* literal() const { return info_->literal(); }

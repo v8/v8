@@ -12266,9 +12266,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
     Handle<FixedArray> array =
        isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
     for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
-    int flags = DeclareGlobalsEvalFlag::encode(current_info()->is_eval()) |
-                DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
-                DeclareGlobalsLanguageMode::encode(function_language_mode());
+    int flags = current_info()->GetDeclareGlobalsFlags();
     Add<HDeclareGlobals>(array, flags);
     globals_.Rewind(0);
   }
