@@ -33,6 +33,24 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return InputDoubleRegister(index);
   }
 
+  CPURegister InputFloat32OrZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK(bit_cast<int32_t>(InputFloat32(index)) == 0);
+      return wzr;
+    }
+    DCHECK(instr_->InputAt(index)->IsDoubleRegister());
+    return InputDoubleRegister(index).S();
+  }
+
+  CPURegister InputFloat64OrZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK(bit_cast<int64_t>(InputDouble(index)) == 0);
+      return xzr;
+    }
+    DCHECK(instr_->InputAt(index)->IsDoubleRegister());
+    return InputDoubleRegister(index);
+  }
+
   size_t OutputCount() { return instr_->OutputCount(); }
 
   DoubleRegister OutputFloat32Register() { return OutputDoubleRegister().S(); }
@@ -416,48 +434,44 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Bind(ool->exit());                                    \
   } while (0)
 
-
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width)          \
-  do {                                               \
-    auto buffer = i.InputRegister(0);                \
-    auto offset = i.InputRegister32(1);              \
-    auto length = i.InputOperand32(2);               \
-    auto value = i.InputFloat##width##Register(3);   \
-    __ Cmp(offset, length);                          \
-    Label done;                                      \
-    __ B(hs, &done);                                 \
-    __ Str(value, MemOperand(buffer, offset, UXTW)); \
-    __ Bind(&done);                                  \
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width)              \
+  do {                                                   \
+    auto buffer = i.InputRegister(0);                    \
+    auto offset = i.InputRegister32(1);                  \
+    auto length = i.InputOperand32(2);                   \
+    auto value = i.InputFloat##width##OrZeroRegister(3); \
+    __ Cmp(offset, length);                              \
+    Label done;                                          \
+    __ B(hs, &done);                                     \
+    __ Str(value, MemOperand(buffer, offset, UXTW));     \
+    __ Bind(&done);                                      \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)          \
   do {                                                     \
     auto buffer = i.InputRegister(0);                      \
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
-    auto value = i.InputRegister32(3);                     \
+    auto value = i.InputOrZeroRegister32(3);               \
     __ Cmp(offset, length);                                \
     Label done;                                            \
     __ B(hs, &done);                                       \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER_64(asm_instr)       \
   do {                                                     \
     auto buffer = i.InputRegister(0);                      \
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
-    auto value = i.InputRegister(3);                       \
+    auto value = i.InputOrZeroRegister64(3);               \
     __ Cmp(offset, length);                                \
     Label done;                                            \
     __ B(hs, &done);                                       \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
-
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
   do {                                                                      \
@@ -1345,7 +1359,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strb:
-      __ Strb(i.InputRegister(2), i.MemoryOperand());
+      __ Strb(i.InputOrZeroRegister64(2), i.MemoryOperand());
       break;
     case kArm64Ldrh:
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
@@ -1354,31 +1368,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strh:
-      __ Strh(i.InputRegister(2), i.MemoryOperand());
+      __ Strh(i.InputOrZeroRegister64(2), i.MemoryOperand());
       break;
     case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64StrW:
-      __ Str(i.InputRegister32(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister32(2), i.MemoryOperand());
       break;
     case kArm64Ldr:
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
-      __ Str(i.InputRegister(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister64(2), i.MemoryOperand());
       break;
     case kArm64LdrS:
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
-      __ Str(i.InputDoubleRegister(2).S(), i.MemoryOperand());
+      __ Str(i.InputFloat32OrZeroRegister(2), i.MemoryOperand());
       break;
     case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
-      __ Str(i.InputDoubleRegister(2), i.MemoryOperand());
+      __ Str(i.InputFloat64OrZeroRegister(2), i.MemoryOperand());
       break;
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsb);

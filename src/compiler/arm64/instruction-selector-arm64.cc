@@ -40,7 +40,9 @@ class Arm64OperandGenerator final : public OperandGenerator {
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(Node* node) {
-    if (IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) {
+    if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
+        (IsFloatConstant(node) &&
+         (bit_cast<int64_t>(GetFloatConstantValue(node)) == V8_INT64_C(0)))) {
       return UseImmediate(node);
     }
     return UseRegister(node);
@@ -66,6 +68,19 @@ class Arm64OperandGenerator final : public OperandGenerator {
     }
     DCHECK(node->opcode() == IrOpcode::kInt64Constant);
     return OpParameter<int64_t>(node);
+  }
+
+  bool IsFloatConstant(Node* node) {
+    return (node->opcode() == IrOpcode::kFloat32Constant) ||
+           (node->opcode() == IrOpcode::kFloat64Constant);
+  }
+
+  double GetFloatConstantValue(Node* node) {
+    if (node->opcode() == IrOpcode::kFloat32Constant) {
+      return OpParameter<float>(node);
+    }
+    DCHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
+    return OpParameter<double>(node);
   }
 
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
@@ -477,10 +492,12 @@ void InstructionSelector::VisitStore(Node* node) {
     }
     if (g.CanBeImmediate(index, immediate_mode)) {
       Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-           g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+           g.UseRegister(base), g.UseImmediate(index),
+           g.UseRegisterOrImmediateZero(value));
     } else {
       Emit(opcode | AddressingModeField::encode(kMode_MRR), g.NoOutput(),
-           g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+           g.UseRegister(base), g.UseRegister(index),
+           g.UseRegisterOrImmediateZero(value));
     }
   }
 }
@@ -559,7 +576,8 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       return;
   }
   Emit(opcode, g.NoOutput(), g.UseRegister(buffer), g.UseRegister(offset),
-       g.UseOperand(length, kArithmeticImm), g.UseRegister(value));
+       g.UseOperand(length, kArithmeticImm),
+       g.UseRegisterOrImmediateZero(value));
 }
 
 
