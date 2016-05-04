@@ -330,14 +330,19 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
 
   Bind(&runtime_call);
   // AllocateInTargetSpace does not use the context.
-  Node* context = IntPtrConstant(0);
-  Node* runtime_flags = SmiTag(Int32Constant(
-      AllocateDoubleAlignFlag::encode(false) |
-      AllocateTargetSpace::encode(flags & kPretenured
-                                      ? AllocationSpace::OLD_SPACE
-                                      : AllocationSpace::NEW_SPACE)));
-  Node* runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
-                                     SmiTag(size_in_bytes), runtime_flags);
+  Node* context = SmiConstant(Smi::FromInt(0));
+
+  Node* runtime_result;
+  if (flags & kPretenured) {
+    Node* runtime_flags = SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
+                     AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
+    runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
+                                 SmiTag(size_in_bytes), runtime_flags);
+  } else {
+    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace, context,
+                                 SmiTag(size_in_bytes));
+  }
   result.Bind(runtime_result);
   Goto(&merge_runtime);
 
