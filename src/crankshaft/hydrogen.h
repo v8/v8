@@ -2246,7 +2246,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     function_state()->ClearInlinedTestContext();
   }
   LanguageMode function_language_mode() {
-    return function_state()->compilation_info()->language_mode();
+    return function_state()->compilation_info()->parse_info()->language_mode();
   }
 
 #define FOR_EACH_HYDROGEN_INTRINSIC(F) \

@@ -54,7 +54,6 @@ PARSE_INFO_GETTER(bool, is_eval)
 PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
-PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
 PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<Context>, context,
                                Handle<Context>::null())
@@ -270,7 +269,7 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
 }
 
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
-  return is_sloppy(language_mode()) && !is_native();
+  return is_sloppy(parse_info()->language_mode()) && !is_native();
 }
 
 #if DEBUG
@@ -1527,7 +1526,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     parse_info.set_language_mode(
-        static_cast<LanguageMode>(info.language_mode() | language_mode));
+        static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, context, language_mode, result);

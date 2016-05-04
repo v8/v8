@@ -178,7 +178,6 @@ class CompilationInfo final {
   bool is_eval() const;
   bool is_native() const;
   bool is_module() const;
-  LanguageMode language_mode() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
   Handle<Context> context() const;
