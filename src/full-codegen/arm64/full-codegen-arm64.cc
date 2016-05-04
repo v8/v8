@@ -757,7 +757,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
   VariableProxy* proxy = declaration->proxy();
   VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == LET || mode == CONST || mode == CONST_LEGACY;
+  bool hole_init = mode == LET || mode == CONST;
 
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
@@ -1014,12 +1014,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ Push(x0);
 
-  // Check cache validity in generated code. This is a fast case for
-  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
-  // guarantee cache validity, call the runtime system to check cache
-  // validity or get the property names in a fixed array.
-  // Note: Proxies never have an enum cache, so will always take the
-  // slow path.
+  // Check cache validity in generated code. If we cannot guarantee cache
+  // validity, call the runtime system to check cache validity or get the
+  // property names in a fixed array. Note: Proxies never have an enum cache,
+  // so will always take the slow path.
   Label call_runtime;
   __ CheckEnumCache(x0, x15, x10, x11, x12, x13, &call_runtime);
 
@@ -1270,16 +1268,11 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ Ldr(x0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == LET || local->mode() == CONST ||
-        local->mode() == CONST_LEGACY) {
+    if (local->mode() == LET || local->mode() == CONST) {
       __ JumpIfNotRoot(x0, Heap::kTheHoleValueRootIndex, done);
-      if (local->mode() == CONST_LEGACY) {
-        __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-      } else {  // LET || CONST
-        __ Mov(x0, Operand(var->name()));
-        __ Push(x0);
-        __ CallRuntime(Runtime::kThrowReferenceError);
-      }
+      __ Mov(x0, Operand(var->name()));
+      __ Push(x0);
+      __ CallRuntime(Runtime::kThrowReferenceError);
     }
     __ B(done);
   }
@@ -1335,11 +1328,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
           __ Mov(x0, Operand(var->name()));
           __ Push(x0);
           __ CallRuntime(Runtime::kThrowReferenceError);
-          __ Bind(&done);
-        } else {
-          // Uninitialized legacy const bindings are unholed.
-          DCHECK(var->mode() == CONST_LEGACY);
-          __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
           __ Bind(&done);
         }
         context()->Plug(x0);
@@ -1414,6 +1402,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   } else {
     FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
     __ CallStub(&stub);
+    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), TOS_REG);
 
@@ -1677,7 +1666,6 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpressionOrThis());
 
   Comment cmnt(masm_, "[ Assignment");
-  SetExpressionPosition(expr, INSERT_BREAK);
 
   Property* property = expr->target()->AsProperty();
   LhsKind assign_type = Property::GetAssignType(property);
@@ -2127,8 +2115,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     __ bind(&uninitialized_this);
     EmitStoreToStackLocalOrContextSlot(var, location);
 
-  } else if (!var->is_const_mode() ||
-             (var->mode() == CONST && op == Token::INIT)) {
+  } else if (!var->is_const_mode() || op == Token::INIT) {
     if (var->IsLookupSlot()) {
       // Assignment to var.
       __ Push(var->name());
@@ -2147,23 +2134,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
         __ Check(eq, kLetBindingReInitialization);
       }
       EmitStoreToStackLocalOrContextSlot(var, location);
-    }
-
-  } else if (var->mode() == CONST_LEGACY && op == Token::INIT) {
-    // Const initializers need a write barrier.
-    DCHECK(!var->IsParameter());  // No const parameters.
-    if (var->IsLookupSlot()) {
-      __ Mov(x1, Operand(var->name()));
-      __ Push(x0, cp, x1);
-      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot);
-    } else {
-      DCHECK(var->IsStackLocal() || var->IsContextSlot());
-      Label skip;
-      MemOperand location = VarOperand(var, x1);
-      __ Ldr(x10, location);
-      __ JumpIfNotRoot(x10, Heap::kTheHoleValueRootIndex, &skip);
-      EmitStoreToStackLocalOrContextSlot(var, location);
-      __ Bind(&skip);
     }
 
   } else {
@@ -2436,7 +2406,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   }
 
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
-  SetCallPosition(expr);
+  SetCallPosition(expr, expr->tail_call_mode());
   if (expr->tail_call_mode() == TailCallMode::kAllow) {
     if (FLAG_trace) {
       __ CallRuntime(Runtime::kTraceTailCall);
@@ -2461,8 +2431,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   context()->DropAndPlug(1, x0);
 }
 
-
-void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(Call* expr) {
+  int arg_count = expr->arguments()->length();
   ASM_LOCATION("FullCodeGenerator::EmitResolvePossiblyDirectEval");
   // Prepare to push a copy of the first argument or undefined if it doesn't
   // exist.
@@ -2478,9 +2448,11 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   __ Mov(x11, Smi::FromInt(language_mode()));
   // Prepare to push the start position of the scope the calls resides in.
   __ Mov(x12, Smi::FromInt(scope()->start_position()));
+  // Prepare to push the source position of the eval call.
+  __ Mov(x13, Smi::FromInt(expr->position()));
 
   // Push.
-  __ Push(x9, x10, x11, x12);
+  __ Push(x9, x10, x11, x12, x13);
 
   // Do the runtime call.
   __ CallRuntime(Runtime::kResolvePossiblyDirectEval);
@@ -2530,7 +2502,7 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
 
 void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitPossiblyEvalCall");
-  // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
+  // In a call to eval, we first call Runtime_ResolvePossiblyDirectEval
   // to resolve the function we need to call.  Then we call the resolved
   // function using the given arguments.
   ZoneList<Expression*>* args = expr->arguments();
@@ -2547,7 +2519,7 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
   // resolve eval.
   __ Peek(x10, (arg_count + 1) * kPointerSize);
   __ Push(x10);
-  EmitResolvePossiblyDirectEval(arg_count);
+  EmitResolvePossiblyDirectEval(expr);
 
   // Touch up the stack with the resolved function.
   __ Poke(x0, (arg_count + 1) * kPointerSize);
@@ -2920,23 +2892,6 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into x0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  // Convert the object to an integer.
-  Label done_convert;
-  __ JumpIfSmi(x0, &done_convert);
-  __ Push(x0);
-  __ CallRuntime(Runtime::kToInteger);
-  __ bind(&done_convert);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -3143,7 +3098,8 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   Label runtime, done;
 
   Register result = x0;
-  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &runtime, TAG_OBJECT);
+  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &runtime,
+              NO_ALLOCATION_FLAGS);
   Register map_reg = x1;
   Register result_value = x2;
   Register boolean_done = x3;
@@ -3647,7 +3603,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
-  SetExpressionPosition(expr);
 
   // Try to generate an optimized comparison with a literal value.
   // TODO(jbramley): This only checks common values like NaN or undefined.
@@ -3670,6 +3625,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   switch (op) {
     case Token::IN:
       VisitForStackValue(expr->right());
+      SetExpressionPosition(expr);
       CallRuntimeWithOperands(Runtime::kHasProperty);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ CompareRoot(x0, Heap::kTrueValueRootIndex);
@@ -3678,6 +3634,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     case Token::INSTANCEOF: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       PopOperand(x1);
       InstanceOfStub stub(isolate());
       __ CallStub(&stub);
@@ -3689,6 +3646,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     default: {
       VisitForAccumulatorValue(expr->right());
+      SetExpressionPosition(expr);
       Condition cond = CompareIC::ComputeCondition(op);
 
       // Pop the stack value.
@@ -3749,12 +3707,6 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
 }
 
 
-void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::VisitYield(Yield* expr) {
   Comment cmnt(masm_, "[ Yield");
   SetExpressionPosition(expr);
@@ -3767,23 +3719,28 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // and suchlike. The implementation changes a little by bleeding_edge so I
   // don't want to spend too much time on it now.
 
-  Label suspend, continuation, post_runtime, resume;
+  Label suspend, continuation, post_runtime, resume, exception;
 
   __ B(&suspend);
   // TODO(jbramley): This label is bound here because the following code
   // looks at its pos(). Is it possible to do something more efficient here,
   // perhaps using Adr?
   __ Bind(&continuation);
-  // When we arrive here, the stack top is the resume mode and
-  // result_register() holds the input value (the argument given to the
-  // respective resume operation).
+  // When we arrive here, x0 holds the generator object.
   __ RecordGeneratorContinuation();
-  __ Pop(x1);
-  __ Cmp(x1, Smi::FromInt(JSGeneratorObject::RETURN));
-  __ B(ne, &resume);
+  __ Ldr(x1, FieldMemOperand(x0, JSGeneratorObject::kResumeModeOffset));
+  __ Ldr(x0, FieldMemOperand(x0, JSGeneratorObject::kInputOffset));
+  STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
+  STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
+  __ Cmp(x1, Operand(Smi::FromInt(JSGeneratorObject::kReturn)));
+  __ B(lt, &resume);
   __ Push(result_register());
+  __ B(gt, &exception);
   EmitCreateIteratorResult(true);
   EmitUnwindAndReturn();
+
+  __ Bind(&exception);
+  __ CallRuntime(Runtime::kThrow);
 
   __ Bind(&suspend);
   OperandStackDepthIncrement(1);  // Not popped on this path.
@@ -3806,110 +3763,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   EmitReturnSequence();
 
   __ Bind(&resume);
-  context()->Plug(result_register());
-}
-
-
-void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
-    Expression *value,
-    JSGeneratorObject::ResumeMode resume_mode) {
-  ASM_LOCATION("FullCodeGenerator::EmitGeneratorResume");
-  Register generator_object = x1;
-  Register the_hole = x2;
-  Register operand_stack_size = w3;
-  Register function = x4;
-
-  // The value stays in x0, and is ultimately read by the resumed generator, as
-  // if CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
-  // is read to throw the value when the resumed generator is already closed. x1
-  // will hold the generator object until the activation has been resumed.
-  VisitForStackValue(generator);
-  VisitForAccumulatorValue(value);
-  PopOperand(generator_object);
-
-  // Store input value into generator object.
-  __ Str(result_register(),
-         FieldMemOperand(x1, JSGeneratorObject::kInputOffset));
-  __ Mov(x2, result_register());
-  __ RecordWriteField(x1, JSGeneratorObject::kInputOffset, x2, x3,
-                      kLRHasBeenSaved, kDontSaveFPRegs);
-
-  // Load suspended function and context.
-  __ Ldr(cp, FieldMemOperand(generator_object,
-                             JSGeneratorObject::kContextOffset));
-  __ Ldr(function, FieldMemOperand(generator_object,
-                                   JSGeneratorObject::kFunctionOffset));
-
-  // Load receiver and store as the first argument.
-  __ Ldr(x10, FieldMemOperand(generator_object,
-                              JSGeneratorObject::kReceiverOffset));
-  __ Push(x10);
-
-  // Push holes for arguments to generator function. Since the parser forced
-  // context allocation for any variables in generators, the actual argument
-  // values have already been copied into the context and these dummy values
-  // will never be used.
-  __ Ldr(x10, FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-
-  // The number of arguments is stored as an int32_t, and -1 is a marker
-  // (SharedFunctionInfo::kDontAdaptArgumentsSentinel), so we need sign
-  // extension to correctly handle it. However, in this case, we operate on
-  // 32-bit W registers, so extension isn't required.
-  __ Ldr(w10, FieldMemOperand(x10,
-                              SharedFunctionInfo::kFormalParameterCountOffset));
-  __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
-  __ PushMultipleTimes(the_hole, w10);
-
-  // Enter a new JavaScript frame, and initialize its slots as they were when
-  // the generator was suspended.
-  Label resume_frame, done;
-  __ Bl(&resume_frame);
-  __ B(&done);
-
-  __ Bind(&resume_frame);
-  __ Push(lr,           // Return address.
-          fp,           // Caller's frame pointer.
-          cp,           // Callee's context.
-          function);    // Callee's JS Function.
-  __ Add(fp, __ StackPointer(), kPointerSize * 2);
-
-  // Load and untag the operand stack size.
-  __ Ldr(x10, FieldMemOperand(generator_object,
-                              JSGeneratorObject::kOperandStackOffset));
-  __ Ldr(operand_stack_size,
-         UntagSmiFieldMemOperand(x10, FixedArray::kLengthOffset));
-
-  // If we are sending a value and there is no operand stack, we can jump back
-  // in directly.
-  if (resume_mode == JSGeneratorObject::NEXT) {
-    Label slow_resume;
-    __ Cbnz(operand_stack_size, &slow_resume);
-    __ Ldr(x10, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
-    __ Ldrsw(x11,
-             UntagSmiFieldMemOperand(generator_object,
-                                     JSGeneratorObject::kContinuationOffset));
-    __ Add(x10, x10, x11);
-    __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
-    __ Str(x12, FieldMemOperand(generator_object,
-                                JSGeneratorObject::kContinuationOffset));
-    __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
-    __ Br(x10);
-
-    __ Bind(&slow_resume);
-  }
-
-  // Otherwise, we push holes for the operand stack and call the runtime to fix
-  // up the stack and the handlers.
-  __ PushMultipleTimes(the_hole, operand_stack_size);
-
-  __ Mov(x10, Smi::FromInt(resume_mode));
-  __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
-  __ Push(generator_object, result_register(), x10);
-  __ CallRuntime(Runtime::kResumeJSGeneratorObject);
-  // Not reached: the runtime call returns elsewhere.
-  __ Unreachable();
-
-  __ Bind(&done);
   context()->Plug(result_register());
 }
 
@@ -3945,7 +3798,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   // Allocate and populate an object with this form: { value: VAL, done: DONE }
 
   Register result = x0;
-  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &allocate, TAG_OBJECT);
+  __ Allocate(JSIteratorResult::kSize, result, x10, x11, &allocate,
+              NO_ALLOCATION_FLAGS);
   __ B(&done_allocate);
 
   __ Bind(&allocate);
@@ -3995,6 +3849,10 @@ Register FullCodeGenerator::context_register() {
   return cp;
 }
 
+void FullCodeGenerator::LoadFromFrameField(int frame_offset, Register value) {
+  DCHECK(POINTER_SIZE_ALIGN(frame_offset) == frame_offset);
+  __ Ldr(value, MemOperand(fp, frame_offset));
+}
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   DCHECK(POINTER_SIZE_ALIGN(frame_offset) == frame_offset);

@@ -474,3 +474,19 @@ gc();
   assertKind(elements_kind.fast_double, obj[0]);
   assertKind(elements_kind.fast, obj[1][0]);
 })();
+
+// Test gathering allocation site feedback for generic ics.
+(function() {
+  function make() { return new Array(); }
+  function foo(a, i) { a[0] = i; }
+
+  var a = make();
+  assertKind(elements_kind.fast_smi_only, a);
+
+  // Make the keyed store ic go generic.
+  foo("howdy", 1);
+  foo(a, 3.5);
+
+  var b = make();
+  assertKind(elements_kind.fast_double, b);
+})();

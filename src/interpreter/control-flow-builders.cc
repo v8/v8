@@ -90,13 +90,16 @@ void BlockBuilder::EndBlock() {
 LoopBuilder::~LoopBuilder() { DCHECK(continue_sites_.empty()); }
 
 
-void LoopBuilder::LoopHeader() {
+void LoopBuilder::LoopHeader(ZoneVector<BytecodeLabel>* additional_labels) {
   // Jumps from before the loop header into the loop violate ordering
   // requirements of bytecode basic blocks. The only entry into a loop
   // must be the loop header. Surely breaks is okay? Not if nested
   // and misplaced between the headers.
   DCHECK(break_sites_.empty() && continue_sites_.empty());
   builder()->Bind(&loop_header_);
+  for (auto& label : *additional_labels) {
+    builder()->Bind(loop_header_, &label);
+  }
 }
 
 

@@ -25,8 +25,8 @@ static int32_t DummyStaticFunction(Object* result) { return 1; }
 
 TEST(WasmRelocationIa32) {
   CcTest::InitializeVM();
-  Zone zone;
   Isolate* isolate = CcTest::i_isolate();
+  Zone zone(isolate->allocator());
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);

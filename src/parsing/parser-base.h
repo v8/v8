@@ -134,7 +134,6 @@ class ParserBase : public Traits {
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              ParserRecorder* log, typename Traits::Type::Parser this_object)
       : Traits(this_object),
-        parenthesized_function_(false),
         scope_(NULL),
         function_state_(NULL),
         extension_(extension),
@@ -142,6 +141,7 @@ class ParserBase : public Traits {
         ast_value_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
+        parsing_module_(false),
         stack_limit_(stack_limit),
         zone_(zone),
         scanner_(scanner),
@@ -149,11 +149,9 @@ class ParserBase : public Traits {
         allow_lazy_(false),
         allow_natives_(false),
         allow_tailcalls_(false),
-        allow_harmony_sloppy_(false),
-        allow_harmony_sloppy_function_(false),
-        allow_harmony_sloppy_let_(false),
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
+        allow_harmony_for_in_(false),
         allow_harmony_function_name_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_types_(false) {}
@@ -171,11 +169,9 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
-  ALLOW_ACCESSORS(harmony_sloppy);
-  ALLOW_ACCESSORS(harmony_sloppy_function);
-  ALLOW_ACCESSORS(harmony_sloppy_let);
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
+  ALLOW_ACCESSORS(harmony_for_in);
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_types);
@@ -231,6 +227,23 @@ class ParserBase : public Traits {
 
     ExpressionT assignment;
     Scope* scope;
+  };
+
+  struct TailCallExpression {
+    TailCallExpression(ExpressionT expression, int pos)
+        : expression(expression), pos(pos) {}
+
+    ExpressionT expression;
+    int pos;
+  };
+
+  // Defines whether tail call expressions are allowed or not.
+  enum class ReturnExprContext {
+    // Tail call expressions are allowed.
+    kNormal,
+    // Tail call expressions are not allowed.
+    kInsideTryBlock,
+    kInsideForInOfBody,
   };
 
   class FunctionState BASE_EMBEDDED {
@@ -290,24 +303,32 @@ class ParserBase : public Traits {
       return destructuring_assignments_to_rewrite_;
     }
 
-    List<ExpressionT>& expressions_in_tail_position() {
+    List<TailCallExpression>& expressions_in_tail_position() {
       return expressions_in_tail_position_;
     }
-    void AddExpressionInTailPosition(ExpressionT expression) {
-      if (collect_expressions_in_tail_position_) {
-        expressions_in_tail_position_.Add(expression);
+    void AddExpressionInTailPosition(ExpressionT expression, int pos) {
+      if (return_expr_context() == ReturnExprContext::kNormal) {
+        expressions_in_tail_position_.Add(TailCallExpression(expression, pos));
       }
     }
 
-    bool collect_expressions_in_tail_position() const {
-      return collect_expressions_in_tail_position_;
+    ReturnExprContext return_expr_context() const {
+      return return_expr_context_;
     }
-    void set_collect_expressions_in_tail_position(bool collect) {
-      collect_expressions_in_tail_position_ = collect;
+    void set_return_expr_context(ReturnExprContext context) {
+      return_expr_context_ = context;
     }
 
     ZoneList<ExpressionT>* non_patterns_to_rewrite() {
       return &non_patterns_to_rewrite_;
+    }
+
+    void next_function_is_parenthesized(bool parenthesized) {
+      next_function_is_parenthesized_ = parenthesized;
+    }
+
+    bool this_function_is_parenthesized() const {
+      return this_function_is_parenthesized_;
     }
 
    private:
@@ -350,15 +371,59 @@ class ParserBase : public Traits {
     Scope* outer_scope_;
 
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
-    List<ExpressionT> expressions_in_tail_position_;
-    bool collect_expressions_in_tail_position_;
+    List<TailCallExpression> expressions_in_tail_position_;
+    ReturnExprContext return_expr_context_;
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
     typename Traits::Type::Factory* factory_;
 
+    // If true, the next (and immediately following) function literal is
+    // preceded by a parenthesis.
+    bool next_function_is_parenthesized_;
+
+    // The value of the parents' next_function_is_parenthesized_, as it applies
+    // to this function. Filled in by constructor.
+    bool this_function_is_parenthesized_;
+
     friend class ParserTraits;
     friend class PreParserTraits;
     friend class Checkpoint;
+  };
+
+  // This scope sets current ReturnExprContext to given value.
+  class ReturnExprScope {
+   public:
+    explicit ReturnExprScope(FunctionState* function_state,
+                             ReturnExprContext return_expr_context)
+        : function_state_(function_state),
+          sav_return_expr_context_(function_state->return_expr_context()) {
+      function_state->set_return_expr_context(return_expr_context);
+    }
+    ~ReturnExprScope() {
+      function_state_->set_return_expr_context(sav_return_expr_context_);
+    }
+
+   private:
+    FunctionState* function_state_;
+    ReturnExprContext sav_return_expr_context_;
+  };
+
+  // Collects all return expressions at tail call position in this scope
+  // to a separate list.
+  class CollectExpressionsInTailPositionToListScope {
+   public:
+    CollectExpressionsInTailPositionToListScope(FunctionState* function_state,
+                                                List<TailCallExpression>* list)
+        : function_state_(function_state), list_(list) {
+      function_state->expressions_in_tail_position().Swap(list_);
+    }
+    ~CollectExpressionsInTailPositionToListScope() {
+      function_state_->expressions_in_tail_position().Swap(list_);
+    }
+
+   private:
+    FunctionState* function_state_;
+    List<TailCallExpression>* list_;
   };
 
   // Annoyingly, arrow functions first parse as comma expressions, then when we
@@ -493,9 +558,9 @@ class ParserBase : public Traits {
 
   bool peek_any_identifier() {
     Token::Value next = peek();
-    return next == Token::IDENTIFIER || next == Token::FUTURE_RESERVED_WORD ||
-           next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-           next == Token::STATIC || next == Token::YIELD;
+    return next == Token::IDENTIFIER || next == Token::AWAIT ||
+           next == Token::ENUM || next == Token::FUTURE_STRICT_RESERVED_WORD ||
+           next == Token::LET || next == Token::STATIC || next == Token::YIELD;
   }
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
@@ -508,7 +573,6 @@ class ParserBase : public Traits {
 
   bool PeekContextualKeyword(Vector<const char> keyword) {
     return (peek() == Token::IDENTIFIER ||
-            peek() == Token::FUTURE_RESERVED_WORD ||
             peek() == Token::FUTURE_STRICT_RESERVED_WORD) &&
            scanner()->is_next_contextual_keyword(keyword);
   }
@@ -518,7 +582,7 @@ class ParserBase : public Traits {
 
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
     Token::Value next = Next();
-    if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
+    if (next != Token::IDENTIFIER &&
         next != Token::FUTURE_STRICT_RESERVED_WORD) {
       ReportUnexpectedToken(next);
       *ok = false;
@@ -608,14 +672,6 @@ class ParserBase : public Traits {
   bool typed() { return scope_->typed(); }
   bool is_generator() const { return function_state_->is_generator(); }
 
-  bool allow_const() {
-    return is_strict(language_mode()) || allow_harmony_sloppy();
-  }
-
-  bool allow_let() {
-    return is_strict(language_mode()) || allow_harmony_sloppy_let();
-  }
-
   // Report syntax errors.
   void ReportMessage(MessageTemplate::Template message, const char* arg = NULL,
                      ParseErrorType error_type = kSyntaxError) {
@@ -628,6 +684,23 @@ class ParserBase : public Traits {
                        ParseErrorType error_type = kSyntaxError) {
     Traits::ReportMessageAt(location, message, reinterpret_cast<const char*>(0),
                             error_type);
+  }
+
+  void ReportIllegalTailCallAt(int pos, ReturnExprContext return_expr_context) {
+    Scanner::Location loc(pos, pos + 1);
+    MessageTemplate::Template msg = MessageTemplate::kNone;
+    switch (return_expr_context) {
+      case ReturnExprContext::kNormal:
+        UNREACHABLE();
+        return;
+      case ReturnExprContext::kInsideTryBlock:
+        msg = MessageTemplate::kTailCallInTryBlock;
+        break;
+      case ReturnExprContext::kInsideForInOfBody:
+        msg = MessageTemplate::kTailCallInForInOf;
+        break;
+    }
+    ReportMessageAt(loc, msg);
   }
 
   void GetUnexpectedTokenMessage(
@@ -754,15 +827,6 @@ class ParserBase : public Traits {
     classifier->RecordArrowFormalParametersError(location, message, arg);
   }
 
-  void FormalParameterInitializerUnexpectedToken(
-      ExpressionClassifier* classifier) {
-    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
-    const char* arg;
-    Scanner::Location location = scanner()->peek_location();
-    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
-    classifier->RecordFormalParameterInitializerError(location, message, arg);
-  }
-
   // Recursive descent functions:
 
   // Parses an identifier that is valid for the current scope, in particular it
@@ -820,7 +884,8 @@ class ParserBase : public Traits {
                                         typesystem::CoverFormalParameters cover,
                                         ExpressionClassifier* classifier,
                                         bool* ok);
-  ExpressionT ParseYieldExpression(ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParseYieldExpression(bool accept_IN,
+                                   ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN, bool allow_optional,
                                          ExpressionClassifier* classifier,
                                          bool* ok);
@@ -996,12 +1061,6 @@ class ParserBase : public Traits {
     bool has_seen_constructor_;
   };
 
-  // If true, the next (and immediately following) function literal is
-  // preceded by a parenthesis.
-  // Heuristically that means that the function will be called immediately,
-  // so never lazily compile it.
-  bool parenthesized_function_;
-
   Scope* scope_;                   // Scope stack.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
@@ -1009,6 +1068,7 @@ class ParserBase : public Traits {
   AstValueFactory* ast_value_factory_;  // Not owned.
   ParserRecorder* log_;
   Mode mode_;
+  bool parsing_module_;
   uintptr_t stack_limit_;
 
  private:
@@ -1020,11 +1080,9 @@ class ParserBase : public Traits {
   bool allow_lazy_;
   bool allow_natives_;
   bool allow_tailcalls_;
-  bool allow_harmony_sloppy_;
-  bool allow_harmony_sloppy_function_;
-  bool allow_harmony_sloppy_let_;
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
+  bool allow_harmony_for_in_;
   bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_types_;
@@ -1045,11 +1103,18 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      collect_expressions_in_tail_position_(true),
+      return_expr_context_(ReturnExprContext::kNormal),
       non_patterns_to_rewrite_(0, scope->zone()),
-      factory_(factory) {
+      factory_(factory),
+      next_function_is_parenthesized_(false),
+      this_function_is_parenthesized_(false) {
   *scope_stack_ = scope;
   *function_state_stack = this;
+  if (outer_function_state_) {
+    this_function_is_parenthesized_ =
+        outer_function_state_->next_function_is_parenthesized_;
+    outer_function_state_->next_function_is_parenthesized_ = false;
+  }
 }
 
 
@@ -1079,7 +1144,8 @@ void ParserBase<Traits>::GetUnexpectedTokenMessage(
     case Token::IDENTIFIER:
       *message = MessageTemplate::kUnexpectedTokenIdentifier;
       break;
-    case Token::FUTURE_RESERVED_WORD:
+    case Token::AWAIT:
+    case Token::ENUM:
       *message = MessageTemplate::kUnexpectedReserved;
       break;
     case Token::LET:
@@ -1154,7 +1220,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
                                                bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
+  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_)) {
     IdentifierT name = this->GetSymbol(scanner());
     // When this function is used to read a formal parameter, we don't always
     // know whether the function is going to be strict or sloppy.  Indeed for
@@ -1218,7 +1284,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
     bool is_generator, bool* is_strict_reserved, bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER) {
+  if (next == Token::IDENTIFIER || (next == Token::AWAIT && !parsing_module_)) {
     *is_strict_reserved = false;
   } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
              next == Token::STATIC || (next == Token::YIELD && !is_generator)) {
@@ -1234,14 +1300,13 @@ ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
   return name;
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
-  if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
-      next != Token::LET && next != Token::STATIC && next != Token::YIELD &&
-      next != Token::FUTURE_STRICT_RESERVED_WORD &&
+  if (next != Token::IDENTIFIER && next != Token::ENUM &&
+      next != Token::AWAIT && next != Token::LET && next != Token::STATIC &&
+      next != Token::YIELD && next != Token::FUTURE_STRICT_RESERVED_WORD &&
       next != Token::ESCAPED_KEYWORD &&
       next != Token::ESCAPED_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
     this->ReportUnexpectedToken(next);
@@ -1344,6 +1409,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::LET:
     case Token::STATIC:
     case Token::YIELD:
+    case Token::AWAIT:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
@@ -1421,7 +1487,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
-      parenthesized_function_ = (peek() == Token::FUNCTION);
+      function_state_->next_function_is_parenthesized(peek() ==
+                                                      Token::FUNCTION);
       ExpressionT expr =
           this->ParseExpression(true, typesystem::kCover, classifier, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
@@ -1431,11 +1498,6 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::CLASS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::CLASS);
-      if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
-        ReportMessage(MessageTemplate::kSloppyLexical);
-        *ok = false;
-        return this->EmptyExpression();
-      }
       int class_token_position = position();
       IdentifierT name = this->EmptyIdentifier();
       bool is_strict_reserved_name = false;
@@ -1445,7 +1507,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                                    CHECK_OK);
         class_name_location = scanner()->location();
       }
-      return this->ParseClassLiteral(name, class_name_location,
+      return this->ParseClassLiteral(classifier, name, class_name_location,
                                      is_strict_reserved_name,
                                      class_token_position, false, ok);
     }
@@ -1807,8 +1869,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                                  *is_computed_name);
     }
 
-    if (Token::IsIdentifier(name_token, language_mode(),
-                            this->is_generator()) &&
+    if (Token::IsIdentifier(name_token, language_mode(), this->is_generator(),
+                            parsing_module_) &&
         (peek() == Token::COMMA || peek() == Token::RBRACE ||
          peek() == Token::ASSIGN)) {
       // PropertyDefinition
@@ -2136,11 +2198,12 @@ ParserBase<Traits>::ParseAssignmentExpression(
   //   ArrowFunction
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+  //   TailCallExpression
   bool is_destructuring_assignment = false;
   int lhs_beg_pos = peek_position();
 
   if (peek() == Token::YIELD && is_generator()) {
-    return this->ParseYieldExpression(classifier, ok);
+    return this->ParseYieldExpression(accept_IN, classifier, ok);
   }
 
   FuncNameInferrer::State fni_state(fni_);
@@ -2182,6 +2245,13 @@ ParserBase<Traits>::ParseAssignmentExpression(
                                    Token::String(Token::ARROW));
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   maybe_arrow_formals, CHECK_OK);
+    // This reads strangely, but is correct: it checks whether any
+    // sub-expression of the parameter list failed to be a valid formal
+    // parameter initializer. Since YieldExpressions are banned anywhere
+    // in an arrow parameter list, this is correct.
+    // TODO(adamk): Rename "FormalParameterInitializerError" to refer to
+    // "YieldExpression", which is its only use.
+    ValidateFormalParameterInitializer(&arrow_formals_classifier, ok);
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
@@ -2310,14 +2380,16 @@ ParserBase<Traits>::ParseAssignmentExpression(
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
+ParserBase<Traits>::ParseYieldExpression(bool accept_IN,
+                                         ExpressionClassifier* classifier,
                                          bool* ok) {
   // YieldExpression ::
   //   'yield' ([no line terminator] '*'? AssignmentExpression)?
   int pos = peek_position();
   classifier->RecordPatternError(scanner()->peek_location(),
                                  MessageTemplate::kInvalidDestructuringTarget);
-  FormalParameterInitializerUnexpectedToken(classifier);
+  classifier->RecordFormalParameterInitializerError(
+      scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Expect(Token::YIELD, CHECK_OK);
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
@@ -2340,7 +2412,7 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         if (!delegating) break;
         // Delegating yields require an RHS; fall through.
       default:
-        expression = ParseAssignmentExpression(false, typesystem::kNoCover,
+        expression = ParseAssignmentExpression(accept_IN, typesystem::kNoCover,
                                                classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         break;
@@ -3145,9 +3217,6 @@ void ParserBase<Traits>::CheckArityRestrictions(int param_count,
 template <class Traits>
 bool ParserBase<Traits>::IsNextLetKeyword() {
   DCHECK(peek() == Token::LET);
-  if (!allow_let()) {
-    return false;
-  }
   Token::Value next_next = PeekAhead();
   switch (next_next) {
     case Token::LBRACE:
@@ -3156,6 +3225,7 @@ bool ParserBase<Traits>::IsNextLetKeyword() {
     case Token::STATIC:
     case Token::LET:  // Yes, you can do let let = ... in sloppy mode
     case Token::YIELD:
+    case Token::AWAIT:
       return true;
     default:
       return false;
@@ -3220,8 +3290,23 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     } else {
       // Single-expression body
       int pos = position();
-      parenthesized_function_ = false;
       ExpressionClassifier classifier(this);
+      bool is_tail_call_expression;
+      if (FLAG_harmony_explicit_tailcalls) {
+        // TODO(ishell): update chapter number.
+        // ES8 XX.YY.ZZ
+        if (peek() == Token::CONTINUE) {
+          Consume(Token::CONTINUE);
+          pos = position();
+          is_tail_call_expression = true;
+        } else {
+          is_tail_call_expression = false;
+        }
+      } else {
+        // ES6 14.6.1 Static Semantics: IsInTailPosition
+        is_tail_call_expression =
+            allow_tailcalls() && !is_sloppy(language_mode());
+      }
       ExpressionT expression = ParseAssignmentExpression(
           accept_IN, typesystem::kNoCover, &classifier, CHECK_OK);
       Traits::RewriteNonPattern(&classifier, CHECK_OK);
@@ -3230,6 +3315,9 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
+      if (is_tail_call_expression) {
+        this->MarkTailPosition(expression);
+      }
     }
     super_loc = function_state.super_location();
 
@@ -3248,9 +3336,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       CheckStrictOctalLiteral(formal_parameters.scope->start_position(),
                               scanner()->location().end_pos, CHECK_OK);
     }
-    if (is_strict(language_mode()) || allow_harmony_sloppy()) {
-      this->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
-    }
+    this->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
 
     Traits::RewriteDestructuringAssignments();
   }

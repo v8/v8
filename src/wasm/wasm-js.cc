@@ -86,7 +86,7 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   RawBuffer buffer = GetRawBufferArgument(thrower, args);
   if (thrower.error()) return;
 
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
   internal::wasm::ModuleResult result =
       internal::wasm::DecodeWasmModule(isolate, &zone, buffer.start, buffer.end,
                                        true, internal::wasm::kWasmOrigin);
@@ -111,7 +111,7 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   {
     // Verification of a single function shouldn't allocate.
     i::DisallowHeapAllocation no_allocation;
-    i::Zone zone;
+    i::Zone zone(isolate->allocator());
     result = internal::wasm::DecodeWasmFunction(isolate, &zone, nullptr,
                                                 buffer.start, buffer.end);
   }
@@ -170,7 +170,7 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
 
   // Decode but avoid a redundant pass over function bodies for verification.
   // Verification will happen during compilation.
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
   internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
       isolate, &zone, start, end, false, origin);
 
@@ -209,7 +209,7 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
   Local<String> source = Local<String>::Cast(args[0]);
   i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
   i::ParseInfo info(&zone, script);
@@ -294,6 +294,15 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
   InstallFunc(isolate, wasm_object, "instantiateModuleFromAsm",
               InstantiateModuleFromAsm);
+
+  {
+    // Add the Wasm.experimentalVersion property.
+    Handle<String> name = v8_str(isolate, "experimentalVersion");
+    PropertyAttributes attributes =
+        static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+    Handle<Smi> value = Handle<Smi>(Smi::FromInt(wasm::kWasmVersion), isolate);
+    JSObject::AddProperty(wasm_object, name, value, attributes);
+  }
 }
 
 

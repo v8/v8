@@ -184,29 +184,24 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
   switch (mode) {
     case VAR:
       *attributes = NONE;
-      *binding_flags = MUTABLE_IS_INITIALIZED;
+      *binding_flags = BINDING_IS_INITIALIZED;
       break;
     case LET:
       *attributes = NONE;
       *binding_flags = (init_flag == kNeedsInitialization)
-                           ? MUTABLE_CHECK_INITIALIZED
-                           : MUTABLE_IS_INITIALIZED;
+                           ? BINDING_CHECK_INITIALIZED
+                           : BINDING_IS_INITIALIZED;
       break;
     case CONST_LEGACY:
+      DCHECK_EQ(kCreatedInitialized, init_flag);
       *attributes = READ_ONLY;
-      *binding_flags = (init_flag == kNeedsInitialization)
-                           ? IMMUTABLE_CHECK_INITIALIZED
-                           : IMMUTABLE_IS_INITIALIZED;
+      *binding_flags = BINDING_IS_INITIALIZED;
       break;
     case CONST:
       *attributes = READ_ONLY;
       *binding_flags = (init_flag == kNeedsInitialization)
-                           ? IMMUTABLE_CHECK_INITIALIZED_HARMONY
-                           : IMMUTABLE_IS_INITIALIZED_HARMONY;
-      break;
-    case IMPORT:
-      // TODO(ES6)
-      UNREACHABLE();
+                           ? BINDING_CHECK_INITIALIZED
+                           : BINDING_IS_INITIALIZED;
       break;
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
@@ -233,6 +228,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
   Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
+  bool failed_whitelist = false;
   *index = kNotFound;
   *attributes = ABSENT;
   *binding_flags = MISSING_BINDING;
@@ -361,8 +357,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           *index = function_index;
           *attributes = READ_ONLY;
           DCHECK(mode == CONST_LEGACY || mode == CONST);
-          *binding_flags = (mode == CONST_LEGACY)
-              ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
+          *binding_flags = BINDING_IS_INITIALIZED;
           return context;
         }
       }
@@ -375,8 +370,33 @@ Handle<Object> Context::Lookup(Handle<String> name,
         }
         *index = Context::THROWN_OBJECT_INDEX;
         *attributes = NONE;
-        *binding_flags = MUTABLE_IS_INITIALIZED;
+        *binding_flags = BINDING_IS_INITIALIZED;
         return context;
+      }
+    } else if (context->IsDebugEvaluateContext()) {
+      // Check materialized locals.
+      Object* obj = context->get(EXTENSION_INDEX);
+      if (obj->IsJSReceiver()) {
+        Handle<JSReceiver> extension(JSReceiver::cast(obj));
+        LookupIterator it(extension, name, extension);
+        Maybe<bool> found = JSReceiver::HasProperty(&it);
+        if (found.FromMaybe(false)) {
+          *attributes = NONE;
+          return extension;
+        }
+      }
+      // Check the original context, but do not follow its context chain.
+      obj = context->get(WRAPPED_CONTEXT_INDEX);
+      if (obj->IsContext()) {
+        Handle<Object> result = Context::cast(obj)->Lookup(
+            name, DONT_FOLLOW_CHAINS, index, attributes, binding_flags);
+        if (!result.is_null()) return result;
+      }
+      // Check whitelist. Names that do not pass whitelist shall only resolve
+      // to with, script or native contexts up the context chain.
+      obj = context->get(WHITE_LIST_INDEX);
+      if (obj->IsStringSet()) {
+        failed_whitelist = failed_whitelist || !StringSet::cast(obj)->Has(name);
       }
     }
 
@@ -386,7 +406,12 @@ Handle<Object> Context::Lookup(Handle<String> name,
          context->is_declaration_context())) {
       follow_context_chain = false;
     } else {
-      context = Handle<Context>(context->previous(), isolate);
+      do {
+        context = Handle<Context>(context->previous(), isolate);
+        // If we come across a whitelist context, and the name is not
+        // whitelisted, then only consider with, script or native contexts.
+      } while (failed_whitelist && !context->IsScriptContext() &&
+               !context->IsNativeContext() && !context->IsWithContext());
     }
   } while (follow_context_chain);
 

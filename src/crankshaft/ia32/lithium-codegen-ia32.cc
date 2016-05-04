@@ -165,11 +165,11 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Possibly allocate a local context.
-  if (info_->num_heap_slots() > 0) {
+  if (info_->scope()->num_heap_slots() > 0) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in edi.
-    int slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    int slots = info_->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
       __ push(edi);
@@ -3177,8 +3177,14 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
   }
 }
 
+void LCodeGen::DoMathFloorD(LMathFloorD* instr) {
+  XMMRegister output_reg = ToDoubleRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->value());
+  CpuFeatureScope scope(masm(), SSE4_1);
+  __ roundsd(output_reg, input_reg, kRoundDown);
+}
 
-void LCodeGen::DoMathFloor(LMathFloor* instr) {
+void LCodeGen::DoMathFloorI(LMathFloorI* instr) {
   XMMRegister xmm_scratch = double_scratch0();
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
@@ -3242,8 +3248,23 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
   }
 }
 
+void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
+  XMMRegister xmm_scratch = double_scratch0();
+  XMMRegister output_reg = ToDoubleRegister(instr->result());
+  XMMRegister input_reg = ToDoubleRegister(instr->value());
+  CpuFeatureScope scope(masm(), SSE4_1);
+  Label done;
+  __ roundsd(output_reg, input_reg, kRoundUp);
+  __ Move(xmm_scratch, -0.5);
+  __ addsd(xmm_scratch, output_reg);
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(below_equal, &done, Label::kNear);
+  __ Move(xmm_scratch, 1.0);
+  __ subsd(output_reg, xmm_scratch);
+  __ bind(&done);
+}
 
-void LCodeGen::DoMathRound(LMathRound* instr) {
+void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   XMMRegister xmm_scratch = double_scratch0();
@@ -3953,7 +3974,15 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      __ mov(ebx, ToImmediate(key, Representation::Smi()));
+      LConstantOperand* constant_key = LConstantOperand::cast(key);
+      int32_t int_key = ToInteger32(constant_key);
+      if (Smi::IsValid(int_key)) {
+        __ mov(ebx, Immediate(Smi::FromInt(int_key)));
+      } else {
+        // We should never get here at runtime because there is a smi check on
+        // the key before this point.
+        __ int3();
+      }
     } else {
       __ Move(ebx, ToRegister(key));
       __ SmiTag(ebx);
@@ -4832,7 +4861,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register temp = ToRegister(instr->temp());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5259,13 +5288,6 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ bind(deferred->exit());
   __ bind(&done);
 }
-
-
-void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
-  Register context = ToRegister(instr->context());
-  __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), context);
-}
-
 
 #undef __
 

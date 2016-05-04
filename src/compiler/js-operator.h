@@ -404,10 +404,12 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Modulus(BinaryOperationHints hints);
 
   const Operator* ToBoolean(ToBooleanHints hints);
-  const Operator* ToNumber();
-  const Operator* ToString();
+  const Operator* ToInteger();
+  const Operator* ToLength();
   const Operator* ToName();
+  const Operator* ToNumber();
   const Operator* ToObject();
+  const Operator* ToString();
   const Operator* Yield();
 
   const Operator* Create();

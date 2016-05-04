@@ -208,7 +208,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .JumpIfFalse(&start);
 
   // Emit stack check bytecode.
-  builder.StackCheck();
+  builder.StackCheck(0);
 
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.
@@ -289,6 +289,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
 
+  // Emit generator operations
+  builder.SuspendGenerator(reg)
+      .ResumeGenerator(reg);
+
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg, 1)
       .CallRuntime(Runtime::kInlineIsArray, wide, 1);
@@ -364,14 +368,11 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
 TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
   int index = 1;
-  int32_t operand = -index;
 
   Register the_register(index);
   CHECK_EQ(the_register.index(), index);
 
   int actual_operand = the_register.ToOperand();
-  CHECK_EQ(actual_operand, operand);
-
   int actual_index = Register::FromOperand(actual_operand).index();
   CHECK_EQ(actual_index, index);
 }

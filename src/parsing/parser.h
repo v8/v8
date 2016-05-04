@@ -126,12 +126,12 @@ class ParseInfo {
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
   Isolate* isolate() { return isolate_; }
-  Handle<JSFunction> closure() { return closure_; }
   Handle<SharedFunctionInfo> shared_info() { return shared_; }
   Handle<Script> script() { return script_; }
   Handle<Context> context() { return context_; }
   void clear_script() { script_ = Handle<Script>::null(); }
   void set_isolate(Isolate* isolate) { isolate_ = isolate; }
+  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_context(Handle<Context> context) { context_ = context; }
   void set_script(Handle<Script> script) { script_ = script; }
   //--------------------------------------------------------------------------
@@ -145,7 +145,6 @@ class ParseInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    closure_ = Handle<JSFunction>(*closure_);
     shared_ = Handle<SharedFunctionInfo>(*shared_);
     script_ = Handle<Script>(*script_);
     context_ = Handle<Context>(*context_);
@@ -187,7 +186,6 @@ class ParseInfo {
 
   // TODO(titzer): Move handles and isolate out of ParseInfo.
   Isolate* isolate_;
-  Handle<JSFunction> closure_;
   Handle<SharedFunctionInfo> shared_;
   Handle<Script> script_;
   Handle<Context> context_;
@@ -203,9 +201,6 @@ class ParseInfo {
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }
   bool GetFlag(Flag f) const { return (flags_ & f) != 0; }
-
-  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
-  void set_closure(Handle<JSFunction> closure) { closure_ = closure; }
 };
 
 class FunctionEntry BASE_EMBEDDED {
@@ -586,8 +581,7 @@ class ParserTraits {
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
       Type::ExpressionClassifier* classifier);
   void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
-                                          Expression* params,
-                                          const Scanner::Location& params_loc,
+                                          Expression* params, int end_pos,
                                           bool* ok);
   void ParseArrowFunctionFormalParameterList(
       ParserFormalParameters* parameters, Expression* params,
@@ -614,10 +608,13 @@ class ParserTraits {
       const ParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
 
-  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+  ClassLiteral* ParseClassLiteral(Type::ExpressionClassifier* classifier,
+                                  const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
                                   bool ambient, bool* ok);
+
+  V8_INLINE void MarkTailPosition(Expression* expression);
 
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
                                                  bool* ok);
@@ -805,12 +802,13 @@ class Parser : public ParserBase<ParserTraits> {
                                AllowLabelledFunctionStatement allow_function,
                                bool* ok);
   Statement* ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
-                                   bool* ok);
-  Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                      bool ambient, bool* ok);
-  Statement* ParseFunctionDeclaration(int pos, bool is_generator,
-                                      ZoneList<const AstRawString*>* names,
-                                      bool ambient, bool* ok);
+                                        bool* ok);
+  Statement* ParseFunctionDeclaration(bool ambient, bool* ok);
+  Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
+                                       bool ambient, bool* ok);
+  Statement* ParseHoistableDeclaration(int pos, bool is_generator,
+                                       ZoneList<const AstRawString*>* names,
+                                       bool ambient, bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                    bool ambient, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
@@ -965,8 +963,6 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
-  class DontCollectExpressionsInTailPositionScope;
-  class CollectExpressionsInTailPositionToListScope;
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
   // Parse a SubStatement in strict mode, or with an extra block scope in
@@ -986,10 +982,11 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
-                                  Expression* subject, Statement* body);
+                                  Expression* subject, Statement* body,
+                                  int each_keyword_pos);
   void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                 Expression* iterable, Statement* body,
-                                int iterable_pos);
+                                int next_result_pos = RelocInfo::kNoPosition);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
@@ -1004,7 +1001,8 @@ class Parser : public ParserBase<ParserTraits> {
       LanguageMode language_mode, bool is_typed,
       typesystem::TypeFlags type_flags, bool* ok);
 
-  ClassLiteral* ParseClassLiteral(const AstRawString* name,
+  ClassLiteral* ParseClassLiteral(ExpressionClassifier* classifier,
+                                  const AstRawString* name,
                                   Scanner::Location class_name_location,
                                   bool name_is_strict_reserved, int pos,
                                   bool ambient, bool* ok);

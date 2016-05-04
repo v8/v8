@@ -61,7 +61,6 @@ std::string Validate(Zone* zone, const char* source,
 
   i::ParseInfo info(zone, script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_sloppy(true);
   info.set_global();
   info.set_lazy(false);
   info.set_allow_lazy_parsing(false);

@@ -29,6 +29,10 @@ class Rewriter final : public AstExpressionVisitor {
   void VisitClassLiteral(ClassLiteral* expr) override;
   void VisitVariableProxy(VariableProxy* expr) override;
 
+  void VisitBlock(Block* stmt) override;
+  void VisitTryCatchStatement(TryCatchStatement* stmt) override;
+  void VisitWithStatement(WithStatement* stmt) override;
+
   Scope* old_scope_;
   Scope* new_scope_;
 };
@@ -70,6 +74,26 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   } else if (old_scope_->RemoveUnresolved(proxy)) {
     new_scope_->AddUnresolved(proxy);
   }
+}
+
+
+void Rewriter::VisitBlock(Block* stmt) {
+  if (stmt->scope() != nullptr)
+    stmt->scope()->ReplaceOuterScope(new_scope_);
+  else
+    VisitStatements(stmt->statements());
+}
+
+
+void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  Visit(stmt->try_block());
+  stmt->scope()->ReplaceOuterScope(new_scope_);
+}
+
+
+void Rewriter::VisitWithStatement(WithStatement* stmt) {
+  Visit(stmt->expression());
+  stmt->scope()->ReplaceOuterScope(new_scope_);
 }
 
 

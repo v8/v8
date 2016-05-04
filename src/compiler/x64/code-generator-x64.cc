@@ -374,13 +374,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                  \
   } while (0)
 
-
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                               \
   do {                                                                       \
     auto result = i.OutputDoubleRegister();                                  \
     auto buffer = i.InputRegister(0);                                        \
     auto index1 = i.InputRegister(1);                                        \
-    auto index2 = i.InputInt32(2);                                           \
+    auto index2 = i.InputUint32(2);                                          \
     OutOfLineCode* ool;                                                      \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
@@ -388,9 +387,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ cmpl(index1, length);                                               \
       ool = new (zone()) OutOfLineLoadNaN(this, result);                     \
     } else {                                                                 \
-      auto length = i.InputInt32(3);                                         \
+      auto length = i.InputUint32(3);                                        \
       DCHECK_LE(index2, length);                                             \
-      __ cmpq(index1, Immediate(length - index2));                           \
+      __ cmpl(index1, Immediate(length - index2));                           \
       class OutOfLineLoadFloat final : public OutOfLineCode {                \
        public:                                                               \
         OutOfLineLoadFloat(CodeGenerator* gen, XMMRegister result,           \
@@ -427,13 +426,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ bind(ool->exit());                                                    \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                               \
   do {                                                                         \
     auto result = i.OutputRegister();                                          \
     auto buffer = i.InputRegister(0);                                          \
     auto index1 = i.InputRegister(1);                                          \
-    auto index2 = i.InputInt32(2);                                             \
+    auto index2 = i.InputUint32(2);                                            \
     OutOfLineCode* ool;                                                        \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
@@ -441,9 +439,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ cmpl(index1, length);                                                 \
       ool = new (zone()) OutOfLineLoadZero(this, result);                      \
     } else {                                                                   \
-      auto length = i.InputInt32(3);                                           \
+      auto length = i.InputUint32(3);                                          \
       DCHECK_LE(index2, length);                                               \
-      __ cmpq(index1, Immediate(length - index2));                             \
+      __ cmpl(index1, Immediate(length - index2));                             \
       class OutOfLineLoadInteger final : public OutOfLineCode {                \
        public:                                                                 \
         OutOfLineLoadInteger(CodeGenerator* gen, Register result,              \
@@ -483,12 +481,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ bind(ool->exit());                                                      \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_STORE_FLOAT(asm_instr)                              \
   do {                                                                       \
     auto buffer = i.InputRegister(0);                                        \
     auto index1 = i.InputRegister(1);                                        \
-    auto index2 = i.InputInt32(2);                                           \
+    auto index2 = i.InputUint32(2);                                          \
     auto value = i.InputDoubleRegister(4);                                   \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
@@ -499,9 +496,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ asm_instr(Operand(buffer, index1, times_1, index2), value);         \
       __ bind(&done);                                                        \
     } else {                                                                 \
-      auto length = i.InputInt32(3);                                         \
+      auto length = i.InputUint32(3);                                        \
       DCHECK_LE(index2, length);                                             \
-      __ cmpq(index1, Immediate(length - index2));                           \
+      __ cmpl(index1, Immediate(length - index2));                           \
       class OutOfLineStoreFloat final : public OutOfLineCode {               \
        public:                                                               \
         OutOfLineStoreFloat(CodeGenerator* gen, Register buffer,             \
@@ -537,12 +534,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                        \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_STORE_INTEGER_IMPL(asm_instr, Value)                  \
   do {                                                                         \
     auto buffer = i.InputRegister(0);                                          \
     auto index1 = i.InputRegister(1);                                          \
-    auto index2 = i.InputInt32(2);                                             \
+    auto index2 = i.InputUint32(2);                                            \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
       DCHECK_EQ(0, index2);                                                    \
@@ -552,9 +548,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ asm_instr(Operand(buffer, index1, times_1, index2), value);           \
       __ bind(&done);                                                          \
     } else {                                                                   \
-      auto length = i.InputInt32(3);                                           \
+      auto length = i.InputUint32(3);                                          \
       DCHECK_LE(index2, length);                                               \
-      __ cmpq(index1, Immediate(length - index2));                             \
+      __ cmpl(index1, Immediate(length - index2));                             \
       class OutOfLineStoreInteger final : public OutOfLineCode {               \
        public:                                                                 \
         OutOfLineStoreInteger(CodeGenerator* gen, Register buffer,             \
@@ -590,7 +586,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                          \
   } while (false)
 
-
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                \
   do {                                                           \
     if (instr->InputAt(4)->IsRegister()) {                       \
@@ -602,6 +597,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                            \
   } while (false)
 
+void CodeGenerator::AssembleDeconstructFrame() {
+  __ movq(rsp, rbp);
+  __ popq(rbp);
+}
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
@@ -618,7 +617,7 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
     __ subq(rsp, Immediate(-sp_slot_delta * kPointerSize));
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
-  if (frame()->needs_frame()) {
+  if (frame_access_state()->has_frame()) {
     __ movq(rbp, MemOperand(rbp, 0));
   }
   frame_access_state()->SetFrameAccessToSP();
@@ -650,7 +649,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 }
 
 // Assembles an instruction after register allocation, producing machine code.
-void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
+CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
+    Instruction* instr) {
   X64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
@@ -686,6 +686,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         __ jmp(reg);
       }
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
+    case kArchTailCallAddress: {
+      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
+      AssembleDeconstructActivationRecord(stack_param_delta);
+      CHECK(!HasImmediateInput(instr, 0));
+      Register reg = i.InputRegister(0);
+      __ jmp(reg);
       frame_access_state()->ClearSPDelta();
       break;
     }
@@ -762,7 +771,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
       Deoptimizer::BailoutType bailout_type =
           Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      CodeGenResult result =
+          AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      if (result != kSuccess) return result;
       break;
     }
     case kArchRet:
@@ -775,7 +786,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ movq(i.OutputRegister(), rbp);
       break;
     case kArchParentFramePointer:
-      if (frame_access_state()->frame()->needs_frame()) {
+      if (frame_access_state()->has_frame()) {
         __ movq(i.OutputRegister(), Operand(rbp, 0));
       } else {
         __ movq(i.OutputRegister(), rbp);
@@ -785,10 +796,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
       auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
+      // We use Cvttsd2siq instead of Cvttsd2si due to performance reasons. The
+      // use of Cvttsd2siq requires the movl below to avoid sign extension.
       __ Cvttsd2siq(result, input);
       __ cmpq(result, Immediate(1));
       __ j(overflow, ool->entry());
       __ bind(ool->exit());
+      __ movl(result, result);
       break;
     }
     case kArchStoreWithWriteBarrier: {
@@ -1053,7 +1067,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      __ AssertZeroExtended(i.OutputRegister());
       break;
     }
     case kSSEFloat64Cmp:
@@ -1152,7 +1165,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      __ AssertZeroExtended(i.OutputRegister());
+      if (MiscField::decode(instr->opcode())) {
+        __ AssertZeroExtended(i.OutputRegister());
+      }
       break;
     }
     case kSSEFloat32ToInt64:
@@ -1748,7 +1763,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64StackCheck:
       __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
       break;
+    case kAtomicLoadInt8:
+    case kAtomicLoadUint8:
+    case kAtomicLoadInt16:
+    case kAtomicLoadUint16:
+    case kAtomicLoadWord32:
+      UNREACHABLE();  // Won't be generated by instruction selector.
+      break;
   }
+  return kSuccess;
 }  // NOLINT(readability/fn_size)
 
 
@@ -1911,12 +1934,13 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ jmp(Operand(kScratchRegister, input, times_8, 0));
 }
 
-
-void CodeGenerator::AssembleDeoptimizerCall(
+CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
+  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+  return kSuccess;
 }
 
 
@@ -1926,10 +1950,33 @@ static const int kQuadWordSize = 16;
 
 }  // namespace
 
-
-void CodeGenerator::AssemblePrologue() {
+void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (frame()->needs_frame()) {
+
+  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  if (saves_fp != 0) {
+    frame->AlignSavedCalleeRegisterSlots();
+    if (saves_fp != 0) {  // Save callee-saved XMM registers.
+      const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
+      frame->AllocateSavedCalleeRegisterSlots(saves_fp_count *
+                                              (kQuadWordSize / kPointerSize));
+    }
+  }
+  const RegList saves = descriptor->CalleeSavedRegisters();
+  if (saves != 0) {  // Save callee-saved registers.
+    int count = 0;
+    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+      if (((1 << i) & saves)) {
+        ++count;
+      }
+    }
+    frame->AllocateSavedCalleeRegisterSlots(count);
+  }
+}
+
+void CodeGenerator::AssembleConstructFrame() {
+  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
       __ pushq(rbp);
       __ movq(rbp, rsp);
@@ -1938,12 +1985,9 @@ void CodeGenerator::AssemblePrologue() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
-  } else {
-    frame()->SetElidedFrameSizeInSlots(kPCOnStackSize / kPointerSize);
   }
-  frame_access_state()->SetFrameAccessToDefault();
+  int shrink_slots = frame()->GetSpillSlotCount();
 
-  int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(kShouldNotDirectlyEnterOsrFunction);
@@ -1954,16 +1998,12 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    stack_shrink_slots -=
-        static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
+    shrink_slots -= static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
   }
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
-  }
-  if (stack_shrink_slots > 0) {
-    __ subq(rsp, Immediate(stack_shrink_slots * kPointerSize));
+  if (shrink_slots > 0) {
+    __ subq(rsp, Immediate(shrink_slots * kPointerSize));
   }
 
   if (saves_fp != 0) {  // Save callee-saved XMM registers.
@@ -1979,8 +2019,6 @@ void CodeGenerator::AssemblePrologue() {
                 XMMRegister::from_code(i));
       slot_idx++;
     }
-    frame()->AllocateSavedCalleeRegisterSlots(saves_fp_count *
-                                              (kQuadWordSize / kPointerSize));
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
@@ -1988,7 +2026,6 @@ void CodeGenerator::AssemblePrologue() {
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
       if (!((1 << i) & saves)) continue;
       __ pushq(Register::from_code(i));
-      frame()->AllocateSavedCalleeRegisterSlots(1);
     }
   }
 }
@@ -2022,17 +2059,15 @@ void CodeGenerator::AssembleReturn() {
   }
 
   if (descriptor->IsCFunctionCall()) {
-    __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
-    __ popq(rbp);       // Pop caller's frame pointer.
-  } else if (frame()->needs_frame()) {
+    AssembleDeconstructFrame();
+  } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ jmp(&return_label_);
       return;
     } else {
       __ bind(&return_label_);
-      __ movq(rsp, rbp);  // Move stack pointer back to frame pointer.
-      __ popq(rbp);       // Pop caller's frame pointer.
+      AssembleDeconstructFrame();
     }
   }
   size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
@@ -2076,12 +2111,26 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : kScratchRegister;
       switch (src.type()) {
-        case Constant::kInt32:
-          // TODO(dcarney): don't need scratch in this case.
-          __ Set(dst, src.ToInt32());
+        case Constant::kInt32: {
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+            __ movq(dst, src.ToInt64(), src.rmode());
+          } else {
+            // TODO(dcarney): don't need scratch in this case.
+            int32_t value = src.ToInt32();
+            if (value == 0) {
+              __ xorl(dst, dst);
+            } else {
+              __ movl(dst, Immediate(value));
+            }
+          }
           break;
+        }
         case Constant::kInt64:
-          __ Set(dst, src.ToInt64());
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+            __ movq(dst, src.ToInt64(), src.rmode());
+          } else {
+            __ Set(dst, src.ToInt64());
+          }
           break;
         case Constant::kFloat32:
           __ Move(dst,
@@ -2227,9 +2276,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
     __ dq(targets[index]);
   }
 }
-
-
-void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {

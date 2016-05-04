@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-opcodes.h"
+#include "src/messages.h"
 #include "src/signature.h"
 
 namespace v8 {
@@ -24,6 +25,18 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   return "Unknown";
 }
 
+const char* WasmOpcodes::ShortOpcodeName(WasmOpcode opcode) {
+  switch (opcode) {
+#define DECLARE_NAME_CASE(name, opcode, sig) \
+  case kExpr##name:                          \
+    return #name;
+    FOREACH_OPCODE(DECLARE_NAME_CASE)
+#undef DECLARE_NAME_CASE
+    default:
+      break;
+  }
+  return "Unknown";
+}
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
@@ -144,6 +157,22 @@ bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
 #else
   return true;
 #endif
+}
+
+int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
+  switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case k##name:                     \
+    return MessageTemplate::kWasm##name;
+    FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+    default:
+      return MessageTemplate::kNone;
+  }
+}
+
+const char* WasmOpcodes::TrapReasonMessage(TrapReason reason) {
+  return MessageTemplate::TemplateString(TrapReasonToMessageId(reason));
 }
 }  // namespace wasm
 }  // namespace internal

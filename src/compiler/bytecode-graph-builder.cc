@@ -882,7 +882,9 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<FixedArray> constant_properties = Handle<FixedArray>::cast(
       bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
-  int literal_flags = bytecode_iterator().GetFlagOperand(2);
+  int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
+  int literal_flags =
+      interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   // TODO(mstarzinger): Thread through number of properties.
   int number_of_properties = constant_properties->length() / 2;
   const Operator* op = javascript()->CreateLiteralObject(
@@ -927,7 +929,13 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
 
 void BytecodeGraphBuilder::VisitCall() { BuildCall(TailCallMode::kDisallow); }
 
-void BytecodeGraphBuilder::VisitTailCall() { BuildCall(TailCallMode::kAllow); }
+void BytecodeGraphBuilder::VisitTailCall() {
+  TailCallMode tail_call_mode =
+      bytecode_array_->GetIsolate()->is_tail_call_elimination_enabled()
+          ? TailCallMode::kAllow
+          : TailCallMode::kDisallow;
+  BuildCall(tail_call_mode);
+}
 
 void BytecodeGraphBuilder::VisitCallJSRuntime() {
   FrameStateBeforeAndAfter states(this);
@@ -1115,9 +1123,11 @@ void BytecodeGraphBuilder::VisitShiftRightLogical() {
 
 void BytecodeGraphBuilder::VisitInc() {
   FrameStateBeforeAndAfter states(this);
-  const Operator* js_op = javascript()->Add(BinaryOperationHints::Any());
+  // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
+  // a number, not a string.
+  const Operator* js_op = javascript()->Subtract(BinaryOperationHints::Any());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
-                       jsgraph()->OneConstant());
+                       jsgraph()->Constant(-1.0));
   environment()->BindAccumulator(node, &states);
 }
 
@@ -1354,6 +1364,14 @@ void BytecodeGraphBuilder::VisitForInStep() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   index = NewNode(javascript()->ForInStep(), index);
   environment()->BindAccumulator(index, &states);
+}
+
+void BytecodeGraphBuilder::VisitSuspendGenerator() {
+  UNIMPLEMENTED();
+}
+
+void BytecodeGraphBuilder::VisitResumeGenerator() {
+  UNIMPLEMENTED();
 }
 
 void BytecodeGraphBuilder::VisitWide() {

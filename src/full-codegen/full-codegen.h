@@ -503,6 +503,7 @@ class FullCodeGenerator: public AstVisitor {
   F(IsRegExp)                           \
   F(IsJSProxy)                          \
   F(Call)                               \
+  F(NewObject)                          \
   F(ValueOf)                            \
   F(StringCharFromCode)                 \
   F(StringCharAt)                       \
@@ -513,9 +514,6 @@ class FullCodeGenerator: public AstVisitor {
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
-  F(GeneratorNext)                      \
-  F(GeneratorReturn)                    \
-  F(GeneratorThrow)                     \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
@@ -539,11 +537,6 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
 
-  // Platform-specific code for resuming generators.
-  void EmitGeneratorResume(Expression *generator,
-                           Expression *value,
-                           JSGeneratorObject::ResumeMode resume_mode);
-
   // Platform-specific code for loading variables.
   void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                      TypeofMode typeof_mode, Label* slow);
@@ -559,7 +552,7 @@ class FullCodeGenerator: public AstVisitor {
   bool NeedsHoleCheckForLoad(VariableProxy* proxy);
 
   // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(int arg_count);
+  void EmitResolvePossiblyDirectEval(Call* expr);
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
@@ -669,14 +662,14 @@ class FullCodeGenerator: public AstVisitor {
   // otherwise.
   void SetStatementPosition(Statement* stmt,
                             InsertBreak insert_break = INSERT_BREAK);
-  void SetExpressionPosition(Expression* expr,
-                             InsertBreak insert_break = SKIP_BREAK);
+  void SetExpressionPosition(Expression* expr);
 
   // Consider an expression a statement. As such, we also insert a break.
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
-  void SetCallPosition(Expression* expr);
+  void SetCallPosition(Expression* expr,
+                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   void SetConstructCallPosition(Expression* expr) {
     // Currently call and construct calls are treated the same wrt debugging.
@@ -719,6 +712,9 @@ class FullCodeGenerator: public AstVisitor {
 
   static Register context_register();
 
+  // Get fields from the stack frame. Offsets are the frame pointer relative
+  // offsets defined in, e.g., StandardFrameConstants.
+  void LoadFromFrameField(int frame_offset, Register value);
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
   void StoreToFrameField(int frame_offset, Register value);

@@ -781,7 +781,7 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
                                      "array index expected to be integer"));
         Literal* right = bin->right()->AsLiteral();
         if (right == NULL || right->raw_value()->ContainsDot()) {
-          FAIL(right, "heap access shift must be integer");
+          FAIL(bin->right(), "heap access shift must be integer");
         }
         RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
                                      "array shift expected to be integer"));

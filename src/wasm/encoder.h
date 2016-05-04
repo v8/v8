@@ -50,10 +50,14 @@ class WasmFunctionBuilder : public ZoneObject {
   uint16_t AddParam(LocalType type);
   uint16_t AddLocal(LocalType type);
   void ReturnType(LocalType type);
+  void EmitVarInt(uint32_t val);
   void EmitCode(const byte* code, uint32_t code_size);
   void EmitCode(const byte* code, uint32_t code_size,
                 const uint32_t* local_indices, uint32_t indices_size);
   void Emit(WasmOpcode opcode);
+  void EmitGetLocal(uint32_t index);
+  void EmitSetLocal(uint32_t index);
+  void EmitI32Const(int32_t val);
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
@@ -148,7 +152,6 @@ class WasmModuleBuilder : public ZoneObject {
   int start_function_index_;
 };
 
-std::vector<uint8_t> UnsignedLEB128From(uint32_t result);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

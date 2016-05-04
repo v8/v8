@@ -1941,7 +1941,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
-  Zone zone;
+  Zone zone(isolate->allocator());
   MachO mach_o(&zone);
   Writer w(&mach_o);
 
@@ -1953,7 +1953,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
-  Zone zone;
+  Zone zone(isolate->allocator());
   ELF elf(&zone);
   Writer w(&elf);
 

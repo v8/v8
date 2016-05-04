@@ -417,3 +417,36 @@ TEST(WeakPersistentSmi) {
   // Should not crash.
   g.SetWeak<void>(nullptr, &WeakCallback, v8::WeakCallbackType::kParameter);
 }
+
+void finalizer(const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+  v8::Local<v8::Object> o =
+      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
+  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
+         v8_str("was here"))
+      .FromJust();
+}
+
+TEST(FinalizerWeakness) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::Global<v8::Object> g;
+  int identity;
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> o = v8::Object::New(isolate);
+    identity = o->GetIdentityHash();
+    g.Reset(isolate, o);
+    g.SetWeak(&g, finalizer, v8::WeakCallbackType::kFinalizer);
+  }
+
+  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+
+  CHECK(!g.IsEmpty());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o = v8::Local<v8::Object>::New(isolate, g);
+  CHECK_EQ(identity, o->GetIdentityHash());
+  CHECK(o->Has(isolate->GetCurrentContext(), v8_str("finalizer")).FromJust());
+}

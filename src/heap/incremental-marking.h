@@ -68,6 +68,8 @@ class IncrementalMarking {
 
   inline bool IsStopped() { return state() == STOPPED; }
 
+  inline bool IsSweeping() { return state() == SWEEPING; }
+
   INLINE(bool IsMarking()) { return state() >= MARKING; }
 
   inline bool IsMarkingIncomplete() { return state() == MARKING; }
@@ -106,13 +108,10 @@ class IncrementalMarking {
 
   void Epilogue();
 
-  // Performs incremental marking steps of step_size_in_bytes as long as
-  // deadline_in_ms is not reached. step_size_in_bytes can be 0 to compute
-  // an estimate increment. Returns the remaining time that cannot be used
-  // for incremental marking anymore because a single step would exceed the
-  // deadline.
-  double AdvanceIncrementalMarking(intptr_t step_size_in_bytes,
-                                   double deadline_in_ms,
+  // Performs incremental marking steps until deadline_in_ms is reached. It
+  // returns the remaining time that cannot be used for incremental marking
+  // anymore because a single step would exceed the deadline.
+  double AdvanceIncrementalMarking(double deadline_in_ms,
                                    StepActions step_actions);
 
   // It's hard to know how much work the incremental marker should do to make
@@ -137,6 +136,8 @@ class IncrementalMarking {
   // This is the upper bound for how many times we allow finalization of
   // incremental marking to be postponed.
   static const size_t kMaxIdleMarkingDelayCounter = 3;
+
+  void FinalizeSweeping();
 
   void OldSpaceStep(intptr_t allocated);
 
@@ -184,7 +185,7 @@ class IncrementalMarking {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
   }
 
-  inline void SetNewSpacePageFlags(MemoryChunk* chunk) {
+  inline void SetNewSpacePageFlags(Page* chunk) {
     SetNewSpacePageFlags(chunk, IsMarking());
   }
 
@@ -193,10 +194,6 @@ class IncrementalMarking {
   void ActivateGeneratedStub(Code* stub);
 
   void NotifyOfHighPromotionRate();
-
-  void EnterNoMarkingScope() { no_marking_scope_depth_++; }
-
-  void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -290,8 +287,6 @@ class IncrementalMarking {
   intptr_t allocated_;
   intptr_t write_barriers_invoked_since_last_step_;
   size_t idle_marking_delay_counter_;
-
-  int no_marking_scope_depth_;
 
   int unscanned_bytes_of_large_object_;
 

@@ -99,12 +99,14 @@ class LCodeGen;
   V(MathAbs)                                 \
   V(MathClz32)                               \
   V(MathExp)                                 \
-  V(MathFloor)                               \
+  V(MathFloorD)                              \
+  V(MathFloorI)                              \
   V(MathFround)                              \
   V(MathLog)                                 \
   V(MathMinMax)                              \
   V(MathPowHalf)                             \
-  V(MathRound)                               \
+  V(MathRoundD)                              \
+  V(MathRoundI)                              \
   V(MathSqrt)                                \
   V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
@@ -131,7 +133,6 @@ class LCodeGen;
   V(StackCheck)                              \
   V(StoreCodeEntry)                          \
   V(StoreContextSlot)                        \
-  V(StoreFrameContext)                       \
   V(StoreKeyed)                              \
   V(StoreKeyedGeneric)                       \
   V(StoreNamedField)                         \
@@ -151,7 +152,6 @@ class LCodeGen;
   V(Uint32ToDouble)                          \
   V(UnknownOSRValue)                         \
   V(WrapReceiver)
-
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)            \
   Opcode opcode() const final { return LInstruction::k##type; } \
@@ -808,21 +808,43 @@ class LCompareNumericAndBranch final : public LControlInstruction<2, 0> {
   void PrintDataTo(StringStream* stream) override;
 };
 
-
-class LMathFloor final : public LTemplateInstruction<1, 1, 0> {
+// Math.floor with a double result.
+class LMathFloorD final : public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LMathFloor(LOperand* value) { inputs_[0] = value; }
+  explicit LMathFloorD(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorD, "math-floor-d")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
-
-class LMathRound final : public LTemplateInstruction<1, 1, 1> {
+// Math.floor with an integer result.
+class LMathFloorI final : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathRound(LOperand* value, LOperand* temp) {
+  explicit LMathFloorI(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorI, "math-floor-i")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+// Math.round with a double result.
+class LMathRoundD final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathRoundD(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundD, "math-round-d")
+  DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+// Math.round with an integer result.
+class LMathRoundI final : public LTemplateInstruction<1, 1, 1> {
+ public:
+  LMathRoundI(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
@@ -830,7 +852,7 @@ class LMathRound final : public LTemplateInstruction<1, 1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundI, "math-round-i")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
@@ -2059,16 +2081,17 @@ class LTransitionElementsKind final : public LTemplateInstruction<0, 2, 1> {
   ElementsKind to_kind() { return hydrogen()->to_kind(); }
 };
 
-
-class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 1> {
+class LTrapAllocationMemento final : public LTemplateInstruction<0, 1, 2> {
  public:
-  LTrapAllocationMemento(LOperand* object, LOperand* temp) {
+  LTrapAllocationMemento(LOperand* object, LOperand* temp1, LOperand* temp2) {
     inputs_[0] = object;
-    temps_[0] = temp;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
   }
 
   LOperand* object() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento, "trap-allocation-memento")
 };
@@ -2400,16 +2423,6 @@ class LLoadFieldByIndex final : public LTemplateInstruction<1, 2, 0> {
   LOperand* index() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadFieldByIndex, "load-field-by-index")
-};
-
-
-class LStoreFrameContext : public LTemplateInstruction<0, 1, 0> {
- public:
-  explicit LStoreFrameContext(LOperand* context) { inputs_[0] = context; }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext, "store-frame-context")
 };
 
 

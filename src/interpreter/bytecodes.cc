@@ -8,6 +8,7 @@
 
 #include "src/frames.h"
 #include "src/interpreter/bytecode-traits.h"
+#include "src/interpreter/interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -39,6 +40,22 @@ std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale) {
   } else {
     return value;
   }
+}
+
+// static
+const char* Bytecodes::AccumulatorUseToString(AccumulatorUse accumulator_use) {
+  switch (accumulator_use) {
+    case AccumulatorUse::kNone:
+      return "None";
+    case AccumulatorUse::kRead:
+      return "Read";
+    case AccumulatorUse::kWrite:
+      return "Write";
+    case AccumulatorUse::kReadWrite:
+      return "ReadWrite";
+  }
+  UNREACHABLE();
+  return "";
 }
 
 // static
@@ -140,7 +157,7 @@ int Bytecodes::NumberOfOperands(Bytecode bytecode) {
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
-    return BytecodeTraits<__VA_ARGS__, OPERAND_TERM>::kOperandCount;
+    return BytecodeTraits<__VA_ARGS__>::kOperandCount;
     BYTECODE_LIST(CASE)
 #undef CASE
   }
@@ -153,9 +170,9 @@ int Bytecodes::NumberOfOperands(Bytecode bytecode) {
 int Bytecodes::NumberOfRegisterOperands(Bytecode bytecode) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
-#define CASE(Name, ...)                                            \
-  case Bytecode::k##Name:                                          \
-    typedef BytecodeTraits<__VA_ARGS__, OPERAND_TERM> Name##Trait; \
+#define CASE(Name, ...)                              \
+  case Bytecode::k##Name:                            \
+    typedef BytecodeTraits<__VA_ARGS__> Name##Trait; \
     return Name##Trait::kRegisterOperandCount;
     BYTECODE_LIST(CASE)
 #undef CASE
@@ -198,12 +215,38 @@ OperandScale Bytecodes::PrefixBytecodeToOperandScale(Bytecode bytecode) {
 }
 
 // static
+AccumulatorUse Bytecodes::GetAccumulatorUse(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
+  switch (bytecode) {
+#define CASE(Name, ...)   \
+  case Bytecode::k##Name: \
+    return BytecodeTraits<__VA_ARGS__>::kAccumulatorUse;
+    BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return AccumulatorUse::kNone;
+}
+
+// static
+bool Bytecodes::ReadsAccumulator(Bytecode bytecode) {
+  return (GetAccumulatorUse(bytecode) & AccumulatorUse::kRead) ==
+         AccumulatorUse::kRead;
+}
+
+// static
+bool Bytecodes::WritesAccumulator(Bytecode bytecode) {
+  return (GetAccumulatorUse(bytecode) & AccumulatorUse::kWrite) ==
+         AccumulatorUse::kWrite;
+}
+
+// static
 OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
-    return BytecodeTraits<__VA_ARGS__, OPERAND_TERM>::GetOperandType(i);
+    return BytecodeTraits<__VA_ARGS__>::GetOperandType(i);
     BYTECODE_LIST(CASE)
 #undef CASE
   }
@@ -222,9 +265,9 @@ OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i,
 int Bytecodes::GetRegisterOperandBitmap(Bytecode bytecode) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
-#define CASE(Name, ...)                                            \
-  case Bytecode::k##Name:                                          \
-    typedef BytecodeTraits<__VA_ARGS__, OPERAND_TERM> Name##Trait; \
+#define CASE(Name, ...)                              \
+  case Bytecode::k##Name:                            \
+    typedef BytecodeTraits<__VA_ARGS__> Name##Trait; \
     return Name##Trait::kRegisterOperandBitmap;
     BYTECODE_LIST(CASE)
 #undef CASE
@@ -330,9 +373,9 @@ bool Bytecodes::IsDebugBreak(Bytecode bytecode) {
 // static
 bool Bytecodes::IsBytecodeWithScalableOperands(Bytecode bytecode) {
   switch (bytecode) {
-#define CASE(Name, ...)                                            \
-  case Bytecode::k##Name:                                          \
-    typedef BytecodeTraits<__VA_ARGS__, OPERAND_TERM> Name##Trait; \
+#define CASE(Name, ...)                              \
+  case Bytecode::k##Name:                            \
+    typedef BytecodeTraits<__VA_ARGS__> Name##Trait; \
     return Name##Trait::IsScalable();
     BYTECODE_LIST(CASE)
 #undef CASE
@@ -574,8 +617,19 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
   return os;
 }
 
+// static
+bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
+                                   OperandScale operand_scale) {
+  return operand_scale == OperandScale::kSingle ||
+         Bytecodes::IsBytecodeWithScalableOperands(bytecode);
+}
+
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
+}
+
+std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use) {
+  return os << Bytecodes::AccumulatorUseToString(use);
 }
 
 std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size) {
@@ -591,21 +645,29 @@ std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
 }
 
 static const int kLastParamRegisterIndex =
-    -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kLastParamFromFp) /
+    kPointerSize;
 static const int kFunctionClosureRegisterIndex =
-    -InterpreterFrameConstants::kFunctionFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     StandardFrameConstants::kFunctionOffset) /
+    kPointerSize;
 static const int kCurrentContextRegisterIndex =
-    -InterpreterFrameConstants::kContextFromRegisterPointer / kPointerSize;
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     StandardFrameConstants::kContextOffset) /
+    kPointerSize;
 static const int kNewTargetRegisterIndex =
-    -InterpreterFrameConstants::kNewTargetFromRegisterPointer / kPointerSize;
-
-bool Register::is_byte_operand() const {
-  return index_ >= -kMaxInt8 && index_ <= -kMinInt8;
-}
-
-bool Register::is_short_operand() const {
-  return index_ >= -kMaxInt16 && index_ <= -kMinInt16;
-}
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kNewTargetFromFp) /
+    kPointerSize;
+static const int kBytecodeArrayRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kBytecodeArrayFromFp) /
+    kPointerSize;
+static const int kBytecodeOffsetRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kBytecodeOffsetFromFp) /
+    kPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
@@ -615,38 +677,58 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
   return Register(register_index);
 }
 
-
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
   return index() - kLastParamRegisterIndex + parameter_count - 1;
 }
 
-
 Register Register::function_closure() {
   return Register(kFunctionClosureRegisterIndex);
 }
-
 
 bool Register::is_function_closure() const {
   return index() == kFunctionClosureRegisterIndex;
 }
 
-
 Register Register::current_context() {
   return Register(kCurrentContextRegisterIndex);
 }
-
 
 bool Register::is_current_context() const {
   return index() == kCurrentContextRegisterIndex;
 }
 
-
 Register Register::new_target() { return Register(kNewTargetRegisterIndex); }
-
 
 bool Register::is_new_target() const {
   return index() == kNewTargetRegisterIndex;
+}
+
+Register Register::bytecode_array() {
+  return Register(kBytecodeArrayRegisterIndex);
+}
+
+bool Register::is_bytecode_array() const {
+  return index() == kBytecodeArrayRegisterIndex;
+}
+
+Register Register::bytecode_offset() {
+  return Register(kBytecodeOffsetRegisterIndex);
+}
+
+bool Register::is_bytecode_offset() const {
+  return index() == kBytecodeOffsetRegisterIndex;
+}
+
+OperandSize Register::SizeOfOperand() const {
+  int32_t operand = ToOperand();
+  if (operand >= kMinInt8 && operand <= kMaxInt8) {
+    return OperandSize::kByte;
+  } else if (operand >= kMinInt16 && operand <= kMaxInt16) {
+    return OperandSize::kShort;
+  } else {
+    return OperandSize::kQuad;
+  }
 }
 
 bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,

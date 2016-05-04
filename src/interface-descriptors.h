@@ -58,7 +58,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                          \
   V(AllocateUint8x16)                         \
   V(AllocateBool8x16)                         \
-  V(AllocateInNewSpace)                       \
+  V(ArrayNoArgumentConstructor)               \
   V(ArrayConstructorConstantArgCount)         \
   V(ArrayConstructor)                         \
   V(InternalArrayConstructorConstantArgCount) \
@@ -66,6 +66,7 @@ class PlatformInterfaceDescriptor;
   V(Compare)                                  \
   V(BinaryOp)                                 \
   V(BinaryOpWithAllocationSite)               \
+  V(CountOp)                                  \
   V(StringAdd)                                \
   V(StringCompare)                            \
   V(Keyed)                                    \
@@ -90,7 +91,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterDispatch)                      \
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
-  V(InterpreterCEntry)
+  V(InterpreterCEntry)                        \
+  V(ResumeGenerator)
 
 class CallInterfaceDescriptorData {
  public:
@@ -576,12 +578,17 @@ class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
-
-class AllocateInNewSpaceDescriptor : public CallInterfaceDescriptor {
+class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(AllocateInNewSpaceDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ArrayNoArgumentConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kContextIndex
+  };
 };
-
 
 class ArrayConstructorConstantArgCountDescriptor
     : public CallInterfaceDescriptor {
@@ -631,6 +638,10 @@ class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
                      CallInterfaceDescriptor)
 };
 
+class CountOpDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CountOpDescriptor, CallInterfaceDescriptor)
+};
 
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:
@@ -746,10 +757,11 @@ class ApiCallbackWith7ArgsDescriptor : public ApiCallbackDescriptorBase {
 
 class ApiGetterDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiGetterDescriptor,
-                                               CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(ApiGetterDescriptor, CallInterfaceDescriptor)
 
-  static const Register function_address();
+  static const Register ReceiverRegister();
+  static const Register HolderRegister();
+  static const Register CallbackRegister();
 };
 
 
@@ -795,11 +807,9 @@ class InterpreterDispatchDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const int kAccumulatorParameter = 0;
-  static const int kRegisterFileParameter = 1;
-  static const int kBytecodeOffsetParameter = 2;
-  static const int kBytecodeArrayParameter = 3;
-  static const int kDispatchTableParameter = 4;
-  static const int kContextParameter = 5;
+  static const int kBytecodeOffsetParameter = 1;
+  static const int kBytecodeArrayParameter = 2;
+  static const int kDispatchTableParameter = 3;
 };
 
 class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
@@ -820,6 +830,11 @@ class InterpreterPushArgsAndConstructDescriptor
 class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(InterpreterCEntryDescriptor, CallInterfaceDescriptor)
+};
+
+class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE

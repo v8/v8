@@ -19,8 +19,8 @@ const Register kReturnRegister1 = {Register::kCode_r1};
 const Register kReturnRegister2 = {Register::kCode_r2};
 const Register kJSFunctionRegister = {Register::kCode_r1};
 const Register kContextRegister = {Register::kCode_r7};
+const Register kAllocateSizeRegister = {Register::kCode_r1};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r0};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r4};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
@@ -489,15 +489,6 @@ class MacroAssembler: public Assembler {
             const MemOperand& dst,
             Condition cond = al);
 
-  // Ensure that FPSCR contains values needed by JavaScript.
-  // We need the NaNModeControlBit to be sure that operations like
-  // vadd and vsub generate the Canonical NaN (if a NaN must be generated).
-  // In VFP3 it will be always the Canonical NaN.
-  // In VFP2 it will be either the Canonical NaN or the negative version
-  // of the Canonical NaN. It doesn't matter if we have two values. The aim
-  // is to be sure to never generate the hole NaN.
-  void VFPEnsureFPSCRState(Register scratch);
-
   // If the value is a NaN, canonicalize the value else, do nothing.
   void VFPCanonicalizeNaN(const DwVfpRegister dst,
                           const DwVfpRegister src,
@@ -826,7 +817,6 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Register heap_number_map,
                           Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
   void AllocateHeapNumberWithValue(Register result,
                                    DwVfpRegister value,
@@ -1325,6 +1315,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);

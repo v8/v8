@@ -190,11 +190,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kTagged:  // Fall through.
 #endif
     case MachineRepresentation::kWord32:
-      opcode = kPPC_LoadWordS32;
-#if V8_TARGET_ARCH_PPC64
-      // TODO(mbrandy): this applies to signed loads only (lwa)
-      mode = kInt16Imm_4ByteAligned;
-#endif
+      opcode = kPPC_LoadWordU32;
       break;
 #if V8_TARGET_ARCH_PPC64
     case MachineRepresentation::kTagged:  // Fall through.
@@ -810,6 +806,22 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   VisitPairBinop(this, kPPC_SubPair, node);
 }
 
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  PPCOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+
+  Emit(kPPC_MulPair, 2, outputs, 4, inputs, 2, temps);
+}
+
 void VisitPairShift(InstructionSelector* selector, InstructionCode opcode,
                     Node* node) {
   PPCOperandGenerator g(selector);
@@ -847,6 +859,30 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64Sar(Node* node) {
+  PPCOperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (CanCover(m.node(), m.left().node()) && m.left().IsLoad() &&
+      m.right().Is(32)) {
+    // Just load and sign-extend the interesting 4 bytes instead. This happens,
+    // for example, when we're loading and untagging SMIs.
+    BaseWithIndexAndDisplacement64Matcher mleft(m.left().node(), true);
+    if (mleft.matches() && mleft.index() == nullptr) {
+      int64_t offset = 0;
+      Node* displacement = mleft.displacement();
+      if (displacement != nullptr) {
+        Int64Matcher mdisplacement(displacement);
+        DCHECK(mdisplacement.HasValue());
+        offset = mdisplacement.Value();
+      }
+      offset = SmiWordOffset(offset);
+      if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
+        Emit(kPPC_LoadWordS32 | AddressingModeField::encode(kMode_MRI),
+             g.DefineAsRegister(node), g.UseRegister(mleft.base()),
+             g.TempImmediate(offset));
+        return;
+      }
+    }
+  }
   VisitRRO(this, kPPC_ShiftRightAlg64, node, kShift64Imm);
 }
 #endif
@@ -1055,6 +1091,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kPPC_DoubleToUint32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kPPC_DoubleToUint32, node);
+}
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
@@ -1094,15 +1133,12 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kPPC_DoubleToFloat32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, kArchTruncateDoubleToI, node);
+}
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, kArchTruncateDoubleToI, node);
-    case TruncationMode::kRoundToZero:
-      return VisitRR(this, kPPC_DoubleToInt32, node);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRR(this, kPPC_DoubleToInt32, node);
 }
 
 
@@ -1878,6 +1914,29 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  PPCOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Emit(opcode | AddressingModeField::encode(kMode_MRR),
+      g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
 
 // static
 MachineOperatorBuilder::Flags

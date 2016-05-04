@@ -398,6 +398,7 @@ class RelocInfo {
     DEBUG_BREAK_SLOT_AT_POSITION,
     DEBUG_BREAK_SLOT_AT_RETURN,
     DEBUG_BREAK_SLOT_AT_CALL,
+    DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
@@ -491,7 +492,7 @@ class RelocInfo {
   }
   static inline bool IsDebugBreakSlot(Mode mode) {
     return IsDebugBreakSlotAtPosition(mode) || IsDebugBreakSlotAtReturn(mode) ||
-           IsDebugBreakSlotAtCall(mode);
+           IsDebugBreakSlotAtCall(mode) || IsDebugBreakSlotAtTailCall(mode);
   }
   static inline bool IsDebugBreakSlotAtPosition(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_POSITION;
@@ -501,6 +502,9 @@ class RelocInfo {
   }
   static inline bool IsDebugBreakSlotAtCall(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_CALL;
+  }
+  static inline bool IsDebugBreakSlotAtTailCall(Mode mode) {
+    return mode == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
   }
   static inline bool IsDebuggerStatement(Mode mode) {
     return mode == DEBUGGER_STATEMENT;
@@ -627,6 +631,8 @@ class RelocInfo {
   INLINE(void WipeOut());
 
   template<typename StaticVisitor> inline void Visit(Heap* heap);
+
+  template <typename ObjectVisitor>
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
   // Check whether this debug break slot has been patched with a call to the
@@ -905,6 +911,7 @@ class ExternalReference BASE_EMBEDDED {
   // ExternalReferenceTable in serialize.cc manually.
 
   static ExternalReference interpreter_dispatch_table_address(Isolate* isolate);
+  static ExternalReference interpreter_dispatch_counters(Isolate* isolate);
 
   static ExternalReference incremental_marking_record_write_function(
       Isolate* isolate);
@@ -944,6 +951,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_int64_mod(Isolate* isolate);
   static ExternalReference wasm_uint64_div(Isolate* isolate);
   static ExternalReference wasm_uint64_mod(Isolate* isolate);
+  static ExternalReference wasm_word32_ctz(Isolate* isolate);
+  static ExternalReference wasm_word64_ctz(Isolate* isolate);
+  static ExternalReference wasm_word32_popcnt(Isolate* isolate);
+  static ExternalReference wasm_word64_popcnt(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
@@ -987,9 +998,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_regexp_stack_memory_size(
       Isolate* isolate);
 
-  // Static variable Heap::NewSpaceStart()
-  static ExternalReference new_space_start(Isolate* isolate);
-
   // Write barrier.
   static ExternalReference store_buffer_top(Isolate* isolate);
 
@@ -1028,6 +1036,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ForDeoptEntry(Address entry);
 
   static ExternalReference cpu_features();
+
+  static ExternalReference is_tail_call_elimination_enabled_address(
+      Isolate* isolate);
 
   static ExternalReference debug_is_active_address(Isolate* isolate);
   static ExternalReference debug_after_break_target_address(Isolate* isolate);

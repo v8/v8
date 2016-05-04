@@ -30,14 +30,14 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
   },
-  'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
+  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'cctest',
       'type': 'executable',
       'dependencies': [
         'resources',
-        '../../tools/gyp/v8.gyp:v8_libplatform',
+        '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
@@ -51,7 +51,6 @@
         'compiler/graph-builder-tester.h',
         'compiler/test-basic-block-profiler.cc',
         'compiler/test-branch-combine.cc',
-        'compiler/test-changes-lowering.cc',
         'compiler/test-code-stub-assembler.cc',
         'compiler/test-gap-resolver.cc',
         'compiler/test-graph-visualizer.cc',
@@ -68,7 +67,6 @@
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-osr.cc',
-        'compiler/test-pipeline.cc',
         'compiler/test-representation-change.cc',
         'compiler/test-run-bytecode-graph-builder.cc',
         'compiler/test-run-calls-to-external-references.cc',
@@ -80,11 +78,13 @@
         'compiler/test-run-jsexceptions.cc',
         'compiler/test-run-jsobjects.cc',
         'compiler/test-run-jsops.cc',
+        'compiler/test-run-load-store.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-native-calls.cc',
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
+        'compiler/test-run-wasm-machops.cc',
         'compiler/test-simplified-lowering.cc',
         'cctest.cc',
         'expression-type-collector.cc',
@@ -143,7 +143,6 @@
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
-        'test-gc-tracer.cc',
         'test-global-handles.cc',
         'test-global-object.cc',
         'test-hashing.cc',
@@ -156,9 +155,7 @@
         'test-liveedit.cc',
         'test-lockers.cc',
         'test-log.cc',
-        'test-microtask-delivery.cc',
         'test-mementos.cc',
-        'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform.cc',
         'test-profile-generator.cc',
@@ -194,6 +191,8 @@
         'wasm/test-run-wasm-js.cc',
         'wasm/test-run-wasm-module.cc',
         'wasm/test-signatures.h',
+        'wasm/test-wasm-function-name-table.cc',
+        'wasm/test-wasm-stack.cc',
         'wasm/wasm-run-utils.h',
       ],
       'conditions': [
@@ -270,6 +269,15 @@
             'test-disasm-ppc.cc'
           ],
         }],
+        ['v8_target_arch=="mips"', {
+          'sources': [  ### gcmole(arch:mips) ###
+            'test-assembler-mips.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips.cc',
+            'test-disasm-mips.cc',
+            'test-macro-assembler-mips.cc'
+          ],
+        }],
         ['v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             'test-assembler-mips.cc',
@@ -279,8 +287,17 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
+        ['v8_target_arch=="mips64"', {
+          'sources': [  ### gcmole(arch:mips64) ###
+            'test-assembler-mips64.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips64.cc',
+            'test-disasm-mips64.cc',
+            'test-macro-assembler-mips64.cc'
+          ],
+        }],
         ['v8_target_arch=="mips64el"', {
-          'sources': [
+          'sources': [  ### gcmole(arch:mips64el) ###
             'test-assembler-mips64.cc',
             'test-code-stubs.cc',
             'test-code-stubs-mips64.cc',
@@ -328,9 +345,9 @@
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
-          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
         }, {
-          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+          'dependencies': ['../../src/v8.gyp:v8'],
         }],
       ],
     },
@@ -373,14 +390,14 @@
       'target_name': 'generate-bytecode-expectations',
       'type': 'executable',
       'dependencies': [
-        '../../tools/gyp/v8.gyp:v8_libplatform',
+        '../../src/v8.gyp:v8_libplatform',
       ],
       'conditions': [
         ['component=="shared_library"', {
           # Same as cctest, we need to depend on the underlying static target.
-          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
         }, {
-          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+          'dependencies': ['../../src/v8.gyp:v8'],
         }],
       ],
       'include_dirs+': [
@@ -403,7 +420,7 @@
             'cctest',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'cctest_exe.isolate',
@@ -416,7 +433,7 @@
             'cctest_exe_run',
           ],
           'includes': [
-            '../../build/isolate.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'cctest.isolate',

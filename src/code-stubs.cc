@@ -8,7 +8,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
-#include "src/compiler/code-stub-assembler.h"
+#include "src/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
@@ -99,8 +99,7 @@ Code::Kind CodeStub::GetCodeKind() const {
 
 
 Code::Flags CodeStub::GetCodeFlags() const {
-  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState(),
-                            GetStubType());
+  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState());
 }
 
 
@@ -135,11 +134,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   CodeDesc desc;
   masm.GetCode(&desc);
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(
-      GetCodeKind(),
-      GetICState(),
-      GetExtraICState(),
-      GetStubType());
+  Code::Flags flags =
+      Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -390,19 +386,14 @@ void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
 
 
 bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
-  Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  Handle<Object> probe(
-      known_map_->FindInCodeCache(
-        strict() ?
-            *factory->strict_compare_ic_string() :
-            *factory->compare_ic_string(),
-        flags),
-      isolate());
-  if (probe->IsCode()) {
-    *code_out = Code::cast(*probe);
+  Name* name = strict() ? isolate()->heap()->strict_compare_ic_string()
+                        : isolate()->heap()->compare_ic_string();
+  Code* code = known_map_->LookupInCodeCache(name, flags);
+  if (code != nullptr) {
+    *code_out = code;
 #ifdef DEBUG
     CompareICStub decode((*code_out)->stub_key(), isolate());
     DCHECK(op() == decode.op());
@@ -455,16 +446,16 @@ void CompareICStub::Generate(MacroAssembler* masm) {
 
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone;
+  Zone zone(isolate()->allocator());
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
-                                        GetCodeFlags(), name);
+  CodeStubAssembler assembler(isolate(), &zone, descriptor, GetCodeFlags(),
+                              name);
   GenerateAssembly(&assembler);
   return assembler.GenerateCode();
 }
 
 void AllocateHeapNumberStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* result = assembler->AllocateHeapNumber();
@@ -472,7 +463,7 @@ void AllocateHeapNumberStub::GenerateAssembly(
 }
 
 void AllocateMutableHeapNumberStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
   Node* result = assembler->Allocate(HeapNumber::kSize);
@@ -483,10 +474,10 @@ void AllocateMutableHeapNumberStub::GenerateAssembly(
 }
 
 #define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)            \
-  void Allocate##Type##Stub::GenerateAssembly(                              \
-      compiler::CodeStubAssembler* assembler) const {                       \
-    compiler::Node* result = assembler->Allocate(                           \
-        Simd128Value::kSize, compiler::CodeStubAssembler::kNone);           \
+  void Allocate##Type##Stub::GenerateAssembly(CodeStubAssembler* assembler) \
+      const {                                                               \
+    compiler::Node* result =                                                \
+        assembler->Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
     compiler::Node* map_offset =                                            \
         assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag); \
     compiler::Node* map = assembler->IntPtrAdd(result, map_offset);         \
@@ -498,8 +489,7 @@ void AllocateMutableHeapNumberStub::GenerateAssembly(
 SIMD128_TYPES(SIMD128_GEN_ASM)
 #undef SIMD128_GEN_ASM
 
-void StringLengthStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   compiler::Node* value = assembler->Parameter(0);
   compiler::Node* string =
       assembler->LoadObjectField(value, JSValue::kValueOffset);
@@ -508,10 +498,10 @@ void StringLengthStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void AddStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -864,11 +854,10 @@ void AddStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
   }
 }
 
-void SubtractStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
-  typedef compiler::CodeStubAssembler::Label Label;
+void SubtractStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1031,8 +1020,362 @@ void SubtractStub::GenerateAssembly(
   }
 }
 
-void BitwiseAndStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void MultiplyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  using compiler::Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry point for floating point multiplication.
+  Label do_fmul(assembler);
+  Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
+      var_rhs_float64(assembler, MachineRepresentation::kFloat64);
+
+  Node* number_map = assembler->HeapNumberMapConstant();
+
+  // We might need to loop one or two times due to ToNumber conversions.
+  Variable var_lhs(assembler, MachineRepresentation::kTagged),
+      var_rhs(assembler, MachineRepresentation::kTagged);
+  Variable* loop_variables[] = {&var_lhs, &var_rhs};
+  Label loop(assembler, 2, loop_variables);
+  var_lhs.Bind(assembler->Parameter(0));
+  var_rhs.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* lhs = var_lhs.value();
+    Node* rhs = var_rhs.value();
+
+    Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
+    assembler->Branch(assembler->WordIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
+
+    assembler->Bind(&lhs_is_smi);
+    {
+      Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
+      assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+                        &rhs_is_not_smi);
+
+      assembler->Bind(&rhs_is_smi);
+      {
+        // Both {lhs} and {rhs} are Smis. Convert them to double and multiply.
+        // TODO(epertoso): use SmiMulWithOverflow once available.
+        var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
+        var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
+        assembler->Goto(&do_fmul);
+      }
+
+      assembler->Bind(&rhs_is_not_smi);
+      {
+        Node* rhs_map = assembler->LoadMap(rhs);
+
+        // Check if {rhs} is a HeapNumber.
+        Label rhs_is_number(assembler),
+            rhs_is_not_number(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                          &rhs_is_number, &rhs_is_not_number);
+
+        assembler->Bind(&rhs_is_number);
+        {
+          // Convert {lhs} to a double and multiply it with the value of {rhs}.
+          var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
+          var_rhs_float64.Bind(assembler->LoadHeapNumberValue(rhs));
+          assembler->Goto(&do_fmul);
+        }
+
+        assembler->Bind(&rhs_is_not_number);
+        {
+          // Multiplication is commutative, swap {lhs} with {rhs} and loop.
+          var_lhs.Bind(rhs);
+          var_rhs.Bind(lhs);
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&lhs_is_not_smi);
+    {
+      Node* lhs_map = assembler->LoadMap(lhs);
+
+      // Check if {lhs} is a HeapNumber.
+      Label lhs_is_number(assembler),
+          lhs_is_not_number(assembler, Label::kDeferred);
+      assembler->Branch(assembler->WordEqual(lhs_map, number_map),
+                        &lhs_is_number, &lhs_is_not_number);
+
+      assembler->Bind(&lhs_is_number);
+      {
+        // Check if {rhs} is a Smi.
+        Label rhs_is_smi(assembler), rhs_is_not_smi(assembler);
+        assembler->Branch(assembler->WordIsSmi(rhs), &rhs_is_smi,
+                          &rhs_is_not_smi);
+
+        assembler->Bind(&rhs_is_smi);
+        {
+          // Convert {rhs} to a double and multiply it with the value of {lhs}.
+          var_lhs_float64.Bind(assembler->LoadHeapNumberValue(lhs));
+          var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
+          assembler->Goto(&do_fmul);
+        }
+
+        assembler->Bind(&rhs_is_not_smi);
+        {
+          Node* rhs_map = assembler->LoadMap(rhs);
+
+          // Check if {rhs} is a HeapNumber.
+          Label rhs_is_number(assembler),
+              rhs_is_not_number(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(rhs_map, number_map),
+                            &rhs_is_number, &rhs_is_not_number);
+
+          assembler->Bind(&rhs_is_number);
+          {
+            // Both {lhs} and {rhs} are HeapNumbers. Load their values and
+            // multiply them.
+            var_lhs_float64.Bind(assembler->LoadHeapNumberValue(lhs));
+            var_rhs_float64.Bind(assembler->LoadHeapNumberValue(rhs));
+            assembler->Goto(&do_fmul);
+          }
+
+          assembler->Bind(&rhs_is_not_number);
+          {
+            // Multiplication is commutative, swap {lhs} with {rhs} and loop.
+            var_lhs.Bind(rhs);
+            var_rhs.Bind(lhs);
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&lhs_is_not_number);
+      {
+        // Convert {lhs} to a Number and loop.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_lhs.Bind(assembler->CallStub(callable, context, lhs));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fmul);
+  {
+    Node* value =
+        assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
+    Node* result = assembler->ChangeFloat64ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
+void DivideStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  using compiler::Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry point for floating point division.
+  Label do_fdiv(assembler);
+  Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
+      var_divisor_float64(assembler, MachineRepresentation::kFloat64);
+
+  Node* number_map = assembler->HeapNumberMapConstant();
+
+  // We might need to loop one or two times due to ToNumber conversions.
+  Variable var_dividend(assembler, MachineRepresentation::kTagged),
+      var_divisor(assembler, MachineRepresentation::kTagged);
+  Variable* loop_variables[] = {&var_dividend, &var_divisor};
+  Label loop(assembler, 2, loop_variables);
+  var_dividend.Bind(assembler->Parameter(0));
+  var_divisor.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* dividend = var_dividend.value();
+    Node* divisor = var_divisor.value();
+
+    Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
+    assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+                      &dividend_is_not_smi);
+
+    assembler->Bind(&dividend_is_smi);
+    {
+      Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                        &divisor_is_not_smi);
+
+      assembler->Bind(&divisor_is_smi);
+      {
+        Label bailout(assembler);
+
+        // Do floating point division if {divisor} is zero.
+        assembler->GotoIf(
+            assembler->WordEqual(divisor, assembler->IntPtrConstant(0)),
+            &bailout);
+
+        // Do floating point division {dividend} is zero and {divisor} is
+        // negative.
+        Label dividend_is_zero(assembler), dividend_is_not_zero(assembler);
+        assembler->Branch(
+            assembler->WordEqual(dividend, assembler->IntPtrConstant(0)),
+            &dividend_is_zero, &dividend_is_not_zero);
+
+        assembler->Bind(&dividend_is_zero);
+        {
+          assembler->GotoIf(
+              assembler->IntPtrLessThan(divisor, assembler->IntPtrConstant(0)),
+              &bailout);
+          assembler->Goto(&dividend_is_not_zero);
+        }
+        assembler->Bind(&dividend_is_not_zero);
+
+        Node* untagged_divisor = assembler->SmiUntag(divisor);
+        Node* untagged_dividend = assembler->SmiUntag(dividend);
+
+        // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
+        // if the Smi size is 31) and {divisor} is -1.
+        Label divisor_is_minus_one(assembler),
+            divisor_is_not_minus_one(assembler);
+        assembler->Branch(assembler->Word32Equal(untagged_divisor,
+                                                 assembler->Int32Constant(-1)),
+                          &divisor_is_minus_one, &divisor_is_not_minus_one);
+
+        assembler->Bind(&divisor_is_minus_one);
+        {
+          assembler->GotoIf(
+              assembler->Word32Equal(
+                  untagged_dividend,
+                  assembler->Int32Constant(
+                      kSmiValueSize == 32 ? kMinInt : (kMinInt >> 1))),
+              &bailout);
+          assembler->Goto(&divisor_is_not_minus_one);
+        }
+        assembler->Bind(&divisor_is_not_minus_one);
+
+        // TODO(epertoso): consider adding a machine instruction that returns
+        // both the result and the remainder.
+        Node* untagged_result =
+            assembler->Int32Div(untagged_dividend, untagged_divisor);
+        Node* truncated =
+            assembler->IntPtrMul(untagged_result, untagged_divisor);
+        // Do floating point division if the remainder is not 0.
+        assembler->GotoIf(
+            assembler->Word32NotEqual(untagged_dividend, truncated), &bailout);
+        assembler->Return(assembler->SmiTag(untagged_result));
+
+        // Bailout: convert {dividend} and {divisor} to double and do double
+        // division.
+        assembler->Bind(&bailout);
+        {
+          var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+          var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+      }
+
+      assembler->Bind(&divisor_is_not_smi);
+      {
+        Node* divisor_map = assembler->LoadMap(divisor);
+
+        // Check if {divisor} is a HeapNumber.
+        Label divisor_is_number(assembler),
+            divisor_is_not_number(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                          &divisor_is_number, &divisor_is_not_number);
+
+        assembler->Bind(&divisor_is_number);
+        {
+          // Convert {dividend} to a double and divide it with the value of
+          // {divisor}.
+          var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+          var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+
+        assembler->Bind(&divisor_is_not_number);
+        {
+          // Convert {divisor} to a number and loop.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&dividend_is_not_smi);
+    {
+      Node* dividend_map = assembler->LoadMap(dividend);
+
+      // Check if {dividend} is a HeapNumber.
+      Label dividend_is_number(assembler),
+          dividend_is_not_number(assembler, Label::kDeferred);
+      assembler->Branch(assembler->WordEqual(dividend_map, number_map),
+                        &dividend_is_number, &dividend_is_not_number);
+
+      assembler->Bind(&dividend_is_number);
+      {
+        // Check if {divisor} is a Smi.
+        Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+        assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                          &divisor_is_not_smi);
+
+        assembler->Bind(&divisor_is_smi);
+        {
+          // Convert {divisor} to a double and use it for a floating point
+          // division.
+          var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+          var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+          assembler->Goto(&do_fdiv);
+        }
+
+        assembler->Bind(&divisor_is_not_smi);
+        {
+          Node* divisor_map = assembler->LoadMap(divisor);
+
+          // Check if {divisor} is a HeapNumber.
+          Label divisor_is_number(assembler),
+              divisor_is_not_number(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                            &divisor_is_number, &divisor_is_not_number);
+
+          assembler->Bind(&divisor_is_number);
+          {
+            // Both {dividend} and {divisor} are HeapNumbers. Load their values
+            // and divide them.
+            var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+            var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+            assembler->Goto(&do_fdiv);
+          }
+
+          assembler->Bind(&divisor_is_not_number);
+          {
+            // Convert {divisor} to a number and loop.
+            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&dividend_is_not_number);
+      {
+        // Convert {dividend} to a Number and loop.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_dividend.Bind(assembler->CallStub(callable, context, dividend));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fdiv);
+  {
+    Node* value = assembler->Float64Div(var_dividend_float64.value(),
+                                        var_divisor_float64.value());
+    Node* result = assembler->ChangeFloat64ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
+void BitwiseAndStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1045,8 +1388,201 @@ void BitwiseAndStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void BitwiseOrStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ModulusStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  using compiler::Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(2);
+
+  // Shared entry point for floating point modulus.
+  Label do_fmod(assembler);
+  Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
+      var_divisor_float64(assembler, MachineRepresentation::kFloat64);
+
+  Node* number_map = assembler->HeapNumberMapConstant();
+
+  // We might need to loop one or two times due to ToNumber conversions.
+  Variable var_dividend(assembler, MachineRepresentation::kTagged),
+      var_divisor(assembler, MachineRepresentation::kTagged);
+  Variable* loop_variables[] = {&var_dividend, &var_divisor};
+  Label loop(assembler, 2, loop_variables);
+  var_dividend.Bind(assembler->Parameter(0));
+  var_divisor.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    Node* dividend = var_dividend.value();
+    Node* divisor = var_divisor.value();
+
+    Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
+    assembler->Branch(assembler->WordIsSmi(dividend), &dividend_is_smi,
+                      &dividend_is_not_smi);
+
+    assembler->Bind(&dividend_is_smi);
+    {
+      Label dividend_is_not_zero(assembler);
+      Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+      assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                        &divisor_is_not_smi);
+
+      assembler->Bind(&divisor_is_smi);
+      {
+        var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+        var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+        assembler->Goto(&do_fmod);
+      }
+
+      assembler->Bind(&divisor_is_not_smi);
+      {
+        Node* divisor_map = assembler->LoadMap(divisor);
+
+        // Check if {divisor} is a HeapNumber.
+        Label divisor_is_number(assembler),
+            divisor_is_not_number(assembler, Label::kDeferred);
+        assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                          &divisor_is_number, &divisor_is_not_number);
+
+        assembler->Bind(&divisor_is_number);
+        {
+          // Convert {dividend} to a double and compute its modulus with the
+          // value of {dividend}.
+          var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
+          var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+          assembler->Goto(&do_fmod);
+        }
+
+        assembler->Bind(&divisor_is_not_number);
+        {
+          // Convert {divisor} to a number and loop.
+          Callable callable = CodeFactory::NonNumberToNumber(isolate());
+          var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+          assembler->Goto(&loop);
+        }
+      }
+    }
+
+    assembler->Bind(&dividend_is_not_smi);
+    {
+      Node* dividend_map = assembler->LoadMap(dividend);
+
+      // Check if {dividend} is a HeapNumber.
+      Label dividend_is_number(assembler),
+          dividend_is_not_number(assembler, Label::kDeferred);
+      assembler->Branch(assembler->WordEqual(dividend_map, number_map),
+                        &dividend_is_number, &dividend_is_not_number);
+
+      assembler->Bind(&dividend_is_number);
+      {
+        // Check if {divisor} is a Smi.
+        Label divisor_is_smi(assembler), divisor_is_not_smi(assembler);
+        assembler->Branch(assembler->WordIsSmi(divisor), &divisor_is_smi,
+                          &divisor_is_not_smi);
+
+        assembler->Bind(&divisor_is_smi);
+        {
+          // Convert {divisor} to a double and compute {dividend}'s modulus with
+          // it.
+          var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+          var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
+          assembler->Goto(&do_fmod);
+        }
+
+        assembler->Bind(&divisor_is_not_smi);
+        {
+          Node* divisor_map = assembler->LoadMap(divisor);
+
+          // Check if {divisor} is a HeapNumber.
+          Label divisor_is_number(assembler),
+              divisor_is_not_number(assembler, Label::kDeferred);
+          assembler->Branch(assembler->WordEqual(divisor_map, number_map),
+                            &divisor_is_number, &divisor_is_not_number);
+
+          assembler->Bind(&divisor_is_number);
+          {
+            // Both {dividend} and {divisor} are HeapNumbers. Load their values
+            // and compute their modulus.
+            var_dividend_float64.Bind(assembler->LoadHeapNumberValue(dividend));
+            var_divisor_float64.Bind(assembler->LoadHeapNumberValue(divisor));
+            assembler->Goto(&do_fmod);
+          }
+
+          assembler->Bind(&divisor_is_not_number);
+          {
+            // Convert {divisor} to a number and loop.
+            Callable callable = CodeFactory::NonNumberToNumber(isolate());
+            var_divisor.Bind(assembler->CallStub(callable, context, divisor));
+            assembler->Goto(&loop);
+          }
+        }
+      }
+
+      assembler->Bind(&dividend_is_not_number);
+      {
+        // Convert {dividend} to a Number and loop.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        var_dividend.Bind(assembler->CallStub(callable, context, dividend));
+        assembler->Goto(&loop);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fmod);
+  {
+    Node* value = assembler->Float64Mod(var_dividend_float64.value(),
+                                        var_divisor_float64.value());
+    Node* result = assembler->ChangeFloat64ToTagged(value);
+    assembler->Return(result);
+  }
+}
+
+void ShiftLeftStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Shl(lhs_value, shift_count);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  assembler->Return(result);
+}
+
+void ShiftRightStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Sar(lhs_value, shift_count);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  assembler->Return(result);
+}
+
+void ShiftRightLogicalStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  using compiler::Node;
+
+  Node* lhs = assembler->Parameter(0);
+  Node* rhs = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* lhs_value = assembler->TruncateTaggedToWord32(context, lhs);
+  Node* rhs_value = assembler->TruncateTaggedToWord32(context, rhs);
+  Node* shift_count =
+      assembler->Word32And(rhs_value, assembler->Int32Constant(0x1f));
+  Node* value = assembler->Word32Shr(lhs_value, shift_count);
+  Node* result = assembler->ChangeUint32ToTagged(value);
+  assembler->Return(result);
+}
+
+void BitwiseOrStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1059,8 +1595,7 @@ void BitwiseOrStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void BitwiseXorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void BitwiseXorStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   using compiler::Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -1073,6 +1608,168 @@ void BitwiseXorStub::GenerateAssembly(
   assembler->Return(result);
 }
 
+void IncStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // Shared entry for floating point increment.
+  Label do_finc(assembler);
+  Variable var_finc_value(assembler, MachineRepresentation::kFloat64);
+
+  // We might need to try again due to ToNumber conversion.
+  Variable value_var(assembler, MachineRepresentation::kTagged);
+  Label start(assembler, &value_var);
+  value_var.Bind(assembler->Parameter(0));
+  assembler->Goto(&start);
+  assembler->Bind(&start);
+  {
+    Node* value = value_var.value();
+
+    Label if_issmi(assembler), if_isnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
+
+    assembler->Bind(&if_issmi);
+    {
+      // Try fast Smi addition first.
+      Node* one = assembler->SmiConstant(Smi::FromInt(1));
+      Node* pair = assembler->SmiAddWithOverflow(value, one);
+      Node* overflow = assembler->Projection(1, pair);
+
+      // Check if the Smi additon overflowed.
+      Label if_overflow(assembler), if_notoverflow(assembler);
+      assembler->Branch(overflow, &if_overflow, &if_notoverflow);
+
+      assembler->Bind(&if_notoverflow);
+      assembler->Return(assembler->Projection(0, pair));
+
+      assembler->Bind(&if_overflow);
+      {
+        var_finc_value.Bind(assembler->SmiToFloat64(value));
+        assembler->Goto(&do_finc);
+      }
+    }
+
+    assembler->Bind(&if_isnotsmi);
+    {
+      // Check if the value is a HeapNumber.
+      Label if_valueisnumber(assembler),
+          if_valuenotnumber(assembler, Label::kDeferred);
+      Node* value_map = assembler->LoadMap(value);
+      Node* number_map = assembler->HeapNumberMapConstant();
+      assembler->Branch(assembler->WordEqual(value_map, number_map),
+                        &if_valueisnumber, &if_valuenotnumber);
+
+      assembler->Bind(&if_valueisnumber);
+      {
+        // Load the HeapNumber value.
+        var_finc_value.Bind(assembler->LoadHeapNumberValue(value));
+        assembler->Goto(&do_finc);
+      }
+
+      assembler->Bind(&if_valuenotnumber);
+      {
+        // Convert to a Number first and try again.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        value_var.Bind(assembler->CallStub(callable, context, value));
+        assembler->Goto(&start);
+      }
+    }
+  }
+
+  assembler->Bind(&do_finc);
+  {
+    Node* finc_value = var_finc_value.value();
+    Node* one = assembler->Float64Constant(1.0);
+    Node* finc_result = assembler->Float64Add(finc_value, one);
+    Node* result = assembler->ChangeFloat64ToTagged(finc_result);
+    assembler->Return(result);
+  }
+}
+
+void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // Shared entry for floating point decrement.
+  Label do_fdec(assembler);
+  Variable var_fdec_value(assembler, MachineRepresentation::kFloat64);
+
+  // We might need to try again due to ToNumber conversion.
+  Variable value_var(assembler, MachineRepresentation::kTagged);
+  Label start(assembler, &value_var);
+  value_var.Bind(assembler->Parameter(0));
+  assembler->Goto(&start);
+  assembler->Bind(&start);
+  {
+    Node* value = value_var.value();
+
+    Label if_issmi(assembler), if_isnotsmi(assembler);
+    assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
+
+    assembler->Bind(&if_issmi);
+    {
+      // Try fast Smi subtraction first.
+      Node* one = assembler->SmiConstant(Smi::FromInt(1));
+      Node* pair = assembler->SmiSubWithOverflow(value, one);
+      Node* overflow = assembler->Projection(1, pair);
+
+      // Check if the Smi subtraction overflowed.
+      Label if_overflow(assembler), if_notoverflow(assembler);
+      assembler->Branch(overflow, &if_overflow, &if_notoverflow);
+
+      assembler->Bind(&if_notoverflow);
+      assembler->Return(assembler->Projection(0, pair));
+
+      assembler->Bind(&if_overflow);
+      {
+        var_fdec_value.Bind(assembler->SmiToFloat64(value));
+        assembler->Goto(&do_fdec);
+      }
+    }
+
+    assembler->Bind(&if_isnotsmi);
+    {
+      // Check if the value is a HeapNumber.
+      Label if_valueisnumber(assembler),
+          if_valuenotnumber(assembler, Label::kDeferred);
+      Node* value_map = assembler->LoadMap(value);
+      Node* number_map = assembler->HeapNumberMapConstant();
+      assembler->Branch(assembler->WordEqual(value_map, number_map),
+                        &if_valueisnumber, &if_valuenotnumber);
+
+      assembler->Bind(&if_valueisnumber);
+      {
+        // Load the HeapNumber value.
+        var_fdec_value.Bind(assembler->LoadHeapNumberValue(value));
+        assembler->Goto(&do_fdec);
+      }
+
+      assembler->Bind(&if_valuenotnumber);
+      {
+        // Convert to a Number first and try again.
+        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        value_var.Bind(assembler->CallStub(callable, context, value));
+        assembler->Goto(&start);
+      }
+    }
+  }
+
+  assembler->Bind(&do_fdec);
+  {
+    Node* fdec_value = var_fdec_value.value();
+    Node* one = assembler->Float64Constant(1.0);
+    Node* fdec_result = assembler->Float64Sub(fdec_value, one);
+    Node* result = assembler->ChangeFloat64ToTagged(fdec_result);
+    assembler->Return(result);
+  }
+}
+
 namespace {
 
 enum RelationalComparisonMode {
@@ -1082,11 +1779,11 @@ enum RelationalComparisonMode {
   kGreaterThanOrEqual
 };
 
-void GenerateAbstractRelationalComparison(
-    compiler::CodeStubAssembler* assembler, RelationalComparisonMode mode) {
-  typedef compiler::CodeStubAssembler::Label Label;
+void GenerateAbstractRelationalComparison(CodeStubAssembler* assembler,
+                                          RelationalComparisonMode mode) {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -1425,17 +2122,16 @@ void GenerateAbstractRelationalComparison(
 
 enum ResultMode { kDontNegateResult, kNegateResult };
 
-void GenerateEqual_Same(compiler::CodeStubAssembler* assembler,
-                        compiler::Node* value,
-                        compiler::CodeStubAssembler::Label* if_equal,
-                        compiler::CodeStubAssembler::Label* if_notequal) {
+void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
+                        CodeStubAssembler::Label* if_equal,
+                        CodeStubAssembler::Label* if_notequal) {
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
   // left and the right hand side reference exactly the same value.
   // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
   // seems to be what is tested in the current SIMD.js testsuite.
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   // Check if {value} is a Smi or a HeapObject.
@@ -1472,11 +2168,10 @@ void GenerateEqual_Same(compiler::CodeStubAssembler* assembler,
 }
 
 void GenerateEqual_Simd128Value_HeapObject(
-    compiler::CodeStubAssembler* assembler, compiler::Node* lhs,
-    compiler::Node* lhs_map, compiler::Node* rhs, compiler::Node* rhs_map,
-    compiler::CodeStubAssembler::Label* if_equal,
-    compiler::CodeStubAssembler::Label* if_notequal) {
-  typedef compiler::CodeStubAssembler::Label Label;
+    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* lhs_map,
+    compiler::Node* rhs, compiler::Node* rhs_map,
+    CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal) {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   // Check if {lhs} and {rhs} have the same map.
@@ -1551,14 +2246,14 @@ void GenerateEqual_Simd128Value_HeapObject(
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
+void GenerateEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // This is a slightly optimized version of Object::Equals represented as
   // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
   // change something functionality wise in here, remember to update the
   // Object::Equals method as well.
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* context = assembler->Parameter(2);
 
@@ -2079,8 +2774,7 @@ void GenerateEqual(compiler::CodeStubAssembler* assembler, ResultMode mode) {
   assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
 }
 
-void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
-                         ResultMode mode) {
+void GenerateStrictEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -2129,7 +2823,7 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   //   }
   // }
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
 
   Node* lhs = assembler->Parameter(0);
@@ -2336,11 +3030,11 @@ void GenerateStrictEqual(compiler::CodeStubAssembler* assembler,
   assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
 }
 
-void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
+void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
                                         RelationalComparisonMode mode) {
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* lhs = assembler->Parameter(0);
   Node* rhs = assembler->Parameter(1);
@@ -2519,8 +3213,7 @@ void GenerateStringRelationalComparison(compiler::CodeStubAssembler* assembler,
   }
 }
 
-void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
-                         ResultMode mode) {
+void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -2537,9 +3230,9 @@ void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
   // }
   // return %StringEqual(lhs, rhs);
 
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Variable Variable;
+  typedef CodeStubAssembler::Variable Variable;
 
   Node* lhs = assembler->Parameter(0);
   Node* rhs = assembler->Parameter(1);
@@ -2698,82 +3391,166 @@ void GenerateStringEqual(compiler::CodeStubAssembler* assembler,
 
 }  // namespace
 
-void LessThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* context = assembler->Parameter(3);
+  Node* receiver = assembler->Parameter(0);
+  // For now we only support receiver_is_holder.
+  DCHECK(receiver_is_holder());
+  Node* holder = receiver;
+  Node* map = assembler->LoadMap(receiver);
+  Node* descriptors = assembler->LoadMapDescriptors(map);
+  Node* offset =
+      assembler->Int32Constant(DescriptorArray::ToValueIndex(index()));
+  Node* callback =
+      assembler->LoadFixedArrayElementInt32Index(descriptors, offset);
+  assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
+                          holder, callback);
+}
+
+void LessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kLessThan);
 }
 
-void LessThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void LessThanOrEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kLessThanOrEqual);
 }
 
-void GreaterThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void GreaterThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kGreaterThan);
 }
 
 void GreaterThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateAbstractRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
-void EqualStub::GenerateAssembly(compiler::CodeStubAssembler* assembler) const {
+void EqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateEqual(assembler, kDontNegateResult);
 }
 
-void NotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void NotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateEqual(assembler, kNegateResult);
 }
 
-void StrictEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StrictEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStrictEqual(assembler, kDontNegateResult);
 }
 
-void StrictNotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StrictNotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStrictEqual(assembler, kNegateResult);
 }
 
-void StringEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringEqual(assembler, kDontNegateResult);
 }
 
-void StringNotEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringNotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringEqual(assembler, kNegateResult);
 }
 
-void StringLessThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void StringLessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kLessThan);
 }
 
 void StringLessThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
 }
 
 void StringGreaterThanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kGreaterThan);
 }
 
 void StringGreaterThanOrEqualStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
 }
 
-void ToBooleanStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_len(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_len);
+  var_len.Bind(assembler->Parameter(0));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Shared entry points.
+    Label return_len(assembler),
+        return_two53minus1(assembler, Label::kDeferred),
+        return_zero(assembler, Label::kDeferred);
+
+    // Load the current {len} value.
+    Node* len = var_len.value();
+
+    // Check if {len} is a positive Smi.
+    assembler->GotoIf(assembler->WordIsPositiveSmi(len), &return_len);
+
+    // Check if {len} is a (negative) Smi.
+    assembler->GotoIf(assembler->WordIsSmi(len), &return_zero);
+
+    // Check if {len} is a HeapNumber.
+    Label if_lenisheapnumber(assembler),
+        if_lenisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->WordEqual(assembler->LoadMap(len),
+                                           assembler->HeapNumberMapConstant()),
+                      &if_lenisheapnumber, &if_lenisnotheapnumber);
+
+    assembler->Bind(&if_lenisheapnumber);
+    {
+      // Load the floating-point value of {len}.
+      Node* len_value = assembler->LoadHeapNumberValue(len);
+
+      // Check if {len} is not greater than zero.
+      assembler->GotoUnless(assembler->Float64GreaterThan(
+                                len_value, assembler->Float64Constant(0.0)),
+                            &return_zero);
+
+      // Check if {len} is greater than or equal to 2^53-1.
+      assembler->GotoIf(
+          assembler->Float64GreaterThanOrEqual(
+              len_value, assembler->Float64Constant(kMaxSafeInteger)),
+          &return_two53minus1);
+
+      // Round the {len} towards -Infinity.
+      Node* value = assembler->Float64Floor(len_value);
+      Node* result = assembler->ChangeFloat64ToTagged(value);
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_lenisnotheapnumber);
+    {
+      // Need to convert {len} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_len.Bind(assembler->CallStub(callable, context, len));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&return_len);
+    assembler->Return(var_len.value());
+
+    assembler->Bind(&return_two53minus1);
+    assembler->Return(assembler->NumberConstant(kMaxSafeInteger));
+
+    assembler->Bind(&return_zero);
+    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
+  }
+}
+
+void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
 
   Node* value = assembler->Parameter(0);
-  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
+  Label if_valueissmi(assembler), if_valueisnotsmi(assembler),
+      return_true(assembler), return_false(assembler);
 
   // Check if {value} is a Smi or a HeapObject.
   assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
@@ -2782,21 +3559,15 @@ void ToBooleanStub::GenerateAssembly(
   assembler->Bind(&if_valueissmi);
   {
     // The {value} is a Smi, only need to check against zero.
-    Label if_valueiszero(assembler), if_valueisnotzero(assembler);
     assembler->Branch(assembler->SmiEqual(value, assembler->SmiConstant(0)),
-                      &if_valueiszero, &if_valueisnotzero);
-
-    assembler->Bind(&if_valueiszero);
-    assembler->Return(assembler->BooleanConstant(false));
-
-    assembler->Bind(&if_valueisnotzero);
-    assembler->Return(assembler->BooleanConstant(true));
+                      &return_false, &return_true);
   }
 
   assembler->Bind(&if_valueisnotsmi);
   {
-    Label if_valueisstring(assembler), if_valueisheapnumber(assembler),
-        if_valueisoddball(assembler), if_valueisother(assembler);
+    Label if_valueisstring(assembler), if_valueisnotstring(assembler),
+        if_valueisheapnumber(assembler), if_valueisoddball(assembler),
+        if_valueisother(assembler);
 
     // The {value} is a HeapObject, load its map.
     Node* value_map = assembler->LoadMap(value);
@@ -2808,24 +3579,20 @@ void ToBooleanStub::GenerateAssembly(
 
     // Dispatch based on the instance type; we distinguish all String instance
     // types, the HeapNumber type and the Oddball type.
-    size_t const kNumCases = FIRST_NONSTRING_TYPE + 2;
+    assembler->Branch(assembler->Int32LessThan(
+                          value_instance_type,
+                          assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                      &if_valueisstring, &if_valueisnotstring);
+    assembler->Bind(&if_valueisnotstring);
+    size_t const kNumCases = 2;
     Label* case_labels[kNumCases];
     int32_t case_values[kNumCases];
-    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-      case_labels[i] = new Label(assembler);
-      case_values[i] = i;
-    }
-    case_labels[FIRST_NONSTRING_TYPE + 0] = &if_valueisheapnumber;
-    case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
-    case_labels[FIRST_NONSTRING_TYPE + 1] = &if_valueisoddball;
-    case_values[FIRST_NONSTRING_TYPE + 1] = ODDBALL_TYPE;
+    case_labels[0] = &if_valueisheapnumber;
+    case_values[0] = HEAP_NUMBER_TYPE;
+    case_labels[1] = &if_valueisoddball;
+    case_values[1] = ODDBALL_TYPE;
     assembler->Switch(value_instance_type, &if_valueisother, case_values,
                       case_labels, arraysize(case_values));
-    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-      assembler->Bind(case_labels[i]);
-      assembler->Goto(&if_valueisstring);
-      delete case_labels[i];
-    }
 
     assembler->Bind(&if_valueisstring);
     {
@@ -2834,16 +3601,9 @@ void ToBooleanStub::GenerateAssembly(
           assembler->LoadObjectField(value, String::kLengthOffset);
 
       // Check if the {value} is the empty string.
-      Label if_valueisempty(assembler), if_valueisnotempty(assembler);
       assembler->Branch(
           assembler->SmiEqual(value_length, assembler->SmiConstant(0)),
-          &if_valueisempty, &if_valueisnotempty);
-
-      assembler->Bind(&if_valueisempty);
-      assembler->Return(assembler->BooleanConstant(false));
-
-      assembler->Bind(&if_valueisnotempty);
-      assembler->Return(assembler->BooleanConstant(true));
+          &return_false, &return_true);
     }
 
     assembler->Bind(&if_valueisheapnumber);
@@ -2852,25 +3612,15 @@ void ToBooleanStub::GenerateAssembly(
           MachineType::Float64(), value,
           assembler->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
 
-      Label if_valueispositive(assembler), if_valueisnotpositive(assembler),
-          if_valueisnegative(assembler), if_valueisnanorzero(assembler);
+      Label if_valueisnotpositive(assembler);
       assembler->Branch(assembler->Float64LessThan(
                             assembler->Float64Constant(0.0), value_value),
-                        &if_valueispositive, &if_valueisnotpositive);
-
-      assembler->Bind(&if_valueispositive);
-      assembler->Return(assembler->BooleanConstant(true));
+                        &return_true, &if_valueisnotpositive);
 
       assembler->Bind(&if_valueisnotpositive);
       assembler->Branch(assembler->Float64LessThan(
                             value_value, assembler->Float64Constant(0.0)),
-                        &if_valueisnegative, &if_valueisnanorzero);
-
-      assembler->Bind(&if_valueisnegative);
-      assembler->Return(assembler->BooleanConstant(true));
-
-      assembler->Bind(&if_valueisnanorzero);
-      assembler->Return(assembler->BooleanConstant(false));
+                        &return_true, &return_false);
     }
 
     assembler->Bind(&if_valueisoddball);
@@ -2891,23 +3641,81 @@ void ToBooleanStub::GenerateAssembly(
           assembler->Int32Constant(1 << Map::kIsUndetectable));
 
       // Check if the {value} is undetectable.
-      Label if_valueisundetectable(assembler),
-          if_valueisnotundetectable(assembler);
       assembler->Branch(assembler->Word32Equal(value_map_undetectable,
                                                assembler->Int32Constant(0)),
-                        &if_valueisnotundetectable, &if_valueisundetectable);
-
-      assembler->Bind(&if_valueisundetectable);
-      assembler->Return(assembler->BooleanConstant(false));
-
-      assembler->Bind(&if_valueisnotundetectable);
-      assembler->Return(assembler->BooleanConstant(true));
+                        &return_true, &return_false);
     }
+  }
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+}
+
+void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_arg(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_arg);
+  var_arg.Bind(assembler->Parameter(0));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Shared entry points.
+    Label return_arg(assembler), return_zero(assembler, Label::kDeferred);
+
+    // Load the current {arg} value.
+    Node* arg = var_arg.value();
+
+    // Check if {arg} is a Smi.
+    assembler->GotoIf(assembler->WordIsSmi(arg), &return_arg);
+
+    // Check if {arg} is a HeapNumber.
+    Label if_argisheapnumber(assembler),
+        if_argisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->WordEqual(assembler->LoadMap(arg),
+                                           assembler->HeapNumberMapConstant()),
+                      &if_argisheapnumber, &if_argisnotheapnumber);
+
+    assembler->Bind(&if_argisheapnumber);
+    {
+      // Load the floating-point value of {arg}.
+      Node* arg_value = assembler->LoadHeapNumberValue(arg);
+
+      // Check if {arg} is NaN.
+      assembler->GotoUnless(assembler->Float64Equal(arg_value, arg_value),
+                            &return_zero);
+
+      // Truncate {arg} towards zero.
+      Node* value = assembler->Float64Trunc(arg_value);
+      var_arg.Bind(assembler->ChangeFloat64ToTagged(value));
+      assembler->Goto(&return_arg);
+    }
+
+    assembler->Bind(&if_argisnotheapnumber);
+    {
+      // Need to convert {arg} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_arg.Bind(assembler->CallStub(callable, context, arg));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&return_arg);
+    assembler->Return(var_arg.value());
+
+    assembler->Bind(&return_zero);
+    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
   }
 }
 
 void StoreInterceptorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
   Node* receiver = assembler->Parameter(0);
   Node* name = assembler->Parameter(1);
@@ -2918,9 +3726,9 @@ void StoreInterceptorStub::GenerateAssembly(
 }
 
 void LoadIndexedInterceptorStub::GenerateAssembly(
-    compiler::CodeStubAssembler* assembler) const {
+    CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  typedef compiler::CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Label Label;
   Node* receiver = assembler->Parameter(0);
   Node* key = assembler->Parameter(1);
   Node* slot = assembler->Parameter(2);
@@ -2937,6 +3745,132 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
   assembler->Bind(&if_keyisinvalid);
   assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key,
                              slot, vector);
+}
+
+// static
+bool FastCloneShallowObjectStub::IsSupported(ObjectLiteral* expr) {
+  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
+  // support copy-on-write (COW) elements for now.
+  // TODO(mvstanton): make object literals support COW elements.
+  return expr->fast_elements() && expr->has_shallow_properties() &&
+         expr->properties_count() <= kMaximumClonedProperties;
+}
+
+// static
+int FastCloneShallowObjectStub::PropertiesCount(int literal_length) {
+  // This heuristic of setting empty literals to have
+  // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the
+  // runtime.
+  // TODO(verwaest): Unify this with the heuristic in the runtime.
+  return literal_length == 0
+             ? JSObject::kInitialGlobalObjectUnusedPropertiesCount
+             : literal_length;
+}
+
+// static
+compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
+    CodeStubAssembler* assembler, compiler::CodeAssembler::Label* call_runtime,
+    compiler::Node* closure, compiler::Node* literals_index,
+    compiler::Node* properties_count) {
+  typedef compiler::Node Node;
+  typedef compiler::CodeAssembler::Label Label;
+  typedef compiler::CodeAssembler::Variable Variable;
+
+  Node* undefined = assembler->UndefinedConstant();
+  Node* literals_array =
+      assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* allocation_site = assembler->LoadFixedArrayElementSmiIndex(
+      literals_array, literals_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize);
+  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
+                    call_runtime);
+
+  // Calculate the object and allocation size based on the properties count.
+  Node* object_size = assembler->IntPtrAdd(
+      assembler->WordShl(properties_count, kPointerSizeLog2),
+      assembler->IntPtrConstant(JSObject::kHeaderSize));
+  Node* allocation_size = object_size;
+  if (FLAG_allocation_site_pretenuring) {
+    allocation_size = assembler->IntPtrAdd(
+        object_size, assembler->IntPtrConstant(AllocationMemento::kSize));
+  }
+  Node* boilerplate = assembler->LoadObjectField(
+      allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = assembler->LoadMap(boilerplate);
+  Node* instance_size = assembler->LoadMapInstanceSize(boilerplate_map);
+  Node* size_in_words = assembler->WordShr(object_size, kPointerSizeLog2);
+  assembler->GotoUnless(assembler->Word32Equal(instance_size, size_in_words),
+                        call_runtime);
+
+  Node* copy = assembler->Allocate(allocation_size);
+
+  // Copy boilerplate elements.
+  Variable offset(assembler, MachineType::PointerRepresentation());
+  offset.Bind(assembler->IntPtrConstant(-kHeapObjectTag));
+  Node* end_offset = assembler->IntPtrAdd(object_size, offset.value());
+  Label loop_body(assembler, &offset), loop_check(assembler, &offset);
+  // We should always have an object size greater than zero.
+  assembler->Goto(&loop_body);
+  assembler->Bind(&loop_body);
+  {
+    // The Allocate above guarantees that the copy lies in new space. This
+    // allows us to skip write barriers. This is necessary since we may also be
+    // copying unboxed doubles.
+    Node* field =
+        assembler->Load(MachineType::IntPtr(), boilerplate, offset.value());
+    assembler->StoreNoWriteBarrier(MachineType::PointerRepresentation(), copy,
+                                   offset.value(), field);
+    assembler->Goto(&loop_check);
+  }
+  assembler->Bind(&loop_check);
+  {
+    offset.Bind(assembler->IntPtrAdd(offset.value(),
+                                     assembler->IntPtrConstant(kPointerSize)));
+    assembler->GotoUnless(
+        assembler->IntPtrGreaterThanOrEqual(offset.value(), end_offset),
+        &loop_body);
+  }
+
+  if (FLAG_allocation_site_pretenuring) {
+    Node* memento = assembler->InnerAllocate(copy, object_size);
+    assembler->StoreObjectFieldNoWriteBarrier(
+        memento, HeapObject::kMapOffset,
+        assembler->LoadRoot(Heap::kAllocationMementoMapRootIndex));
+    assembler->StoreObjectFieldNoWriteBarrier(
+        memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
+    Node* memento_create_count = assembler->LoadObjectField(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset);
+    memento_create_count = assembler->SmiAdd(
+        memento_create_count, assembler->SmiConstant(Smi::FromInt(1)));
+    assembler->StoreObjectFieldNoWriteBarrier(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset,
+        memento_create_count);
+  }
+
+  // TODO(verwaest): Allocate and fill in double boxes.
+  return copy;
+}
+
+void FastCloneShallowObjectStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  Label call_runtime(assembler);
+  Node* closure = assembler->Parameter(0);
+  Node* literals_index = assembler->Parameter(1);
+
+  Node* properties_count =
+      assembler->IntPtrConstant(PropertiesCount(this->length()));
+  Node* copy = GenerateFastPath(assembler, &call_runtime, closure,
+                                literals_index, properties_count);
+  assembler->Return(copy);
+
+  assembler->Bind(&call_runtime);
+  Node* constant_properties = assembler->Parameter(2);
+  Node* flags = assembler->Parameter(3);
+  Node* context = assembler->Parameter(4);
+  assembler->TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                             literals_index, constant_properties, flags);
 }
 
 template<class StateType>
@@ -3052,11 +3986,7 @@ ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
   return VectorStoreTransitionDescriptor(isolate());
 }
 
-
-void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(Runtime::FunctionForId(Runtime::kNewClosure)->entry);
-}
-
+void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
 
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
@@ -3082,14 +4012,6 @@ void FastCloneShallowArrayStub::InitializeDescriptor(
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
-}
-
-
-void FastCloneShallowObjectStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  FastCloneShallowObjectDescriptor call_descriptor(isolate());
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
@@ -3133,11 +4055,6 @@ void AllocateMutableHeapNumberStub::InitializeDescriptor(
   }
 SIMD128_TYPES(SIMD128_INIT_DESC)
 #undef SIMD128_INIT_DESC
-
-void AllocateInNewSpaceStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize();
-}
 
 void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
@@ -3333,6 +4250,26 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
   entry_hook(function, stack_pointer);
 }
 
+void ArrayNoArgumentConstructorStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* native_context = assembler->LoadObjectField(
+      assembler->Parameter(
+          ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
+      JSFunction::kContextOffset);
+  bool track_allocation_site =
+      AllocationSite::GetMode(elements_kind()) == TRACK_ALLOCATION_SITE &&
+      override_mode() != DISABLE_ALLOCATION_SITES;
+  Node* allocation_site =
+      track_allocation_site
+          ? assembler->Parameter(
+                ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex)
+          : nullptr;
+  Node* array = assembler->AllocateJSArray(elements_kind(), native_context,
+                                           JSArray::kPreallocatedArrayElements,
+                                           0, allocation_site);
+  assembler->Return(array);
+}
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {

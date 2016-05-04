@@ -363,11 +363,19 @@ void FastKeyAccumulator::Prepare() {
 }
 
 namespace {
+
+template <bool fast_properties>
 Handle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                           Handle<JSObject> object,
                                           GetKeysConversion convert) {
-  Handle<FixedArray> keys = JSObject::GetFastEnumPropertyKeys(isolate, object);
+  Handle<FixedArray> keys;
   ElementsAccessor* accessor = object->GetElementsAccessor();
+  if (fast_properties) {
+    keys = JSObject::GetFastEnumPropertyKeys(isolate, object);
+  } else {
+    // TODO(cbruni): preallocate big enough array to also hold elements.
+    keys = JSObject::GetEnumPropertyKeys(object);
+  }
   Handle<FixedArray> result =
       accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
 
@@ -397,6 +405,10 @@ MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache(
   return JSObject::GetFastEnumPropertyKeys(isolate, object);
 }
 
+bool OnlyHasSimpleProperties(Map* map) {
+  return map->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER;
+}
+
 }  // namespace
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(GetKeysConversion convert) {
@@ -410,16 +422,22 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(GetKeysConversion convert) {
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     GetKeysConversion convert) {
   bool own_only = has_empty_prototype_ || type_ == OWN_ONLY;
-  if (!own_only || !receiver_->map()->OnlyHasSimpleProperties()) {
+  Map* map = receiver_->map();
+  if (!own_only || !OnlyHasSimpleProperties(map)) {
     return MaybeHandle<FixedArray>();
   }
 
-  Handle<FixedArray> keys;
+  // From this point on we are certiain to only collect own keys.
   DCHECK(receiver_->IsJSObject());
   Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
 
+  // Do not try to use the enum-cache for dict-mode objects.
+  if (map->is_dictionary_map()) {
+    return GetOwnKeysWithElements<false>(isolate_, object, convert);
+  }
   int enum_length = receiver_->map()->EnumLength();
   if (enum_length == kInvalidEnumCacheSentinel) {
+    Handle<FixedArray> keys;
     // Try initializing the enum cache and return own properties.
     if (GetOwnKeysWithUninitializedEnumCache(isolate_, object)
             .ToHandle(&keys)) {
@@ -427,7 +445,6 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
         PrintF("| strings=%d symbols=0 elements=0 || prototypes>=1 ||\n",
                keys->length());
       }
-
       is_receiver_simple_enum_ =
           object->map()->EnumLength() != kInvalidEnumCacheSentinel;
       return keys;
@@ -435,7 +452,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   }
   // The properties-only case failed because there were probably elements on the
   // receiver.
-  return GetOwnKeysWithElements(isolate_, object, convert);
+  return GetOwnKeysWithElements<true>(isolate_, object, convert);
 }
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(

@@ -46,6 +46,10 @@
   'sort-large-array': [SKIP],
   # Too slow with --enable-slow-asserts.
   'array-iterate-backwards': [SKIP],
+
+  # Ignition TODO(rmcilroy).
+  'array-reduce': [PASS, ['no_snap', NO_IGNITION]],
+  'array-reduceRight': [PASS, ['no_snap', NO_IGNITION]],
 }],  # 'mode == debug'
 ['simulator', {
   # Skip tests that timeout with turbofan.
@@ -70,6 +74,10 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == ppc or arch == ppc64'
+['arch == s390 or arch == s390x', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['asan == True', {
@@ -97,17 +105,18 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['ignition == True', {
-  # TODO(4680): Throws a RangeError due to stack overflow. Need investigation.
-  'fast/js/excessive-comma-usage': [SKIP],  # Stack is brittle, SKIP not FAIL.
-}],  # ignition == True
+['msan', {
+  # TODO(mythria,4680): Too slow and timeout on ignition.
+  'dfg-double-vote-fuzz': [PASS, NO_IGNITION],
+  'dfg-int-overflow-in-loop': [PASS, NO_IGNITION],
+}],  # msan
 
 ##############################################################################
-['ignition == True and msan', {
+['(ignition or ignition_turbofan) and msan', {
   # TODO(mythria,4680): Too slow and timeout on ignition.
   'dfg-double-vote-fuzz': [SKIP],
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # ignition == True and msan
+}],  # (ignition or ignition_turbofan) and msan
 
 ##############################################################################
 ['gcov_coverage', {

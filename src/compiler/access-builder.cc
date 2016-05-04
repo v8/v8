@@ -26,7 +26,7 @@ FieldAccess AccessBuilder::ForMap() {
 // static
 FieldAccess AccessBuilder::ForHeapNumberValue() {
   FieldAccess access = {kTaggedBase, HeapNumber::kValueOffset,
-                        MaybeHandle<Name>(), TypeCache().Get().kFloat64,
+                        MaybeHandle<Name>(), TypeCache::Get().kFloat64,
                         MachineType::Float64()};
   return access;
 }
@@ -61,6 +61,14 @@ FieldAccess AccessBuilder::ForJSObjectInObjectProperty(Handle<Map> map,
 
 
 // static
+FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
+  FieldAccess access = {kTaggedBase, JSFunction::kPrototypeOrInitialMapOffset,
+                        MaybeHandle<Name>(), Type::Any(),
+                        MachineType::AnyTagged()};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionContext() {
   FieldAccess access = {kTaggedBase, JSFunction::kContextOffset,
                         MaybeHandle<Name>(), Type::Internal(),
@@ -76,6 +84,29 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
   return access;
 }
 
+
+// static
+FieldAccess AccessBuilder::ForJSFunctionLiterals() {
+  FieldAccess access = {kTaggedBase, JSFunction::kLiteralsOffset,
+                        Handle<Name>(), Type::Internal(),
+                        MachineType::AnyTagged()};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSFunctionCodeEntry() {
+  FieldAccess access = {kTaggedBase, JSFunction::kCodeEntryOffset,
+                        Handle<Name>(), Type::UntaggedPointer(),
+                        MachineType::Pointer()};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
+  FieldAccess access = {kTaggedBase, JSFunction::kNextFunctionLinkOffset,
+                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {

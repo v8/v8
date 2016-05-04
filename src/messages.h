@@ -24,13 +24,10 @@ class SourceInfo;
 
 class MessageLocation {
  public:
+  MessageLocation(Handle<Script> script, int start_pos, int end_pos);
   MessageLocation(Handle<Script> script, int start_pos, int end_pos,
-                  Handle<JSFunction> function = Handle<JSFunction>())
-      : script_(script),
-        start_pos_(start_pos),
-        end_pos_(end_pos),
-        function_(function) {}
-  MessageLocation() : start_pos_(-1), end_pos_(-1) { }
+                  Handle<JSFunction> function);
+  MessageLocation();
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
@@ -120,6 +117,7 @@ class CallSite {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
+  T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueGenerator,                                                     \
     "Class extends value % may not be a generator function")                   \
@@ -175,19 +173,6 @@ class CallSite {
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \
-  T(ObserveCallbackFrozen,                                                     \
-    "Object.observe cannot deliver to a frozen function object")               \
-  T(ObserveGlobalProxy, "% cannot be called on the global proxy object")       \
-  T(ObserveAccessChecked, "% cannot be called on access-checked objects")      \
-  T(ObserveInvalidAccept,                                                      \
-    "Third argument to Object.observe must be an array of strings.")           \
-  T(ObserveNonFunction, "Object.% cannot deliver to non-function")             \
-  T(ObserveNonObject, "Object.% cannot % non-object")                          \
-  T(ObserveNotifyNonNotifier, "notify called on non-notifier object")          \
-  T(ObservePerformNonFunction, "Cannot perform non-function")                  \
-  T(ObservePerformNonString, "Invalid non-string changeType")                  \
-  T(ObserveTypeNonString,                                                      \
-    "Invalid changeRecord with non-string 'type' property")                    \
   T(OrdinaryFunctionCalledAsConstructor,                                       \
     "Function object that's not a constructor was created with new")           \
   T(PromiseCyclic, "Chaining cycle detected for promise %")                    \
@@ -380,6 +365,8 @@ class CallSite {
     "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
+  T(GeneratorInLegacyContext,                                                  \
+    "Generator declarations are not allowed in legacy contexts.")              \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
   T(IllegalLanguageModeDirective,                                              \
@@ -432,9 +419,6 @@ class CallSite {
   T(SloppyFunction,                                                            \
     "In non-strict mode code, functions can only be declared at top level, "   \
     "inside a block, or as the body of an if statement.")                      \
-  T(SloppyLexical,                                                             \
-    "Block-scoped declarations (let, const, function, class) not yet "         \
-    "supported outside strict mode")                                           \
   T(SpeciesNotConstructor,                                                     \
     "object.constructor[Symbol.species] is not a constructor")                 \
   T(StrictDelete, "Delete of an unqualified identifier in strict mode.")       \
@@ -444,6 +428,10 @@ class CallSite {
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
   T(StrictWith, "Strict mode code may not include a with statement")           \
+  T(TailCallInCatchBlock,                                                      \
+    "Tail call expression in catch block when finally block is also present.") \
+  T(TailCallInForInOf, "Tail call expression in for-in/of body.")              \
+  T(TailCallInTryBlock, "Tail call expression in try block.")                  \
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
@@ -476,6 +464,7 @@ class CallSite {
   T(InvalidHexEscapeSequence, "Invalid hexadecimal escape sequence")           \
   T(InvalidUnicodeEscapeSequence, "Invalid Unicode escape sequence")           \
   T(UndefinedUnicodeCodePoint, "Undefined Unicode code-point")                 \
+  T(YieldInParameter, "Yield expression not allowed in formal parameter")      \
   /* SyntaxError for the optional type system */                               \
   T(InvalidType, "Invalid type.")                                              \
   T(BadFunctionOrConstructorType,                                              \
@@ -491,7 +480,16 @@ class CallSite {
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \
-  T(URIMalformed, "URI malformed")
+  T(URIMalformed, "URI malformed")                                             \
+  /* Wasm errors (currently Error) */                                          \
+  T(WasmTrapUnreachable, "unreachable")                                        \
+  T(WasmTrapMemOutOfBounds, "memory access out of bounds")                     \
+  T(WasmTrapDivByZero, "divide by zero")                                       \
+  T(WasmTrapDivUnrepresentable, "divide result unrepresentable")               \
+  T(WasmTrapRemByZero, "remainder by zero")                                    \
+  T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
+  T(WasmTrapFuncInvalid, "invalid function")                                   \
+  T(WasmTrapFuncSigMismatch, "function signature mismatch")
 
 class MessageTemplate {
  public:

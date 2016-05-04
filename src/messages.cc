@@ -12,6 +12,16 @@
 namespace v8 {
 namespace internal {
 
+MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
+                                 int end_pos)
+    : script_(script), start_pos_(start_pos), end_pos_(end_pos) {}
+MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
+                                 int end_pos, Handle<JSFunction> function)
+    : script_(script),
+      start_pos_(start_pos),
+      end_pos_(end_pos),
+      function_(function) {}
+MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 
 // If no message listeners have been registered this one is called
 // by default.

@@ -108,7 +108,8 @@ bool LCodeGen::GeneratePrologue() {
     // Prologue logic requires its starting address in ip and the
     // corresponding offset from the function entry.  Need to add
     // 4 bytes for the size of AHI/AGHI that AddP expands into.
-    __ AddP(ip, ip, Operand(prologue_offset + sizeof(FourByteInstr)));
+    prologue_offset += sizeof(FourByteInstr);
+    __ AddP(ip, ip, Operand(prologue_offset));
   }
   info()->set_prologue_offset(prologue_offset);
   if (NeedsEagerFrame()) {
@@ -4228,7 +4229,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     if (hinstr->key()->representation().IsSmi()) {
       __ SmiToPtrArrayOffset(scratch, key);
     } else {
-      if (instr->hydrogen()->IsDehoisted()) {
+      if (instr->hydrogen()->IsDehoisted() ||
+          !CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
 #if V8_TARGET_ARCH_S390X
         // If array access is dehoisted, the key, being an int32, can contain
         // a negative value, as needs to be sign-extended to 64-bit for
@@ -4384,7 +4386,15 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      __ LoadSmiLiteral(r5, ToSmi(LConstantOperand::cast(key)));
+      LConstantOperand* constant_key = LConstantOperand::cast(key);
+      int32_t int_key = ToInteger32(constant_key);
+      if (Smi::IsValid(int_key)) {
+        __ LoadSmiLiteral(r5, Smi::FromInt(int_key));
+      } else {
+        // We should never get here at runtime because there is a smi check on
+        // the key before this point.
+        __ stop("expected smi");
+      }
     } else {
       __ SmiTag(r5, ToRegister(key));
     }
@@ -4439,9 +4449,10 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register object = ToRegister(instr->object());
-  Register temp = ToRegister(instr->temp());
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
   Label no_memento_found;
-  __ TestJSArrayForAllocationMemento(object, temp, &no_memento_found);
+  __ TestJSArrayForAllocationMemento(object, temp1, temp2, &no_memento_found);
   DeoptimizeIf(eq, instr, Deoptimizer::kMementoFound);
   __ bind(&no_memento_found);
 }
@@ -5199,14 +5210,11 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   DoubleRegister value_reg = ToDoubleRegister(instr->value());
   Register result_reg = ToRegister(instr->result());
-  // TODO(joransiu): Use non-memory version.
-  __ stdy(value_reg, MemOperand(sp, -kDoubleSize));
+  __ lgdr(result_reg, value_reg);
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ LoadlW(result_reg,
-              MemOperand(sp, -kDoubleSize + Register::kExponentOffset));
+    __ srlg(result_reg, result_reg, Operand(32));
   } else {
-    __ LoadlW(result_reg,
-              MemOperand(sp, -kDoubleSize + Register::kMantissaOffset));
+    __ llgfr(result_reg, result_reg);
   }
 }
 
@@ -5214,7 +5222,6 @@ void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
   Register hi_reg = ToRegister(instr->hi());
   Register lo_reg = ToRegister(instr->lo());
   DoubleRegister result_reg = ToDoubleRegister(instr->result());
-  // TODO(joransiu): Construct with ldgr
   Register scratch = scratch0();
 
   // Combine hi_reg:lo_reg into a single 64-bit register.
@@ -5244,7 +5251,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register scratch2 = ToRegister(instr->temp2());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5662,11 +5669,7 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ bind(&done);
 }
 
-void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
-  Register context = ToRegister(instr->context());
-  __ StoreP(context, MemOperand(fp, StandardFrameConstants::kContextOffset));
-}
-
 #undef __
+
 }  // namespace internal
 }  // namespace v8

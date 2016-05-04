@@ -7,6 +7,7 @@
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
@@ -578,7 +579,7 @@ TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
@@ -631,7 +632,7 @@ TEST(InterpreterLoadKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
@@ -673,7 +674,7 @@ TEST(InterpreterStoreNamedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
@@ -732,7 +733,7 @@ TEST(InterpreterStoreKeyedProperty) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
@@ -779,7 +780,7 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  i::Zone zone(isolate->allocator());
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
@@ -992,7 +993,6 @@ TEST(InterpreterConditionalJumps) {
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
 }
 
-
 TEST(InterpreterConditionalJumps2) {
   // TODO(oth): Add tests for all conditional jumps near and far.
   HandleAndZoneScope handles;
@@ -1024,6 +1024,92 @@ TEST(InterpreterConditionalJumps2) {
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
+}
+
+TEST(InterpreterJumpConstantWith16BitOperand) {
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
+                               0, 257);
+  Register reg(0), scratch(256);
+  BytecodeLabel done;
+
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.StoreAccumulatorInRegister(reg);
+  // Consume all 8-bit operands
+  for (int i = 1; i <= 256; i++) {
+    builder.LoadLiteral(handles.main_isolate()->factory()->NewNumber(i));
+    builder.BinaryOperation(Token::Value::ADD, reg);
+    builder.StoreAccumulatorInRegister(reg);
+  }
+  builder.Jump(&done);
+
+  // Emit more than 16-bit immediate operands worth of code to jump over.
+  for (int i = 0; i < 6600; i++) {
+    builder.LoadLiteral(Smi::FromInt(0));                 // 1-byte
+    builder.BinaryOperation(Token::Value::ADD, scratch);  // 4-bytes
+    builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
+    builder.MoveRegister(scratch, reg);                   // 6-bytes
+  }
+  builder.Bind(&done);
+  builder.LoadAccumulatorWithRegister(reg);
+  builder.Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  BytecodeArrayIterator iterator(bytecode_array);
+
+  bool found_16bit_constant_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+        iterator.current_operand_scale() == OperandScale::kDouble) {
+      found_16bit_constant_jump = true;
+      break;
+    }
+    iterator.Advance();
+  }
+  CHECK(found_16bit_constant_jump);
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 256.0 / 2 * (1 + 256));
+}
+
+TEST(InterpreterJumpWith32BitOperand) {
+  HandleAndZoneScope handles;
+  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
+                               0, 1);
+  Register reg(0);
+  BytecodeLabel done;
+
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.StoreAccumulatorInRegister(reg);
+  // Consume all 16-bit constant pool entries
+  for (int i = 1; i <= 65536; i++) {
+    builder.LoadLiteral(handles.main_isolate()->factory()->NewNumber(i));
+  }
+  builder.Jump(&done);
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.Bind(&done);
+  builder.Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  BytecodeArrayIterator iterator(bytecode_array);
+
+  bool found_32bit_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJump &&
+        iterator.current_operand_scale() == OperandScale::kQuadruple) {
+      found_32bit_jump = true;
+      break;
+    }
+    iterator.Advance();
+  }
+  CHECK(found_32bit_jump);
+
+  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 65536.0);
 }
 
 static const Token::Value kComparisonTypes[] = {
@@ -2173,6 +2259,8 @@ TEST(InterpreterCreateArguments) {
       std::make_pair("function f(a, b, c, d) {"
                      "  'use strict'; c = b; return arguments[2]; }",
                      2),
+      // Check arguments for duplicate parameters in sloppy mode.
+      std::make_pair("function f(a, a, b) { return arguments[1]; }", 1),
       // check rest parameters
       std::make_pair("function f(...restArray) { return restArray[0]; }", 0),
       std::make_pair("function f(a, ...restArray) { return restArray[0]; }", 1),
@@ -4052,6 +4140,37 @@ TEST(InterpreterIllegalConstDeclaration) {
             .FromJust());
   }
 }
+
+TEST(InterpreterGenerators) {
+  bool old_flag = FLAG_ignition_generators;
+  FLAG_ignition_generators = true;
+
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> tests[] = {
+      {"function* f() { }; return f().next().value",
+       factory->undefined_value()},
+      {"function* f() { yield 42 }; return f().next().value",
+       factory->NewNumberFromInt(42)},
+      {"function* f() { for (let x of [42]) yield x}; return f().next().value",
+       factory->NewNumberFromInt(42)},
+  };
+
+  for (size_t i = 0; i < arraysize(tests); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(tests[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*tests[i].second));
+  }
+
+  FLAG_ignition_generators = old_flag;
+}
+
 
 }  // namespace interpreter
 }  // namespace internal

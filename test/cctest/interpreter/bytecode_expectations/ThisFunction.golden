@@ -14,19 +14,13 @@ snippet: "
   f = function f() {};
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 19
+bytecode array length: 7
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
   B(StackCheck),
   B(Ldar), R(closure),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(JumpIfNotHole), U8(5),
-  B(Mov), R(1), R(0),
-  B(Ldar), R(1),
+  B(Star), R(0),
   B(LdaUndefined),
   B(Return),
 ]
@@ -41,22 +35,13 @@ snippet: "
   f = function f() { return f; };
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 6
 bytecodes: [
-  B(LdaTheHole),
-  B(Star), R(0),
   B(StackCheck),
   B(Ldar), R(closure),
-  B(Star), R(1),
-  B(Ldar), R(0),
-  B(JumpIfNotHole), U8(5),
-  B(Mov), R(1), R(0),
-  B(Ldar), R(1),
-  B(Ldar), R(0),
-  B(JumpIfNotHole), U8(3),
-  B(LdaUndefined),
+  B(Star), R(0),
   B(Return),
 ]
 constant pool: [

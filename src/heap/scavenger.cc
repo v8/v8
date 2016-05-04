@@ -78,6 +78,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
                                    kVisitJSObject, kVisitJSObjectGeneric>();
 
+    table_
+        .RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
+                                 kVisitJSApiObject, kVisitJSApiObjectGeneric>();
+
     table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
                                    kVisitStruct, kVisitStructGeneric>();
   }

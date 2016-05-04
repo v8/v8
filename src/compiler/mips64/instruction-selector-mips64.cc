@@ -611,14 +611,66 @@ void InstructionSelector::VisitWord64Clz(Node* node) {
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   Mips64OperandGenerator g(this);
-  // TODO(plind): Consider multiply & add optimization from arm port.
+  Int32BinopMatcher m(node);
+
+  // Select Lsa for (left + (left_of_right << imm)).
+  if (m.right().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(mright.left().node()), g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
+  // Select Lsa for ((left_of_left << imm) + right).
+  if (m.left().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      Emit(kMips64Lsa, g.DefineAsRegister(node),
+           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
   VisitBinop(this, node, kMips64Add);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
   Mips64OperandGenerator g(this);
-  // TODO(plind): Consider multiply & add optimization from arm port.
+  Int64BinopMatcher m(node);
+
+  // Select Dlsa for (left + (left_of_right << imm)).
+  if (m.right().opcode() == IrOpcode::kWord64Shl &&
+      CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    if (mright.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
+  // Select Dlsa for ((left_of_left << imm) + right).
+  if (m.left().opcode() == IrOpcode::kWord64Shl &&
+      CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
+    Int64BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
+           g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
   VisitBinop(this, node, kMips64Dadd);
 }
 
@@ -645,12 +697,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
     if (base::bits::IsPowerOfTwo32(value - 1)) {
-      InstructionOperand temp = g.TempRegister();
-      Emit(kMips64Shl | AddressingModeField::encode(kMode_None), temp,
+      Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
-      Emit(kMips64Add | AddressingModeField::encode(kMode_None),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()), temp);
       return;
     }
     if (base::bits::IsPowerOfTwo32(value + 1)) {
@@ -705,12 +754,10 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
       return;
     }
     if (base::bits::IsPowerOfTwo32(value - 1)) {
-      InstructionOperand temp = g.TempRegister();
-      Emit(kMips64Dshl | AddressingModeField::encode(kMode_None), temp,
-           g.UseRegister(m.left().node()),
+      // Dlsa macro will handle the shifting value out of bound cases.
+      Emit(kMips64Dlsa, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
-      Emit(kMips64Dadd | AddressingModeField::encode(kMode_None),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()), temp);
       return;
     }
     if (base::bits::IsPowerOfTwo32(value + 1)) {
@@ -925,6 +972,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kMips64TruncUwD, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kMips64TruncUwD, node);
+}
 
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   Mips64OperandGenerator g(this);
@@ -1044,17 +1094,13 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kMips64CvtSD, node);
 }
 
-
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, kArchTruncateDoubleToI, node);
-    case TruncationMode::kRoundToZero:
-      return VisitRR(this, kMips64TruncWD, node);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRR(this, kMips64TruncWD, node);
+}
 
 void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
   VisitRR(this, kMips64CvtSL, node);
@@ -1913,6 +1959,38 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMips64Dadd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
 
 // static
 MachineOperatorBuilder::Flags

@@ -13,6 +13,7 @@
 #include "src/compiler.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
+#include "src/parsing/parser.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -30,6 +31,28 @@ class LAllocator;
 class LChunk;
 class LiveRange;
 
+class HCompilationJob final : public CompilationJob {
+ public:
+  explicit HCompilationJob(Handle<JSFunction> function)
+      : CompilationJob(&info_, "Crankshaft"),
+        zone_(function->GetIsolate()->allocator()),
+        parse_info_(&zone_, function),
+        info_(&parse_info_, function),
+        graph_(nullptr),
+        chunk_(nullptr) {}
+
+ protected:
+  virtual Status CreateGraphImpl();
+  virtual Status OptimizeGraphImpl();
+  virtual Status GenerateCodeImpl();
+
+ private:
+  Zone zone_;
+  ParseInfo parse_info_;
+  CompilationInfo info_;
+  HGraph* graph_;
+  LChunk* chunk_;
+};
 
 class HBasicBlock final : public ZoneObject {
  public:
@@ -392,13 +415,11 @@ class HGraph final : public ZoneObject {
   }
   int maximum_environment_size() { return maximum_environment_size_; }
 
-  bool use_optimistic_licm() {
-    return use_optimistic_licm_;
-  }
+  bool allow_code_motion() const { return allow_code_motion_; }
+  void set_allow_code_motion(bool value) { allow_code_motion_ = value; }
 
-  void set_use_optimistic_licm(bool value) {
-    use_optimistic_licm_ = value;
-  }
+  bool use_optimistic_licm() const { return use_optimistic_licm_; }
+  void set_use_optimistic_licm(bool value) { use_optimistic_licm_ = value; }
 
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
@@ -480,6 +501,7 @@ class HGraph final : public ZoneObject {
   CallInterfaceDescriptor descriptor_;
   Zone* zone_;
 
+  bool allow_code_motion_;
   bool use_optimistic_licm_;
   bool depends_on_empty_array_proto_elements_;
   int type_change_checksum_;
@@ -625,6 +647,9 @@ class HEnvironment final : public ZoneObject {
       outer = outer->outer_;
     }
     if (drop_extra) outer->Drop(1);
+    if (outer->frame_type() == TAIL_CALLER_FUNCTION) {
+      outer->ClearTailCallerMark();
+    }
     return outer;
   }
 
@@ -685,6 +710,7 @@ class HEnvironment final : public ZoneObject {
   // Marks current environment as tail caller by setting frame type to
   // TAIL_CALLER_FUNCTION.
   void MarkAsTailCaller();
+  void ClearTailCallerMark();
 
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
@@ -2230,6 +2256,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(Call)                              \
+  F(NewObject)                         \
   F(ValueOf)                           \
   F(StringCharFromCode)                \
   F(StringCharAt)                      \
@@ -2268,7 +2295,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ConstructDouble)                   \
   F(DoubleHi)                          \
   F(DoubleLo)                          \
-  F(MathClz32)                         \
   F(MathLogRT)                         \
   /* ES6 Collections */                \
   F(MapClear)                          \

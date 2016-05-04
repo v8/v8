@@ -39,7 +39,6 @@ TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   }
 }
 
-
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
     ConstantArrayBuilder builder(isolate(), zone());
@@ -201,7 +200,6 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   }
 }
 
-
 TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
   ConstantArrayBuilder builder(isolate(), zone());
   for (size_t i = 0; i < k8BitCapacity; i++) {
@@ -225,6 +223,63 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
     CHECK(original->SameValue(*reference));
     Handle<Object> duplicate = builder.At(i);
     CHECK(duplicate->SameValue(*isolate()->factory()->the_hole_value()));
+  }
+}
+
+TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
+  static int kNumberOfHoles = 128;
+  ConstantArrayBuilder builder(isolate(), zone());
+  for (int i = 0; i < kNumberOfHoles; ++i) {
+    CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
+  }
+  for (int i = 0; i < 128; ++i) {
+    CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(i)), i);
+  }
+  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256);
+
+  Handle<FixedArray> constant_array = builder.ToFixedArray();
+  CHECK_EQ(constant_array->length(), 257);
+  for (int i = 128; i < 256; i++) {
+    CHECK(constant_array->get(i)->SameValue(
+        *isolate()->factory()->the_hole_value()));
+  }
+  CHECK(!constant_array->get(127)->SameValue(
+      *isolate()->factory()->the_hole_value()));
+  CHECK(!constant_array->get(256)->SameValue(
+      *isolate()->factory()->the_hole_value()));
+}
+
+TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
+  ConstantArrayBuilder builder(isolate(), zone());
+  for (int i = 0; i < 256; i++) {
+    CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
+  }
+  for (int i = 256; i < 65536; ++i) {
+    CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kShort);
+  }
+  for (int i = 65536; i < 131072; ++i) {
+    CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kQuad);
+  }
+  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kByte,
+                                       isolate()->factory()->NewNumber(1)),
+           0);
+  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kShort,
+                                       isolate()->factory()->NewNumber(2)),
+           256);
+  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kQuad,
+                                       isolate()->factory()->NewNumber(3)),
+           65536);
+  Handle<FixedArray> constant_array = builder.ToFixedArray();
+  CHECK_EQ(constant_array->length(), 65537);
+  int count = 1;
+  for (int i = 0; i < constant_array->length(); ++i) {
+    Handle<Object> expected;
+    if (i == 0 || i == 256 || i == 65536) {
+      expected = isolate()->factory()->NewNumber(count++);
+    } else {
+      expected = isolate()->factory()->the_hole_value();
+    }
+    CHECK(constant_array->get(i)->SameValue(*expected));
   }
 }
 

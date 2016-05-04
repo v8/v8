@@ -201,6 +201,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateClosure:
+      return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateLiteralArray:
@@ -535,6 +537,51 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         return ReduceNewArray(node, length, capacity, site);
       }
     }
+  }
+
+  return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
+  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  Handle<SharedFunctionInfo> shared = p.shared_info();
+
+  // Use inline allocation for functions that don't need literals cloning.
+  if (shared->num_literals() == 0) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* native_context = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+        context, context, effect);
+    int function_map_index =
+        Context::FunctionMapIndex(shared->language_mode(), shared->kind());
+    Node* function_map = effect =
+        graph()->NewNode(javascript()->LoadContext(0, function_map_index, true),
+                         native_context, native_context, effect);
+    // Note that it is only safe to embed the raw entry point of the compile
+    // lazy stub into the code, because that stub is immortal and immovable.
+    Node* compile_entry = jsgraph()->IntPtrConstant(reinterpret_cast<intptr_t>(
+        jsgraph()->isolate()->builtins()->CompileLazy()->entry()));
+    Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
+    Node* the_hole = jsgraph()->TheHoleConstant();
+    Node* undefined = jsgraph()->UndefinedConstant();
+    AllocationBuilder a(jsgraph(), effect, control);
+    STATIC_ASSERT(JSFunction::kSize == 9 * kPointerSize);
+    a.Allocate(JSFunction::kSize, p.pretenure());
+    a.Store(AccessBuilder::ForMap(), function_map);
+    a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSFunctionLiterals(), empty_fixed_array);
+    a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(), the_hole);
+    a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
+    a.Store(AccessBuilder::ForJSFunctionContext(), context);
+    a.Store(AccessBuilder::ForJSFunctionCodeEntry(), compile_entry);
+    a.Store(AccessBuilder::ForJSFunctionNextFunctionLink(), undefined);
+    RelaxControls(node);
+    a.FinishAndChange(node);
+    return Changed(node);
   }
 
   return NoChange();

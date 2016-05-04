@@ -132,6 +132,82 @@
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+
+  ############################################################################
+  # Ignition
+
+  # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
+  'test-heap/TestCodeFlushingPreAged': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncrementalScavenge': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushing': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncremental': [PASS, NO_IGNITION],
+  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', NO_IGNITION]],
+
+  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
+  # on nodes (behind --turbo_source_positions flag).
+  'test-cpu-profiler/TickLinesOptimized': [PASS, NO_IGNITION],
+
+  # TODO(rmcilroy,4680): Fails to find the correct function name for the
+  # anonymous function. Fails without ignition but with --no-lazy also, so seems
+  # to be an issue when eagerly parsing.
+  'test-func-name-inference/ReturnAnonymousFunction': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4780): Related to type feedback support for calls.
+  'test-feedback-vector/VectorCallICStates': [PASS, NO_IGNITION],
+  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [PASS, NO_IGNITION],
+  'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [PASS, NO_IGNITION],
+  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4680): Lack of code-ageing in interpreter.
+  'test-heap/Regress169209': [PASS, NO_IGNITION],
+
+  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
+  # in interpreter.
+  'test-heap/CompilationCacheCachingBehavior': [PASS, NO_IGNITION],
+
+  # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
+  # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
+  # code.
+  'test-api/TurboAsmDisablesNeuter': [PASS, NO_IGNITION],
+
+  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
+  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [PASS, NO_IGNITION],
+
+  # TODO(rmcilroy,4837): We don't set a LoadContextSlot for a function as
+  # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
+  'test-run-inlining/InlineLoopGuardedTwice': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineSurplusArgumentsDeopt': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineTwice': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineSurplusArgumentsObject': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineTwiceDependentDiamond': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineWithArguments': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineLoopUnguardedTwice': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineOmitArgumentsObject': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineLoopUnguardedOnce': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineOmitArgumentsDeopt': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [PASS, NO_IGNITION],
+  'test-run-inlining/SimpleInliningContext': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineMutuallyRecursive': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineLoopGuardedEmpty': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineLoopGuardedOnce': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineOmitArguments': [PASS, NO_IGNITION],
+  'test-run-inlining/SimpleInlining': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineLoopUnguardedEmpty': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineNestedBuiltin': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineSurplusArguments': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineBuiltin': [PASS, NO_IGNITION],
+  'test-run-inlining/InlineTwiceDependent': [PASS, NO_IGNITION],
+  'test-run-inlining/SimpleInliningContextDeopt': [PASS, NO_IGNITION],
+
+  # BUG(4751). Flaky with ignition and tsan.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', NO_IGNITION]],
+
+  'test-cpu-profiler/Inlining': [PASS, NO_IGNITION],
+  'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
+  'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
 }],  # ALWAYS
 
 ##############################################################################
@@ -219,6 +295,12 @@
 }],  # 'no_snap == True'
 
 ##############################################################################
+['no_snap == True and mode == debug', {
+  # TODO(rmcilroy,4928): Issue with --mstackalign.
+  'test-interpreter/InterpreterCreateArguments': [SKIP],
+}],  # 'no_snap == True and mode == debug'
+
+##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
 # section to not overwrite the expectations for TestThatAlwaysFails.
 ['no_snap == True and system == windows', {
@@ -240,6 +322,8 @@
 
   # BUG(v8:2999,v8:4751).
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
+  'test-cpu-profiler/FunctionCallSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
@@ -484,21 +568,13 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['ignition == True', {
-
-  # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
-  'test-api/SetFunctionEntryHook': [FAIL],
-
+['ignition or ignition_turbofan', {
   # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
   'test-heap/TestCodeFlushing': [FAIL],
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
-  'test-api/TryCatchMixedNesting': [FAIL],
 
   # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
   # on nodes (behind --turbo_source_positions flag).
@@ -525,18 +601,13 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # TODO(mythria,4680): Incorrect column number on eval.
-  'test-api/PromiseRejectCallback': [FAIL],
-
-  # TODO(rmcilroy,4680): Fails with eager compilation due to SharedFunctionInfo
-  # being null in compiler.cc Renumber(), meaning MaybeDisableOptimization never
-  # gets called.
-  'test-profile-generator/BailoutReason': [FAIL],
-
   # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
   # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
   # code.
   'test-api/TurboAsmDisablesNeuter': [FAIL],
+
+  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
+  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
 
   # TODO(rmcilroy,4837): We don't set a LoadContextSlot for a function as
   # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
@@ -563,7 +634,9 @@
   'test-run-inlining/InlineBuiltin': [FAIL],
   'test-run-inlining/InlineTwiceDependent': [FAIL],
   'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
-  'test-debug/DebugBreakInline': [FAIL],
-}],  # ignition == True
+
+  # BUG(4751). Flaky with ignition and tsan.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],
+}],  # ignition or ignition_turbofan
 
 ]

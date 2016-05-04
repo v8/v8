@@ -27,18 +27,49 @@ class IA32OperandGenerator final : public OperandGenerator {
     return DefineAsRegister(node);
   }
 
+  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input) {
+    if (input->opcode() != IrOpcode::kLoad ||
+        !selector()->CanCover(node, input)) {
+      return false;
+    }
+    MachineRepresentation rep =
+        LoadRepresentationOf(input->op()).representation();
+    switch (opcode) {
+      case kIA32Cmp:
+      case kIA32Test:
+        return rep == MachineRepresentation::kWord32 ||
+               rep == MachineRepresentation::kTagged;
+      case kIA32Cmp16:
+      case kIA32Test16:
+        return rep == MachineRepresentation::kWord16;
+      case kIA32Cmp8:
+      case kIA32Test8:
+        return rep == MachineRepresentation::kWord8;
+      default:
+        break;
+    }
+    return false;
+  }
+
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
       case IrOpcode::kNumberConstant:
       case IrOpcode::kExternalConstant:
+      case IrOpcode::kRelocatableInt32Constant:
+      case IrOpcode::kRelocatableInt64Constant:
         return true;
       case IrOpcode::kHeapConstant: {
+// TODO(bmeurer): We must not dereference handles concurrently. If we
+// really have to this here, then we need to find a way to put this
+// information on the HeapConstant node already.
+#if 0
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
         Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
         Isolate* isolate = value->GetIsolate();
         return !isolate->heap()->InNewSpace(*value);
+#endif
       }
       default:
         return false;
@@ -620,8 +651,27 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   Emit(kIA32SubPair, 2, outputs, 4, inputs, 1, temps);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) {
+void InstructionSelector::VisitInt32PairMul(Node* node) {
   IA32OperandGenerator g(this);
+
+  // InputAt(3) explicitly shares ecx with OutputRegister(1) to save one
+  // register and one mov instruction.
+  InstructionOperand inputs[] = {
+      g.UseUnique(node->InputAt(0)), g.UseUnique(node->InputAt(1)),
+      g.UseUniqueRegister(node->InputAt(2)), g.UseFixed(node->InputAt(3), ecx)};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(node, eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), ecx)};
+
+  InstructionOperand temps[] = {g.TempRegister(edx)};
+
+  Emit(kIA32MulPair, 2, outputs, 4, inputs, 1, temps);
+}
+
+void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
+                          Node* node) {
+  IA32OperandGenerator g(selector);
 
   Node* shift = node->InputAt(2);
   InstructionOperand shift_operand;
@@ -638,49 +688,19 @@ void InstructionSelector::VisitWord32PairShl(Node* node) {
       g.DefineAsFixed(node, eax),
       g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
 
-  Emit(kIA32ShlPair, 2, outputs, 3, inputs);
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitWord32PairShift(this, kIA32ShlPair, node);
 }
 
 void InstructionSelector::VisitWord32PairShr(Node* node) {
-  IA32OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kIA32ShrPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kIA32ShrPair, node);
 }
 
 void InstructionSelector::VisitWord32PairSar(Node* node) {
-  IA32OperandGenerator g(this);
-
-  Node* shift = node->InputAt(2);
-  InstructionOperand shift_operand;
-  if (g.CanBeImmediate(shift)) {
-    shift_operand = g.UseImmediate(shift);
-  } else {
-    shift_operand = g.UseFixed(shift, ecx);
-  }
-  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(0), eax),
-                                 g.UseFixed(node->InputAt(1), edx),
-                                 shift_operand};
-
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(node, eax),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
-
-  Emit(kIA32SarPair, 2, outputs, 3, inputs);
+  VisitWord32PairShift(this, kIA32SarPair, node);
 }
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
@@ -849,20 +869,20 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToUint32);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToUint32);
+}
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToFloat32);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, node, kArchTruncateDoubleToI);
+}
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, node, kArchTruncateDoubleToI);
-    case TruncationMode::kRoundToZero:
-      return VisitRO(this, node, kSSEFloat64ToInt32);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToInt32);
 }
 
 
@@ -1122,21 +1142,6 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   }
 }
 
-// Determines if {input} of {node} can be replaced by a memory operand.
-bool CanUseMemoryOperand(InstructionSelector* selector, InstructionCode opcode,
-                         Node* node, Node* input) {
-  if (input->opcode() != IrOpcode::kLoad || !selector->CanCover(node, input)) {
-    return false;
-  }
-  MachineRepresentation load_representation =
-      LoadRepresentationOf(input->op()).representation();
-  if (load_representation == MachineRepresentation::kWord32 ||
-      load_representation == MachineRepresentation::kTagged) {
-    return opcode == kIA32Cmp || opcode == kIA32Test;
-  }
-  return false;
-}
-
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
@@ -1167,6 +1172,36 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
+// Tries to match the size of the given opcode to that of the operands, if
+// possible.
+InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
+                                    Node* right) {
+  if (opcode != kIA32Cmp && opcode != kIA32Test) {
+    return opcode;
+  }
+  // Currently, if one of the two operands is not a Load, we don't know what its
+  // machine representation is, so we bail out.
+  // TODO(epertoso): we can probably get some size information out of immediates
+  // and phi nodes.
+  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
+    return opcode;
+  }
+  // If the load representations don't match, both operands will be
+  // zero/sign-extended to 32bit.
+  LoadRepresentation left_representation = LoadRepresentationOf(left->op());
+  if (left_representation != LoadRepresentationOf(right->op())) {
+    return opcode;
+  }
+  switch (left_representation.representation()) {
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+      return opcode == kIA32Cmp ? kIA32Cmp8 : kIA32Test8;
+    case MachineRepresentation::kWord16:
+      return opcode == kIA32Cmp ? kIA32Cmp16 : kIA32Test16;
+    default:
+      return opcode;
+  }
+}
 
 // Shared routine for multiple float32 compare operations (inputs commuted).
 void VisitFloat32Compare(InstructionSelector* selector, Node* node,
@@ -1192,15 +1227,22 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // If one of the two inputs is an immediate, make sure it's on the right.
-  if (!g.CanBeImmediate(right) && g.CanBeImmediate(left)) {
+  InstructionCode narrowed_opcode = TryNarrowOpcodeSize(opcode, left, right);
+
+  // If one of the two inputs is an immediate, make sure it's on the right, or
+  // if one of the two inputs is a memory operand, make sure it's on the left.
+  if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
+      (g.CanBeMemoryOperand(narrowed_opcode, node, right) &&
+       !g.CanBeMemoryOperand(narrowed_opcode, node, left))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (CanUseMemoryOperand(selector, opcode, node, left)) {
+    if (g.CanBeMemoryOperand(opcode, node, left)) {
+      // TODO(epertoso): we should use `narrowed_opcode' here once we match
+      // immediates too.
       return VisitCompareWithMemoryOperand(selector, opcode, left,
                                            g.UseImmediate(right), cont);
     }
@@ -1208,15 +1250,21 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
                         cont);
   }
 
+  // Match memory operands on left side of comparison.
+  if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
+    bool needs_byte_register =
+        narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
+    return VisitCompareWithMemoryOperand(
+        selector, narrowed_opcode, left,
+        needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
+        cont);
+  }
+
   if (g.CanBeBetterLeftOperand(right)) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
-  if (CanUseMemoryOperand(selector, opcode, node, left)) {
-    return VisitCompareWithMemoryOperand(selector, opcode, left,
-                                         g.UseRegister(right), cont);
-  }
   return VisitCompare(selector, opcode, left, right, cont,
                       node->op()->HasProperty(Operator::kCommutative));
 }
@@ -1519,6 +1567,14 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.Use(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
+         load_rep.representation() == MachineRepresentation::kWord16 ||
+         load_rep.representation() == MachineRepresentation::kWord32);
+  USE(load_rep);
+  VisitLoad(node);
+}
 
 // static
 MachineOperatorBuilder::Flags

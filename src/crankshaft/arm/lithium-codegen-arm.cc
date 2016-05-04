@@ -4030,11 +4030,6 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 
   if (instr->NeedsCanonicalization()) {
     // Force a canonical NaN.
-    if (masm()->emit_debug_code()) {
-      __ vmrs(ip);
-      __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
-      __ Assert(ne, kDefaultNaNModeNotSet);
-    }
     __ VFPCanonicalizeNaN(double_scratch, value);
     __ vstr(double_scratch, scratch, 0);
   } else {
@@ -4192,7 +4187,15 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      __ Move(r3, Operand(ToSmi(LConstantOperand::cast(key))));
+      LConstantOperand* constant_key = LConstantOperand::cast(key);
+      int32_t int_key = ToInteger32(constant_key);
+      if (Smi::IsValid(int_key)) {
+        __ mov(r3, Operand(Smi::FromInt(int_key)));
+      } else {
+        // We should never get here at runtime because there is a smi check on
+        // the key before this point.
+        __ stop("expected smi");
+      }
     } else {
       __ Move(r3, ToRegister(key));
       __ SmiTag(r3);
@@ -4493,7 +4496,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(tmp3, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(dst, tmp1, tmp2, tmp3, &slow, DONT_TAG_RESULT);
+    __ AllocateHeapNumber(dst, tmp1, tmp2, tmp3, &slow);
     __ b(&done);
   }
 
@@ -4517,15 +4520,13 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-    __ sub(r0, r0, Operand(kHeapObjectTag));
     __ StoreToSafepointRegisterSlot(r0, dst);
   }
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ vstr(dbl_scratch, dst, HeapNumber::kValueOffset);
-  __ add(dst, dst, Operand(kHeapObjectTag));
+  __ vstr(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
 }
 
 
@@ -4550,16 +4551,12 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    // We want the untagged address first for performance
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
-                          DONT_TAG_RESULT);
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
   } else {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ vstr(input_reg, reg, HeapNumber::kValueOffset);
-  // Now that we have finished with the object's real address tag it
-  __ add(reg, reg, Operand(kHeapObjectTag));
+  __ vstr(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
 }
 
 
@@ -4580,7 +4577,6 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
-  __ sub(r0, r0, Operand(kHeapObjectTag));
   __ StoreToSafepointRegisterSlot(r0, reg);
 }
 
@@ -5104,7 +5100,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   Register scratch2 = ToRegister(instr->temp2());
 
   // Allocate memory for the object.
-  AllocationFlags flags = TAG_OBJECT;
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5540,13 +5536,6 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ bind(deferred->exit());
   __ bind(&done);
 }
-
-
-void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
-  Register context = ToRegister(instr->context());
-  __ str(context, MemOperand(fp, StandardFrameConstants::kContextOffset));
-}
-
 
 #undef __
 

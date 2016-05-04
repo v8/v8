@@ -59,7 +59,7 @@ ConstantArrayBuilder::ConstantArrayBuilder(Isolate* isolate, Zone* zone)
   idx_slice_[1] = new (zone) ConstantArraySlice(
       zone, k8BitCapacity, k16BitCapacity, OperandSize::kShort);
   idx_slice_[2] = new (zone) ConstantArraySlice(
-      zone, k16BitCapacity, k32BitCapacity, OperandSize::kQuad);
+      zone, k8BitCapacity + k16BitCapacity, k32BitCapacity, OperandSize::kQuad);
 }
 
 size_t ConstantArrayBuilder::size() const {

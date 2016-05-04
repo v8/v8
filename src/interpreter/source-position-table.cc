@@ -115,32 +115,23 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 
 }  // namespace
 
-void SourcePositionTableBuilder::AddStatementPosition(
-    size_t bytecode_offset, int source_position,
-    SourcePositionTableBuilder::OnDuplicateCodeOffset on_duplicate) {
+void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
+                                                      int source_position) {
   int offset = static_cast<int>(bytecode_offset);
-  AddEntry({offset, source_position, true}, on_duplicate);
-  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
-                               jit_handler_data_, offset, source_position));
-  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
-                               jit_handler_data_, offset, source_position));
+  AddEntry({offset, source_position, true});
 }
 
 void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
                                                        int source_position) {
   int offset = static_cast<int>(bytecode_offset);
   AddEntry({offset, source_position, false});
-  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
-                               jit_handler_data_, offset, source_position));
 }
 
-void SourcePositionTableBuilder::AddEntry(
-    const PositionTableEntry& entry,
-    SourcePositionTableBuilder::OnDuplicateCodeOffset on_duplicate) {
+void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
   // Don't encode a new entry if this bytecode already has a source position
   // assigned.
   if (candidate_.bytecode_offset == entry.bytecode_offset) {
-    if (on_duplicate == OVERWRITE_DUPLICATE) candidate_ = entry;
+    if (entry.is_statement) candidate_ = entry;
     return;
   }
 
@@ -154,6 +145,15 @@ void SourcePositionTableBuilder::CommitEntry() {
   SubtractFromEntry(tmp, previous_);
   EncodeEntry(bytes_, tmp);
   previous_ = candidate_;
+
+  if (candidate_.is_statement) {
+    LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
+                                 jit_handler_data_, candidate_.bytecode_offset,
+                                 candidate_.source_position));
+  }
+  LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
+                               jit_handler_data_, candidate_.bytecode_offset,
+                               candidate_.source_position));
 
 #ifdef ENABLE_SLOW_DCHECKS
   raw_entries_.push_back(candidate_);

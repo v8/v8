@@ -684,7 +684,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 35
+bytecode array length: 34
 bytecodes: [
   B(StackCheck),
   B(LdaSmi), U8(1),
@@ -692,7 +692,7 @@ bytecodes: [
   B(LdaSmi), U8(10),
   B(Star), R(1),
   B(Ldar), R(1),
-  B(JumpIfToBooleanFalse), U8(21),
+  B(JumpIfToBooleanFalse), U8(20),
   B(StackCheck),
   B(Ldar), R(0),
   B(Star), R(2),
@@ -700,10 +700,9 @@ bytecodes: [
   B(Mul), R(2),
   B(Star), R(0),
   B(Ldar), R(1),
-  B(ToNumber),
   B(Dec),
   B(Star), R(1),
-  B(Jump), U8(-21),
+  B(Jump), U8(-20),
   B(Ldar), R(0),
   B(Return),
 ]
@@ -748,7 +747,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 39
+bytecode array length: 38
 bytecodes: [
   B(StackCheck),
   B(LdaZero),
@@ -765,12 +764,11 @@ bytecodes: [
   B(LdaSmi), U8(20),
   B(TestEqual), R(2),
   B(JumpIfFalse), U8(4),
-  B(Jump), U8(10),
+  B(Jump), U8(9),
   B(Ldar), R(1),
-  B(ToNumber),
   B(Inc),
   B(Star), R(1),
-  B(Jump), U8(-27),
+  B(Jump), U8(-26),
   B(Ldar), R(0),
   B(Return),
 ]

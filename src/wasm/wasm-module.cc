@@ -4,12 +4,14 @@
 
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "src/property-descriptor.h"
 #include "src/v8.h"
 
 #include "src/simulator.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-function-name-table.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 
@@ -20,19 +22,28 @@ namespace internal {
 namespace wasm {
 
 static const char* wasmSections[] = {
-#define F(enumerator, string) string,
+#define F(enumerator, order, string) string,
     FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
+        "<unknown>"  // entry for "Max"
 };
 
 static uint8_t wasmSectionsLengths[]{
-#define F(enumerator, string) sizeof(string) - 1,
+#define F(enumerator, order, string) sizeof(string) - 1,
     FOR_EACH_WASM_SECTION_TYPE(F)
 #undef F
+        9  // entry for "Max"
+};
+
+static uint8_t wasmSectionsOrders[]{
+#define F(enumerator, order, string) order,
+    FOR_EACH_WASM_SECTION_TYPE(F)
+#undef F
+        0  // entry for "Max"
 };
 
 static_assert(sizeof(wasmSections) / sizeof(wasmSections[0]) ==
-                  (size_t)WasmSection::Code::Max,
+                  (size_t)WasmSection::Code::Max + 1,
               "expected enum WasmSection::Code to be monotonic from 0");
 
 WasmSection::Code WasmSection::begin() { return (WasmSection::Code)0; }
@@ -47,6 +58,20 @@ const char* WasmSection::getName(WasmSection::Code code) {
 
 size_t WasmSection::getNameLength(WasmSection::Code code) {
   return wasmSectionsLengths[(size_t)code];
+}
+
+int WasmSection::getOrder(WasmSection::Code code) {
+  return wasmSectionsOrders[(size_t)code];
+}
+
+WasmSection::Code WasmSection::lookup(const byte* string, uint32_t length) {
+  // TODO(jfb) Linear search, it may be better to do a common-prefix search.
+  for (Code i = begin(); i != end(); i = next(i)) {
+    if (getNameLength(i) == length && 0 == memcmp(getName(i), string, length)) {
+      return i;
+    }
+  }
+  return Code::Max;
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
@@ -80,7 +105,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
     if (pair.module_) {
       WasmName name = pair.module_->GetName(pair.function_->name_offset,
                                             pair.function_->name_length);
-      os.write(name.name, name.length);
+      os.write(name.start(), name.length());
     } else {
       os << "+" << pair.function_->func_index;
     }
@@ -177,11 +202,12 @@ class WasmLinker {
 
 namespace {
 // Internal constants for the layout of the module object.
-const int kWasmModuleInternalFieldCount = 4;
+const int kWasmModuleInternalFieldCount = 5;
 const int kWasmModuleFunctionTable = 0;
 const int kWasmModuleCodeTable = 1;
 const int kWasmMemArrayBuffer = 2;
 const int kWasmGlobalsArrayBuffer = 3;
+const int kWasmFunctionNamesArray = 4;
 
 size_t AllocateGlobalsOffsets(std::vector<WasmGlobal>& globals) {
   uint32_t offset = 0;
@@ -314,13 +340,13 @@ static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
                                               wasm::WasmName module_name,
                                               wasm::WasmName function_name) {
-  if (function_name.name) {
+  if (function_name.start()) {
     thrower.Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
-                  index, module_name.length, module_name.name,
-                  function_name.length, function_name.name, error);
+                  index, module_name.length(), module_name.start(),
+                  function_name.length(), function_name.start(), error);
   } else {
     thrower.Error("Import #%d module=\"%.*s\" error: %s", index,
-                  module_name.length, module_name.name, error);
+                  module_name.length(), module_name.start(), error);
   }
   thrower.Error("Import ");
   return MaybeHandle<JSFunction>();
@@ -335,8 +361,7 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   // Look up the module first.
-  Handle<String> name = factory->InternalizeUtf8String(
-      Vector<const char>(module_name.name, module_name.length));
+  Handle<String> name = factory->InternalizeUtf8String(module_name);
   MaybeHandle<Object> result = Object::GetProperty(ffi, name);
   if (result.is_null()) {
     return ReportFFIError(thrower, "module not found", index, module_name,
@@ -351,10 +376,9 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   Handle<Object> function;
-  if (function_name.name) {
+  if (function_name.start()) {
     // Look up the function in the module.
-    Handle<String> name = factory->InternalizeUtf8String(
-        Vector<const char>(function_name.name, function_name.length));
+    Handle<String> name = factory->InternalizeUtf8String(function_name);
     MaybeHandle<Object> result = Object::GetProperty(module, name);
     if (result.is_null()) {
       return ReportFFIError(thrower, "function not found", index, module_name,
@@ -382,9 +406,23 @@ static MaybeHandle<JSFunction> LookupFunction(
 MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                               Handle<JSObject> ffi,
                                               Handle<JSArrayBuffer> memory) {
+  HistogramTimerScope wasm_instantiate_module_time_scope(
+      isolate->counters()->wasm_instantiate_module_time());
   this->shared_isolate = isolate;  // TODO(titzer): have a real shared isolate.
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
+
+  PropertyDescriptor desc;
+  desc.set_writable(false);
+
+  // If FLAG_print_wasm_code_size is set, this aggregates the sum of all code
+  // objects created for this module.
+  // TODO(titzer): switch this to TRACE_EVENT
+  uint32_t total_code_size = 0;
+  auto record_code_size = [&total_code_size](Code* code) {
+    if (FLAG_print_wasm_code_size)
+      total_code_size += code->body_size() + code->relocation_info()->length();
+  };
 
   //-------------------------------------------------------------------------
   // Allocate the instance and its JS counterpart.
@@ -402,6 +440,10 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
   // Allocate and initialize the linear memory.
   //-------------------------------------------------------------------------
+  isolate->counters()->wasm_min_mem_pages_count()->AddSample(
+      instance.module->min_mem_pages);
+  isolate->counters()->wasm_max_mem_pages_count()->AddSample(
+      instance.module->max_mem_pages);
   if (memory.is_null()) {
     if (!AllocateMemory(&thrower, isolate, &instance)) {
       return MaybeHandle<JSObject>();
@@ -423,6 +465,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     instance.js_object->SetInternalField(kWasmGlobalsArrayBuffer,
                                          *instance.globals_buffer);
   }
+
+  HistogramTimerScope wasm_compile_module_time_scope(
+      isolate->counters()->wasm_compile_module_time());
 
   //-------------------------------------------------------------------------
   // Compile wrappers to imported functions.
@@ -450,6 +495,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
           isolate, &module_env, function.ToHandleChecked(), import.sig,
           module_name, function_name);
       instance.import_code.push_back(code);
+      record_code_size(*code);
       index++;
     }
   }
@@ -457,91 +503,146 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   //-------------------------------------------------------------------------
   // Compile all functions in the module.
   //-------------------------------------------------------------------------
+  {
+    isolate->counters()->wasm_functions_per_module()->AddSample(
+        static_cast<int>(functions.size()));
 
-  // First pass: compile each function and initialize the code table.
-  index = FLAG_skip_compiling_wasm_funcs;
-  while (index < functions.size()) {
-    const WasmFunction& func = functions[index];
-    if (thrower.error()) break;
-    DCHECK_EQ(index, func.func_index);
+    std::vector<compiler::WasmCompilationUnit*> compilation_units(
+        functions.size());
+    if (FLAG_wasm_parallel_compilation) {
+      // Create a placeholder code object for all functions.
+      // TODO(ahaas): Maybe we could skip this for external functions.
+      for (uint32_t i = 0; i < functions.size(); i++) {
+        linker.GetFunctionCode(i);
+      }
 
-    WasmName str = GetName(func.name_offset, func.name_length);
-    WasmName str_null = {nullptr, 0};
-    Handle<String> name = factory->InternalizeUtf8String(
-        Vector<const char>(str.name, str.length));
-    Handle<Code> code = Handle<Code>::null();
-    Handle<JSFunction> function = Handle<JSFunction>::null();
-    if (func.external) {
-      // Lookup external function in FFI object.
-      MaybeHandle<JSFunction> function =
-          LookupFunction(thrower, factory, ffi, index, str, str_null);
-      if (function.is_null()) return MaybeHandle<JSObject>();
-      code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
-                                              function.ToHandleChecked(),
-                                              func.sig, str, str_null);
-    } else {
-      // Compile the function.
-      code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
-      if (code.is_null()) {
-        thrower.Error("Compilation of #%d:%.*s failed.", index, str.length,
-                      str.name);
-        return MaybeHandle<JSObject>();
+      for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+           i++) {
+        if (!functions[i].external) {
+          compilation_units[i] = compiler::CreateWasmCompilationUnit(
+              &thrower, isolate, &module_env, &functions[i]);
+        }
+      }
+
+      for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+           i++) {
+        if (!functions[i].external) {
+          compiler::ExecuteCompilation(compilation_units[i]);
+        }
+      }
+    }
+
+    // First pass: compile each function and initialize the code table.
+    for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+         i++) {
+      const WasmFunction& func = functions[i];
+      if (thrower.error()) break;
+      DCHECK_EQ(i, func.func_index);
+
+      WasmName str = GetName(func.name_offset, func.name_length);
+      WasmName str_null = {nullptr, 0};
+      Handle<String> name = factory->InternalizeUtf8String(str);
+      Handle<Code> code = Handle<Code>::null();
+      Handle<JSFunction> function = Handle<JSFunction>::null();
+      if (func.external) {
+        // Lookup external function in FFI object.
+        MaybeHandle<JSFunction> function =
+            LookupFunction(thrower, factory, ffi, i, str, str_null);
+        if (function.is_null()) return MaybeHandle<JSObject>();
+        code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
+                                                function.ToHandleChecked(),
+                                                func.sig, str, str_null);
+      } else {
+        if (FLAG_wasm_parallel_compilation) {
+          code = compiler::FinishCompilation(compilation_units[i]);
+        } else {
+          // Compile the function.
+          code = compiler::CompileWasmFunction(&thrower, isolate, &module_env,
+                                               &func);
+        }
+        if (code.is_null()) {
+          thrower.Error("Compilation of #%d:%.*s failed.", i, str.length(),
+                        str.start());
+          return MaybeHandle<JSObject>();
+        }
+        if (func.exported) {
+          function = compiler::CompileJSToWasmWrapper(
+              isolate, &module_env, name, code, instance.js_object, i);
+          record_code_size(function->code());
+        }
+      }
+      if (!code.is_null()) {
+        // Install the code into the linker table.
+        linker.Finish(i, code);
+        code_table->set(i, *code);
+        record_code_size(*code);
       }
       if (func.exported) {
-        function = compiler::CompileJSToWasmWrapper(
-            isolate, &module_env, name, code, instance.js_object, index);
+        // Exported functions are installed as read-only properties on the
+        // module.
+        desc.set_value(function);
+        Maybe<bool> status = JSReceiver::DefineOwnProperty(
+            isolate, instance.js_object, name, &desc, Object::THROW_ON_ERROR);
+        if (!status.IsJust())
+          thrower.Error("export of %.*s failed.", str.length(), str.start());
       }
     }
-    if (!code.is_null()) {
-      // Install the code into the linker table.
-      linker.Finish(index, code);
-      code_table->set(index, *code);
-    }
-    if (func.exported) {
-      // Exported functions are installed as read-only properties on the module.
-      JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
-    }
-    index++;
-  }
 
-  // Second pass: patch all direct call sites.
-  linker.Link(instance.function_table, this->function_table);
-  instance.js_object->SetInternalField(kWasmModuleFunctionTable,
-                                       Smi::FromInt(0));
+    // Second pass: patch all direct call sites.
+    linker.Link(instance.function_table, this->function_table);
+    instance.js_object->SetInternalField(kWasmModuleFunctionTable,
+                                         Smi::FromInt(0));
 
-  //-------------------------------------------------------------------------
-  // Create and populate the exports object.
-  //-------------------------------------------------------------------------
-  if (export_table.size() > 0 || mem_export) {
-    index = 0;
-    // Create the "exports" object.
-    Handle<JSFunction> object_function = Handle<JSFunction>(
-        isolate->native_context()->object_function(), isolate);
-    Handle<JSObject> exports_object =
-        factory->NewJSObject(object_function, TENURED);
-    Handle<String> exports_name = factory->InternalizeUtf8String("exports");
-    JSObject::AddProperty(instance.js_object, exports_name, exports_object,
-                          READ_ONLY);
-
-    // Compile wrappers and add them to the exports object.
-    for (const WasmExport& exp : export_table) {
-      if (thrower.error()) break;
-      WasmName str = GetName(exp.name_offset, exp.name_length);
-      Handle<String> name = factory->InternalizeUtf8String(
-          Vector<const char>(str.name, str.length));
-      Handle<Code> code = linker.GetFunctionCode(exp.func_index);
-      Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
-          isolate, &module_env, name, code, instance.js_object, exp.func_index);
-      JSObject::AddProperty(exports_object, name, function, READ_ONLY);
-    }
-
-    if (mem_export) {
-      // Export the memory as a named property.
-      Handle<String> name = factory->InternalizeUtf8String("memory");
-      JSObject::AddProperty(exports_object, name, instance.mem_buffer,
+    //-------------------------------------------------------------------------
+    // Create and populate the exports object.
+    //-------------------------------------------------------------------------
+    if (export_table.size() > 0 || mem_export) {
+      // Create the "exports" object.
+      Handle<JSFunction> object_function = Handle<JSFunction>(
+          isolate->native_context()->object_function(), isolate);
+      Handle<JSObject> exports_object =
+          factory->NewJSObject(object_function, TENURED);
+      Handle<String> exports_name = factory->InternalizeUtf8String("exports");
+      JSObject::AddProperty(instance.js_object, exports_name, exports_object,
                             READ_ONLY);
+
+      // Compile wrappers and add them to the exports object.
+      for (const WasmExport& exp : export_table) {
+        if (thrower.error()) break;
+        WasmName str = GetName(exp.name_offset, exp.name_length);
+        Handle<String> name = factory->InternalizeUtf8String(str);
+        Handle<Code> code = linker.GetFunctionCode(exp.func_index);
+        Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
+            isolate, &module_env, name, code, instance.js_object,
+            exp.func_index);
+        record_code_size(function->code());
+        desc.set_value(function);
+        Maybe<bool> status = JSReceiver::DefineOwnProperty(
+            isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
+        if (!status.IsJust())
+          thrower.Error("export of %.*s failed.", str.length(), str.start());
+      }
+
+      if (mem_export) {
+        // Export the memory as a named property.
+        Handle<String> name = factory->InternalizeUtf8String("memory");
+        JSObject::AddProperty(exports_object, name, instance.mem_buffer,
+                              READ_ONLY);
+      }
     }
   }
+
+  //-------------------------------------------------------------------------
+  // Attach an array with function names and an array with offsets into that
+  // first array.
+  //-------------------------------------------------------------------------
+  {
+    Handle<Object> arr = BuildFunctionNamesTable(isolate, module_env.module);
+    instance.js_object->SetInternalField(kWasmFunctionNamesArray, *arr);
+  }
+
+  if (FLAG_print_wasm_code_size)
+    printf("Total generated wasm code: %u bytes\n", total_code_size);
 
   // Run the start function if one was specified.
   if (this->start_function_index >= 0) {
@@ -589,7 +690,7 @@ compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, bool asm_js) {
   HandleScope scope(isolate);
-  Zone zone;
+  Zone zone(isolate->allocator());
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
   ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,
@@ -647,7 +748,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
     if (!func.external) {
       // Compile the function and install it in the code table.
       Handle<Code> code =
-          compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
+          compiler::CompileWasmFunction(&thrower, isolate, &module_env, &func);
       if (!code.is_null()) {
         if (func.exported) {
           main_code = code;
@@ -693,6 +794,16 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   thrower.Error("WASM.compileRun() failed: Return value should be number");
   return -1;
 }
+
+Handle<Object> GetWasmFunctionName(Handle<JSObject> wasm, uint32_t func_index) {
+  Handle<Object> func_names_arr_obj = handle(
+      wasm->GetInternalField(kWasmFunctionNamesArray), wasm->GetIsolate());
+  if (func_names_arr_obj->IsUndefined())
+    return func_names_arr_obj;  // Return undefined.
+  return GetWasmFunctionNameFromTable(
+      Handle<ByteArray>::cast(func_names_arr_obj), func_index);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -204,15 +204,15 @@ void MacroAssembler::RememberedSetHelper(
   mov(Operand::StaticVariable(store_buffer), scratch);
   // Call stub on end of buffer.
   // Check for end of buffer.
-  test(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
+  test(scratch, Immediate(StoreBuffer::kStoreBufferMask));
   if (and_then == kReturnAtEnd) {
     Label buffer_overflowed;
-    j(not_equal, &buffer_overflowed, Label::kNear);
+    j(equal, &buffer_overflowed, Label::kNear);
     ret(0);
     bind(&buffer_overflowed);
   } else {
     DCHECK(and_then == kFallThroughAtEnd);
-    j(equal, &done, Label::kNear);
+    j(not_equal, &done, Label::kNear);
   }
   StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
@@ -1025,6 +1025,16 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertGeneratorObject(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotAGeneratorObject);
+    Push(object);
+    CmpObjectType(object, JS_GENERATOR_OBJECT_TYPE, object);
+    Pop(object);
+    Check(equal, kOperandIsNotAGeneratorObject);
+  }
+}
 
 void MacroAssembler::AssertReceiver(Register object) {
   if (emit_debug_code()) {
@@ -1562,22 +1572,16 @@ void MacroAssembler::Allocate(int object_size,
     mov(top_reg, result);
   }
   add(top_reg, Immediate(object_size));
-  j(carry, gc_required);
   cmp(top_reg, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
   // Update allocation top.
   UpdateAllocationTopHelper(top_reg, scratch, flags);
 
-  // Tag result if requested.
-  bool tag_result = (flags & TAG_OBJECT) != 0;
   if (top_reg.is(result)) {
-    if (tag_result) {
-      sub(result, Immediate(object_size - kHeapObjectTag));
-    } else {
-      sub(result, Immediate(object_size));
-    }
-  } else if (tag_result) {
+    sub(result, Immediate(object_size - kHeapObjectTag));
+  } else {
+    // Tag the result.
     DCHECK(kHeapObjectTag == 1);
     inc(result);
   }
@@ -1651,10 +1655,9 @@ void MacroAssembler::Allocate(int header_size,
   cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
-  if ((flags & TAG_OBJECT) != 0) {
-    DCHECK(kHeapObjectTag == 1);
-    inc(result);
-  }
+  // Tag result.
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch, flags);
@@ -1715,11 +1718,9 @@ void MacroAssembler::Allocate(Register object_size,
   cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
-  // Tag result if requested.
-  if ((flags & TAG_OBJECT) != 0) {
-    DCHECK(kHeapObjectTag == 1);
-    inc(result);
-  }
+  // Tag result.
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch, flags);
@@ -1733,7 +1734,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         MutableMode mode) {
   // Allocate heap number in new space.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   Handle<Map> map = mode == MUTABLE
       ? isolate()->factory()->mutable_heap_number_map()
@@ -1759,15 +1760,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.
-  Allocate(SeqTwoByteString::kHeaderSize,
-           times_1,
-           scratch1,
-           REGISTER_VALUE_IS_INT32,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(SeqTwoByteString::kHeaderSize, times_1, scratch1,
+           REGISTER_VALUE_IS_INT32, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1793,15 +1788,9 @@ void MacroAssembler::AllocateOneByteString(Register result, Register length,
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
   // Allocate one-byte string in new space.
-  Allocate(SeqOneByteString::kHeaderSize,
-           times_1,
-           scratch1,
-           REGISTER_VALUE_IS_INT32,
-           result,
-           scratch2,
-           scratch3,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(SeqOneByteString::kHeaderSize, times_1, scratch1,
+           REGISTER_VALUE_IS_INT32, result, scratch2, scratch3, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1821,7 +1810,7 @@ void MacroAssembler::AllocateOneByteString(Register result, int length,
 
   // Allocate one-byte string in new space.
   Allocate(SeqOneByteString::SizeFor(length), result, scratch1, scratch2,
-           gc_required, TAG_OBJECT);
+           gc_required, NO_ALLOCATION_FLAGS);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1839,7 +1828,7 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Label* gc_required) {
   // Allocate heap number in new space.
   Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1851,12 +1840,8 @@ void MacroAssembler::AllocateOneByteConsString(Register result,
                                                Register scratch1,
                                                Register scratch2,
                                                Label* gc_required) {
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           TAG_OBJECT);
+  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1870,7 +1855,7 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
                                           Label* gc_required) {
   // Allocate heap number in new space.
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1884,7 +1869,7 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
                                                  Label* gc_required) {
   // Allocate heap number in new space.
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           TAG_OBJECT);
+           NO_ALLOCATION_FLAGS);
 
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1900,7 +1885,8 @@ void MacroAssembler::AllocateJSValue(Register result, Register constructor,
   DCHECK(!result.is(value));
 
   // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch, no_reg, gc_required, TAG_OBJECT);
+  Allocate(JSValue::kSize, result, scratch, no_reg, gc_required,
+           NO_ALLOCATION_FLAGS);
 
   // Initialize the JSValue.
   LoadGlobalFunctionInitialMap(constructor, scratch);
@@ -3327,19 +3313,40 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg,
     Label* no_memento_found) {
-  ExternalReference new_space_start =
-      ExternalReference::new_space_start(isolate());
+  Label map_check;
+  Label top_check;
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
+  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
 
-  lea(scratch_reg, Operand(receiver_reg,
-      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  cmp(scratch_reg, Immediate(new_space_start));
-  j(less, no_memento_found);
+  // Bail out if the object is not in new space.
+  JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
+  // If the object is in new space, we need to check whether it is on the same
+  // page as the current top.
+  lea(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  xor_(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
+  test(scratch_reg, Immediate(~Page::kPageAlignmentMask));
+  j(zero, &top_check);
+  // The object is on a different page than allocation top. Bail out if the
+  // object sits on the page boundary as no memento can follow and we cannot
+  // touch the memory following it.
+  lea(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  xor_(scratch_reg, receiver_reg);
+  test(scratch_reg, Immediate(~Page::kPageAlignmentMask));
+  j(not_zero, no_memento_found);
+  // Continue with the actual map check.
+  jmp(&map_check);
+  // If top is on the same page as the current object, we need to check whether
+  // we are below top.
+  bind(&top_check);
+  lea(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
   j(greater, no_memento_found);
-  cmp(MemOperand(scratch_reg, -AllocationMemento::kSize),
-      Immediate(isolate()->factory()->allocation_memento_map()));
+  // Memento map check.
+  bind(&map_check);
+  mov(scratch_reg, Operand(receiver_reg, kMementoMapOffset));
+  cmp(scratch_reg, Immediate(isolate()->factory()->allocation_memento_map()));
 }
 
 

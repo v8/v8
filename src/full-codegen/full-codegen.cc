@@ -4,8 +4,8 @@
 
 #include "src/full-codegen/full-codegen.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-numbering.h"
+#include "src/ast/ast.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
@@ -14,6 +14,7 @@
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
+#include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
@@ -143,13 +144,8 @@ int FullCodeGenerator::NewHandlerTableEntry() {
 
 bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
     ObjectLiteral* expr) const {
-  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
-  // support copy-on-write (COW) elements for now.
-  // TODO(mvstanton): make object literals support COW elements.
-  return masm()->serializer_enabled() || !expr->fast_elements() ||
-         !expr->has_shallow_properties() ||
-         expr->properties_count() >
-             FastCloneShallowObjectStub::kMaximumClonedProperties;
+  return masm()->serializer_enabled() ||
+         !FastCloneShallowObjectStub::IsSupported(expr);
 }
 
 
@@ -559,9 +555,17 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
     }
   }
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
+
+  // Reload the context register after the call as i.e. TurboFan code stubs
+  // won't preserve the context register.
+  LoadFromFrameField(StandardFrameConstants::kContextOffset,
+                     context_register());
   context()->Plug(result_register());
 }
 
+void FullCodeGenerator::EmitNewObject(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::FastNewObject(isolate()));
+}
 
 void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::NumberToString(isolate()));
@@ -582,6 +586,9 @@ void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
 }
 
+void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToInteger(isolate()));
+}
 
 void FullCodeGenerator::EmitToNumber(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::ToNumber(isolate()));
@@ -640,14 +647,9 @@ void FullCodeGenerator::SetStatementPosition(
   }
 }
 
-
-void FullCodeGenerator::SetExpressionPosition(
-    Expression* expr, FullCodeGenerator::InsertBreak insert_break) {
+void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  bool recorded = RecordPosition(masm_, expr->position());
-  if (recorded && insert_break == INSERT_BREAK && info_->is_debug()) {
-    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
-  }
+  RecordPosition(masm_, expr->position());
 }
 
 
@@ -659,13 +661,16 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   }
 }
 
-
-void FullCodeGenerator::SetCallPosition(Expression* expr) {
+void FullCodeGenerator::SetCallPosition(Expression* expr,
+                                        TailCallMode tail_call_mode) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
+    RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
+                               ? RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL
+                               : RelocInfo::DEBUG_BREAK_SLOT_AT_CALL;
     // Always emit a debug break slot before a call.
-    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
+    DebugCodegen::GenerateSlot(masm_, mode);
   }
 }
 
@@ -673,32 +678,15 @@ void FullCodeGenerator::SetCallPosition(Expression* expr) {
 void FullCodeGenerator::VisitSuperPropertyReference(
     SuperPropertyReference* super) {
   __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
+  // Even though this expression doesn't produce a value, we need to simulate
+  // plugging of the value context to ensure stack depth tracking is in sync.
+  if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
 
 void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
-}
-
-
-void FullCodeGenerator::EmitGeneratorNext(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::NEXT);
-}
-
-
-void FullCodeGenerator::EmitGeneratorReturn(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::RETURN);
-}
-
-
-void FullCodeGenerator::EmitGeneratorThrow(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  EmitGeneratorResume(args->at(0), args->at(1), JSGeneratorObject::THROW);
+  // Handled by VisitCall
+  UNREACHABLE();
 }
 
 
@@ -1237,6 +1225,7 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   increment_loop_depth();
 
   // var iterator = iterable[Symbol.iterator]();
+  SetExpressionAsStatementPosition(stmt->assign_iterator());
   VisitForEffect(stmt->assign_iterator());
 
   // Loop entry.
@@ -1269,6 +1258,11 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   decrement_loop_depth();
 }
 
+void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+  LoadFromFrameField(JavaScriptFrameConstants::kFunctionOffset,
+                     result_register());
+  context()->Plug(result_register());
+}
 
 void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Comment cmnt(masm_, "[ TryCatchStatement");
@@ -1283,7 +1277,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Label try_entry, handler_entry, exit;
   __ jmp(&try_entry);
   __ bind(&handler_entry);
-  ClearPendingMessage();
+  if (stmt->clear_pending_message()) ClearPendingMessage();
 
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
@@ -1747,16 +1741,19 @@ bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;
   Handle<String> check;
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareTypeof(expr, sub_expr, check);
     return true;
   }
 
   if (expr->IsLiteralCompareUndefined(&sub_expr)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
     return true;
   }
 
   if (expr->IsLiteralCompareNull(&sub_expr)) {
+    SetExpressionPosition(expr);
     EmitLiteralCompareNil(expr, sub_expr, kNullValue);
     return true;
   }
@@ -1935,7 +1932,7 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
   DCHECK(var->initializer_position() != RelocInfo::kNoPosition);
   DCHECK(proxy->position() != RelocInfo::kNoPosition);
 
-  return var->mode() == CONST_LEGACY || var->scope()->is_nonlinear() ||
+  return var->scope()->is_nonlinear() ||
          var->initializer_position() >= proxy->position();
 }
 

@@ -28,7 +28,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
                        int context_count, int locals_count,
                        FunctionLiteral* literal = nullptr);
-  ~BytecodeArrayBuilder();
 
   Handle<BytecodeArray> ToBytecodeArray();
 
@@ -82,7 +81,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& LoadTheHole();
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
-  BytecodeArrayBuilder& LoadBooleanConstant(bool value);
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
@@ -225,11 +223,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
 
-  BytecodeArrayBuilder& StackCheck();
+  BytecodeArrayBuilder& StackCheck(int position);
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();
+
+  BytecodeArrayBuilder& Illegal();
 
   // Debugger.
   BytecodeArrayBuilder& Debugger();
@@ -241,6 +241,10 @@ class BytecodeArrayBuilder final : public ZoneObject {
                                   Register cache_type_array_pair,
                                   int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
+
+  // Generators.
+  BytecodeArrayBuilder& SuspendGenerator(Register generator);
+  BytecodeArrayBuilder& ResumeGenerator(Register generator);
 
   // Exception handling.
   BytecodeArrayBuilder& MarkHandler(int handler_id, bool will_catch);

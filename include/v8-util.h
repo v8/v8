@@ -206,6 +206,17 @@ class PersistentValueMapBase {
   }
 
   /**
+   * Call V8::RegisterExternallyReferencedObject with the map value for given
+   * key.
+   */
+  void RegisterExternallyReferencedObject(K& key) {
+    DCHECK(Contains(key));
+    V8::RegisterExternallyReferencedObject(
+        reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
+        reinterpret_cast<internal::Isolate*>(GetIsolate()));
+  }
+
+  /**
    * Return value for key and remove it from the map.
    */
   Global<V> Remove(const K& key) {

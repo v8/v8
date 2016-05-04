@@ -23,6 +23,9 @@ class Int64Lowering {
 
   void LowerGraph();
 
+  static int GetParameterCountAfterLowering(
+      Signature<MachineRepresentation>* signature);
+
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
@@ -37,16 +40,20 @@ class Int64Lowering {
   CommonOperatorBuilder* common() const { return common_; }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
+  void PrepareReplacements(Node* node);
+  void PushNode(Node* node);
   void LowerNode(Node* node);
   bool DefaultLowering(Node* node);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
+  void PrepareProjectionReplacements(Node* node);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
   Node* GetReplacementLow(Node* node);
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
+  void PreparePhiReplacement(Node* phi);
 
   struct NodeState {
     Node* node;
@@ -58,9 +65,10 @@ class Int64Lowering {
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   NodeMarker<State> state_;
-  ZoneStack<NodeState> stack_;
+  ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;
+  Node* placeholder_;
 };
 
 }  // namespace compiler

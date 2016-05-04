@@ -815,7 +815,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kReturn:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
-    case HValue::kStoreFrameContext:
     case HValue::kStoreKeyed:
     case HValue::kStoreNamedField:
     case HValue::kStoreNamedGeneric:
@@ -1204,7 +1203,6 @@ namespace {
 String* TypeOfString(HConstant* constant, Isolate* isolate) {
   Heap* heap = isolate->heap();
   if (constant->HasNumberValue()) return heap->number_string();
-  if (constant->IsUndetectable()) return heap->undefined_string();
   if (constant->HasStringValue()) return heap->string_string();
   switch (constant->GetInstanceType()) {
     case ODDBALL_TYPE: {
@@ -1233,6 +1231,7 @@ String* TypeOfString(HConstant* constant, Isolate* isolate) {
       return nullptr;
     }
     default:
+      if (constant->IsUndetectable()) return heap->undefined_string();
       if (constant->IsCallable()) return heap->function_string();
       return heap->object_string();
   }
@@ -1484,7 +1483,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           val, representation(), false, false));
     }
   }
-  if (op() == kMathFloor && value()->IsDiv() && value()->HasOneUse()) {
+  if (op() == kMathFloor && representation().IsSmiOrInteger32() &&
+      value()->IsDiv() && value()->HasOneUse()) {
     HDiv* hdiv = HDiv::cast(value());
 
     HValue* left = hdiv->left();
@@ -3253,12 +3253,12 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  bool keep_new_space_iterable = FLAG_log_gc || FLAG_heap_stats;
+  bool keep_heap_iterable = FLAG_log_gc || FLAG_heap_stats;
 #ifdef VERIFY_HEAP
-  keep_new_space_iterable = keep_new_space_iterable || FLAG_verify_heap;
+  keep_heap_iterable = keep_heap_iterable || FLAG_verify_heap;
 #endif
 
-  if (keep_new_space_iterable && dominator_allocate->IsNewSpaceAllocation()) {
+  if (keep_heap_iterable) {
     dominator_allocate->MakePrefillWithFiller();
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos

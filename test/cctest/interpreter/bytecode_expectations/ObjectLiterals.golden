@@ -16,7 +16,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(7),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(35),
   B(Star), R(0),
   B(Return),
 ]
@@ -35,7 +35,7 @@ parameter count: 1
 bytecode array length: 8
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(Return),
 ]
@@ -56,7 +56,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaSmi), U8(1),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(1),
   B(Ldar), R(0),
   B(StoreICSloppy), R(1), U8(1), U8(1),
@@ -81,7 +81,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaSmi), U8(1),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(1),
   B(Ldar), R(0),
   B(Star), R(2),
@@ -107,7 +107,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(CreateClosure), U8(1), U8(0),
   B(StoreICSloppy), R(0), U8(2), U8(1),
@@ -131,7 +131,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(CreateClosure), U8(1), U8(0),
   B(StoreICSloppy), R(0), U8(2), U8(1),
@@ -155,7 +155,7 @@ parameter count: 1
 bytecode array length: 33
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(Mov), R(0), R(1),
   B(LdaConstant), U8(1),
@@ -187,7 +187,7 @@ parameter count: 1
 bytecode array length: 35
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(Mov), R(0), R(1),
   B(LdaConstant), U8(1),
@@ -220,7 +220,7 @@ parameter count: 1
 bytecode array length: 33
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(0),
   B(Mov), R(0), R(1),
   B(LdaConstant), U8(1),
@@ -254,7 +254,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaSmi), U8(1),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(1),
   B(Star), R(1),
   B(Mov), R(1), R(2),
   B(LdaSmi), U8(1),
@@ -282,7 +282,7 @@ parameter count: 1
 bytecode array length: 21
 bytecodes: [
   B(StackCheck),
-  B(CreateObjectLiteral), U8(0), U8(0), U8(7),
+  B(CreateObjectLiteral), U8(0), U8(0), U8(35),
   B(Star), R(0),
   B(Mov), R(0), R(1),
   B(LdaNull),
@@ -308,7 +308,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(7),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(35),
   B(Star), R(1),
   B(Mov), R(1), R(2),
   B(Ldar), R(0),
@@ -342,7 +342,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(5),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(1),
   B(Star), R(1),
   B(Ldar), R(0),
   B(StoreICSloppy), R(1), U8(2), U8(1),
@@ -379,7 +379,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(1), U8(7),
+  B(CreateObjectLiteral), U8(1), U8(1), U8(35),
   B(Star), R(1),
   B(Mov), R(1), R(2),
   B(Ldar), R(0),
@@ -393,7 +393,7 @@ bytecodes: [
   B(Star), R(6),
   B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2), U8(5),
   B(Mov), R(1), R(2),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(7),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(35),
   B(Star), R(4),
   B(Star), R(3),
   B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),
@@ -418,7 +418,7 @@ bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
   B(Star), R(0),
-  B(CreateObjectLiteral), U8(1), U8(0), U8(7),
+  B(CreateObjectLiteral), U8(1), U8(0), U8(35),
   B(Star), R(1),
   B(Mov), R(1), R(2),
   B(Ldar), R(0),

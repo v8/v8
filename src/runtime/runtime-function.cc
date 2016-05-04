@@ -96,6 +96,14 @@ RUNTIME_FUNCTION(Runtime_FunctionGetPositionForOffset) {
   return Smi::FromInt(abstract_code->SourcePosition(offset));
 }
 
+RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+
+  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  FixedArray* array = fun->native_context()->embedder_data();
+  return array->get(v8::Context::kDebugIdIndex);
+}
 
 RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {
   SealHandleScope shs(isolate);
@@ -272,10 +280,7 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  if (receiver->IsNull() || receiver->IsUndefined()) {
-    return isolate->global_proxy();
-  }
-  return *Object::ToObject(isolate, receiver).ToHandleChecked();
+  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }
 
 

@@ -98,6 +98,11 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
   return OpParameter<SelectParameters>(op);
 }
 
+CallDescriptor const* CallDescriptorOf(const Operator* const op) {
+  DCHECK(op->opcode() == IrOpcode::kCall ||
+         op->opcode() == IrOpcode::kTailCall);
+  return OpParameter<CallDescriptor const*>(op);
+}
 
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
@@ -140,6 +145,25 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   if (i.debug_name()) os << i.debug_name() << '#';
   os << i.index();
   return os;
+}
+
+bool operator==(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs) {
+  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value();
+}
+
+bool operator!=(RelocatablePtrConstantInfo const& lhs,
+                RelocatablePtrConstantInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(RelocatablePtrConstantInfo const& p) {
+  return base::hash_combine(p.value(), p.rmode());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         RelocatablePtrConstantInfo const& p) {
+  return os << p.value() << "|" << p.rmode();
 }
 
 #define CACHED_OP_LIST(V)                                    \
@@ -668,6 +692,24 @@ const Operator* CommonOperatorBuilder::HeapConstant(
       value);                                         // parameter
 }
 
+const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
+    int32_t value, RelocInfo::Mode rmode) {
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
+      IrOpcode::kRelocatableInt32Constant, Operator::kPure,   // opcode
+      "RelocatableInt32Constant",                             // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      RelocatablePtrConstantInfo(value, rmode));              // parameter
+}
+
+const Operator* CommonOperatorBuilder::RelocatableInt64Constant(
+    int64_t value, RelocInfo::Mode rmode) {
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(    // --
+      IrOpcode::kRelocatableInt64Constant, Operator::kPure,     // opcode
+      "RelocatableInt64Constant",                               // name
+      0, 0, 0, 1, 0, 0,                                         // counts
+      RelocatablePtrConstantInfo(static_cast<intptr_t>(value),  // parameter
+                                 rmode));
+}
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
                                               BranchHint hint) {

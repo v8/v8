@@ -43,8 +43,6 @@ class ScopeIterator {
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
 
-  ~ScopeIterator() { delete non_locals_; }
-
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 
   // More scopes?
@@ -75,10 +73,8 @@ class ScopeIterator {
   // be an actual context.
   Handle<Context> CurrentContext();
 
-  // Populate the list with collected non-local variable names.
-  void GetNonLocals(List<Handle<String> >* list_out);
-
-  bool ThisIsNonLocal();
+  // Populate the set with collected non-local variable names.
+  Handle<StringSet> GetNonLocals();
 
 #ifdef DEBUG
   // Debug print of the content of the current scope.
@@ -98,7 +94,7 @@ class ScopeIterator {
   FrameInspector* const frame_inspector_;
   Handle<Context> context_;
   List<ExtendedScopeInfo> nested_scope_chain_;
-  HashMap* non_locals_;
+  Handle<StringSet> non_locals_;
   bool seen_script_scope_;
   bool failed_;
 
@@ -110,17 +106,11 @@ class ScopeIterator {
     return Handle<JSFunction>::cast(frame_inspector_->GetFunction());
   }
 
-  static bool InternalizedStringMatch(void* key1, void* key2) {
-    Handle<String> s1(reinterpret_cast<String**>(key1));
-    Handle<String> s2(reinterpret_cast<String**>(key2));
-    DCHECK(s1->IsInternalizedString());
-    DCHECK(s2->IsInternalizedString());
-    return s1.is_identical_to(s2);
-  }
-
   void RetrieveScopeChain(Scope* scope);
 
   void CollectNonLocals(Scope* scope);
+
+  void UnwrapEvaluationContext();
 
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
@@ -128,6 +118,7 @@ class ScopeIterator {
   Handle<JSObject> MaterializeClosure();
   Handle<JSObject> MaterializeCatchScope();
   Handle<JSObject> MaterializeBlockScope();
+  Handle<JSObject> WithContextExtension();
 
   bool SetLocalVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);

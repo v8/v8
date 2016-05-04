@@ -1286,6 +1286,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kArm64Float64ToUint32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kArm64Float64ToUint32, node);
+}
 
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   Arm64OperandGenerator g(this);
@@ -1404,15 +1407,12 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kArm64Float64ToFloat32, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, kArchTruncateDoubleToI, node);
+}
 
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, kArchTruncateDoubleToI, node);
-    case TruncationMode::kRoundToZero:
-      return VisitRR(this, kArm64Float64ToInt32, node);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRR(this, kArm64Float64ToInt32, node);
 }
 
 
@@ -1631,20 +1631,20 @@ void InstructionSelector::EmitPrepareArguments(
     Node* node) {
   Arm64OperandGenerator g(this);
 
+  bool from_native_stack = linkage()->GetIncomingDescriptor()->UseNativeStack();
   bool to_native_stack = descriptor->UseNativeStack();
+
+  bool always_claim = to_native_stack != from_native_stack;
 
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
-  if (to_native_stack) {
-    // Native stack must always be aligned to 16 (2 words).
-    claim_count = RoundUp(claim_count, 2);
-  }
-  // TODO(titzer): claim and poke probably take small immediates.
   // Bump the stack pointer(s).
-  if (claim_count > 0 || to_native_stack) {
+  if (claim_count > 0 || always_claim) {
+    // TODO(titzer): claim and poke probably take small immediates.
     // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
     ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
+    // Claim(0) isn't a nop if there is a mismatch between CSP and JSSP.
     Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
@@ -2243,6 +2243,29 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  Arm64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Emit(opcode | AddressingModeField::encode(kMode_MRR),
+       g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
 
 // static
 MachineOperatorBuilder::Flags

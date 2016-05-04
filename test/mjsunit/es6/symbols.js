@@ -86,6 +86,7 @@ TestPrototype()
 
 
 function TestConstructor() {
+  assertEquals(0, Symbol.length);
   assertSame(Function.prototype, Symbol.__proto__)
   assertFalse(Object === Symbol.prototype.constructor)
   assertFalse(Symbol === Object.prototype.constructor)

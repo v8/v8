@@ -18,8 +18,8 @@ const Register kReturnRegister1 = {Register::kCode_v1};
 const Register kReturnRegister2 = {Register::kCode_a0};
 const Register kJSFunctionRegister = {Register::kCode_a1};
 const Register kContextRegister = {Register::kCpRegister};
+const Register kAllocateSizeRegister = {Register::kCode_a0};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_a7};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t0};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_t1};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_t2};
@@ -621,7 +621,6 @@ class MacroAssembler: public Assembler {
                           Register scratch2,
                           Register heap_number_map,
                           Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT,
                           MutableMode mode = IMMUTABLE);
 
   void AllocateHeapNumberWithValue(Register result,
@@ -716,10 +715,22 @@ class MacroAssembler: public Assembler {
 
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
+  void Ulh(Register rd, const MemOperand& rs);
+  void Ulhu(Register rd, const MemOperand& rs);
+  void Ush(Register rd, const MemOperand& rs, Register scratch);
+
   void Ulw(Register rd, const MemOperand& rs);
+  void Ulwu(Register rd, const MemOperand& rs);
   void Usw(Register rd, const MemOperand& rs);
-  void Uld(Register rd, const MemOperand& rs, Register scratch = at);
-  void Usd(Register rd, const MemOperand& rs, Register scratch = at);
+
+  void Uld(Register rd, const MemOperand& rs);
+  void Usd(Register rd, const MemOperand& rs);
+
+  void Ulwc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Uswc1(FPURegister fd, const MemOperand& rs, Register scratch);
+
+  void Uldc1(FPURegister fd, const MemOperand& rs, Register scratch);
+  void Usdc1(FPURegister fd, const MemOperand& rs, Register scratch);
 
   void LoadWordPair(Register rd, const MemOperand& rs, Register scratch = at);
   void StoreWordPair(Register rd, const MemOperand& rs, Register scratch = at);
@@ -1714,6 +1725,10 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
 
@@ -1822,25 +1837,22 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // in a0.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
 
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, jump to allocation_memento_present.
-  void TestJSArrayForAllocationMemento(
-      Register receiver_reg,
-      Register scratch_reg,
-      Label* no_memento_found,
-      Condition cond = al,
-      Label* allocation_memento_present = NULL);
+  // AllocationMemento support. Arrays may have an associated AllocationMemento
+  // object that can be checked for in order to pretransition to another type.
+  // On entry, receiver_reg should point to the array object. scratch_reg gets
+  // clobbered. If no info is present jump to no_memento_found, otherwise fall
+  // through.
+  void TestJSArrayForAllocationMemento(Register receiver_reg,
+                                       Register scratch_reg,
+                                       Label* no_memento_found);
 
   void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
                                          Register scratch_reg,
                                          Label* memento_found) {
     Label no_memento_found;
     TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
-                                    &no_memento_found, eq, memento_found);
+                                    &no_memento_found);
+    Branch(memento_found);
     bind(&no_memento_found);
   }
 
@@ -1881,8 +1893,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                                BranchDelaySlot bdslot);
   void BranchLong(Label* L, BranchDelaySlot bdslot);
   void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
-  void Jr(Label* L, BranchDelaySlot bdslot);
-  void Jalr(Label* L, BranchDelaySlot bdslot);
 
   // Common implementation of BranchF functions for the different formats.
   void BranchFCommon(SecondaryField sizeField, Label* target, Label* nan,

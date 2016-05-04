@@ -132,7 +132,6 @@ class LChunkBuilder;
   V(StackCheck)                               \
   V(StoreCodeEntry)                           \
   V(StoreContextSlot)                         \
-  V(StoreFrameContext)                        \
   V(StoreKeyed)                               \
   V(StoreKeyedGeneric)                        \
   V(StoreNamedField)                          \
@@ -2499,10 +2498,10 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
   // Indicates if we support a double (and int32) output for Math.floor and
   // Math.round.
   bool SupportsFlexibleFloorAndRound() const {
-#ifdef V8_TARGET_ARCH_ARM64
-    // TODO(rmcilroy): Re-enable this for Arm64 once http://crbug.com/476477 is
-    // fixed.
-    return false;
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
+    return true;
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+    return CpuFeatures::IsSupported(SSE4_1);
 #else
     return false;
 #endif
@@ -5227,10 +5226,7 @@ class HLoadContextSlot final : public HUnaryOperation {
     // hole value. This is used for checking for loading of uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kCheckDeoptimize,
-    // Load and check the value of the context slot. Return undefined if it's
-    // the hole value. This is used for non-harmony const assignments
-    kCheckReturnUndefined
+    kCheckDeoptimize
   };
 
   HLoadContextSlot(HValue* context, int slot_index, Mode mode)
@@ -5283,9 +5279,7 @@ class HStoreContextSlot final : public HTemplateInstruction<2> {
     // hole value. This is used for checking for assignments to uninitialized
     // harmony bindings where we deoptimize into full-codegen generated code
     // which will subsequently throw a reference error.
-    kCheckDeoptimize,
-    // Check the previous value and ignore assignment if it isn't a hole value
-    kCheckIgnoreAssignment
+    kCheckDeoptimize
   };
 
   DECLARE_INSTRUCTION_FACTORY_P4(HStoreContextSlot, HValue*, int,
@@ -7242,28 +7236,6 @@ class HLoadFieldByIndex final : public HTemplateInstruction<2> {
  private:
   bool IsDeletable() const override { return true; }
 };
-
-
-class HStoreFrameContext: public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HStoreFrameContext, HValue*);
-
-  HValue* context() { return OperandAt(0); }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext)
- private:
-  explicit HStoreFrameContext(HValue* context)
-      : HUnaryOperation(context) {
-    set_representation(Representation::Tagged());
-    SetChangesFlag(kContextSlots);
-  }
-};
-
-
 
 #undef DECLARE_INSTRUCTION
 #undef DECLARE_CONCRETE_INSTRUCTION

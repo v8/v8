@@ -12,9 +12,9 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
-#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/log.h"
@@ -251,6 +251,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   } else {
     old_gen_exhausted_ = true;
   }
+
+  if (!old_gen_exhausted_ && incremental_marking()->black_allocation() &&
+      space != OLD_SPACE) {
+    Marking::MarkBlack(Marking::MarkBitFrom(object));
+    MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
+  }
   return allocation;
 }
 
@@ -389,7 +395,7 @@ bool Heap::OldGenerationAllocationLimitReached() {
 
 
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
-  NewSpacePage* page = NewSpacePage::FromAddress(old_address);
+  Page* page = Page::FromAddress(old_address);
   Address age_mark = new_space_.age_mark();
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
@@ -399,9 +405,20 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  Page* page = Page::FromAddress(reinterpret_cast<Address>(object));
-  Address slot = HeapObject::cast(object)->address() + offset;
-  RememberedSet<OLD_TO_NEW>::Insert(page, slot);
+  RememberedSet<OLD_TO_NEW>::Insert(
+      Page::FromAddress(reinterpret_cast<Address>(object)),
+      HeapObject::cast(object)->address() + offset);
+}
+
+void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
+  if (InNewSpace(array)) return;
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(array));
+  for (int i = 0; i < length; i++) {
+    if (!InNewSpace(array->get(offset + i))) continue;
+    RememberedSet<OLD_TO_NEW>::Insert(
+        page,
+        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+  }
 }
 
 
@@ -451,7 +468,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
-  if (!NewSpacePage::OnSamePage(object_address, last_memento_word_address)) {
+  if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
@@ -479,7 +496,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
       top = NewSpaceTop();
       DCHECK(memento_address == top ||
              memento_address + HeapObject::kHeaderSize <= top ||
-             !NewSpacePage::OnSamePage(memento_address, top - 1));
+             !Page::OnSamePage(memento_address, top - 1));
       if ((memento_address != top) && memento_candidate->IsValid()) {
         return memento_candidate;
       }

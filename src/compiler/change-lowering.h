@@ -27,44 +27,11 @@ class ChangeLowering final : public Reducer {
   Reduction Reduce(Node* node) final;
 
  private:
-  Node* HeapNumberValueIndexConstant();
-  Node* SmiMaxValueConstant();
-  Node* SmiShiftBitsConstant();
-
-  Node* AllocateHeapNumberWithValue(Node* value, Node* control);
-  Node* ChangeInt32ToFloat64(Node* value);
-  Node* ChangeInt32ToSmi(Node* value);
-  Node* ChangeSmiToFloat64(Node* value);
-  Node* ChangeSmiToInt32(Node* value);
-  Node* ChangeUint32ToFloat64(Node* value);
-  Node* ChangeUint32ToSmi(Node* value);
-  Node* LoadHeapNumberValue(Node* value, Node* control);
-  Node* TestNotSmi(Node* value);
-
-  Reduction ChangeBitToBool(Node* value, Node* control);
-  Reduction ChangeBoolToBit(Node* value);
-  Reduction ChangeFloat64ToTagged(Node* value, Node* control);
-  Reduction ChangeInt32ToTagged(Node* value, Node* control);
-  Reduction ChangeTaggedToFloat64(Node* value, Node* control);
-  Reduction ChangeTaggedToUI32(Node* value, Node* control,
-                               Signedness signedness);
-  Reduction ChangeUint32ToTagged(Node* value, Node* control);
-
-  Reduction LoadField(Node* node);
-  Reduction StoreField(Node* node);
-  Reduction LoadElement(Node* node);
-  Reduction StoreElement(Node* node);
-  Reduction Allocate(Node* node);
-
-  Node* IsSmi(Node* value);
-  Node* LoadHeapObjectMap(Node* object, Node* control);
-  Node* LoadMapBitField(Node* map);
-  Node* LoadMapInstanceType(Node* map);
-
-  Reduction ObjectIsNumber(Node* node);
-  Reduction ObjectIsReceiver(Node* node);
-  Reduction ObjectIsSmi(Node* node);
-  Reduction ObjectIsUndetectable(Node* node);
+  Reduction ReduceLoadField(Node* node);
+  Reduction ReduceStoreField(Node* node);
+  Reduction ReduceLoadElement(Node* node);
+  Reduction ReduceStoreElement(Node* node);
+  Reduction ReduceAllocate(Node* node);
 
   Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Graph* graph() const;
@@ -74,7 +41,7 @@ class ChangeLowering final : public Reducer {
   MachineOperatorBuilder* machine() const;
 
   JSGraph* const jsgraph_;
-  SetOncePointer<const Operator> allocate_heap_number_operator_;
+  SetOncePointer<const Operator> allocate_operator_;
 };
 
 }  // namespace compiler
