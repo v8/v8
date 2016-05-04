@@ -353,7 +353,7 @@ static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
 }
 
 static MaybeHandle<JSFunction> LookupFunction(
-    ErrorThrower& thrower, Factory* factory, Handle<JSObject> ffi,
+    ErrorThrower& thrower, Factory* factory, Handle<JSReceiver> ffi,
     uint32_t index, wasm::WasmName module_name, wasm::WasmName function_name) {
   if (ffi.is_null()) {
     return ReportFFIError(thrower, "FFI is not an object", index, module_name,
@@ -404,7 +404,7 @@ static MaybeHandle<JSFunction> LookupFunction(
 //  * installs named properties on the object for exported functions
 //  * compiles wasm code to machine code
 MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
-                                              Handle<JSObject> ffi,
+                                              Handle<JSReceiver> ffi,
                                               Handle<JSArrayBuffer> memory) {
   HistogramTimerScope wasm_instantiate_module_time_scope(
       isolate->counters()->wasm_instantiate_module_time());

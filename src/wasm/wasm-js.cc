@@ -185,10 +185,10 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
     thrower->Failed("", result);
   } else {
     // Success. Instantiate the module and return the object.
-    i::Handle<i::JSObject> ffi = i::Handle<i::JSObject>::null();
+    i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
     if (args.Length() > 1 && args[1]->IsObject()) {
       Local<Object> obj = Local<Object>::Cast(args[1]);
-      ffi = i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj));
+      ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
     }
 
     i::MaybeHandle<i::JSObject> object =
