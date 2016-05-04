@@ -718,7 +718,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
   Object** frame_header_base = &Memory::Object_at(fp() - frame_header_size);
-  Object** frame_header_limit = &Memory::Object_at(fp());
+  Object** frame_header_limit =
+      &Memory::Object_at(fp() - StandardFrameConstants::kCPSlotSize);
   Object** parameters_base = &Memory::Object_at(sp());
   Object** parameters_limit = frame_header_base - slot_space / kPointerSize;
 
