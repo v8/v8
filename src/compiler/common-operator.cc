@@ -149,7 +149,8 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 bool operator==(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs) {
-  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value();
+  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value() &&
+         lhs.type() == rhs.type();
 }
 
 bool operator!=(RelocatablePtrConstantInfo const& lhs,
@@ -158,12 +159,12 @@ bool operator!=(RelocatablePtrConstantInfo const& lhs,
 }
 
 size_t hash_value(RelocatablePtrConstantInfo const& p) {
-  return base::hash_combine(p.value(), p.rmode());
+  return base::hash_combine(p.value(), p.rmode(), p.type());
 }
 
 std::ostream& operator<<(std::ostream& os,
                          RelocatablePtrConstantInfo const& p) {
-  return os << p.value() << "|" << p.rmode();
+  return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
 #define CACHED_OP_LIST(V)                                    \
@@ -703,12 +704,11 @@ const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
 
 const Operator* CommonOperatorBuilder::RelocatableInt64Constant(
     int64_t value, RelocInfo::Mode rmode) {
-  return new (zone()) Operator1<RelocatablePtrConstantInfo>(    // --
-      IrOpcode::kRelocatableInt64Constant, Operator::kPure,     // opcode
-      "RelocatableInt64Constant",                               // name
-      0, 0, 0, 1, 0, 0,                                         // counts
-      RelocatablePtrConstantInfo(static_cast<intptr_t>(value),  // parameter
-                                 rmode));
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
+      IrOpcode::kRelocatableInt64Constant, Operator::kPure,   // opcode
+      "RelocatableInt64Constant",                             // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      RelocatablePtrConstantInfo(value, rmode));              // parameter
 }
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,

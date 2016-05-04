@@ -117,15 +117,21 @@ const ParameterInfo& ParameterInfoOf(const Operator* const);
 
 class RelocatablePtrConstantInfo final {
  public:
-  RelocatablePtrConstantInfo(intptr_t value, RelocInfo::Mode rmode)
-      : value_(value), rmode_(rmode) {}
+  enum Type { kInt32, kInt64 };
+
+  RelocatablePtrConstantInfo(int32_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode), type_(kInt32) {}
+  RelocatablePtrConstantInfo(int64_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode), type_(kInt64) {}
 
   intptr_t value() const { return value_; }
   RelocInfo::Mode rmode() const { return rmode_; }
+  Type type() const { return type_; }
 
  private:
   intptr_t value_;
   RelocInfo::Mode rmode_;
+  Type type_;
 };
 
 bool operator==(RelocatablePtrConstantInfo const& lhs,

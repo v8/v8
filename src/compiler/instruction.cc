@@ -504,14 +504,17 @@ std::ostream& operator<<(std::ostream& os,
 
 Constant::Constant(int32_t v) : type_(kInt32), value_(v) {}
 
-Constant::Constant(RelocatablePtrConstantInfo info)
-#ifdef V8_HOST_ARCH_32_BIT
-    : type_(kInt32), value_(info.value()), rmode_(info.rmode()) {
+Constant::Constant(RelocatablePtrConstantInfo info) {
+  if (info.type() == RelocatablePtrConstantInfo::kInt32) {
+    type_ = kInt32;
+  } else if (info.type() == RelocatablePtrConstantInfo::kInt64) {
+    type_ = kInt64;
+  } else {
+    UNREACHABLE();
+  }
+  value_ = info.value();
+  rmode_ = info.rmode();
 }
-#else
-    : type_(kInt64), value_(info.value()), rmode_(info.rmode()) {
-}
-#endif
 
 Handle<HeapObject> Constant::ToHeapObject() const {
   DCHECK_EQ(kHeapObject, type());

@@ -114,6 +114,45 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(ATOM));
 }
 
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
+
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Memory::Address_at(pc_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return Memory::uint32_at(pc_);
+}
+
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
+  if (IsWasmMemoryReference(rmode_)) {
+    Address updated_reference;
+    DCHECK(old_base <= wasm_memory_reference() &&
+           wasm_memory_reference() < old_base + old_size);
+    updated_reference = new_base + (wasm_memory_reference() - old_base);
+    DCHECK(new_base <= updated_reference &&
+           updated_reference < new_base + new_size);
+    Memory::Address_at(pc_) = updated_reference;
+  } else if (IsWasmMemorySizeReference(rmode_)) {
+    uint32_t updated_size_reference;
+    DCHECK(wasm_memory_size_reference() <= old_size);
+    updated_size_reference =
+        new_size + (wasm_memory_size_reference() - old_size);
+    DCHECK(updated_size_reference <= new_size);
+    Memory::uint32_at(pc_) = updated_size_reference;
+  } else {
+    UNREACHABLE();
+  }
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand
@@ -563,14 +602,17 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_modrm(subcode, dst);
+    if (!RelocInfo::IsNone(src.rmode_)) {
+      RecordRelocInfo(src.rmode_);
+    }
     emit(src.value_);
   } else if (dst.is(rax)) {
     emit(0x05 | (subcode << 3));
-    emitl(src.value_);
+    emit(src);
   } else {
     emit(0x81);
     emit_modrm(subcode, dst);
-    emitl(src.value_);
+    emit(src);
   }
 }
 
@@ -583,11 +625,14 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_operand(subcode, dst);
+    if (!RelocInfo::IsNone(src.rmode_)) {
+      RecordRelocInfo(src.rmode_);
+    }
     emit(src.value_);
   } else {
     emit(0x81);
     emit_operand(subcode, dst);
-    emitl(src.value_);
+    emit(src);
   }
 }
 

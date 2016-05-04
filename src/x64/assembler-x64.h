@@ -334,6 +334,8 @@ enum RoundingMode {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
+  explicit Immediate(int32_t value, RelocInfo::Mode rmode)
+      : value_(value), rmode_(rmode) {}
   explicit Immediate(Smi* value) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
     value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
@@ -341,6 +343,7 @@ class Immediate BASE_EMBEDDED {
 
  private:
   int32_t value_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
 
   friend class Assembler;
 };
@@ -1758,7 +1761,12 @@ class Assembler : public AssemblerBase {
                                RelocInfo::Mode rmode,
                                TypeFeedbackId ast_id = TypeFeedbackId::None());
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
-  void emit(Immediate x) { emitl(x.value_); }
+  void emit(Immediate x) {
+    if (!RelocInfo::IsNone(x.rmode_)) {
+      RecordRelocInfo(x.rmode_);
+    }
+    emitl(x.value_);
+  }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.

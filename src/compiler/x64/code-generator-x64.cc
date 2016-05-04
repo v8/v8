@@ -44,6 +44,10 @@ class X64OperandConverter : public InstructionOperandConverter {
       DCHECK_EQ(0, bit_cast<int64_t>(constant.ToFloat64()));
       return Immediate(0);
     }
+    if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+        constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+      return Immediate(constant.ToInt32(), constant.rmode());
+    }
     return Immediate(constant.ToInt32());
   }
 
@@ -2150,6 +2154,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
             __ movq(dst, src.ToInt64(), src.rmode());
           } else {
+            DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
             __ Set(dst, src.ToInt64());
           }
           break;
