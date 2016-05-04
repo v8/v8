@@ -279,7 +279,7 @@ void IncrementalMarking::IterateBlackObject(HeapObject* object) {
   if (IsMarking() && Marking::IsBlack(Marking::MarkBitFrom(object))) {
     Page* page = Page::FromAddress(object->address());
     if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
-      // IterateBlackObject requires us to visit the hole object.
+      // IterateBlackObject requires us to visit the whole object.
       page->ResetProgressBar();
     }
     IncrementalMarkingMarkingVisitor::IterateBody(object->map(), object);

@@ -31,6 +31,7 @@
 #include "src/compilation-cache.h"
 #include "src/context-measure.h"
 #include "src/deoptimizer.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/field-type.h"
@@ -6639,6 +6640,106 @@ UNINITIALIZED_TEST(PagePromotion) {
     heap->CollectGarbage(OLD_SPACE);
     CHECK(!heap->new_space()->ContainsSlow(first_page->address()));
     CHECK(heap->old_space()->ContainsSlow(first_page->address()));
+  }
+}
+
+TEST(Regress598319) {
+  // This test ensures that no white objects can cross the progress bar of large
+  // objects during incremental marking. It checks this by using Shift() during
+  // incremental marking.
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+
+  const int kNumberOfObjects = Page::kMaxRegularHeapObjectSize / kPointerSize;
+
+  struct Arr {
+    Arr(Isolate* isolate, int number_of_objects) {
+      root = isolate->factory()->NewFixedArray(1, TENURED);
+      {
+        // Temporary scope to avoid getting any other objects into the root set.
+        v8::HandleScope scope(CcTest::isolate());
+        Handle<FixedArray> tmp =
+            isolate->factory()->NewFixedArray(number_of_objects);
+        root->set(0, *tmp);
+        for (int i = 0; i < get()->length(); i++) {
+          tmp = isolate->factory()->NewFixedArray(100, TENURED);
+          get()->set(i, *tmp);
+        }
+      }
+    }
+
+    FixedArray* get() { return FixedArray::cast(root->get(0)); }
+
+    Handle<FixedArray> root;
+  } arr(isolate, kNumberOfObjects);
+
+  CHECK_EQ(arr.get()->length(), kNumberOfObjects);
+  CHECK(heap->lo_space()->Contains(arr.get()));
+  LargePage* page = heap->lo_space()->FindPage(arr.get()->address());
+  CHECK_NOT_NULL(page);
+
+  // GC to cleanup state
+  heap->CollectGarbage(OLD_SPACE);
+  MarkCompactCollector* collector = heap->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+
+  CHECK(heap->lo_space()->Contains(arr.get()));
+  CHECK(Marking::IsWhite(Marking::MarkBitFrom(arr.get())));
+  for (int i = 0; i < arr.get()->length(); i++) {
+    CHECK(Marking::IsWhite(
+        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+  }
+
+  // Start incremental marking.
+  IncrementalMarking* marking = heap->incremental_marking();
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking();
+  }
+  CHECK(marking->IsMarking());
+
+  // Check that we have not marked the interesting array during root scanning.
+  for (int i = 0; i < arr.get()->length(); i++) {
+    CHECK(Marking::IsWhite(
+        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+  }
+
+  // Now we search for a state where we are in incremental marking and have
+  // only partially marked the large object.
+  while (!marking->IsComplete()) {
+    marking->Step(i::KB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->progress_bar() > 0) {
+      CHECK_NE(page->progress_bar(), arr.get()->Size());
+      {
+        // Shift by 1, effectively moving one white object across the progress
+        // bar, meaning that we will miss marking it.
+        v8::HandleScope scope(CcTest::isolate());
+        Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
+            Handle<FixedArray>(arr.get()));
+        js_array->GetElementsAccessor()->Shift(js_array);
+      }
+      break;
+    }
+  }
+
+  // Finish marking with bigger steps to speed up test.
+  while (!marking->IsComplete()) {
+    marking->Step(10 * i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (marking->IsReadyToOverApproximateWeakClosure()) {
+      marking->FinalizeIncrementally();
+    }
+  }
+  CHECK(marking->IsComplete());
+
+  // All objects need to be black after marking. If a white object crossed the
+  // progress bar, we would fail here.
+  for (int i = 0; i < arr.get()->length(); i++) {
+    CHECK(Marking::IsBlack(
+        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
   }
 }
 
