@@ -12355,7 +12355,11 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   SharedFunctionInfo* shared;
   while ((shared = iterator.Next<SharedFunctionInfo>())) {
     if (fun->function_token_position() == shared->function_token_position() &&
-        fun->start_position() == shared->start_position()) {
+        fun->start_position() == shared->start_position() &&
+        fun->end_position() == shared->end_position()) {
+      // This method is not used to find top-level SharedFunctionInfo objects,
+      // verify that above checks are sufficient to distinguish top-level code.
+      DCHECK(!shared->is_toplevel());
       return Handle<SharedFunctionInfo>(shared);
     }
   }

@@ -418,6 +418,12 @@ void CompilationJob::RecordOptimizationStats() {
 
 namespace {
 
+bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
+  return shared->is_toplevel() && shared->script()->IsScript() &&
+         Script::cast(shared->script())->compilation_type() ==
+             Script::COMPILATION_TYPE_EVAL;
+}
+
 void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
@@ -765,12 +771,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     shared->code()->set_profiler_ticks(0);
   }
 
-  // TODO(mstarzinger): We cannot properly deserialize a scope chain containing
-  // an eval scope and hence would fail at parsing the eval source again.
-  if (shared->disable_optimization_reason() == kEval) {
-    return MaybeHandle<Code>();
-  }
-
   VMState<COMPILER> state(isolate);
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
@@ -779,6 +779,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
                    : new HCompilationJob(function));
   CompilationInfo* info = job->info();
+  ParseInfo* parse_info = info->parse_info();
 
   info->SetOptimizingForOsr(osr_ast_id);
 
@@ -811,6 +812,14 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (FLAG_turbo_from_bytecode && use_turbofan &&
       info->shared_info()->HasBytecodeArray()) {
     info->MarkAsOptimizeFromBytecode();
+  }
+
+  if (IsEvalToplevel(shared)) {
+    parse_info->set_eval();
+    if (function->context()->IsNativeContext()) parse_info->set_global();
+    parse_info->set_toplevel();
+    parse_info->set_allow_lazy_parsing(false);
+    parse_info->set_lazy(false);
   }
 
   if (mode == Compiler::CONCURRENT) {
@@ -1000,12 +1009,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   return result;
 }
 
-
-inline bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
-  return shared->is_toplevel() && shared->script()->IsScript() &&
-         Script::cast(shared->script())->compilation_type() ==
-             Script::COMPILATION_TYPE_EVAL;
-}
 
 Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
     Isolate* isolate, FunctionLiteral* literal, Handle<Script> script) {

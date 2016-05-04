@@ -64,6 +64,8 @@
   'js1_5/Regress/regress-111557': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081-2': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-159334': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-321971': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-451322': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): Large switch statements crash.

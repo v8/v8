@@ -492,6 +492,12 @@ Node* AstGraphBuilder::GetFunctionClosureForContext() {
     // Contexts nested in the native context have a canonical empty function as
     // their closure, not the anonymous closure containing the global code.
     return BuildLoadNativeContextField(Context::CLOSURE_INDEX);
+  } else if (closure_scope->is_eval_scope()) {
+    // Contexts nested inside eval code have the same closure as the context
+    // calling eval, not the anonymous closure containing the eval code.
+    const Operator* op =
+        javascript()->LoadContext(0, Context::CLOSURE_INDEX, false);
+    return NewNode(op, current_context());
   } else {
     DCHECK(closure_scope->is_function_scope());
     return GetFunctionClosure();
@@ -1109,7 +1115,9 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+      // TODO(mstarzinger): Implement this case.
+      SetStackOverflow();
+      break;
   }
 }
 
@@ -1142,7 +1150,9 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+      // TODO(mstarzinger): Implement this case.
+      SetStackOverflow();
+      break;
   }
 }
 
@@ -3185,7 +3195,7 @@ Node* AstGraphBuilder::BuildLocalActivationContext(Node* context) {
 
 
 Node* AstGraphBuilder::BuildLocalFunctionContext(Scope* scope) {
-  DCHECK(scope->is_function_scope());
+  DCHECK(scope->is_function_scope() || scope->is_eval_scope());
 
   // Allocate a new local context.
   int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
