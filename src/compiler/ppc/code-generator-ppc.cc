@@ -1325,7 +1325,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  MemOperand(sp, -num_slots * kPointerSize));
       } else {
         __ StorePU(i.InputRegister(0),
-                   MemOperand(sp, -num_slots * kPointerSize));
+                   MemOperand(sp, -num_slots * kPointerSize), r0);
       }
       break;
     }
@@ -1334,7 +1334,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ stfd(i.InputDoubleRegister(0), MemOperand(sp, slot * kPointerSize));
       } else {
-        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize), r0);
       }
       break;
     }

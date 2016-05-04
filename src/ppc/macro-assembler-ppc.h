@@ -73,10 +73,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
-#define LoadPU ldu
 #define LoadPX ldx
 #define LoadPUX ldux
-#define StorePU stdu
 #define StorePX stdx
 #define StorePUX stdux
 #define ShiftLeftImm sldi
@@ -90,10 +88,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define Mul mulld
 #define Div divd
 #else
-#define LoadPU lwzu
 #define LoadPX lwzx
 #define LoadPUX lwzux
-#define StorePU stwu
 #define StorePX stwx
 #define StorePUX stwux
 #define ShiftLeftImm slwi
@@ -573,7 +569,9 @@ class MacroAssembler : public Assembler {
 
   // These exist to provide portability between 32 and 64bit
   void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void StoreP(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StorePU(Register src, const MemOperand& mem, Register scratch = no_reg);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
