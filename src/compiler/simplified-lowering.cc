@@ -733,16 +733,16 @@ class RepresentationSelector {
           value_type->AsConstant()->Value()->IsHeapObject()) {
         Handle<HeapObject> value_object =
             Handle<HeapObject>::cast(value_type->AsConstant()->Value());
-        if (value_object->IsMap()) {
-          // Write barriers for storing maps are cheaper.
-          return kMapWriteBarrier;
-        }
         RootIndexMap root_index_map(jsgraph_->isolate());
         int root_index = root_index_map.Lookup(*value_object);
         if (root_index != RootIndexMap::kInvalidRootIndex &&
             jsgraph_->isolate()->heap()->RootIsImmortalImmovable(root_index)) {
           // Write barriers are unnecessary for immortal immovable roots.
           return kNoWriteBarrier;
+        }
+        if (value_object->IsMap()) {
+          // Write barriers for storing maps are cheaper.
+          return kMapWriteBarrier;
         }
       }
       if (field_type->Is(Type::TaggedPointer()) ||
