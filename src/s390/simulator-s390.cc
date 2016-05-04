@@ -598,7 +598,7 @@ void S390Debugger::Debug() {
           PrintF("Wrong usage. Use help command for more information.\n");
         }
       } else if (strcmp(cmd, "icount") == 0) {
-        PrintF("%05d\n", sim_->icount_);
+        PrintF("%05" PRId64 "\n", sim_->icount_);
       } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
         ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
         PrintF("Trace of executed instructions is %s\n",
