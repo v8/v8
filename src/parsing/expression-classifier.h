@@ -39,9 +39,11 @@ class ExpressionClassifier {
     ArrowFormalParametersProduction = 1 << 6,
     LetPatternProduction = 1 << 7,
     CoverInitializedNameProduction = 1 << 8,
+    TailCallExpressionProduction = 1 << 9,
 
     ExpressionProductions =
-        (ExpressionProduction | FormalParameterInitializerProduction),
+        (ExpressionProduction | FormalParameterInitializerProduction |
+         TailCallExpressionProduction),
     PatternProductions = (BindingPatternProduction |
                           AssignmentPatternProduction | LetPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
@@ -141,6 +143,13 @@ class ExpressionClassifier {
   }
   const Error& cover_initialized_name_error() const {
     return cover_initialized_name_error_;
+  }
+
+  bool has_tail_call_expression() const {
+    return !is_valid(TailCallExpressionProduction);
+  }
+  const Error& tail_call_expression_error() const {
+    return tail_call_expression_error_;
   }
 
   bool is_simple_parameter_list() const {
@@ -260,6 +269,16 @@ class ExpressionClassifier {
     cover_initialized_name_error_.arg = arg;
   }
 
+  void RecordTailCallExpressionError(const Scanner::Location& loc,
+                                     MessageTemplate::Template message,
+                                     const char* arg = nullptr) {
+    if (has_tail_call_expression()) return;
+    invalid_productions_ |= TailCallExpressionProduction;
+    tail_call_expression_error_.location = loc;
+    tail_call_expression_error_.message = message;
+    tail_call_expression_error_.arg = arg;
+  }
+
   void ForgiveCoverInitializedNameError() {
     invalid_productions_ &= ~CoverInitializedNameProduction;
     cover_initialized_name_error_ = Error();
@@ -305,6 +324,8 @@ class ExpressionClassifier {
         let_pattern_error_ = inner->let_pattern_error_;
       if (errors & CoverInitializedNameProduction)
         cover_initialized_name_error_ = inner->cover_initialized_name_error_;
+      if (errors & TailCallExpressionProduction)
+        tail_call_expression_error_ = inner->tail_call_expression_error_;
     }
 
     // As an exception to the above, the result continues to be a valid arrow
@@ -340,6 +361,8 @@ class ExpressionClassifier {
   int non_pattern_begin_;
   unsigned invalid_productions_;
   unsigned function_properties_;
+  // TODO(ishell): consider using Zone[Hash]Map<TargetProduction, Error>
+  // here to consume less stack space during parsing.
   Error expression_error_;
   Error formal_parameter_initializer_error_;
   Error binding_pattern_error_;
@@ -349,6 +372,7 @@ class ExpressionClassifier {
   Error strict_mode_formal_parameter_error_;
   Error let_pattern_error_;
   Error cover_initialized_name_error_;
+  Error tail_call_expression_error_;
   DuplicateFinder* duplicate_finder_;
 };
 

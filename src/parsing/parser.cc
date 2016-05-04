@@ -765,6 +765,10 @@ void ParserTraits::MarkTailPosition(Expression* expression) {
   expression->MarkTail();
 }
 
+void ParserTraits::MarkCollectedTailCallExpressions() {
+  parser_->MarkCollectedTailCallExpressions();
+}
+
 Parser::Parser(ParseInfo* info)
     : ParserBase<ParserTraits>(info->zone(), &scanner_, info->stack_limit(),
                                info->extension(), info->ast_value_factory(),
@@ -2588,13 +2592,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   function_state_->set_return_location(loc);
 
   Token::Value tok = peek();
-  int tail_call_position = -1;
-  if (FLAG_harmony_explicit_tailcalls && tok == Token::CONTINUE) {
-    Consume(Token::CONTINUE);
-    tail_call_position = position();
-    tok = peek();
-  }
-
   Statement* result;
   Expression* return_value;
   if (scanner()->HasAnyLineTerminatorBeforeNext() ||
@@ -2608,9 +2605,13 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     }
   } else {
     int pos = peek_position();
-    return_value = ParseExpression(true, CHECK_OK);
 
     if (IsSubclassConstructor(function_state_->kind())) {
+      // Because of the return code rewriting that happens in case of a subclass
+      // constructor we don't want to accept tail calls, therefore we don't set
+      // ReturnExprScope to kInsideValidReturnStatement here.
+      return_value = ParseExpression(true, CHECK_OK);
+
       // For subclass constructors we need to return this in case of undefined
       // return a Smi (transformed into an exception in the ConstructStub)
       // for a non object.
@@ -2649,24 +2650,16 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       return_value = factory()->NewConditional(
           is_undefined, ThisExpression(scope_, factory(), pos),
           is_object_conditional, pos);
-    }
+    } else {
+      ReturnExprScope maybe_allow_tail_calls(
+          function_state_, ReturnExprContext::kInsideValidReturnStatement);
+      return_value = ParseExpression(true, CHECK_OK);
 
-    // TODO(ishell): update chapter number.
-    // ES8 XX.YY.ZZ
-    if (tail_call_position >= 0) {
-      ReturnExprContext return_expr_context =
-          function_state_->return_expr_context();
-      if (return_expr_context != ReturnExprContext::kNormal) {
-        ReportIllegalTailCallAt(tail_call_position, return_expr_context);
-        *ok = false;
-        return NULL;
+      if (allow_tailcalls() && !is_sloppy(language_mode())) {
+        // ES6 14.6.1 Static Semantics: IsInTailPosition
+        Scanner::Location loc(pos, pos + 1);
+        function_state_->AddExpressionInTailPosition(return_value, loc);
       }
-      function_state_->AddExpressionInTailPosition(return_value,
-                                                   tail_call_position);
-
-    } else if (allow_tailcalls() && !is_sloppy(language_mode())) {
-      // ES6 14.6.1 Static Semantics: IsInTailPosition
-      function_state_->AddExpressionInTailPosition(return_value, pos);
     }
   }
   ExpectSemicolon(CHECK_OK);
@@ -2879,7 +2872,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Scope* catch_scope = NULL;
   Variable* catch_variable = NULL;
   Block* catch_block = NULL;
-  List<TailCallExpression> expressions_in_tail_position_in_catch_block;
+  TailCallExpressionList tail_call_expressions_in_catch_block(zone());
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
 
@@ -2906,8 +2899,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     {
       CollectExpressionsInTailPositionToListScope
-          collect_expressions_in_tail_position_scope(
-              function_state_, &expressions_in_tail_position_in_catch_block);
+          collect_tail_call_expressions_scope(
+              function_state_, &tail_call_expressions_in_catch_block);
       BlockState block_state(&scope_, catch_scope);
 
       // TODO(adamk): Make a version of ParseBlock that takes a scope and
@@ -2987,8 +2980,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL) {
     // For a try-catch construct append return expressions from the catch block
     // to the list of return expressions.
-    function_state_->expressions_in_tail_position().AddAll(
-        expressions_in_tail_position_in_catch_block);
+    function_state_->tail_call_expressions().Append(
+        tail_call_expressions_in_catch_block);
 
     DCHECK(finally_block == NULL);
     DCHECK(catch_scope != NULL && catch_variable != NULL);
@@ -2996,12 +2989,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
                                              catch_variable, catch_block, pos);
   } else {
     if (FLAG_harmony_explicit_tailcalls &&
-        expressions_in_tail_position_in_catch_block.length() > 0) {
+        !tail_call_expressions_in_catch_block.is_empty()) {
       // TODO(ishell): update chapter number.
       // ES8 XX.YY.ZZ
-      int pos = expressions_in_tail_position_in_catch_block[0].pos;
-      ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      MessageTemplate::kTailCallInCatchBlock);
+      ReportMessageAt(tail_call_expressions_in_catch_block.location(),
+                      MessageTemplate::kUnexpectedTailCallInCatchBlock);
       *ok = false;
       return NULL;
     }
@@ -4585,13 +4577,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                     RelocInfo::kNoPosition));
   }
 
-  // ES6 14.6.1 Static Semantics: IsInTailPosition
-  // Mark collected return expressions that are in tail call position.
-  const List<TailCallExpression>& expressions_in_tail_position =
-      function_state_->expressions_in_tail_position();
-  for (int i = 0; i < expressions_in_tail_position.length(); ++i) {
-    MarkTailPosition(expressions_in_tail_position[i].expression);
-  }
+  MarkCollectedTailCallExpressions();
   return result;
 }
 
@@ -4666,6 +4652,7 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     block_scope->set_start_position(scanner()->location().end_pos);
     ExpressionClassifier extends_classifier(this);
     extends = ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
+    CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
     RewriteNonPattern(&extends_classifier, CHECK_OK);
     if (classifier != nullptr) {
       classifier->Accumulate(&extends_classifier,
@@ -5308,6 +5295,18 @@ void Parser::RaiseLanguageMode(LanguageMode mode) {
   SetLanguageMode(scope_, old > mode ? old : mode);
 }
 
+void Parser::MarkCollectedTailCallExpressions() {
+  const ZoneList<Expression*>& tail_call_expressions =
+      function_state_->tail_call_expressions().expressions();
+  for (int i = 0; i < tail_call_expressions.length(); ++i) {
+    Expression* expression = tail_call_expressions[i];
+    // If only FLAG_harmony_explicit_tailcalls is enabled then expression
+    // must be a Call expression.
+    DCHECK(FLAG_harmony_tailcalls || !FLAG_harmony_explicit_tailcalls ||
+           expression->IsCall());
+    MarkTailPosition(expression);
+  }
+}
 
 void ParserTraits::RewriteDestructuringAssignments() {
   parser_->RewriteDestructuringAssignments();

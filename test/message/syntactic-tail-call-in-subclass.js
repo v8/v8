@@ -4,16 +4,11 @@
 
 // Flags: --harmony-explicit-tailcalls
 
-function f() {
-  return 1;
-}
-
 function g() {
-  try {
-    f();
-  } catch(e) {
-    return continue f()  ;
-  } finally {
-    f();
+  class A {};
+  class B extends A {
+    constructor() {
+      return continue f() ;
+    }
   }
 }

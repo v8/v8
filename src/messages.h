@@ -426,10 +426,6 @@ class CallSite {
     "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
   T(StrictWith, "Strict mode code may not include a with statement")           \
-  T(TailCallInCatchBlock,                                                      \
-    "Tail call expression in catch block when finally block is also present.") \
-  T(TailCallInForInOf, "Tail call expression in for-in/of body.")              \
-  T(TailCallInTryBlock, "Tail call expression in try block.")                  \
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
@@ -443,10 +439,16 @@ class CallSite {
   T(UnexpectedEOS, "Unexpected end of input")                                  \
   T(UnexpectedFunctionSent,                                                    \
     "function.sent expression is not allowed outside a generator")             \
+  T(UnexpectedInsideTailCall, "Unexpected expression inside tail call")        \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
   T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
+  T(UnexpectedTailCall, "Tail call expression is not allowed here")            \
+  T(UnexpectedTailCallInCatchBlock,                                            \
+    "Tail call expression in catch block when finally block is also present")  \
+  T(UnexpectedTailCallInForInOf, "Tail call expression in for-in/of body")     \
+  T(UnexpectedTailCallInTryBlock, "Tail call expression in try block")         \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
   T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \

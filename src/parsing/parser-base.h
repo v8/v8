@@ -191,19 +191,48 @@ class ParserBase : public Traits {
     Scope* scope;
   };
 
-  struct TailCallExpression {
-    TailCallExpression(ExpressionT expression, int pos)
-        : expression(expression), pos(pos) {}
+  class TailCallExpressionList {
+   public:
+    explicit TailCallExpressionList(Zone* zone)
+        : zone_(zone), expressions_(0, zone) {}
 
-    ExpressionT expression;
-    int pos;
+    const ZoneList<ExpressionT>& expressions() const { return expressions_; }
+    const Scanner::Location& location() const { return loc_; }
+
+    bool is_empty() const { return expressions_.is_empty(); }
+
+    void Swap(TailCallExpressionList& other) {
+      expressions_.Swap(&other.expressions_);
+      std::swap(loc_, other.loc_);
+    }
+
+    void Add(ExpressionT expr, const Scanner::Location& loc) {
+      if (expressions_.is_empty()) loc_ = loc;
+      expressions_.Add(expr, zone_);
+    }
+
+    void Append(const TailCallExpressionList& other) {
+      if (expressions_.is_empty()) loc_ = other.loc_;
+      expressions_.AddAll(other.expressions_, zone_);
+    }
+
+   private:
+    Zone* zone_;
+    ZoneList<ExpressionT> expressions_;
+    Scanner::Location loc_;
   };
 
   // Defines whether tail call expressions are allowed or not.
   enum class ReturnExprContext {
-    // Tail call expressions are allowed.
-    kNormal,
-    // Tail call expressions are not allowed.
+    // We are inside return statement which is allowed to contain tail call
+    // expressions. Tail call expressions are allowed.
+    kInsideValidReturnStatement,
+
+    // We are inside a block in which tail call expressions are allowed but
+    // not yet inside a return statement.
+    kInsideValidBlock,
+
+    // Tail call expressions are not allowed in the following blocks.
     kInsideTryBlock,
     kInsideForInOfBody,
   };
@@ -265,12 +294,18 @@ class ParserBase : public Traits {
       return destructuring_assignments_to_rewrite_;
     }
 
-    List<TailCallExpression>& expressions_in_tail_position() {
-      return expressions_in_tail_position_;
+    TailCallExpressionList& tail_call_expressions() {
+      return tail_call_expressions_;
     }
-    void AddExpressionInTailPosition(ExpressionT expression, int pos) {
-      if (return_expr_context() == ReturnExprContext::kNormal) {
-        expressions_in_tail_position_.Add(TailCallExpression(expression, pos));
+    void AddExpressionInTailPosition(ExpressionT expression,
+                                     const Scanner::Location& loc) {
+      // If only FLAG_harmony_explicit_tailcalls is enabled then expression
+      // must be a Call expression.
+      DCHECK(FLAG_harmony_tailcalls || !FLAG_harmony_explicit_tailcalls ||
+             expression->IsCall());
+      if (return_expr_context() ==
+          ReturnExprContext::kInsideValidReturnStatement) {
+        tail_call_expressions_.Add(expression, loc);
       }
     }
 
@@ -333,7 +368,7 @@ class ParserBase : public Traits {
     Scope* outer_scope_;
 
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
-    List<TailCallExpression> expressions_in_tail_position_;
+    TailCallExpressionList tail_call_expressions_;
     ReturnExprContext return_expr_context_;
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
@@ -359,7 +394,13 @@ class ParserBase : public Traits {
                              ReturnExprContext return_expr_context)
         : function_state_(function_state),
           sav_return_expr_context_(function_state->return_expr_context()) {
-      function_state->set_return_expr_context(return_expr_context);
+      // Don't update context if we are requested to enable tail call
+      // expressions but current block does not allow them.
+      if (return_expr_context !=
+              ReturnExprContext::kInsideValidReturnStatement ||
+          sav_return_expr_context_ == ReturnExprContext::kInsideValidBlock) {
+        function_state->set_return_expr_context(return_expr_context);
+      }
     }
     ~ReturnExprScope() {
       function_state_->set_return_expr_context(sav_return_expr_context_);
@@ -375,17 +416,17 @@ class ParserBase : public Traits {
   class CollectExpressionsInTailPositionToListScope {
    public:
     CollectExpressionsInTailPositionToListScope(FunctionState* function_state,
-                                                List<TailCallExpression>* list)
+                                                TailCallExpressionList* list)
         : function_state_(function_state), list_(list) {
-      function_state->expressions_in_tail_position().Swap(list_);
+      function_state->tail_call_expressions().Swap(*list_);
     }
     ~CollectExpressionsInTailPositionToListScope() {
-      function_state_->expressions_in_tail_position().Swap(list_);
+      function_state_->tail_call_expressions().Swap(*list_);
     }
 
    private:
     FunctionState* function_state_;
-    List<TailCallExpression>* list_;
+    TailCallExpressionList* list_;
   };
 
   // Annoyingly, arrow functions first parse as comma expressions, then when we
@@ -643,23 +684,6 @@ class ParserBase : public Traits {
                             error_type);
   }
 
-  void ReportIllegalTailCallAt(int pos, ReturnExprContext return_expr_context) {
-    Scanner::Location loc(pos, pos + 1);
-    MessageTemplate::Template msg = MessageTemplate::kNone;
-    switch (return_expr_context) {
-      case ReturnExprContext::kNormal:
-        UNREACHABLE();
-        return;
-      case ReturnExprContext::kInsideTryBlock:
-        msg = MessageTemplate::kTailCallInTryBlock;
-        break;
-      case ReturnExprContext::kInsideForInOfBody:
-        msg = MessageTemplate::kTailCallInForInOf;
-        break;
-    }
-    ReportMessageAt(loc, msg);
-  }
-
   void GetUnexpectedTokenMessage(
       Token::Value token, MessageTemplate::Template* message,
       Scanner::Location* location, const char** arg,
@@ -760,6 +784,15 @@ class ParserBase : public Traits {
     }
   }
 
+  void CheckNoTailCallExpressions(const ExpressionClassifier* classifier,
+                                  bool* ok) {
+    if (FLAG_harmony_explicit_tailcalls &&
+        classifier->has_tail_call_expression()) {
+      ReportClassifierError(classifier->tail_call_expression_error());
+      *ok = false;
+    }
+  }
+
   void ExpressionUnexpectedToken(ExpressionClassifier* classifier) {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
@@ -837,6 +870,8 @@ class ParserBase : public Traits {
                                         bool* ok);
   ExpressionT ParseYieldExpression(bool accept_IN,
                                    ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParseTailCallExpression(ExpressionClassifier* classifier,
+                                      bool* ok);
   ExpressionT ParseConditionalExpression(bool accept_IN,
                                          ExpressionClassifier* classifier,
                                          bool* ok);
@@ -1013,7 +1048,8 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      return_expr_context_(ReturnExprContext::kNormal),
+      tail_call_expressions_(scope->zone()),
+      return_expr_context_(ReturnExprContext::kInsideValidBlock),
       non_patterns_to_rewrite_(0, scope->zone()),
       factory_(factory),
       next_function_is_parenthesized_(false),
@@ -1454,7 +1490,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
   return result;
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     bool accept_IN, ExpressionClassifier* classifier, bool* ok) {
@@ -1470,6 +1505,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
   bool is_simple_parameter_list = this->IsIdentifier(result);
   bool seen_rest = false;
   while (peek() == Token::COMMA) {
+    CheckNoTailCallExpressions(classifier, CHECK_OK);
     if (seen_rest) {
       // At this point the production can't possibly be valid, but we don't know
       // which error to signal.
@@ -1533,6 +1569,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
       int expr_pos = peek_position();
       ExpressionT argument =
           this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+      CheckNoTailCallExpressions(classifier, CHECK_OK);
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
@@ -1556,6 +1593,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
     } else {
       int beg_pos = peek_position();
       elem = this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+      CheckNoTailCallExpressions(classifier, CHECK_OK);
       CheckDestructuringElement(elem, classifier, beg_pos,
                                 scanner()->location().end_pos);
     }
@@ -1903,6 +1941,7 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
 
     ExpressionT argument = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(NullExpressionList));
+    CheckNoTailCallExpressions(classifier, CHECK_OK_CUSTOM(NullExpressionList));
     Traits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(NullExpressionList));
     if (is_spread) {
       if (!spread_arg.IsValid()) {
@@ -1961,7 +2000,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   //   ArrowFunction
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
-  //   TailCallExpression
   bool is_destructuring_assignment = false;
   int lhs_beg_pos = peek_position();
 
@@ -2047,6 +2085,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   // Now pending non-pattern expressions must be discarded.
   arrow_formals_classifier.Discard();
 
+  CheckNoTailCallExpressions(classifier, CHECK_OK);
+
   if (IsValidPattern(expression) && peek() == Token::ASSIGN) {
     classifier->ForgiveCoverInitializedNameError();
     ValidateAssignmentPattern(classifier, CHECK_OK);
@@ -2071,6 +2111,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
   ExpressionT right =
       this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
+  CheckNoTailCallExpressions(&rhs_classifier, CHECK_OK);
   Traits::RewriteNonPattern(&rhs_classifier, CHECK_OK);
   classifier->Accumulate(
       &rhs_classifier, ExpressionClassifier::ExpressionProductions |
@@ -2170,6 +2211,56 @@ ParserBase<Traits>::ParseYieldExpression(bool accept_IN,
   return yield;
 }
 
+template <class Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
+                                            bool* ok) {
+  // TailCallExpression::
+  //   'continue' MemberExpression  Arguments
+  //   'continue' CallExpression  Arguments
+  //   'continue' MemberExpression  TemplateLiteral
+  //   'continue' CallExpression  TemplateLiteral
+  Expect(Token::CONTINUE, CHECK_OK);
+  int pos = position();
+  int sub_expression_pos = peek_position();
+  ExpressionT expression =
+      this->ParseLeftHandSideExpression(classifier, CHECK_OK);
+  CheckNoTailCallExpressions(classifier, CHECK_OK);
+
+  Scanner::Location loc(pos, scanner()->location().end_pos);
+  ReturnExprContext return_expr_context =
+      function_state_->return_expr_context();
+  if (return_expr_context != ReturnExprContext::kInsideValidReturnStatement) {
+    MessageTemplate::Template msg = MessageTemplate::kNone;
+    switch (return_expr_context) {
+      case ReturnExprContext::kInsideValidReturnStatement:
+        UNREACHABLE();
+        return Traits::EmptyExpression();
+      case ReturnExprContext::kInsideValidBlock:
+        msg = MessageTemplate::kUnexpectedTailCall;
+        break;
+      case ReturnExprContext::kInsideTryBlock:
+        msg = MessageTemplate::kUnexpectedTailCallInTryBlock;
+        break;
+      case ReturnExprContext::kInsideForInOfBody:
+        msg = MessageTemplate::kUnexpectedTailCallInForInOf;
+        break;
+    }
+    ReportMessageAt(loc, msg);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
+  if (!expression->IsCall()) {
+    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
+    ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedInsideTailCall);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
+  classifier->RecordTailCallExpressionError(
+      loc, MessageTemplate::kUnexpectedTailCall);
+  function_state_->AddExpressionInTailPosition(expression, loc);
+  return expression;
+}
 
 // Precedence = 3
 template <class Traits>
@@ -2186,6 +2277,7 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   ExpressionT expression =
       this->ParseBinaryExpression(4, accept_IN, classifier, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
+  CheckNoTailCallExpressions(classifier, CHECK_OK);
   Traits::RewriteNonPattern(classifier, CHECK_OK);
   ArrowFormalParametersUnexpectedToken(classifier);
   BindingPatternUnexpectedToken(classifier);
@@ -2214,6 +2306,7 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
+      CheckNoTailCallExpressions(classifier, CHECK_OK);
       Traits::RewriteNonPattern(classifier, CHECK_OK);
       BindingPatternUnexpectedToken(classifier);
       ArrowFormalParametersUnexpectedToken(classifier);
@@ -2224,6 +2317,9 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
       const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y =
           ParseBinaryExpression(next_prec, accept_IN, classifier, CHECK_OK);
+      if (op != Token::OR && op != Token::AND) {
+        CheckNoTailCallExpressions(classifier, CHECK_OK);
+      }
       Traits::RewriteNonPattern(classifier, CHECK_OK);
 
       if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
@@ -2288,6 +2384,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     op = Next();
     int pos = position();
     ExpressionT expression = ParseUnaryExpression(classifier, CHECK_OK);
+    CheckNoTailCallExpressions(classifier, CHECK_OK);
     Traits::RewriteNonPattern(classifier, CHECK_OK);
 
     if (op == Token::DELETE && is_strict(language_mode())) {
@@ -2313,6 +2410,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     op = Next();
     int beg_pos = peek_position();
     ExpressionT expression = this->ParseUnaryExpression(classifier, CHECK_OK);
+    CheckNoTailCallExpressions(classifier, CHECK_OK);
     expression = this->CheckAndRewriteReferenceExpression(
         expression, beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
@@ -2342,6 +2440,7 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
       this->ParseLeftHandSideExpression(classifier, CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
+    CheckNoTailCallExpressions(classifier, CHECK_OK);
     BindingPatternUnexpectedToken(classifier);
     ArrowFormalParametersUnexpectedToken(classifier);
 
@@ -2361,7 +2460,6 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
   return expression;
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseLeftHandSideExpression(
@@ -2369,12 +2467,17 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
+  if (FLAG_harmony_explicit_tailcalls && peek() == Token::CONTINUE) {
+    return this->ParseTailCallExpression(classifier, ok);
+  }
+
   ExpressionT result =
       this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);
 
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
+        CheckNoTailCallExpressions(classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2388,6 +2491,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::LPAREN: {
+        CheckNoTailCallExpressions(classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2446,6 +2550,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::PERIOD: {
+        CheckNoTailCallExpressions(classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2460,6 +2565,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
 
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
+        CheckNoTailCallExpressions(classifier, CHECK_OK);
         Traits::RewriteNonPattern(classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
@@ -2938,22 +3044,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       // Single-expression body
       int pos = position();
       ExpressionClassifier classifier(this);
-      bool is_tail_call_expression;
-      if (FLAG_harmony_explicit_tailcalls) {
-        // TODO(ishell): update chapter number.
-        // ES8 XX.YY.ZZ
-        if (peek() == Token::CONTINUE) {
-          Consume(Token::CONTINUE);
-          pos = position();
-          is_tail_call_expression = true;
-        } else {
-          is_tail_call_expression = false;
-        }
-      } else {
-        // ES6 14.6.1 Static Semantics: IsInTailPosition
-        is_tail_call_expression =
-            allow_tailcalls() && !is_sloppy(language_mode());
-      }
+      DCHECK(ReturnExprContext::kInsideValidBlock ==
+             function_state_->return_expr_context());
+      ReturnExprScope allow_tail_calls(
+          function_state_, ReturnExprContext::kInsideValidReturnStatement);
       ExpressionT expression =
           ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
       Traits::RewriteNonPattern(&classifier, CHECK_OK);
@@ -2962,9 +3056,11 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      if (is_tail_call_expression) {
+      if (allow_tailcalls() && !is_sloppy(language_mode())) {
+        // ES6 14.6.1 Static Semantics: IsInTailPosition
         this->MarkTailPosition(expression);
       }
+      this->MarkCollectedTailCallExpressions();
     }
     super_loc = function_state.super_location();
 
@@ -3063,6 +3159,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start,
 
     int expr_pos = peek_position();
     ExpressionT expression = this->ParseExpression(true, classifier, CHECK_OK);
+    CheckNoTailCallExpressions(classifier, CHECK_OK);
     Traits::RewriteNonPattern(classifier, CHECK_OK);
     Traits::AddTemplateExpression(&ts, expression);
 

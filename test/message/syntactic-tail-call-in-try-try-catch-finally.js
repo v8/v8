@@ -13,7 +13,7 @@ function g() {
     try {
       f();
     } catch(e) {
-      return continue f();
+      return continue f()  ;
     }
   } finally {
     f();

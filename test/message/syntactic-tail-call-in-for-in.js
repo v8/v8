@@ -10,6 +10,6 @@ function f() {
 
 function g() {
   for (var v in {a:0}) {
-    return continue f();
+    return continue f()  ;
   }
 }

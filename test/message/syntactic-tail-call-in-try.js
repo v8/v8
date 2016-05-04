@@ -10,7 +10,7 @@ function f() {
 
 function g() {
   try {
-    return continue f();
+    return continue f()  ;
   } catch(e) {
   }
 }

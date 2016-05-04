@@ -706,28 +706,21 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // This is not handled during preparsing.
 
   Token::Value tok = peek();
-  int tail_call_position = -1;
-  if (FLAG_harmony_explicit_tailcalls && tok == Token::CONTINUE) {
-    Consume(Token::CONTINUE);
-    tail_call_position = position();
-    tok = peek();
-  }
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
+    // Because of the return code rewriting that happens in case of a subclass
+    // constructor we don't want to accept tail calls, therefore we don't set
+    // ReturnExprScope to kInsideValidReturnStatement here.
+    ReturnExprContext return_expr_context =
+        IsSubclassConstructor(function_state_->kind())
+            ? function_state_->return_expr_context()
+            : ReturnExprContext::kInsideValidReturnStatement;
+
+    ReturnExprScope maybe_allow_tail_calls(function_state_,
+                                           return_expr_context);
     ParseExpression(true, CHECK_OK);
-    if (tail_call_position >= 0) {
-      ReturnExprContext return_expr_context =
-          function_state_->return_expr_context();
-      if (return_expr_context != ReturnExprContext::kNormal) {
-        ReportIllegalTailCallAt(tail_call_position, return_expr_context);
-        *ok = false;
-        return Statement::Default();
-      }
-      function_state_->AddExpressionInTailPosition(
-          PreParserExpression::Default(), tail_call_position);
-    }
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Jump();
@@ -994,7 +987,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     *ok = false;
     return Statement::Default();
   }
-  List<TailCallExpression> expressions_in_tail_position_in_catch_block;
+  TailCallExpressionList tail_call_expressions_in_catch_block(zone());
   bool catch_block_exists = false;
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
@@ -1006,8 +999,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
     {
       CollectExpressionsInTailPositionToListScope
-          collect_expressions_in_tail_position_scope(
-              function_state_, &expressions_in_tail_position_in_catch_block);
+          collect_tail_call_expressions_scope(
+              function_state_, &tail_call_expressions_in_catch_block);
       BlockState block_state(&scope_, catch_scope);
       Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
       {
@@ -1022,12 +1015,11 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Consume(Token::FINALLY);
     ParseBlock(CHECK_OK);
     if (FLAG_harmony_explicit_tailcalls && catch_block_exists &&
-        expressions_in_tail_position_in_catch_block.length() > 0) {
+        !tail_call_expressions_in_catch_block.is_empty()) {
       // TODO(ishell): update chapter number.
       // ES8 XX.YY.ZZ
-      int pos = expressions_in_tail_position_in_catch_block[0].pos;
-      ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      MessageTemplate::kTailCallInCatchBlock);
+      ReportMessageAt(tail_call_expressions_in_catch_block.location(),
+                      MessageTemplate::kUnexpectedTailCallInCatchBlock);
       *ok = false;
       return Statement::Default();
     }
@@ -1165,6 +1157,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   if (has_extends) {
     ExpressionClassifier extends_classifier(this);
     ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
+    CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
     ValidateExpression(&extends_classifier, CHECK_OK);
     if (classifier != nullptr) {
       classifier->Accumulate(&extends_classifier,

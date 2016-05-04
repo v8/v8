@@ -9,11 +9,5 @@ function f() {
 }
 
 function g() {
-  try {
-    f();
-  } catch(e) {
-    return continue f()  ;
-  } finally {
-    f();
-  }
+  return b + continue f()  ;
 }

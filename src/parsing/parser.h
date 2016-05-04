@@ -573,6 +573,7 @@ class ParserTraits {
                                   bool name_is_strict_reserved, int pos,
                                   bool* ok);
 
+  V8_INLINE void MarkCollectedTailCallExpressions();
   V8_INLINE void MarkTailPosition(Expression* expression);
 
   V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
@@ -1047,6 +1048,8 @@ class Parser : public ParserBase<ParserTraits> {
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void RaiseLanguageMode(LanguageMode mode);
+
+  V8_INLINE void MarkCollectedTailCallExpressions();
 
   V8_INLINE void RewriteDestructuringAssignments();
 

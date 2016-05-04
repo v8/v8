@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls
+// Flags: --harmony-do-expressions
 
 Error.prepareStackTrace = (error,stack) => {
   error.strace = stack;
@@ -223,21 +224,68 @@ function f_153(expected_call_stack, a) {
 // Tail calling via various expressions.
 (function() {
   function g1(a) {
-    return continue f([f, g1, test], false) || f([f, test], true);
+    return f([f, g1, test], false) || continue f([f, test], true);
   }
 
   function g2(a) {
-    return continue f([f, g2, test], true) && f([f, test], true);
+    return f([f, g2, test], true) && continue f([f, test], true);
   }
 
   function g3(a) {
-    return continue f([f, g3, test], 13), f([f, test], 153);
+    return f([f, g3, test], 13), continue f([f, test], 153);
+  }
+
+  function g4(a) {
+    return f([f, g4, test], false) ||
+        (f([f, g4, test], true) && continue f([f, test], true));
+  }
+
+  function g5(a) {
+    return f([f, g5, test], true) &&
+        (f([f, g5, test], false) || continue f([f, test], true));
+  }
+
+  function g6(a) {
+    return f([f, g6, test], 13), f([f, g6, test], 42),
+        continue f([f, test], 153);
+  }
+
+  function g7(a) {
+    return f([f, g7, test], false) ||
+        (f([f, g7, test], false) ? continue f([f, test], true)
+             : continue f([f, test], true));
+  }
+
+  function g8(a) {
+    return f([f, g8, test], false) || f([f, g8, test], true) &&
+        continue f([f, test], true);
+  }
+
+  function g9(a) {
+    return f([f, g9, test], true) && f([f, g9, test], false) ||
+        continue f([f, test], true);
+  }
+
+  function g10(a) {
+    return f([f, g10, test], true) && f([f, g10, test], false) ||
+        f([f, g10, test], true) ?
+            f([f, g10, test], true) && f([f, g10, test], false) ||
+                continue f([f, test], true) :
+            f([f, g10, test], true) && f([f, g10, test], false) ||
+                continue f([f, test], true);
   }
 
   function test() {
     assertEquals(true, g1());
     assertEquals(true, g2());
     assertEquals(153, g3());
+    assertEquals(true, g4());
+    assertEquals(true, g5());
+    assertEquals(153, g6());
+    assertEquals(true, g7());
+    assertEquals(true, g8());
+    assertEquals(true, g9());
+    assertEquals(true, g10());
   }
   test();
   test();
@@ -404,10 +452,9 @@ function f_153(expected_call_stack, a) {
   }
 
   function g3(a) {
-    var closure = () => continue f([f, closure, test], true)
-                                            ? f_153([f_153, test])
-                                            : f_153([f_153, test]);
-
+    var closure = () => f([f, closure, test], true)
+                              ? continue f_153([f_153, test])
+                              : continue f_153([f_153, test]);
     return continue closure();
   }
 
@@ -415,6 +462,23 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, g1());
     assertEquals(153, g2());
     assertEquals(153, g3());
+  }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Test tail calls from do expressions.
+(function () {
+  function g1(a) {
+    var a = do { return continue f_153([f_153, test]); 42; };
+    return a;
+  }
+
+  function test() {
+    assertEquals(153, g1());
   }
   test();
   test();

@@ -897,6 +897,7 @@ class PreParserTraits {
                                         bool name_is_strict_reserved, int pos,
                                         bool* ok);
 
+  V8_INLINE void MarkCollectedTailCallExpressions() {}
   V8_INLINE void MarkTailPosition(PreParserExpression) {}
 
   PreParserExpressionList PrepareSpreadArguments(PreParserExpressionList list) {
