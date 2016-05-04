@@ -383,6 +383,15 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 }
 
 
+void Scope::DiscardScope() {
+  DCHECK_NOT_NULL(outer_scope_);
+  DCHECK(!already_resolved());
+  DCHECK(!outer_scope_->already_resolved());
+  outer_scope_->RemoveInnerScope(this);
+  outer_scope_ = NULL;
+}
+
+
 void Scope::PropagateUsageFlagsToScope(Scope* other) {
   DCHECK_NOT_NULL(other);
   DCHECK(!already_resolved());

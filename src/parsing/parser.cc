@@ -4247,6 +4247,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         (peek() != Token::LBRACE && scope_->typed() &&
          (type_flags & typesystem::kAllowSignature))) {
       ExpectSemicolon(CHECK_OK);
+      scope_->DiscardScope();
       return nullptr;
     }
 

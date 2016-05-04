@@ -117,6 +117,10 @@ class Scope: public ZoneObject {
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
 
+  // Discards this scope for it will not be used (e.g., it corresponds to
+  // a function signature that was not followed by the function's body).
+  void DiscardScope();
+
   // Propagates any eagerly-gathered scope usage flags (such as calls_eval())
   // to the passed-in scope.
   void PropagateUsageFlagsToScope(Scope* other);
