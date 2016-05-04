@@ -8466,11 +8466,15 @@ TEST(TypedModeAmbientExportDeclarations) {
 
   static const ParserFlag always_flags[] = {kAllowTypes};
   RunModuleParserSyncTest(untyped_context_data, correct_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags));
+                          always_flags, arraysize(always_flags), NULL, 0,
+                          false);
   RunModuleParserSyncTest(typed_context_data, correct_data, kSuccess, NULL, 0,
-                          always_flags, arraysize(always_flags));
+                          always_flags, arraysize(always_flags), NULL, 0,
+                          false);
   RunModuleParserSyncTest(untyped_context_data, error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags));
+                          always_flags, arraysize(always_flags), NULL, 0,
+                          false);
   RunModuleParserSyncTest(typed_context_data, error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags));
+                          always_flags, arraysize(always_flags), NULL, 0,
+                          false);
 }
