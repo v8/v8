@@ -397,15 +397,7 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
-  Node* constructor = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* value = graph()->NewNode(javascript()->Create(), constructor,
-                                 new_target, context, frame_state, effect);
-  ReplaceWithValue(node, value, value);
-  return Replace(value);
+  return Change(node, CodeFactory::FastNewObject(isolate()), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
