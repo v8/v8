@@ -299,10 +299,9 @@ DEFINE_BOOL(trace_ignition_codegen, false,
 DEFINE_BOOL(trace_ignition_dispatches, false,
             "traces the dispatches to bytecode handlers by the ignition "
             "interpreter")
-DEFINE_STRING(trace_ignition_dispatches_output_file,
-              "v8.ignition_dispatches_table.json",
+DEFINE_STRING(trace_ignition_dispatches_output_file, nullptr,
               "the file to which the bytecode handler dispatch table is "
-              "written")
+              "written (by default, the table is not written to a file)")
 
 // Flags for Crankshaft.
 DEFINE_BOOL(crankshaft, true, "use crankshaft")
