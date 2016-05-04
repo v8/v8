@@ -1414,6 +1414,20 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
       Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       return;
     }
+    case IrOpcode::kLoad: {
+      // As for the operations above, a 32-bit load will implicitly clear the
+      // top 32 bits of the destination register.
+      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      switch (load_rep.representation()) {
+        case MachineRepresentation::kWord8:
+        case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
+          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+          return;
+        default:
+          break;
+      }
+    }
     default:
       break;
   }
