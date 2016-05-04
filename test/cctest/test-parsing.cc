@@ -1537,7 +1537,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
                              ParserSyncTestResult result,
-                             bool is_module = false) {
+                             bool is_module = false,
+                             bool test_preparser = true) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -1547,7 +1548,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
 
   // Preparse the data.
   i::CompleteParserRecorder log;
-  {
+  if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
     i::Zone zone(CcTest::i_isolate()->allocator());
@@ -1604,7 +1605,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
 
-    if (!preparse_error) {
+    if (test_preparser && !preparse_error) {
       v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1615,7 +1616,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
-    {
+    if (test_preparser) {
       i::Handle<i::String> preparser_message =
           FormatMessage(log.ErrorMessageData());
       if (!i::String::Equals(message_string, preparser_message)) {
@@ -1630,7 +1631,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         CHECK(false);
       }
     }
-  } else if (preparse_error) {
+  } else if (test_preparser && preparse_error) {
     v8::base::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
@@ -1647,7 +1648,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "However, parser and preparser succeeded",
         source->ToCString().get());
     CHECK(false);
-  } else if (preparser_materialized_literals != parser_materialized_literals) {
+  } else if (test_preparser &&
+             preparser_materialized_literals != parser_materialized_literals) {
     v8::base::OS::Print(
         "Preparser materialized literals (%d) differ from Parser materialized "
         "literals (%d) on:\n"
@@ -1667,7 +1669,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     size_t always_true_flags_length = 0,
                     const ParserFlag* always_false_flags = NULL,
                     size_t always_false_flags_length = 0,
-                    bool is_module = false) {
+                    bool is_module = false, bool test_preparser = true) {
   i::Handle<i::String> str =
       CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
@@ -1684,7 +1686,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
          ++flag_index) {
       flags.Remove(always_false_flags[flag_index]);
     }
-    TestParserSyncWithFlags(str, flags, result, is_module);
+    TestParserSyncWithFlags(str, flags, result, is_module, test_preparser);
   }
 }
 
@@ -1832,7 +1834,8 @@ void RunParserSyncTest(const char* context_data[][2],
                        const ParserFlag* always_true_flags = NULL,
                        int always_true_len = 0,
                        const ParserFlag* always_false_flags = NULL,
-                       int always_false_len = 0, bool is_module = false) {
+                       int always_false_len = 0, bool is_module = false,
+                       bool test_preparser = true) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1887,7 +1890,7 @@ void RunParserSyncTest(const char* context_data[][2],
       CHECK(length == kProgramSize);
       TestParserSync(program.start(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
-                     always_false_len, is_module);
+                     always_false_len, is_module, test_preparser);
     }
   }
   delete[] generated_flags;
@@ -1901,10 +1904,11 @@ void RunModuleParserSyncTest(const char* context_data[][2],
                              const ParserFlag* always_true_flags = NULL,
                              int always_true_len = 0,
                              const ParserFlag* always_false_flags = NULL,
-                             int always_false_len = 0) {
+                             int always_false_len = 0,
+                             bool test_preparser = true) {
   RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
                     always_true_flags, always_true_len, always_false_flags,
-                    always_false_len, true);
+                    always_false_len, true, test_preparser);
 }
 
 
