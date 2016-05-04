@@ -1176,11 +1176,15 @@ PreParserExpression PreParser::ParseClassLiteral(
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     Identifier name;
-    ExpressionClassifier classifier(this);
+    ExpressionClassifier property_classifier(this);
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
                             &is_computed_name, &has_seen_constructor,
-                            &classifier, &name, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+                            &property_classifier, &name, CHECK_OK);
+    ValidateExpression(&property_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&property_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);

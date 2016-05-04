@@ -6781,6 +6781,10 @@ TEST(DefaultParametersYieldInInitializers) {
     "[x] = [class extends (a ? null : yield) { }]",
     "[x = class extends (a ? null : yield) { }]",
     "[x = class extends (a ? null : yield) { }] = [null]",
+    "x = class { [yield]() { } }",
+    "x = class { static [yield]() { } }",
+    "x = class { [(yield, 1)]() { } }",
+    "x = class { [y = (yield, 1)]() { } }",
     NULL
   };
   // clang-format on

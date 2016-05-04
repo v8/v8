@@ -4678,12 +4678,16 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
-    ExpressionClassifier classifier(this);
+    ExpressionClassifier property_classifier(this);
     const AstRawString* property_name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
-        &has_seen_constructor, &classifier, &property_name, CHECK_OK);
-    RewriteNonPattern(&classifier, CHECK_OK);
+        &has_seen_constructor, &property_classifier, &property_name, CHECK_OK);
+    RewriteNonPattern(&property_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&property_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
