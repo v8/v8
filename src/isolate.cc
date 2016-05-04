@@ -2559,7 +2559,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
   // - You'd need to traverse the heap to check that no Array instance has
-  //   a constructor property or a modified __proto__
+  //   a constructor property
   // - To check that Array[Symbol.species] == Array, JS code has to execute,
   //   but JS cannot be invoked in callstack overflow situations
   // All that could be checked reliably is that

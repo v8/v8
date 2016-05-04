@@ -1553,7 +1553,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
     return default_species;
   }
   if (original_array->IsJSArray() &&
-      Handle<JSReceiver>::cast(original_array)->map()->new_target_is_base() &&
+      Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
       isolate->IsArraySpeciesLookupChainIntact()) {
     return default_species;
   }
@@ -14318,16 +14318,6 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
                                    Handle<Object> value, bool from_javascript,
                                    ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
-
-  // Setting the prototype of an Array instance invalidates the species
-  // protector
-  // because it could change the constructor property of the instance, which
-  // could change the @@species constructor.
-  if (object->IsJSArray() && isolate->IsArraySpeciesLookupChainIntact()) {
-    isolate->CountUsage(
-        v8::Isolate::UseCounterFeature::kArrayInstanceProtoModified);
-    isolate->InvalidateArraySpeciesProtector();
-  }
 
 #ifdef DEBUG
   int size = object->Size();

@@ -10108,6 +10108,12 @@ class JSArray: public JSObject {
                                                     PropertyDescriptor* desc,
                                                     ShouldThrow should_throw);
 
+  // Checks whether the Array has the current realm's Array.prototype as its
+  // prototype. This function is best-effort and only gives a conservative
+  // approximation, erring on the side of false, in particular with respect
+  // to Proxies and objects with a hidden prototype.
+  inline bool HasArrayPrototype(Isolate* isolate);
+
   DECLARE_CAST(JSArray)
 
   // Dispatched behavior.

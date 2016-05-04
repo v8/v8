@@ -22,6 +22,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
+#include "src/isolate-inl.h"
 #include "src/layout-descriptor-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
@@ -2260,7 +2261,6 @@ void Struct::InitializeBody(int object_size) {
     WRITE_FIELD(this, offset, value);
   }
 }
-
 
 bool Object::ToArrayLength(uint32_t* index) { return Object::ToUint32(index); }
 
@@ -7573,6 +7573,11 @@ void JSArray::SetContent(Handle<JSArray> array,
             Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));
+}
+
+
+bool JSArray::HasArrayPrototype(Isolate* isolate) {
+  return map()->prototype() == *isolate->initial_array_prototype();
 }
 
 
