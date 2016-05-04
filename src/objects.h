@@ -6695,7 +6695,6 @@ class SharedFunctionInfo: public HeapObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray();
-  inline bool IsInterpreted();
   inline BytecodeArray* bytecode_array();
   inline void set_bytecode_array(BytecodeArray* bytecode);
   inline void ClearBytecodeArray();

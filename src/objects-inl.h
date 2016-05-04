@@ -5901,7 +5901,7 @@ DebugInfo* SharedFunctionInfo::GetDebugInfo() {
 
 
 bool SharedFunctionInfo::HasDebugCode() {
-  return IsInterpreted() ||
+  return HasBytecodeArray() ||
          (code()->kind() == Code::FUNCTION && code()->has_debug_break_slots());
 }
 
@@ -5923,16 +5923,6 @@ void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
 
 bool SharedFunctionInfo::HasBytecodeArray() {
   return function_data()->IsBytecodeArray();
-}
-
-bool SharedFunctionInfo::IsInterpreted() {
-  // Currently, having bytecode does not mean the function is actually being
-  // interpreted. However, the debugger has to know precisely what is going to
-  // be executed.
-  // TODO(yangguo,mstarzinger): make this a synonym of HasBytecodeArray().
-  return code() ==
-         GetIsolate()->builtins()->builtin(
-             Builtins::kInterpreterEntryTrampoline);
 }
 
 BytecodeArray* SharedFunctionInfo::bytecode_array() {
