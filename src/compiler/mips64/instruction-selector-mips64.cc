@@ -158,7 +158,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kMips64Lw;
+      opcode = load_rep.IsUnsigned() ? kMips64Lwu : kMips64Lw;
       break;
     case MachineRepresentation::kTagged:  // Fall through.
     case MachineRepresentation::kWord64:
