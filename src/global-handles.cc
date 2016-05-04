@@ -205,8 +205,8 @@ class GlobalHandles::Node {
 
   bool IsWeakRetainer() const {
     return state() == WEAK || state() == PENDING ||
-           (state() == NEAR_DEATH && weakness_type() == NORMAL_WEAK &&
-            weakness_type() != FINALIZER_WEAK);
+           (state() == NEAR_DEATH && (weakness_type() == NORMAL_WEAK ||
+                                      weakness_type() == FINALIZER_WEAK));
   }
 
   void MarkPending() {
@@ -277,7 +277,7 @@ class GlobalHandles::Node {
         set_weakness_type(PHANTOM_WEAK_2_INTERNAL_FIELDS);
         break;
       case v8::WeakCallbackType::kFinalizer:
-        set_weakness_type(NORMAL_WEAK);
+        set_weakness_type(FINALIZER_WEAK);
         break;
     }
     set_parameter(parameter);
