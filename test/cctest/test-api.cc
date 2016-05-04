@@ -10394,6 +10394,69 @@ THREADED_TEST(GlobalObjectInstanceProperties) {
   }
 }
 
+THREADED_TEST(ObjectGetOwnPropertyNames) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Object> value =
+      v8::Local<v8::Object>::Cast(v8::StringObject::New(v8_str("test")));
+  v8::Local<v8::Array> properties;
+
+  CHECK(value
+            ->GetOwnPropertyNames(context.local(),
+                                  static_cast<v8::PropertyFilter>(
+                                      v8::PropertyFilter::ALL_PROPERTIES |
+                                      v8::PropertyFilter::SKIP_SYMBOLS))
+            .ToLocal(&properties));
+  CHECK_EQ(5, properties->Length());
+  v8::Local<v8::Value> property;
+  CHECK(properties->Get(context.local(), 4).ToLocal(&property) &&
+        property->IsString());
+  CHECK(property.As<v8::String>()
+            ->Equals(context.local(), v8_str("length"))
+            .FromMaybe(false));
+  for (int i = 0; i < 4; ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
+          property->IsInt32());
+    CHECK_EQ(property.As<v8::Int32>()->Value(), i);
+  }
+
+  CHECK(value->GetOwnPropertyNames(context.local(), v8::ONLY_ENUMERABLE)
+            .ToLocal(&properties));
+  CHECK_EQ(4, properties->Length());
+  for (int i = 0; i < 4; ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
+          property->IsInt32());
+    CHECK_EQ(property.As<v8::Int32>()->Value(), i);
+  }
+
+  value = value->GetPrototype().As<v8::Object>();
+  CHECK(value
+            ->GetOwnPropertyNames(context.local(),
+                                  static_cast<v8::PropertyFilter>(
+                                      v8::PropertyFilter::ALL_PROPERTIES |
+                                      v8::PropertyFilter::SKIP_SYMBOLS))
+            .ToLocal(&properties));
+  bool concat_found = false;
+  bool starts_with_found = false;
+  for (uint32_t i = 0; i < properties->Length(); ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property));
+    if (!property->IsString()) continue;
+    if (!concat_found)
+      concat_found = property.As<v8::String>()
+                         ->Equals(context.local(), v8_str("concat"))
+                         .FromMaybe(false);
+    if (!starts_with_found)
+      starts_with_found = property.As<v8::String>()
+                              ->Equals(context.local(), v8_str("startsWith"))
+                              .FromMaybe(false);
+  }
+  CHECK(concat_found && starts_with_found);
+}
 
 THREADED_TEST(CallKnownGlobalReceiver) {
   v8::Isolate* isolate = CcTest::isolate();

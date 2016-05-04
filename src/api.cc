@@ -3901,11 +3901,23 @@ Local<Array> v8::Object::GetPropertyNames() {
 
 
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
+  return GetOwnPropertyNames(
+      context, static_cast<v8::PropertyFilter>(ONLY_ENUMERABLE | SKIP_SYMBOLS));
+}
+
+Local<Array> v8::Object::GetOwnPropertyNames() {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
+}
+
+MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
+                                                  PropertyFilter filter) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetOwnPropertyNames()", Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
   has_pending_exception =
-      !i::JSReceiver::GetKeys(self, i::OWN_ONLY, i::ENUMERABLE_STRINGS)
+      !i::JSReceiver::GetKeys(self, i::OWN_ONLY,
+                              static_cast<i::PropertyFilter>(filter))
            .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
@@ -3913,12 +3925,6 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
          self->map()->instance_descriptors()->GetEnumCache() != *value);
   auto result = isolate->factory()->NewJSArrayWithElements(value);
   RETURN_ESCAPED(Utils::ToLocal(result));
-}
-
-
-Local<Array> v8::Object::GetOwnPropertyNames() {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
 }
 
 
