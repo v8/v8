@@ -676,6 +676,20 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ bne(&done);                                            \
     __ isync();                                               \
   } while (0)
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx)  \
+  do {                                                        \
+    size_t index = 0;                                         \
+    AddressingMode mode = kMode_None;                         \
+    MemOperand operand = i.MemoryOperand(&mode, &index);      \
+    Register value = i.InputRegister(index);                  \
+    __ sync();                                                \
+    if (mode == kMode_MRI) {                                  \
+      __ asm_instr(value, operand);                           \
+    } else {                                                  \
+      __ asm_instrx(value, operand);                          \
+    }                                                         \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
+  } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
@@ -1610,6 +1624,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lwz, lwzx);
+      break;
+
+    case kAtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(stb, stbx);
+      break;
+    case kAtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(sth, sthx);
+      break;
+    case kAtomicStoreWord32:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
       break;
     default:
       UNREACHABLE();
