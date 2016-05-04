@@ -43,6 +43,9 @@ utils.ImportFromExperimental(function(from) {
 
 function ArraySpeciesCreate(array, length) {
   var constructor;
+
+  length = INVERT_NEG_ZERO(length);
+
   if (FLAG_harmony_species) {
     constructor = %ArraySpeciesConstructor(array);
   } else {
@@ -1193,7 +1196,7 @@ function InnerArrayIndexOf(array, element, index, length) {
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
-    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
+    index = INVERT_NEG_ZERO(TO_INTEGER(index));
     // If index is negative, index from the end of the array.
     if (index < 0) {
       index = length + index;
@@ -1255,7 +1258,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (argumentsLength < 2) {
     index = length - 1;
   } else {
-    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
+    index = INVERT_NEG_ZERO(TO_INTEGER(index));
     // If index is negative, index from end of the array.
     if (index < 0) index += length;
     // If index is still negative, do not search the array.
