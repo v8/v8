@@ -1504,17 +1504,15 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   }
 
   if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index),
-         g.UseRegister(value));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
   } else {
     InstructionOperand addr_reg = g.TempRegister();
     Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
          g.UseRegister(index), g.UseRegister(base));
     // Emit desired store opcode, using temp addr_reg.
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0),
-         g.UseRegister(value));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
   }
 }
 

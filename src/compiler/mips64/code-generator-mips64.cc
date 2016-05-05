@@ -489,6 +489,13 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                           \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)         \
+  do {                                                   \
+    __ sync();                                           \
+    __ asm_instr(i.InputRegister(2), i.MemoryOperand()); \
+    __ sync();                                           \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(sp, fp);
   __ Pop(ra, fp);
@@ -1599,10 +1606,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
       break;
     case kAtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(sb);
+      break;
     case kAtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(sh);
+      break;
     case kAtomicStoreWord32:
-      // TODO(binji): implement
-      __ nop();
+      ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
       break;
   }
   return kSuccess;
