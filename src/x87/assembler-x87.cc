@@ -552,6 +552,18 @@ void Assembler::xchg(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::xchg_b(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x86);
+  emit_operand(reg, op);
+}
+
+void Assembler::xchg_w(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x87);
+  emit_operand(reg, op);
+}
 
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
