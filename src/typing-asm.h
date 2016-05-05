@@ -151,7 +151,8 @@ class AsmTyper : public AstVisitor {
 
   void SetType(Variable* variable, Type* type);
   Type* GetType(Variable* variable);
-  VariableInfo* GetVariableInfo(Variable* variable, bool setting);
+  VariableInfo* GetVariableInfo(Variable* variable);
+  VariableInfo* MakeVariableInfo(Variable* variable);
   void SetVariableInfo(Variable* variable, const VariableInfo* info);
 
   VariableInfo* LibType(ObjectTypeMap* map, Handle<String> name);
@@ -164,8 +165,6 @@ class AsmTyper : public AstVisitor {
                             const char* msg);
 
   void VisitLiteral(Literal* expr, bool is_return);
-
-  void VisitVariableProxy(VariableProxy* expr, bool assignment);
 
   void VisitIntegerBitwiseOperator(BinaryOperation* expr, Type* left_expected,
                                    Type* right_expected, Type* result_type,
