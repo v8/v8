@@ -62,12 +62,6 @@ static void InitializeInternalArrayConstructorDescriptor(
 }
 
 
-void ArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, 0);
-}
-
-
 void ArraySingleArgumentConstructorStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   InitializeArrayConstructorDescriptor(isolate(), descriptor, 1);
