@@ -23,10 +23,11 @@ namespace {
   do {                                                                     \
     const char* exp_ = (exp);                                              \
     const char* found_ = (found);                                          \
-    if (V8_UNLIKELY(strcmp(exp_, found_) != 0)) {                          \
+    DCHECK_NOT_NULL(exp);                                                  \
+    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {     \
       V8_Fatal(__FILE__, __LINE__,                                         \
                "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
-               exp_, found_);                                              \
+               exp_, found_ ? found_ : "<null>");                          \
     }                                                                      \
   } while (0)
 
@@ -44,8 +45,9 @@ void PrintStackTrace(v8::Local<v8::StackTrace> stack) {
 }
 
 struct ExceptionInfo {
-  const char* funcName;
-  int lineNr;
+  const char* func_name;
+  int line_nr;
+  int column;
 };
 
 template <int N>
@@ -64,8 +66,9 @@ void CheckExceptionInfos(Isolate* isolate, Handle<Object> exc,
   for (int frameNr = 0; frameNr < N; ++frameNr) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
     v8::String::Utf8Value funName(frame->GetFunctionName());
-    CHECK_CSTREQ(excInfos[frameNr].funcName, *funName);
-    CHECK_EQ(excInfos[frameNr].lineNr, frame->GetLineNumber());
+    CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
+    CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
+    CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
   }
 }
 
@@ -83,7 +86,8 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       sigs.v_v(),
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
 
-  BUILD(comp1, WASM_CALL_FUNCTION0(js_throwing_index));
+  // Add a nop such that we don't always get position 1.
+  BUILD(comp1, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
   uint32_t wasm_index = comp1.CompileAndAdd();
 
   WasmFunctionCompiler comp2(sigs.v_v(), &module);
@@ -108,11 +112,12 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 
   // Line number is 1-based, with 0 == kNoLineNumberInfo.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3},       // Comment to prevent clang-format complaints
-      {"js", 4},      // -
-      {"<WASM>", 0},  // -
-      {"<WASM>", 0},  // -
-      {"callFn", 1}};
+      {"a", 3, 8},                                    // -
+      {"js", 4, 2},                                   // -
+      {"<WASM>", static_cast<int>(wasm_index), 2},    // -
+      {"<WASM>", static_cast<int>(wasm_index_2), 1},  // -
+      {"callFn", 1, 24}                               // -
+  };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
 }
@@ -152,9 +157,11 @@ TEST(CollectDetailedWasmStack_WasmError) {
 
   // Line number is 1-based, with 0 == kNoLineNumberInfo.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM>", 0},  // Comment to prevent clang-format complaints.
-      {"<WASM>", 0},
-      {"callFn", 1}};
+      // TODO(clemens): position should be 1
+      {"<WASM>", static_cast<int>(wasm_index), -1},   // -
+      {"<WASM>", static_cast<int>(wasm_index_2), 1},  // -
+      {"callFn", 1, 24}                               //-
+  };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
 }

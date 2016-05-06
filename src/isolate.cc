@@ -433,14 +433,13 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         Code* code = wasm_frame->unchecked_code();
         Handle<AbstractCode> abstract_code =
             Handle<AbstractCode>(AbstractCode::cast(code));
-        Handle<JSFunction> fun = factory()->NewFunction(
-            factory()->NewStringFromAsciiChecked("<WASM>"));
+        int offset =
+            static_cast<int>(wasm_frame->pc() - code->instruction_start());
         elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        // TODO(jfb) Pass module object.
-        elements->set(cursor++, *factory()->undefined_value());
-        elements->set(cursor++, *fun);
+        elements->set(cursor++, wasm_frame->wasm_obj());
+        elements->set(cursor++, Smi::FromInt(wasm_frame->function_index()));
         elements->set(cursor++, *abstract_code);
-        elements->set(cursor++, Internals::IntToSmi(0));
+        elements->set(cursor++, Smi::FromInt(offset));
         frames_seen++;
       } break;
 
@@ -542,65 +541,64 @@ class CaptureStackTraceHelper {
     }
   }
 
+  Handle<JSObject> NewStackFrameObject(FrameSummary& summ) {
+    int position = summ.abstract_code()->SourcePosition(summ.code_offset());
+    return NewStackFrameObject(summ.function(), position,
+                               summ.is_constructor());
+  }
+
   Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun, int position,
                                        bool is_constructor) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
+    Handle<Script> script(Script::cast(fun->shared()->script()));
 
-    // TODO(clemensh): this can be changed to a DCHECK once also WASM frames
-    // define a script
-    if (!fun->shared()->script()->IsUndefined()) {
-      Handle<Script> script(Script::cast(fun->shared()->script()));
-
-      if (!line_key_.is_null()) {
-        int script_line_offset = script->line_offset();
-        int line_number = Script::GetLineNumber(script, position);
-        // line_number is already shifted by the script_line_offset.
-        int relative_line_number = line_number - script_line_offset;
-        if (!column_key_.is_null() && relative_line_number >= 0) {
-          Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-          int start = (relative_line_number == 0)
-                          ? 0
-                          : Smi::cast(line_ends->get(relative_line_number - 1))
-                                    ->value() +
-                                1;
-          int column_offset = position - start;
-          if (relative_line_number == 0) {
-            // For the case where the code is on the same line as the script
-            // tag.
-            column_offset += script->column_offset();
-          }
-          JSObject::AddProperty(
-              stack_frame, column_key_,
-              handle(Smi::FromInt(column_offset + 1), isolate_), NONE);
+    if (!line_key_.is_null()) {
+      int script_line_offset = script->line_offset();
+      int line_number = Script::GetLineNumber(script, position);
+      // line_number is already shifted by the script_line_offset.
+      int relative_line_number = line_number - script_line_offset;
+      if (!column_key_.is_null() && relative_line_number >= 0) {
+        Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+        int start =
+            (relative_line_number == 0)
+                ? 0
+                : Smi::cast(line_ends->get(relative_line_number - 1))->value() +
+                      1;
+        int column_offset = position - start;
+        if (relative_line_number == 0) {
+          // For the case where the code is on the same line as the script tag.
+          column_offset += script->column_offset();
         }
-        JSObject::AddProperty(stack_frame, line_key_,
-                              handle(Smi::FromInt(line_number + 1), isolate_),
+        JSObject::AddProperty(stack_frame, column_key_,
+                              handle(Smi::FromInt(column_offset + 1), isolate_),
                               NONE);
       }
+      JSObject::AddProperty(stack_frame, line_key_,
+                            handle(Smi::FromInt(line_number + 1), isolate_),
+                            NONE);
+    }
 
-      if (!script_id_key_.is_null()) {
-        JSObject::AddProperty(stack_frame, script_id_key_,
-                              handle(Smi::FromInt(script->id()), isolate_),
-                              NONE);
-      }
+    if (!script_id_key_.is_null()) {
+      JSObject::AddProperty(stack_frame, script_id_key_,
+                            handle(Smi::FromInt(script->id()), isolate_), NONE);
+    }
 
-      if (!script_name_key_.is_null()) {
-        JSObject::AddProperty(stack_frame, script_name_key_,
-                              handle(script->name(), isolate_), NONE);
-      }
+    if (!script_name_key_.is_null()) {
+      JSObject::AddProperty(stack_frame, script_name_key_,
+                            handle(script->name(), isolate_), NONE);
+    }
 
-      if (!script_name_or_source_url_key_.is_null()) {
-        Handle<Object> result = Script::GetNameOrSourceURL(script);
-        JSObject::AddProperty(stack_frame, script_name_or_source_url_key_,
-                              result, NONE);
-      }
+    if (!script_name_or_source_url_key_.is_null()) {
+      Handle<Object> result = Script::GetNameOrSourceURL(script);
+      JSObject::AddProperty(stack_frame, script_name_or_source_url_key_, result,
+                            NONE);
+    }
 
-      if (!eval_key_.is_null()) {
-        Handle<Object> is_eval = factory()->ToBoolean(
-            script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
-        JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
-      }
+    if (!eval_key_.is_null()) {
+      Handle<Object> is_eval = factory()->ToBoolean(
+          script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+      JSObject::AddProperty(stack_frame, eval_key_, is_eval, NONE);
     }
 
     if (!function_key_.is_null()) {
@@ -611,6 +609,35 @@ class CaptureStackTraceHelper {
     if (!constructor_key_.is_null()) {
       Handle<Object> is_constructor_obj = factory()->ToBoolean(is_constructor);
       JSObject::AddProperty(stack_frame, constructor_key_, is_constructor_obj,
+                            NONE);
+    }
+    return stack_frame;
+  }
+
+  Handle<JSObject> NewStackFrameObject(WasmFrame* frame) {
+    Handle<JSObject> stack_frame =
+        factory()->NewJSObject(isolate_->object_function());
+
+    if (!function_key_.is_null()) {
+      Handle<Object> fun_name = handle(frame->function_name(), isolate_);
+      if (fun_name->IsUndefined())
+        fun_name = isolate_->factory()->InternalizeUtf8String(
+            Vector<const char>("<WASM>"));
+      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
+    }
+    // Encode the function index as line number.
+    if (!line_key_.is_null()) {
+      JSObject::AddProperty(
+          stack_frame, line_key_,
+          isolate_->factory()->NewNumberFromInt(frame->function_index()), NONE);
+    }
+    // Encode the byte offset as column.
+    if (!column_key_.is_null()) {
+      Code* code = frame->LookupCode();
+      int offset = static_cast<int>(frame->pc() - code->instruction_start());
+      int position = code->SourcePosition(offset);
+      JSObject::AddProperty(stack_frame, column_key_,
+                            isolate_->factory()->NewNumberFromInt(position),
                             NONE);
     }
 
@@ -691,29 +718,34 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
+  Handle<FixedArray> stack_trace_elems(
+      FixedArray::cast(stack_trace->elements()), this);
 
-  StackTraceFrameIterator it(this);
   int frames_seen = 0;
-  while (!it.done() && (frames_seen < limit)) {
+  for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
+       it.Advance()) {
     StandardFrame* frame = it.frame();
-    // Set initial size to the maximum inlining level + 1 for the outermost
-    // function.
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
-      Handle<JSFunction> fun = frames[i].function();
-      // Filter frames from other security contexts.
-      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-          !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-      int position =
-          frames[i].abstract_code()->SourcePosition(frames[i].code_offset());
-      Handle<JSObject> stack_frame =
-          helper.NewStackFrameObject(fun, position, frames[i].is_constructor());
-
-      FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
+    if (frame->is_java_script()) {
+      // Set initial size to the maximum inlining level + 1 for the outermost
+      // function.
+      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+      JavaScriptFrame::cast(frame)->Summarize(&frames);
+      for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+        Handle<JSFunction> fun = frames[i].function();
+        // Filter frames from other security contexts.
+        if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+            !this->context()->HasSameSecurityTokenAs(fun->context()))
+          continue;
+        Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
+        stack_trace_elems->set(frames_seen, *new_frame_obj);
+        frames_seen++;
+      }
+    } else {
+      WasmFrame* wasm_frame = WasmFrame::cast(frame);
+      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(wasm_frame);
+      stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
     }
-    it.Advance();
   }
 
   stack_trace->set_length(Smi::FromInt(frames_seen));
@@ -1332,15 +1364,20 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
       InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
       pos = iframe->GetBytecodeArray()->SourcePosition(
           iframe->GetBytecodeOffset());
-    } else {
+    } else if (frame->is_java_script()) {
       Code* code = frame->LookupCode();
       int offset = static_cast<int>(frame->pc() - code->instruction_start());
       pos = frame->LookupCode()->SourcePosition(offset);
+    } else {
+      DCHECK(frame->is_wasm());
+      // TODO(clemensh): include wasm frames here
+      continue;
     }
+    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
-    Handle<JSFunction> fun(frame->function());
-    Handle<Object> recv(frame->receiver(), this);
+    Handle<JSFunction> fun(js_frame->function());
+    Handle<Object> recv(js_frame->receiver(), this);
     // Advance to the next JavaScript frame and determine if the
     // current frame is the top-level frame.
     it.Advance();
@@ -1355,30 +1392,28 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   }
 }
 
-
 bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
-  if (!it.done()) {
-    StandardFrame* frame = it.frame();
-    JSFunction* fun = frame->function();
-    Object* script = fun->shared()->script();
-    if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined())) {
-      Handle<Script> casted_script(Script::cast(script));
-      // Compute the location from the function and the relocation info of the
-      // baseline code. For optimized code this will use the deoptimization
-      // information to get canonical location information.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      frame->Summarize(&frames);
-      FrameSummary& summary = frames.last();
-      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
-      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
-      return true;
-    }
+  if (it.done()) return false;
+  StandardFrame* frame = it.frame();
+  // TODO(clemensh): handle wasm frames
+  if (!frame->is_java_script()) return false;
+  JSFunction* fun = JavaScriptFrame::cast(frame)->function();
+  Object* script = fun->shared()->script();
+  if (!script->IsScript() || (Script::cast(script)->source()->IsUndefined())) {
+    return false;
   }
-  return false;
+  Handle<Script> casted_script(Script::cast(script));
+  // Compute the location from the function and the relocation info of the
+  // baseline code. For optimized code this will use the deoptimization
+  // information to get canonical location information.
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  JavaScriptFrame::cast(frame)->Summarize(&frames);
+  FrameSummary& summary = frames.last();
+  int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
+  *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+  return true;
 }
-
 
 bool Isolate::ComputeLocationFromException(MessageLocation* target,
                                            Handle<Object> exception) {
@@ -1420,8 +1455,12 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   int elements_limit = Smi::cast(simple_stack_trace->length())->value();
 
   for (int i = 1; i < elements_limit; i += 4) {
-    Handle<JSFunction> fun =
-        handle(JSFunction::cast(elements->get(i + 1)), this);
+    Handle<Object> fun_obj = handle(elements->get(i + 1), this);
+    if (fun_obj->IsSmi()) {
+      // TODO(clemensh): handle wasm frames
+      return false;
+    }
+    Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
     if (!fun->shared()->IsSubjectToDebugging()) continue;
 
     Object* script = fun->shared()->script();

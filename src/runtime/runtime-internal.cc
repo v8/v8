@@ -334,15 +334,15 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   return *result;
 }
 
-#define CALLSITE_GET(NAME, RETURN)                          \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
-    HandleScope scope(isolate);                             \
-    DCHECK(args.length() == 1);                             \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
-    Handle<String> result;                                  \
-    CallSite call_site(isolate, call_site_obj);             \
-    RUNTIME_ASSERT(call_site.IsValid());                    \
-    return RETURN(call_site.NAME(), isolate);               \
+#define CALLSITE_GET(NAME, RETURN)                                  \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {                    \
+    HandleScope scope(isolate);                                     \
+    DCHECK(args.length() == 1);                                     \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0);         \
+    Handle<String> result;                                          \
+    CallSite call_site(isolate, call_site_obj);                     \
+    RUNTIME_ASSERT(call_site.IsJavaScript() || call_site.IsWasm()); \
+    return RETURN(call_site.NAME(), isolate);                       \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,

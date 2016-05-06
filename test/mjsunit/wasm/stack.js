@@ -16,14 +16,23 @@ function stripPath(s) {
 function verifyStack(frames, expected) {
   assertEquals(expected.length, frames.length, "number of frames mismatch");
   expected.forEach(function(exp, i) {
-    assertEquals(exp[0], frames[i].getFunctionName(),
-        "["+i+"].getFunctionName()");
-    assertEquals(exp[1], frames[i].getLineNumber(),
-        "["+i+"].getLineNumber()");
-    assertContains(exp[2], frames[i].getFileName(),
-        "["+i+"].getFileName()");
-    assertContains(exp[3], frames[i].toString(),
-        "["+i+"].toString()");
+    if (exp[1] != "?") {
+      assertEquals(exp[1], frames[i].getFunctionName(),
+          "["+i+"].getFunctionName()");
+    }
+    assertEquals(exp[2], frames[i].getLineNumber(), "["+i+"].getLineNumber()");
+    if (exp[0])
+      assertEquals(exp[3], frames[i].getPosition(),
+          "["+i+"].getPosition()");
+    assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
+    var toString;
+    if (exp[0]) {
+      var funName = exp[1] == "?" ? "" : exp[1];
+      toString = funName + " (<WASM>:" + exp[2] + ":" + exp[3] + ")";
+    } else {
+      toString = exp[4] + ":" + exp[2] + ":";
+    }
+    assertContains(toString, frames[i].toString(), "["+i+"].toString()");
   });
 }
 
@@ -46,13 +55,13 @@ builder.addFunction("exec_unreachable", kSig_v_v)
   .addBody([kExprUnreachable])
   .exportAs("exec_unreachable");
 
-// make this function unnamed, just to test also this case
+// Make this function unnamed, just to test also this case.
 var mem_oob_func = builder.addFunction(undefined, kSig_v_v)
-  // access the memory at offset -1
+  // Access the memory at offset -1, to provoke a trap.
   .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
   .exportAs("mem_out_of_bounds");
 
-// call the mem_out_of_bounds function, in order to have two WASM stack frames
+// Call the mem_out_of_bounds function, in order to have two WASM stack frames.
 builder.addFunction("call_mem_out_of_bounds", kSig_v_v)
   .addBody([kExprCallFunction, kArity0, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");
@@ -62,10 +71,10 @@ var module = builder.instantiate({func: STACK});
 (function testSimpleStack() {
   var expected_string = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
-    "    at STACK (stack.js:33:11)\n" +           // --
-    "    at <WASM> (<anonymous>)\n" +             // TODO(jfb): wasm stack here.
-    "    at testSimpleStack (stack.js:70:18)\n" + // --
-    "    at stack.js:72:3";                       // --
+    "    at STACK (stack.js:42:11)\n" +           // --
+    "    at main (<WASM>:0:1)\n" +                // --
+    "    at testSimpleStack (stack.js:79:18)\n" + // --
+    "    at stack.js:81:3";                       // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -80,13 +89,12 @@ Error.prepareStackTrace = function(error, frames) {
 (function testStackFrames() {
   module.exports.main();
 
-  // TODO(clemensh): add a isWasm() method or similar, and test it
   verifyStack(stack, [
-      //        function   line        file          toString
-      [          "STACK",    33, "stack.js", "stack.js:33:11"],
-      [         "<WASM>",  null,       null,         "<WASM>"],
-      ["testStackFrames",    81, "stack.js", "stack.js:81:18"],
-      [             null,    91, "stack.js",  "stack.js:91:3"]
+      // isWasm           function   line  pos        file
+      [   false,           "STACK",    42,   0, "stack.js"],
+      [    true,            "main",     0,   1,       null],
+      [   false, "testStackFrames",    90,   0, "stack.js"],
+      [   false,              null,    99,   0, "stack.js"]
   ]);
 })();
 
@@ -97,10 +105,11 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
-        //            function   line        file           toString
-        [             "<WASM>",  null,       null,          "<WASM>"],
-        ["testWasmUnreachable",    95, "stack.js",  "stack.js:95:20"],
-        [                 null,   106, "stack.js",  "stack.js:106:3"]
+        // isWasm               function   line  pos        file
+        // TODO(clemensh): pos should be 1
+        [    true,    "exec_unreachable",    1,   -1,       null],
+        [   false, "testWasmUnreachable",  103,    0, "stack.js"],
+        [   false,                  null,  115,    0, "stack.js"]
     ]);
   }
 })();
@@ -112,11 +121,12 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
-        //               function   line        file           toString
-        [                "<WASM>",  null,       null,          "<WASM>"],
-        [                "<WASM>",  null,       null,          "<WASM>"],
-        ["testWasmMemOutOfBounds",   110, "stack.js", "stack.js:110:20"],
-        [                    null,   122, "stack.js",  "stack.js:122:3"]
+        // isWasm                  function   line  pos        file
+        // TODO(clemensh): pos should be 3
+        [    true,                      "?",     2,  -1,       null],
+        [    true, "call_mem_out_of_bounds",     3,   1,       null],
+        [   false, "testWasmMemOutOfBounds",   119,   0, "stack.js"],
+        [   false,                     null,   132,   0, "stack.js"]
     ]);
   }
 })();

@@ -16,6 +16,7 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -615,21 +616,6 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   // stub).  ComputeCallerState will retrieve the constant pool
   // together with the associated caller pc.
   state->constant_pool_address = NULL;
-}
-
-void StandardFrame::Summarize(List<FrameSummary>* functions,
-                              FrameSummary::Mode mode) const {
-  DCHECK(functions->length() == 0);
-  // default implementation: no summary added
-}
-
-JSFunction* StandardFrame::function() const {
-  // this default implementation is overridden by JS and WASM frames
-  return nullptr;
-}
-
-Object* StandardFrame::receiver() const {
-  return isolate()->heap()->undefined_value();
 }
 
 Address StandardFrame::GetExpressionAddress(int n) const {
@@ -1343,30 +1329,36 @@ Code* WasmFrame::unchecked_code() const {
   return static_cast<Code*>(isolate()->FindCodeObject(pc()));
 }
 
-JSFunction* WasmFrame::function() const {
-  // TODO(clemensh): generate the right JSFunctions once per wasm function and
-  // cache them
-  Factory* factory = isolate()->factory();
-  Handle<JSFunction> fun =
-      factory->NewFunction(factory->NewStringFromAsciiChecked("<WASM>"));
-  return *fun;
-}
-
-void WasmFrame::Summarize(List<FrameSummary>* functions,
-                          FrameSummary::Mode mode) const {
-  DCHECK(functions->length() == 0);
-  Code* code = LookupCode();
-  int offset = static_cast<int>(pc() - code->instruction_start());
-  AbstractCode* abstract_code = AbstractCode::cast(code);
-  Handle<JSFunction> fun(function(), isolate());
-  FrameSummary summary(receiver(), *fun, abstract_code, offset, false);
-  functions->Add(summary);
-}
-
 void WasmFrame::Iterate(ObjectVisitor* v) const { IterateCompiledFrame(v); }
 
 Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
+}
+
+Object* WasmFrame::wasm_obj() {
+  FixedArray* deopt_data = LookupCode()->deoptimization_data();
+  DCHECK(deopt_data->length() == 2);
+  return deopt_data->get(0);
+}
+
+uint32_t WasmFrame::function_index() {
+  FixedArray* deopt_data = LookupCode()->deoptimization_data();
+  DCHECK(deopt_data->length() == 2);
+  Object* func_index_obj = deopt_data->get(1);
+  if (func_index_obj->IsUndefined()) return static_cast<uint32_t>(-1);
+  if (func_index_obj->IsSmi()) return Smi::cast(func_index_obj)->value();
+  DCHECK(func_index_obj->IsHeapNumber());
+  uint32_t val = static_cast<uint32_t>(-1);
+  func_index_obj->ToUint32(&val);
+  DCHECK(val != static_cast<uint32_t>(-1));
+  return val;
+}
+
+Object* WasmFrame::function_name() {
+  Object* wasm_object = wasm_obj();
+  if (wasm_object->IsUndefined()) return wasm_object;
+  Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
+  return *wasm::GetWasmFunctionName(wasm, function_index());
 }
 
 namespace {

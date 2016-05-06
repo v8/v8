@@ -9,6 +9,7 @@
 #include "src/isolate-inl.h"
 #include "src/keys.h"
 #include "src/string-builder.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -169,11 +170,25 @@ CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
     : isolate_(isolate) {
   Handle<Object> maybe_function = JSObject::GetDataProperty(
       call_site_obj, isolate->factory()->call_site_function_symbol());
-  if (!maybe_function->IsJSFunction()) return;
+  if (maybe_function->IsJSFunction()) {
+    // javascript
+    fun_ = Handle<JSFunction>::cast(maybe_function);
+    receiver_ = JSObject::GetDataProperty(
+        call_site_obj, isolate->factory()->call_site_receiver_symbol());
+  } else {
+    Handle<Object> maybe_wasm_func_index = JSObject::GetDataProperty(
+        call_site_obj, isolate->factory()->call_site_wasm_func_index_symbol());
+    if (!maybe_wasm_func_index->IsSmi()) {
+      // invalid: neither javascript nor wasm
+      return;
+    }
+    // wasm
+    wasm_obj_ = Handle<JSObject>::cast(JSObject::GetDataProperty(
+        call_site_obj, isolate->factory()->call_site_wasm_obj_symbol()));
+    wasm_func_index_ = Smi::cast(*maybe_wasm_func_index)->value();
+    DCHECK(static_cast<int>(wasm_func_index_) >= 0);
+  }
 
-  fun_ = Handle<JSFunction>::cast(maybe_function);
-  receiver_ = JSObject::GetDataProperty(
-      call_site_obj, isolate->factory()->call_site_receiver_symbol());
   CHECK(JSObject::GetDataProperty(
             call_site_obj, isolate->factory()->call_site_position_symbol())
             ->ToInt32(&pos_));
@@ -181,15 +196,22 @@ CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
 
 
 Handle<Object> CallSite::GetFileName() {
-  Handle<Object> script(fun_->shared()->script(), isolate_);
-  if (script->IsScript()) {
-    return Handle<Object>(Handle<Script>::cast(script)->name(), isolate_);
-  }
-  return isolate_->factory()->null_value();
+  if (!IsJavaScript()) return isolate_->factory()->null_value();
+  Object* script = fun_->shared()->script();
+  if (!script->IsScript()) return isolate_->factory()->null_value();
+  return Handle<Object>(Script::cast(script)->name(), isolate_);
 }
 
 
 Handle<Object> CallSite::GetFunctionName() {
+  if (IsWasm()) {
+    if (wasm_obj_->IsUndefined()) return isolate_->factory()->null_value();
+    // wasm_obj_ can be a String if we generate WASM code directly in a test
+    // case.
+    if (wasm_obj_->IsString()) return wasm_obj_;
+    return wasm::GetWasmFunctionName(Handle<JSObject>::cast(wasm_obj_),
+                                     wasm_func_index_);
+  }
   Handle<String> result = JSFunction::GetName(fun_);
   if (result->length() != 0) return result;
 
@@ -202,18 +224,15 @@ Handle<Object> CallSite::GetFunctionName() {
   return isolate_->factory()->null_value();
 }
 
-
 Handle<Object> CallSite::GetScriptNameOrSourceUrl() {
-  Handle<Object> script_obj(fun_->shared()->script(), isolate_);
-  if (script_obj->IsScript()) {
-    Handle<Script> script = Handle<Script>::cast(script_obj);
-    Object* source_url = script->source_url();
-    if (source_url->IsString()) return Handle<Object>(source_url, isolate_);
-    return Handle<Object>(script->name(), isolate_);
-  }
-  return isolate_->factory()->null_value();
+  if (!IsJavaScript()) return isolate_->factory()->null_value();
+  Object* script_obj = fun_->shared()->script();
+  if (!script_obj->IsScript()) return isolate_->factory()->null_value();
+  Handle<Script> script(Script::cast(script_obj), isolate_);
+  Object* source_url = script->source_url();
+  if (source_url->IsString()) return Handle<Object>(source_url, isolate_);
+  return Handle<Object>(script->name(), isolate_);
 }
-
 
 bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
                      Handle<JSFunction> fun,
@@ -234,7 +253,7 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  if (receiver_->IsNull() || receiver_->IsUndefined()) {
+  if (!IsJavaScript() || receiver_->IsNull() || receiver_->IsUndefined()) {
     return isolate_->factory()->null_value();
   }
   Handle<JSReceiver> receiver =
@@ -293,7 +312,7 @@ Handle<Object> CallSite::GetMethodName() {
 
 
 int CallSite::GetLineNumber() {
-  if (pos_ >= 0) {
+  if (pos_ >= 0 && IsJavaScript()) {
     Handle<Object> script_obj(fun_->shared()->script(), isolate_);
     if (script_obj->IsScript()) {
       Handle<Script> script = Handle<Script>::cast(script_obj);
@@ -305,7 +324,7 @@ int CallSite::GetLineNumber() {
 
 
 int CallSite::GetColumnNumber() {
-  if (pos_ >= 0) {
+  if (pos_ >= 0 && IsJavaScript()) {
     Handle<Object> script_obj(fun_->shared()->script(), isolate_);
     if (script_obj->IsScript()) {
       Handle<Script> script = Handle<Script>::cast(script_obj);
@@ -317,6 +336,7 @@ int CallSite::GetColumnNumber() {
 
 
 bool CallSite::IsNative() {
+  if (!IsJavaScript()) return false;
   Handle<Object> script(fun_->shared()->script(), isolate_);
   return script->IsScript() &&
          Handle<Script>::cast(script)->type() == Script::TYPE_NATIVE;
@@ -324,12 +344,14 @@ bool CallSite::IsNative() {
 
 
 bool CallSite::IsToplevel() {
+  if (IsWasm()) return false;
   return receiver_->IsJSGlobalProxy() || receiver_->IsNull() ||
          receiver_->IsUndefined();
 }
 
 
 bool CallSite::IsEval() {
+  if (!IsJavaScript()) return false;
   Handle<Object> script(fun_->shared()->script(), isolate_);
   return script->IsScript() &&
          Handle<Script>::cast(script)->compilation_type() ==
@@ -338,7 +360,7 @@ bool CallSite::IsEval() {
 
 
 bool CallSite::IsConstructor() {
-  if (!receiver_->IsJSObject()) return false;
+  if (!IsJavaScript() || !receiver_->IsJSObject()) return false;
   Handle<Object> constructor =
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),
                                   isolate_->factory()->constructor_string());

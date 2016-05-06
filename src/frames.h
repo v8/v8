@@ -635,8 +635,8 @@ class JavaScriptFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
-  // Mode for StandardFrame::Summarize. Exact summary is required to produce an
-  // exact stack trace. It will trigger an assertion failure if that is not
+  // Mode for JavaScriptFrame::Summarize. Exact summary is required to produce
+  // an exact stack trace. It will trigger an assertion failure if that is not
   // possible, e.g., because of missing deoptimization information. The
   // approximate mode should produce a summary even without deoptimization
   // information, but it might miss frames.
@@ -684,15 +684,6 @@ class StandardFrame : public StackFrame {
     return static_cast<StandardFrame*>(frame);
   }
 
-  // Build a list with summaries for this frame including all inlined frames.
-  virtual void Summarize(
-      List<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
-
-  // Accessors.
-  virtual JSFunction* function() const;
-  virtual Object* receiver() const;
-
  protected:
   inline explicit StandardFrame(StackFrameIteratorBase* iterator);
 
@@ -737,8 +728,14 @@ class JavaScriptFrame : public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
-  JSFunction* function() const override;
-  Object* receiver() const override;
+  // Build a list with summaries for this frame including all inlined frames.
+  virtual void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
+
+  // Accessors.
+  virtual JSFunction* function() const;
+  virtual Object* receiver() const;
 
   inline void set_receiver(Object* value);
 
@@ -785,10 +782,6 @@ class JavaScriptFrame : public StandardFrame {
 
   // Return a list with JSFunctions of this frame.
   virtual void GetFunctions(List<JSFunction*>* functions) const;
-
-  void Summarize(
-      List<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -975,16 +968,15 @@ class WasmFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
+  Object* wasm_obj();
+  uint32_t function_index();
+
+  Object* function_name();
+
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());
     return static_cast<WasmFrame*>(frame);
   }
-
-  JSFunction* function() const override;
-
-  void Summarize(
-      List<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);

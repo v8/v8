@@ -23,6 +23,10 @@ var callSitePositionSymbol =
     utils.ImportNow("call_site_position_symbol");
 var callSiteStrictSymbol =
     utils.ImportNow("call_site_strict_symbol");
+var callSiteWasmObjectSymbol =
+    utils.ImportNow("call_site_wasm_obj_symbol");
+var callSiteWasmFunctionIndexSymbol =
+    utils.ImportNow("call_site_wasm_func_index_symbol");
 var Float32x4ToString;
 var formattedStackTraceSymbol =
     utils.ImportNow("formatted_stack_trace_symbol");
@@ -553,7 +557,9 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // Error implementation
 
 function CallSite(receiver, fun, pos, strict_mode) {
-  if (!IS_FUNCTION(fun)) {
+  // For wasm frames, receiver is the wasm object and fun is the function index
+  // instead of an actual function.
+  if (!IS_FUNCTION(fun) && !IS_NUMBER(fun)) {
     throw MakeTypeError(kCallSiteExpectsFunction, typeof fun);
   }
 
@@ -561,14 +567,19 @@ function CallSite(receiver, fun, pos, strict_mode) {
     return new CallSite(receiver, fun, pos, strict_mode);
   }
 
-  SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
-  SET_PRIVATE(this, callSiteFunctionSymbol, fun);
+  if (IS_FUNCTION(fun)) {
+    SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
+    SET_PRIVATE(this, callSiteFunctionSymbol, fun);
+  } else {
+    SET_PRIVATE(this, callSiteWasmObjectSymbol, receiver);
+    SET_PRIVATE(this, callSiteWasmFunctionIndexSymbol, TO_UINT32(fun));
+  }
   SET_PRIVATE(this, callSitePositionSymbol, TO_INT32(pos));
   SET_PRIVATE(this, callSiteStrictSymbol, TO_BOOLEAN(strict_mode));
 }
 
 function CheckCallSite(obj, name) {
-  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSiteFunctionSymbol)) {
+  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSitePositionSymbol)) {
     throw MakeTypeError(kCallSiteMethod, name);
   }
 }
@@ -619,6 +630,12 @@ function CallSiteGetScriptNameOrSourceURL() {
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
   CheckCallSite(this, "getFunctionName");
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    var wasm = GET_PRIVATE(this, callSiteWasmObjectSymbol);
+    var func_index = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+    if (IS_UNDEFINED(wasm)) return "<WASM>";
+    return %WasmGetFunctionName(wasm, func_index);
+  }
   return %CallSiteGetFunctionNameRT(this);
 }
 
@@ -635,6 +652,9 @@ function CallSiteGetFileName() {
 }
 
 function CallSiteGetLineNumber() {
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    return GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+  }
   CheckCallSite(this, "getLineNumber");
   return %CallSiteGetLineNumberRT(this);
 }
@@ -655,6 +675,13 @@ function CallSiteIsConstructor() {
 }
 
 function CallSiteToString() {
+  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
+    var funName = this.getFunctionName();
+    var funcIndex = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
+    var pos = this.getPosition();
+    return funName + " (<WASM>:" + funcIndex + ":" + pos + ")";
+  }
+
   var fileName;
   var fileLocation = "";
   if (this.isNative()) {
@@ -799,7 +826,7 @@ function GetStackFrames(raw_stack) {
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
-    var pos = %_IsSmi(code) ? code : %FunctionGetPositionForOffset(code, pc);
+    var pos = %FunctionGetPositionForOffset(code, pc);
     sloppy_frames--;
     frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }

@@ -139,6 +139,8 @@
   V(call_site_position_symbol)              \
   V(call_site_receiver_symbol)              \
   V(call_site_strict_symbol)                \
+  V(call_site_wasm_obj_symbol)              \
+  V(call_site_wasm_func_index_symbol)       \
   V(class_end_position_symbol)              \
   V(class_start_position_symbol)            \
   V(detailed_stack_trace_symbol)            \

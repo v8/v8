@@ -3014,13 +3014,8 @@ class WasmCompilationUnit {
         isolate_->factory()->NewFixedArray(2, TENURED);
     if (!module_env_->instance->js_object.is_null()) {
       deopt_data->set(0, *module_env_->instance->js_object);
-      deopt_data->set(1, Smi::FromInt(function_->func_index));
-    } else if (info_.GetDebugName().get() != nullptr) {
-      MaybeHandle<String> maybe_name = isolate_->factory()->NewStringFromUtf8(
-          CStrVector(info_.GetDebugName().get()));
-      if (!maybe_name.is_null())
-        deopt_data->set(0, *maybe_name.ToHandleChecked());
     }
+    deopt_data->set(1, Smi::FromInt(function_->func_index));
     deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
 

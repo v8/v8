@@ -11,6 +11,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -300,6 +301,16 @@ RUNTIME_FUNCTION(Runtime_FunctionToString) {
              ? *JSBoundFunction::ToString(
                    Handle<JSBoundFunction>::cast(function))
              : *JSFunction::ToString(Handle<JSFunction>::cast(function));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGetFunctionName) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, wasm, 0);
+  CONVERT_SMI_ARG_CHECKED(func_index, 1);
+
+  return *wasm::GetWasmFunctionName(wasm, func_index);
 }
 
 }  // namespace internal

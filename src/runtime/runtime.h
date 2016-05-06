@@ -314,7 +314,8 @@ namespace internal {
   F(GetOrdinaryHasInstance, 0, 1)                   \
   F(GetAndResetRuntimeCallStats, 0, 1)              \
   F(EnqueueMicrotask, 1, 1)                         \
-  F(RunMicrotasks, 0, 1)
+  F(RunMicrotasks, 0, 1)                            \
+  F(WasmGetFunctionName, 2, 1)
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \

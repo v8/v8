@@ -155,10 +155,10 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   AllocationNode* node = &profile_root_;
 
   std::vector<SharedFunctionInfo*> stack;
-  StackTraceFrameIterator it(isolate_);
+  JavaScriptFrameIterator it(isolate_);
   int frames_captured = 0;
   while (!it.done() && frames_captured < stack_depth_) {
-    StandardFrame* frame = it.frame();
+    JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
     stack.push_back(shared);
 

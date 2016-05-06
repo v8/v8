@@ -230,9 +230,9 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
   Isolate* isolate = heap->isolate();
   int length = 0;
-  StackTraceFrameIterator it(isolate);
+  JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
-    StandardFrame* frame = it.frame();
+    JavaScriptFrame* frame = it.frame();
     SharedFunctionInfo* shared = frame->function()->shared();
     SnapshotObjectId id = ids_->FindOrAddEntry(
         shared->address(), shared->Size(), false);
