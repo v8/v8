@@ -2651,7 +2651,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
              RelocInfo::ModeMask(RelocInfo::POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) return DeoptInfo(last_position, NULL, last_reason);
+    if (info->pc() >= pc) return DeoptInfo(last_position, last_reason);
     if (info->rmode() == RelocInfo::POSITION) {
       int raw_position = static_cast<int>(info->data());
       last_position = raw_position ? SourcePosition::FromRaw(raw_position)
@@ -2660,7 +2660,7 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), NULL, Deoptimizer::kNoReason);
+  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason);
 }
 
 

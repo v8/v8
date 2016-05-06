@@ -374,7 +374,7 @@ void LCodeGenBase::LogDeoptCallPosition(int pc_offset, int inlining_id) {
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
     LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
-                                    instr->Mnemonic(), deopt_reason);
+                                    deopt_reason);
   HEnterInlined* enter_inlined = instr->environment()->entry();
   deopt_info.inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
   return deopt_info;
