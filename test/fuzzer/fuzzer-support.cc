@@ -68,6 +68,7 @@ FuzzerSupport::~FuzzerSupport() {
     context_.Reset();
   }
 
+  isolate_->LowMemoryNotification();
   isolate_->Dispose();
   isolate_ = nullptr;
 
