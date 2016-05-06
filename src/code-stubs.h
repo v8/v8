@@ -1496,6 +1496,9 @@ class LoadApiGetterStub : public TurboFanCodeStub {
  public:
   LoadApiGetterStub(Isolate* isolate, bool receiver_is_holder, int index)
       : TurboFanCodeStub(isolate) {
+    // If that's not true, we need to ensure that the receiver is actually a
+    // JSReceiver. http://crbug.com/609134
+    DCHECK(receiver_is_holder);
     minor_key_ = IndexBits::encode(index) |
                  ReceiverIsHolderBits::encode(receiver_is_holder);
   }
