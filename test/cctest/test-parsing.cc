@@ -6742,6 +6742,9 @@ TEST(DefaultParametersYieldInInitializers) {
     // Arrow function within generator has the same rules.
     {"'use strict'; (function *g() { (", ") => {} });"},
     {"(function *g() { (", ") => {} });"},
+    // And similarly for arrow functions in the parameter list.
+    {"'use strict'; (function *g(z = (", ") => {}) { });"},
+    {"(function *g(z = (", ") => {}) { });"},
     {NULL, NULL}
   };
 
