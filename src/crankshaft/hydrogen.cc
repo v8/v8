@@ -1378,10 +1378,14 @@ int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
 
     if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
       CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+      Object* source_name = script->name();
       OFStream os(tracing_scope.file());
-      os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
-         << ") id{" << info_->optimization_id() << "," << inline_id
-         << "} ---\n";
+      os << "--- FUNCTION SOURCE (";
+      if (source_name->IsString()) {
+        os << String::cast(source_name)->ToCString().get() << ":";
+      }
+      os << shared->DebugName()->ToCString().get() << ") id{";
+      os << info_->optimization_id() << "," << inline_id << "} ---\n";
       {
         DisallowHeapAllocation no_allocation;
         int start = shared->start_position();
@@ -13445,13 +13449,24 @@ std::ostream& operator<<(std::ostream& os, const HEnvironment& env) {
 
 void HTracer::TraceCompilation(CompilationInfo* info) {
   Tag tag(this, "compilation");
-  base::SmartArrayPointer<char> name = info->GetDebugName();
+  std::string name;
+  Object* source_name = info->script()->name();
+  if (source_name->IsString()) {
+    String* str = String::cast(source_name);
+    if (str->length() > 0) {
+      name.append(str->ToCString().get());
+      name.append(":");
+    }
+  }
+  base::SmartArrayPointer<char> method_name = info->GetDebugName();
+  name.append(method_name.get());
   if (info->IsOptimizing()) {
-    PrintStringProperty("name", name.get());
+    PrintStringProperty("name", name.c_str());
     PrintIndent();
-    trace_.Add("method \"%s:%d\"\n", name.get(), info->optimization_id());
+    trace_.Add("method \"%s:%d\"\n", method_name.get(),
+               info->optimization_id());
   } else {
-    PrintStringProperty("name", name.get());
+    PrintStringProperty("name", name.c_str());
     PrintStringProperty("method", "stub");
   }
   PrintLongProperty("date",
