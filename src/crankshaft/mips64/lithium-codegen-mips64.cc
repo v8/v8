@@ -315,8 +315,8 @@ bool LCodeGen::GenerateJumpTable() {
           __ BranchAndLink(&call_deopt_entry);
         }
       }
-      info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                   table_entry->deopt_info.inlining_id);
+      LogDeoptCallPosition(masm()->pc_offset(),
+                           table_entry->deopt_info.inlining_id);
     }
     if (needs_frame.is_linked()) {
       __ bind(&needs_frame);
@@ -785,7 +785,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
       !info()->saves_caller_doubles()) {
     DeoptComment(deopt_info);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
-    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
+    LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry* table_entry =
         new (zone()) Deoptimizer::JumpTableEntry(

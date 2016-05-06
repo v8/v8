@@ -274,8 +274,8 @@ bool LCodeGen::GenerateJumpTable() {
       if (info()->saves_caller_doubles()) RestoreCallerDoubles();
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     }
-    info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                 table_entry->deopt_info.inlining_id);
+    LogDeoptCallPosition(masm()->pc_offset(),
+                         table_entry->deopt_info.inlining_id);
   }
   if (needs_frame.is_linked()) {
     __ bind(&needs_frame);
@@ -731,7 +731,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
   if (cc == no_condition && frame_is_built_) {
     DeoptComment(deopt_info);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
-    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
+    LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry table_entry(entry, deopt_info, bailout_type,
                                             !frame_is_built_);

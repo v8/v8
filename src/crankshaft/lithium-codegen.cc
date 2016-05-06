@@ -364,6 +364,12 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   }
 }
 
+void LCodeGenBase::LogDeoptCallPosition(int pc_offset, int inlining_id) {
+  if (!info()->is_tracking_positions() || info()->IsStub()) return;
+  auto& inlined_function_infos = info()->inlined_function_infos();
+  DCHECK_LT(static_cast<size_t>(inlining_id), inlined_function_infos.size());
+  inlined_function_infos.at(inlining_id).deopt_pc_offsets.push_back(pc_offset);
+}
 
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
     LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {

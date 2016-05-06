@@ -393,16 +393,9 @@ class CompilationInfo final {
     prologue_offset_ = prologue_offset;
   }
 
-  int start_position_for(uint32_t inlining_id) {
-    return inlined_function_infos_.at(inlining_id).start_position;
-  }
-  const std::vector<InlinedFunctionInfo>& inlined_function_infos() {
+  std::vector<InlinedFunctionInfo>& inlined_function_infos() {
     return inlined_function_infos_;
   }
-
-  void LogDeoptCallPosition(int pc_offset, int inlining_id);
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position, int pareint_id);
 
   CompilationDependencies* dependencies() { return &dependencies_; }
 

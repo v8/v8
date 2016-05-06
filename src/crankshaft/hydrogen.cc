@@ -1353,6 +1353,10 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new (zone()) HGraph(info_, descriptor_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
+  if (!info_->IsStub() && info_->is_tracking_positions()) {
+    TraceInlinedFunction(info_->shared_info(), SourcePosition::Unknown(),
+                         InlinedFunctionInfo::kNoParentId);
+  }
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
@@ -1360,6 +1364,51 @@ HGraph* HGraphBuilder::CreateGraph() {
   return graph_;
 }
 
+int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                                        SourcePosition position,
+                                        int parent_id) {
+  DCHECK(info_->is_tracking_positions());
+
+  int inline_id = static_cast<int>(info_->inlined_function_infos().size());
+  InlinedFunctionInfo info(parent_id, position, UnboundScript::kNoScriptId,
+                           shared->start_position());
+  if (!shared->script()->IsUndefined()) {
+    Handle<Script> script(Script::cast(shared->script()));
+    info.script_id = script->id();
+
+    if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
+      CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+      OFStream os(tracing_scope.file());
+      os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
+         << ") id{" << info_->optimization_id() << "," << inline_id
+         << "} ---\n";
+      {
+        DisallowHeapAllocation no_allocation;
+        int start = shared->start_position();
+        int len = shared->end_position() - start;
+        String::SubStringRange source(String::cast(script->source()), start,
+                                      len);
+        for (const auto& c : source) {
+          os << AsReversiblyEscapedUC16(c);
+        }
+      }
+
+      os << "\n--- END ---\n";
+    }
+  }
+
+  info_->inlined_function_infos().push_back(info);
+
+  if (FLAG_hydrogen_track_positions && inline_id != 0) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
+       << info_->optimization_id() << "," << inline_id << "} AS " << inline_id
+       << " AT " << position << std::endl;
+  }
+
+  return inline_id;
+}
 
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   DCHECK(current_block() != NULL);
@@ -3787,10 +3836,6 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
     start_environment_ = new (zone_)
         HEnvironment(zone_, descriptor.GetRegisterParameterCount() + 1);
   } else {
-    if (info->is_tracking_positions()) {
-      info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown(),
-                                 InlinedFunctionInfo::kNoParentId);
-    }
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   }
@@ -3819,7 +3864,10 @@ void HGraph::FinalizeUniqueness() {
 
 int HGraph::SourcePositionToScriptPosition(SourcePosition pos) {
   return (FLAG_hydrogen_track_positions && !pos.IsUnknown())
-             ? info()->start_position_for(pos.inlining_id()) + pos.position()
+             ? info()->inlined_function_infos()
+                       .at(pos.inlining_id())
+                       .start_position +
+                   pos.position()
              : pos.raw();
 }
 
@@ -8647,8 +8695,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   int inlining_id = 0;
   if (top_info()->is_tracking_positions()) {
-    inlining_id = top_info()->TraceInlinedFunction(
-        target_shared, source_position(), function_state()->inlining_id());
+    inlining_id = TraceInlinedFunction(target_shared, source_position(),
+                                       function_state()->inlining_id());
   }
 
   // Save the pending call context. Set up new one for the inlined function.

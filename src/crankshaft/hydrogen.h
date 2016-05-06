@@ -1951,6 +1951,9 @@ class HGraphBuilder {
   SourcePosition source_position() { return position_; }
   void set_source_position(SourcePosition position) { position_ = position; }
 
+  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
+                           SourcePosition position, int pareint_id);
+
   HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>
   void BuildArrayBufferViewInitialization(HValue* obj,
