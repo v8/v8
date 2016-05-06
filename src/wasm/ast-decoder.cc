@@ -1524,6 +1524,12 @@ int OpcodeArity(const byte* pc, const byte* end) {
   return decoder.OpcodeArity(pc);
 }
 
+void PrintAstForDebugging(const byte* start, const byte* end) {
+  FunctionBody body = {nullptr, nullptr, start, start, end};
+  base::AccountingAllocator allocator;
+  PrintAst(&allocator, body);
+}
+
 void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
   Zone zone(allocator);
   SR_WasmDecoder decoder(&zone, nullptr, body);
@@ -1540,7 +1546,7 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
   decoder.DecodeLocalDecls(decls);
   const byte* pc = decoder.pc();
   if (body.start != decoder.pc()) {
-    printf("// locals:");
+    os << "// locals: ";
     for (auto p : decls.local_types) {
       LocalType type = p.first;
       uint32_t count = p.second;
@@ -1551,64 +1557,90 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
     for (const byte* locals = body.start; locals < pc; locals++) {
       printf(" 0x%02x,", *locals);
     }
-    printf("\n");
+    os << std::endl;
   }
 
-  printf("// body: \n");
-  std::vector<int> arity_stack;
+  os << "// body: \n";
+  int control_depth = 0;
   while (pc < body.end) {
-    int arity = decoder.OpcodeArity(pc);
     size_t length = decoder.OpcodeLength(pc);
 
-    for (auto arity : arity_stack) {
-      printf("  ");
-      USE(arity);
-    }
-
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    if (opcode == kExprElse) control_depth--;
+
+    for (int i = 0; i < control_depth && i < 32; i++) printf("  ");
     printf("k%s,", WasmOpcodes::OpcodeName(opcode));
 
     for (size_t i = 1; i < length; i++) {
       printf(" 0x%02x,", pc[i]);
     }
 
-    if (body.module) {
-      switch (opcode) {
-        case kExprCallIndirect: {
-          CallIndirectOperand operand(&decoder, pc);
-          if (decoder.Validate(pc, operand)) {
-            os << " // sig #" << operand.index << ": " << *operand.sig;
-          }
-          break;
-        }
-        case kExprCallImport: {
-          CallImportOperand operand(&decoder, pc);
-          if (decoder.Validate(pc, operand)) {
-            os << " // import #" << operand.index << ": " << *operand.sig;
-          }
-          break;
-        }
-        case kExprCallFunction: {
-          CallFunctionOperand operand(&decoder, pc);
-          if (decoder.Validate(pc, operand)) {
-            os << " // function #" << operand.index << ": " << *operand.sig;
-          }
-          break;
-        }
-        default:
-          break;
+    switch (opcode) {
+      case kExprIf:
+      case kExprElse:
+      case kExprLoop:
+      case kExprBlock:
+        os << "   // @" << static_cast<int>(pc - body.start);
+        control_depth++;
+        break;
+      case kExprEnd:
+        os << "   // @" << static_cast<int>(pc - body.start);
+        control_depth--;
+        break;
+      case kExprBr: {
+        BreakDepthOperand operand(&decoder, pc);
+        os << "   // arity=" << operand.arity << " depth=" << operand.depth;
+        break;
       }
-    }
+      case kExprBrIf: {
+        BreakDepthOperand operand(&decoder, pc);
+        os << "   // arity=" << operand.arity << " depth" << operand.depth;
+        break;
+      }
+      case kExprBrTable: {
+        BranchTableOperand operand(&decoder, pc);
+        os << "   // arity=" << operand.arity
+           << " entries=" << operand.table_count;
+        break;
+      }
+      case kExprCallIndirect: {
+        CallIndirectOperand operand(&decoder, pc);
+        if (decoder.Validate(pc, operand)) {
+          os << "   // sig #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " sig #" << operand.index;
+        }
+        break;
+      }
+      case kExprCallImport: {
+        CallImportOperand operand(&decoder, pc);
+        if (decoder.Validate(pc, operand)) {
+          os << "   // import #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " import #" << operand.index;
+        }
+        break;
+      }
+      case kExprCallFunction: {
+        CallFunctionOperand operand(&decoder, pc);
+        if (decoder.Validate(pc, operand)) {
+          os << "   // function #" << operand.index << ": " << *operand.sig;
+        } else {
+          os << " // arity=" << operand.arity << " function #" << operand.index;
+        }
+        break;
+      }
+      case kExprReturn: {
+        ReturnArityOperand operand(&decoder, pc);
+        os << "   // arity=" << operand.arity;
+        break;
+      }
+      default:
+        break;
+      }
 
     pc += length;
-    printf("\n");
-
-    arity_stack.push_back(arity);
-    while (arity_stack.back() == 0) {
-      arity_stack.pop_back();
-      if (arity_stack.empty()) break;
-      arity_stack.back()--;
-    }
+    os << std::endl;
   }
 }
 
