@@ -135,9 +135,10 @@ Reduction ChangeLowering::ReduceAllocate(Node* node) {
         machine()->Store(StoreRepresentation(
             MachineType::PointerRepresentation(), kNoWriteBarrier)),
         top_address, jsgraph()->IntPtrConstant(0), new_top, etrue, if_true);
-    vtrue = graph()->NewNode(machine()->BitcastWordToTagged(),
-                             graph()->NewNode(machine()->IntAdd(), top,
-                                              jsgraph()->IntPtrConstant(1)));
+    vtrue = graph()->NewNode(
+        machine()->BitcastWordToTagged(),
+        graph()->NewNode(machine()->IntAdd(), top,
+                         jsgraph()->IntPtrConstant(kHeapObjectTag)));
   }
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
