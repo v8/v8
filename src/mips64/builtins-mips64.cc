@@ -1357,7 +1357,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // Is the full code valid?
   __ ld(entry, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ ld(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
-  __ ld(a5, FieldMemOperand(entry, Code::kFlagsOffset));
+  __ lw(a5, FieldMemOperand(entry, Code::kFlagsOffset));
   __ And(a5, a5, Operand(Code::KindField::kMask));
   __ dsrl(a5, a5, Code::KindField::kShift);
   __ Branch(&gotta_call_runtime_no_stack, eq, a5, Operand(Code::BUILTIN));
