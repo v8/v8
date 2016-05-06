@@ -336,9 +336,9 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
 
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(),
-                          reinterpret_cast<void*>(wrapper.location()),
-                          DateFormat::DeleteDateFormat);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          DateFormat::DeleteDateFormat,
+                          WeakCallbackType::kInternalFields);
   return *local_object;
 }
 
@@ -430,9 +430,9 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(),
-                          reinterpret_cast<void*>(wrapper.location()),
-                          NumberFormat::DeleteNumberFormat);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          NumberFormat::DeleteNumberFormat,
+                          WeakCallbackType::kInternalFields);
   return *local_object;
 }
 
@@ -536,9 +536,9 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(),
-                          reinterpret_cast<void*>(wrapper.location()),
-                          Collator::DeleteCollator);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          Collator::DeleteCollator,
+                          WeakCallbackType::kInternalFields);
   return *local_object;
 }
 
@@ -640,9 +640,9 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(),
-                          reinterpret_cast<void*>(wrapper.location()),
-                          BreakIterator::DeleteBreakIterator);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          BreakIterator::DeleteBreakIterator,
+                          WeakCallbackType::kInternalFields);
   return *local_object;
 }
 
