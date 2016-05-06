@@ -233,9 +233,9 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
       line = 1 + Script::GetLineNumber(script, node->script_position_);
       column = 1 + Script::GetColumnNumber(script, node->script_position_);
     }
-    for (auto alloc : node->allocations_) {
-      allocations.push_back(ScaleSample(alloc.first, alloc.second));
-    }
+  }
+  for (auto alloc : node->allocations_) {
+    allocations.push_back(ScaleSample(alloc.first, alloc.second));
   }
 
   profile->nodes().push_back(v8::AllocationProfile::Node(
