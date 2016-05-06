@@ -97,7 +97,6 @@ struct ObjectGroupRetainerInfo {
 };
 
 enum WeaknessType {
-  NORMAL_WEAK,  // Embedder gets a handle to the dying object.
   // In the following cases, the embedder gets the parameter they passed in
   // earlier, and 0 or 2 first internal fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
@@ -105,7 +104,7 @@ enum WeaknessType {
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
   PHANTOM_WEAK_2_INTERNAL_FIELDS,
-  // Like NORMAL_WEAK, but uses WeakCallbackInfo instead of WeakCallbackData.
+  // Embedder gets a handle to the dying object.
   FINALIZER_WEAK,
 };
 
@@ -122,14 +121,6 @@ class GlobalHandles {
   // Destroy a global handle.
   static void Destroy(Object** location);
 
-  typedef WeakCallbackData<v8::Value, void>::Callback WeakCallback;
-
-  // For a phantom weak reference, the callback does not have access to the
-  // dying object.  Phantom weak references are preferred because they allow
-  // memory to be reclaimed in one GC cycle rather than two.  However, for
-  // historical reasons the default is non-phantom.
-  enum PhantomState { Nonphantom, Phantom };
-
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
   // handles point to an object the callback function is invoked (for each
@@ -139,11 +130,6 @@ class GlobalHandles {
   // GC.  For a phantom weak handle the handle is cleared (set to a Smi)
   // before the callback is invoked, but the handle can still be identified
   // in the callback by using the location() of the handle.
-  static void MakeWeak(Object** location, void* parameter,
-                       WeakCallback weak_callback);
-
-  // It would be nice to template this one, but it's really hard to get
-  // the template instantiator to work right if you do.
   static void MakeWeak(Object** location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);

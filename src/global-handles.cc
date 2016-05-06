@@ -82,7 +82,6 @@ class GlobalHandles::Node {
     index_ = static_cast<uint8_t>(index);
     DCHECK(static_cast<int>(index_) == index);
     set_state(FREE);
-    set_weakness_type(NORMAL_WEAK);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = *first_free;
     *first_free = this;
@@ -197,16 +196,14 @@ class GlobalHandles::Node {
 
   bool IsRetainer() const {
     return state() != FREE &&
-           !(state() == NEAR_DEATH && weakness_type() != NORMAL_WEAK &&
-             weakness_type() != FINALIZER_WEAK);
+           !(state() == NEAR_DEATH && weakness_type() != FINALIZER_WEAK);
   }
 
   bool IsStrongRetainer() const { return state() == NORMAL; }
 
   bool IsWeakRetainer() const {
     return state() == WEAK || state() == PENDING ||
-           (state() == NEAR_DEATH && (weakness_type() == NORMAL_WEAK ||
-                                      weakness_type() == FINALIZER_WEAK));
+           (state() == NEAR_DEATH && weakness_type() == FINALIZER_WEAK);
   }
 
   void MarkPending() {
@@ -252,16 +249,6 @@ class GlobalHandles::Node {
     parameter_or_next_free_.next_free = value;
   }
 
-  void MakeWeak(void* parameter, WeakCallback weak_callback) {
-    DCHECK(weak_callback != nullptr);
-    DCHECK(IsInUse());
-    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
-    set_state(WEAK);
-    set_weakness_type(NORMAL_WEAK);
-    set_parameter(parameter);
-    weak_callback_ = weak_callback;
-  }
-
   void MakeWeak(void* parameter,
                 WeakCallbackInfo<void>::Callback phantom_callback,
                 v8::WeakCallbackType type) {
@@ -281,7 +268,7 @@ class GlobalHandles::Node {
         break;
     }
     set_parameter(parameter);
-    weak_callback_ = reinterpret_cast<WeakCallback>(phantom_callback);
+    weak_callback_ = phantom_callback;
   }
 
   void* ClearWeakness() {
@@ -337,30 +324,18 @@ class GlobalHandles::Node {
            ExternalOneByteString::cast(object_)->resource() != NULL);
     DCHECK(!object_->IsExternalTwoByteString() ||
            ExternalTwoByteString::cast(object_)->resource() != NULL);
-    if (weakness_type() != NORMAL_WEAK && weakness_type() != FINALIZER_WEAK) {
+    if (weakness_type() != FINALIZER_WEAK) {
       return false;
     }
 
     // Leaving V8.
     VMState<EXTERNAL> vmstate(isolate);
     HandleScope handle_scope(isolate);
-    if (weakness_type() == NORMAL_WEAK) {
-      Object** object = location();
-      Handle<Object> handle(*object, isolate);
-      v8::WeakCallbackData<v8::Value, void> data(
-          reinterpret_cast<v8::Isolate*>(isolate), parameter(),
-          v8::Utils::ToLocal(handle));
-      set_parameter(NULL);
-      weak_callback_(data);
-    } else {
-      void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
-                                                                  nullptr};
-      v8::WeakCallbackInfo<void> data(reinterpret_cast<v8::Isolate*>(isolate),
-                                      parameter(), internal_fields, nullptr);
-      auto callback = reinterpret_cast<v8::WeakCallbackInfo<void>::Callback>(
-          weak_callback_);
-      callback(data);
-    }
+    void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
+                                                                nullptr};
+    v8::WeakCallbackInfo<void> data(reinterpret_cast<v8::Isolate*>(isolate),
+                                    parameter(), internal_fields, nullptr);
+    weak_callback_(data);
 
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -401,7 +376,7 @@ class GlobalHandles::Node {
   uint8_t flags_;
 
   // Handle specific callback - might be a weak reference in disguise.
-  WeakCallback weak_callback_;
+  WeakCallbackInfo<void>::Callback weak_callback_;
 
   // Provided data for callback.  In FREE state, this is used for
   // the free list link.
@@ -617,12 +592,6 @@ void GlobalHandles::Destroy(Object** location) {
 }
 
 
-void GlobalHandles::MakeWeak(Object** location, void* parameter,
-                             WeakCallback weak_callback) {
-  Node::FromLocation(location)->MakeWeak(parameter, weak_callback);
-}
-
-
 typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
 
@@ -668,7 +637,6 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
     if (node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->state() == Node::PENDING &&
-          node->weakness_type() != NORMAL_WEAK &&
           node->weakness_type() != FINALIZER_WEAK) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
@@ -730,7 +698,6 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->state() == Node::PENDING &&
-          node->weakness_type() != NORMAL_WEAK &&
           node->weakness_type() != FINALIZER_WEAK) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
@@ -774,7 +741,6 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->state() == Node::PENDING &&
-          node->weakness_type() != NORMAL_WEAK &&
           node->weakness_type() != FINALIZER_WEAK) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);

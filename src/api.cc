@@ -683,11 +683,6 @@ void V8::RegisterExternallyReferencedObject(i::Object** object,
   isolate->heap()->RegisterExternallyReferencedObject(object);
 }
 
-void V8::MakeWeak(i::Object** object, void* parameter,
-                  WeakCallback weak_callback) {
-  i::GlobalHandles::MakeWeak(object, parameter, weak_callback);
-}
-
 
 void V8::MakeWeak(i::Object** object, void* parameter,
                   int internal_field_index1, int internal_field_index2,

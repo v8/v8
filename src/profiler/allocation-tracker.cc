@@ -306,9 +306,8 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
       info_(info) {
   script_ = Handle<Script>::cast(
       script->GetIsolate()->global_handles()->Create(script));
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
-                          this,
-                          &HandleWeakScript);
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
+                          &HandleWeakScript, v8::WeakCallbackType::kParameter);
 }
 
 
@@ -326,9 +325,8 @@ void AllocationTracker::UnresolvedLocation::Resolve() {
   info_->column = Script::GetColumnNumber(script_, start_position_);
 }
 
-
 void AllocationTracker::UnresolvedLocation::HandleWeakScript(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
+    const v8::WeakCallbackInfo<void>& data) {
   UnresolvedLocation* loc =
       reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
   GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));
