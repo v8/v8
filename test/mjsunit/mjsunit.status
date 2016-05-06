@@ -309,6 +309,7 @@
 
   # TODO(mythria, 4764): lack of osr support.
   'regress/regress-2618': [PASS, NO_IGNITION],
+
   # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [PASS, NO_IGNITION],
@@ -323,14 +324,10 @@
   # platforms the stack limit is different and the exception doesn't fire.
   'regress/regress-crbug-589472': [PASS, NO_IGNITION],
 
-  # Debugger test cases that pass with ignition, but not full-codegen.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction-no-ignition': [PASS, NO_IGNITION],
-
-  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', NO_IGNITION]],
-  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', NO_IGNITION]],
-
+  # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [PASS, NO_IGNITION],
+
+  # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'compiler/deopt-inlined-from-call': [PASS, NO_IGNITION],
   'compiler/increment-typefeedback': [PASS, NO_IGNITION],
   'compiler/manual-concurrent-recompile': [PASS, NO_IGNITION],
@@ -343,18 +340,14 @@
   'elements-transition-hoisting': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft-sloppy': [PASS, NO_IGNITION],
-  'es6/new-target': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
   'getters-on-elements': [PASS, NO_IGNITION],
   'harmony/do-expressions': [PASS, NO_IGNITION],
-  'ignition/elided-instruction': [PASS, NO_IGNITION],
-  'ignition/optimized-debug-frame': [PASS, NO_IGNITION],
   'math-floor-of-div-minus-zero': [PASS, NO_IGNITION],
   'regress/regress-2132': [PASS, NO_IGNITION],
   'regress/regress-2339': [PASS, NO_IGNITION],
   'regress/regress-3176': [PASS, NO_IGNITION],
   'regress/regress-3709': [PASS, NO_IGNITION],
   'regress/regress-385565': [PASS, NO_IGNITION],
-  'regress/regress-3969': [PASS, NO_IGNITION],
   'regress/regress-crbug-594183': [PASS, NO_IGNITION],
   'regress/regress-embedded-cons-string': [PASS, NO_IGNITION],
   'regress/regress-map-invalidation-2': [PASS, NO_IGNITION],
@@ -365,7 +358,6 @@
   'smi-mul-const': [PASS, NO_IGNITION],
   'smi-mul': [PASS, NO_IGNITION],
   'unary-minus-deopt': [PASS, NO_IGNITION],
-
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -374,6 +366,12 @@
   'asm/embenchen/memops': [SKIP],
   'asm/embenchen/lua_binarytrees': [SKIP],
 }],  # novfp3 == True
+
+##############################################################################
+['no_snap == True and mode == debug', {
+  # TODO(rmcilroy,4928): Issue with --mstackalign.
+  'es6/new-target': [PASS, NO_IGNITION],
+}],  # 'no_snap == True and mode == debug'
 
 ##############################################################################
 ['gc_stress == True', {
@@ -445,10 +443,6 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
-
-  # TODO(oth,4680): failures from the bots.
-  'ignition/elided-instruction': [PASS, NO_IGNITION],
-  'regress/regress-269': [PASS, NO_IGNITION],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -906,10 +900,6 @@
   # platforms the stack limit is different and the exception doesn't fire.
   'regress/regress-crbug-589472': [SKIP],
 
-  # Debugger test cases that pass with ignition, but not full-codegen.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction-no-ignition': [FAIL],
-
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 
@@ -946,18 +936,6 @@
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [SKIP],
 }],  # (ignition or ignition_turbofan) and msan
-
-['(ignition or ignition_turbofan) and gc_stress == True', {
-  # TODO(oth,4680): failures from the bots.
-  'ignition/elided-instruction': [SKIP],
-  'regress/regress-269': [SKIP],
-}],  # (ignition or ignition_turbofan) and gc_stress == True
-
-['ignition == False and ignition_turbofan == False', {
-  # Debugger test cases that pass with full-codegen, but not ignition.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction': [FAIL],
-}],  # ignition == False and ignition_turbofan == False
 
 ##############################################################################
 ['gcov_coverage', {
