@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "f80756f5df1d90cf1113a2ce335147482e36f65e",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "119d5305247498fdd8a215b8e2b6c50223ac7d4b",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "02b145a1a4f4e1c62e8bae06045caf852d9ef17f",
   "v8/third_party/icu":
@@ -31,7 +31,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "9c45e2ac684bae64614d8eb55789cae97323a7e7",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "ee715658a19a60fc73b02532a077d9c96f291331",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "0bb0462a91310d88ab9d124d8db54a70c9e1d1b0",
 }
 
 deps_os = {
