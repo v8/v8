@@ -29,6 +29,7 @@
   'variables': {
     'v8_code': 1,
     'v8_enable_i18n_support%': 1,
+    'v8_toolset_for_shell%': 'target',
   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'target_defaults': {
@@ -59,6 +60,11 @@
       'target_name': 'shell',
       'sources': [
         'shell.cc',
+      ],
+      'conditions': [
+        [ 'want_separate_host_toolset==1', {
+          'toolsets': [ '<(v8_toolset_for_shell)', ],
+        }],
       ],
     },
     {

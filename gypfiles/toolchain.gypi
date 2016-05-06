@@ -81,6 +81,11 @@
     # The setting is ignored if want_separate_host_toolset is 0.
     'v8_toolset_for_d8%': 'target',
 
+    # Toolset the shell binary should be compiled for. Possible values are
+    # 'host' and 'target'.
+    # The setting is ignored if want_separate_host_toolset is 0.
+    'v8_toolset_for_shell%': 'target',
+
     'host_os%': '<(OS)',
     'werror%': '-Werror',
     # For a shared library build, results in "libv8-<(soname_version).so".
