@@ -1140,12 +1140,29 @@ class TestModuleEnv : public ModuleEnv {
     return static_cast<byte>(mod.signatures.size() - 1);
   }
   byte AddFunction(FunctionSig* sig) {
-    mod.functions.push_back({sig, 0, 0, 0, 0, 0, 0, 0, false, false});
+    mod.functions.push_back({sig,      // sig
+                             0,        // func_index
+                             0,        // sig_index
+                             0,        // name_offset
+                             0,        // name_length
+                             0,        // code_start_offset
+                             0,        // code_end_offset
+                             0,        // local_i32_count
+                             0,        // local_i64_count
+                             0,        // local_f32_count
+                             0,        // local_f64_count
+                             false,    // exported
+                             false});  // external
     CHECK(mod.functions.size() <= 127);
     return static_cast<byte>(mod.functions.size() - 1);
   }
   byte AddImport(FunctionSig* sig) {
-    mod.import_table.push_back({sig, 0, 0});
+    mod.import_table.push_back({sig,  // sig
+                                0,    // sig_index
+                                0,    // module_name_offset
+                                0,    // module_name_length
+                                0,    // function_name_offset
+                                0});  // function_name_length
     CHECK(mod.import_table.size() <= 127);
     return static_cast<byte>(mod.import_table.size() - 1);
   }

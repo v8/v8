@@ -165,8 +165,19 @@ class ModuleDecoder : public Decoder {
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
           for (uint32_t i = 0; i < functions_count; i++) {
-            module->functions.push_back(
-                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
+            module->functions.push_back({nullptr,  // sig
+                                         i,        // func_index
+                                         0,        // sig_index
+                                         0,        // name_offset
+                                         0,        // name_length
+                                         0,        // code_start_offset
+                                         0,        // code_end_offset
+                                         0,        // local_i32_count
+                                         0,        // local_i64_count
+                                         0,        // local_f32_count
+                                         0,        // local_f64_count
+                                         false,    // exported
+                                         false});  // external
             WasmFunction* function = &module->functions.back();
             function->sig_index = consume_sig_index(module, &function->sig);
           }
@@ -213,8 +224,19 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeFunction[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->functions.push_back(
-                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
+            module->functions.push_back({nullptr,  // sig
+                                         i,        // func_index
+                                         0,        // sig_index
+                                         0,        // name_offset
+                                         0,        // name_length
+                                         0,        // code_start_offset
+                                         0,        // code_end_offset
+                                         0,        // local_i32_count
+                                         0,        // local_i64_count
+                                         0,        // local_f32_count
+                                         0,        // local_f64_count
+                                         false,    // exported
+                                         false});  // external
             WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
           }
@@ -283,7 +305,10 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->data_segments.push_back({0, 0, 0});
+            module->data_segments.push_back({0,        // dest_addr
+                                             0,        // source_offset
+                                             0,        // source_size
+                                             false});  // init
             WasmDataSegment* segment = &module->data_segments.back();
             DecodeDataSegmentInModule(module, segment);
           }
@@ -337,7 +362,12 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->import_table.push_back({nullptr, 0, 0});
+            module->import_table.push_back({nullptr,  // sig
+                                            0,        // sig_index
+                                            0,        // module_name_offset
+                                            0,        // module_name_length
+                                            0,        // function_name_offset
+                                            0});      // function_name_length
             WasmImport* import = &module->import_table.back();
 
             import->sig_index = consume_sig_index(module, &import->sig);
@@ -365,7 +395,9 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeExportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->export_table.push_back({0, 0});
+            module->export_table.push_back({0,    // func_index
+                                            0,    // name_offset
+                                            0});  // name_length
             WasmExport* exp = &module->export_table.back();
 
             WasmFunction* func;

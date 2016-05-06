@@ -107,9 +107,9 @@ class ChangeLoweringCommonTest
 };
 
 TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {
+      kTaggedBase, FixedArrayBase::kHeaderSize, Handle<Name>::null(),
+      Type::Any(), MachineType::AnyTagged(),    kNoWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::TaggedSigned());
   Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
@@ -126,9 +126,9 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
 
 
 TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldTagged) {
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {
+      kTaggedBase, FixedArrayBase::kHeaderSize, Handle<Name>::null(),
+      Type::Any(), MachineType::AnyTagged(),    kFullWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::Tagged());
   Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
@@ -145,9 +145,9 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldTagged) {
 
 
 TARGET_TEST_P(ChangeLoweringCommonTest, LoadField) {
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {
+      kTaggedBase, FixedArrayBase::kHeaderSize, Handle<Name>::null(),
+      Type::Any(), MachineType::AnyTagged(),    kNoWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* load = graph()->NewNode(simplified()->LoadField(access), p0,
                                 graph()->start(), graph()->start());
@@ -164,7 +164,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, LoadField) {
 
 TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementTagged) {
   ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
-                          MachineType::AnyTagged()};
+                          MachineType::AnyTagged(), kFullWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::Signed32());
   Node* p2 = Parameter(Type::Tagged());
@@ -191,7 +191,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementTagged) {
 
 TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementUint8) {
   ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                          Type::Signed32(), MachineType::Uint8()};
+                          Type::Signed32(), MachineType::Uint8(),
+                          kNoWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::Signed32());
   Node* p2 = Parameter(Type::Signed32());
@@ -215,7 +216,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementUint8) {
 
 TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementTagged) {
   ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
-                          MachineType::AnyTagged()};
+                          MachineType::AnyTagged(), kNoWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::Signed32());
   Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
@@ -239,7 +240,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementTagged) {
 
 TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementInt8) {
   ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                          Type::Signed32(), MachineType::Int8()};
+                          Type::Signed32(), MachineType::Int8(),
+                          kNoWriteBarrier};
   Node* p0 = Parameter(Type::TaggedPointer());
   Node* p1 = Parameter(Type::Signed32());
   Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
