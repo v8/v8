@@ -612,49 +612,6 @@ class IsEffectPhiMatcher final : public NodeMatcher {
 };
 
 
-class IsEffectSetMatcher final : public NodeMatcher {
- public:
-  IsEffectSetMatcher(const Matcher<Node*>& effect0_matcher,
-                     const Matcher<Node*>& effect1_matcher)
-      : NodeMatcher(IrOpcode::kEffectSet),
-        effect0_matcher_(effect0_matcher),
-        effect1_matcher_(effect1_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << "), effect0 (";
-    effect0_matcher_.DescribeTo(os);
-    *os << ") and effect1 (";
-    effect1_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    if (!NodeMatcher::MatchAndExplain(node, listener)) return false;
-
-    Node* effect0 = NodeProperties::GetEffectInput(node, 0);
-    Node* effect1 = NodeProperties::GetEffectInput(node, 1);
-
-    {
-      // Try matching in the reverse order first.
-      StringMatchResultListener value_listener;
-      if (effect0_matcher_.MatchAndExplain(effect1, &value_listener) &&
-          effect1_matcher_.MatchAndExplain(effect0, &value_listener)) {
-        return true;
-      }
-    }
-
-    return PrintMatchAndExplain(effect0, "effect0", effect0_matcher_,
-                                listener) &&
-           PrintMatchAndExplain(effect1, "effect1", effect1_matcher_, listener);
-  }
-
- private:
-  const Matcher<Node*> effect0_matcher_;
-  const Matcher<Node*> effect1_matcher_;
-};
-
-
 class IsProjectionMatcher final : public NodeMatcher {
  public:
   IsProjectionMatcher(const Matcher<size_t>& index_matcher,
@@ -1815,12 +1772,6 @@ Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& merge_matcher) {
   return MakeMatcher(
       new IsEffectPhiMatcher(effect0_matcher, effect1_matcher, merge_matcher));
-}
-
-
-Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
-                           const Matcher<Node*>& effect1_matcher) {
-  return MakeMatcher(new IsEffectSetMatcher(effect0_matcher, effect1_matcher));
 }
 
 

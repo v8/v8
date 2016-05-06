@@ -768,15 +768,6 @@ const Operator* CommonOperatorBuilder::Guard(Type* type) {
 }
 
 
-const Operator* CommonOperatorBuilder::EffectSet(int arguments) {
-  DCHECK(arguments > 1);                      // Disallow empty/singleton sets.
-  return new (zone()) Operator(               // --
-      IrOpcode::kEffectSet, Operator::kPure,  // opcode
-      "EffectSet",                            // name
-      0, arguments, 0, 0, 1, 0);              // counts
-}
-
-
 const Operator* CommonOperatorBuilder::StateValues(int arguments) {
   switch (arguments) {
 #define CACHED_STATE_VALUES(arguments) \

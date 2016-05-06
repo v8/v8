@@ -700,12 +700,6 @@ Type* Typer::Visitor::TypeEffectPhi(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeEffectSet(Node* node) {
-  UNREACHABLE();
-  return nullptr;
-}
-
-
 Type* Typer::Visitor::TypeGuard(Node* node) {
   Type* input_type = Operand(node, 0);
   Type* guard_type = OpParameter<Type*>(node);

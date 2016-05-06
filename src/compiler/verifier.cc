@@ -417,12 +417,6 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(input_count, 1 + effect_count);
       break;
     }
-    case IrOpcode::kEffectSet: {
-      CHECK_EQ(0, value_count);
-      CHECK_EQ(0, control_count);
-      CHECK_LT(1, effect_count);
-      break;
-    }
     case IrOpcode::kGuard:
       // TODO(bmeurer): what are the constraints on these?
       break;

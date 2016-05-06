@@ -46,7 +46,6 @@
 #define INNER_OP_LIST(V) \
   V(Select)              \
   V(Phi)                 \
-  V(EffectSet)           \
   V(EffectPhi)           \
   V(Guard)               \
   V(BeginRegion)         \
