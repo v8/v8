@@ -36,6 +36,15 @@ class KeyAccumulator final BASE_EMBEDDED {
       : isolate_(isolate), type_(type), filter_(filter) {}
   ~KeyAccumulator();
 
+  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
+  Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
+                          Handle<JSReceiver> object);
+  void CollectOwnElementIndices(Handle<JSObject> object);
+  void CollectOwnPropertyNames(Handle<JSObject> object);
+
+  static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
+                                                Handle<JSObject> object);
+
   bool AddKey(uint32_t key);
   bool AddKey(Object* key, AddKeyConversion convert);
   bool AddKey(Handle<Object> key, AddKeyConversion convert);
@@ -44,37 +53,26 @@ class KeyAccumulator final BASE_EMBEDDED {
   void AddKeysFromProxy(Handle<JSObject> array);
   Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
+
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
   void NextPrototype();
   // Sort the integer indices in the last list in |elements_|
   void SortCurrentElementsList();
-  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   int length() { return length_; }
   Isolate* isolate() { return isolate_; }
-  void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
   PropertyFilter filter() { return filter_; }
-
-  Maybe<bool> GetKeys_Internal(Handle<JSReceiver> receiver,
-                               Handle<JSReceiver> object,
-                               KeyCollectionType type);
-  static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
-                                                Handle<JSObject> object);
-
-  void CollectOwnElementKeys(Handle<JSObject> object);
-  void CollectOwnPropertyNames(Handle<JSObject> object);
+  void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
 
  private:
+  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
+                                    Handle<JSProxy> proxy);
+  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
+                             Handle<JSObject> object);
   bool AddIntegerKey(uint32_t key);
   bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
   bool AddSymbolKey(Handle<Object> array);
   void SortCurrentElementsListRemoveDuplicates();
-
-  Maybe<bool> JSProxyOwnPropertyKeys(Handle<JSReceiver> receiver,
-                                     Handle<JSProxy> proxy);
-  Maybe<bool> GetKeysFromJSObject(Handle<JSReceiver> receiver,
-                                  Handle<JSObject> object,
-                                  KeyCollectionType type);
 
   Isolate* isolate_;
   KeyCollectionType type_;

@@ -314,20 +314,18 @@ void KeyAccumulator::NextPrototype() {
   level_symbol_length_ = 0;
 }
 
-Maybe<bool> KeyAccumulator::GetKeys_Internal(Handle<JSReceiver> receiver,
-                                             Handle<JSReceiver> object,
-                                             KeyCollectionType type) {
+Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
+                                        Handle<JSReceiver> object) {
   // Proxies have no hidden prototype and we should not trigger the
   // [[GetPrototypeOf]] trap on the last iteration when using
   // AdvanceFollowingProxies.
-  if (type == OWN_ONLY && object->IsJSProxy()) {
-    MAYBE_RETURN(
-        JSProxyOwnPropertyKeys(receiver, Handle<JSProxy>::cast(object)),
-        Nothing<bool>());
+  if (type_ == OWN_ONLY && object->IsJSProxy()) {
+    MAYBE_RETURN(CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(object)),
+                 Nothing<bool>());
     return Just(true);
   }
 
-  PrototypeIterator::WhereToEnd end = type == OWN_ONLY
+  PrototypeIterator::WhereToEnd end = type_ == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate_, object,
@@ -337,16 +335,15 @@ Maybe<bool> KeyAccumulator::GetKeys_Internal(Handle<JSReceiver> receiver,
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (current->IsJSProxy()) {
-      result = JSProxyOwnPropertyKeys(receiver, Handle<JSProxy>::cast(current));
+      result = CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(current));
     } else {
       DCHECK(current->IsJSObject());
-      result =
-          GetKeysFromJSObject(receiver, Handle<JSObject>::cast(current), type);
+      result = CollectOwnKeys(receiver, Handle<JSObject>::cast(current));
     }
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
     // Iterate through proxies but ignore access checks for the ALL_CAN_READ
-    // case on API objects for OWN_ONLY keys handled in GetKeysFromJSObject.
+    // case on API objects for OWN_ONLY keys handled in CollectOwnKeys.
     if (!iter.AdvanceFollowingProxiesIgnoringAccessChecks()) {
       return Nothing<bool>();
     }
@@ -629,10 +626,10 @@ static Maybe<bool> GetKeysFromInterceptor(Handle<JSReceiver> receiver,
   return Just(true);
 }
 
-void KeyAccumulator::CollectOwnElementKeys(Handle<JSObject> object) {
+void KeyAccumulator::CollectOwnElementIndices(Handle<JSObject> object) {
   if (filter_ & SKIP_STRINGS) return;
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  accessor->CollectElementIndices(object, this, kMaxUInt32, filter_, 0);
+  accessor->CollectElementIndices(object, this);
 }
 
 void KeyAccumulator::CollectOwnPropertyNames(Handle<JSObject> object) {
@@ -664,24 +661,23 @@ void KeyAccumulator::CollectOwnPropertyNames(Handle<JSObject> object) {
 
 // Returns |true| on success, |false| if prototype walking should be stopped,
 // |nothing| if an exception was thrown.
-Maybe<bool> KeyAccumulator::GetKeysFromJSObject(Handle<JSReceiver> receiver,
-                                                Handle<JSObject> object,
-                                                KeyCollectionType type) {
+Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
+                                           Handle<JSObject> object) {
   this->NextPrototype();
   // Check access rights if required.
   if (object->IsAccessCheckNeeded() &&
       !isolate_->MayAccess(handle(isolate_->context()), object)) {
     // The cross-origin spec says that [[Enumerate]] shall return an empty
     // iterator when it doesn't have access...
-    if (type == INCLUDE_PROTOS) {
+    if (type_ == INCLUDE_PROTOS) {
       return Just(false);
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
-    DCHECK_EQ(OWN_ONLY, type);
+    DCHECK_EQ(OWN_ONLY, type_);
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
 
-  this->CollectOwnElementKeys(object);
+  this->CollectOwnElementIndices(object);
 
   // Add the element keys from the interceptor.
   Maybe<bool> success =
@@ -732,8 +728,8 @@ Handle<FixedArray> KeyAccumulator::GetEnumPropertyKeys(
 
 // ES6 9.5.12
 // Returns |true| on success, |nothing| in case of exception.
-Maybe<bool> KeyAccumulator::JSProxyOwnPropertyKeys(Handle<JSReceiver> receiver,
-                                                   Handle<JSProxy> proxy) {
+Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
+                                                  Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate_);
@@ -755,7 +751,11 @@ Maybe<bool> KeyAccumulator::JSProxyOwnPropertyKeys(Handle<JSReceiver> receiver,
   // 6. If trap is undefined, then
   if (trap->IsUndefined()) {
     // 6a. Return target.[[OwnPropertyKeys]]().
-    return this->GetKeys_Internal(receiver, target, OWN_ONLY);
+    KeyCollectionType previous_type = type_;
+    type_ = OWN_ONLY;
+    Maybe<bool> result = this->CollectKeys(receiver, target);
+    type_ = previous_type;
+    return result;
   }
   // 7. Let trapResultArray be Call(trap, handler, «target»).
   Handle<Object> trap_result_array;

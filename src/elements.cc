@@ -865,8 +865,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
     accumulator.NextPrototype();
     Subclass::CollectElementIndicesImpl(
-        object, handle(object->elements(), isolate), &accumulator, kMaxUInt32,
-        ALL_PROPERTIES, 0);
+        object, handle(object->elements(), isolate), &accumulator);
     Handle<FixedArray> keys = accumulator.GetKeys();
 
     for (int i = 0; i < keys->length(); ++i) {
@@ -900,23 +899,19 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   void CollectElementIndices(Handle<JSObject> object,
                              Handle<FixedArrayBase> backing_store,
-                             KeyAccumulator* keys, uint32_t range,
-                             PropertyFilter filter, uint32_t offset) final {
-    if (filter & ONLY_ALL_CAN_READ) return;
-    Subclass::CollectElementIndicesImpl(object, backing_store, keys, range,
-                                        filter, offset);
+                             KeyAccumulator* keys) final {
+    if (keys->filter() & ONLY_ALL_CAN_READ) return;
+    Subclass::CollectElementIndicesImpl(object, backing_store, keys);
   }
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys, uint32_t range,
-                                        PropertyFilter filter,
-                                        uint32_t offset) {
+                                        KeyAccumulator* keys) {
     DCHECK_NE(DICTIONARY_ELEMENTS, kind());
     // Non-dictionary elements can't have all-can-read accessors.
     uint32_t length = GetIterationLength(*object, *backing_store);
-    if (range < length) length = range;
-    for (uint32_t i = offset; i < length; i++) {
+    PropertyFilter filter = keys->filter();
+    for (uint32_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
         keys->AddKey(i);
       }
@@ -1316,16 +1311,15 @@ class DictionaryElementsAccessor
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys, uint32_t range,
-                                        PropertyFilter filter,
-                                        uint32_t offset) {
-    if (filter & SKIP_STRINGS) return;
+                                        KeyAccumulator* keys) {
+    if (keys->filter() & SKIP_STRINGS) return;
     Isolate* isolate = keys->isolate();
     Handle<Object> undefined = isolate->factory()->undefined_value();
     Handle<Object> the_hole = isolate->factory()->the_hole_value();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
+    PropertyFilter filter = keys->filter();
     for (int i = 0; i < capacity; i++) {
       uint32_t key =
           GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
@@ -2391,22 +2385,17 @@ class SloppyArgumentsElementsAccessor
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys, uint32_t range,
-                                        PropertyFilter filter,
-                                        uint32_t offset) {
+                                        KeyAccumulator* keys) {
     FixedArray* parameter_map = FixedArray::cast(*backing_store);
     uint32_t length = parameter_map->length() - 2;
-    if (range < length) length = range;
-
-    for (uint32_t i = offset; i < length; ++i) {
+    for (uint32_t i = 0; i < length; ++i) {
       if (!parameter_map->get(i + 2)->IsTheHole()) {
         keys->AddKey(i);
       }
     }
 
     Handle<FixedArrayBase> store(FixedArrayBase::cast(parameter_map->get(1)));
-    ArgumentsAccessor::CollectElementIndicesImpl(object, store, keys, range,
-                                                 filter, offset);
+    ArgumentsAccessor::CollectElementIndicesImpl(object, store, keys);
     if (Subclass::kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
       keys->SortCurrentElementsList();
     }
@@ -2754,15 +2743,13 @@ class StringWrapperElementsAccessor
 
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys, uint32_t range,
-                                        PropertyFilter filter,
-                                        uint32_t offset) {
+                                        KeyAccumulator* keys) {
     uint32_t length = GetString(*object)->length();
     for (uint32_t i = 0; i < length; i++) {
       keys->AddKey(i);
     }
-    BackingStoreAccessor::CollectElementIndicesImpl(object, backing_store, keys,
-                                                    range, filter, offset);
+    BackingStoreAccessor::CollectElementIndicesImpl(object, backing_store,
+                                                    keys);
   }
 
   static void GrowCapacityAndConvertImpl(Handle<JSObject> object,

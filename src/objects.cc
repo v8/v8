@@ -8065,7 +8065,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate, type, filter);
   accumulator.set_filter_proxy_keys(filter_proxy_keys);
-  MAYBE_RETURN(accumulator.GetKeys_Internal(object, object, type),
+  MAYBE_RETURN(accumulator.CollectKeys(object, object),
                MaybeHandle<FixedArray>());
   Handle<FixedArray> keys = accumulator.GetKeys(keys_conversion);
   DCHECK(ContainsOnlyValidKeys(keys));
@@ -8163,7 +8163,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   PropertyFilter key_filter =
       static_cast<PropertyFilter>(filter & ~ONLY_ENUMERABLE);
   KeyAccumulator accumulator(isolate, OWN_ONLY, key_filter);
-  MAYBE_RETURN(accumulator.GetKeys_Internal(object, object, OWN_ONLY),
+  MAYBE_RETURN(accumulator.CollectKeys(object, object),
                MaybeHandle<FixedArray>());
   Handle<FixedArray> keys = accumulator.GetKeys(CONVERT_TO_STRING);
   DCHECK(ContainsOnlyValidKeys(keys));
