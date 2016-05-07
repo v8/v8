@@ -6441,14 +6441,18 @@ Local<Array> Set::AsArray() const {
   LOG_API(isolate, "Set::AsArray");
   ENTER_V8(isolate);
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(obj->table()));
+  int capacity = table->UsedCapacity();
   int length = table->NumberOfElements();
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
-  for (int i = 0; i < length; ++i) {
+  int result_index = 0;
+  for (int i = 0; i < capacity; ++i) {
     i::Object* key = table->KeyAt(i);
     if (!key->IsTheHole()) {
-      result->set(i, key);
+      result->set(result_index++, key);
     }
   }
+  DCHECK_EQ(result_index, result->length());
+  DCHECK_EQ(result_index, length);
   i::Handle<i::JSArray> result_array =
       factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
   return Utils::ToLocal(result_array);

@@ -3825,7 +3825,7 @@ class OrderedHashTable: public FixedArray {
   static Handle<Derived> Shrink(Handle<Derived> table);
 
   // Returns a new empty OrderedHashTable and records the clearing so that
-  // exisiting iterators can be updated.
+  // existing iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
   // Returns a true if the OrderedHashTable contains the key
@@ -3839,6 +3839,8 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
   }
 
+  // Returns the number of contiguous entries in the data table, starting at 0,
+  // that either are real entries or have been deleted.
   int UsedCapacity() { return NumberOfElements() + NumberOfDeletedElements(); }
 
   int NumberOfBuckets() {
@@ -3870,7 +3872,11 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(next_entry)->value();
   }
 
-  Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
+  // use KeyAt(i)->IsTheHole() to determine if this is a deleted entry.
+  Object* KeyAt(int entry) {
+    DCHECK_LT(entry, this->UsedCapacity());
+    return get(EntryToIndex(entry));
+  }
 
   bool IsObsolete() {
     return !get(kNextTableIndex)->IsSmi();
@@ -3931,6 +3937,7 @@ class OrderedHashTable: public FixedArray {
     set(kNumberOfDeletedElementsIndex, Smi::FromInt(num));
   }
 
+  // Returns the number elements that can fit into the allocated buffer.
   int Capacity() {
     return NumberOfBuckets() * kLoadFactor;
   }

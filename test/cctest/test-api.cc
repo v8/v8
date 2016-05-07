@@ -24574,6 +24574,32 @@ TEST(Set) {
   CHECK_EQ(0U, set->Size());
 }
 
+TEST(SetDeleteThenAsArray) {
+  // https://bugs.chromium.org/p/v8/issues/detail?id=4946
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  // make an array
+  v8::Local<v8::Value> val = CompileRun("new Set([1, 2, 3])");
+  v8::Local<v8::Set> set = v8::Local<v8::Set>::Cast(val);
+  CHECK_EQ(3U, set->Size());
+
+  // delete the "middle" element (using AsArray to
+  // determine which element is the "middle" element)
+  v8::Local<v8::Array> array1 = set->AsArray();
+  CHECK_EQ(3U, array1->Length());
+  CHECK(set->Delete(env.local(), array1->Get(env.local(), 1).ToLocalChecked())
+            .FromJust());
+
+  // make sure there are no undefined values when we convert to an array again.
+  v8::Local<v8::Array> array2 = set->AsArray();
+  uint32_t length = array2->Length();
+  CHECK_EQ(2U, length);
+  for (uint32_t i = 0; i < length; i++) {
+    CHECK(!array2->Get(env.local(), i).ToLocalChecked()->IsUndefined());
+  }
+}
 
 TEST(CompatibleReceiverCheckOnCachedICHandler) {
   v8::Isolate* isolate = CcTest::isolate();
