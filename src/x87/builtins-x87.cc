@@ -654,6 +654,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
+  // Interpreter handler is turbofanned code, need to reset the FPU before
+  // return
+  __ fninit();
+
   // The return value is in accumulator, which is already in eax.
 
   // Leave the frame (also dropping the register file).

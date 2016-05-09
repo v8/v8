@@ -201,6 +201,13 @@ void LCodeGen::GenerateOsrPrologue() {
 
   osr_pc_offset_ = masm()->pc_offset();
 
+  // Interpreter is the first tier compiler now. It will run the code generated
+  // by TurboFan compiler which will always put "1" on x87 FPU stack.
+  // This behavior will affect crankshaft's x87 FPU stack depth check under
+  // debug mode.
+  // Need to reset the FPU stack here for this scenario.
+  __ fninit();
+
   // Adjust the frame size, subsuming the unoptimized frame into the
   // optimized frame.
   int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
