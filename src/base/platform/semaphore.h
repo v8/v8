@@ -37,7 +37,8 @@ class Semaphore final {
   ~Semaphore();
 
   // Increments the semaphore counter.
-  void Signal();
+  // TODO(ulan): remove caller parameter once crbug.com/609249 is fixed.
+  void Signal(const char* caller = nullptr);
 
   // Suspends the calling thread until the semaphore counter is non zero
   // and then decrements the semaphore counter.

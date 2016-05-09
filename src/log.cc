@@ -561,7 +561,7 @@ class Profiler: public base::Thread {
     } else {
       buffer_[head_] = *sample;
       head_ = Succ(head_);
-      buffer_semaphore_.Signal();  // Tell we have an element.
+      buffer_semaphore_.Signal("Profiler::Insert");  // Tell we have an element.
     }
   }
 

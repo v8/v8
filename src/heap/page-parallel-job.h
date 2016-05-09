@@ -161,7 +161,7 @@ class PageParallelJob {
           current = items_;
         }
       }
-      on_finish_->Signal();
+      on_finish_->Signal("PageParallelJob::Task::RunInternal");
     }
 
     Heap* heap_;

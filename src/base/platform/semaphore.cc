@@ -34,11 +34,11 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
-void Semaphore::Signal() {
+void Semaphore::Signal(const char* caller) {
   kern_return_t result = semaphore_signal(native_handle_);
   DCHECK_EQ(KERN_SUCCESS, result);
   USE(result);
+  USE(caller);
 }
 
 
@@ -104,11 +104,11 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
-void Semaphore::Signal() {
+void Semaphore::Signal(const char* caller) {
   int result = sem_post(&native_handle_);
   if (result != 0) {
-    V8_Fatal(__FILE__, __LINE__, "Semaphore signal failure: %d\n", errno);
+    V8_Fatal(__FILE__, __LINE__,
+             "Semaphore signal failure: %d called by '%s'\n", errno, caller);
   }
 }
 
@@ -177,12 +177,12 @@ Semaphore::~Semaphore() {
   USE(result);
 }
 
-
-void Semaphore::Signal() {
+void Semaphore::Signal(const char* caller) {
   LONG dummy;
   BOOL result = ReleaseSemaphore(native_handle_, 1, &dummy);
   DCHECK(result);
   USE(result);
+  USE(caller);
 }
 
 

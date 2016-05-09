@@ -480,7 +480,7 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->ParallelSweepSpace(static_cast<AllocationSpace>(space_id), 0);
     }
-    pending_sweeper_tasks_->Signal();
+    pending_sweeper_tasks_->Signal("SweeperTask::Run");
   }
 
   Sweeper* sweeper_;
@@ -585,7 +585,7 @@ bool MarkCompactCollector::Sweeper::IsSweepingCompleted() {
           base::TimeDelta::FromSeconds(0))) {
     return false;
   }
-  pending_sweeper_tasks_semaphore_.Signal();
+  pending_sweeper_tasks_semaphore_.Signal("Sweeper::IsSweepingCompleted");
   return true;
 }
 

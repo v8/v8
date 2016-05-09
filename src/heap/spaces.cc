@@ -356,7 +356,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
   // v8::Task overrides.
   void Run() override {
     unmapper_->PerformFreeMemoryOnQueuedChunks();
-    unmapper_->pending_unmapping_tasks_semaphore_.Signal();
+    unmapper_->pending_unmapping_tasks_semaphore_.Signal(
+        "Unmapper::UnmapFreeMemoryTask::Run");
   }
 
   Unmapper* unmapper_;
