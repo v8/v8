@@ -1174,26 +1174,6 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
-bool InferMachineRepresentation(Node* node,
-                                MachineRepresentation* representation) {
-  if (node->opcode() == IrOpcode::kLoad) {
-    *representation = LoadRepresentationOf(node->op()).representation();
-    return true;
-  }
-  if (node->opcode() != IrOpcode::kInt32Constant) {
-    return false;
-  }
-  int32_t value = OpParameter<int32_t>(node->op());
-  if (is_int8(value)) {
-    *representation = MachineRepresentation::kWord8;
-  } else if (is_int16(value)) {
-    *representation = MachineRepresentation::kWord16;
-  } else {
-    *representation = MachineRepresentation::kWord32;
-  }
-  return true;
-}
-
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
@@ -1201,22 +1181,20 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
   if (opcode != kX87Cmp && opcode != kX87Test) {
     return opcode;
   }
-  // We only do this if at least one of the two operands is a load.
-  // TODO(epertoso): we can probably get some size information out of phi nodes.
-  if (left->opcode() != IrOpcode::kLoad && right->opcode() != IrOpcode::kLoad) {
+  // Currently, if one of the two operands is not a Load, we don't know what its
+  // machine representation is, so we bail out.
+  // TODO(epertoso): we can probably get some size information out of immediates
+  // and phi nodes.
+  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
     return opcode;
   }
-  MachineRepresentation left_representation, right_representation;
-  if (!InferMachineRepresentation(left, &left_representation) ||
-      !InferMachineRepresentation(right, &right_representation)) {
-    return opcode;
-  }
-  // If the representations don't match, both operands will be
+  // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  if (left_representation != right_representation) {
+  LoadRepresentation left_representation = LoadRepresentationOf(left->op());
+  if (left_representation != LoadRepresentationOf(right->op())) {
     return opcode;
   }
-  switch (left_representation) {
+  switch (left_representation.representation()) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
       return opcode == kX87Cmp ? kX87Cmp8 : kX87Test8;
@@ -1288,33 +1266,10 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
-      // If we're truncating the immediate (32 bits to 16 or 8), comparison
-      // semantics should take the signedness/unsignedness of the op into
-      // account.
-      if (narrowed_opcode != opcode &&
-          LoadRepresentationOf(left->op()).IsUnsigned()) {
-        switch (cont->condition()) {
-          case FlagsCondition::kSignedLessThan:
-            cont->OverwriteAndNegateIfEqual(FlagsCondition::kUnsignedLessThan);
-            break;
-          case FlagsCondition::kSignedGreaterThan:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedGreaterThan);
-            break;
-          case FlagsCondition::kSignedLessThanOrEqual:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedLessThanOrEqual);
-            break;
-          case FlagsCondition::kSignedGreaterThanOrEqual:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedGreaterThanOrEqual);
-            break;
-          default:
-            break;
-        }
-      }
-      return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
+    if (g.CanBeMemoryOperand(opcode, node, left)) {
+      // TODO(epertoso): we should use `narrowed_opcode' here once we match
+      // immediates too.
+      return VisitCompareWithMemoryOperand(selector, opcode, left,
                                            g.UseImmediate(right), cont);
     }
     return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
