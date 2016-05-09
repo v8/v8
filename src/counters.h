@@ -505,6 +505,7 @@ class RuntimeCallTimer {
 
   inline RuntimeCallTimer* Stop() {
     base::TimeDelta delta = timer_.Elapsed();
+    timer_.Stop();
     counter_->time += delta;
     if (parent_ != NULL) {
       parent_->AdjustForSubTimer(delta);
