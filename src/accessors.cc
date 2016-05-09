@@ -680,14 +680,16 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   Handle<Object> object = Utils::OpenHandle(*info.This());
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
-  Handle<Object> result;
-  Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(script->eval_from_shared()));
-  // Find the name of the function calling eval.
-  if (!shared->name()->IsUndefined()) {
-    result = Handle<Object>(shared->name(), isolate);
-  } else {
-    result = Handle<Object>(shared->inferred_name(), isolate);
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (!script->eval_from_shared()->IsUndefined()) {
+    Handle<SharedFunctionInfo> shared(
+        SharedFunctionInfo::cast(script->eval_from_shared()));
+    // Find the name of the function calling eval.
+    if (!shared->name()->IsUndefined()) {
+      result = Handle<Object>(shared->name(), isolate);
+    } else {
+      result = Handle<Object>(shared->inferred_name(), isolate);
+    }
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
