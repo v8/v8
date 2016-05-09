@@ -487,9 +487,9 @@ class SR_WasmDecoder : public WasmDecoder {
 
   SsaEnv* ssa_env_;
 
-  ZoneVector<LocalType> local_type_vec_;
-  ZoneVector<Value> stack_;
-  ZoneVector<Control> control_;
+  ZoneVector<LocalType> local_type_vec_;  // types of local variables.
+  ZoneVector<Value> stack_;               // stack of values.
+  ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
 
   inline bool build() { return builder_ && ssa_env_->go(); }
 
@@ -1157,7 +1157,8 @@ class SR_WasmDecoder : public WasmDecoder {
   }
 
   Value Pop() {
-    if (stack_.empty()) {
+    size_t limit = control_.empty() ? 0 : control_.back().stack_depth;
+    if (stack_.size() <= limit) {
       Value val = {pc_, nullptr, kAstStmt};
       error(pc_, pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
       return val;

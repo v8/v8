@@ -307,16 +307,30 @@ TEST_F(AstDecoderTest, Binops_off_end) {
 
   byte code4[] = {kExprGetLocal, 0, 0, 0};  // [expr] [opcode] [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
-    code4[1] = kInt32BinopOpcodes[i];
+    code4[2] = kInt32BinopOpcodes[i];
     code4[3] = kInt32BinopOpcodes[i];
     EXPECT_FAILURE(sigs.i_i(), code4);
   }
 }
 
+TEST_F(AstDecoderTest, BinopsAcrossBlock1) {
+  static const byte code[] = {WASM_ZERO, kExprBlock, WASM_ZERO, kExprI32Add,
+                              kExprEnd};
+  EXPECT_FAILURE(sigs.i_i(), code);
+}
 
-//===================================================================
-//== Statements
-//===================================================================
+TEST_F(AstDecoderTest, BinopsAcrossBlock2) {
+  static const byte code[] = {WASM_ZERO, WASM_ZERO, kExprBlock, kExprI32Add,
+                              kExprEnd};
+  EXPECT_FAILURE(sigs.i_i(), code);
+}
+
+TEST_F(AstDecoderTest, BinopsAcrossBlock3) {
+  static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprIf, kExprI32Add,
+                              kExprElse, kExprI32Add, kExprEnd};
+  EXPECT_FAILURE(sigs.i_i(), code);
+}
+
 TEST_F(AstDecoderTest, Nop) {
   static const byte code[] = {kExprNop};
   EXPECT_VERIFIES(sigs.v_v(), code);
