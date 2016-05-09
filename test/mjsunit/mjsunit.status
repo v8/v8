@@ -314,10 +314,6 @@
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [PASS, NO_IGNITION],
 
-  # TODO(mythria, 4680): Relate to GC and ignition holding references to
-  # objects.
-  'es6/mirror-collections': [PASS, NO_IGNITION],
-
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
   # eager compile of the whole script instead of during lazy compile of the function
   # f(), so we can't catch the exception in the try/catch. Skip because on some
@@ -889,10 +885,6 @@
   # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [SKIP],
-
-  # TODO(mythria, 4680): Relate to GC and ignition holding references to
-  # objects.
-  'es6/mirror-collections': [FAIL],
 
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
   # eager compile of the whole script instead of during lazy compile of the function
