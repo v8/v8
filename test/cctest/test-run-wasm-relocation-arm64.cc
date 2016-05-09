@@ -50,7 +50,7 @@ TEST(WasmRelocationArm64MemoryReference) {
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
-  ::printf("f() = %ld\n\n", ret_value);
+  ::printf("f() = %" PRIx64 "\n\n", ret_value);
 #endif
   size_t offset = 1234;
 
@@ -74,7 +74,7 @@ TEST(WasmRelocationArm64MemoryReference) {
 
 #ifdef DEBUG
   code->Print(os);
-  ::printf("f() = %ld\n\n", ret_value);
+  ::printf("f() = %" PRIx64 "\n\n", ret_value);
 #endif
 }
 
@@ -111,7 +111,7 @@ TEST(WasmRelocationArm64MemorySizeReference) {
 #ifdef DEBUG
   OFStream os(stdout);
   code->Print(os);
-  ::printf("f() = %ld\n\n", ret_value);
+  ::printf("f() = %" PRIx64 "\n\n", ret_value);
 #endif
   int32_t diff = 512;
 
@@ -131,7 +131,7 @@ TEST(WasmRelocationArm64MemorySizeReference) {
 
 #ifdef DEBUG
   code->Print(os);
-  ::printf("f() = %ld\n\n", ret_value);
+  ::printf("f() = %" PRIx64 "\n\n", ret_value);
 #endif
 }
 
