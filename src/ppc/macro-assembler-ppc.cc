@@ -4490,6 +4490,44 @@ void MacroAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
+void MacroAssembler::LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    lfdux(dst, MemOperand(base, scratch));
+  } else {
+    lfdu(dst, mem);
+  }
+}
+
+void MacroAssembler::LoadSingle(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    lfsx(dst, MemOperand(base, scratch));
+  } else {
+    lfs(dst, mem);
+  }
+}
+
+void MacroAssembler::LoadSingleU(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    lfsux(dst, MemOperand(base, scratch));
+  } else {
+    lfsu(dst, mem);
+  }
+}
 
 void MacroAssembler::StoreDouble(DoubleRegister src, const MemOperand& mem,
                                  Register scratch) {
@@ -4501,6 +4539,45 @@ void MacroAssembler::StoreDouble(DoubleRegister src, const MemOperand& mem,
     stfdx(src, MemOperand(base, scratch));
   } else {
     stfd(src, mem);
+  }
+}
+
+void MacroAssembler::StoreDoubleU(DoubleRegister src, const MemOperand& mem,
+                                 Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    stfdux(src, MemOperand(base, scratch));
+  } else {
+    stfdu(src, mem);
+  }
+}
+
+void MacroAssembler::StoreSingle(DoubleRegister src, const MemOperand& mem,
+                                 Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    stfsx(src, MemOperand(base, scratch));
+  } else {
+    stfs(src, mem);
+  }
+}
+
+void MacroAssembler::StoreSingleU(DoubleRegister src, const MemOperand& mem,
+                                 Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    stfsux(src, MemOperand(base, scratch));
+  } else {
+    stfsu(src, mem);
   }
 }
 

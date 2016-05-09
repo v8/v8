@@ -1321,8 +1321,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ stfdu(i.InputDoubleRegister(0),
-                 MemOperand(sp, -num_slots * kPointerSize));
+        __ StoreDoubleU(i.InputDoubleRegister(0),
+                        MemOperand(sp, -num_slots * kPointerSize), r0);
       } else {
         __ StorePU(i.InputRegister(0),
                    MemOperand(sp, -num_slots * kPointerSize), r0);
@@ -1332,7 +1332,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_StoreToStackSlot: {
       int slot = i.InputInt32(1);
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ stfd(i.InputDoubleRegister(0), MemOperand(sp, slot * kPointerSize));
+        __ StoreDouble(i.InputDoubleRegister(0),
+                       MemOperand(sp, slot * kPointerSize), r0);
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize), r0);
       }

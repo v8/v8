@@ -511,8 +511,25 @@ class MacroAssembler : public Assembler {
   void StoreRepresentation(Register src, const MemOperand& mem,
                            Representation r, Register scratch = no_reg);
 
-  void LoadDouble(DoubleRegister dst, const MemOperand& mem, Register scratch);
-  void StoreDouble(DoubleRegister src, const MemOperand& mem, Register scratch);
+  void LoadDouble(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+  void LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+
+  void LoadSingle(DoubleRegister dst, const MemOperand& mem,
+                  Register scratch = no_reg);
+  void LoadSingleU(DoubleRegister dst, const MemOperand& mem,
+                   Register scratch = no_reg);
+
+  void StoreDouble(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+  void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+
+  void StoreSingle(DoubleRegister src, const MemOperand& mem,
+                   Register scratch = no_reg);
+  void StoreSingleU(DoubleRegister src, const MemOperand& mem,
+                    Register scratch = no_reg);
 
   // Move values between integer and floating point registers.
   void MovIntToDouble(DoubleRegister dst, Register src, Register scratch);
