@@ -2027,6 +2027,8 @@ class V8_EXPORT Value : public Data {
 
   template <class T> V8_INLINE static Value* Cast(T* value);
 
+  Local<String> TypeOf(v8::Isolate*);
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;

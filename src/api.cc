@@ -3549,6 +3549,12 @@ bool Value::SameValue(Local<Value> that) const {
   return self->SameValue(*other);
 }
 
+Local<String> Value::TypeOf(v8::Isolate* external_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  ENTER_V8(isolate);
+  LOG_API(isolate, "v8::Value::TypeOf()");
+  return Utils::ToLocal(i::Object::TypeOf(isolate, Utils::OpenHandle(this)));
+}
 
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
                             v8::Local<Value> key, v8::Local<Value> value) {

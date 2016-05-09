@@ -6391,6 +6391,46 @@ THREADED_TEST(Equality) {
   CHECK(!v8::False(isolate)->SameValue(v8::Undefined(isolate)));
 }
 
+THREADED_TEST(TypeOf) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(context->GetIsolate());
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
+  Local<v8::Function> fun = t1->GetFunction(context.local()).ToLocalChecked();
+
+  CHECK(v8::Undefined(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("undefined"))
+            .FromJust());
+  CHECK(v8::Null(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("object"))
+            .FromJust());
+  CHECK(v8_str("str")
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("string"))
+            .FromJust());
+  CHECK(v8_num(0.0)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("number"))
+            .FromJust());
+  CHECK(v8_num(1)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("number"))
+            .FromJust());
+  CHECK(v8::Object::New(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("object"))
+            .FromJust());
+  CHECK(v8::Boolean::New(isolate, true)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("boolean"))
+            .FromJust());
+  CHECK(fun->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("function"))
+            .FromJust());
+}
 
 THREADED_TEST(MultiRun) {
   LocalContext context;
