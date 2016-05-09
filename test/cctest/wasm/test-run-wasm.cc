@@ -688,6 +688,32 @@ TEST(Run_Wasm_IfElse_P) {
   }
 }
 
+TEST(Run_Wasm_If_empty1) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kExprEnd, WASM_GET_LOCAL(1));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i - 9, *i)); }
+}
+
+TEST(Run_Wasm_IfElse_empty1) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kExprElse, kExprEnd, WASM_GET_LOCAL(1));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i - 8, *i)); }
+}
+
+TEST(Run_Wasm_IfElse_empty2) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, WASM_ZERO, kExprElse, kExprEnd,
+        WASM_GET_LOCAL(1));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i - 7, *i)); }
+}
+
+TEST(Run_Wasm_IfElse_empty3) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_GET_LOCAL(0), kExprIf, kExprElse, WASM_ZERO, kExprEnd,
+        WASM_GET_LOCAL(1));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i - 6, *i)); }
+}
+
 TEST(Run_Wasm_If_chain) {
   WasmRunner<int32_t> r(MachineType::Int32());
   // if (p0) 13; if (p0) 14; 15
@@ -1088,6 +1114,35 @@ TEST(Run_Wasm_VoidReturn2) {
   CHECK_EQ(kExpected, result);
 }
 
+TEST(Run_Wasm_Block_empty) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, kExprBlock, kExprEnd, WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Block_empty_br1) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, B1(WASM_BR(0)), WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Block_empty_brif1) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, B1(WASM_BR_IF(0, WASM_ZERO)), WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Block_empty_brif2) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, B1(WASM_BR_IF(0, WASM_GET_LOCAL(1))), WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
+}
+
+TEST(Run_Wasm_Block_br2) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, B1(WASM_BRV(0, WASM_GET_LOCAL(0))));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
 
 TEST(Run_Wasm_Block_If_P) {
   WasmRunner<int32_t> r(MachineType::Int32());
@@ -1102,6 +1157,29 @@ TEST(Run_Wasm_Block_If_P) {
   }
 }
 
+TEST(Run_Wasm_Loop_empty) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, kExprLoop, kExprEnd, WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Loop_empty_br1) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, WASM_LOOP(1, WASM_BR(1)), WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Loop_empty_brif1) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, WASM_LOOP(1, WASM_BR_IF(1, WASM_ZERO)), WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_Loop_empty_brif2) {
+  WasmRunner<uint32_t> r(MachineType::Uint32(), MachineType::Uint32());
+  BUILD(r, WASM_LOOP(1, WASM_BR_IF(1, WASM_GET_LOCAL(1))), WASM_GET_LOCAL(0));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(*i, r.Call(*i, *i + 1)); }
+}
 
 TEST(Run_Wasm_Block_BrIf_P) {
   WasmRunner<int32_t> r(MachineType::Int32());

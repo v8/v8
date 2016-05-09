@@ -514,6 +514,24 @@ TEST_F(AstDecoderTest, BlockBrBinop) {
                          WASM_I32_AND(B1(WASM_BRV(0, WASM_I8(1))), WASM_I8(2)));
 }
 
+TEST_F(AstDecoderTest, If_empty1) {
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_ZERO, kExprIf, kExprEnd);
+}
+
+TEST_F(AstDecoderTest, If_empty2) {
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_ZERO, kExprIf, kExprElse, kExprEnd);
+}
+
+TEST_F(AstDecoderTest, If_empty3) {
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_ZERO, kExprIf, WASM_ZERO, kExprElse,
+                         kExprEnd);
+}
+
+TEST_F(AstDecoderTest, If_empty4) {
+  EXPECT_VERIFIES_INLINE(sigs.v_v(), WASM_ZERO, kExprIf, kExprElse, WASM_ZERO,
+                         kExprEnd);
+}
+
 TEST_F(AstDecoderTest, If_empty_stack) {
   byte code[] = {kExprIf};
   EXPECT_FAILURE(sigs.v_v(), code);
