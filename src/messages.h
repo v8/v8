@@ -446,6 +446,8 @@ class CallSite {
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
+  T(UnexpectedSloppyTailCall,                                                  \
+    "Tail call expressions are not allowed in non-strict mode")                \
   T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
   T(UnexpectedTailCall, "Tail call expression is not allowed here")            \
   T(UnexpectedTailCallInCatchBlock,                                            \

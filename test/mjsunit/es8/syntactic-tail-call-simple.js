@@ -5,9 +5,26 @@
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls --stack-size=100
 
 //
+// Tail calls work only in strict mode.
+//
+(function() {
+  function f(n) {
+    if (n <= 0) {
+      return "foo";
+    }
+    return f(n - 1);
+  }
+  assertThrows(()=>{ f(1e5) });
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(()=>{ f(1e5) });
+})();
+
+
+//
 // Tail call normal functions.
 //
 (function() {
+  "use strict";
   function f(n) {
     if (n <= 0) {
       return "foo";
@@ -21,6 +38,7 @@
 
 
 (function() {
+  "use strict";
   function f(n) {
     if (n <= 0) {
       return  "foo";
@@ -34,6 +52,7 @@
 
 
 (function() {
+  "use strict";
   function f(n){
     if (n <= 0) {
       return "foo";
@@ -55,6 +74,7 @@
 
 
 (function() {
+  "use strict";
   function f(n){
     if (n <= 0) {
       return "foo";
@@ -79,6 +99,7 @@
 // Tail call bound functions.
 //
 (function() {
+  "use strict";
   function f0(n) {
     if (n <= 0) {
       return "foo";
@@ -96,6 +117,7 @@
 
 
 (function() {
+  "use strict";
   function f0(n){
     if (n <= 0) {
       return "foo";

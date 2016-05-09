@@ -2228,6 +2228,17 @@ ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
   CheckNoTailCallExpressions(classifier, CHECK_OK);
 
   Scanner::Location loc(pos, scanner()->location().end_pos);
+  if (!expression->IsCall()) {
+    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
+    ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedInsideTailCall);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
+  if (!is_strict(language_mode())) {
+    ReportMessageAt(loc, MessageTemplate::kUnexpectedSloppyTailCall);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
   ReturnExprContext return_expr_context =
       function_state_->return_expr_context();
   if (return_expr_context != ReturnExprContext::kInsideValidReturnStatement) {
@@ -2247,12 +2258,6 @@ ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
         break;
     }
     ReportMessageAt(loc, msg);
-    *ok = false;
-    return Traits::EmptyExpression();
-  }
-  if (!expression->IsCall()) {
-    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
-    ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedInsideTailCall);
     *ok = false;
     return Traits::EmptyExpression();
   }

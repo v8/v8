@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls
 // Flags: --harmony-do-expressions
-"use strict";
 
 var SyntaxErrorTests = [
   { msg: "Unexpected expression inside tail call",
@@ -60,6 +59,16 @@ var SyntaxErrorTests = [
     ],
   },
   { msg: "Tail call expression is not allowed here",
+    tests: [
+      { src: `class A {}; class B extends A { constructor() { return continue foo () ; } }`,
+        err: `                                                       ^^^^^^^^^^^^^^^`,
+      },
+      { src: `class A extends continue f () {}; }`,
+        err: `                ^^^^^^^^^^^^^`,
+      },
+    ],
+  },
+  { msg: "Tail call expressions are not allowed in non-strict mode",
     tests: [
       { src: `()=>{ return  continue continue continue b()  ; }`,
         err: `                                ^^^^^^^^^^^^`,
@@ -223,22 +232,15 @@ var SyntaxErrorTests = [
       { src: `()=>{ switch (continue foo()) { case 1: break; } ; }`,
         err: `              ^^^^^^^^^^^^^^`,
       },
+      { src: `()=>{ with (continue foo()) { smth; } }`,
+        err: `            ^^^^^^^^^^^^^^`,
+      },
       { src: `()=>{ let x = continue foo() }`,
         err: `              ^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ const c = continue  foo() }`,
         err: `                ^^^^^^^^^^^^^^^`,
       },
-      { src: `class A {}; class B extends A { constructor() { return continue foo () ; } }`,
-        err: `                                                       ^^^^^^^^^^^^^^^`,
-      },
-      { src: `class A extends continue f () {}; }`,
-        err: `                ^^^^^^^^^^^^^`,
-      },
-    ],
-  },
-  { msg: "Tail call expression in try block",
-    tests: [
       { src: `()=>{ try { return  continue   f ( ) ; } catch(e) {} }`,
         err: `                    ^^^^^^^^^^^^^^^^`,
       },
@@ -248,25 +250,86 @@ var SyntaxErrorTests = [
       { src: `()=>{ try { try { smth; } catch(e) { return  continue  f( ) ; } } finally { bla; } }`,
         err: `                                             ^^^^^^^^^^^^^^`,
       },
-    ],
-  },
-  { msg: "Tail call expression in catch block when finally block is also present",
-    tests: [
       { src: `()=>{ try { smth; } catch(e) { return  continue   f ( ) ; } finally { blah; } }`,
         err: `                                       ^^^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ try { smth; } catch(e) { try { smth; } catch (e) { return  continue   f ( ) ; } } finally { blah; } }`,
         err: `                                                                 ^^^^^^^^^^^^^^^^`,
       },
-    ],
-  },
-  { msg: "Tail call expression in for-in/of body",
-    tests: [
       { src: `()=>{ for (var v in {a:0}) { return continue  foo () ; } }`,
         err: `                                    ^^^^^^^^^^^^^^^^`,
       },
       { src: `()=>{ for (var v of [1, 2, 3]) { return continue  foo () ; } }`,
         err: `                                        ^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return continue  a.b.c.foo () ; }`,
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return continue  a().b.c().d.foo () ; }`,
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return continue  foo (1)(2)(3, 4) ; }`,
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return ( continue b() ) ; }`,
+        err: `               ^^^^^^^^^^^^`,
+      },
+      { src: "()=>{ return continue bar`ab cd ef` ; }",
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: "()=>{ return continue bar`ab ${cd} ef` ; }",
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a || continue f() ; }`,
+        err: `                  ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a && continue f() ; }`,
+        err: `                  ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a , continue f() ; }`,
+        err: `                 ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ function* G() { return continue foo(); } }`,
+        err: `                             ^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ function B() { return continue new.target() ; } }`,
+        err: `                            ^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return continue do { x ? foo() : bar() ; }() }`,
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return continue (do { x ? foo() : bar() ; })() }`,
+        err: `             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return do { 1, continue foo() } }`,
+        err: `                     ^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return do { x ? continue foo() : y } }`,
+        err: `                      ^^^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a || (b && continue c()); }`,
+        err: `                        ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a && (b || continue c()); }`,
+        err: `                        ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return a || (b ? c : continue d()); }`,
+        err: `                           ^^^^^^^^^^^^`,
+      },
+      { src: `()=>{ return 1, 2, 3, a || (b ? c : continue d()); }`,
+        err: `                                    ^^^^^^^^^^^^`,
+      },
+      { src: `()=> continue  (foo ()) ;`,
+        err: `     ^^^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=> a || continue  foo () ;`,
+        err: `          ^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=> a && continue  foo () ;`,
+        err: `          ^^^^^^^^^^^^^^^^`,
+      },
+      { src: `()=> a ? continue  foo () : b;`,
+        err: `         ^^^^^^^^^^^^^^^^`,
       },
     ],
   },
@@ -282,30 +345,10 @@ var SyntaxErrorTests = [
 
 // Should parse successfully.
 var NoErrorTests = [
-  `()=>{ return continue  a.b.c.foo () ; }`,
-  `()=>{ return continue  a().b.c().d.foo () ; }`,
-  `()=>{ return continue  foo (1)(2)(3, 4) ; }`,
-  `()=>{ return ( continue b() ) ; }`,
-  "()=>{ return continue bar`ab cd ef` ; }",
-  "()=>{ return continue bar`ab ${cd} ef` ; }",
-  `()=>{ return a || continue f() ; }`,
-  `()=>{ return a && continue f() ; }`,
-  `()=>{ return a , continue f() ; }`,
-  `()=>{ function* G() { return continue foo(); } }`,
   `()=>{ class A { foo() { return continue super.f() ; } } }`,
-  `()=>{ function B() { return continue new.target() ; } }`,
-  `()=>{ return continue do { x ? foo() : bar() ; }() }`,
-  `()=>{ return continue (do { x ? foo() : bar() ; })() }`,
-  `()=>{ return do { 1, continue foo() } }`,
-  `()=>{ return do { x ? continue foo() : y } }`,
-  `()=>{ return a || (b && continue c()); }`,
-  `()=>{ return a && (b || continue c()); }`,
-  `()=>{ return a || (b ? c : continue d()); }`,
-  `()=>{ return 1, 2, 3, a || (b ? c : continue d()); }`,
-  `()=> continue  (foo ()) ;`,
-  `()=> a || continue  foo () ;`,
-  `()=> a && continue  foo () ;`,
-  `()=> a ? continue  foo () : b;`,
+  `()=>{ class A { foo() { return continue f() ; } } }`,
+  `()=>{ class A { foo() { return a || continue f() ; } } }`,
+  `()=>{ class A { foo() { return b && continue f() ; } } }`,
 ];
 
 
@@ -316,7 +359,7 @@ var NoErrorTests = [
       var passed = true;
       var e = null;
       try {
-        eval(test.src);
+        Realm.eval(0, test.src);
       } catch (ee) {
         e = ee;
       }
@@ -360,7 +403,6 @@ var NoErrorTests = [
   for (var src of NoErrorTests) {
     print("=======================================");
     print("Source   | " + src);
-    src = `"use strict"; ` + src;
     Realm.eval(0, src);
     print("PASSED");
     print();

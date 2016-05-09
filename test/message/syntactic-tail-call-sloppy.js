@@ -3,12 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-explicit-tailcalls
-"use strict";
-
-function f() {
-  return 1;
-}
 
 function g() {
-  var x =  continue  f()  ;
+  return  continue  f()  ;
 }

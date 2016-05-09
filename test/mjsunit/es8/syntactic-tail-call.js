@@ -5,6 +5,8 @@
 // Flags: --allow-natives-syntax --harmony-explicit-tailcalls
 // Flags: --harmony-do-expressions
 
+"use strict";
+
 Error.prepareStackTrace = (error,stack) => {
   error.strace = stack;
   return error.message + "\n    at " + stack.join("\n    at ");
@@ -20,6 +22,8 @@ function CheckStackTrace(expected) {
     assertEquals(expected[i].name, stack[i + 1].getFunctionName());
   }
 }
+%NeverOptimizeFunction(CheckStackTrace);
+
 
 function f(expected_call_stack, a, b) {
   CheckStackTrace(expected_call_stack);
@@ -221,6 +225,87 @@ function f_153(expected_call_stack, a) {
 })();
 
 
+// Tail calling from getter.
+(function() {
+  function g(v) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  function f(v) {
+    return continue g();
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineGetter__('p', f);
+    assertEquals(153, o.p);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from setter.
+(function() {
+  function g() {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  function f(v) {
+    return continue g();
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineSetter__('q', f);
+    assertEquals(1, o.q = 1);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from constructor.
+(function() {
+  function g(context) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return {x: 153};
+  }
+  %NeverOptimizeFunction(g);
+
+  function A() {
+    this.x = 42;
+    return continue g();
+  }
+
+  function test() {
+    var o = new A();
+    %DebugPrint(o);
+    assertEquals(153, o.x);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
 // Tail calling via various expressions.
 (function() {
   function g1(a) {
@@ -286,6 +371,38 @@ function f_153(expected_call_stack, a) {
     assertEquals(true, g8());
     assertEquals(true, g9());
     assertEquals(true, g10());
+  }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from various statements.
+(function() {
+  function g3() {
+    for (var i = 0; i < 10; i++) {
+      return continue f_153([f_153, test]);
+    }
+  }
+
+  function g4() {
+    while (true) {
+      return continue f_153([f_153, test]);
+    }
+  }
+
+  function g5() {
+    do {
+      return continue f_153([f_153, test]);
+    } while (true);
+  }
+
+  function test() {
+    assertEquals(153, g3());
+    assertEquals(153, g4());
+    assertEquals(153, g5());
   }
   test();
   test();

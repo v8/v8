@@ -261,9 +261,8 @@ function f_153(expected_call_stack, a) {
   }
   %NeverOptimizeFunction(g);
 
-  var context = 10;
   function f(v) {
-    return g(context);
+    return g();
   }
   %SetForceInlineFlag(f);
 
