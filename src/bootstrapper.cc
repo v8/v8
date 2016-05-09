@@ -1605,6 +1605,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- T y p e d A r r a y s
+    // Create the %TypedArrayPrototype%
+    Handle<JSObject> typed_array_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    native_context()->set_typed_array_prototype(*typed_array_prototype);
+
+    Handle<JSFunction> typed_array_fun = CreateFunction(
+        isolate, factory->InternalizeUtf8String("TypedArray"), JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, typed_array_prototype, Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, typed_array_fun,
+                                     Context::TYPED_ARRAY_FUN_INDEX);
+
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)             \
   {                                                                    \
     Handle<JSFunction> fun;                                            \
@@ -1927,9 +1938,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
                                 Handle<JSFunction>* fun) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
-  Handle<JSFunction> result = InstallFunction(
-      global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize,
-      isolate()->initial_object_prototype(), Builtins::kIllegal);
+
+  Handle<JSObject> typed_array_prototype =
+      Handle<JSObject>(isolate()->typed_array_prototype());
+  Handle<JSFunction> typed_array_function =
+      Handle<JSFunction>(isolate()->typed_array_function());
+
+  Handle<JSObject> prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSFunction> result =
+      InstallFunction(global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize,
+                      prototype, Builtins::kIllegal);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
       JS_TYPED_ARRAY_TYPE,
@@ -1937,6 +1956,15 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
       elements_kind);
   JSFunction::SetInitialMap(result, initial_map,
                             handle(initial_map->prototype(), isolate()));
+
+  CHECK(JSObject::SetPrototype(result, typed_array_function, false,
+                               Object::DONT_THROW)
+            .FromJust());
+
+  CHECK(JSObject::SetPrototype(prototype, typed_array_prototype, false,
+                               Object::DONT_THROW)
+            .FromJust());
+
   *fun = result;
 }
 

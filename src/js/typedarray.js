@@ -68,6 +68,8 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
+var TypedArray = %object_get_prototype_of(GlobalUint8Array);
+
 utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
@@ -808,7 +810,7 @@ function TypedArrayFrom(source, mapfn, thisArg) {
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 
-function TypedArray() {
+function TypedArrayConstructor() {
   if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNonCallable, "TypedArray");
   }
@@ -819,9 +821,10 @@ function TypedArray() {
 
 // -------------------------------------------------------------------
 
-%FunctionSetPrototype(TypedArray, new GlobalObject());
+%SetCode(TypedArray, TypedArrayConstructor);
 %AddNamedProperty(TypedArray.prototype,
                   "constructor", TypedArray, DONT_ENUM);
+
 utils.InstallFunctions(TypedArray, DONT_ENUM, [
   "from", TypedArrayFrom,
   "of", TypedArrayOf

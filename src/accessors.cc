@@ -117,12 +117,11 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
       LookupIterator it(proto, name);
       if (!it.IsFound()) return false;
 
-      Object* original_proto =
-          JSFunction::cast(map->GetConstructor())->prototype();
+      Handle<Object> typed_array_proto = isolate->typed_array_prototype();
 
       // Property is not configurable. It is enough to verify that
       // the holder is the same.
-      return *it.GetHolder<Object>() == original_proto;
+      return *it.GetHolder<Object>() == *typed_array_proto;
     }
     case JS_DATA_VIEW_TYPE:
       return CheckForName(name, isolate->factory()->byte_length_string(),
