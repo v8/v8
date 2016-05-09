@@ -6,7 +6,7 @@
 #define V8_CANCELABLE_TASK_H_
 
 #include "include/v8-platform.h"
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/hashmap.h"
@@ -104,13 +104,13 @@ class Cancelable {
   }
 
   CancelableTaskManager* parent_;
-  AtomicValue<Status> status_;
+  base::AtomicValue<Status> status_;
   uint32_t id_;
 
   // The counter is incremented for failing tries to cancel a task. This can be
   // used by the task itself as an indication how often external entities tried
   // to abort it.
-  AtomicNumber<intptr_t> cancel_counter_;
+  base::AtomicNumber<intptr_t> cancel_counter_;
 
   friend class CancelableTaskManager;
 

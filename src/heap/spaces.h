@@ -8,7 +8,7 @@
 #include <list>
 
 #include "src/allocation.h"
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
 #include "src/base/platform/mutex.h"
@@ -586,7 +586,7 @@ class MemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
+  base::AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
     return concurrent_sweeping_;
   }
 
@@ -800,20 +800,20 @@ class MemoryChunk {
 
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
-  AtomicValue<intptr_t> high_water_mark_;
+  base::AtomicValue<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
 
-  AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
+  base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
 
   // PagedSpace free-list statistics.
-  AtomicNumber<intptr_t> available_in_free_list_;
-  AtomicNumber<intptr_t> wasted_memory_;
+  base::AtomicNumber<intptr_t> available_in_free_list_;
+  base::AtomicNumber<intptr_t> wasted_memory_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
-  AtomicValue<MemoryChunk*> next_chunk_;
+  base::AtomicValue<MemoryChunk*> next_chunk_;
   // prev_chunk_ holds a pointer of type MemoryChunk
-  AtomicValue<MemoryChunk*> prev_chunk_;
+  base::AtomicValue<MemoryChunk*> prev_chunk_;
 
   FreeListCategory categories_[kNumberOfCategories];
 
@@ -1504,17 +1504,17 @@ class MemoryAllocator {
   intptr_t capacity_executable_;
 
   // Allocated space size in bytes.
-  AtomicNumber<intptr_t> size_;
+  base::AtomicNumber<intptr_t> size_;
   // Allocated executable space size in bytes.
-  AtomicNumber<intptr_t> size_executable_;
+  base::AtomicNumber<intptr_t> size_executable_;
 
   // We keep the lowest and highest addresses allocated as a quick way
   // of determining that pointers are outside the heap. The estimate is
   // conservative, i.e. not all addrsses in 'allocated' space are allocated
   // to our heap. The range is [lowest, highest[, inclusive on the low end
   // and exclusive on the high end.
-  AtomicValue<void*> lowest_ever_allocated_;
-  AtomicValue<void*> highest_ever_allocated_;
+  base::AtomicValue<void*> lowest_ever_allocated_;
+  base::AtomicValue<void*> highest_ever_allocated_;
 
   struct MemoryAllocationCallbackRegistration {
     MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
@@ -1978,7 +1978,7 @@ class FreeList {
   FreeListCategory* top(FreeListCategoryType type) { return categories_[type]; }
 
   PagedSpace* owner_;
-  AtomicNumber<intptr_t> wasted_bytes_;
+  base::AtomicNumber<intptr_t> wasted_bytes_;
   FreeListCategory* categories_[kNumberOfCategories];
 
   friend class FreeListCategory;

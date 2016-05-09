@@ -42,7 +42,7 @@
 
 #endif
 
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
@@ -242,7 +242,7 @@ typedef List<Sampler*> SamplerList;
 #if defined(USE_SIGNALS)
 class AtomicGuard {
  public:
-  explicit AtomicGuard(AtomicValue<int>* atomic, bool is_block = true)
+  explicit AtomicGuard(base::AtomicValue<int>* atomic, bool is_block = true)
       : atomic_(atomic),
         is_success_(false) {
     do {
@@ -262,7 +262,7 @@ class AtomicGuard {
   }
 
  private:
-  AtomicValue<int>* atomic_;
+  base::AtomicValue<int>* atomic_;
   bool is_success_;
 };
 
@@ -747,7 +747,7 @@ class SamplerThread : public base::Thread {
   friend class SignalHandler;
   static base::LazyInstance<HashMap, HashMapCreateTrait>::type
       thread_id_to_samplers_;
-  static AtomicValue<int> sampler_list_access_counter_;
+  static base::AtomicValue<int> sampler_list_access_counter_;
   static void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&sampler_list_access_counter_);
     // Add sampler into map if needed.
@@ -779,7 +779,7 @@ SamplerThread* SamplerThread::instance_ = NULL;
 #if defined(USE_SIGNALS)
 base::LazyInstance<HashMap, SamplerThread::HashMapCreateTrait>::type
     SamplerThread::thread_id_to_samplers_ = LAZY_INSTANCE_INITIALIZER;
-AtomicValue<int> SamplerThread::sampler_list_access_counter_(0);
+base::AtomicValue<int> SamplerThread::sampler_list_access_counter_(0);
 
 // As Native Client does not support signal handling, profiling is disabled.
 #if !V8_OS_NACL

@@ -11,7 +11,7 @@
 #include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 template <class T>
 class AtomicNumber {
@@ -169,7 +169,7 @@ class AtomicEnumSet {
   base::AtomicWord bits_;
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
 #endif  // #define V8_ATOMIC_UTILS_H_

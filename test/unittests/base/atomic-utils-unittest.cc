@@ -4,11 +4,11 @@
 
 #include <limits.h>
 
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 TEST(AtomicNumber, Constructor) {
   // Test some common types.
@@ -213,5 +213,5 @@ TEST(AtomicEnumSet, Equality) {
   EXPECT_FALSE(a != b);
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

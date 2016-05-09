@@ -121,7 +121,7 @@ class PageParallelJob {
     Item(MemoryChunk* chunk, typename JobTraits::PerPageData data, Item* next)
         : chunk(chunk), state(kAvailable), data(data), next(next) {}
     MemoryChunk* chunk;
-    AtomicValue<ProcessingState> state;
+    base::AtomicValue<ProcessingState> state;
     typename JobTraits::PerPageData data;
     Item* next;
   };
