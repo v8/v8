@@ -2323,43 +2323,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::VisitProperty(Property* expr) {
-  Comment cmnt(masm_, "[ Property");
-  SetExpressionPosition(expr);
-
-  Expression* key = expr->key();
-
-  if (key->IsPropertyName()) {
-    if (!expr->IsSuperAccess()) {
-      VisitForAccumulatorValue(expr->obj());
-      __ Move(LoadDescriptor::ReceiverRegister(), r3);
-      EmitNamedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      EmitNamedSuperPropertyLoad(expr);
-    }
-  } else {
-    if (!expr->IsSuperAccess()) {
-      VisitForStackValue(expr->obj());
-      VisitForAccumulatorValue(expr->key());
-      __ Move(LoadDescriptor::NameRegister(), r3);
-      PopOperand(LoadDescriptor::ReceiverRegister());
-      EmitKeyedPropertyLoad(expr);
-    } else {
-      VisitForStackValue(expr->obj()->AsSuperPropertyReference()->this_var());
-      VisitForStackValue(
-          expr->obj()->AsSuperPropertyReference()->home_object());
-      VisitForStackValue(expr->key());
-      EmitKeyedSuperPropertyLoad(expr);
-    }
-  }
-  PrepareForBailoutForId(expr->LoadId(), TOS_REG);
-  context()->Plug(r3);
-}
-
-
 void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
   ic_total_count_++;
   __ Call(code, RelocInfo::CODE_TARGET, ast_id);
