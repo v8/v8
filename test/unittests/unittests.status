@@ -12,9 +12,4 @@
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
 }],  # 'byteorder == big'
-
-['tsan', {
-  # BUG(v8:4995).
-  'ThreadLocalStorageTest.DoTest': [SKIP],
-}],  # 'tsan'
 ]
