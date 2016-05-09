@@ -24113,6 +24113,7 @@ TEST(StringConcatOverflow) {
 
 
 TEST(TurboAsmDisablesNeuter) {
+  i::FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
@@ -24125,10 +24126,11 @@ TEST(TurboAsmDisablesNeuter) {
       "  return { load: load };"
       "}"
       "var buffer = new ArrayBuffer(4);"
-      "Module(this, {}, buffer).load();"
+      "var module = Module(this, {}, buffer);"
+      "%OptimizeFunctionOnNextCall(module.load);"
+      "module.load();"
       "buffer";
 
-  i::FLAG_turbo_osr = false;  // TODO(titzer): test requires eager TF.
   v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
   CHECK_EQ(should_be_neuterable, result->IsNeuterable());
 
@@ -24140,10 +24142,11 @@ TEST(TurboAsmDisablesNeuter) {
       "  return { store: store };"
       "}"
       "var buffer = new ArrayBuffer(4);"
-      "Module(this, {}, buffer).store();"
+      "var module = Module(this, {}, buffer);"
+      "%OptimizeFunctionOnNextCall(module.store);"
+      "module.store();"
       "buffer";
 
-  i::FLAG_turbo_osr = false;  // TODO(titzer): test requires eager TF.
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK_EQ(should_be_neuterable, result->IsNeuterable());
 }

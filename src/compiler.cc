@@ -599,7 +599,7 @@ bool Renumber(ParseInfo* parse_info) {
   return true;
 }
 
-bool UseTurboFan(Handle<SharedFunctionInfo> shared, BailoutId osr_ast_id) {
+bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
   bool optimization_disabled = shared->optimization_disabled();
   bool dont_crankshaft = shared->dont_crankshaft();
 
@@ -616,13 +616,8 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared, BailoutId osr_ast_id) {
   // 3. Explicitly enabled by the command-line filter.
   bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);
 
-  // If this is OSR request, OSR must be enabled by Turbofan.
-  bool passes_osr_test = FLAG_turbo_osr || osr_ast_id.IsNone();
-
-  return (is_turbofanable_asm ||
-          is_unsupported_by_crankshaft_but_turbofanable ||
-          passes_turbo_filter) &&
-         passes_osr_test;
+  return is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
+         passes_turbo_filter;
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -725,7 +720,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   VMState<COMPILER> state(isolate);
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
-  bool use_turbofan = UseTurboFan(shared, osr_ast_id);
+  bool use_turbofan = UseTurboFan(shared);
   base::SmartPointer<CompilationJob> job(
       use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
                    : new HCompilationJob(function));
@@ -924,18 +919,6 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
       }
       DCHECK(function->shared()->is_compiled());
       return cached_code;
-    }
-  }
-
-  // If the debugger is active, do not compile with turbofan unless we can
-  // deopt from turbofan code.
-  if (FLAG_turbo_asm && function->shared()->asm_function() &&
-      (FLAG_turbo_asm_deoptimization || !isolate->debug()->is_active()) &&
-      !FLAG_turbo_osr) {
-    Handle<Code> code;
-    if (GetOptimizedCode(function, Compiler::NOT_CONCURRENT).ToHandle(&code)) {
-      DCHECK(function->shared()->is_compiled());
-      return code;
     }
   }
 
