@@ -2095,14 +2095,14 @@ void Assembler::testw(Register reg, Immediate mask) {
   emit(0x66);
   if (reg.is(rax)) {
     emit(0xA9);
-    emit(mask.value_);
+    emitw(mask.value_);
   } else {
     if (reg.low_bits() == 4) {
       emit_rex_32(reg);
     }
     emit(0xF7);
     emit_modrm(0x0, reg);
-    emit(mask.value_);
+    emitw(mask.value_);
   }
 }
 
@@ -2113,7 +2113,7 @@ void Assembler::testw(const Operand& op, Immediate mask) {
   emit_optional_rex_32(rax, op);
   emit(0xF7);
   emit_operand(rax, op);
-  emit(mask.value_);
+  emitw(mask.value_);
 }
 
 void Assembler::testw(const Operand& op, Register reg) {
