@@ -183,6 +183,8 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)                  \
   V(xmm15)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm1)                               \
   V(xmm2)                               \
@@ -200,8 +202,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)                              \
   V(xmm15)
 
-
-struct DoubleRegister {
+struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -212,15 +213,15 @@ struct DoubleRegister {
 
   static const int kMaxNumRegisters = Code::kAfterLast;
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = {code};
+  static XMMRegister from_code(int code) {
+    XMMRegister result = {code};
     return result;
   }
 
   const char* ToString();
   bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
     return reg_code;
@@ -238,17 +239,17 @@ struct DoubleRegister {
   int reg_code;
 };
 
+typedef XMMRegister FloatRegister;
+
+typedef XMMRegister DoubleRegister;
+
+typedef XMMRegister Simd128Register;
 
 #define DECLARE_REGISTER(R) \
   const DoubleRegister R = {DoubleRegister::kCode_##R};
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
-
-
-typedef DoubleRegister XMMRegister;
-
-typedef DoubleRegister Simd128Register;
 
 enum Condition {
   // any value < 0 is considered no_condition

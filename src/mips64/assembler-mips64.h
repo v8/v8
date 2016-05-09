@@ -63,6 +63,8 @@ namespace internal {
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
   V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
@@ -154,7 +156,7 @@ int ToNumber(Register reg);
 Register ToRegister(int num);
 
 // Coprocessor register.
-struct DoubleRegister {
+struct FPURegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -174,21 +176,21 @@ struct DoubleRegister {
   const char* ToString();
   bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
-  DoubleRegister low() const {
+  bool is(FPURegister reg) const { return reg_code == reg.reg_code; }
+  FPURegister low() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage suspect for FR=1.
     // Find low reg of a Double-reg pair, which is the reg itself.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code;
     DCHECK(reg.is_valid());
     return reg;
   }
-  DoubleRegister high() const {
+  FPURegister high() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage illegal in FR=1.
     // Find high reg of a Doubel-reg pair, which is reg + 1.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code + 1;
     DCHECK(reg.is_valid());
     return reg;
@@ -203,8 +205,8 @@ struct DoubleRegister {
     return 1 << reg_code;
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
+  static FPURegister from_code(int code) {
+    FPURegister r = {code};
     return r;
   }
   void setcode(int f) {
@@ -229,8 +231,12 @@ struct DoubleRegister {
 // but it is not in common use. Someday we will want to support this in v8.)
 
 // For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
-typedef DoubleRegister FPURegister;
-typedef DoubleRegister FloatRegister;
+typedef FPURegister FloatRegister;
+
+typedef FPURegister DoubleRegister;
+
+// TODO(mips64) Define SIMD registers.
+typedef FPURegister Simd128Register;
 
 const DoubleRegister no_freg = {-1};
 
@@ -305,9 +311,6 @@ struct FPUControlRegister {
 
 const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
 const FPUControlRegister FCSR = { kFCSRRegister };
-
-// TODO(mips64) Define SIMD registers.
-typedef DoubleRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
