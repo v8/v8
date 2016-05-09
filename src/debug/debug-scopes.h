@@ -130,10 +130,19 @@ class ScopeIterator {
                               Handle<Object> new_value);
   bool SetCatchVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
-  bool SetContextLocalValue(Handle<ScopeInfo> scope_info,
-                            Handle<Context> context,
-                            Handle<String> variable_name,
-                            Handle<Object> new_value);
+
+  // Helper functions.
+  bool SetParameterValue(Handle<ScopeInfo> scope_info, JavaScriptFrame* frame,
+                         Handle<String> parameter_name,
+                         Handle<Object> new_value);
+  bool SetStackVariableValue(Handle<ScopeInfo> scope_info,
+                             JavaScriptFrame* frame,
+                             Handle<String> variable_name,
+                             Handle<Object> new_value);
+  bool SetContextVariableValue(Handle<ScopeInfo> scope_info,
+                               Handle<Context> context,
+                               Handle<String> variable_name,
+                               Handle<Object> new_value);
 
   void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                       Handle<Context> context,

@@ -607,12 +607,43 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
   return module_scope;
 }
 
+bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
+                                      JavaScriptFrame* frame,
+                                      Handle<String> parameter_name,
+                                      Handle<Object> new_value) {
+  // Setting stack locals of optimized frames is not supported.
+  if (frame->is_optimized()) return false;
+  HandleScope scope(isolate_);
+  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    if (String::Equals(handle(scope_info->ParameterName(i)), parameter_name)) {
+      frame->SetParameterValue(i, *new_value);
+      return true;
+    }
+  }
+  return false;
+}
 
-// Set the context local variable value.
-bool ScopeIterator::SetContextLocalValue(Handle<ScopeInfo> scope_info,
-                                         Handle<Context> context,
-                                         Handle<String> variable_name,
-                                         Handle<Object> new_value) {
+bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
+                                          JavaScriptFrame* frame,
+                                          Handle<String> variable_name,
+                                          Handle<Object> new_value) {
+  // Setting stack locals of optimized frames is not supported.
+  if (frame->is_optimized()) return false;
+  HandleScope scope(isolate_);
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
+      frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ScopeIterator::SetContextVariableValue(Handle<ScopeInfo> scope_info,
+                                            Handle<Context> context,
+                                            Handle<String> variable_name,
+                                            Handle<Object> new_value) {
+  HandleScope scope(isolate_);
   for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
     Handle<String> next_name(scope_info->ContextLocalName(i));
     if (String::Equals(variable_name, next_name)) {
@@ -626,128 +657,8 @@ bool ScopeIterator::SetContextLocalValue(Handle<ScopeInfo> scope_info,
     }
   }
 
-  return false;
-}
-
-
-bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
-                                          Handle<Object> new_value) {
-  JavaScriptFrame* frame = GetFrame();
-  // Optimized frames are not supported.
-  if (frame->is_optimized()) return false;
-
-  Handle<JSFunction> function(frame->function());
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-
-  bool default_result = false;
-
-  // Parameters.
-  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    HandleScope scope(isolate_);
-    if (String::Equals(handle(scope_info->ParameterName(i)), variable_name)) {
-      frame->SetParameterValue(i, *new_value);
-      // Argument might be shadowed in heap context, don't stop here.
-      default_result = true;
-    }
-  }
-
-  // Stack locals.
-  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    HandleScope scope(isolate_);
-    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
-      frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
-      return true;
-    }
-  }
-
-  if (scope_info->HasContext()) {
-    // Context locals.
-    Handle<Context> frame_context(Context::cast(frame->context()));
-    Handle<Context> function_context(frame_context->declaration_context());
-    if (SetContextLocalValue(scope_info, function_context, variable_name,
-                             new_value)) {
-      return true;
-    }
-
-    // Function context extension. These are variables introduced by eval.
-    if (function_context->closure() == *function) {
-      if (function_context->has_extension() &&
-          !function_context->IsNativeContext()) {
-        Handle<JSObject> ext(function_context->extension_object());
-
-        Maybe<bool> maybe = JSReceiver::HasProperty(ext, variable_name);
-        DCHECK(maybe.IsJust());
-        if (maybe.FromJust()) {
-          // We don't expect this to do anything except replacing
-          // property value.
-          Runtime::SetObjectProperty(isolate_, ext, variable_name, new_value,
-                                     SLOPPY)
-              .Assert();
-          return true;
-        }
-      }
-    }
-  }
-
-  return default_result;
-}
-
-
-bool ScopeIterator::SetBlockVariableValue(Handle<String> variable_name,
-                                          Handle<Object> new_value) {
-  Handle<ScopeInfo> scope_info = CurrentScopeInfo();
-  JavaScriptFrame* frame = GetFrame();
-
-  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    HandleScope scope(isolate_);
-    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
-      frame->SetExpression(scope_info->StackLocalIndex(i), *new_value);
-      return true;
-    }
-  }
-
-  if (HasContext()) {
-    Handle<Context> context = CurrentContext();
-    if (SetContextLocalValue(scope_info, context, variable_name, new_value)) {
-      return true;
-    }
-
-    Handle<JSObject> ext(context->extension_object(), isolate_);
-    if (!ext.is_null()) {
-      Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
-      DCHECK(maybe.IsJust());
-      if (maybe.FromJust()) {
-        // We don't expect this to do anything except replacing property value.
-        JSObject::SetOwnPropertyIgnoreAttributes(ext, variable_name, new_value,
-                                                 NONE)
-            .Check();
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-
-// This method copies structure of MaterializeClosure method above.
-bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
-                                            Handle<Object> new_value) {
-  Handle<Context> context = CurrentContext();
-  DCHECK(context->IsFunctionContext());
-
-  // Context locals to the context extension.
-  Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  if (SetContextLocalValue(scope_info, context, variable_name, new_value)) {
-    return true;
-  }
-
-  // Properties from the function context extension. This will
-  // be variables introduced by eval.
   if (context->has_extension()) {
-    Handle<JSObject> ext(JSObject::cast(context->extension_object()));
+    Handle<JSObject> ext(context->extension_object());
     Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
     DCHECK(maybe.IsJust());
     if (maybe.FromJust()) {
@@ -762,6 +673,53 @@ bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
   return false;
 }
 
+bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
+                                          Handle<Object> new_value) {
+  JavaScriptFrame* frame = GetFrame();
+  Handle<ScopeInfo> scope_info(frame->function()->shared()->scope_info());
+
+  // Parameter might be shadowed in context. Don't stop here.
+  bool result = SetParameterValue(scope_info, frame, variable_name, new_value);
+
+  // Stack locals.
+  if (SetStackVariableValue(scope_info, frame, variable_name, new_value)) {
+    return true;
+  }
+
+  if (scope_info->HasContext() &&
+      SetContextVariableValue(scope_info, CurrentContext(), variable_name,
+                              new_value)) {
+    return true;
+  }
+
+  return result;
+}
+
+bool ScopeIterator::SetBlockVariableValue(Handle<String> variable_name,
+                                          Handle<Object> new_value) {
+  Handle<ScopeInfo> scope_info = CurrentScopeInfo();
+  JavaScriptFrame* frame = GetFrame();
+
+  // Setting stack locals of optimized frames is not supported.
+  if (SetStackVariableValue(scope_info, frame, variable_name, new_value)) {
+    return true;
+  }
+
+  if (HasContext() && SetContextVariableValue(scope_info, CurrentContext(),
+                                              variable_name, new_value)) {
+    return true;
+  }
+
+  return false;
+}
+
+// This method copies structure of MaterializeClosure method above.
+bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
+                                            Handle<Object> new_value) {
+  DCHECK(CurrentContext()->IsFunctionContext());
+  return SetContextVariableValue(CurrentScopeInfo(), CurrentContext(),
+                                 variable_name, new_value);
+}
 
 bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
@@ -779,7 +737,6 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
 
   return false;
 }
-
 
 bool ScopeIterator::SetCatchVariableValue(Handle<String> variable_name,
                                           Handle<Object> new_value) {
