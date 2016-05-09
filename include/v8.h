@@ -2968,6 +2968,11 @@ class V8_EXPORT Object : public Value {
   bool IsCallable();
 
   /**
+   * True if this object is a constructor.
+   */
+  bool IsConstructor();
+
+  /**
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */

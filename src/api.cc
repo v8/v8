@@ -4363,6 +4363,10 @@ bool v8::Object::IsCallable() {
   return self->IsCallable();
 }
 
+bool v8::Object::IsConstructor() {
+  auto self = Utils::OpenHandle(this);
+  return self->IsConstructor();
+}
 
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,

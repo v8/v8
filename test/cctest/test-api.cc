@@ -11101,6 +11101,7 @@ THREADED_TEST(FunctionRemovePrototype) {
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
   t1->RemovePrototype();
   Local<v8::Function> fun = t1->GetFunction(context.local()).ToLocalChecked();
+  CHECK(!fun->IsConstructor());
   CHECK(context->Global()->Set(context.local(), v8_str("fun"), fun).FromJust());
   CHECK(!CompileRun("'prototype' in fun")
              ->BooleanValue(context.local())
