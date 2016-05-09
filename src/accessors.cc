@@ -134,8 +134,10 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
   }
 }
 
-MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
-    Isolate* isolate, Handle<JSObject> receiver, Handle<JSObject> holder,
+namespace {
+
+MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> holder,
     Handle<Name> name, Handle<Object> value) {
   LookupIterator it(receiver, name, holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -150,13 +152,14 @@ MUST_USE_RESULT static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
   return value;
 }
 
+}  // namespace
+
 void Accessors::ReconfigureToDataProperty(
     v8::Local<v8::Name> key, v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> receiver =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
+  Handle<Object> receiver = Utils::OpenHandle(*info.This());
   Handle<JSObject> holder =
       Handle<JSObject>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Name> name = Utils::OpenHandle(*key);
@@ -213,7 +216,7 @@ void Accessors::ArrayLengthSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
-  Handle<JSReceiver> object = Utils::OpenHandle(*info.This());
+  Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
@@ -295,7 +298,7 @@ void Accessors::ScriptColumnOffsetGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* res = Smi::FromInt(
       Script::cast(JSValue::cast(object)->value())->column_offset());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
@@ -322,7 +325,7 @@ void Accessors::ScriptIdGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* id = Smi::FromInt(Script::cast(JSValue::cast(object)->value())->id());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(id, isolate)));
 }
@@ -347,7 +350,7 @@ void Accessors::ScriptNameGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* source = Script::cast(JSValue::cast(object)->value())->name();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
 }
@@ -371,7 +374,7 @@ void Accessors::ScriptSourceGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* source = Script::cast(JSValue::cast(object)->value())->source();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
 }
@@ -395,7 +398,7 @@ void Accessors::ScriptLineOffsetGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* res =
       Smi::FromInt(Script::cast(JSValue::cast(object)->value())->line_offset());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
@@ -422,7 +425,7 @@ void Accessors::ScriptTypeGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* res =
       Smi::FromInt(Script::cast(JSValue::cast(object)->value())->type());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
@@ -448,7 +451,7 @@ void Accessors::ScriptCompilationTypeGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* res = Smi::FromInt(
       Script::cast(JSValue::cast(object)->value())->compilation_type());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
@@ -474,7 +477,7 @@ void Accessors::ScriptLineEndsGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> object = Utils::OpenHandle(*info.Holder());
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Script::InitLineEnds(script);
@@ -509,7 +512,7 @@ void Accessors::ScriptSourceUrlGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* url = Script::cast(JSValue::cast(object)->value())->source_url();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
 }
@@ -533,7 +536,7 @@ void Accessors::ScriptSourceMappingUrlGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* url =
       Script::cast(JSValue::cast(object)->value())->source_mapping_url();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
@@ -557,7 +560,7 @@ void Accessors::ScriptIsEmbedderDebugScriptGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   bool is_embedder_debug_script = Script::cast(JSValue::cast(object)->value())
                                       ->origin_options()
                                       .IsEmbedderDebugScript();
@@ -586,7 +589,7 @@ void Accessors::ScriptContextDataGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.This());
+  Object* object = *Utils::OpenHandle(*info.Holder());
   Object* res = Script::cast(JSValue::cast(object)->value())->context_data();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
@@ -611,7 +614,7 @@ void Accessors::ScriptEvalFromScriptGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> object = Utils::OpenHandle(*info.Holder());
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
@@ -647,7 +650,7 @@ void Accessors::ScriptEvalFromScriptPositionGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> object = Utils::OpenHandle(*info.Holder());
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
@@ -677,7 +680,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> object = Utils::OpenHandle(*info.Holder());
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
