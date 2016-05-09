@@ -683,8 +683,7 @@ void V8::RegisterExternallyReferencedObject(i::Object** object,
   isolate->heap()->RegisterExternallyReferencedObject(object);
 }
 
-
-void V8::MakeWeak(i::Object** object, void* parameter,
+void V8::MakeWeak(i::Object** location, void* parameter,
                   int internal_field_index1, int internal_field_index2,
                   WeakCallbackInfo<void>::Callback weak_callback) {
   WeakCallbackType type = WeakCallbackType::kParameter;
@@ -699,24 +698,25 @@ void V8::MakeWeak(i::Object** object, void* parameter,
     DCHECK_EQ(internal_field_index1, -1);
     DCHECK_EQ(internal_field_index2, -1);
   }
-  i::GlobalHandles::MakeWeak(object, parameter, weak_callback, type);
+  i::GlobalHandles::MakeWeak(location, parameter, weak_callback, type);
 }
 
-
-void V8::MakeWeak(i::Object** object, void* parameter,
+void V8::MakeWeak(i::Object** location, void* parameter,
                   WeakCallbackInfo<void>::Callback weak_callback,
                   WeakCallbackType type) {
-  i::GlobalHandles::MakeWeak(object, parameter, weak_callback, type);
+  i::GlobalHandles::MakeWeak(location, parameter, weak_callback, type);
 }
 
-
-void* V8::ClearWeak(i::Object** obj) {
-  return i::GlobalHandles::ClearWeakness(obj);
+void V8::MakeWeak(i::Object*** location_addr) {
+  i::GlobalHandles::MakeWeak(location_addr);
 }
 
+void* V8::ClearWeak(i::Object** location) {
+  return i::GlobalHandles::ClearWeakness(location);
+}
 
-void V8::DisposeGlobal(i::Object** obj) {
-  i::GlobalHandles::Destroy(obj);
+void V8::DisposeGlobal(i::Object** location) {
+  i::GlobalHandles::Destroy(location);
 }
 
 
@@ -7487,6 +7487,12 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
                                 frames, frames_limit, sample_info);
 }
 
+size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  size_t result = isolate->global_handles()->NumberOfPhantomHandleResets();
+  isolate->global_handles()->ResetNumberOfPhantomHandleResets();
+  return result;
+}
 
 void Isolate::SetEventLogger(LogEventCallback that) {
   // Do not overwrite the event logger if we want to log explicitly.

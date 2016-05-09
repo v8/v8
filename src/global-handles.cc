@@ -194,6 +194,16 @@ class GlobalHandles::Node {
 
   bool IsInUse() const { return state() != FREE; }
 
+  bool IsPendingPhantomCallback() const {
+    return state() == PENDING &&
+           (weakness_type() == PHANTOM_WEAK ||
+            weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
+  }
+
+  bool IsPendingPhantomResetHandle() const {
+    return state() == PENDING && weakness_type() == PHANTOM_WEAK_RESET_HANDLE;
+  }
+
   bool IsRetainer() const {
     return state() != FREE &&
            !(state() == NEAR_DEATH && weakness_type() != FINALIZER_WEAK);
@@ -271,6 +281,15 @@ class GlobalHandles::Node {
     weak_callback_ = phantom_callback;
   }
 
+  void MakeWeak(Object*** location_addr) {
+    DCHECK(IsInUse());
+    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
+    set_state(WEAK);
+    set_weakness_type(PHANTOM_WEAK_RESET_HANDLE);
+    set_parameter(location_addr);
+    weak_callback_ = nullptr;
+  }
+
   void* ClearWeakness() {
     DCHECK(IsInUse());
     void* p = parameter();
@@ -285,6 +304,7 @@ class GlobalHandles::Node {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
            weakness_type() == PHANTOM_WEAK_2_INTERNAL_FIELDS);
     DCHECK(state() == PENDING);
+    DCHECK(weak_callback_ != nullptr);
 
     void* internal_fields[v8::kInternalFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
@@ -307,6 +327,15 @@ class GlobalHandles::Node {
         PendingPhantomCallback(this, callback, parameter(), internal_fields));
     DCHECK(IsInUse());
     set_state(NEAR_DEATH);
+  }
+
+  void ResetPhantomHandle() {
+    DCHECK(weakness_type() == PHANTOM_WEAK_RESET_HANDLE);
+    DCHECK(state() == PENDING);
+    DCHECK(weak_callback_ == nullptr);
+    Object*** handle = reinterpret_cast<Object***>(parameter());
+    *handle = nullptr;
+    Release();
   }
 
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
@@ -540,7 +569,6 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
   DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
 };
 
-
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
       number_of_global_handles_(0),
@@ -548,8 +576,8 @@ GlobalHandles::GlobalHandles(Isolate* isolate)
       first_used_block_(NULL),
       first_free_(NULL),
       post_gc_processing_count_(0),
+      number_of_phantom_handle_resets_(0),
       object_group_connections_(kObjectGroupConnectionsCapacity) {}
-
 
 GlobalHandles::~GlobalHandles() {
   NodeBlock* block = first_block_;
@@ -601,6 +629,9 @@ void GlobalHandles::MakeWeak(Object** location, void* parameter,
   Node::FromLocation(location)->MakeWeak(parameter, phantom_callback, type);
 }
 
+void GlobalHandles::MakeWeak(Object*** location_addr) {
+  Node::FromLocation(*location_addr)->MakeWeak(location_addr);
+}
 
 void* GlobalHandles::ClearWeakness(Object** location) {
   return Node::FromLocation(location)->ClearWeakness();
@@ -636,8 +667,10 @@ void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
     Node* node = it.node();
     if (node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
-      if (node->state() == Node::PENDING &&
-          node->weakness_type() != FINALIZER_WEAK) {
+      if (node->IsPendingPhantomResetHandle()) {
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
+      } else if (node->IsPendingPhantomCallback()) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
       } else {
@@ -697,8 +730,10 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
     if ((node->is_independent() || node->is_partially_dependent()) &&
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
-      if (node->state() == Node::PENDING &&
-          node->weakness_type() != FINALIZER_WEAK) {
+      if (node->IsPendingPhantomResetHandle()) {
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
+      } else if (node->IsPendingPhantomCallback()) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
       } else {
@@ -740,8 +775,10 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
     if ((node->is_independent() || !node->is_active()) &&
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
-      if (node->state() == Node::PENDING &&
-          node->weakness_type() != FINALIZER_WEAK) {
+      if (node->IsPendingPhantomResetHandle()) {
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
+      } else if (node->IsPendingPhantomCallback()) {
         node->CollectPhantomCallbackData(isolate(),
                                          &pending_phantom_callbacks_);
       } else {

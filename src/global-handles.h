@@ -97,6 +97,8 @@ struct ObjectGroupRetainerInfo {
 };
 
 enum WeaknessType {
+  // Embedder gets a handle to the dying object.
+  FINALIZER_WEAK,
   // In the following cases, the embedder gets the parameter they passed in
   // earlier, and 0 or 2 first internal fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
@@ -104,8 +106,9 @@ enum WeaknessType {
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
   PHANTOM_WEAK_2_INTERNAL_FIELDS,
-  // Embedder gets a handle to the dying object.
-  FINALIZER_WEAK,
+  // The handle is automatically reset by the garbage collector when
+  // the object is no longer reachable.
+  PHANTOM_WEAK_RESET_HANDLE
 };
 
 class GlobalHandles {
@@ -134,6 +137,8 @@ class GlobalHandles {
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
 
+  static void MakeWeak(Object*** location_addr);
+
   void RecordStats(HeapStats* stats);
 
   // Returns the current number of weak handles.
@@ -146,6 +151,14 @@ class GlobalHandles {
   // Returns the current number of handles to global objects.
   int global_handles_count() const {
     return number_of_global_handles_;
+  }
+
+  size_t NumberOfPhantomHandleResets() {
+    return number_of_phantom_handle_resets_;
+  }
+
+  void ResetNumberOfPhantomHandleResets() {
+    number_of_phantom_handle_resets_ = 0;
   }
 
   // Clear the weakness of a global handle.
@@ -329,6 +342,8 @@ class GlobalHandles {
   List<Node*> new_space_nodes_;
 
   int post_gc_processing_count_;
+
+  size_t number_of_phantom_handle_resets_;
 
   // Object groups and implicit references, public and more efficient
   // representation.
