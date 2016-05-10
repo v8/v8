@@ -136,6 +136,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
   // are blacklisted here and can be called without a FrameState.
   switch (function) {
+    case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
     case Runtime::kDefineDataPropertyInLiteral:
@@ -144,6 +145,11 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
+    case Runtime::kGeneratorSetContext:
+    case Runtime::kGeneratorGetContinuation:
+    case Runtime::kGeneratorSetContinuation:
+    case Runtime::kGeneratorLoadRegister:
+    case Runtime::kGeneratorStoreRegister:
     case Runtime::kGetSuperConstructor:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:

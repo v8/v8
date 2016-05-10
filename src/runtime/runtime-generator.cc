@@ -129,13 +129,61 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
 }
 
 
-// Returns generator continuation as a PC offset, or the magic -1 or 0 values.
+RUNTIME_FUNCTION(Runtime_GeneratorSetContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  generator->set_context(isolate->context());
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
   return Smi::FromInt(generator->continuation());
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorSetContinuation) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  CONVERT_SMI_ARG_CHECKED(continuation, 1);
+
+  generator->set_continuation(continuation);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorLoadRegister) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+
+  DCHECK(FLAG_ignition && FLAG_ignition_generators);
+  DCHECK(generator->function()->shared()->HasBytecodeArray());
+
+  return generator->operand_stack()->get(index);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorStoreRegister) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+
+  DCHECK(FLAG_ignition && FLAG_ignition_generators);
+  DCHECK(generator->function()->shared()->HasBytecodeArray());
+
+  generator->operand_stack()->set(index, *value);
+  return isolate->heap()->undefined_value();
 }
 
 

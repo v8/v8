@@ -7295,7 +7295,6 @@ class JSGeneratorObject: public JSObject {
   DECLARE_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSGeneratorObject)
   DECLARE_VERIFIER(JSGeneratorObject)
 
   // Magic sentinel values for the continuation.

@@ -3088,7 +3088,7 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
             ? range->TopLevel()->GetSpillRange()
             : data()->AssignSpillRangeToLiveRange(range->TopLevel());
     bool merged = first_op_spill->TryMerge(spill_range);
-    CHECK(merged);
+    if (!merged) return false;
     Spill(range);
     return true;
   } else if (pos->pos() > range->Start().NextStart()) {
@@ -3097,7 +3097,7 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
             ? range->TopLevel()->GetSpillRange()
             : data()->AssignSpillRangeToLiveRange(range->TopLevel());
     bool merged = first_op_spill->TryMerge(spill_range);
-    CHECK(merged);
+    if (!merged) return false;
     SpillBetween(range, range->Start(), pos->pos());
     DCHECK(UnhandledIsSorted());
     return true;

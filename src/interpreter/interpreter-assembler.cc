@@ -726,6 +726,8 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   var_index.Bind(Int32Constant(0));
 
   // Iterate over register file and write values into array.
+  // The mapping of register to array index must match that used in
+  // BytecodeGraphBuilder::VisitResumeGenerator.
   Label loop(this, &var_index), done_loop(this);
   Goto(&loop);
   Bind(&loop);

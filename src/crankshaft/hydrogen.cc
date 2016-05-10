@@ -158,6 +158,11 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
     return AbortOptimization(kTooManyParametersLocals);
   }
 
+  if (IsGeneratorFunction(info()->shared_info()->kind())) {
+    // Crankshaft does not support generators.
+    return AbortOptimization(kGenerator);
+  }
+
   if (FLAG_trace_hydrogen) {
     isolate()->GetHTracer()->TraceCompilation(info());
   }

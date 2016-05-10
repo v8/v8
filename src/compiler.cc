@@ -735,13 +735,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  // Do not use Crankshaft/TurboFan on a generator function.
-  // TODO(neis): Eventually enable for Turbofan.
-  if (IsGeneratorFunction(info->shared_info()->kind())) {
-    info->AbortOptimization(kGenerator);
-    return MaybeHandle<Code>();
-  }
-
   // Limit the number of times we try to optimize functions.
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
@@ -1250,6 +1243,12 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     Zone zone(info->isolate()->allocator());
     CompilationInfo unoptimized(info->parse_info(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
+
+    // TODO(4280): For now we do not switch generators to baseline code because
+    // there might be suspended activations stored in generator objects on the
+    // heap. We could eventually go directly to TurboFan in this case.
+    if (shared->is_generator()) return false;
+
     // TODO(4280): For now we disable switching to baseline code in the presence
     // of interpreter activations of the given function. The reasons are:
     //  1) The debugger assumes each function is either full-code or bytecode.
@@ -1260,6 +1259,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
         HasInterpreterActivations(info->isolate(), *shared)) {
       return false;
     }
+
     // If the current code has reloc info for serialization, also include
     // reloc info for serialization for the new code, so that deopt support
     // can be added without losing IC state.
