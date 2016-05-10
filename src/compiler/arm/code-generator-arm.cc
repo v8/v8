@@ -149,7 +149,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK_NOT_NULL(op);
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index());
   }
 
@@ -880,7 +880,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArmVcmpF32:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat32Register(0),
                                  i.InputFloat32Register(1));
       } else {
@@ -931,7 +931,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
     case kArmVcmpF64:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat64Register(0),
                                  i.InputFloat64Register(1));
       } else {
@@ -1211,7 +1211,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmPush:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ vpush(i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else {
@@ -1560,7 +1560,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
       if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsDoubleStackSlot()) {
+      if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
         __ str(ip, dst);
@@ -1570,27 +1570,27 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
-      DwVfpRegister dst = destination->IsDoubleRegister()
+      DwVfpRegister dst = destination->IsFPRegister()
                               ? g.ToFloat64Register(destination)
                               : kScratchDoubleReg;
       __ vmov(dst, src.ToFloat64(), kScratchReg);
-      if (destination->IsDoubleStackSlot()) {
+      if (destination->IsFPStackSlot()) {
         __ vstr(dst, g.ToMemOperand(destination));
       }
     }
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       DwVfpRegister dst = g.ToDoubleRegister(destination);
       __ Move(dst, src);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       __ vstr(src, g.ToMemOperand(destination));
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       __ vldr(g.ToDoubleRegister(destination), src);
     } else {
       DwVfpRegister temp = kScratchDoubleReg;
@@ -1634,23 +1634,23 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ vldr(temp_1, dst);
     __ str(temp_0, dst);
     __ vstr(temp_1, src);
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     DwVfpRegister temp = kScratchDoubleReg;
     DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       DwVfpRegister dst = g.ToDoubleRegister(destination);
       __ Move(temp, src);
       __ Move(src, dst);
       __ Move(dst, temp);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ Move(temp, src);
       __ vldr(src, dst);
       __ vstr(temp, dst);
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
     DwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);

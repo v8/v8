@@ -127,12 +127,12 @@ std::ostream& operator<<(std::ostream& os,
       LocationOperand allocated = LocationOperand::cast(op);
       if (op.IsStackSlot()) {
         os << "[stack:" << LocationOperand::cast(op).index();
-      } else if (op.IsDoubleStackSlot()) {
-        os << "[double_stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsFPStackSlot()) {
+        os << "[fp_stack:" << LocationOperand::cast(op).index();
       } else if (op.IsRegister()) {
         os << "[" << LocationOperand::cast(op).GetRegister().ToString() << "|R";
       } else {
-        DCHECK(op.IsDoubleRegister());
+        DCHECK(op.IsFPRegister());
         os << "[" << LocationOperand::cast(op).GetDoubleRegister().ToString()
            << "|R";
       }
@@ -335,7 +335,7 @@ std::ostream& operator<<(std::ostream& os,
 void ReferenceMap::RecordReference(const AllocatedOperand& op) {
   // Do not record arguments as pointers.
   if (op.IsStackSlot() && LocationOperand::cast(op).index() < 0) return;
-  DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());
+  DCHECK(!op.IsFPRegister() && !op.IsFPStackSlot());
   reference_operands_.push_back(op);
 }
 

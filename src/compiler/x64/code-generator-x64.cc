@@ -52,7 +52,7 @@ class X64OperandConverter : public InstructionOperandConverter {
   }
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToOperand(AllocatedOperand::cast(op)->index(), extra);
   }
 
@@ -345,31 +345,28 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                       \
   } while (0)
 
-
 #define ASSEMBLE_SSE_BINOP(asm_instr)                                   \
   do {                                                                  \
-    if (instr->InputAt(1)->IsDoubleRegister()) {                        \
+    if (instr->InputAt(1)->IsFPRegister()) {                            \
       __ asm_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
     } else {                                                            \
       __ asm_instr(i.InputDoubleRegister(0), i.InputOperand(1));        \
     }                                                                   \
   } while (0)
 
-
 #define ASSEMBLE_SSE_UNOP(asm_instr)                                    \
   do {                                                                  \
-    if (instr->InputAt(0)->IsDoubleRegister()) {                        \
+    if (instr->InputAt(0)->IsFPRegister()) {                            \
       __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0)); \
     } else {                                                            \
       __ asm_instr(i.OutputDoubleRegister(), i.InputOperand(0));        \
     }                                                                   \
   } while (0)
 
-
 #define ASSEMBLE_AVX_BINOP(asm_instr)                                  \
   do {                                                                 \
     CpuFeatureScope avx_scope(masm(), AVX);                            \
-    if (instr->InputAt(1)->IsDoubleRegister()) {                       \
+    if (instr->InputAt(1)->IsFPRegister()) {                           \
       __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0), \
                    i.InputDoubleRegister(1));                          \
     } else {                                                           \
@@ -1059,14 +1056,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat32ToInt32:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttss2si(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttss2si(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kSSEFloat32ToUint32: {
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
@@ -1157,14 +1154,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;
     case kSSEFloat64ToInt32:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttsd2si(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kSSEFloat64ToUint32: {
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
@@ -1175,7 +1172,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat32ToInt64:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
@@ -1185,7 +1182,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Label done;
         Label fail;
         __ Move(kScratchDoubleReg, static_cast<float>(INT64_MIN));
-        if (instr->InputAt(0)->IsDoubleRegister()) {
+        if (instr->InputAt(0)->IsFPRegister()) {
           __ Ucomiss(kScratchDoubleReg, i.InputDoubleRegister(0));
         } else {
           __ Ucomiss(kScratchDoubleReg, i.InputOperand(0));
@@ -1204,7 +1201,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat64ToInt64:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
       } else {
         __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
@@ -1214,7 +1211,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Label done;
         Label fail;
         __ Move(kScratchDoubleReg, static_cast<double>(INT64_MIN));
-        if (instr->InputAt(0)->IsDoubleRegister()) {
+        if (instr->InputAt(0)->IsFPRegister()) {
           __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
         } else {
           __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
@@ -1240,7 +1237,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       // There does not exist a Float32ToUint64 instruction, so we have to use
       // the Float32ToInt64 instruction.
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
@@ -1253,7 +1250,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // input value was not within the positive int64 range. We subtract 2^64
       // and convert it again to see if it is within the uint64 range.
       __ Move(kScratchDoubleReg, -9223372036854775808.0f);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ addss(kScratchDoubleReg, i.InputDoubleRegister(0));
       } else {
         __ addss(kScratchDoubleReg, i.InputOperand(0));
@@ -1283,7 +1280,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       // There does not exist a Float64ToUint64 instruction, so we have to use
       // the Float64ToInt64 instruction.
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
         __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
@@ -1296,7 +1293,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // input value was not within the positive int64 range. We subtract 2^64
       // and convert it again to see if it is within the uint64 range.
       __ Move(kScratchDoubleReg, -9223372036854775808.0);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ addsd(kScratchDoubleReg, i.InputDoubleRegister(0));
       } else {
         __ addsd(kScratchDoubleReg, i.InputOperand(0));
@@ -1381,14 +1378,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvtqsi2ss(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kSSEFloat64ExtractLowWord32:
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ movl(i.OutputRegister(), i.InputOperand(0));
       } else {
         __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kSSEFloat64ExtractHighWord32:
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ movl(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
       } else {
         __ Pextrd(i.OutputRegister(), i.InputDoubleRegister(0), 1);
@@ -1417,7 +1414,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAVXFloat32Cmp: {
       CpuFeatureScope avx_scope(masm(), AVX);
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ vucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
         __ vucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
@@ -1447,7 +1444,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAVXFloat64Cmp: {
       CpuFeatureScope avx_scope(masm(), AVX);
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ vucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
         __ vucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
@@ -1480,7 +1477,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 33);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
       } else {
@@ -1494,7 +1491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 31);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
       } else {
@@ -1508,7 +1505,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 1);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
       } else {
@@ -1522,7 +1519,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(masm(), AVX);
       __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 63);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
                   i.InputDoubleRegister(0));
       } else {
@@ -1624,14 +1621,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64BitcastFI:
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ movl(i.OutputRegister(), i.InputOperand(0));
       } else {
         __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
     case kX64BitcastDL:
-      if (instr->InputAt(0)->IsDoubleStackSlot()) {
+      if (instr->InputAt(0)->IsFPStackSlot()) {
         __ movq(i.OutputRegister(), i.InputOperand(0));
       } else {
         __ Movq(i.OutputRegister(), i.InputDoubleRegister(0));
@@ -1702,7 +1699,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (instr->InputAt(0)->IsRegister()) {
           __ pushq(i.InputRegister(0));
           frame_access_state()->IncreaseSPDelta(1);
-        } else if (instr->InputAt(0)->IsDoubleRegister()) {
+        } else if (instr->InputAt(0)->IsFPRegister()) {
           // TODO(titzer): use another machine instruction?
           __ subq(rsp, Immediate(kDoubleSize));
           frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
@@ -2192,38 +2189,38 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
       uint32_t src_const = bit_cast<uint32_t>(src.ToFloat32());
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         __ Move(g.ToDoubleRegister(destination), src_const);
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         Operand dst = g.ToOperand(destination);
         __ movl(dst, Immediate(src_const));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
       uint64_t src_const = bit_cast<uint64_t>(src.ToFloat64());
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         __ Move(g.ToDoubleRegister(destination), src_const);
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         __ movq(kScratchRegister, src_const);
         __ movq(g.ToOperand(destination), kScratchRegister);
       }
     }
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     XMMRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ Movapd(dst, src);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       Operand dst = g.ToOperand(destination);
       __ Movsd(dst, src);
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     Operand src = g.ToOperand(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ Movsd(dst, src);
     } else {
@@ -2260,8 +2257,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     dst = g.ToOperand(destination);
     __ popq(dst);
   } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
-             (source->IsDoubleStackSlot() &&
-              destination->IsDoubleStackSlot())) {
+             (source->IsFPStackSlot() && destination->IsFPStackSlot())) {
     // Memory-memory.
     Register tmp = kScratchRegister;
     Operand src = g.ToOperand(source);
@@ -2274,7 +2270,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     frame_access_state()->IncreaseSPDelta(-1);
     dst = g.ToOperand(destination);
     __ popq(dst);
-  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
+  } else if (source->IsFPRegister() && destination->IsFPRegister()) {
     // XMM register-register swap. We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = g.ToDoubleRegister(source);
@@ -2282,7 +2278,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Movapd(xmm0, src);
     __ Movapd(src, dst);
     __ Movapd(dst, xmm0);
-  } else if (source->IsDoubleRegister() && destination->IsDoubleStackSlot()) {
+  } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = g.ToDoubleRegister(source);

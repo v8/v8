@@ -80,7 +80,7 @@ bool IsOutputRegisterOf(Instruction* instr, Register reg) {
 bool IsOutputDoubleRegisterOf(Instruction* instr, DoubleRegister reg) {
   for (size_t i = 0; i < instr->OutputCount(); i++) {
     InstructionOperand* output = instr->OutputAt(i);
-    if (output->IsDoubleRegister() &&
+    if (output->IsFPRegister() &&
         LocationOperand::cast(output)->GetDoubleRegister().is(reg)) {
       return true;
     }
@@ -350,10 +350,10 @@ UsePositionHintType UsePosition::HintTypeForOperand(
     case InstructionOperand::UNALLOCATED:
       return UsePositionHintType::kUnresolved;
     case InstructionOperand::ALLOCATED:
-      if (op.IsRegister() || op.IsDoubleRegister()) {
+      if (op.IsRegister() || op.IsFPRegister()) {
         return UsePositionHintType::kOperand;
       } else {
-        DCHECK(op.IsStackSlot() || op.IsDoubleStackSlot());
+        DCHECK(op.IsStackSlot() || op.IsFPStackSlot());
         return UsePositionHintType::kNone;
       }
     case InstructionOperand::INVALID:
@@ -726,11 +726,11 @@ void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
     if (!pos->HasOperand()) continue;
     switch (pos->type()) {
       case UsePositionType::kRequiresSlot:
-        DCHECK(spill_op.IsStackSlot() || spill_op.IsDoubleStackSlot());
+        DCHECK(spill_op.IsStackSlot() || spill_op.IsFPStackSlot());
         InstructionOperand::ReplaceWith(pos->operand(), &spill_op);
         break;
       case UsePositionType::kRequiresRegister:
-        DCHECK(op.IsRegister() || op.IsDoubleRegister());
+        DCHECK(op.IsRegister() || op.IsFPRegister());
       // Fall through.
       case UsePositionType::kAny:
         InstructionOperand::ReplaceWith(pos->operand(), &op);
@@ -1949,7 +1949,7 @@ TopLevelLiveRange* LiveRangeBuilder::LiveRangeFor(InstructionOperand* operand) {
   } else if (operand->IsRegister()) {
     return FixedLiveRangeFor(
         LocationOperand::cast(operand)->GetRegister().code());
-  } else if (operand->IsDoubleRegister()) {
+  } else if (operand->IsFPRegister()) {
     return FixedDoubleLiveRangeFor(
         LocationOperand::cast(operand)->GetDoubleRegister().code());
   } else {

@@ -536,7 +536,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      if (op.IsDoubleRegister()) {
+      if (op.IsFPRegister()) {
         DoubleRegister assigned_reg = op.GetDoubleRegister();
         os_ << " \"" << assigned_reg.ToString() << "\"";
       } else {

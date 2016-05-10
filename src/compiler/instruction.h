@@ -66,9 +66,13 @@ class InstructionOperand {
 
   inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
+  inline bool IsFPRegister() const;
+  inline bool IsFloatRegister() const;
   inline bool IsDoubleRegister() const;
   inline bool IsSimd128Register() const;
   inline bool IsStackSlot() const;
+  inline bool IsFPStackSlot() const;
+  inline bool IsFloatStackSlot() const;
   inline bool IsDoubleStackSlot() const;
   inline bool IsSimd128StackSlot() const;
 
@@ -413,7 +417,7 @@ class LocationOperand : public InstructionOperand {
   }
 
   int index() const {
-    DCHECK(IsStackSlot() || IsDoubleStackSlot() || IsSimd128StackSlot());
+    DCHECK(IsStackSlot() || IsFPStackSlot());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
@@ -423,8 +427,16 @@ class LocationOperand : public InstructionOperand {
                                IndexField::kShift);
   }
 
+  FloatRegister GetFloatRegister() const {
+    DCHECK(IsFloatRegister());
+    return FloatRegister::from_code(static_cast<int64_t>(value_) >>
+                                    IndexField::kShift);
+  }
+
   DoubleRegister GetDoubleRegister() const {
-    DCHECK(IsDoubleRegister());
+    // TODO(bbudge) Tighten this test to IsDoubleRegister when all code
+    // generators are changed to use the correct Get*Register method.
+    DCHECK(IsFPRegister());
     return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
                                      IndexField::kShift);
   }
@@ -526,9 +538,21 @@ bool InstructionOperand::IsRegister() const {
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
-bool InstructionOperand::IsDoubleRegister() const {
+bool InstructionOperand::IsFPRegister() const {
   return IsAnyRegister() &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsFloatRegister() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat32;
+}
+
+bool InstructionOperand::IsDoubleRegister() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat64;
 }
 
 bool InstructionOperand::IsSimd128Register() const {
@@ -544,11 +568,27 @@ bool InstructionOperand::IsStackSlot() const {
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
-bool InstructionOperand::IsDoubleStackSlot() const {
+bool InstructionOperand::IsFPStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsFloatStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat32;
+}
+
+bool InstructionOperand::IsDoubleStackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kFloat64;
 }
 
 bool InstructionOperand::IsSimd128StackSlot() const {

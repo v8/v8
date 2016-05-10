@@ -38,7 +38,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       DCHECK(bit_cast<int32_t>(InputFloat32(index)) == 0);
       return wzr;
     }
-    DCHECK(instr_->InputAt(index)->IsDoubleRegister());
+    DCHECK(instr_->InputAt(index)->IsFPRegister());
     return InputDoubleRegister(index).S();
   }
 
@@ -233,7 +233,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op, MacroAssembler* masm) const {
     DCHECK_NOT_NULL(op);
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index(), masm);
   }
 
@@ -1087,7 +1087,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register prev = __ StackPointer();
       __ SetStackPointer(arch_opcode == kArm64PokeCSP ? csp : jssp);
       Operand operand(i.InputInt32(1) * kPointerSize);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Poke(i.InputFloat64Register(0), operand);
       } else {
         __ Poke(i.InputRegister(0), operand);
@@ -1097,7 +1097,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64PokePair: {
       int slot = i.InputInt32(2) - 1;
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
                     slot * kPointerSize);
       } else {
@@ -1137,7 +1137,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Tst(i.InputRegister32(0), i.InputOperand32(1));
       break;
     case kArm64Float32Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
@@ -1181,7 +1181,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
     case kArm64Float64Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
@@ -1765,11 +1765,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Str(dst, g.ToMemOperand(destination, masm()));
       }
     } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         FPRegister dst = g.ToDoubleRegister(destination).S();
         __ Fmov(dst, src.ToFloat32());
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         UseScratchRegisterScope scope(masm());
         FPRegister temp = scope.AcquireS();
         __ Fmov(temp, src.ToFloat32());
@@ -1777,30 +1777,30 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         FPRegister dst = g.ToDoubleRegister(destination);
         __ Fmov(dst, src.ToFloat64());
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         UseScratchRegisterScope scope(masm());
         FPRegister temp = scope.AcquireD();
         __ Fmov(temp, src.ToFloat64());
         __ Str(temp, g.ToMemOperand(destination, masm()));
       }
     }
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     FPRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(dst, src);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       __ Str(src, g.ToMemOperand(destination, masm()));
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source, masm());
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       __ Ldr(g.ToDoubleRegister(destination), src);
     } else {
       UseScratchRegisterScope scope(masm());
@@ -1836,7 +1836,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Ldr(src, dst);
       __ Str(temp, dst);
     }
-  } else if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
+  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
     UseScratchRegisterScope scope(masm());
     DoubleRegister temp_0 = scope.AcquireD();
     DoubleRegister temp_1 = scope.AcquireD();
@@ -1846,17 +1846,17 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Ldr(temp_1, dst);
     __ Str(temp_0, dst);
     __ Str(temp_1, src);
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     UseScratchRegisterScope scope(masm());
     FPRegister temp = scope.AcquireD();
     FPRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(temp, src);
       __ Fmov(src, dst);
       __ Fmov(dst, temp);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, masm());
       __ Fmov(temp, src);
       __ Ldr(src, dst);
