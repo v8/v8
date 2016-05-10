@@ -1114,10 +1114,22 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
         NewNode(op, current_context(), value);
       }
       break;
-    case VariableLocation::LOOKUP:
-      // TODO(mstarzinger): Implement this case.
-      SetStackOverflow();
+    case VariableLocation::LOOKUP: {
+      Node* name = jsgraph()->Constant(variable->name());
+      // For variables we must not push an initial value (such as 'undefined')
+      // because we may have a (legal) redeclaration and we must not destroy
+      // the current value.
+      Node* value =
+          hole_init ? jsgraph()->TheHoleConstant()
+                    : jsgraph()->ZeroConstant();  // Indicates no initial value.
+      Node* attr =
+          jsgraph()->Constant(variable->DeclarationPropertyAttributes());
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kDeclareLookupSlot);
+      Node* store = NewNode(op, name, value, attr);
+      PrepareFrameState(store, decl->proxy()->id());
       break;
+    }
   }
 }
 
@@ -1149,10 +1161,18 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       NewNode(op, current_context(), value);
       break;
     }
-    case VariableLocation::LOOKUP:
-      // TODO(mstarzinger): Implement this case.
-      SetStackOverflow();
+    case VariableLocation::LOOKUP: {
+      VisitForValue(decl->fun());
+      Node* value = environment()->Pop();
+      Node* name = jsgraph()->Constant(variable->name());
+      Node* attr =
+          jsgraph()->Constant(variable->DeclarationPropertyAttributes());
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kDeclareLookupSlot);
+      Node* store = NewNode(op, name, value, attr);
+      PrepareFrameState(store, decl->proxy()->id());
       break;
+    }
   }
 }
 
