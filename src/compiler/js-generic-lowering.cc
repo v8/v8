@@ -138,14 +138,14 @@ void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   Callable callable = CodeFactory::ToBoolean(isolate());
   node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
 }
 
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
   Callable callable = CodeFactory::Typeof(isolate());
   node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
 }
 

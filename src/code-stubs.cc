@@ -462,17 +462,6 @@ void AllocateHeapNumberStub::GenerateAssembly(
   assembler->Return(result);
 }
 
-void AllocateMutableHeapNumberStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  typedef compiler::Node Node;
-
-  Node* result = assembler->Allocate(HeapNumber::kSize);
-  assembler->StoreMapNoWriteBarrier(
-      result,
-      assembler->HeapConstant(isolate()->factory()->mutable_heap_number_map()));
-  assembler->Return(result);
-}
-
 #define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)            \
   void Allocate##Type##Stub::GenerateAssembly(CodeStubAssembler* assembler) \
       const {                                                               \
@@ -4041,11 +4030,6 @@ void AllocateHeapNumberStub::InitializeDescriptor(
       Runtime::FunctionForId(Runtime::kAllocateHeapNumber)->entry);
 }
 
-
-void AllocateMutableHeapNumberStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize();
-}
 
 #define SIMD128_INIT_DESC(TYPE, Type, type, lane_count, lane_type) \
   void Allocate##Type##Stub::InitializeDescriptor(                 \

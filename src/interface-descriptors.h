@@ -47,7 +47,6 @@ class PlatformInterfaceDescriptor;
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
-  V(AllocateMutableHeapNumber)                \
   V(AllocateFloat32x4)                        \
   V(AllocateInt32x4)                          \
   V(AllocateUint32x4)                         \
@@ -581,12 +580,6 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
   };
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
-
-class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(AllocateMutableHeapNumberDescriptor,
-                     CallInterfaceDescriptor)
-};
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:

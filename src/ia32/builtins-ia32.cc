@@ -2624,11 +2624,6 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   //  -- edx    : requested object size (untagged)
   //  -- esp[0] : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(edx, eax, ecx, edi, &runtime, NO_ALLOCATION_FLAGS);
-  __ Ret();
-
-  __ bind(&runtime);
   __ SmiTag(edx);
   __ PopReturnAddressTo(ecx);
   __ Push(edx);
@@ -2643,11 +2638,6 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   //  -- edx    : requested object size (untagged)
   //  -- esp[0] : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(edx, eax, ecx, edi, &runtime, PRETENURE);
-  __ Ret();
-
-  __ bind(&runtime);
   __ SmiTag(edx);
   __ PopReturnAddressTo(ecx);
   __ Push(edx);

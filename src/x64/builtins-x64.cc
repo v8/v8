@@ -2048,11 +2048,6 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   //  -- rdx    : requested object size (untagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(rdx, rax, rcx, rdi, &runtime, NO_ALLOCATION_FLAGS);
-  __ Ret();
-
-  __ bind(&runtime);
   __ Integer32ToSmi(rdx, rdx);
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);
@@ -2067,11 +2062,6 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   //  -- rdx    : requested object size (untagged)
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(rdx, rax, rcx, rdi, &runtime, PRETENURE);
-  __ Ret();
-
-  __ bind(&runtime);
   __ Integer32ToSmi(rdx, rdx);
   __ PopReturnAddressTo(rcx);
   __ Push(rdx);

@@ -94,7 +94,6 @@ namespace internal {
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
   V(AllocateHeapNumber)                     \
-  V(AllocateMutableHeapNumber)              \
   V(AllocateFloat32x4)                      \
   V(AllocateInt32x4)                        \
   V(AllocateUint32x4)                       \
@@ -2741,18 +2740,6 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
   DEFINE_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
-};
-
-class AllocateMutableHeapNumberStub : public TurboFanCodeStub {
- public:
-  explicit AllocateMutableHeapNumberStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateMutableHeapNumber);
-  DEFINE_CODE_STUB(AllocateMutableHeapNumber, TurboFanCodeStub);
 };
 
 #define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)     \

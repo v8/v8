@@ -194,6 +194,7 @@ config("toolchain") {
         "CAN_USE_NEON",
       ]
     }
+
     # TODO(jochen): Add support for arm_test_noprobe.
 
     if (current_cpu != "arm") {
@@ -208,6 +209,7 @@ config("toolchain") {
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
+
   # TODO(jochen): Add support for mips.
   if (v8_target_arch == "mipsel") {
     defines += [ "V8_TARGET_ARCH_MIPS" ]
@@ -239,14 +241,17 @@ config("toolchain") {
     } else if (mips_arch_variant == "r1") {
       defines += [ "FPU_MODE_FP32" ]
     }
+
     # TODO(jochen): Add support for mips_arch_variant rx and loongson.
   }
+
   # TODO(jochen): Add support for mips64.
   if (v8_target_arch == "mips64el") {
     defines += [ "V8_TARGET_ARCH_MIPS64" ]
     if (v8_can_use_fpu_instructions) {
       defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
     }
+
     # TODO(jochen): Add support for big endian host byteorder.
     defines += [ "V8_TARGET_ARCH_MIPS64_LE" ]
     if (v8_use_mips_abi_hardfloat) {
@@ -835,8 +840,6 @@ source_set("v8_base") {
     "src/compiler/bytecode-graph-builder.cc",
     "src/compiler/bytecode-graph-builder.h",
     "src/compiler/c-linkage.cc",
-    "src/compiler/change-lowering.cc",
-    "src/compiler/change-lowering.h",
     "src/compiler/coalesced-live-ranges.cc",
     "src/compiler/coalesced-live-ranges.h",
     "src/compiler/code-assembler.cc",
@@ -940,6 +943,8 @@ source_set("v8_base") {
     "src/compiler/machine-operator-reducer.h",
     "src/compiler/machine-operator.cc",
     "src/compiler/machine-operator.h",
+    "src/compiler/memory-optimizer.cc",
+    "src/compiler/memory-optimizer.h",
     "src/compiler/move-optimizer.cc",
     "src/compiler/move-optimizer.h",
     "src/compiler/node-aux-data.h",
@@ -2128,9 +2133,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
   }
 }
 
-if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
-    (current_toolchain == snapshot_toolchain && v8_toolset_for_shell == "host") ||
-    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
+if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
   executable("shell") {
     sources = [
       "samples/shell.cc",

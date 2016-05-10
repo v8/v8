@@ -6,11 +6,10 @@
 
 #include "src/ast/scopes.h"
 #include "src/compiler/access-builder.h"
-#include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/effect-control-linearizer.h"
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/memory-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/representation-change.h"
@@ -67,11 +66,8 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
     linearizer.Run();
 
-    GraphReducer reducer(this->zone(), this->graph());
-    ChangeLowering lowering(&reducer, &jsgraph);
-    reducer.AddReducer(&lowering);
-    reducer.ReduceGraph();
-    Verifier::Run(this->graph());
+    MemoryOptimizer memory_optimizer(&jsgraph, this->zone());
+    memory_optimizer.Optimize();
   }
 
   void CheckNumberCall(double expected, double input) {
@@ -753,11 +749,8 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     EffectControlLinearizer linearizer(&jsgraph, schedule, this->zone());
     linearizer.Run();
 
-    GraphReducer reducer(this->zone(), this->graph());
-    ChangeLowering lowering(&reducer, &jsgraph);
-    reducer.AddReducer(&lowering);
-    reducer.ReduceGraph();
-    Verifier::Run(this->graph());
+    MemoryOptimizer memory_optimizer(&jsgraph, this->zone());
+    memory_optimizer.Optimize();
   }
 
   // Inserts the node as the return value of the graph.

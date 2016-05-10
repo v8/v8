@@ -130,7 +130,6 @@ class CodeFactory final {
   static Callable FastNewStrictArguments(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
-  static Callable AllocateMutableHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
   static Callable Allocate##Type(Isolate* isolate);
   SIMD128_TYPES(SIMD128_ALLOC)

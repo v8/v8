@@ -14,7 +14,6 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
-#include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
@@ -46,6 +45,7 @@
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
 #include "src/compiler/machine-operator-reducer.h"
+#include "src/compiler/memory-optimizer.h"
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -1019,6 +1019,15 @@ struct EffectControlLinearizationPhase {
   }
 };
 
+struct MemoryOptimizationPhase {
+  static const char* phase_name() { return "memory optimization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    MemoryOptimizer optimizer(data->jsgraph(), temp_zone);
+    optimizer.Optimize();
+  }
+};
+
 struct LateOptimizationPhase {
   static const char* phase_name() { return "late optimization"; }
 
@@ -1027,7 +1036,6 @@ struct LateOptimizationPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(temp_zone);
-    ChangeLowering lowering(&graph_reducer, data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
@@ -1036,7 +1044,6 @@ struct LateOptimizationPhase {
     TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &value_numbering);
-    AddReducer(data, &graph_reducer, &lowering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
@@ -1457,6 +1464,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<ControlFlowOptimizationPhase>();
     RunPrintAndVerify("Control flow optimized", true);
   }
+
+  // Optimize memory access and allocation operations.
+  Run<MemoryOptimizationPhase>();
+  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+  RunPrintAndVerify("Memory optimized", true);
 
   // Lower changes that have been inserted before.
   Run<LateOptimizationPhase>();

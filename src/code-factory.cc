@@ -499,13 +499,6 @@ Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
-
-// static
-Callable CodeFactory::AllocateMutableHeapNumber(Isolate* isolate) {
-  AllocateMutableHeapNumberStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type)          \
   Callable CodeFactory::Allocate##Type(Isolate* isolate) {              \
     Allocate##Type##Stub stub(isolate);                                 \

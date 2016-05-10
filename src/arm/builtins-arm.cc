@@ -2667,11 +2667,6 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   //  -- r1 : requested object size (untagged)
   //  -- lr : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(r1, r0, r2, r3, &runtime, NO_ALLOCATION_FLAGS);
-  __ Ret();
-
-  __ bind(&runtime);
   __ SmiTag(r1);
   __ Push(r1);
   __ Move(cp, Smi::FromInt(0));
@@ -2684,11 +2679,6 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   //  -- r1 : requested object size (untagged)
   //  -- lr : return address
   // -----------------------------------
-  Label runtime;
-  __ Allocate(r1, r0, r2, r3, &runtime, PRETENURE);
-  __ Ret();
-
-  __ bind(&runtime);
   __ SmiTag(r1);
   __ Move(r2, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(r1, r2);

@@ -312,19 +312,21 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
               !FLAG_unbox_double_fields) {
             if (access_info.HasTransitionMap()) {
               // Allocate a MutableHeapNumber for the new property.
-              Callable callable =
-                  CodeFactory::AllocateMutableHeapNumber(isolate());
-              CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-                  isolate(), jsgraph()->zone(), callable.descriptor(), 0,
-                  CallDescriptor::kNoFlags, Operator::kNoThrow);
-              Node* this_box = this_effect = graph()->NewNode(
-                  common()->Call(desc),
-                  jsgraph()->HeapConstant(callable.code()),
-                  jsgraph()->NoContextConstant(), this_effect, this_control);
+              this_effect =
+                  graph()->NewNode(common()->BeginRegion(), this_effect);
+              Node* this_box = this_effect =
+                  graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                                   jsgraph()->Constant(HeapNumber::kSize),
+                                   this_effect, this_control);
+              this_effect = graph()->NewNode(
+                  simplified()->StoreField(AccessBuilder::ForMap()), this_box,
+                  jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
+                  this_effect, this_control);
               this_effect = graph()->NewNode(
                   simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
                   this_box, this_value, this_effect, this_control);
-              this_value = this_box;
+              this_value = this_effect = graph()->NewNode(
+                  common()->FinishRegion(), this_box, this_effect);
 
               field_access.type = Type::TaggedPointer();
             } else {

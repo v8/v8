@@ -2473,7 +2473,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // Keep the linear allocation area empty if requested to do so, just
     // return area back to the free list instead.
     owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    DCHECK(owner_->top() == NULL && owner_->limit() == NULL);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + size_in_bytes);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
              FLAG_incremental_marking) {
@@ -2485,7 +2486,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
                  new_node_size - size_in_bytes - linear_size);
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + size_in_bytes + linear_size);
-  } else if (bytes_left > 0) {
+  } else if (bytes_left >= 0) {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
