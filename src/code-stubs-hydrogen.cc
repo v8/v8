@@ -443,7 +443,7 @@ HValue* CodeStubGraphBuilder<FastCloneRegExpStub>::BuildCodeStub() {
         JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
     HValue* result =
         Add<HAllocate>(Add<HConstant>(result_size), HType::JSObject(),
-                       NOT_TENURED, JS_REGEXP_TYPE);
+                       NOT_TENURED, JS_REGEXP_TYPE, graph()->GetConstant0());
     Add<HStoreNamedField>(
         result, HObjectAccess::ForMap(),
         Add<HLoadNamedField>(boilerplate, nullptr, HObjectAccess::ForMap()));
@@ -556,8 +556,9 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   info()->MarkMustNotHaveEagerFrame();
 
   HValue* size = Add<HConstant>(AllocationSite::kSize);
-  HInstruction* object = Add<HAllocate>(size, HType::JSObject(), TENURED,
-      JS_OBJECT_TYPE);
+  HInstruction* object =
+      Add<HAllocate>(size, HType::JSObject(), TENURED, JS_OBJECT_TYPE,
+                     graph()->GetConstant0());
 
   // Store the map
   Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
@@ -635,7 +636,8 @@ HValue* CodeStubGraphBuilder<CreateWeakCellStub>::BuildCodeStub() {
 
   HValue* size = Add<HConstant>(WeakCell::kSize);
   HInstruction* object =
-      Add<HAllocate>(size, HType::JSObject(), TENURED, JS_OBJECT_TYPE);
+      Add<HAllocate>(size, HType::JSObject(), TENURED, JS_OBJECT_TYPE,
+                     graph()->GetConstant0());
 
   Handle<Map> weak_cell_map = isolate()->factory()->weak_cell_map();
   AddStoreMapConstant(object, weak_cell_map);
@@ -1167,7 +1169,7 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
         // TODO(hpayer): Allocation site pretenuring support.
         HInstruction* heap_number =
             Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
-                           MUTABLE_HEAP_NUMBER_TYPE);
+                           MUTABLE_HEAP_NUMBER_TYPE, graph()->GetConstant0());
         AddStoreMapConstant(heap_number,
                             isolate()->factory()->mutable_heap_number_map());
         Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
@@ -1379,7 +1381,6 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
       ? JSArrayBuilder::FILL_WITH_HOLE
       : JSArrayBuilder::DONT_FILL_WITH_HOLE;
   HValue* new_object = array_builder->AllocateArray(checked_length,
-                                                    max_alloc_length,
                                                     checked_length,
                                                     fill_mode);
   HValue* elements = array_builder->GetElementsLocation();
@@ -1896,7 +1897,8 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   // Create a new closure from the given function info in new space
   HValue* size = Add<HConstant>(JSFunction::kSize);
   HInstruction* js_function =
-      Add<HAllocate>(size, HType::JSObject(), NOT_TENURED, JS_FUNCTION_TYPE);
+      Add<HAllocate>(size, HType::JSObject(), NOT_TENURED, JS_FUNCTION_TYPE,
+                     graph()->GetConstant0());
 
   int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
                                             casted_stub()->kind());
@@ -1949,7 +1951,8 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
   // Allocate the context in new space.
   HAllocate* function_context = Add<HAllocate>(
       Add<HConstant>(length * kPointerSize + FixedArray::kHeaderSize),
-      HType::HeapObject(), NOT_TENURED, FIXED_ARRAY_TYPE);
+      HType::HeapObject(), NOT_TENURED, FIXED_ARRAY_TYPE,
+      graph()->GetConstant0());
 
   // Set up the object header.
   AddStoreMapConstant(function_context,

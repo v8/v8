@@ -2486,7 +2486,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
                  new_node_size - size_in_bytes - linear_size);
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + size_in_bytes + linear_size);
-  } else if (bytes_left >= 0) {
+  } else {
+    DCHECK(bytes_left >= 0);
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,

@@ -2408,14 +2408,19 @@ LInstruction* LChunkBuilder::DoStringCharFromCode(HStringCharFromCode* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
-  info()->MarkAsDeferredCalling();
-  LOperand* context = UseAny(instr->context());
-  LOperand* size = instr->size()->IsConstant()
-      ? UseConstant(instr->size())
-      : UseTempRegister(instr->size());
-  LOperand* temp = TempRegister();
-  LAllocate* result = new(zone()) LAllocate(context, size, temp);
-  return AssignPointerMap(DefineAsRegister(result));
+  LOperand* size = instr->size()->IsConstant() ? UseConstant(instr->size())
+                                               : UseRegister(instr->size());
+  if (instr->IsAllocationFolded()) {
+    LOperand* temp = TempRegister();
+    LFastAllocate* result = new (zone()) LFastAllocate(size, temp);
+    return DefineAsRegister(result);
+  } else {
+    info()->MarkAsDeferredCalling();
+    LOperand* context = UseAny(instr->context());
+    LOperand* temp = TempRegister();
+    LAllocate* result = new (zone()) LAllocate(context, size, temp);
+    return AssignPointerMap(DefineAsRegister(result));
+  }
 }
 
 

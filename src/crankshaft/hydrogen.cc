@@ -2040,7 +2040,7 @@ HValue* HGraphBuilder::BuildCreateIterResultObject(HValue* value,
   // Allocate the JSIteratorResult object.
   HValue* result =
       Add<HAllocate>(Add<HConstant>(JSIteratorResult::kSize), HType::JSObject(),
-                     NOT_TENURED, JS_OBJECT_TYPE);
+                     NOT_TENURED, JS_OBJECT_TYPE, graph()->GetConstant0());
 
   // Initialize the JSIteratorResult object.
   HValue* native_context = BuildGetNativeContext();
@@ -2077,9 +2077,9 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
   HValue* size = BuildCalculateElementsSize(elements_kind, length);
 
   // Allocate the JSRegExpResult and the FixedArray in one step.
-  HValue* result = Add<HAllocate>(
-      Add<HConstant>(JSRegExpResult::kSize), HType::JSArray(),
-      NOT_TENURED, JS_ARRAY_TYPE);
+  HValue* result =
+      Add<HAllocate>(Add<HConstant>(JSRegExpResult::kSize), HType::JSArray(),
+                     NOT_TENURED, JS_ARRAY_TYPE, graph()->GetConstant0());
 
   // Initialize the JSRegExpResult header.
   HValue* native_context = Add<HLoadNamedField>(
@@ -2112,12 +2112,6 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
   // Allocate and initialize the elements header.
   HAllocate* elements = BuildAllocateElements(elements_kind, size);
   BuildInitializeElementsHeader(elements, elements_kind, length);
-
-  if (!elements->has_size_upper_bound()) {
-    HConstant* size_in_bytes_upper_bound = EstablishElementsAllocationSize(
-        elements_kind, max_length->Integer32Value());
-    elements->set_size_upper_bound(size_in_bytes_upper_bound);
-  }
 
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
@@ -2394,8 +2388,8 @@ HAllocate* HGraphBuilder::BuildAllocate(
 
   // Perform the actual allocation.
   HAllocate* object = Add<HAllocate>(
-      size, type, allocation_mode.GetPretenureMode(),
-      instance_type, allocation_mode.feedback_site());
+      size, type, allocation_mode.GetPretenureMode(), instance_type,
+      graph()->GetConstant0(), allocation_mode.feedback_site());
 
   // Setup the allocation memento.
   if (allocation_mode.CreateAllocationMementos()) {
@@ -2890,7 +2884,6 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
       return array_builder->AllocateEmptyArray();
     } else {
       return array_builder->AllocateArray(length_argument,
-                                          array_length,
                                           length_argument);
     }
   }
@@ -2923,7 +2916,7 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
   // Figure out total size
   HValue* length = Pop();
   HValue* capacity = Pop();
-  return array_builder->AllocateArray(capacity, max_alloc_length, length);
+  return array_builder->AllocateArray(capacity, length);
 }
 
 
@@ -2955,8 +2948,8 @@ HAllocate* HGraphBuilder::AllocateJSArrayObject(AllocationSiteMode mode) {
     base_size += AllocationMemento::kSize;
   }
   HConstant* size_in_bytes = Add<HConstant>(base_size);
-  return Add<HAllocate>(
-      size_in_bytes, HType::JSArray(), NOT_TENURED, JS_OBJECT_TYPE);
+  return Add<HAllocate>(size_in_bytes, HType::JSArray(), NOT_TENURED,
+                        JS_OBJECT_TYPE, graph()->GetConstant0());
 }
 
 
@@ -2978,7 +2971,7 @@ HAllocate* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
       : FIXED_ARRAY_TYPE;
 
   return Add<HAllocate>(size_in_bytes, HType::HeapObject(), NOT_TENURED,
-                        instance_type);
+                        instance_type, graph()->GetConstant0());
 }
 
 
@@ -3366,14 +3359,6 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
 
   HAllocate* elements = BuildAllocateElements(kind, elements_size);
 
-  // This function implicitly relies on the fact that the
-  // FastCloneShallowArrayStub is called only for literals shorter than
-  // JSArray::kInitialMaxFastElementArray.
-  // Can't add HBoundsCheck here because otherwise the stub will eager a frame.
-  HConstant* size_upper_bound = EstablishElementsAllocationSize(
-      kind, JSArray::kInitialMaxFastElementArray);
-  elements->set_size_upper_bound(size_upper_bound);
-
   Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(), elements);
 
   // The allocation for the cloned array above causes register pressure on
@@ -3613,37 +3598,7 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
 HAllocate* HGraphBuilder::JSArrayBuilder::AllocateEmptyArray() {
   HConstant* capacity = builder()->Add<HConstant>(initial_capacity());
   return AllocateArray(capacity,
-                       capacity,
                        builder()->graph()->GetConstant0());
-}
-
-
-HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
-    HValue* capacity,
-    HConstant* capacity_upper_bound,
-    HValue* length_field,
-    FillMode fill_mode) {
-  return AllocateArray(capacity,
-                       capacity_upper_bound->GetInteger32Constant(),
-                       length_field,
-                       fill_mode);
-}
-
-
-HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
-    HValue* capacity,
-    int capacity_upper_bound,
-    HValue* length_field,
-    FillMode fill_mode) {
-  HConstant* elememts_size_upper_bound = capacity->IsInteger32Constant()
-      ? HConstant::cast(capacity)
-      : builder()->EstablishElementsAllocationSize(kind_, capacity_upper_bound);
-
-  HAllocate* array = AllocateArray(capacity, length_field, fill_mode);
-  if (!elements_location_->has_size_upper_bound()) {
-    elements_location_->set_size_upper_bound(elememts_size_upper_bound);
-  }
-  return array;
 }
 
 
@@ -6369,10 +6324,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
 
       // TODO(hpayer): Allocation site pretenuring support.
-      HInstruction* heap_number = Add<HAllocate>(heap_number_size,
-          HType::HeapObject(),
-          NOT_TENURED,
-          MUTABLE_HEAP_NUMBER_TYPE);
+      HInstruction* heap_number =
+          Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
+                         MUTABLE_HEAP_NUMBER_TYPE, graph()->GetConstant0());
       AddStoreMapConstant(
           heap_number, isolate()->factory()->mutable_heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
@@ -10397,7 +10351,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
   length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   HValue* elements = Add<HAllocate>(
       Add<HConstant>(FixedTypedArrayBase::kHeaderSize), HType::HeapObject(),
-      NOT_TENURED, external_array_map->instance_type());
+      NOT_TENURED, external_array_map->instance_type(),
+      graph()->GetConstant0());
 
   AddStoreMapConstant(elements, external_array_map);
   Add<HStoreNamedField>(elements,
@@ -10453,9 +10408,9 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
   Handle<Map> fixed_typed_array_map(
       isolate()->heap()->MapForFixedTypedArray(array_type));
-  HAllocate* elements =
-      Add<HAllocate>(total_size, HType::HeapObject(), NOT_TENURED,
-                     fixed_typed_array_map->instance_type());
+  HAllocate* elements = Add<HAllocate>(
+      total_size, HType::HeapObject(), NOT_TENURED,
+      fixed_typed_array_map->instance_type(), graph()->GetConstant0());
 
 #ifndef V8_HOST_ARCH_64_BIT
   if (array_type == kExternalFloat64Array) {
@@ -12032,8 +11987,9 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   }
   top_info()->dependencies()->AssumeTransitionStable(current_site);
 
-  HInstruction* object = Add<HAllocate>(
-      object_size_constant, type, pretenure_flag, instance_type, top_site);
+  HInstruction* object =
+      Add<HAllocate>(object_size_constant, type, pretenure_flag, instance_type,
+                     graph()->GetConstant0(), top_site);
 
   // If allocation folding reaches Page::kMaxRegularHeapObjectSize the
   // elements array may not get folded into the object. Hence, we set the
@@ -12074,7 +12030,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
     InstanceType instance_type = boilerplate_object->HasFastDoubleElements()
         ? FIXED_DOUBLE_ARRAY_TYPE : FIXED_ARRAY_TYPE;
     object_elements = Add<HAllocate>(object_elements_size, HType::HeapObject(),
-                                     pretenure_flag, instance_type, top_site);
+                                     pretenure_flag, instance_type,
+                                     graph()->GetConstant0(), top_site);
     BuildEmitElements(boilerplate_object, elements, object_elements,
                       site_context);
     Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
@@ -12175,9 +12132,9 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
       if (representation.IsDouble()) {
         // Allocate a HeapNumber box and store the value into it.
         HValue* heap_number_constant = Add<HConstant>(HeapNumber::kSize);
-        HInstruction* double_box =
-            Add<HAllocate>(heap_number_constant, HType::HeapObject(),
-                pretenure_flag, MUTABLE_HEAP_NUMBER_TYPE);
+        HInstruction* double_box = Add<HAllocate>(
+            heap_number_constant, HType::HeapObject(), pretenure_flag,
+            MUTABLE_HEAP_NUMBER_TYPE, graph()->GetConstant0());
         AddStoreMapConstant(double_box,
             isolate()->factory()->mutable_heap_number_map());
         // Unwrap the mutable heap number from the boilerplate.
@@ -12991,7 +12948,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateOrderedHashTable() {
   // Allocate the table and add the proper map.
   HValue* table =
       Add<HAllocate>(Add<HConstant>(kSizeInBytes), HType::HeapObject(),
-                     NOT_TENURED, FIXED_ARRAY_TYPE);
+                     NOT_TENURED, FIXED_ARRAY_TYPE, graph()->GetConstant0());
   AddStoreMapConstant(table, isolate()->factory()->ordered_hash_table_map());
 
   // Initialize the FixedArray...
