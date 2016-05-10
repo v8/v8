@@ -194,25 +194,36 @@ class ParserBase : public Traits {
   class TailCallExpressionList {
    public:
     explicit TailCallExpressionList(Zone* zone)
-        : zone_(zone), expressions_(0, zone) {}
+        : zone_(zone), expressions_(0, zone), has_explicit_tail_calls_(false) {}
 
     const ZoneList<ExpressionT>& expressions() const { return expressions_; }
     const Scanner::Location& location() const { return loc_; }
 
-    bool is_empty() const { return expressions_.is_empty(); }
+    bool has_explicit_tail_calls() const { return has_explicit_tail_calls_; }
 
     void Swap(TailCallExpressionList& other) {
       expressions_.Swap(&other.expressions_);
       std::swap(loc_, other.loc_);
+      std::swap(has_explicit_tail_calls_, other.has_explicit_tail_calls_);
     }
 
-    void Add(ExpressionT expr, const Scanner::Location& loc) {
-      if (expressions_.is_empty()) loc_ = loc;
+    void AddImplicitTailCall(ExpressionT expr) {
+      expressions_.Add(expr, zone_);
+    }
+
+    void AddExplicitTailCall(ExpressionT expr, const Scanner::Location& loc) {
+      if (!has_explicit_tail_calls()) {
+        loc_ = loc;
+        has_explicit_tail_calls_ = true;
+      }
       expressions_.Add(expr, zone_);
     }
 
     void Append(const TailCallExpressionList& other) {
-      if (expressions_.is_empty()) loc_ = other.loc_;
+      if (!has_explicit_tail_calls()) {
+        loc_ = other.loc_;
+        has_explicit_tail_calls_ = other.has_explicit_tail_calls_;
+      }
       expressions_.AddAll(other.expressions_, zone_);
     }
 
@@ -220,6 +231,7 @@ class ParserBase : public Traits {
     Zone* zone_;
     ZoneList<ExpressionT> expressions_;
     Scanner::Location loc_;
+    bool has_explicit_tail_calls_;
   };
 
   // Defines whether tail call expressions are allowed or not.
@@ -297,15 +309,18 @@ class ParserBase : public Traits {
     TailCallExpressionList& tail_call_expressions() {
       return tail_call_expressions_;
     }
-    void AddExpressionInTailPosition(ExpressionT expression,
-                                     const Scanner::Location& loc) {
-      // If only FLAG_harmony_explicit_tailcalls is enabled then expression
-      // must be a Call expression.
-      DCHECK(FLAG_harmony_tailcalls || !FLAG_harmony_explicit_tailcalls ||
-             expression->IsCall());
+    void AddImplicitTailCallExpression(ExpressionT expression) {
       if (return_expr_context() ==
           ReturnExprContext::kInsideValidReturnStatement) {
-        tail_call_expressions_.Add(expression, loc);
+        tail_call_expressions_.AddImplicitTailCall(expression);
+      }
+    }
+    void AddExplicitTailCallExpression(ExpressionT expression,
+                                       const Scanner::Location& loc) {
+      DCHECK(expression->IsCall());
+      if (return_expr_context() ==
+          ReturnExprContext::kInsideValidReturnStatement) {
+        tail_call_expressions_.AddExplicitTailCall(expression, loc);
       }
     }
 
@@ -2269,7 +2284,7 @@ ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
   }
   classifier->RecordTailCallExpressionError(
       loc, MessageTemplate::kUnexpectedTailCall);
-  function_state_->AddExpressionInTailPosition(expression, loc);
+  function_state_->AddExplicitTailCallExpression(expression, loc);
   return expression;
 }
 

@@ -2657,8 +2657,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 
       if (allow_tailcalls() && !is_sloppy(language_mode())) {
         // ES6 14.6.1 Static Semantics: IsInTailPosition
-        Scanner::Location loc(pos, pos + 1);
-        function_state_->AddExpressionInTailPosition(return_value, loc);
+        function_state_->AddImplicitTailCallExpression(return_value);
       }
     }
   }
@@ -2989,7 +2988,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
                                              catch_variable, catch_block, pos);
   } else {
     if (FLAG_harmony_explicit_tailcalls &&
-        !tail_call_expressions_in_catch_block.is_empty()) {
+        tail_call_expressions_in_catch_block.has_explicit_tail_calls()) {
       // TODO(ishell): update chapter number.
       // ES8 XX.YY.ZZ
       ReportMessageAt(tail_call_expressions_in_catch_block.location(),

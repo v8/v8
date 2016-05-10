@@ -1015,7 +1015,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Consume(Token::FINALLY);
     ParseBlock(CHECK_OK);
     if (FLAG_harmony_explicit_tailcalls && catch_block_exists &&
-        !tail_call_expressions_in_catch_block.is_empty()) {
+        tail_call_expressions_in_catch_block.has_explicit_tail_calls()) {
       // TODO(ishell): update chapter number.
       // ES8 XX.YY.ZZ
       ReportMessageAt(tail_call_expressions_in_catch_block.location(),
