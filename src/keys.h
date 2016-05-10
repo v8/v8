@@ -50,8 +50,6 @@ class KeyAccumulator final BASE_EMBEDDED {
   bool AddKey(Handle<Object> key, AddKeyConversion convert);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
   void AddKeys(Handle<JSObject> array, AddKeyConversion convert);
-  void AddKeysFromProxy(Handle<JSObject> array);
-  Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
 
   // Jump to the next level, pushing the current |levelLength_| to
@@ -65,10 +63,16 @@ class KeyAccumulator final BASE_EMBEDDED {
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
 
  private:
-  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
-                                    Handle<JSProxy> proxy);
   Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
                              Handle<JSObject> object);
+  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
+                                    Handle<JSProxy> proxy);
+  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
+                                          Handle<JSReceiver> target);
+
+  Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
+                                 Handle<FixedArray> keys);
+
   bool AddIntegerKey(uint32_t key);
   bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
   bool AddSymbolKey(Handle<Object> array);
