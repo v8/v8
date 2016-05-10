@@ -558,11 +558,11 @@ BUILTIN(ArraySlice) {
   if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
     JSArray* array = JSArray::cast(*receiver);
-    if (!array->HasFastElements() ||
-        !IsJSArrayFastElementMovingAllowed(isolate, array) ||
-        !isolate->IsArraySpeciesLookupChainIntact() ||
-        // If this is a subclass of Array, then call out to JS
-        !array->HasArrayPrototype(isolate)) {
+    if (V8_UNLIKELY(!array->HasFastElements() ||
+                    !IsJSArrayFastElementMovingAllowed(isolate, array) ||
+                    !isolate->IsArraySpeciesLookupChainIntact() ||
+                    // If this is a subclass of Array, then call out to JS
+                    !array->HasArrayPrototype(isolate))) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
@@ -621,11 +621,12 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
-      // If this is a subclass of Array, then call out to JS.
-      !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
-      // If anything with @@species has been messed with, call out to JS.
-      !isolate->IsArraySpeciesLookupChainIntact()) {
+  if (V8_UNLIKELY(
+          !EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
+          // If this is a subclass of Array, then call out to JS.
+          !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
+          // If anything with @@species has been messed with, call out to JS.
+          !isolate->IsArraySpeciesLookupChainIntact())) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -1491,12 +1492,21 @@ BUILTIN(ArrayConcat) {
 
   Handle<JSArray> result_array;
 
+  // Avoid a real species read to avoid extra lookups to the array constructor
+  if (V8_LIKELY(receiver->IsJSArray() &&
+                Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
+                isolate->IsArraySpeciesLookupChainIntact())) {
+    if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
+      return *result_array;
+    }
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  }
   // Reading @@species happens before anything else with a side effect, so
   // we can do it here to determine whether to take the fast path.
   Handle<Object> species;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
-  if (*species == isolate->context()->native_context()->array_function()) {
+  if (*species == *isolate->array_function()) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
