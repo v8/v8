@@ -1626,8 +1626,6 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  array_buffer_tracker()->PrepareDiscoveryInNewSpace();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();

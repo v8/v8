@@ -142,6 +142,14 @@ static inline void SimulateIncrementalMarking(i::Heap* heap,
   CHECK(marking->IsComplete());
 }
 
+static inline void AbandonCurrentlyFreeMemory(PagedSpace* space) {
+  space->EmptyAllocationInfo();
+  PageIterator pit(space);
+  while (pit.has_next()) {
+    pit.next()->MarkNeverAllocateForTesting();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

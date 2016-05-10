@@ -19,10 +19,13 @@ class JSArrayBuffer;
 
 class ArrayBufferTracker {
  public:
+  typedef void* Key;
+
+  enum CallbackResult { kKeepEntry, kRemoveEntry };
+  enum ListType { kNewSpace, kOldSpace };
+
   explicit ArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~ArrayBufferTracker();
-
-  inline Heap* heap() { return heap_; }
 
   // The following methods are used to track raw C++ pointers to externally
   // allocated memory used as backing store in live array buffers.
@@ -40,36 +43,58 @@ class ArrayBufferTracker {
   // marking or scavenge phase.
   void FreeDead(bool from_scavenge);
 
-  // Prepare for a new scavenge phase. A new marking phase is implicitly
-  // prepared by finishing the previous one.
-  void PrepareDiscoveryInNewSpace();
+  // Update methods used to update the tracking state of given ArrayBuffers.
+  void Promote(JSArrayBuffer* new_buffer, JSArrayBuffer* old_buffer);
+  void SemiSpaceCopy(JSArrayBuffer* new_buffer, JSArrayBuffer* old_buffer);
+  void Compact(JSArrayBuffer* new_buffer, JSArrayBuffer* old_buffer);
 
-  // An ArrayBuffer moved from new space to old space.
-  void Promote(JSArrayBuffer* buffer);
+  // Callback should be of type:
+  //   CallbackResult fn(Key);
+  template <typename Callback>
+  void IterateNotYetDiscoveredEntries(ListType list, Key from, Key to,
+                                      Callback callback) {
+    TrackingMap::iterator it =
+        list == kNewSpace ? not_yet_discovered_young_gen_.lower_bound(from)
+                          : not_yet_discovered_old_gen_.lower_bound(from);
+    const TrackingMap::iterator end =
+        list == kNewSpace ? not_yet_discovered_young_gen_.upper_bound(to)
+                          : not_yet_discovered_old_gen_.upper_bound(to);
+    {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      while (it != end) {
+        if (callback(it->first) == kKeepEntry) {
+          ++it;
+        } else {
+          live_old_gen_.erase(it++);
+        }
+      }
+    }
+  }
+
+  bool IsTrackedInOldGenForTesting(JSArrayBuffer* buffer);
+  bool IsTrackedInYoungGenForTesting(JSArrayBuffer* buffer);
 
  private:
+  typedef std::map<Key, std::pair<void*, size_t>> TrackingMap;
+
+  inline Heap* heap() { return heap_; }
+
   base::Mutex mutex_;
   Heap* heap_;
 
-  // |live_array_buffers_| maps externally allocated memory used as backing
-  // store for ArrayBuffers to the length of the respective memory blocks.
-  //
-  // At the beginning of mark/compact, |not_yet_discovered_array_buffers_| is
-  // a copy of |live_array_buffers_| and we remove pointers as we discover live
-  // ArrayBuffer objects during marking. At the end of mark/compact, the
-  // remaining memory blocks can be freed.
-  std::map<void*, size_t> live_array_buffers_;
-  std::map<void*, size_t> not_yet_discovered_array_buffers_;
-
-  // To be able to free memory held by ArrayBuffers during scavenge as well, we
-  // have a separate list of allocated memory held by ArrayBuffers in new space.
-  //
-  // Since mark/compact also evacuates the new space, all pointers in the
-  // |live_array_buffers_for_scavenge_| list are also in the
-  // |live_array_buffers_| list.
-  std::map<void*, size_t> live_array_buffers_for_scavenge_;
-  std::map<void*, size_t> not_yet_discovered_array_buffers_for_scavenge_;
+  // |live_*| maps tracked JSArrayBuffers to the internally allocated backing
+  // store and length.
+  // For each GC round (Scavenger, or incremental/full MC)
+  // |not_yet_discovered_*| is initialized as a copy of |live_*|. Upon finding
+  // a JSArrayBuffer during GC, the buffer is removed from
+  // |not_yet_discovered_*|. At the end of a GC, we free up the remaining
+  // JSArrayBuffers in |not_yet_discovered_*|.
+  TrackingMap live_old_gen_;
+  TrackingMap not_yet_discovered_old_gen_;
+  TrackingMap live_young_gen_;
+  TrackingMap not_yet_discovered_young_gen_;
 };
+
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_HEAP_ARRAY_BUFFER_TRACKER_H_

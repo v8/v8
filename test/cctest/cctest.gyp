@@ -100,6 +100,7 @@
         'gay-shortest.cc',
         'heap/heap-tester.h',
         'heap/test-alloc.cc',
+        'heap/test-array-buffer-tracker.cc',
         'heap/test-compaction.cc',
         'heap/test-heap.cc',
         'heap/test-incremental-marking.cc',

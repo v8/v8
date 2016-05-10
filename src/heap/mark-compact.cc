@@ -1675,7 +1675,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
       // If we end up needing more special cases, we should factor this out.
       if (V8_UNLIKELY(target_object->IsJSArrayBuffer())) {
         heap_->array_buffer_tracker()->Promote(
-            JSArrayBuffer::cast(target_object));
+            JSArrayBuffer::cast(target_object),
+            reinterpret_cast<JSArrayBuffer*>(object));
       }
       promoted_size_ += size;
       return true;
@@ -1684,7 +1685,9 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     AllocationSpace space = AllocateTargetObject(object, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
     if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-      heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
+      heap_->array_buffer_tracker()->SemiSpaceCopy(
+          JSArrayBuffer::cast(target),
+          reinterpret_cast<JSArrayBuffer*>(object));
     }
     semispace_copied_size_ += size;
     return true;
@@ -1811,7 +1814,7 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
   inline bool Visit(HeapObject* object) {
     if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
       object->GetHeap()->array_buffer_tracker()->Promote(
-          JSArrayBuffer::cast(object));
+          JSArrayBuffer::cast(object), JSArrayBuffer::cast(object));
     }
     RecordMigratedSlotVisitor visitor;
     object->IterateBodyFast(&visitor);
@@ -1838,7 +1841,15 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
     HeapObject* target_object = nullptr;
     if (TryEvacuateObject(target_space, object, &target_object)) {
       DCHECK(object->map_word().IsForwardingAddress());
+      if (V8_UNLIKELY(target_object->IsJSArrayBuffer())) {
+        heap_->array_buffer_tracker()->Compact(
+            JSArrayBuffer::cast(target_object),
+            reinterpret_cast<JSArrayBuffer*>(object));
+      }
       return true;
+    }
+    if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
+      heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
     }
     return false;
   }
