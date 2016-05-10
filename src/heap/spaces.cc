@@ -880,7 +880,9 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
-  CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE);
+  if (!CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE)) {
+    return nullptr;
+  }
   base::VirtualMemory reservation(start, size);
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
                           NOT_EXECUTABLE, owner, &reservation);
