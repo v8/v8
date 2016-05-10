@@ -2234,6 +2234,12 @@ ParserBase<Traits>::ParseTailCallExpression(ExpressionClassifier* classifier,
     *ok = false;
     return Traits::EmptyExpression();
   }
+  if (Traits::IsDirectEvalCall(expression)) {
+    Scanner::Location sub_loc(sub_expression_pos, loc.end_pos);
+    ReportMessageAt(sub_loc, MessageTemplate::kUnexpectedTailCallOfEval);
+    *ok = false;
+    return Traits::EmptyExpression();
+  }
   if (!is_strict(language_mode())) {
     ReportMessageAt(loc, MessageTemplate::kUnexpectedSloppyTailCall);
     *ok = false;

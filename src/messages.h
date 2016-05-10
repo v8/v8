@@ -454,6 +454,7 @@ class CallSite {
     "Tail call expression in catch block when finally block is also present")  \
   T(UnexpectedTailCallInForInOf, "Tail call expression in for-in/of body")     \
   T(UnexpectedTailCallInTryBlock, "Tail call expression in try block")         \
+  T(UnexpectedTailCallOfEval, "Tail call of a direct eval is not allowed")     \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
   T(UnexpectedToken, "Unexpected token %")                                     \
   T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \

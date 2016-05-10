@@ -175,6 +175,12 @@ class PreParserExpression {
                                ExpressionTypeField::encode(kCallExpression));
   }
 
+  static PreParserExpression CallEval() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kCallEvalExpression));
+  }
+
   static PreParserExpression SuperCallReference() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -236,7 +242,13 @@ class PreParserExpression {
 
   bool IsCall() const {
     return TypeField::decode(code_) == kExpression &&
-           ExpressionTypeField::decode(code_) == kCallExpression;
+           (ExpressionTypeField::decode(code_) == kCallExpression ||
+            ExpressionTypeField::decode(code_) == kCallEvalExpression);
+  }
+
+  bool IsDirectEvalCall() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kCallEvalExpression;
   }
 
   bool IsSuperCallReference() const {
@@ -294,6 +306,7 @@ class PreParserExpression {
     kThisPropertyExpression,
     kPropertyExpression,
     kCallExpression,
+    kCallEvalExpression,
     kSuperCallReference,
     kNoTemplateTagExpression,
     kAssignment
@@ -503,6 +516,9 @@ class PreParserFactory {
   PreParserExpression NewCall(PreParserExpression expression,
                               PreParserExpressionList arguments,
                               int pos) {
+    if (expression.IsIdentifier() && expression.AsIdentifier().IsEval()) {
+      return PreParserExpression::CallEval();
+    }
     return PreParserExpression::Call();
   }
   PreParserExpression NewCallNew(PreParserExpression expression,
@@ -633,6 +649,14 @@ class PreParserTraits {
 
   static PreParserIdentifier AsIdentifier(PreParserExpression expression) {
     return expression.AsIdentifier();
+  }
+
+  static bool IsEvalIdentifier(PreParserExpression expression) {
+    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
+  }
+
+  static bool IsDirectEvalCall(PreParserExpression expression) {
+    return expression.IsDirectEvalCall();
   }
 
   static bool IsFutureStrictReserved(PreParserIdentifier identifier) {

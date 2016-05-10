@@ -371,6 +371,12 @@ class ParserTraits {
     return expression->AsVariableProxy()->raw_name();
   }
 
+  bool IsDirectEvalCall(Expression* expression) {
+    if (!expression->IsCall()) return false;
+    expression = expression->AsCall()->expression();
+    return IsIdentifier(expression) && IsEval(AsIdentifier(expression));
+  }
+
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
