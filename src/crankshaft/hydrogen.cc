@@ -12296,10 +12296,9 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED:
+      DCHECK(!variable->binding_needs_init());
       globals_.Add(variable->name(), zone());
-      globals_.Add(variable->binding_needs_init()
-                       ? isolate()->factory()->the_hole_value()
-                       : isolate()->factory()->undefined_value(), zone());
+      globals_.Add(isolate()->factory()->undefined_value(), zone());
       return;
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
