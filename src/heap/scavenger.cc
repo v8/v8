@@ -295,13 +295,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     HeapObject* target = map_word.ToForwardingAddress();
     if (!heap->InNewSpace(target)) {
-      heap->array_buffer_tracker()->Promote(
-          JSArrayBuffer::cast(target),
-          reinterpret_cast<JSArrayBuffer*>(object));
-    } else {
-      heap->array_buffer_tracker()->SemiSpaceCopy(
-          JSArrayBuffer::cast(target),
-          reinterpret_cast<JSArrayBuffer*>(object));
+      heap->array_buffer_tracker()->Promote(JSArrayBuffer::cast(target));
     }
   }
 
