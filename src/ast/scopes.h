@@ -209,7 +209,9 @@ class Scope: public ZoneObject {
 
   // Remove a temporary variable. This is for adjusting the scope of
   // temporaries used when desugaring parameter initializers.
-  bool RemoveTemporary(Variable* var);
+  // Returns the index at which it was found in this scope, or -1 if
+  // it was not found.
+  int RemoveTemporary(Variable* var);
 
   // Adds a temporary variable in this scope's TemporaryScope. This is for
   // adjusting the scope of temporaries used when desugaring parameter
@@ -605,7 +607,9 @@ class Scope: public ZoneObject {
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
-  // Compiler-allocated (user-invisible) temporaries.
+  // Compiler-allocated (user-invisible) temporaries. Due to the implementation
+  // of RemoveTemporary(), may contain nulls, which must be skipped-over during
+  // allocation and printing.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;

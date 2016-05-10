@@ -558,17 +558,19 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
   return var;
 }
 
-
-bool Scope::RemoveTemporary(Variable* var) {
+int Scope::RemoveTemporary(Variable* var) {
+  DCHECK_NOT_NULL(var);
   // Most likely (always?) any temporary variable we want to remove
   // was just added before, so we search backwards.
   for (int i = temps_.length(); i-- > 0;) {
     if (temps_[i] == var) {
-      temps_.Remove(i);
-      return true;
+      // Don't shrink temps_, as callers of this method expect
+      // the returned indices to be unique per-scope.
+      temps_[i] = nullptr;
+      return i;
     }
   }
-  return false;
+  return -1;
 }
 
 
@@ -635,6 +637,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
   // context as a whole has forced context allocation.
   for (int i = 0; i < temps_.length(); i++) {
     Variable* var = temps_[i];
+    if (var == nullptr) continue;
     if (var->is_used()) {
       if (var->IsContextSlot()) {
         DCHECK(has_forced_context_allocation());
@@ -984,9 +987,15 @@ void Scope::Print(int n) {
   }
 
   if (temps_.length() > 0) {
-    Indent(n1, "// temporary vars:\n");
+    bool printed_header = false;
     for (int i = 0; i < temps_.length(); i++) {
-      PrintVar(n1, temps_[i]);
+      if (temps_[i] != nullptr) {
+        if (!printed_header) {
+          printed_header = true;
+          Indent(n1, "// temporary vars:\n");
+        }
+        PrintVar(n1, temps_[i]);
+      }
     }
   }
 
@@ -1416,6 +1425,7 @@ void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   // All variables that have no rewrite yet are non-parameter locals.
   for (int i = 0; i < temps_.length(); i++) {
+    if (temps_[i] == nullptr) continue;
     AllocateNonParameterLocal(isolate, temps_[i]);
   }
 
