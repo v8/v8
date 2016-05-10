@@ -1228,6 +1228,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
       map.is_identical_to(
           isolate()->sloppy_function_with_readonly_prototype_map()) ||
       map.is_identical_to(isolate()->strict_function_map()) ||
+      map.is_identical_to(isolate()->strict_function_without_prototype_map()) ||
       // TODO(titzer): wasm_function_map() could be undefined here. ugly.
       (*map == context->get(Context::WASM_FUNCTION_MAP_INDEX)) ||
       map.is_identical_to(isolate()->proxy_function_map()));
