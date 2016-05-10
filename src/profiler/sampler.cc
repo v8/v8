@@ -712,7 +712,13 @@ class SamplerThread : public base::Thread {
         if (SignalHandler::Installed()) {
           for (HashMap::Entry *p = thread_id_to_samplers_.Get().Start();
                p != NULL; p = thread_id_to_samplers_.Get().Next(p)) {
+#if V8_OS_AIX && V8_TARGET_ARCH_PPC64
+            // on AIX64, cannot cast (void *) to pthread_t which is
+            // of type unsigned int (4bytes)
+            pthread_t thread_id = reinterpret_cast<intptr_t>(p->key);
+#else
             pthread_t thread_id = reinterpret_cast<pthread_t>(p->key);
+#endif
             pthread_kill(thread_id, SIGPROF);
           }
         }
