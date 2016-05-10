@@ -727,7 +727,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   CompilationInfo* info = job->info();
   ParseInfo* parse_info = info->parse_info();
 
-  info->SetOptimizingForOsr(osr_ast_id);
+  info->SetOptimizingForOsr(osr_ast_id, osr_frame);
 
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (info->shared_info()->HasDebugInfo()) {
@@ -774,7 +774,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       return isolate->builtins()->InOptimizationQueue();
     }
   } else {
-    info->set_osr_frame(osr_frame);
     if (GetOptimizedCodeNow(job.get())) return info->code();
   }
 

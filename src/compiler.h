@@ -191,6 +191,7 @@ class CompilationInfo final {
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
+  JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
   bool is_this_defined() const;
@@ -340,9 +341,10 @@ class CompilationInfo final {
     code_flags_ =
         Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
   }
-  void SetOptimizingForOsr(BailoutId osr_ast_id) {
+  void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
     SetOptimizing();
     osr_ast_id_ = osr_ast_id;
+    osr_frame_ = osr_frame;
   }
 
   // Deoptimization support.
@@ -399,10 +401,6 @@ class CompilationInfo final {
 
   CompilationDependencies* dependencies() { return &dependencies_; }
 
-  bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
-    return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure());
-  }
-
   int optimization_id() const { return optimization_id_; }
 
   int osr_expr_stack_height() { return osr_expr_stack_height_; }
@@ -410,8 +408,6 @@ class CompilationInfo final {
     DCHECK(height >= 0);
     osr_expr_stack_height_ = height;
   }
-  JavaScriptFrame* osr_frame() const { return osr_frame_; }
-  void set_osr_frame(JavaScriptFrame* osr_frame) { osr_frame_ = osr_frame; }
 
 #if DEBUG
   void PrintAstForTesting();
