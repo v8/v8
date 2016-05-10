@@ -188,6 +188,7 @@
         'trace-extension.cc',
         'wasm/test-run-wasm.cc',
         'wasm/test-run-wasm-64.cc',
+        'wasm/test-run-wasm-asmjs.cc',
         'wasm/test-run-wasm-js.cc',
         'wasm/test-run-wasm-module.cc',
         'wasm/test-signatures.h',

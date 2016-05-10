@@ -267,6 +267,11 @@ class WasmGraphBuilder {
   Node* BuildI32DivU(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI32RemU(Node* left, Node* right, wasm::WasmCodePosition position);
 
+  Node* BuildI32AsmjsDivS(Node* left, Node* right);
+  Node* BuildI32AsmjsRemS(Node* left, Node* right);
+  Node* BuildI32AsmjsDivU(Node* left, Node* right);
+  Node* BuildI32AsmjsRemU(Node* left, Node* right);
+
   Node* BuildI64DivS(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI64RemS(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI64DivU(Node* left, Node* right, wasm::WasmCodePosition position);

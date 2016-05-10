@@ -409,59 +409,6 @@ TEST(Run_WASM_Int32RemU_trap) {
   CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
-TEST(Run_WASM_Int32DivS_asmjs) {
-  TestingModule module;
-  module.origin = kAsmJsOrigin;
-  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
-  BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  const int32_t kMin = std::numeric_limits<int32_t>::min();
-  CHECK_EQ(0, r.Call(0, 100));
-  CHECK_EQ(0, r.Call(100, 0));
-  CHECK_EQ(0, r.Call(-1001, 0));
-  CHECK_EQ(kMin, r.Call(kMin, -1));
-  CHECK_EQ(0, r.Call(kMin, 0));
-}
-
-TEST(Run_WASM_Int32RemS_asmjs) {
-  TestingModule module;
-  module.origin = kAsmJsOrigin;
-  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
-  BUILD(r, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  const int32_t kMin = std::numeric_limits<int32_t>::min();
-  CHECK_EQ(33, r.Call(133, 100));
-  CHECK_EQ(0, r.Call(kMin, -1));
-  CHECK_EQ(0, r.Call(100, 0));
-  CHECK_EQ(0, r.Call(-1001, 0));
-  CHECK_EQ(0, r.Call(kMin, 0));
-}
-
-TEST(Run_WASM_Int32DivU_asmjs) {
-  TestingModule module;
-  module.origin = kAsmJsOrigin;
-  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
-  BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  const int32_t kMin = std::numeric_limits<int32_t>::min();
-  CHECK_EQ(0, r.Call(0, 100));
-  CHECK_EQ(0, r.Call(kMin, -1));
-  CHECK_EQ(0, r.Call(100, 0));
-  CHECK_EQ(0, r.Call(-1001, 0));
-  CHECK_EQ(0, r.Call(kMin, 0));
-}
-
-TEST(Run_WASM_Int32RemU_asmjs) {
-  TestingModule module;
-  module.origin = kAsmJsOrigin;
-  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
-  BUILD(r, WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  const int32_t kMin = std::numeric_limits<int32_t>::min();
-  CHECK_EQ(17, r.Call(217, 100));
-  CHECK_EQ(0, r.Call(100, 0));
-  CHECK_EQ(0, r.Call(-1001, 0));
-  CHECK_EQ(0, r.Call(kMin, 0));
-  CHECK_EQ(kMin, r.Call(kMin, -1));
-}
-
-
 TEST(Run_WASM_Int32DivS_byzero_const) {
   for (int8_t denom = -2; denom < 8; denom++) {
     WasmRunner<int32_t> r(MachineType::Int32());
@@ -1399,28 +1346,6 @@ TEST(Run_Wasm_LoadMemI32_oob) {
 
   for (uint32_t offset = 0x80000000; offset < 0x80000010; offset++) {
     CHECK_TRAP(r.Call(offset));
-  }
-}
-
-
-TEST(Run_Wasm_LoadMemI32_oob_asm) {
-  TestingModule module;
-  module.origin = kAsmJsOrigin;
-  int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  WasmRunner<int32_t> r(&module, MachineType::Uint32());
-  module.RandomizeMemory(1112);
-
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
-
-  memory[0] = 999999;
-  CHECK_EQ(999999, r.Call(0u));
-  // TODO(titzer): offset 29-31 should also be OOB.
-  for (uint32_t offset = 32; offset < 40; offset++) {
-    CHECK_EQ(0, r.Call(offset));
-  }
-
-  for (uint32_t offset = 0x80000000; offset < 0x80000010; offset++) {
-    CHECK_EQ(0, r.Call(offset));
   }
 }
 

@@ -1383,9 +1383,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
 #ifdef Mul
 #undef Mul
 #endif
-#ifdef Div
-#undef Div
-#endif
 
 #define NON_SIGNED_BINOP(op)      \
   static WasmOpcode opcodes[] = { \
@@ -1464,19 +1461,25 @@ class AsmWasmBuilderImpl : public AstVisitor {
         BINOP_CASE(Token::ADD, Add, NON_SIGNED_BINOP, true);
         BINOP_CASE(Token::SUB, Sub, NON_SIGNED_BINOP, true);
         BINOP_CASE(Token::MUL, Mul, NON_SIGNED_BINOP, true);
-        BINOP_CASE(Token::DIV, Div, SIGNED_BINOP, false);
         BINOP_CASE(Token::BIT_OR, Ior, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::BIT_AND, And, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::BIT_XOR, Xor, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::SHL, Shl, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::SAR, ShrS, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::SHR, ShrU, NON_SIGNED_INT_BINOP, true);
+        case Token::DIV: {
+          static WasmOpcode opcodes[] = {kExprI32AsmjsDivS, kExprI32AsmjsDivU,
+                                         kExprF32Div, kExprF64Div};
+          int type = TypeIndexOf(expr->left(), expr->right(), false);
+          current_function_builder_->Emit(opcodes[type]);
+          break;
+        }
         case Token::MOD: {
           TypeIndex type = TypeIndexOf(expr->left(), expr->right(), false);
           if (type == kInt32) {
-            current_function_builder_->Emit(kExprI32RemS);
+            current_function_builder_->Emit(kExprI32AsmjsRemS);
           } else if (type == kUint32) {
-            current_function_builder_->Emit(kExprI32RemU);
+            current_function_builder_->Emit(kExprI32AsmjsRemU);
           } else if (type == kFloat64) {
             current_function_builder_->Emit(kExprF64Mod);
             return;

@@ -256,29 +256,30 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F64Log, 0xc7, d_d)                 \
   V(F64Atan2, 0xc8, d_dd)              \
   V(F64Pow, 0xc9, d_dd)                \
-  V(F64Mod, 0xca, d_dd)
+  V(F64Mod, 0xca, d_dd)                \
+  V(I32AsmjsDivS, 0xd0, i_ii)          \
+  V(I32AsmjsDivU, 0xd1, i_ii)          \
+  V(I32AsmjsRemS, 0xd2, i_ii)          \
+  V(I32AsmjsRemU, 0xd3, i_ii)
 
-// TODO(titzer): sketch of asm-js compatibility bytecodes
-/* V(I32AsmjsDivS, 0xd0, i_ii)          \ */
-/* V(I32AsmjsDivU, 0xd1, i_ii)          \ */
-/* V(I32AsmjsRemS, 0xd2, i_ii)          \ */
-/* V(I32AsmjsRemU, 0xd3, i_ii)          \ */
-/* V(I32AsmjsLoad8S, 0xd4, i_i)         \ */
-/* V(I32AsmjsLoad8U, 0xd5, i_i)         \ */
-/* V(I32AsmjsLoad16S, 0xd6, i_i)        \ */
-/* V(I32AsmjsLoad16U, 0xd7, i_i)        \ */
-/* V(I32AsmjsLoad, 0xd8, i_i)           \ */
-/* V(F32AsmjsLoad, 0xd9, f_i)           \ */
-/* V(F64AsmjsLoad, 0xda, d_i)           \ */
-/* V(I32AsmjsStore8, 0xdb, i_i)         \ */
-/* V(I32AsmjsStore16, 0xdc, i_i)        \ */
-/* V(I32AsmjsStore, 0xdd, i_ii)         \ */
-/* V(F32AsmjsStore, 0xde, i_if)         \ */
-/* V(F64AsmjsStore, 0xdf, i_id)         \ */
-/* V(I32SAsmjsConvertF32, 0xe0, i_f)    \ */
-/* V(I32UAsmjsConvertF32, 0xe1, i_f)    \ */
-/* V(I32SAsmjsConvertF64, 0xe2, i_d)    \ */
-/* V(I32SAsmjsConvertF64, 0xe3, i_d) */
+/* TODO(titzer): introduce compatibility opcodes for these asm.js ops \
+V(I32AsmjsLoad8S, 0xd4, i_i)         \                                  \
+V(I32AsmjsLoad8U, 0xd5, i_i)         \                                  \
+V(I32AsmjsLoad16S, 0xd6, i_i)        \                                  \
+V(I32AsmjsLoad16U, 0xd7, i_i)        \                                  \
+V(I32AsmjsLoad, 0xd8, i_i)           \                                  \
+V(F32AsmjsLoad, 0xd9, f_i)           \                                  \
+V(F64AsmjsLoad, 0xda, d_i)           \                                  \
+V(I32AsmjsStore8, 0xdb, i_i)         \                                  \
+V(I32AsmjsStore16, 0xdc, i_i)        \                                  \
+V(I32AsmjsStore, 0xdd, i_ii)         \                                  \
+V(F32AsmjsStore, 0xde, i_if)         \                                  \
+V(F64AsmjsStore, 0xdf, i_id)         \                                  \
+V(I32SAsmjsConvertF32, 0xe0, i_f)    \                                  \
+V(I32UAsmjsConvertF32, 0xe1, i_f)    \                                  \
+V(I32SAsmjsConvertF64, 0xe2, i_d)    \                                  \
+V(I32SAsmjsConvertF64, 0xe3, i_d)                                       \
+*/
 
 // All opcodes.
 #define FOREACH_OPCODE(V)     \
