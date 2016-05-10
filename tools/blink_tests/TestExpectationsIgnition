@@ -2,7 +2,6 @@
 [ Linux ] inspector/sources/debugger/live-edit-no-reveal.html [ Failure ]
 [ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-detached-dom-tree.html [ Failure ]
 [ Linux ] fast/xpath/xpath-other-nodeset-result-should-mark-its-nodeset.html [ Failure ]
-[ Linux ] inspector/console/console-stack-overflow.html [ Failure ]
 [ Linux ] netinfo/gc-unused-listeners.html [ Failure ]
 [ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-active-dom-object.html [ Failure ]
 [ Linux ] inspector-protocol/debugger/setScriptSource.html [ Failure ]
@@ -18,5 +17,4 @@
 [ Linux ] inspector/sources/debugger-frameworks/frameworks-jquery.html [ Failure ]
 [ Linux ] fast/dom/StyleSheet/gc-rule-children-wrappers.html [ Failure ]
 [ Linux ] fast/dom/NodeIterator/NodeIterator-dont-overcollect.html [ Failure ]
-[ Linux ] fast/dom/error-to-string-stack-overflow.html [ Failure ]
 [ Linux ] editing/input/text-input-controller-leak-document.html [ Failure ]
