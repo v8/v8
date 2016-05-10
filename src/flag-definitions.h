@@ -194,7 +194,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                  \
-  V(harmony_explicit_tailcalls, "harmony explicit tail calls") \
   V(harmony_function_sent, "harmony function.sent")            \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")    \
   V(harmony_simd, "harmony simd")                              \
@@ -205,6 +204,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #define HARMONY_STAGED(V)                                                    \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
   V(harmony_tailcalls, "harmony tail calls")                                 \
+  V(harmony_explicit_tailcalls, "harmony explicit tail calls")               \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
