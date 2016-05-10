@@ -1183,23 +1183,13 @@
             'cflags!': [
               '-O0',
               '-O1',
+              '-O3',
               '-Os',
             ],
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
-            ],
-            'conditions': [
-              # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              # Don't use -O3 with sanitizers.
-              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
-                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
-                'cflags': ['-O3'],
-                'cflags!': ['-O2'],
-                }, {
-                'cflags': ['-O2'],
-                'cflags!': ['-O3'],
-              }],
+              '-O2',
             ],
           }],
           ['OS=="mac"', {
@@ -1301,24 +1291,14 @@
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="aix"', {
             'cflags!': [
+              '-O3',
               '-Os',
             ],
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
               '<(wno_array_bounds)',
-            ],
-            'conditions': [
-              # TODO(crbug.com/272548): Avoid -O3 in NaCl
-              # Don't use -O3 with sanitizers.
-              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
-                and tsan==0 and ubsan==0 and ubsan_vptr==0', {
-                'cflags': ['-O3'],
-                'cflags!': ['-O2'],
-              }, {
-                'cflags': ['-O2'],
-                'cflags!': ['-O3'],
-              }],
+              '-O2',
             ],
           }],
           ['OS=="android"', {
