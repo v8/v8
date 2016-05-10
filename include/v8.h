@@ -5404,7 +5404,7 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  * called. When the garbage collection cycle is finished, TraceEpilogue will be
  * called.
  */
-class EmbedderHeapTracer {
+class V8_EXPORT EmbedderHeapTracer {
  public:
   /**
    * V8 will call this method at the beginning of the gc cycle.
