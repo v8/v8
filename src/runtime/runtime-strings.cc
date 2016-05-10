@@ -5,10 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/conversions-inl.h"
-#include "src/isolate-inl.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
