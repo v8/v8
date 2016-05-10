@@ -24624,7 +24624,7 @@ TEST(SetDeleteThenAsArray) {
   v8::HandleScope handle_scope(isolate);
   LocalContext env;
 
-  // make an array
+  // make a Set
   v8::Local<v8::Value> val = CompileRun("new Set([1, 2, 3])");
   v8::Local<v8::Set> set = v8::Local<v8::Set>::Cast(val);
   CHECK_EQ(3U, set->Size());
@@ -24640,6 +24640,34 @@ TEST(SetDeleteThenAsArray) {
   v8::Local<v8::Array> array2 = set->AsArray();
   uint32_t length = array2->Length();
   CHECK_EQ(2U, length);
+  for (uint32_t i = 0; i < length; i++) {
+    CHECK(!array2->Get(env.local(), i).ToLocalChecked()->IsUndefined());
+  }
+}
+
+TEST(MapDeleteThenAsArray) {
+  // https://bugs.chromium.org/p/v8/issues/detail?id=4946
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  // make a Map
+  v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4], [5, 6]])");
+  v8::Local<v8::Map> map = v8::Local<v8::Map>::Cast(val);
+  CHECK_EQ(3U, map->Size());
+
+  // delete the "middle" element (using AsArray to
+  // determine which element is the "middle" element)
+  v8::Local<v8::Array> array1 = map->AsArray();
+  CHECK_EQ(6U, array1->Length());
+  // Map::AsArray returns a flat array, so the second key is at index 2.
+  v8::Local<v8::Value> key = array1->Get(env.local(), 2).ToLocalChecked();
+  CHECK(map->Delete(env.local(), key).FromJust());
+
+  // make sure there are no undefined values when we convert to an array again.
+  v8::Local<v8::Array> array2 = map->AsArray();
+  uint32_t length = array2->Length();
+  CHECK_EQ(4U, length);
   for (uint32_t i = 0; i < length; i++) {
     CHECK(!array2->Get(env.local(), i).ToLocalChecked()->IsUndefined());
   }

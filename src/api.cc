@@ -6367,14 +6367,22 @@ Local<Array> Map::AsArray() const {
   LOG_API(isolate, "Map::AsArray");
   ENTER_V8(isolate);
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(obj->table()));
-  int size = table->NumberOfElements();
-  int length = size * 2;
+  int length = table->NumberOfElements() * 2;
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
-  for (int i = 0; i < size; ++i) {
-    if (table->KeyAt(i)->IsTheHole()) continue;
-    result->set(i * 2, table->KeyAt(i));
-    result->set(i * 2 + 1, table->ValueAt(i));
+  int result_index = 0;
+  {
+    i::DisallowHeapAllocation no_gc;
+    int capacity = table->UsedCapacity();
+    i::Oddball* the_hole = isolate->heap()->the_hole_value();
+    for (int i = 0; i < capacity; ++i) {
+      i::Object* key = table->KeyAt(i);
+      if (key == the_hole) continue;
+      result->set(result_index++, key);
+      result->set(result_index++, table->ValueAt(i));
+    }
   }
+  DCHECK_EQ(result_index, result->length());
+  DCHECK_EQ(result_index, length);
   i::Handle<i::JSArray> result_array =
       factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
   return Utils::ToLocal(result_array);
@@ -6451,13 +6459,16 @@ Local<Array> Set::AsArray() const {
   LOG_API(isolate, "Set::AsArray");
   ENTER_V8(isolate);
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(obj->table()));
-  int capacity = table->UsedCapacity();
   int length = table->NumberOfElements();
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
   int result_index = 0;
-  for (int i = 0; i < capacity; ++i) {
-    i::Object* key = table->KeyAt(i);
-    if (!key->IsTheHole()) {
+  {
+    i::DisallowHeapAllocation no_gc;
+    int capacity = table->UsedCapacity();
+    i::Oddball* the_hole = isolate->heap()->the_hole_value();
+    for (int i = 0; i < capacity; ++i) {
+      i::Object* key = table->KeyAt(i);
+      if (key == the_hole) continue;
       result->set(result_index++, key);
     }
   }
