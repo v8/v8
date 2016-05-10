@@ -2134,7 +2134,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
 }
 
 if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
-  executable("shell") {
+  executable("v8_shell") {
     sources = [
       "samples/shell.cc",
     ]

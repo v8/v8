@@ -57,7 +57,7 @@
   },
   'targets': [
     {
-      'target_name': 'shell',
+      'target_name': 'v8_shell',
       'sources': [
         'shell.cc',
       ],
