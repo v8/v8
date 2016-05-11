@@ -797,5 +797,6 @@ TEST(Regress609134) {
   CompileRun(
       "var f = new Fun();"
       "Number.prototype.__proto__ = f;"
-      "[42][0].foo");
+      "var a = 42;"
+      "for (var i = 0; i<3; i++) { a.foo; }");
 }

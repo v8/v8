@@ -1075,6 +1075,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
             LoadApiGetterStub stub(isolate(), true, index);
             return stub.GetCode();
           }
+          if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           return compiler.CompileLoadCallback(lookup->name(), info);
@@ -1551,6 +1552,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           TRACE_GENERIC_IC(isolate(), "StoreIC", "incompatible receiver type");
           break;
         }
+        if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         return compiler.CompileStoreCallback(receiver, lookup->name(), info,
                                              language_mode());
