@@ -737,7 +737,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     RECURSE(Visit(value));
   }
 
-  void EmitAssignment(Assignment* expr, MachineType mtype) {
+  void EmitAssignment(Assignment* expr, MachineType type) {
     // Match the left hand side of the assignment.
     VariableProxy* target_var = expr->target()->AsVariableProxy();
     if (target_var != nullptr) {
@@ -762,8 +762,27 @@ class AsmWasmBuilderImpl : public AstVisitor {
               cache_.kFloat32Array)) {
         current_function_builder_->Emit(kExprF32ConvertF64);
       }
-      current_function_builder_->EmitWithU8U8(
-          WasmOpcodes::LoadStoreOpcodeOf(mtype, true), 0, 0);
+      WasmOpcode opcode;
+      if (type == MachineType::Int8()) {
+        opcode = kExprI32AsmjsStoreMem8;
+      } else if (type == MachineType::Uint8()) {
+        opcode = kExprI32AsmjsStoreMem8;
+      } else if (type == MachineType::Int16()) {
+        opcode = kExprI32AsmjsStoreMem16;
+      } else if (type == MachineType::Uint16()) {
+        opcode = kExprI32AsmjsStoreMem16;
+      } else if (type == MachineType::Int32()) {
+        opcode = kExprI32AsmjsStoreMem;
+      } else if (type == MachineType::Uint32()) {
+        opcode = kExprI32AsmjsStoreMem;
+      } else if (type == MachineType::Float32()) {
+        opcode = kExprF32AsmjsStoreMem;
+      } else if (type == MachineType::Float64()) {
+        opcode = kExprF64AsmjsStoreMem;
+      } else {
+        UNREACHABLE();
+      }
+      current_function_builder_->Emit(opcode);
     }
 
     if (target_var == nullptr && target_prop == nullptr) {
@@ -941,10 +960,30 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void VisitProperty(Property* expr) {
-    MachineType mtype;
-    VisitPropertyAndEmitIndex(expr, &mtype);
-    current_function_builder_->EmitWithU8U8(
-        WasmOpcodes::LoadStoreOpcodeOf(mtype, false), 0, 0);
+    MachineType type;
+    VisitPropertyAndEmitIndex(expr, &type);
+    WasmOpcode opcode;
+    if (type == MachineType::Int8()) {
+      opcode = kExprI32AsmjsLoadMem8S;
+    } else if (type == MachineType::Uint8()) {
+      opcode = kExprI32AsmjsLoadMem8U;
+    } else if (type == MachineType::Int16()) {
+      opcode = kExprI32AsmjsLoadMem16S;
+    } else if (type == MachineType::Uint16()) {
+      opcode = kExprI32AsmjsLoadMem16U;
+    } else if (type == MachineType::Int32()) {
+      opcode = kExprI32AsmjsLoadMem;
+    } else if (type == MachineType::Uint32()) {
+      opcode = kExprI32AsmjsLoadMem;
+    } else if (type == MachineType::Float32()) {
+      opcode = kExprF32AsmjsLoadMem;
+    } else if (type == MachineType::Float64()) {
+      opcode = kExprF64AsmjsLoadMem;
+    } else {
+      UNREACHABLE();
+    }
+
+    current_function_builder_->Emit(opcode);
   }
 
   bool VisitStdlibFunction(Call* call, VariableProxy* expr) {

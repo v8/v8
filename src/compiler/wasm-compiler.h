@@ -300,6 +300,8 @@ class WasmGraphBuilder {
   Node* BuildI32AsmjsRemS(Node* left, Node* right);
   Node* BuildI32AsmjsDivU(Node* left, Node* right);
   Node* BuildI32AsmjsRemU(Node* left, Node* right);
+  Node* BuildAsmjsLoadMem(MachineType type, Node* index);
+  Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
   Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);

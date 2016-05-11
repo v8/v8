@@ -628,6 +628,16 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
       return BuildI32AsmjsRemS(left, right);
     case wasm::kExprI32AsmjsRemU:
       return BuildI32AsmjsRemU(left, right);
+    case wasm::kExprI32AsmjsStoreMem8:
+      return BuildAsmjsStoreMem(MachineType::Int8(), left, right);
+    case wasm::kExprI32AsmjsStoreMem16:
+      return BuildAsmjsStoreMem(MachineType::Int16(), left, right);
+    case wasm::kExprI32AsmjsStoreMem:
+      return BuildAsmjsStoreMem(MachineType::Int32(), left, right);
+    case wasm::kExprF32AsmjsStoreMem:
+      return BuildAsmjsStoreMem(MachineType::Float32(), left, right);
+    case wasm::kExprF64AsmjsStoreMem:
+      return BuildAsmjsStoreMem(MachineType::Float64(), left, right);
     default:
       op = UnsupportedOpcode(opcode);
   }
@@ -857,18 +867,28 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       }
       op = m->RoundUint64ToFloat64();
       break;
-    case wasm::kExprI64SConvertF32: {
+    case wasm::kExprI64SConvertF32:
       return BuildI64SConvertF32(input, position);
-    }
-    case wasm::kExprI64SConvertF64: {
+    case wasm::kExprI64SConvertF64:
       return BuildI64SConvertF64(input, position);
-    }
-    case wasm::kExprI64UConvertF32: {
+    case wasm::kExprI64UConvertF32:
       return BuildI64UConvertF32(input, position);
-    }
-    case wasm::kExprI64UConvertF64: {
+    case wasm::kExprI64UConvertF64:
       return BuildI64UConvertF64(input, position);
-    }
+    case wasm::kExprI32AsmjsLoadMem8S:
+      return BuildAsmjsLoadMem(MachineType::Int8(), input);
+    case wasm::kExprI32AsmjsLoadMem8U:
+      return BuildAsmjsLoadMem(MachineType::Uint8(), input);
+    case wasm::kExprI32AsmjsLoadMem16S:
+      return BuildAsmjsLoadMem(MachineType::Int16(), input);
+    case wasm::kExprI32AsmjsLoadMem16U:
+      return BuildAsmjsLoadMem(MachineType::Uint16(), input);
+    case wasm::kExprI32AsmjsLoadMem:
+      return BuildAsmjsLoadMem(MachineType::Int32(), input);
+    case wasm::kExprF32AsmjsLoadMem:
+      return BuildAsmjsLoadMem(MachineType::Float32(), input);
+    case wasm::kExprF64AsmjsLoadMem:
+      return BuildAsmjsLoadMem(MachineType::Float64(), input);
     default:
       op = UnsupportedOpcode(opcode);
   }
@@ -2631,19 +2651,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::LocalType type, MachineType memtype,
                                 Node* index, uint32_t offset,
                                 wasm::WasmCodePosition position) {
   Node* load;
-
-  if (module_ && module_->asm_js()) {
-    // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
-    DCHECK_EQ(0, offset);
-    const Operator* op = jsgraph()->machine()->CheckedLoad(memtype);
-    load = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), *effect_,
-                            *control_);
-  } else {
-    // WASM semantics throw on OOB. Introduce explicit bounds check.
-    BoundsCheckMem(memtype, index, offset, position);
-    load = graph()->NewNode(jsgraph()->machine()->Load(memtype),
-                            MemBuffer(offset), index, *effect_, *control_);
-  }
+  // WASM semantics throw on OOB. Introduce explicit bounds check.
+  BoundsCheckMem(memtype, index, offset, position);
+  load = graph()->NewNode(jsgraph()->machine()->Load(memtype),
+                          MemBuffer(offset), index, *effect_, *control_);
 
   *effect_ = load;
 
@@ -2667,25 +2678,36 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
                                  uint32_t offset, Node* val,
                                  wasm::WasmCodePosition position) {
   Node* store;
-  if (module_ && module_->asm_js()) {
-    // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
-    DCHECK_EQ(0, offset);
-    const Operator* op =
-        jsgraph()->machine()->CheckedStore(memtype.representation());
-    store = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), val, *effect_,
-                             *control_);
-  } else {
-    // WASM semantics throw on OOB. Introduce explicit bounds check.
-    BoundsCheckMem(memtype, index, offset, position);
-    StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
-    store =
-        graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
-                         index, val, *effect_, *control_);
-  }
+  // WASM semantics throw on OOB. Introduce explicit bounds check.
+  BoundsCheckMem(memtype, index, offset, position);
+  StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
+  store = graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
+                           index, val, *effect_, *control_);
   *effect_ = store;
   return store;
 }
 
+Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
+  // TODO(turbofan): fold bounds checks for constant asm.js loads.
+  // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
+  const Operator* op = jsgraph()->machine()->CheckedLoad(type);
+  Node* load = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), *effect_,
+                                *control_);
+  *effect_ = load;
+  return load;
+}
+
+Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
+                                           Node* val) {
+  // TODO(turbofan): fold bounds checks for constant asm.js stores.
+  // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
+  const Operator* op =
+      jsgraph()->machine()->CheckedStore(type.representation());
+  Node* store = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), val,
+                                 *effect_, *control_);
+  *effect_ = store;
+  return val;
+}
 
 void WasmGraphBuilder::PrintDebugName(Node* node) {
   PrintF("#%d:%s", node->id(), node->op()->mnemonic());

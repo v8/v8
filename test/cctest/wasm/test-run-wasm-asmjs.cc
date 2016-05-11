@@ -117,7 +117,7 @@ TEST(Run_Wasm_LoadMemI32_oob_asm) {
   WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
 
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_UNOP(kExprI32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
   memory[0] = 999999;
   CHECK_EQ(999999, r.Call(0u));
@@ -128,5 +128,72 @@ TEST(Run_Wasm_LoadMemI32_oob_asm) {
 
   for (uint32_t offset = 0x80000000; offset < 0x80000010; offset++) {
     CHECK_EQ(0, r.Call(offset));
+  }
+}
+
+TEST(Run_Wasm_LoadMemF32_oob_asm) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  float* memory = module.AddMemoryElems<float>(8);
+  WasmRunner<float> r(&module, MachineType::Uint32());
+  module.RandomizeMemory(1112);
+
+  BUILD(r, WASM_UNOP(kExprF32AsmjsLoadMem, WASM_GET_LOCAL(0)));
+
+  memory[0] = 9999.5f;
+  CHECK_EQ(9999.5f, r.Call(0u));
+  // TODO(titzer): offset 29-31 should also be OOB.
+  for (uint32_t offset = 32; offset < 40; offset++) {
+    CHECK(std::isnan(r.Call(offset)));
+  }
+
+  for (uint32_t offset = 0x80000000; offset < 0x80000010; offset++) {
+    CHECK(std::isnan(r.Call(offset)));
+  }
+}
+
+TEST(Run_Wasm_LoadMemF64_oob_asm) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  double* memory = module.AddMemoryElems<double>(8);
+  WasmRunner<double> r(&module, MachineType::Uint32());
+  module.RandomizeMemory(1112);
+
+  BUILD(r, WASM_UNOP(kExprF64AsmjsLoadMem, WASM_GET_LOCAL(0)));
+
+  memory[0] = 9799.5;
+  CHECK_EQ(9799.5, r.Call(0u));
+  memory[1] = 11799.25;
+  CHECK_EQ(11799.25, r.Call(8u));
+  // TODO(titzer): offset 57-63 should also be OOB.
+  for (uint32_t offset = 64; offset < 80; offset++) {
+    CHECK(std::isnan(r.Call(offset)));
+  }
+
+  for (uint32_t offset = 0x80000000; offset < 0x80000010; offset++) {
+    CHECK(std::isnan(r.Call(offset)));
+  }
+}
+
+TEST(Run_Wasm_StoreMemI32_oob_asm) {
+  TestingModule module;
+  module.origin = kAsmJsOrigin;
+  int32_t* memory = module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module, MachineType::Uint32(), MachineType::Uint32());
+  module.RandomizeMemory(1112);
+
+  BUILD(r, WASM_BINOP(kExprI32AsmjsStoreMem, WASM_GET_LOCAL(0),
+                      WASM_GET_LOCAL(1)));
+
+  memory[0] = 7777;
+  CHECK_EQ(999999, r.Call(0u, 999999));
+  CHECK_EQ(999999, memory[0]);
+  // TODO(titzer): offset 29-31 should also be OOB.
+  for (uint32_t offset = 32; offset < 40; offset++) {
+    CHECK_EQ(8888, r.Call(offset, 8888));
+  }
+
+  for (uint32_t offset = 0x10000000; offset < 0xF0000000; offset += 0x1000000) {
+    CHECK_EQ(7777, r.Call(offset, 7777));
   }
 }
