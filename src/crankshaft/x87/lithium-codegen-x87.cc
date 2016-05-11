@@ -5456,6 +5456,30 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   }
 }
 
+void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
+  DCHECK(instr->hydrogen()->IsAllocationFolded());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
+    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+  if (!instr->hydrogen()->IsAllocationFoldingDominator()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      CHECK(size <= Page::kMaxRegularHeapObjectSize);
+      __ FastAllocate(size, result, temp, flags);
+    } else {
+      Register size = ToRegister(instr->size());
+      __ FastAllocate(size, result, temp, flags);
+    }
+  }
+}
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   Register result = ToRegister(instr->result());
@@ -5510,31 +5534,6 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ sub(eax, Immediate(kHeapObjectTag));
     __ mov(Operand::StaticVariable(allocation_top), eax);
     __ add(eax, Immediate(kHeapObjectTag));
-  }
-}
-
-void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
-  DCHECK(instr->hydrogen()->IsAllocationFolded());
-  Register result = ToRegister(instr->result());
-  Register temp = ToRegister(instr->temp());
-
-  AllocationFlags flags = NO_ALLOCATION_FLAGS;
-  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
-    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
-  }
-  if (instr->hydrogen()->IsOldSpaceAllocation()) {
-    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
-    flags = static_cast<AllocationFlags>(flags | PRETENURE);
-  }
-  if (!instr->hydrogen()->IsAllocationFoldingDominator()) {
-    if (instr->size()->IsConstantOperand()) {
-      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-      CHECK(size <= Page::kMaxRegularHeapObjectSize);
-      __ FastAllocate(size, result, temp, flags);
-    } else {
-      Register size = ToRegister(instr->size());
-      __ FastAllocate(size, result, temp, flags);
-    }
   }
 }
 
