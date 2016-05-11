@@ -1988,17 +1988,6 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['v8_enable_i18n_support==1', {
-          'variables': {
-            'i18n_library_files': [
-              'js/i18n.js',
-            ],
-          },
-        }, {
-          'variables': {
-            'i18n_library_files': [],
-          },
-        }],
       ],
       'variables': {
         'library_files': [
@@ -2048,6 +2037,12 @@
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
         'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
+        'conditions': [
+          ['v8_enable_i18n_support==1', {
+            'library_files': ['js/i18n.js'],
+            'experimental_library_files': ['js/icu-case-mapping.js'],
+          }],
+        ],
       },
       'actions': [
         {
@@ -2055,7 +2050,6 @@
           'inputs': [
             '../tools/js2c.py',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
           'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries.cc'],
           'action': [
@@ -2064,7 +2058,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
         },
         {
@@ -2072,7 +2065,6 @@
           'inputs': [
             '../tools/js2c.py',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
           'outputs': ['<@(libraries_bin_file)'],
           'action': [
@@ -2081,7 +2073,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<@(library_files)',
-            '<@(i18n_library_files)',
             '--startup_blob', '<@(libraries_bin_file)',
             '--nojs',
           ],
@@ -2098,7 +2089,7 @@
             '../tools/js2c.py',
             '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
             'EXPERIMENTAL',
-            '<@(experimental_library_files)'
+            '<@(experimental_library_files)',
           ],
         },
         {

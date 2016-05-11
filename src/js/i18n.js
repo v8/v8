@@ -142,6 +142,13 @@ var AVAILABLE_LOCALES = {
  */
 var DEFAULT_ICU_LOCALE = UNDEFINED;
 
+function GetDefaultICULocaleJS() {
+  if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
+    DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
+  }
+  return DEFAULT_ICU_LOCALE;
+}
+
 /**
  * Unicode extension regular expression.
  */
@@ -446,11 +453,7 @@ function lookupMatcher(service, requestedLocales) {
   }
 
   // Didn't find a match, return default.
-  if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
-    DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
-  }
-
-  return {'locale': DEFAULT_ICU_LOCALE, 'extension': '', 'position': -1};
+  return {'locale': GetDefaultICULocaleJS(), 'extension': '', 'position': -1};
 }
 
 
@@ -722,9 +725,16 @@ function toTitleCaseTimezoneLocation(location) {
  */
 function canonicalizeLanguageTag(localeID) {
   // null is typeof 'object' so we have to do extra check.
-  if (typeof localeID !== 'string' && typeof localeID !== 'object' ||
+  if ((!IS_STRING(localeID) && !IS_RECEIVER(localeID)) ||
       IS_NULL(localeID)) {
     throw MakeTypeError(kLanguageID);
+  }
+
+  // Optimize for the most common case; a language code alone in
+  // the canonical form/lowercase (e.g. "en", "fil").
+  if (IS_STRING(localeID) &&
+      !IS_NULL(InternalRegExpMatch(/^[a-z]{2,3}$/, localeID))) {
+    return localeID;
   }
 
   var localeString = GlobalString(localeID);
@@ -733,10 +743,6 @@ function canonicalizeLanguageTag(localeID) {
     throw MakeRangeError(kInvalidLanguageTag, localeString);
   }
 
-  // This call will strip -kn but not -kn-true extensions.
-  // ICU bug filled - http://bugs.icu-project.org/trac/ticket/9265.
-  // TODO(cira): check if -u-kn-true-kc-true-kh-true still throws after
-  // upgrade to ICU 4.9.
   var tag = %CanonicalizeLanguageTag(localeString);
   if (tag === 'invalid-tag') {
     throw MakeRangeError(kInvalidLanguageTag, localeString);
@@ -1989,6 +1995,37 @@ function cachedOrNewService(service, locales, options, defaults) {
   return new savedObjects[service](locales, useOptions);
 }
 
+function LocaleConvertCase(s, locales, isToUpper) {
+  // ECMA 402 section 13.1.2 steps 1 through 12.
+  var language;
+  // Optimize for the most common two cases. initializeLocaleList() can handle
+  // them as well, but it's rather slow accounting for over 60% of
+  // toLocale{U,L}Case() and about 40% of toLocale{U,L}Case("<locale>").
+  if (IS_UNDEFINED(locales)) {
+    language = GetDefaultICULocaleJS();
+  } else if (IS_STRING(locales)) {
+    language = canonicalizeLanguageTag(locales);
+  } else {
+    var locales = initializeLocaleList(locales);
+    language = locales.length > 0 ? locales[0] : GetDefaultICULocaleJS();
+  }
+
+  // StringSplit is slower than this.
+  var pos = %_Call(StringIndexOf, language, '-');
+  if (pos != -1) {
+    language = %_Call(StringSubstring, language, 0, pos);
+  }
+
+  var CUSTOM_CASE_LANGUAGES = ['az', 'el', 'lt', 'tr'];
+  var langIndex = %_Call(ArrayIndexOf, CUSTOM_CASE_LANGUAGES, language);
+  if (langIndex == -1) {
+    // language-independent case conversion.
+    return isToUpper ? %StringToUpperCaseI18N(s) : %StringToLowerCaseI18N(s);
+  }
+  return %StringLocaleConvertCase(s, isToUpper,
+                                  CUSTOM_CASE_LANGUAGES[langIndex]);
+}
+
 /**
  * Compares this and that, and returns less than 0, 0 or greater than 0 value.
  * Overrides the built-in method.
@@ -2040,6 +2077,56 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
     return %StringNormalize(s, normalizationForm);
   }
 );
+
+function ToLowerCaseI18N() {
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
+  var s = TO_STRING(this);
+  return %StringToLowerCaseI18N(s);
+}
+
+function ToUpperCaseI18N() {
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
+  var s = TO_STRING(this);
+  return %StringToUpperCaseI18N(s);
+}
+
+function ToLocaleLowerCaseI18N(locales) {
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
+  return LocaleConvertCase(TO_STRING(this), locales, false);
+}
+
+%FunctionSetLength(ToLocaleLowerCaseI18N, 0);
+
+function ToLocaleUpperCaseI18N(locales) {
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
+  }
+  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
+  return LocaleConvertCase(TO_STRING(this), locales, true);
+}
+
+%FunctionSetLength(ToLocaleUpperCaseI18N, 0);
+
+%FunctionRemovePrototype(ToLowerCaseI18N);
+%FunctionRemovePrototype(ToUpperCaseI18N);
+%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
+%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
+
+utils.Export(function(to) {
+  to.ToLowerCaseI18N = ToLowerCaseI18N;
+  to.ToUpperCaseI18N = ToUpperCaseI18N;
+  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
+  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
+});
 
 
 /**

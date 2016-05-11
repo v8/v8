@@ -2478,6 +2478,9 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_exponentiation_operator)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
+#ifdef V8_I18N_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(icu_case_mapping)
+#endif
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -3046,6 +3049,10 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_exponentiation_operator_natives[] = {nullptr};
   static const char* harmony_string_padding_natives[] = {
       "native harmony-string-padding.js", nullptr};
+#ifdef V8_I18N_SUPPORT
+  static const char* icu_case_mapping_natives[] = {"native icu-case-mapping.js",
+                                                   nullptr};
+#endif
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

@@ -193,12 +193,22 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
+#ifdef V8_I18N_SUPPORT
+#define HARMONY_INPROGRESS(V)                                           \
+  V(harmony_function_sent, "harmony function.sent")                     \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
+  V(harmony_simd, "harmony simd")                                       \
+  V(harmony_do_expressions, "harmony do-expressions")                   \
+  V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
+#else
 #define HARMONY_INPROGRESS(V)                                  \
   V(harmony_function_sent, "harmony function.sent")            \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")    \
   V(harmony_simd, "harmony simd")                              \
   V(harmony_do_expressions, "harmony do-expressions")          \
   V(harmony_regexp_property, "harmony unicode regexp property classes")
+#endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                    \

@@ -8645,26 +8645,26 @@ class String: public Name {
   class FlatContent {
    public:
     // Returns true if the string is flat and this structure contains content.
-    bool IsFlat() { return state_ != NON_FLAT; }
+    bool IsFlat() const { return state_ != NON_FLAT; }
     // Returns true if the structure contains one-byte content.
-    bool IsOneByte() { return state_ == ONE_BYTE; }
+    bool IsOneByte() const { return state_ == ONE_BYTE; }
     // Returns true if the structure contains two-byte content.
-    bool IsTwoByte() { return state_ == TWO_BYTE; }
+    bool IsTwoByte() const { return state_ == TWO_BYTE; }
 
     // Return the one byte content of the string. Only use if IsOneByte()
     // returns true.
-    Vector<const uint8_t> ToOneByteVector() {
+    Vector<const uint8_t> ToOneByteVector() const {
       DCHECK_EQ(ONE_BYTE, state_);
       return Vector<const uint8_t>(onebyte_start, length_);
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
-    Vector<const uc16> ToUC16Vector() {
+    Vector<const uc16> ToUC16Vector() const {
       DCHECK_EQ(TWO_BYTE, state_);
       return Vector<const uc16>(twobyte_start, length_);
     }
 
-    uc16 Get(int i) {
+    uc16 Get(int i) const {
       DCHECK(i < length_);
       DCHECK(state_ != NON_FLAT);
       if (state_ == ONE_BYTE) return onebyte_start[i];

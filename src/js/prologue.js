@@ -208,7 +208,11 @@ function PostNatives(utils) {
     "SetIteratorNext",
     "SetValues",
     "SymbolToString",
+    "ToLocaleLowerCaseI18N",
+    "ToLocaleUpperCaseI18N",
+    "ToLowerCaseI18N",
     "ToPositiveInteger",
+    "ToUpperCaseI18N",
     // From runtime:
     "is_concat_spreadable_symbol",
     "iterator_symbol",

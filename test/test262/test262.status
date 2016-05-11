@@ -139,14 +139,16 @@
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4476
-  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
-  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  # The bug is fixed but behind a flag, --icu_case_mapping.
   'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
-  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
   'built-ins/String/prototype/toUpperCase/supplementary_plane': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4477
+  # The bug is fixed but behind a flag, --icu_case_mapping.
+  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': [FAIL],
   'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': [FAIL],
@@ -423,6 +425,22 @@
   'built-ins/String/prototype/normalize/return-normalized-string': [SKIP],
   'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [SKIP],
   'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
+
+  # Case-conversion is not fully compliant to the Unicode spec with i18n off.
+  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
+  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
+  'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toUpperCase/supplementary_plane': [FAIL],
+
+  # Locale-sensitive case-conversion is not available with i18n off.
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': [FAIL],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': [FAIL],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {

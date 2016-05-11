@@ -262,7 +262,10 @@ namespace internal {
   F(BreakIteratorFirst, 1, 1)                \
   F(BreakIteratorNext, 1, 1)                 \
   F(BreakIteratorCurrent, 1, 1)              \
-  F(BreakIteratorBreakType, 1, 1)
+  F(BreakIteratorBreakType, 1, 1)            \
+  F(StringToLowerCaseI18N, 1, 1)             \
+  F(StringToUpperCaseI18N, 1, 1)             \
+  F(StringLocaleConvertCase, 3, 1)
 #else
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif

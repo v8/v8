@@ -428,6 +428,10 @@ action("js2c_experimental") {
     "$target_gen_dir/experimental-libraries.cc",
   ]
 
+  if (v8_enable_i18n_support) {
+    sources += [ "src/js/icu-case-mapping.js" ]
+  }
+
   args = [
            rebase_path("$target_gen_dir/experimental-libraries.cc",
                        root_build_dir),

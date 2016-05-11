@@ -1077,7 +1077,7 @@ MUST_USE_RESULT static Object* ConvertCase(
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_lower_mapping());
 }
@@ -1085,7 +1085,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_upper_mapping());
 }
