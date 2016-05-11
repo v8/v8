@@ -308,6 +308,28 @@ config("toolchain") {
 }
 
 ###############################################################################
+# Templates
+#
+
+template("v8_source_set") {
+  source_set(target_name) {
+    forward_variables_from(invoker, "*", ["configs"])
+    configs += invoker.configs
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      ":features",
+      ":toolchain",
+    ]
+
+    if (!is_debug || v8_optimized_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
+    }
+  }
+}
+
+###############################################################################
 # Actions
 #
 
@@ -611,7 +633,7 @@ action("run_mksnapshot") {
 # Source Sets (aka static libraries)
 #
 
-source_set("v8_nosnapshot") {
+v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
@@ -630,20 +652,12 @@ source_set("v8_nosnapshot") {
     "src/snapshot/snapshot-empty.cc",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
-    ":features",
-    ":toolchain",
   ]
-  if (!is_debug || v8_optimized_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
 }
 
-source_set("v8_snapshot") {
+v8_source_set("v8_snapshot") {
   # Only targets in this file and the top-level visibility target can
   # depend on this.
   visibility = [
@@ -672,21 +686,13 @@ source_set("v8_snapshot") {
     "$target_gen_dir/snapshot.cc",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
-    ":features",
-    ":toolchain",
   ]
-  if (!is_debug || v8_optimized_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
 }
 
 if (v8_use_external_startup_data) {
-  source_set("v8_external_snapshot") {
+  v8_source_set("v8_external_snapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
@@ -706,21 +712,13 @@ if (v8_use_external_startup_data) {
       "src/snapshot/snapshot-external.cc",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-    configs += [
+    configs = [
       ":internal_config",
-      ":features",
-      ":toolchain",
     ]
-    if (!is_debug || v8_optimized_debug) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
-      configs += [ "//build/config/compiler:optimize_max" ]
-    }
   }
 }
 
-source_set("v8_base") {
+v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
@@ -1801,18 +1799,9 @@ source_set("v8_base") {
     ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
-    ":features",
-    ":toolchain",
   ]
-
-  if (!is_debug || v8_optimized_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
 
   defines = []
   deps = [
@@ -1845,7 +1834,7 @@ source_set("v8_base") {
   }
 }
 
-source_set("v8_libbase") {
+v8_source_set("v8_libbase") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
@@ -1905,18 +1894,9 @@ source_set("v8_libbase") {
     "src/base/utils/random-number-generator.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config_base",
-    ":features",
-    ":toolchain",
   ]
-
-  if (!is_debug || v8_optimized_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
 
   defines = []
 
@@ -1965,7 +1945,7 @@ source_set("v8_libbase") {
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
-source_set("v8_libplatform") {
+v8_source_set("v8_libplatform") {
   sources = [
     "include/libplatform/libplatform.h",
     "src/libplatform/default-platform.cc",
@@ -1976,25 +1956,16 @@ source_set("v8_libplatform") {
     "src/libplatform/worker-thread.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config_base",
-    ":features",
-    ":toolchain",
   ]
-
-  if (!is_debug || v8_optimized_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
-  }
 
   deps = [
     ":v8_libbase",
   ]
 }
 
-source_set("fuzzer_support") {
+v8_source_set("fuzzer_support") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
@@ -2002,13 +1973,9 @@ source_set("fuzzer_support") {
     "test/fuzzer/fuzzer-support.h",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config_base",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 
   deps = [
@@ -2163,7 +2130,7 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (
   }
 }
 
-source_set("json_fuzzer") {
+v8_source_set("json_fuzzer") {
   sources = [
     "test/fuzzer/json.cc",
   ]
@@ -2172,17 +2139,13 @@ source_set("json_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 }
 
-source_set("parser_fuzzer") {
+v8_source_set("parser_fuzzer") {
   sources = [
     "test/fuzzer/parser.cc",
   ]
@@ -2191,17 +2154,13 @@ source_set("parser_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 }
 
-source_set("regexp_fuzzer") {
+v8_source_set("regexp_fuzzer") {
   sources = [
     "test/fuzzer/regexp.cc",
   ]
@@ -2210,17 +2169,13 @@ source_set("regexp_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 }
 
-source_set("wasm_fuzzer") {
+v8_source_set("wasm_fuzzer") {
   sources = [
     "test/fuzzer/wasm.cc",
   ]
@@ -2229,17 +2184,13 @@ source_set("wasm_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 }
 
-source_set("wasm_asmjs_fuzzer") {
+v8_source_set("wasm_asmjs_fuzzer") {
   sources = [
     "test/fuzzer/wasm-asmjs.cc",
   ]
@@ -2248,12 +2199,8 @@ source_set("wasm_asmjs_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     ":internal_config",
     ":libplatform_config",
-    ":features",
-    ":toolchain",
   ]
 }
