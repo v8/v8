@@ -1960,6 +1960,10 @@ v8_source_set("v8_libplatform") {
     ":internal_config_base",
   ]
 
+  public_configs = [
+    ":libplatform_config"
+  ]
+
   deps = [
     ":v8_libbase",
   ]
@@ -1975,12 +1979,14 @@ v8_source_set("fuzzer_support") {
 
   configs = [
     ":internal_config_base",
-    ":libplatform_config",
   ]
 
   deps = [
-    ":v8_libplatform",
     snapshot_target,
+  ]
+
+  public_deps = [
+    ":v8_libplatform",
   ]
 }
 
@@ -2000,7 +2006,6 @@ if (current_toolchain == snapshot_toolchain) {
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
       ":internal_config",
-      ":libplatform_config",
       ":features",
       ":toolchain",
     ]
@@ -2141,7 +2146,6 @@ v8_source_set("json_fuzzer") {
 
   configs = [
     ":internal_config",
-    ":libplatform_config",
   ]
 }
 
@@ -2156,7 +2160,6 @@ v8_source_set("parser_fuzzer") {
 
   configs = [
     ":internal_config",
-    ":libplatform_config",
   ]
 }
 
@@ -2171,7 +2174,6 @@ v8_source_set("regexp_fuzzer") {
 
   configs = [
     ":internal_config",
-    ":libplatform_config",
   ]
 }
 
@@ -2186,7 +2188,6 @@ v8_source_set("wasm_fuzzer") {
 
   configs = [
     ":internal_config",
-    ":libplatform_config",
   ]
 }
 
@@ -2201,6 +2202,5 @@ v8_source_set("wasm_asmjs_fuzzer") {
 
   configs = [
     ":internal_config",
-    ":libplatform_config",
   ]
 }
