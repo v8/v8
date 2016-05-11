@@ -1445,8 +1445,6 @@ v8_source_set("v8_base") {
     "src/types.h",
     "src/typing-asm.cc",
     "src/typing-asm.h",
-    "src/typing-reset.cc",
-    "src/typing-reset.h",
     "src/unicode-cache-inl.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",

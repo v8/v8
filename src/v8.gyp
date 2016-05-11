@@ -1115,8 +1115,6 @@
         'types.h',
         'typing-asm.cc',
         'typing-asm.h',
-        'typing-reset.cc',
-        'typing-reset.h',
         'unicode-inl.h',
         'unicode.cc',
         'unicode.h',

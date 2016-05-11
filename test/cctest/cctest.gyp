@@ -176,7 +176,6 @@
         'test-transitions.cc',
         'test-typedarrays.cc',
         'test-types.cc',
-        'test-typing-reset.cc',
         'test-unbound-queue.cc',
         'test-unboxed-doubles.cc',
         'test-unique.cc',
