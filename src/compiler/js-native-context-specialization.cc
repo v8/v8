@@ -428,6 +428,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     AccessMode access_mode, LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed);
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
 
   // Check if the {nexus} reports type feedback for the IC.
   if (nexus.IsUninitialized()) {
@@ -445,8 +447,20 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Extract receiver maps from the IC using the {nexus}.
   MapHandleList receiver_maps;
-  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
-  DCHECK_LT(0, receiver_maps.length());
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
+    return NoChange();
+  } else if (receiver_maps.length() == 0) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      // TODO(turbofan): Implement all eager bailout points correctly in
+      // the graph builder.
+      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
+        return ReduceSoftDeoptimize(node);
+      }
+    }
+    return NoChange();
+  }
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
@@ -472,7 +486,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         // {function} in order to be notified about changes to the
         // "prototype" of {function}, so it doesn't make sense to
         // continue unless deoptimization is enabled.
-        if ((flags() & kDeoptimizationEnabled)) {
+        if (flags() & kDeoptimizationEnabled) {
           Handle<Map> initial_map(function->initial_map(), isolate());
           dependencies()->AssumeInitialMapCantChange(initial_map);
           Handle<Object> prototype(initial_map->prototype(), isolate());
@@ -896,6 +910,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
 
   // Check if the {nexus} reports type feedback for the IC.
   if (nexus.IsUninitialized()) {
@@ -913,8 +929,20 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
 
   // Extract receiver maps from the {nexus}.
   MapHandleList receiver_maps;
-  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
-  DCHECK_LT(0, receiver_maps.length());
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
+    return NoChange();
+  } else if (receiver_maps.length() == 0) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      // TODO(turbofan): Implement all eager bailout points correctly in
+      // the graph builder.
+      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
+        return ReduceSoftDeoptimize(node);
+      }
+    }
+    return NoChange();
+  }
 
   // Optimize access for constant {index}.
   HeapObjectMatcher mindex(index);
@@ -1018,6 +1046,84 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
   }
 }
 
+bool JSNativeContextSpecialization::ExtractReceiverMaps(
+    Node* receiver, Node* effect, FeedbackNexus const& nexus,
+    MapHandleList* receiver_maps) {
+  DCHECK_EQ(0, receiver_maps->length());
+  // See if we can infer a concrete type for the {receiver}.
+  Handle<Map> receiver_map;
+  if (InferReceiverMap(receiver, effect).ToHandle(&receiver_map)) {
+    // We can assume that the {receiver} still has the infered {receiver_map}.
+    receiver_maps->Add(receiver_map);
+    return true;
+  }
+  // Try to extract some maps from the {nexus}.
+  if (nexus.ExtractMaps(receiver_maps) != 0) {
+    // Try to filter impossible candidates based on infered root map.
+    if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
+      for (int i = receiver_maps->length(); --i >= 0;) {
+        if (receiver_maps->at(i)->FindRootMap() != *receiver_map) {
+          receiver_maps->Remove(i);
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
+                                                                 Node* effect) {
+  NodeMatcher m(receiver);
+  if (m.IsJSCreate()) {
+    HeapObjectMatcher mtarget(m.InputAt(0));
+    HeapObjectMatcher mnewtarget(m.InputAt(1));
+    if (mtarget.HasValue() && mnewtarget.HasValue()) {
+      Handle<JSFunction> constructor =
+          Handle<JSFunction>::cast(mtarget.Value());
+      if (constructor->has_initial_map()) {
+        Handle<Map> initial_map(constructor->initial_map(), isolate());
+        if (initial_map->constructor_or_backpointer() == *mnewtarget.Value()) {
+          // Walk up the {effect} chain to see if the {receiver} is the
+          // dominating effect and there's no other observable write in
+          // between.
+          while (true) {
+            if (receiver == effect) return initial_map;
+            if (!effect->op()->HasProperty(Operator::kNoWrite) ||
+                effect->op()->EffectInputCount() != 1) {
+              break;
+            }
+            effect = NodeProperties::GetEffectInput(effect);
+          }
+        }
+      }
+    }
+  }
+  return MaybeHandle<Map>();
+}
+
+MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
+    Node* receiver) {
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    return handle(m.Value()->map()->FindRootMap(), isolate());
+  } else if (m.IsJSCreate()) {
+    HeapObjectMatcher mtarget(m.InputAt(0));
+    HeapObjectMatcher mnewtarget(m.InputAt(1));
+    if (mtarget.HasValue() && mnewtarget.HasValue()) {
+      Handle<JSFunction> constructor =
+          Handle<JSFunction>::cast(mtarget.Value());
+      if (constructor->has_initial_map()) {
+        Handle<Map> initial_map(constructor->initial_map(), isolate());
+        if (initial_map->constructor_or_backpointer() == *mnewtarget.Value()) {
+          DCHECK_EQ(*initial_map, initial_map->FindRootMap());
+          return initial_map;
+        }
+      }
+    }
+  }
+  return MaybeHandle<Map>();
+}
 
 MaybeHandle<Context> JSNativeContextSpecialization::GetNativeContext(
     Node* node) {
