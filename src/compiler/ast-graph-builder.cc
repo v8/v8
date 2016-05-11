@@ -1667,12 +1667,11 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
     }
   }
 
-  // Set both the prototype and constructor to have fast properties.
+  // Set the constructor to have fast properties.
   prototype = environment()->Pop();
   literal = environment()->Pop();
-  const Operator* op =
-      javascript()->CallRuntime(Runtime::kFinalizeClassDefinition);
-  literal = NewNode(op, literal, prototype);
+  const Operator* op = javascript()->CallRuntime(Runtime::kToFastProperties);
+  literal = NewNode(op, literal);
 
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {

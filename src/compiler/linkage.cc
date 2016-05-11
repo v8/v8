@@ -142,7 +142,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kDefineDataPropertyInLiteral:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
     case Runtime::kGeneratorSetContext:
@@ -165,6 +164,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kStringLessThanOrEqual:
     case Runtime::kStringGreaterThan:
     case Runtime::kStringGreaterThanOrEqual:
+    case Runtime::kToFastProperties:  // TODO(conradw): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return 0;

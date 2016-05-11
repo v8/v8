@@ -1529,9 +1529,10 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     PushOperand(result_register());
 
     EmitClassDefineProperties(lit);
+    DropOperands(1);
 
-    // Set both the prototype and constructor to have fast properties.
-    CallRuntimeWithOperands(Runtime::kFinalizeClassDefinition);
+    // Set the constructor to have fast properties.
+    CallRuntimeWithOperands(Runtime::kToFastProperties);
 
     if (lit->class_variable_proxy() != nullptr) {
       EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,

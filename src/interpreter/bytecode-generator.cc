@@ -1393,7 +1393,7 @@ void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
-  builder()->CallRuntime(Runtime::kFinalizeClassDefinition, literal, 2);
+  builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
     Variable* var = expr->class_variable_proxy()->var();
