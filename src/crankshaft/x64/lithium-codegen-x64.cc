@@ -5173,10 +5173,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   if (instr->hydrogen()->IsAllocationFoldingDominator()) {
     flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDING_DOMINATOR);
   }
-
-  if (instr->hydrogen()->IsAllocationFolded()) {
-    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDED);
-  }
+  DCHECK(!instr->hydrogen()->IsAllocationFolded());
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
@@ -5209,10 +5206,11 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
 void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
   DCHECK(instr->hydrogen()->IsAllocationFolded());
+  DCHECK(!instr->hydrogen()->IsAllocationFoldingDominator());
   Register result = ToRegister(instr->result());
   Register temp = ToRegister(instr->temp());
 
-  AllocationFlags flags = NO_ALLOCATION_FLAGS;
+  AllocationFlags flags = ALLOCATION_FOLDED;
   if (instr->hydrogen()->MustAllocateDoubleAligned()) {
     flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
   }
@@ -5220,15 +5218,13 @@ void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE);
   }
-  if (!instr->hydrogen()->IsAllocationFoldingDominator()) {
-    if (instr->size()->IsConstantOperand()) {
-      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-      CHECK(size <= Page::kMaxRegularHeapObjectSize);
-      __ FastAllocate(size, result, temp, flags);
-    } else {
-      Register size = ToRegister(instr->size());
-      __ FastAllocate(size, result, temp, flags);
-    }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    __ FastAllocate(size, result, temp, flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ FastAllocate(size, result, temp, flags);
   }
 }
 
