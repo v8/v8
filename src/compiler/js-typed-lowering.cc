@@ -936,27 +936,6 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
-  // Optimize "prototype" property of functions.
-  if (name.is_identical_to(factory()->prototype_string()) &&
-      receiver_type->IsConstant() &&
-      receiver_type->AsConstant()->Value()->IsJSFunction()) {
-    // TODO(turbofan): This lowering might not kick in if we ever lower
-    // the C++ accessor for "prototype" in an earlier optimization pass.
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(receiver_type->AsConstant()->Value());
-    if (function->has_initial_map()) {
-      // We need to add a code dependency on the initial map of the {function}
-      // in order to be notified about changes to the "prototype" of {function},
-      // so it doesn't make sense to continue unless deoptimization is enabled.
-      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-      Handle<Map> initial_map(function->initial_map(), isolate());
-      dependencies()->AssumeInitialMapCantChange(initial_map);
-      Node* value =
-          jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
-      ReplaceWithValue(node, value);
-      return Replace(value);
-    }
-  }
   return NoChange();
 }
 

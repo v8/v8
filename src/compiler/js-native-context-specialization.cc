@@ -457,7 +457,32 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
   Node* const value = jsgraph()->Dead();
+
+  // Check if we have a constant receiver.
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    // Optimize "prototype" property of functions.
+    if (m.Value()->IsJSFunction() &&
+        p.name().is_identical_to(factory()->prototype_string())) {
+      Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+      if (function->has_initial_map()) {
+        // We need to add a code dependency on the initial map of the
+        // {function} in order to be notified about changes to the
+        // "prototype" of {function}, so it doesn't make sense to
+        // continue unless deoptimization is enabled.
+        if ((flags() & kDeoptimizationEnabled)) {
+          Handle<Map> initial_map(function->initial_map(), isolate());
+          dependencies()->AssumeInitialMapCantChange(initial_map);
+          Handle<Object> prototype(initial_map->prototype(), isolate());
+          Node* value = jsgraph()->Constant(prototype);
+          ReplaceWithValue(node, value);
+          return Replace(value);
+        }
+      }
+    }
+  }
 
   // Extract receiver maps from the LOAD_IC using the LoadICNexus.
   if (!p.feedback().IsValid()) return NoChange();

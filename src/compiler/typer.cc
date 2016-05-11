@@ -1347,34 +1347,6 @@ Type* Typer::Visitor::TypeJSLoadProperty(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSLoadNamed(Node* node) {
-  Factory* const f = isolate()->factory();
-  Handle<Name> name = NamedAccessOf(node->op()).name();
-  if (name.is_identical_to(f->prototype_string())) {
-    Type* receiver = Operand(node, 0);
-    if (receiver->Is(Type::None())) return Type::None();
-    if (receiver->IsConstant() &&
-        receiver->AsConstant()->Value()->IsJSFunction()) {
-      Handle<JSFunction> function =
-          Handle<JSFunction>::cast(receiver->AsConstant()->Value());
-      if (function->has_prototype()) {
-        // We need to add a code dependency on the initial map of the {function}
-        // in order to be notified about changes to "prototype" of {function},
-        // so we can only infer a constant type if deoptimization is enabled.
-        if (flags() & kDeoptimizationEnabled) {
-          JSFunction::EnsureHasInitialMap(function);
-          Handle<Map> initial_map(function->initial_map(), isolate());
-          dependencies()->AssumeInitialMapCantChange(initial_map);
-          return Type::Constant(handle(initial_map->prototype(), isolate()),
-                                zone());
-        }
-      }
-    } else if (receiver->IsClass() &&
-               receiver->AsClass()->Map()->IsJSFunctionMap()) {
-      Handle<Map> map = receiver->AsClass()->Map();
-      return map->has_non_instance_prototype() ? Type::Primitive()
-                                               : Type::Receiver();
-    }
-  }
   return Type::Any();
 }
 
