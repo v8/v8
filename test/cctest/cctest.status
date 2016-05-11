@@ -265,12 +265,6 @@
 }],  # 'no_snap == True'
 
 ##############################################################################
-['no_snap == True and mode == debug', {
-  # TODO(rmcilroy,4928): Issue with --mstackalign.
-  'test-interpreter/InterpreterCreateArguments': [SKIP],
-}],  # 'no_snap == True and mode == debug'
-
-##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
 # section to not overwrite the expectations for TestThatAlwaysFails.
 ['no_snap == True and system == windows', {

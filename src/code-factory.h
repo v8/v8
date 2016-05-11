@@ -125,9 +125,12 @@ class CodeFactory final {
   static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
                                  FunctionKind kind);
   static Callable FastNewObject(Isolate* isolate);
-  static Callable FastNewRestParameter(Isolate* isolate);
-  static Callable FastNewSloppyArguments(Isolate* isolate);
-  static Callable FastNewStrictArguments(Isolate* isolate);
+  static Callable FastNewRestParameter(Isolate* isolate,
+                                       bool skip_stub_frame = false);
+  static Callable FastNewSloppyArguments(Isolate* isolate,
+                                         bool skip_stub_frame = false);
+  static Callable FastNewStrictArguments(Isolate* isolate,
+                                         bool skip_stub_frame = false);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 #define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \

@@ -105,6 +105,12 @@ namespace internal {
   V(kInvalidCaptureReferenced, "Invalid capture referenced")                   \
   V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                 \
     "Invalid ElementsKind for InternalArray or InternalPackedArray")           \
+  V(kInvalidFrameForFastNewRestArgumentsStub,                                  \
+    "Invalid frame for FastNewRestArgumentsStub")                              \
+  V(kInvalidFrameForFastNewSloppyArgumentsStub,                                \
+    "Invalid frame for FastNewSloppyArgumentsStub")                            \
+  V(kInvalidFrameForFastNewStrictArgumentsStub,                                \
+    "Invalid frame for FastNewStrictArgumentsStub")                            \
   V(kInvalidFullCodegenState, "invalid full-codegen state")                    \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
   V(kInvalidLeftHandSideInAssignment, "Invalid left-hand side in assignment")  \

@@ -365,12 +365,6 @@
 }],  # novfp3 == True
 
 ##############################################################################
-['no_snap == True and mode == debug', {
-  # TODO(rmcilroy,4928): Issue with --mstackalign.
-  'es6/new-target': [PASS, NO_IGNITION],
-}],  # 'no_snap == True and mode == debug'
-
-##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   'allocation-site-info': [SKIP],

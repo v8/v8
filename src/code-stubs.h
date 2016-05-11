@@ -1067,11 +1067,19 @@ class FastNewObjectStub final : public PlatformCodeStub {
 // of the strict arguments object materialization code.
 class FastNewRestParameterStub final : public PlatformCodeStub {
  public:
-  explicit FastNewRestParameterStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
+  explicit FastNewRestParameterStub(Isolate* isolate,
+                                    bool skip_stub_frame = false)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = SkipStubFrameBits::encode(skip_stub_frame);
+  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewRestParameter);
   DEFINE_PLATFORM_CODE_STUB(FastNewRestParameter, PlatformCodeStub);
+
+  int skip_stub_frame() const { return SkipStubFrameBits::decode(minor_key_); }
+
+ private:
+  class SkipStubFrameBits : public BitField<bool, 0, 1> {};
 };
 
 
@@ -1080,11 +1088,19 @@ class FastNewRestParameterStub final : public PlatformCodeStub {
 // and easy as the current handwritten version.
 class FastNewSloppyArgumentsStub final : public PlatformCodeStub {
  public:
-  explicit FastNewSloppyArgumentsStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
+  explicit FastNewSloppyArgumentsStub(Isolate* isolate,
+                                      bool skip_stub_frame = false)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = SkipStubFrameBits::encode(skip_stub_frame);
+  }
+
+  int skip_stub_frame() const { return SkipStubFrameBits::decode(minor_key_); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewSloppyArguments);
   DEFINE_PLATFORM_CODE_STUB(FastNewSloppyArguments, PlatformCodeStub);
+
+ private:
+  class SkipStubFrameBits : public BitField<bool, 0, 1> {};
 };
 
 
@@ -1093,11 +1109,19 @@ class FastNewSloppyArgumentsStub final : public PlatformCodeStub {
 // and easy as the current handwritten version.
 class FastNewStrictArgumentsStub final : public PlatformCodeStub {
  public:
-  explicit FastNewStrictArgumentsStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
+  explicit FastNewStrictArgumentsStub(Isolate* isolate,
+                                      bool skip_stub_frame = false)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = SkipStubFrameBits::encode(skip_stub_frame);
+  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewStrictArguments);
   DEFINE_PLATFORM_CODE_STUB(FastNewStrictArguments, PlatformCodeStub);
+
+  int skip_stub_frame() const { return SkipStubFrameBits::decode(minor_key_); }
+
+ private:
+  class SkipStubFrameBits : public BitField<bool, 0, 1> {};
 };
 
 

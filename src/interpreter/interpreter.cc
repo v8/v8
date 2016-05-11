@@ -1514,7 +1514,7 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
 
   Variable result(assembler, MachineRepresentation::kTagged);
-  Label end(assembler), if_duplicate_parameters(assembler),
+  Label end(assembler), if_duplicate_parameters(assembler, Label::kDeferred),
       if_not_duplicate_parameters(assembler);
 
   // Check if function has duplicate parameters.
@@ -1539,7 +1539,7 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 
   __ Bind(&if_not_duplicate_parameters);
   {
-    Callable callable = CodeFactory::FastNewSloppyArguments(isolate_);
+    Callable callable = CodeFactory::FastNewSloppyArguments(isolate_, true);
     Node* target = __ HeapConstant(callable.code());
     result.Bind(__ CallStub(callable.descriptor(), target, context, closure));
     __ Goto(&end);
@@ -1554,7 +1554,7 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new unmapped arguments object.
 void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastNewStrictArguments(isolate_);
+  Callable callable = CodeFactory::FastNewStrictArguments(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* context = __ GetContext();
   Node* closure = __ LoadRegister(Register::function_closure());
@@ -1567,7 +1567,7 @@ void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new rest parameter array.
 void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
-  Callable callable = CodeFactory::FastNewRestParameter(isolate_);
+  Callable callable = CodeFactory::FastNewRestParameter(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
