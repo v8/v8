@@ -5342,7 +5342,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:
     DeferredAllocate(LCodeGen* codegen, LAllocate* instr)
-        : LDeferredCode(codegen), instr_(instr) {}
+        : LDeferredCode(codegen), instr_(instr) { }
     void Generate() override { codegen()->DoDeferredAllocate(instr_); }
     LInstruction* instr() override { return instr_; }
 
@@ -5350,7 +5350,8 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     LAllocate* instr_;
   };
 
-  DeferredAllocate* deferred = new (zone()) DeferredAllocate(this, instr);
+  DeferredAllocate* deferred =
+      new(zone()) DeferredAllocate(this, instr);
 
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->temp1());
@@ -5364,6 +5365,14 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   if (instr->hydrogen()->IsOldSpaceAllocation()) {
     DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
     flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDING_DOMINATOR);
+  }
+
+  if (instr->hydrogen()->IsAllocationFolded()) {
+    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDED);
   }
 
   if (instr->size()->IsConstantOperand()) {
@@ -5437,6 +5446,50 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   CallRuntimeFromDeferred(Runtime::kAllocateInTargetSpace, 2, instr,
                           instr->context());
   __ StoreToSafepointRegisterSlot(r3, result);
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    AllocationFlags allocation_flags = NO_ALLOCATION_FLAGS;
+    if (instr->hydrogen()->IsOldSpaceAllocation()) {
+      DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+      allocation_flags = static_cast<AllocationFlags>(flags | PRETENURE);
+    }
+    // If the allocation folding dominator allocate triggered a GC, allocation
+    // happend in the runtime. We have to reset the top pointer to virtually
+    // undo the allocation.
+    ExternalReference allocation_top =
+        AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
+    Register top_address = scratch0();
+    __ subi(r3, r3, Operand(kHeapObjectTag));
+    __ mov(top_address, Operand(allocation_top));
+    __ StoreP(r3, MemOperand(top_address));
+    __ addi(r3, r3, Operand(kHeapObjectTag));
+  }
+}
+
+void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
+  DCHECK(instr->hydrogen()->IsAllocationFolded());
+  Register result = ToRegister(instr->result());
+  Register scratch1 = ToRegister(instr->temp1());
+  Register scratch2 = ToRegister(instr->temp2());
+
+  AllocationFlags flags = NO_ALLOCATION_FLAGS;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
+    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+  if (!instr->hydrogen()->IsAllocationFoldingDominator()) {
+    if (instr->size()->IsConstantOperand()) {
+      int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+      CHECK(size <= Page::kMaxRegularHeapObjectSize);
+      __ FastAllocate(size, result, scratch1, scratch2, flags);
+    } else {
+      Register size = ToRegister(instr->size());
+      __ FastAllocate(size, result, scratch1, scratch2, flags);
+    }
+  }
 }
 
 
