@@ -520,6 +520,20 @@ class RuntimeCallTimer {
   base::ElapsedTimer timer_;
 };
 
+#define FOR_EACH_MANUAL_COUNTER(V)                     \
+  /* Counter for runtime callbacks into JavaScript. */ \
+  V(ExternalCallback)                                  \
+  V(GC)                                                \
+  /* Dummy counter for the unexpected stub miss. */    \
+  V(UnexpectedStubMiss)                                \
+  V(PrototypeMap_TransitionToAccessorProperty)         \
+  V(PrototypeMap_TransitionToDataProperty)             \
+  V(Map_TransitionToAccessorProperty)                  \
+  V(Map_TransitionToDataProperty)                      \
+  V(Map_SetPrototype)                                  \
+  V(PrototypeObject_DeleteProperty)                    \
+  V(Object_DeleteProperty)
+
 #define FOR_EACH_HANDLER_COUNTER(V)             \
   V(IC_HandlerCacheHit)                         \
   V(KeyedLoadIC_LoadIndexedStringStub)          \
@@ -564,12 +578,10 @@ class RuntimeCallStats {
  public:
   typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
 
-  // Dummy counter for the unexpected stub miss.
-  RuntimeCallCounter UnexpectedStubMiss =
-      RuntimeCallCounter("UnexpectedStubMiss");
-  // Counter for runtime callbacks into JavaScript.
-  RuntimeCallCounter ExternalCallback = RuntimeCallCounter("ExternalCallback");
-  RuntimeCallCounter GC = RuntimeCallCounter("GC");
+#define CALL_RUNTIME_COUNTER(name) \
+  RuntimeCallCounter name = RuntimeCallCounter(#name);
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
   RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
@@ -622,13 +634,18 @@ class RuntimeCallStats {
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
-  inline explicit RuntimeCallTimerScope(
-      Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+  inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallStats::CounterId counter_id) {
     if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
       isolate_ = isolate;
       RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
     }
   }
+  // This constructor is here just to avoid calling GetIsolate() when the
+  // stats are disabled and the isolate is not directly available.
+  inline RuntimeCallTimerScope(HeapObject* heap_object,
+                               RuntimeCallStats::CounterId counter_id);
+
   inline ~RuntimeCallTimerScope() {
     if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
       RuntimeCallStats::Leave(isolate_, &timer_);

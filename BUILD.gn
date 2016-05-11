@@ -1017,6 +1017,7 @@ v8_source_set("v8_base") {
     "src/conversions-inl.h",
     "src/conversions.cc",
     "src/conversions.h",
+    "src/counters-inl.h",
     "src/counters.cc",
     "src/counters.h",
     "src/crankshaft/compilation-phase.cc",

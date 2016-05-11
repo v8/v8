@@ -22,6 +22,8 @@
 #include "src/codegen.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler.h"
+#include "src/counters-inl.h"
+#include "src/counters.h"
 #include "src/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -9018,6 +9020,11 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StoreFromKeyed store_mode) {
+  RuntimeCallTimerScope stats_scope(
+      *map, map->is_prototype_map()
+                ? &RuntimeCallStats::PrototypeMap_TransitionToDataProperty
+                : &RuntimeCallStats::Map_TransitionToDataProperty);
+
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
 
@@ -9098,6 +9105,12 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Object> getter,
                                               Handle<Object> setter,
                                               PropertyAttributes attributes) {
+  RuntimeCallTimerScope stats_scope(
+      isolate,
+      map->is_prototype_map()
+          ? &RuntimeCallStats::PrototypeMap_TransitionToAccessorProperty
+          : &RuntimeCallStats::Map_TransitionToAccessorProperty);
+
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull() || !setter->IsNull());
   DCHECK(name->IsUniqueName());
@@ -11667,6 +11680,8 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 // static
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
+  RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
+
   bool is_hidden = false;
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);

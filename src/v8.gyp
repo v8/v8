@@ -685,6 +685,7 @@
         'conversions-inl.h',
         'conversions.cc',
         'conversions.h',
+        'counters-inl.h',
         'counters.cc',
         'counters.h',
         'crankshaft/compilation-phase.cc',

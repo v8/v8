@@ -352,9 +352,14 @@ void LookupIterator::Delete() {
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Delete(object, number_);
   } else {
-    PropertyNormalizationMode mode = holder->map()->is_prototype_map()
-                                         ? KEEP_INOBJECT_PROPERTIES
-                                         : CLEAR_INOBJECT_PROPERTIES;
+    bool is_prototype_map = holder->map()->is_prototype_map();
+    RuntimeCallTimerScope stats_scope(
+        isolate_, is_prototype_map
+                      ? &RuntimeCallStats::PrototypeObject_DeleteProperty
+                      : &RuntimeCallStats::Object_DeleteProperty);
+
+    PropertyNormalizationMode mode =
+        is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
 
     if (holder->HasFastProperties()) {
       JSObject::NormalizeProperties(Handle<JSObject>::cast(holder), mode, 0,

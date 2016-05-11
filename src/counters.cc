@@ -300,6 +300,10 @@ void RuntimeCallStats::CorrectCurrentCounterId(Isolate* isolate,
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
 
+#define PRINT_COUNTER(name) entries.Add(&this->name);
+  FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
 #define PRINT_COUNTER(name, nargs, ressize) entries.Add(&this->Runtime_##name);
   FOR_EACH_INTRINSIC(PRINT_COUNTER)
 #undef PRINT_COUNTER
@@ -311,10 +315,6 @@ void RuntimeCallStats::Print(std::ostream& os) {
 #define PRINT_COUNTER(name) entries.Add(&this->Handler_##name);
   FOR_EACH_HANDLER_COUNTER(PRINT_COUNTER)
 #undef PRINT_COUNTER
-
-  entries.Add(&this->ExternalCallback);
-  entries.Add(&this->GC);
-  entries.Add(&this->UnexpectedStubMiss);
 
   entries.Print(os);
 }
