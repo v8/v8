@@ -416,6 +416,7 @@ class RelocInfo {
     VENEER_POOL,
 
     DEOPT_REASON,  // Deoptimization reason index.
+    DEOPT_ID,      // Deoptimization inlining id.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -475,6 +476,9 @@ class RelocInfo {
   }
   static inline bool IsDeoptReason(Mode mode) {
     return mode == DEOPT_REASON;
+  }
+  static inline bool IsDeoptId(Mode mode) {
+    return mode == DEOPT_ID;
   }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;

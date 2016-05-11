@@ -58,8 +58,6 @@ class LCodeGenBase BASE_EMBEDDED {
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
-  void LogDeoptCallPosition(int pc_offset, int inlining_id);
-
   // Check that an environment assigned via AssignEnvironment is actually being
   // used. Redundant assignments keep things alive longer than necessary, and
   // consequently lead to worse code, so it's important to minimize this.

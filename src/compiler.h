@@ -131,7 +131,6 @@ struct InlinedFunctionInfo {
   SourcePosition inline_position;
   int script_id;
   int start_position;
-  std::vector<size_t> deopt_pc_offsets;
 
   static const int kNoParentId = -1;
 };

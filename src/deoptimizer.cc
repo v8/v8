@@ -2752,20 +2752,26 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   SourcePosition last_position = SourcePosition::Unknown();
   Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
+  int last_inlining_id = InlinedFunctionInfo::kNoParentId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
+             RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
              RelocInfo::ModeMask(RelocInfo::POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    if (info->pc() >= pc) return DeoptInfo(last_position, last_reason);
+    if (info->pc() >= pc) {
+      return DeoptInfo(last_position, last_reason, last_inlining_id);
+    }
     if (info->rmode() == RelocInfo::POSITION) {
       int raw_position = static_cast<int>(info->data());
       last_position = raw_position ? SourcePosition::FromRaw(raw_position)
                                    : SourcePosition::Unknown();
+    } else if (info->rmode() == RelocInfo::DEOPT_ID) {
+      last_inlining_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason);
+  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason, -1);
 }
 
 

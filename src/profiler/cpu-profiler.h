@@ -81,7 +81,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   Address start;
   const char* deopt_reason;
   SourcePosition position;
-  size_t pc_offset;
+  int inlining_id;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };

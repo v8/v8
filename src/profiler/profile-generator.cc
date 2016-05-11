@@ -138,15 +138,7 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
   }
   // Copy the only branch from the inlining tree where the deopt happened.
   SourcePosition position = deopt_position_;
-  int inlining_id = InlinedFunctionInfo::kNoParentId;
-  for (size_t i = 0; i < inlined_function_infos_.size(); ++i) {
-    InlinedFunctionInfo& current_info = inlined_function_infos_.at(i);
-    if (std::binary_search(current_info.deopt_pc_offsets.begin(),
-                           current_info.deopt_pc_offsets.end(), pc_offset_)) {
-      inlining_id = static_cast<int>(i);
-      break;
-    }
-  }
+  int inlining_id = deopt_inlining_id_;
   while (inlining_id != InlinedFunctionInfo::kNoParentId) {
     InlinedFunctionInfo& inlined_info = inlined_function_infos_.at(inlining_id);
     info.stack.push_back(

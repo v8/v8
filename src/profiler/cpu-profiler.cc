@@ -353,7 +353,7 @@ void CpuProfiler::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
   rec->start = code->address();
   rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
   rec->position = info.position;
-  rec->pc_offset = pc - code->instruction_start();
+  rec->inlining_id = info.inlining_id;
   processor_->Enqueue(evt_rec);
   processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
 }
