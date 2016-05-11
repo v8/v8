@@ -98,7 +98,7 @@ class WasmGraphBuilder {
   Node* Int64Constant(int64_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
-  Node* HeapConstant(Handle<HeapObject> value);
+  Node* Constant(Handle<Object> value);
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
