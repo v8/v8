@@ -232,14 +232,17 @@ class WasmTrapHelper : public ZoneObject {
       CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
           jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
           CallDescriptor::kNoFlags);
+      // CEntryStubConstant nodes have to be created and cached in the main
+      // thread. At the moment this is only done for CEntryStubConstant(1).
+      DCHECK_EQ(1, fun->result_size);
       Node* inputs[] = {
           jsgraph()->CEntryStubConstant(fun->result_size),  // C entry
           trap_reason_smi,                                  // message id
           trap_position_smi,                                // byte position
           jsgraph()->ExternalConstant(
-              ExternalReference(f, jsgraph()->isolate())),  // ref
-          jsgraph()->Int32Constant(fun->nargs),             // arity
-          jsgraph()->Constant(module->instance->context),   // context
+              ExternalReference(f, jsgraph()->isolate())),    // ref
+          jsgraph()->Int32Constant(fun->nargs),               // arity
+          builder_->HeapConstant(module->instance->context),  // context
           *effect_ptr,
           *control_ptr};
 
@@ -890,8 +893,8 @@ Node* WasmGraphBuilder::Float64Constant(double value) {
   return jsgraph()->Float64Constant(value);
 }
 
-Node* WasmGraphBuilder::Constant(Handle<Object> value) {
-  return jsgraph()->Constant(value);
+Node* WasmGraphBuilder::HeapConstant(Handle<HeapObject> value) {
+  return jsgraph()->HeapConstant(value);
 }
 
 Node* WasmGraphBuilder::Branch(Node* cond, Node** true_node,
@@ -1893,7 +1896,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args,
   DCHECK_NULL(args[0]);
 
   // Add code object as constant.
-  args[0] = Constant(module_->GetFunctionCode(index));
+  args[0] = HeapConstant(module_->GetFunctionCode(index));
   wasm::FunctionSig* sig = module_->GetFunctionSignature(index);
 
   return BuildWasmCall(sig, args, position);
@@ -1904,7 +1907,7 @@ Node* WasmGraphBuilder::CallImport(uint32_t index, Node** args,
   DCHECK_NULL(args[0]);
 
   // Add code object as constant.
-  args[0] = Constant(module_->GetImportCode(index));
+  args[0] = HeapConstant(module_->GetImportCode(index));
   wasm::FunctionSig* sig = module_->GetImportSignature(index);
 
   return BuildWasmCall(sig, args, position);
@@ -2382,7 +2385,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
       graph()->start());
 
   int pos = 0;
-  args[pos++] = Constant(wasm_code);
+  args[pos++] = HeapConstant(wasm_code);
 
   // Convert JS parameters to WASM numbers.
   for (int i = 0; i < wasm_count; i++) {
@@ -2440,7 +2443,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   *effect_ = start;
   *control_ = start;
   // JS context is the last parameter.
-  Node* context = Constant(Handle<Context>(function->context(), isolate));
+  Node* context = HeapConstant(Handle<Context>(function->context(), isolate));
   Node** args = Buffer(wasm_count + 7);
 
   bool arg_count_before_args = false;
@@ -2545,7 +2548,7 @@ Node* WasmGraphBuilder::FunctionTable() {
   DCHECK(module_ && module_->instance &&
          !module_->instance->function_table.is_null());
   if (!function_table_) {
-    function_table_ = jsgraph()->Constant(module_->instance->function_table);
+    function_table_ = HeapConstant(module_->instance->function_table);
   }
   return function_table_;
 }
@@ -2885,7 +2888,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 }
 
 std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
-    Zone* zone, wasm::ErrorThrower* thrower, Isolate* isolate,
+    JSGraph* jsgraph, wasm::ErrorThrower* thrower, Isolate* isolate,
     wasm::ModuleEnv*& module_env, const wasm::WasmFunction* function,
     double* decode_ms) {
   base::ElapsedTimer decode_timer;
@@ -2893,16 +2896,13 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
     decode_timer.Start();
   }
   // Create a TF graph during decoding.
-  Graph* graph = new (zone) Graph(zone);
-  CommonOperatorBuilder* common = new (zone) CommonOperatorBuilder(zone);
-  MachineOperatorBuilder* machine = new (zone) MachineOperatorBuilder(
-      zone, MachineType::PointerRepresentation(),
-      InstructionSelector::SupportedMachineOperatorFlags());
-  JSGraph* jsgraph =
-      new (zone) JSGraph(isolate, graph, common, nullptr, nullptr, machine);
+  Graph* graph = jsgraph->graph();
+  CommonOperatorBuilder* common = jsgraph->common();
+  MachineOperatorBuilder* machine = jsgraph->machine();
   SourcePositionTable* source_position_table =
-      new (zone) SourcePositionTable(graph);
-  WasmGraphBuilder builder(zone, jsgraph, function->sig, source_position_table);
+      new (jsgraph->zone()) SourcePositionTable(graph);
+  WasmGraphBuilder builder(jsgraph->zone(), jsgraph, function->sig,
+                           source_position_table);
   wasm::FunctionBody body = {
       module_env, function->sig, module_env->module->module_start,
       module_env->module->module_start + function->code_start_offset,
@@ -2911,7 +2911,7 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
       wasm::BuildTFGraph(isolate->allocator(), &builder, body);
 
   if (machine->Is32()) {
-    Int64Lowering r(graph, machine, common, zone, function->sig);
+    Int64Lowering r(graph, machine, common, jsgraph->zone(), function->sig);
     r.LowerGraph();
   }
 
@@ -2948,6 +2948,14 @@ class WasmCompilationUnit {
         isolate_(isolate),
         module_env_(module_env),
         function_(function),
+        graph_zone_(new Zone(isolate->allocator())),
+        jsgraph_(new (graph_zone()) JSGraph(
+            isolate, new (graph_zone()) Graph(graph_zone()),
+            new (graph_zone()) CommonOperatorBuilder(graph_zone()), nullptr,
+            nullptr,
+            new (graph_zone()) MachineOperatorBuilder(
+                graph_zone(), MachineType::PointerRepresentation(),
+                InstructionSelector::SupportedMachineOperatorFlags()))),
         compilation_zone_(isolate->allocator()),
         info_(function->name_length != 0
                   ? module_env->module->GetNameOrNull(function->name_offset,
@@ -2957,7 +2965,12 @@ class WasmCompilationUnit {
               Code::ComputeFlags(Code::WASM_FUNCTION)),
         job_(),
         index_(index),
-        ok_(true) {}
+        ok_(true) {
+    // Create and cache this node in the main thread.
+    jsgraph_->CEntryStubConstant(1);
+  }
+
+  Zone* graph_zone() { return graph_zone_.get(); }
 
   void ExecuteCompilation() {
     HistogramTimerScope wasm_compile_function_time_scope(
@@ -2972,9 +2985,9 @@ class WasmCompilationUnit {
     double decode_ms = 0;
     size_t node_count = 0;
 
-    Zone zone(isolate_->allocator());
+    base::SmartPointer<Zone> graph_zone(graph_zone_.Detach());
     std::pair<JSGraph*, SourcePositionTable*> graph_result =
-        BuildGraphForWasmFunction(&zone, thrower_, isolate_, module_env_,
+        BuildGraphForWasmFunction(jsgraph_, thrower_, isolate_, module_env_,
                                   function_, &decode_ms);
     JSGraph* jsgraph = graph_result.first;
     SourcePositionTable* source_positions = graph_result.second;
@@ -3059,6 +3072,9 @@ class WasmCompilationUnit {
   Isolate* isolate_;
   wasm::ModuleEnv* module_env_;
   const wasm::WasmFunction* function_;
+  // The graph zone is deallocated at the end of ExecuteCompilation.
+  base::SmartPointer<Zone> graph_zone_;
+  JSGraph* jsgraph_;
   Zone compilation_zone_;
   CompilationInfo info_;
   base::SmartPointer<CompilationJob> job_;
