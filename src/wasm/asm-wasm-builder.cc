@@ -1437,9 +1437,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
       RECURSE(Visit(GetLeft(expr)));
       TypeIndex type = TypeIndexOf(GetLeft(expr));
       if (type == kFloat32) {
-        current_function_builder_->Emit(kExprI32SConvertF32);
+        current_function_builder_->Emit(kExprI32AsmjsSConvertF32);
       } else if (type == kFloat64) {
-        current_function_builder_->Emit(kExprI32SConvertF64);
+        current_function_builder_->Emit(kExprI32AsmjsSConvertF64);
       } else {
         UNREACHABLE();
       }

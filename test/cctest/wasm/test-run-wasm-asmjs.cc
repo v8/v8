@@ -70,6 +70,46 @@ TEST(Run_WASM_Int32AsmjsRemU) {
   CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
+TEST(Run_Wasm_I32AsmjsSConvertF32) {
+  WasmRunner<int32_t> r(MachineType::Float32());
+  BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF32, WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    int32_t expected = DoubleToInt32(*i);
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
+
+TEST(Run_Wasm_I32AsmjsSConvertF64) {
+  WasmRunner<int32_t> r(MachineType::Float64());
+  BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF64, WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    int32_t expected = DoubleToInt32(*i);
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
+
+TEST(Run_Wasm_I32AsmjsUConvertF32) {
+  WasmRunner<uint32_t> r(MachineType::Float32());
+  BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF32, WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    uint32_t expected = DoubleToUint32(*i);
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
+
+TEST(Run_Wasm_I32AsmjsUConvertF64) {
+  WasmRunner<uint32_t> r(MachineType::Float64());
+  BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF64, WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    uint32_t expected = DoubleToUint32(*i);
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
+
 TEST(Run_Wasm_LoadMemI32_oob_asm) {
   TestingModule module;
   module.origin = kAsmJsOrigin;

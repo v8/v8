@@ -260,7 +260,11 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32AsmjsDivS, 0xd0, i_ii)          \
   V(I32AsmjsDivU, 0xd1, i_ii)          \
   V(I32AsmjsRemS, 0xd2, i_ii)          \
-  V(I32AsmjsRemU, 0xd3, i_ii)
+  V(I32AsmjsRemU, 0xd3, i_ii)          \
+  V(I32AsmjsSConvertF32, 0xe0, i_f)    \
+  V(I32AsmjsUConvertF32, 0xe1, i_f)    \
+  V(I32AsmjsSConvertF64, 0xe2, i_d)    \
+  V(I32AsmjsUConvertF64, 0xe3, i_d)
 
 /* TODO(titzer): introduce compatibility opcodes for these asm.js ops \
 V(I32AsmjsLoad8S, 0xd4, i_i)         \                                  \
@@ -275,10 +279,6 @@ V(I32AsmjsStore16, 0xdc, i_i)        \                                  \
 V(I32AsmjsStore, 0xdd, i_ii)         \                                  \
 V(F32AsmjsStore, 0xde, i_if)         \                                  \
 V(F64AsmjsStore, 0xdf, i_id)         \                                  \
-V(I32SAsmjsConvertF32, 0xe0, i_f)    \                                  \
-V(I32UAsmjsConvertF32, 0xe1, i_f)    \                                  \
-V(I32SAsmjsConvertF64, 0xe2, i_d)    \                                  \
-V(I32SAsmjsConvertF64, 0xe3, i_d)                                       \
 */
 
 // All opcodes.

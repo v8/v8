@@ -267,11 +267,6 @@ class WasmGraphBuilder {
   Node* BuildI32DivU(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI32RemU(Node* left, Node* right, wasm::WasmCodePosition position);
 
-  Node* BuildI32AsmjsDivS(Node* left, Node* right);
-  Node* BuildI32AsmjsRemS(Node* left, Node* right);
-  Node* BuildI32AsmjsDivU(Node* left, Node* right);
-  Node* BuildI32AsmjsRemU(Node* left, Node* right);
-
   Node* BuildI64DivS(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI64RemS(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI64DivU(Node* left, Node* right, wasm::WasmCodePosition position);
@@ -295,6 +290,16 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
+
+  // Asm.js specific functionality.
+  Node* BuildI32AsmjsSConvertF32(Node* input);
+  Node* BuildI32AsmjsSConvertF64(Node* input);
+  Node* BuildI32AsmjsUConvertF32(Node* input);
+  Node* BuildI32AsmjsUConvertF64(Node* input);
+  Node* BuildI32AsmjsDivS(Node* left, Node* right);
+  Node* BuildI32AsmjsRemS(Node* left, Node* right);
+  Node* BuildI32AsmjsDivU(Node* left, Node* right);
+  Node* BuildI32AsmjsRemU(Node* left, Node* right);
 
   Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);

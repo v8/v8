@@ -662,6 +662,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildI32SConvertF64(input, position);
     case wasm::kExprI32UConvertF64:
       return BuildI32UConvertF64(input, position);
+    case wasm::kExprI32AsmjsSConvertF64:
+      return BuildI32AsmjsSConvertF64(input);
+    case wasm::kExprI32AsmjsUConvertF64:
+      return BuildI32AsmjsUConvertF64(input);
     case wasm::kExprF32ConvertF64:
       op = m->TruncateFloat64ToFloat32();
       break;
@@ -681,6 +685,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildI32SConvertF32(input, position);
     case wasm::kExprI32UConvertF32:
       return BuildI32UConvertF32(input, position);
+    case wasm::kExprI32AsmjsSConvertF32:
+      return BuildI32AsmjsSConvertF32(input);
+    case wasm::kExprI32AsmjsUConvertF32:
+      return BuildI32AsmjsUConvertF32(input);
     case wasm::kExprF64ConvertF32:
       op = m->ChangeFloat32ToFloat64();
       break;
@@ -1129,12 +1137,6 @@ Node* WasmGraphBuilder::BuildF64Max(Node* left, Node* right) {
 Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input,
                                             wasm::WasmCodePosition position) {
   MachineOperatorBuilder* m = jsgraph()->machine();
-  if (module_ && module_->asm_js()) {
-    // asm.js must use the wacky JS semantics.
-    input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
-    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
-  }
-
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF32Trunc, input);
   Node* result = graph()->NewNode(m->TruncateFloat32ToInt32(), trunc);
@@ -1151,10 +1153,6 @@ Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input,
 Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input,
                                             wasm::WasmCodePosition position) {
   MachineOperatorBuilder* m = jsgraph()->machine();
-  if (module_ && module_->asm_js()) {
-    // asm.js must use the wacky JS semantics.
-    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
-  }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
   Node* result = graph()->NewNode(m->ChangeFloat64ToInt32(), trunc);
@@ -1171,12 +1169,6 @@ Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input,
 Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input,
                                             wasm::WasmCodePosition position) {
   MachineOperatorBuilder* m = jsgraph()->machine();
-  if (module_ && module_->asm_js()) {
-    // asm.js must use the wacky JS semantics.
-    input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
-    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
-  }
-
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF32Trunc, input);
   Node* result = graph()->NewNode(m->TruncateFloat32ToUint32(), trunc);
@@ -1193,10 +1185,6 @@ Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input,
 Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input,
                                             wasm::WasmCodePosition position) {
   MachineOperatorBuilder* m = jsgraph()->machine();
-  if (module_ && module_->asm_js()) {
-    // asm.js must use the wacky JS semantics.
-    return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
-  }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
   Node* result = graph()->NewNode(m->TruncateFloat64ToUint32(), trunc);
@@ -1208,6 +1196,32 @@ Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input,
   trap_->AddTrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow, position);
 
   return result;
+}
+
+Node* WasmGraphBuilder::BuildI32AsmjsSConvertF32(Node* input) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  // asm.js must use the wacky JS semantics.
+  input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
+  return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
+}
+
+Node* WasmGraphBuilder::BuildI32AsmjsSConvertF64(Node* input) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  // asm.js must use the wacky JS semantics.
+  return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
+}
+
+Node* WasmGraphBuilder::BuildI32AsmjsUConvertF32(Node* input) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  // asm.js must use the wacky JS semantics.
+  input = graph()->NewNode(m->ChangeFloat32ToFloat64(), input);
+  return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
+}
+
+Node* WasmGraphBuilder::BuildI32AsmjsUConvertF64(Node* input) {
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  // asm.js must use the wacky JS semantics.
+  return graph()->NewNode(m->TruncateFloat64ToWord32(), input);
 }
 
 Node* WasmGraphBuilder::BuildBitCountingCall(Node* input, ExternalReference ref,
