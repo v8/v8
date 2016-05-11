@@ -631,6 +631,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       }
 
       if (use_ic && LoadScriptContextFieldStub::Accepted(&lookup_result)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadScriptContextFieldStub);
         LoadScriptContextFieldStub stub(isolate(), &lookup_result);
         PatchCache(name, stub.GetCode());
       }
@@ -835,6 +836,7 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 
 
 Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
+  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
   return stub.GetCode();
 }
@@ -946,7 +948,10 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
   if (!code.is_null()) {
     Handle<Code> handler;
     if (maybe_handler_.ToHandle(&handler)) {
-      if (!handler.is_identical_to(code)) return code;
+      if (!handler.is_identical_to(code)) {
+        TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+        return code;
+      }
     } else {
       // maybe_handler_ is only populated for MONOMORPHIC and POLYMORPHIC ICs.
       // In MEGAMORPHIC case, check if the handler in the megamorphic stub
@@ -955,8 +960,12 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
         Code* megamorphic_cached_code =
             isolate()->stub_cache()->Get(*lookup->name(), map, code->flags());
-        if (megamorphic_cached_code != *code) return code;
+        if (megamorphic_cached_code != *code) {
+          TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
+          return code;
+        }
       } else {
+        TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
         return code;
       }
     }
@@ -992,6 +1001,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
 
   if (receiver->IsStringWrapper() &&
       Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
+    TRACE_HANDLER_STATS(isolate(), LoadIC_StringLengthStub);
     StringLengthStub string_length_stub(isolate());
     return string_length_stub.GetCode();
   }
@@ -1004,6 +1014,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
            ->map()
            ->has_non_instance_prototype()) {
     Handle<Code> stub;
+    TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
     FunctionPrototypeStub function_prototype_stub(isolate());
     return function_prototype_stub.GetCode();
   }
@@ -1014,6 +1025,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
       DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptor);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
       // Perform a lookup behind the interceptor. Copy the LookupIterator since
       // the original iterator will be used to fetch the value.
@@ -1035,6 +1047,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       }
       if (Accessors::IsJSArrayBufferViewFieldAccessor(map, lookup->name(),
                                                       &object_offset)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_ArrayBufferViewLoadFieldStub);
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         ArrayBufferViewLoadFieldStub stub(isolate(), index);
         return stub.GetCode();
@@ -1052,10 +1065,12 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           if (call_optimization.is_simple_api_call()) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
             int index = lookup->GetAccessorIndex();
             return compiler.CompileLoadCallback(lookup->name(),
                                                 call_optimization, index);
           }
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
           int expected_arguments = Handle<JSFunction>::cast(getter)
                                        ->shared()
                                        ->internal_formal_parameter_count();
@@ -1071,11 +1086,13 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           }
           if (!holder->HasFastProperties()) break;
           if (receiver_is_holder) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterStub);
             int index = lookup->GetAccessorIndex();
             LoadApiGetterStub stub(isolate(), true, index);
             return stub.GetCode();
           }
           if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           return compiler.CompileLoadCallback(lookup->name(), info);
@@ -1088,6 +1105,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       if (lookup->is_dictionary_holder()) {
         if (kind() != Code::LOAD_IC) break;
         if (holder->IsJSGlobalObject()) {
+          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           Handle<PropertyCell> cell = lookup->GetPropertyCell();
@@ -1105,6 +1123,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         // property must be found in the object for the stub to be
         // applicable.
         if (!receiver_is_holder) break;
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormal);
         return isolate()->builtins()->LoadIC_Normal();
       }
 
@@ -1114,6 +1133,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         if (receiver_is_holder) {
           return SimpleFieldLoad(field);
         }
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadField);
         NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
         return compiler.CompileLoadField(lookup->name(), field);
       }
@@ -1121,16 +1141,18 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
       if (receiver_is_holder) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
         LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
         return stub.GetCode();
       }
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstant);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
       return compiler.CompileLoadConstant(lookup->name(),
                                           lookup->GetConstantIndex());
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      return slow_stub();
+      break;
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
@@ -1138,6 +1160,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       UNREACHABLE();
   }
 
+  TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
   return slow_stub();
 }
 
@@ -1224,6 +1247,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   }
 
   CodeHandleList handlers(target_receiver_maps.length());
+  TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_PolymorphicElement);
   ElementHandlerCompiler compiler(isolate());
   compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
   ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);
@@ -1389,6 +1413,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
       if (FLAG_use_ic &&
           StoreScriptContextFieldStub::Accepted(&lookup_result)) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreScriptContextFieldStub);
         StoreScriptContextFieldStub stub(isolate(), &lookup_result);
         PatchCache(name, stub.GetCode());
       }
@@ -1503,6 +1528,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsJSGlobalObject()) {
         // TODO(dcarney): this currently just deopts. Use the transition cell.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransition);
         auto cell = isolate()->factory()->NewPropertyCell();
         cell->set_value(*value);
         auto code = PropertyCellStoreHandler(
@@ -1519,12 +1545,14 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       }
 
       DCHECK(lookup->IsCacheableTransition());
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransition);
       NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
       return compiler.CompileStoreTransition(transition, lookup->name());
     }
 
     case LookupIterator::INTERCEPTOR: {
       DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined());
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorStub);
       StoreInterceptorStub stub(isolate());
       return stub.GetCode();
     }
@@ -1553,6 +1581,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           break;
         }
         if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         return compiler.CompileStoreCallback(receiver, lookup->name(), info,
                                              language_mode());
@@ -1567,6 +1596,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         if (call_optimization.is_simple_api_call()) {
           if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
+            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
             return compiler.CompileStoreCallback(receiver, lookup->name(),
                                                  call_optimization,
                                                  lookup->GetAccessorIndex());
@@ -1574,6 +1604,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           TRACE_GENERIC_IC(isolate(), "StoreIC", "incompatible receiver");
           break;
         }
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
         int expected_arguments = JSFunction::cast(*setter)
                                      ->shared()
                                      ->internal_formal_parameter_count();
@@ -1587,6 +1618,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::DATA: {
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
           DCHECK(holder.is_identical_to(receiver) ||
                  receiver->map()->prototype() == *holder);
           auto cell = lookup->GetPropertyCell();
@@ -1597,6 +1629,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
               lookup->name(), cell, updated_type);
           return code;
         }
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormal);
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();
       }
@@ -1610,10 +1643,12 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           use_stub = !field_type->IsClass();
         }
         if (use_stub) {
+          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
           StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
                               lookup->representation());
           return stub.GetCode();
         }
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreField);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         return compiler.CompileStoreField(lookup);
       }
@@ -1630,6 +1665,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::NOT_FOUND:
       UNREACHABLE();
   }
+  TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
   return slow_stub();
 }
 
@@ -1749,6 +1785,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     }
   }
 
+  TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_Polymorphic);
   MapHandleList transitioned_maps(target_receiver_maps.length());
   CodeHandleList handlers(target_receiver_maps.length());
   PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(

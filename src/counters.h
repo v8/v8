@@ -501,12 +501,12 @@ class RuntimeCallTimer {
     counter_ = counter;
     parent_ = parent;
     timer_.Start();
-    counter_->count++;
   }
 
   inline RuntimeCallTimer* Stop() {
     base::TimeDelta delta = timer_.Elapsed();
     timer_.Stop();
+    counter_->count++;
     counter_->time += delta;
     if (parent_ != NULL) {
       // Adjust parent timer so that it does not include sub timer's time.
@@ -519,6 +519,46 @@ class RuntimeCallTimer {
   RuntimeCallTimer* parent_ = nullptr;
   base::ElapsedTimer timer_;
 };
+
+#define FOR_EACH_HANDLER_COUNTER(V)             \
+  V(IC_HandlerCacheHit)                         \
+  V(KeyedLoadIC_LoadIndexedStringStub)          \
+  V(KeyedLoadIC_LoadIndexedInterceptorStub)     \
+  V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)   \
+  V(KeyedLoadIC_LoadFastElementStub)            \
+  V(KeyedLoadIC_LoadDictionaryElementStub)      \
+  V(KeyedLoadIC_PolymorphicElement)             \
+  V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub) \
+  V(KeyedStoreIC_StoreFastElementStub)          \
+  V(KeyedStoreIC_StoreElementStub)              \
+  V(KeyedStoreIC_Polymorphic)                   \
+  V(LoadIC_FunctionPrototypeStub)               \
+  V(LoadIC_ArrayBufferViewLoadFieldStub)        \
+  V(LoadIC_LoadApiGetterStub)                   \
+  V(LoadIC_LoadCallback)                        \
+  V(LoadIC_LoadConstant)                        \
+  V(LoadIC_LoadConstantStub)                    \
+  V(LoadIC_LoadField)                           \
+  V(LoadIC_LoadFieldStub)                       \
+  V(LoadIC_LoadGlobal)                          \
+  V(LoadIC_LoadInterceptor)                     \
+  V(LoadIC_LoadNonexistent)                     \
+  V(LoadIC_LoadNormal)                          \
+  V(LoadIC_LoadScriptContextFieldStub)          \
+  V(LoadIC_LoadViaGetter)                       \
+  V(LoadIC_SlowStub)                            \
+  V(LoadIC_StringLengthStub)                    \
+  V(StoreIC_SlowStub)                           \
+  V(StoreIC_StoreCallback)                      \
+  V(StoreIC_StoreField)                         \
+  V(StoreIC_StoreFieldStub)                     \
+  V(StoreIC_StoreGlobal)                        \
+  V(StoreIC_StoreGlobalTransition)              \
+  V(StoreIC_StoreInterceptorStub)               \
+  V(StoreIC_StoreNormal)                        \
+  V(StoreIC_StoreScriptContextFieldStub)        \
+  V(StoreIC_StoreTransition)                    \
+  V(StoreIC_StoreViaSetter)
 
 class RuntimeCallStats {
  public:
@@ -538,6 +578,10 @@ class RuntimeCallStats {
   RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
   BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
+#define CALL_BUILTIN_COUNTER(name) \
+  RuntimeCallCounter Handler_##name = RuntimeCallCounter(#name);
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
@@ -549,6 +593,10 @@ class RuntimeCallStats {
   // parent.
   static void Leave(Isolate* isolate, RuntimeCallTimer* timer);
 
+  // Set counter id for the innermost measurement. It can be used to refine
+  // event kind when a runtime entry counter is too generic.
+  static void CorrectCurrentCounterId(Isolate* isolate, CounterId counter_id);
+
   void Reset();
   void Print(std::ostream& os);
 
@@ -558,6 +606,17 @@ class RuntimeCallStats {
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
 };
+
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
+  do {                                                  \
+    if (FLAG_runtime_call_stats) {                      \
+      RuntimeCallStats::CorrectCurrentCounterId(        \
+          isolate, &RuntimeCallStats::counter_name);    \
+    }                                                   \
+  } while (false)
+
+#define TRACE_HANDLER_STATS(isolate, counter_name) \
+  TRACE_RUNTIME_CALL_STATS(isolate, Handler_##counter_name)
 
 // A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
 // the time of C++ scope.

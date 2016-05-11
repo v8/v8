@@ -288,6 +288,15 @@ void RuntimeCallStats::Leave(Isolate* isolate, RuntimeCallTimer* timer) {
   stats->current_timer_ = timer->Stop();
 }
 
+// static
+void RuntimeCallStats::CorrectCurrentCounterId(Isolate* isolate,
+                                               CounterId counter_id) {
+  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+  DCHECK_NOT_NULL(stats->current_timer_);
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  stats->current_timer_->counter_ = counter;
+}
+
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
 
@@ -297,6 +306,10 @@ void RuntimeCallStats::Print(std::ostream& os) {
 
 #define PRINT_COUNTER(name, type) entries.Add(&this->Builtin_##name);
   BUILTIN_LIST_C(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name) entries.Add(&this->Handler_##name);
+  FOR_EACH_HANDLER_COUNTER(PRINT_COUNTER)
 #undef PRINT_COUNTER
 
   entries.Add(&this->ExternalCallback);

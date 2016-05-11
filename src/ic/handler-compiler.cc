@@ -67,6 +67,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
       cache_name, stub_holder_map, Code::LOAD_IC, flag);
   if (!handler.is_null()) return handler;
 
+  TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
   NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
   handler = compiler.CompileLoadNonexistent(cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
