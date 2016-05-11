@@ -169,7 +169,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 1),  // --
@@ -179,7 +178,6 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   EXPECT_OK(result);
   if (result.val) delete result.val;
 }
-
 
 static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
   while (true) {
@@ -194,7 +192,6 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
     }
   }
 }
-
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
@@ -245,7 +242,6 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
   EXPECT_FAILURE(data);
 }
 
-
 TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 7),
@@ -285,7 +281,6 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneSignature) {
   {
     static const byte data[] = {SIGNATURES_SECTION_VOID_VOID};
@@ -298,7 +293,6 @@ TEST_F(WasmModuleVerifyTest, OneSignature) {
     EXPECT_VERIFIES(data);
   }
 }
-
 
 TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   static const byte data[] = {
@@ -327,7 +321,6 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   static const byte data[] = {
       SECTION(OLD_FUNCTIONS, 25), 1,
@@ -348,7 +341,6 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   EXPECT_FALSE(result.ok());
   if (result.val) delete result.val;
 }
-
 
 TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
   const int kCodeStartOffset = 49;
@@ -400,7 +392,6 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
 
   EXPECT_OFF_END_FAILURE(data, 16, sizeof(data));
 }
-
 
 TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   static const byte data[] = {
@@ -467,7 +458,6 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
   static const byte kCodeStartOffset = 46;
   static const byte kCodeEndOffset = kCodeStartOffset + 1;
@@ -504,7 +494,6 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 
   if (result.val) delete result.val;
 }
-
 
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   static const byte kNameOffset = 49;
@@ -579,7 +568,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   }
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte kDataSegmentSourceOffset = 30;
   const byte data[] = {
@@ -616,7 +604,6 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
   EXPECT_OFF_END_FAILURE(data, 13, sizeof(data));
 }
-
 
 TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte kDataSegment0SourceOffset = 30;
@@ -704,7 +691,6 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
   }
 }
 
-
 // To make below tests for indirect calls much shorter.
 #define FUNCTION(sig_index, external) kDeclFunctionImport, SIG_INDEX(sig_index)
 
@@ -727,7 +713,6 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   }
   if (result.val) delete result.val;
 }
-
 
 TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   static const byte data[] = {
@@ -766,7 +751,6 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
@@ -777,7 +761,6 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
 
   EXPECT_FAILURE(data);
 }
-
 
 TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   static const byte data[] = {
@@ -792,9 +775,7 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   EXPECT_FAILURE(data);
 }
 
-
 class WasmSignatureDecodeTest : public TestWithZone {};
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
@@ -807,7 +788,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   EXPECT_EQ(0, sig->parameter_count());
   EXPECT_EQ(0, sig->return_count());
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -823,7 +803,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   }
 }
 
-
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalTypePair param_type = kLocalTypes[i];
@@ -837,7 +816,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
     EXPECT_EQ(param_type.type, sig->GetParam(0));
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -856,7 +834,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
     }
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -877,7 +854,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   }
 }
 
-
 TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
   byte data[256];
   for (int p = 0; p <= 255; p = p + 1 + p * 3) {
@@ -891,7 +867,6 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
     }
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
   byte kInvalidType = 76;

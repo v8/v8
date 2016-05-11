@@ -52,7 +52,6 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
     Verify(kSuccess, env, code, code + arraysize(code)); \
   } while (false)
 
-
 #define EXPECT_FAILURE_INLINE(env, ...)                \
   do {                                                 \
     static byte code[] = {__VA_ARGS__};                \
@@ -1150,7 +1149,6 @@ TEST_F(AstDecoderTest, AllStoreMemCombinations) {
   }
 }
 
-
 namespace {
 // A helper for tests that require a module environment for functions and
 // globals.
@@ -1862,7 +1860,6 @@ TEST_F(AstDecoderTest, Select_TypeCheck) {
       WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_I64V_1(0)));
 }
 
-
 class WasmOpcodeLengthTest : public TestWithZone {
  public:
   WasmOpcodeLengthTest() : TestWithZone() {}
@@ -1891,7 +1888,6 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(3, kExprBr);
   EXPECT_LENGTH(3, kExprBrIf);
 }
-
 
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(2, kExprI8Const);
@@ -1966,12 +1962,10 @@ TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
   EXPECT_LENGTH(3, kExprF64StoreMem);
 }
 
-
 TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
   EXPECT_LENGTH(1, kExprMemorySize);
   EXPECT_LENGTH(1, kExprGrowMemory);
 }
-
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprI32Add);
@@ -2094,7 +2088,6 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprI64ReinterpretF64);
 }
 
-
 class WasmOpcodeArityTest : public TestWithZone {
  public:
   WasmOpcodeArityTest() : TestWithZone() {}
@@ -2137,7 +2130,6 @@ TEST_F(WasmOpcodeArityTest, Control) {
   }
 }
 
-
 TEST_F(WasmOpcodeArityTest, Misc) {
   EXPECT_ARITY(0, kExprI8Const);
   EXPECT_ARITY(0, kExprI32Const);
@@ -2149,7 +2141,6 @@ TEST_F(WasmOpcodeArityTest, Misc) {
   EXPECT_ARITY(0, kExprLoadGlobal);
   EXPECT_ARITY(1, kExprStoreGlobal);
 }
-
 
 TEST_F(WasmOpcodeArityTest, Calls) {
   {
@@ -2181,7 +2172,6 @@ TEST_F(WasmOpcodeArityTest, Calls) {
   }
 }
 
-
 TEST_F(WasmOpcodeArityTest, LoadsAndStores) {
   EXPECT_ARITY(1, kExprI32LoadMem8S);
   EXPECT_ARITY(1, kExprI32LoadMem8U);
@@ -2210,12 +2200,10 @@ TEST_F(WasmOpcodeArityTest, LoadsAndStores) {
   EXPECT_ARITY(2, kExprF64StoreMem);
 }
 
-
 TEST_F(WasmOpcodeArityTest, MiscMemExpressions) {
   EXPECT_ARITY(0, kExprMemorySize);
   EXPECT_ARITY(1, kExprGrowMemory);
 }
-
 
 TEST_F(WasmOpcodeArityTest, SimpleExpressions) {
   EXPECT_ARITY(2, kExprI32Add);

@@ -54,7 +54,6 @@ const Operator* UnsupportedOpcode(wasm::WasmOpcode opcode) {
   return nullptr;
 }
 
-
 void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   Graph* g = jsgraph->graph();
   if (g->end()) {
@@ -285,9 +284,7 @@ WasmGraphBuilder::WasmGraphBuilder(
   DCHECK_NOT_NULL(jsgraph_);
 }
 
-
 Node* WasmGraphBuilder::Error() { return jsgraph()->Dead(); }
-
 
 Node* WasmGraphBuilder::Start(unsigned params) {
   Node* start = graph()->NewNode(jsgraph()->common()->Start(params));
@@ -295,17 +292,14 @@ Node* WasmGraphBuilder::Start(unsigned params) {
   return start;
 }
 
-
 Node* WasmGraphBuilder::Param(unsigned index, wasm::LocalType type) {
   return graph()->NewNode(jsgraph()->common()->Parameter(index),
                           graph()->start());
 }
 
-
 Node* WasmGraphBuilder::Loop(Node* entry) {
   return graph()->NewNode(jsgraph()->common()->Loop(1), entry);
 }
-
 
 Node* WasmGraphBuilder::Terminate(Node* effect, Node* control) {
   Node* terminate =
@@ -314,17 +308,14 @@ Node* WasmGraphBuilder::Terminate(Node* effect, Node* control) {
   return terminate;
 }
 
-
 unsigned WasmGraphBuilder::InputCount(Node* node) {
   return static_cast<unsigned>(node->InputCount());
 }
-
 
 bool WasmGraphBuilder::IsPhiWithMerge(Node* phi, Node* merge) {
   return phi && IrOpcode::IsPhiOpcode(phi->opcode()) &&
          NodeProperties::GetControlInput(phi) == merge;
 }
-
 
 void WasmGraphBuilder::AppendToMerge(Node* merge, Node* from) {
   DCHECK(IrOpcode::IsMergeOpcode(merge->opcode()));
@@ -342,11 +333,9 @@ void WasmGraphBuilder::AppendToPhi(Node* phi, Node* from) {
       phi, jsgraph()->common()->ResizeMergeOrPhi(phi->op(), new_size));
 }
 
-
 Node* WasmGraphBuilder::Merge(unsigned count, Node** controls) {
   return graph()->NewNode(jsgraph()->common()->Merge(count), count, controls);
 }
-
 
 Node* WasmGraphBuilder::Phi(wasm::LocalType type, unsigned count, Node** vals,
                             Node* control) {
@@ -356,7 +345,6 @@ Node* WasmGraphBuilder::Phi(wasm::LocalType type, unsigned count, Node** vals,
   return graph()->NewNode(jsgraph()->common()->Phi(type, count), count + 1,
                           buf);
 }
-
 
 Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
                                   Node* control) {
@@ -374,7 +362,6 @@ Node* WasmGraphBuilder::NumberConstant(int32_t value) {
 Node* WasmGraphBuilder::Int32Constant(int32_t value) {
   return jsgraph()->Int32Constant(value);
 }
-
 
 Node* WasmGraphBuilder::Int64Constant(int64_t value) {
   return jsgraph()->Int64Constant(value);
@@ -895,21 +882,17 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
   return graph()->NewNode(op, input);
 }
 
-
 Node* WasmGraphBuilder::Float32Constant(float value) {
   return jsgraph()->Float32Constant(value);
 }
-
 
 Node* WasmGraphBuilder::Float64Constant(double value) {
   return jsgraph()->Float64Constant(value);
 }
 
-
 Node* WasmGraphBuilder::Constant(Handle<Object> value) {
   return jsgraph()->Constant(value);
 }
-
 
 Node* WasmGraphBuilder::Branch(Node* cond, Node** true_node,
                                Node** false_node) {
@@ -922,23 +905,19 @@ Node* WasmGraphBuilder::Branch(Node* cond, Node** true_node,
   return branch;
 }
 
-
 Node* WasmGraphBuilder::Switch(unsigned count, Node* key) {
   return graph()->NewNode(jsgraph()->common()->Switch(count), key, *control_);
 }
-
 
 Node* WasmGraphBuilder::IfValue(int32_t value, Node* sw) {
   DCHECK_EQ(IrOpcode::kSwitch, sw->opcode());
   return graph()->NewNode(jsgraph()->common()->IfValue(value), sw);
 }
 
-
 Node* WasmGraphBuilder::IfDefault(Node* sw) {
   DCHECK_EQ(IrOpcode::kSwitch, sw->opcode());
   return graph()->NewNode(jsgraph()->common()->IfDefault(), sw);
 }
-
 
 Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   DCHECK_NOT_NULL(*control_);
@@ -958,7 +937,6 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   MergeControlToEnd(jsgraph(), ret);
   return ret;
 }
-
 
 Node* WasmGraphBuilder::ReturnVoid() { return Return(0, Buffer(0)); }
 
@@ -1008,7 +986,6 @@ Node* WasmGraphBuilder::BuildF32Neg(Node* input) {
   return result;
 }
 
-
 Node* WasmGraphBuilder::BuildF64Neg(Node* input) {
 #if WASM_64
   Node* result =
@@ -1028,7 +1005,6 @@ Node* WasmGraphBuilder::BuildF64Neg(Node* input) {
 #endif
 }
 
-
 Node* WasmGraphBuilder::BuildF32CopySign(Node* left, Node* right) {
   Node* result = Unop(
       wasm::kExprF32ReinterpretI32,
@@ -1040,7 +1016,6 @@ Node* WasmGraphBuilder::BuildF32CopySign(Node* left, Node* right) {
 
   return result;
 }
-
 
 Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
 #if WASM_64
@@ -1070,7 +1045,6 @@ Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
 #endif
 }
 
-
 Node* WasmGraphBuilder::BuildF32Min(Node* left, Node* right) {
   Diamond left_le_right(graph(), jsgraph()->common(),
                         Binop(wasm::kExprF32Le, left, right));
@@ -1090,7 +1064,6 @@ Node* WasmGraphBuilder::BuildF32Min(Node* left, Node* right) {
               Binop(wasm::kExprF32Mul, right, Float32Constant(1.0)),
               Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
 }
-
 
 Node* WasmGraphBuilder::BuildF32Max(Node* left, Node* right) {
   Diamond left_ge_right(graph(), jsgraph()->common(),
@@ -1112,7 +1085,6 @@ Node* WasmGraphBuilder::BuildF32Max(Node* left, Node* right) {
               Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
 }
 
-
 Node* WasmGraphBuilder::BuildF64Min(Node* left, Node* right) {
   Diamond left_le_right(graph(), jsgraph()->common(),
                         Binop(wasm::kExprF64Le, left, right));
@@ -1132,7 +1104,6 @@ Node* WasmGraphBuilder::BuildF64Min(Node* left, Node* right) {
               Binop(wasm::kExprF64Mul, right, Float64Constant(1.0)),
               Binop(wasm::kExprF64Mul, left, Float64Constant(1.0)))));
 }
-
 
 Node* WasmGraphBuilder::BuildF64Max(Node* left, Node* right) {
   Diamond left_ge_right(graph(), jsgraph()->common(),
@@ -1283,7 +1254,6 @@ Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
       input, ExternalReference::wasm_word32_popcnt(jsgraph()->isolate()),
       MachineRepresentation::kWord32);
 }
-
 
 Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
   return Unop(wasm::kExprI64UConvertI32,
@@ -2452,7 +2422,6 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   MergeControlToEnd(jsgraph(), ret);
 }
 
-
 void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
                                             wasm::FunctionSig* sig) {
   int js_count = function->shared()->internal_formal_parameter_count();
@@ -2545,7 +2514,6 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   MergeControlToEnd(jsgraph(), ret);
 }
 
-
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
   DCHECK(module_ && module_->instance);
   if (offset == 0) {
@@ -2562,7 +2530,6 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
   }
 }
 
-
 Node* WasmGraphBuilder::MemSize(uint32_t offset) {
   DCHECK(module_ && module_->instance);
   uint32_t size = static_cast<uint32_t>(module_->instance->mem_size);
@@ -2574,7 +2541,6 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
   }
 }
 
-
 Node* WasmGraphBuilder::FunctionTable() {
   DCHECK(module_ && module_->instance &&
          !module_->instance->function_table.is_null());
@@ -2583,7 +2549,6 @@ Node* WasmGraphBuilder::FunctionTable() {
   }
   return function_table_;
 }
-
 
 Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
   DCHECK(module_ && module_->instance && module_->instance->globals_start);
@@ -2597,7 +2562,6 @@ Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
   *effect_ = node;
   return node;
 }
-
 
 Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
   DCHECK(module_ && module_->instance && module_->instance->globals_start);
@@ -2713,12 +2677,10 @@ void WasmGraphBuilder::PrintDebugName(Node* node) {
   PrintF("#%d:%s", node->id(), node->op()->mnemonic());
 }
 
-
 Node* WasmGraphBuilder::String(const char* string) {
   return jsgraph()->Constant(
       jsgraph()->isolate()->factory()->NewStringFromAsciiChecked(string));
 }
-
 
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 

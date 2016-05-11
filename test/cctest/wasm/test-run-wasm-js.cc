@@ -25,13 +25,11 @@ using namespace v8::internal::wasm;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
-
 #define ADD_CODE(vec, ...)                                              \
   do {                                                                  \
     byte __buf[] = {__VA_ARGS__};                                       \
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
-
 
 namespace {
 // A helper for generating predictable but unique argument values that
@@ -47,7 +45,6 @@ class PredictableInputValues {
     return base_ * which + ((which & 1) * (0x04030201LL << 32));
   }
 };
-
 
 uint32_t AddJSSelector(TestingModule* module, FunctionSig* sig, int which) {
   const int kMaxParams = 11;
@@ -73,7 +70,6 @@ uint32_t AddJSSelector(TestingModule* module, FunctionSig* sig, int which) {
   return module->AddJsFunction(sig, source.start());
 }
 
-
 void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
                  Handle<Object>* buffer, int count) {
   Isolate* isolate = jsfunc->GetIsolate();
@@ -90,7 +86,6 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
     CheckFloatEq(expected, HeapNumber::cast(*result)->value());
   }
 }
-
 
 void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
                  double b) {
@@ -112,7 +107,6 @@ TEST(Run_Int32Sub_jswrapped) {
   EXPECT_CALL(-8723487, jsfunc, -8000000, 723487);
 }
 
-
 TEST(Run_Float32Div_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
@@ -123,7 +117,6 @@ TEST(Run_Float32Div_jswrapped) {
   EXPECT_CALL(92, jsfunc, 46, 0.5);
   EXPECT_CALL(64, jsfunc, -16, -0.25);
 }
-
 
 TEST(Run_Float64Add_jswrapped) {
   TestSignatures sigs;
@@ -136,7 +129,6 @@ TEST(Run_Float64Add_jswrapped) {
   EXPECT_CALL(-5.5, jsfunc, -5.25, -0.25);
 }
 
-
 TEST(Run_I32Popcount_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
@@ -148,7 +140,6 @@ TEST(Run_I32Popcount_jswrapped) {
   EXPECT_CALL(3, jsfunc, 11, 0);
   EXPECT_CALL(6, jsfunc, 0x3F, 0);
 }
-
 
 TEST(Run_CallJS_Add_jswrapped) {
   TestSignatures sigs;
@@ -164,7 +155,6 @@ TEST(Run_CallJS_Add_jswrapped) {
   EXPECT_CALL(199, jsfunc, 100, -1);
   EXPECT_CALL(-666666801, jsfunc, -666666900, -1);
 }
-
 
 void RunJSSelectTest(int which) {
   const int kMaxParams = 8;
@@ -201,7 +191,6 @@ void RunJSSelectTest(int which) {
   }
 }
 
-
 TEST(Run_JSSelect_0) { RunJSSelectTest(0); }
 
 TEST(Run_JSSelect_1) { RunJSSelectTest(1); }
@@ -217,7 +206,6 @@ TEST(Run_JSSelect_5) { RunJSSelectTest(5); }
 TEST(Run_JSSelect_6) { RunJSSelectTest(6); }
 
 TEST(Run_JSSelect_7) { RunJSSelectTest(7); }
-
 
 void RunWASMSelectTest(int which) {
   PredictableInputValues inputs(0x200);
@@ -250,7 +238,6 @@ void RunWASMSelectTest(int which) {
   }
 }
 
-
 TEST(Run_WASMSelect_0) { RunWASMSelectTest(0); }
 
 TEST(Run_WASMSelect_1) { RunWASMSelectTest(1); }
@@ -266,7 +253,6 @@ TEST(Run_WASMSelect_5) { RunWASMSelectTest(5); }
 TEST(Run_WASMSelect_6) { RunWASMSelectTest(6); }
 
 TEST(Run_WASMSelect_7) { RunWASMSelectTest(7); }
-
 
 void RunWASMSelectAlignTest(int num_args, int num_params) {
   PredictableInputValues inputs(0x300);
@@ -301,30 +287,25 @@ void RunWASMSelectAlignTest(int num_args, int num_params) {
   }
 }
 
-
 TEST(Run_WASMSelectAlign_0) {
   RunWASMSelectAlignTest(0, 1);
   RunWASMSelectAlignTest(0, 2);
 }
-
 
 TEST(Run_WASMSelectAlign_1) {
   RunWASMSelectAlignTest(1, 2);
   RunWASMSelectAlignTest(1, 3);
 }
 
-
 TEST(Run_WASMSelectAlign_2) {
   RunWASMSelectAlignTest(2, 3);
   RunWASMSelectAlignTest(2, 4);
 }
 
-
 TEST(Run_WASMSelectAlign_3) {
   RunWASMSelectAlignTest(3, 3);
   RunWASMSelectAlignTest(3, 4);
 }
-
 
 TEST(Run_WASMSelectAlign_4) {
   RunWASMSelectAlignTest(4, 3);
@@ -411,7 +392,6 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
     EXPECT_CALL(expected, jsfunc, args, num_args);
   }
 }
-
 
 TEST(Run_JSSelectAlign_0) {
   RunJSSelectAlignTest(0, 1);

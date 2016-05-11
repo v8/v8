@@ -21,7 +21,6 @@ class EncoderTest : public TestWithZone {
   }
 };
 
-
 TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
   base::AccountingAllocator allocator;
   Zone zone(&allocator);
@@ -59,7 +58,6 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
 }
-
 
 TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
   base::AccountingAllocator allocator;

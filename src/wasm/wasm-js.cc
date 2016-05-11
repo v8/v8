@@ -34,7 +34,6 @@ struct RawBuffer {
   size_t size() { return static_cast<size_t>(end - start); }
 };
 
-
 RawBuffer GetRawBufferArgument(
     ErrorThrower& thrower, const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() < 1) {
@@ -77,7 +76,6 @@ RawBuffer GetRawBufferArgument(
   return {start, end};
 }
 
-
 void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
@@ -97,7 +95,6 @@ void VerifyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (result.val) delete result.val;
 }
-
 
 void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
@@ -202,7 +199,6 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
   if (result.val) delete result.val;
 }
 
-
 void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
@@ -234,7 +230,6 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
                           internal::wasm::kAsmJsOrigin);
 }
 
-
 void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
@@ -248,7 +243,6 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 }  // namespace
 
-
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
 static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
@@ -258,12 +252,10 @@ static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
   return v8::Utils::OpenHandle(*local);
 }
 
-
 namespace internal {
 static Handle<String> v8_str(Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
 }
-
 
 static void InstallFunc(Isolate* isolate, Handle<JSObject> object,
                         const char* str, FunctionCallback func) {
@@ -275,7 +267,6 @@ static void InstallFunc(Isolate* isolate, Handle<JSObject> object,
       static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
   JSObject::AddProperty(object, name, function, attributes);
 }
-
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   // Setup wasm function map.
@@ -309,7 +300,6 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
     JSObject::AddProperty(wasm_object, name, value, attributes);
   }
 }
-
 
 void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {
   if (!context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) {

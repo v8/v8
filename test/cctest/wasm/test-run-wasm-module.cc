@@ -44,7 +44,6 @@ TEST(Run_WasmModule_Return114) {
   TestModule(writer->WriteTo(&zone), kReturnValue);
 }
 
-
 TEST(Run_WasmModule_CallAdd) {
   v8::base::AccountingAllocator allocator;
   Zone zone(&allocator);
@@ -65,7 +64,6 @@ TEST(Run_WasmModule_CallAdd) {
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 99);
 }
-
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
   static const byte kDataSegmentDest0 = 12;

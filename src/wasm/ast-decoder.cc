@@ -386,7 +386,6 @@ class WasmDecoder : public Decoder {
   }
 };
 
-
 // A shift-reduce-parser strategy for decoding Wasm code that uses an explicit
 // shift-reduce strategy with multiple internal stacks.
 class SR_WasmDecoder : public WasmDecoder {
@@ -1498,7 +1497,6 @@ TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
   decoder.Decode();
   return decoder.toResult<Tree*>(nullptr);
 }
-
 
 std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   if (tree.pc == nullptr) {

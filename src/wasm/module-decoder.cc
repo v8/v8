@@ -773,7 +773,6 @@ class ModuleDecoder : public Decoder {
   }
 };
 
-
 // Helpers for nice error messages.
 class ModuleError : public ModuleResult {
  public:
@@ -786,7 +785,6 @@ class ModuleError : public ModuleResult {
     error_msg.Reset(result);
   }
 };
-
 
 // Helpers for nice error messages.
 class FunctionError : public FunctionResult {
@@ -827,7 +825,6 @@ FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
   ModuleDecoder decoder(zone, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(start);
 }
-
 
 FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   ModuleEnv* module_env,

@@ -51,12 +51,9 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,
 
-
 enum WasmOpcodeSig { FOREACH_SIGNATURE(DECLARE_SIG_ENUM) };
-
 
 // TODO(titzer): not static-initializer safe. Wrap in LazyInstance.
 #define DECLARE_SIG(name, ...)                      \
@@ -73,7 +70,6 @@ static const FunctionSig* kSimpleExprSigs[] = {
 
 static byte kSimpleExprSigTable[256];
 
-
 // Initialize the signature table.
 static void InitSigTable() {
 #define SET_SIG_TABLE(name, opcode, sig) \
@@ -83,14 +79,12 @@ static void InitSigTable() {
 #undef SET_SIG_TABLE
 }
 
-
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   // TODO(titzer): use LazyInstance to make this thread safe.
   if (kSimpleExprSigTable[kExprI32Add] == 0) InitSigTable();
   return const_cast<FunctionSig*>(
       kSimpleExprSigs[kSimpleExprSigTable[static_cast<byte>(opcode)]]);
 }
-
 
 // TODO(titzer): pull WASM_64 up to a common header.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64

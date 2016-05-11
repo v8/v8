@@ -84,7 +84,6 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
   os << "WASM function with signature " << *function.sig;
 
@@ -221,7 +220,6 @@ size_t AllocateGlobalsOffsets(std::vector<WasmGlobal>& globals) {
   return offset;
 }
 
-
 void LoadDataSegments(WasmModule* module, byte* mem_addr, size_t mem_size) {
   for (const WasmDataSegment& segment : module->data_segments) {
     if (!segment.init) continue;
@@ -234,7 +232,6 @@ void LoadDataSegments(WasmModule* module, byte* mem_addr, size_t mem_size) {
            segment.source_size);
   }
 }
-
 
 Handle<FixedArray> BuildFunctionTable(Isolate* isolate, WasmModule* module) {
   if (module->function_table.size() == 0) {
@@ -680,7 +677,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   return instance.js_object;
 }
 
-
 Handle<Code> ModuleEnv::GetFunctionCode(uint32_t index) {
   DCHECK(IsValidFunction(index));
   if (linker) return linker->GetFunctionCode(index);
@@ -700,7 +696,6 @@ compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
   WasmFunction* function = &module->functions[index];
   return GetWasmCallDescriptor(zone, function->sig);
 }
-
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, bool asm_js) {
@@ -726,7 +721,6 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   delete result.val;
   return retval;
 }
-
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
