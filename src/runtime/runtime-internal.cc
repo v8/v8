@@ -497,13 +497,41 @@ RUNTIME_FUNCTION(Runtime_GetOrdinaryHasInstance) {
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  std::stringstream stats_stream;
-  isolate->counters()->runtime_call_stats()->Print(stats_stream);
-  Handle<String> result =
-      isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
-  isolate->counters()->runtime_call_stats()->Reset();
-  return *result;
+  if (args.length() == 0) {
+    // Without arguments, the result is returned as a string.
+    DCHECK_EQ(0, args.length());
+    std::stringstream stats_stream;
+    isolate->counters()->runtime_call_stats()->Print(stats_stream);
+    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(
+        stats_stream.str().c_str());
+    isolate->counters()->runtime_call_stats()->Reset();
+    return *result;
+  } else {
+    DCHECK_EQ(1, args.length());
+    std::FILE* f;
+    if (args[0]->IsString()) {
+      // With a string argument, the results are appended to that file.
+      CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
+      String::FlatContent flat = arg0->GetFlatContent();
+      const char* filename =
+          reinterpret_cast<const char*>(&(flat.ToOneByteVector()[0]));
+      f = std::fopen(filename, "a");
+      DCHECK_NOT_NULL(f);
+    } else {
+      // With an integer argument, the results are written to stdout/stderr.
+      CONVERT_SMI_ARG_CHECKED(fd, 0);
+      DCHECK(fd == 1 || fd == 2);
+      f = fd == 1 ? stdout : stderr;
+    }
+    OFStream stats_stream(f);
+    isolate->counters()->runtime_call_stats()->Print(stats_stream);
+    isolate->counters()->runtime_call_stats()->Reset();
+    if (args[0]->IsString())
+      std::fclose(f);
+    else
+      std::fflush(f);
+    return isolate->heap()->undefined_value();
+  }
 }
 
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {

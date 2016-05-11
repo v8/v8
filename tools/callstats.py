@@ -34,46 +34,6 @@ from math import sqrt
 
 # Run benchmarks.
 
-DEFAULT_SITES = [
-    # top websites (http://alexa.com/topsites): --------------------
-    "https://www.google.de/search?q=v8",
-    "https://www.youtube.com",
-    "https://www.facebook.com/shakira",
-    "http://www.baidu.com/s?wd=v8",
-    "http://www.yahoo.co.jp",
-    "http://www.amazon.com/s/?field-keywords=v8",
-    "http://hi.wikipedia.org/wiki/" \
-     "%E0%A4%AE%E0%A5%81%E0%A4%96%E0%A4%AA%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A0",
-    "http://www.qq.com",
-    "http://www.twitter.com/taylorswift13",
-    "http://www.reddit.com",
-    "http://www.ebay.fr/sch/i.html?_nkw=v8",
-    "http://edition.cnn.com",
-    "http://world.taobao.com",
-    "http://www.instagram.com/archdigest",
-    "https://www.linkedin.com/pub/dir/?first=john&last=doe&search=search",
-    "http://www.msn.com/ar-ae",
-    "http://www.bing.com/search?q=v8+engine",
-    "http://www.pinterest.com/categories/popular",
-    "http://www.sina.com.cn",
-    "http://weibo.com",
-    "http://yandex.ru/search/?text=v8",
-    # framework driven decisions: -----------------------------------
-    # wikipedia content + angularjs
-    "http://www.wikiwand.com/en/hill",
-    # ember website
-    "http://meta.discourse.org",
-    # backbone js
-    "http://reddit.musicplayer.io",
-    # gwt application
-    "http://inbox.google.com",
-    # webgl / algorithmic case
-    "http://maps.google.co.jp/maps/search/restaurant+tokyo",
-    # whatever framework adwords uses
-    "https://adwords.google.com",
-]
-
-
 def print_command(cmd_args):
   def fix_for_printing(arg):
     m = re.match(r'^--([^=]+)=(.*)$', arg)
@@ -85,7 +45,11 @@ def print_command(cmd_args):
   print " ".join(map(fix_for_printing, cmd_args))
 
 
-def start_replay_server(args):
+def start_replay_server(args, sites):
+  with tempfile.NamedTemporaryFile(prefix='callstats-inject-', suffix='.js',
+                                   mode='wt', delete=False) as f:
+    injection = f.name
+    generate_injection(f, sites)
   cmd_args = [
       args.replay_bin,
       "--port=4080",
@@ -93,6 +57,7 @@ def start_replay_server(args):
       "--no-dns_forwarding",
       "--use_closest_match",
       "--no-diff_unknown_requests",
+      "--inject_scripts=deterministic.js,{}".format(injection),
       args.replay_wpr,
   ]
   print "=" * 80
@@ -101,12 +66,51 @@ def start_replay_server(args):
     server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
   print "RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid)
   print "=" * 80
-  return server
+  return {'process': server, 'injection': injection}
 
 
 def stop_replay_server(server):
-  print("SHUTTING DOWN REPLAY SERVER %s" % server.pid)
-  server.terminate()
+  print("SHUTTING DOWN REPLAY SERVER %s" % server['process'].pid)
+  server['process'].terminate()
+  os.remove(server['injection'])
+
+
+def generate_injection(f, sites):
+  print >> f, """\
+(function() {
+  function match(url, item) {
+    if ('regexp' in item) return url.match(item.regexp) !== null;
+    let url_wanted = item.url;
+    // Allow automatic redirections from http to https.
+    if (url_wanted.startsWith("http://") && url.startsWith("https://")) {
+      url_wanted = "https://" + url_wanted.substr(7);
+    }
+    return url.startsWith(url_wanted);
+  };
+
+  function onLoad(e) {
+    let url = e.target.URL;
+    for (let item of sites) {
+      if (!match(url, item)) continue;
+      let timeout = 'timeline' in item ? 2500 * item.timeline + 3000
+                  : 'timeout'  in item ? 1000 * (item.timeout - 3)
+                  : 10000;
+      console.log("Setting time out of " + timeout + " for: " + url);
+      window.setTimeout(function () {
+        console.log("Time is out for: " + url);
+        %GetAndResetRuntimeCallStats(1);
+      }, timeout);
+      return;
+    }
+    console.log("Ignoring: " + url);
+  };
+
+  let sites =
+    """, json.dumps(sites), """;
+
+  console.log("Event listenner added for: " + window.location.href);
+  window.addEventListener("load", onLoad);
+})();"""
 
 
 def run_site(site, domain, args, timeout=None):
@@ -115,6 +119,8 @@ def run_site(site, domain, args, timeout=None):
   print "="*80
   result_template = "{domain}#{count}.txt" if args.repeat else "{domain}.txt"
   count = 0
+  if timeout is None: timeout = args.timeout
+  if args.replay_wpr: timeout += 1
   while count == 0 or args.repeat is not None and count < args.repeat:
     count += 1
     result = result_template.format(domain=domain, count=count)
@@ -122,15 +128,17 @@ def run_site(site, domain, args, timeout=None):
     while args.retries is None or retries < args.retries:
       retries += 1
       try:
-        temp_user_data_dir = args.user_data_dir is None
-        if temp_user_data_dir:
+        if args.user_data_dir:
+          user_data_dir = args.user_data_dir
+        else:
           user_data_dir = tempfile.mkdtemp(prefix="chr_")
         js_flags = "--runtime-call-stats"
+        if args.replay_wpr: js_flags += " --allow-natives-syntax"
         if args.js_flags: js_flags += " " + args.js_flags
         chrome_flags = [
             "--no-default-browser-check",
             "--disable-translate",
-            "--single-process",
+            "--disable-seccomp-sandbox",
             "--no-sandbox",
             "--js-flags={}".format(js_flags),
             "--no-first-run",
@@ -146,9 +154,12 @@ def run_site(site, domain, args, timeout=None):
               "--reduce-security-for-testing",
               "--allow-insecure-localhost",
           ]
+        else:
+          chrome_flags += [
+            "--single-process",
+          ]
         if args.chrome_flags:
           chrome_flags += args.chrome_flags.split()
-        if timeout is None: timeout = args.timeout
         cmd_args = [
             "timeout", str(timeout),
             args.with_chrome
@@ -171,9 +182,10 @@ def run_site(site, domain, args, timeout=None):
               print >> f
               print >> f, "URL: {}".format(site)
           break
+        if retries <= 5: timeout += 1
         print("EMPTY RESULT, REPEATING RUN");
       finally:
-        if temp_user_data_dir:
+        if not args.user_data_dir:
           shutil.rmtree(user_data_dir)
 
 
@@ -204,10 +216,8 @@ def do_run(args):
   # Determine the websites to benchmark.
   if args.sites_file:
     sites = read_sites_file(args)
-  elif args.sites:
-    sites = [{'url': site, 'timeout': args.timeout} for site in args.sites]
   else:
-    sites = [{'url': site, 'timeout': args.timeout} for site in DEFAULT_SITES]
+    sites = [{'url': site, 'timeout': args.timeout} for site in args.sites]
   # Disambiguate domains, if needed.
   L = []
   domains = {}
@@ -228,8 +238,7 @@ def do_run(args):
       domains[domain] += 1
       entry[2] = domains[domain]
     L.append(entry)
-  if args.replay_wpr:
-    replay_server = start_replay_server(args);
+  replay_server = start_replay_server(args, sites) if args.replay_wpr else None
   try:
     # Run them.
     for site, domain, count, timeout in L:
@@ -427,6 +436,10 @@ def do_help(parser, subparsers, args):
 
 # Main program, parse command line and execute.
 
+def coexist(*l):
+  given = sum(1 for x in l if x)
+  return given == 0 or given == len(l)
+
 def main():
   parser = argparse.ArgumentParser()
   subparser_adder = parser.add_subparsers(title="commands", dest="command",
@@ -511,11 +524,12 @@ def main():
       help="command for which to display help")
   # Execute the command.
   args = parser.parse_args()
-  if args.command == "run" and args.sites_file and args.sites:
-    args.error("if --sites-file is used, no site URLS must be given")
+  setattr(args, 'script_path', os.path.dirname(sys.argv[0]))
+  if args.command == "run" and coexist(args.sites_file, args.sites):
+    args.error("use either option --sites-file or site URLs")
     sys.exit(1)
-  elif args.command == "run" and args.replay_wpr and not args.replay_bin:
-    args.error("if --replay-wpr is used, --replay-bin must be given")
+  elif args.command == "run" and not coexist(args.replay_wpr, args.replay_bin):
+    args.error("options --replay-wpr and --replay-bin must be used together")
     sys.exit(1)
   else:
     args.func(args)
