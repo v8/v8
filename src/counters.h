@@ -492,13 +492,14 @@ struct RuntimeCallCounter {
 // timers used for properly measuring the own time of a RuntimeCallCounter.
 class RuntimeCallTimer {
  public:
-  inline void Initialize(RuntimeCallCounter* counter,
-                         RuntimeCallTimer* parent) {
+  RuntimeCallTimer() {}
+
+ private:
+  friend class RuntimeCallStats;
+
+  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
     counter_ = counter;
     parent_ = parent;
-  }
-
-  inline void Start() {
     timer_.Start();
     counter_->count++;
   }
@@ -508,22 +509,21 @@ class RuntimeCallTimer {
     timer_.Stop();
     counter_->time += delta;
     if (parent_ != NULL) {
-      parent_->AdjustForSubTimer(delta);
+      // Adjust parent timer so that it does not include sub timer's time.
+      parent_->counter_->time -= delta;
     }
     return parent_;
   }
 
-  inline void AdjustForSubTimer(base::TimeDelta delta) {
-    counter_->time -= delta;
-  }
-
- private:
-  RuntimeCallCounter* counter_;
-  RuntimeCallTimer* parent_;
+  RuntimeCallCounter* counter_ = nullptr;
+  RuntimeCallTimer* parent_ = nullptr;
   base::ElapsedTimer timer_;
 };
 
-struct RuntimeCallStats {
+class RuntimeCallStats {
+ public:
+  typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
+
   // Dummy counter for the unexpected stub miss.
   RuntimeCallCounter UnexpectedStubMiss =
       RuntimeCallCounter("UnexpectedStubMiss");
@@ -539,41 +539,42 @@ struct RuntimeCallStats {
   BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 
-  // Counter to track recursive time events.
-  RuntimeCallTimer* current_timer_ = NULL;
-
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
-  void Enter(RuntimeCallCounter* counter);
-  void Enter(RuntimeCallTimer* timer);
+  static void Enter(Isolate* isolate, RuntimeCallTimer* timer,
+                    CounterId counter_id);
+
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
   // parent.
-  void Leave();
-  void Leave(RuntimeCallTimer* timer);
-
-  RuntimeCallTimer* current_timer() { return current_timer_; }
+  static void Leave(Isolate* isolate, RuntimeCallTimer* timer);
 
   void Reset();
   void Print(std::ostream& os);
 
   RuntimeCallStats() { Reset(); }
+
+ private:
+  // Counter to track recursive time events.
+  RuntimeCallTimer* current_timer_ = NULL;
 };
 
 // A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
-  inline explicit RuntimeCallTimerScope(Isolate* isolate,
-                                        RuntimeCallCounter* counter) {
-    if (FLAG_runtime_call_stats) Enter(isolate, counter);
+  inline explicit RuntimeCallTimerScope(
+      Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+      isolate_ = isolate;
+      RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
+    }
   }
   inline ~RuntimeCallTimerScope() {
-    if (FLAG_runtime_call_stats) Leave();
+    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
+      RuntimeCallStats::Leave(isolate_, &timer_);
+    }
   }
-
-  void Enter(Isolate* isolate, RuntimeCallCounter* counter);
-  void Leave();
 
  private:
   Isolate* isolate_;

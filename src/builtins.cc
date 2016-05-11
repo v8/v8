@@ -147,8 +147,7 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                        \
       int args_length, Object** args_object, Isolate* isolate) {               \
     name##ArgumentsType args(args_length, args_object);                        \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
-    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name);   \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                      \
                  "V8.Builtin_" #name);                                         \
     return Builtin_Impl_##name(args, isolate);                                 \

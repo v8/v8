@@ -86,8 +86,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Object** args_object, \
                                        Isolate* isolate) {                    \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();      \
-    RuntimeCallTimerScope timer(isolate, &stats->Name);                       \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Name);            \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
     Arguments args(args_length, args_object);                                 \
