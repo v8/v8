@@ -1217,6 +1217,9 @@ bool Compiler::CompileForLiveEdit(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
+  // Get rid of old list of shared function infos.
+  script->set_shared_function_infos(Smi::FromInt(0));
+
   // Start a compilation.
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
