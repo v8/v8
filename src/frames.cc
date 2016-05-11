@@ -1164,7 +1164,8 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
   DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* const data = GetDeoptimizationData(&deopt_index);
-  DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
+  DCHECK_NOT_NULL(data);
+  DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
   FixedArray* const literal_array = data->LiteralArray();
 
   TranslationIterator it(data->TranslationByteArray(),

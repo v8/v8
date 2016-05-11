@@ -707,11 +707,11 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 
 const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
-  return new (zone()) Operator1<CreateArgumentsType>(    // --
-      IrOpcode::kJSCreateArguments, Operator::kNoThrow,  // opcode
-      "JSCreateArguments",                               // name
-      1, 1, 1, 1, 1, 0,                                  // counts
-      type);                                             // parameter
+  return new (zone()) Operator1<CreateArgumentsType>(         // --
+      IrOpcode::kJSCreateArguments, Operator::kEliminatable,  // opcode
+      "JSCreateArguments",                                    // name
+      1, 1, 0, 1, 1, 0,                                       // counts
+      type);                                                  // parameter
 }
 
 
