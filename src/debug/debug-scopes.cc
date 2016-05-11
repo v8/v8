@@ -201,11 +201,15 @@ void ScopeIterator::Next() {
   } else if (nested_scope_chain_.is_empty()) {
     context_ = Handle<Context>(context_->previous(), isolate_);
   } else {
-    if (nested_scope_chain_.last().scope_info->HasContext()) {
-      DCHECK(context_->previous() != NULL);
-      context_ = Handle<Context>(context_->previous(), isolate_);
-    }
-    nested_scope_chain_.RemoveLast();
+    do {
+      if (nested_scope_chain_.last().scope_info->HasContext()) {
+        DCHECK(context_->previous() != NULL);
+        context_ = Handle<Context>(context_->previous(), isolate_);
+      }
+      nested_scope_chain_.RemoveLast();
+      if (nested_scope_chain_.is_empty()) break;
+      // Repeat to skip hidden scopes.
+    } while (nested_scope_chain_.last().is_hidden());
   }
   UnwrapEvaluationContext();
 }
@@ -796,10 +800,16 @@ bool ScopeIterator::CopyContextExtensionToScopeObject(
 
 void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
-  if (!scope->is_eval_scope() && !scope->is_hidden()) {
-    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
-                                              scope->start_position(),
-                                              scope->end_position()));
+  if (!scope->is_eval_scope()) {
+    if (scope->is_hidden()) {
+      // We need to add this chain element in case the scope has a context
+      // associated. We need to keep the scope chain and context chain in sync.
+      nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate)));
+    } else {
+      nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
+                                                scope->start_position(),
+                                                scope->end_position()));
+    }
   }
   for (int i = 0; i < scope->inner_scopes()->length(); i++) {
     Scope* inner_scope = scope->inner_scopes()->at(i);

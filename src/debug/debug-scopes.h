@@ -85,9 +85,12 @@ class ScopeIterator {
   struct ExtendedScopeInfo {
     ExtendedScopeInfo(Handle<ScopeInfo> info, int start, int end)
         : scope_info(info), start_position(start), end_position(end) {}
+    explicit ExtendedScopeInfo(Handle<ScopeInfo> info)
+        : scope_info(info), start_position(-1), end_position(-1) {}
     Handle<ScopeInfo> scope_info;
     int start_position;
     int end_position;
+    bool is_hidden() { return start_position == -1 && end_position == -1; }
   };
 
   Isolate* isolate_;
