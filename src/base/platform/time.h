@@ -360,13 +360,38 @@ class TimeTicks final : public time_internal::TimeBase<TimeTicks> {
   friend class time_internal::TimeBase<TimeTicks>;
 
   // Please use Now() to create a new object. This is for internal use
-  // and testing. Ticks is in microseconds.
+  // and testing. Ticks are in microseconds.
   explicit TimeTicks(int64_t ticks) : TimeBase(ticks) {}
 };
 
 inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
   return ticks + delta;
 }
+
+
+// ThreadTicks ----------------------------------------------------------------
+
+// Represents a clock, specific to a particular thread, than runs only while the
+// thread is running.
+class ThreadTicks final : public time_internal::TimeBase<ThreadTicks> {
+ public:
+  ThreadTicks() : TimeBase(0) {}
+
+  // Returns true if ThreadTicks::Now() is supported on this system.
+  static bool IsSupported();
+
+  // Returns thread-specific CPU-time on systems that support this feature.
+  // Needs to be guarded with a call to IsSupported(). Use this timer
+  // to (approximately) measure how much time the calling thread spent doing
+  // actual work vs. being de-scheduled. May return bogus results if the thread
+  // migrates to another CPU between two calls. Returns an empty ThreadTicks
+  // object until the initialization is completed.
+  static ThreadTicks Now();
+
+ private:
+  // This is for internal use and testing. Ticks are in microseconds.
+  explicit ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
+};
 
 }  // namespace base
 }  // namespace v8
