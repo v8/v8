@@ -2343,6 +2343,9 @@ Type* Typer::Visitor::TypeFloat32Add(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat32Sub(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat32SubPreserveNan(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeFloat32Mul(Node* node) { return Type::Number(); }
 
@@ -2383,6 +2386,9 @@ Type* Typer::Visitor::TypeFloat64Add(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sub(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64SubPreserveNan(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeFloat64Mul(Node* node) { return Type::Number(); }
 

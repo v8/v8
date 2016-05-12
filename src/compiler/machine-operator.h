@@ -245,6 +245,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   // (single-precision).
   const Operator* Float32Add();
   const Operator* Float32Sub();
+  const Operator* Float32SubPreserveNan();
   const Operator* Float32Mul();
   const Operator* Float32Div();
   const Operator* Float32Sqrt();
@@ -253,6 +254,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   // (double-precision).
   const Operator* Float64Add();
   const Operator* Float64Sub();
+  const Operator* Float64SubPreserveNan();
   const Operator* Float64Mul();
   const Operator* Float64Div();
   const Operator* Float64Mod();

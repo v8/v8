@@ -581,6 +581,21 @@ TEST(Run_WasmFloat32Neg) {
   }
 }
 
+TEST(Run_WasmFloat32SubMinusZero) {
+  WasmRunner<float> r(MachineType::Float32());
+  BUILD(r, WASM_F32_SUB(WASM_F32(-0.0), WASM_GET_LOCAL(0)));
+
+  CHECK_EQ(0x7fe00000, bit_cast<uint32_t>(r.Call(bit_cast<float>(0x7fa00000))));
+}
+
+TEST(Run_WasmFloat64SubMinusZero) {
+  WasmRunner<double> r(MachineType::Float64());
+  BUILD(r, WASM_F64_SUB(WASM_F64(-0.0), WASM_GET_LOCAL(0)));
+
+  CHECK_EQ(0x7ff8123456789abc,
+           bit_cast<uint64_t>(r.Call(bit_cast<double>(0x7ff0123456789abc))));
+}
+
 TEST(Run_WasmFloat64Neg) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_NEG(WASM_GET_LOCAL(0)));

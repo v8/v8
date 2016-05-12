@@ -317,6 +317,7 @@
   V(BitcastInt64ToFloat64)      \
   V(Float32Add)                 \
   V(Float32Sub)                 \
+  V(Float32SubPreserveNan)      \
   V(Float32Mul)                 \
   V(Float32Div)                 \
   V(Float32Max)                 \
@@ -326,6 +327,7 @@
   V(Float32RoundDown)           \
   V(Float64Add)                 \
   V(Float64Sub)                 \
+  V(Float64SubPreserveNan)      \
   V(Float64Mul)                 \
   V(Float64Div)                 \
   V(Float64Mod)                 \

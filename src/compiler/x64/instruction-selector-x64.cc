@@ -1252,6 +1252,9 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitFloatBinop(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat32Mul, kSSEFloat32Mul);
@@ -1311,6 +1314,9 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitFloatBinop(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
+}
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat64Mul, kSSEFloat64Mul);

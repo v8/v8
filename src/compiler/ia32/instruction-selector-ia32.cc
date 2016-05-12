@@ -919,6 +919,9 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRROFloat(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitRROFloat(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   IA32OperandGenerator g(this);
@@ -943,6 +946,9 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   VisitRROFloat(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitRROFloat(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRROFloat(this, node, kAVXFloat32Mul, kSSEFloat32Mul);

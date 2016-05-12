@@ -951,6 +951,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kUint64LessThanOrEqual:
     case IrOpcode::kFloat32Add:
     case IrOpcode::kFloat32Sub:
+    case IrOpcode::kFloat32SubPreserveNan:
     case IrOpcode::kFloat32Mul:
     case IrOpcode::kFloat32Div:
     case IrOpcode::kFloat32Max:
@@ -962,6 +963,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat32LessThanOrEqual:
     case IrOpcode::kFloat64Add:
     case IrOpcode::kFloat64Sub:
+    case IrOpcode::kFloat64SubPreserveNan:
     case IrOpcode::kFloat64Mul:
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:

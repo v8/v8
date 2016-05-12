@@ -1159,6 +1159,9 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRRR(this, kMips64SubS, node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitRRR(this, kMips64SubS, node);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   Mips64OperandGenerator g(this);
@@ -1178,6 +1181,9 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   VisitRRR(this, kMips64SubD, node);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitRRR(this, kMips64SubD, node);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kMips64MulS, node);

@@ -1226,6 +1226,10 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  PPCOperandGenerator g(this);
+  VisitRRR(this, kPPC_SubDouble | MiscField::encode(1), node);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   // TODO(mbrandy): detect multiply-subtract
@@ -1252,6 +1256,9 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   VisitRRR(this, kPPC_SubDouble, node);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitRRR(this, kPPC_SubDouble, node);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kPPC_MulDouble | MiscField::encode(1), node);

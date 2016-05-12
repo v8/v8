@@ -1117,6 +1117,11 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRRR(this, kS390_SubFloat, node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  S390OperandGenerator g(this);
+  VisitRRR(this, kS390_SubFloat, node);
+}
+
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   // TODO(mbrandy): detect multiply-subtract
   S390OperandGenerator g(this);
@@ -1139,6 +1144,10 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
          g.UseRegister(m.right().node()));
     return;
   }
+  VisitRRR(this, kS390_SubDouble, node);
+}
+
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
   VisitRRR(this, kS390_SubDouble, node);
 }
 
