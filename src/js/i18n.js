@@ -20,6 +20,7 @@
 var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
+var FLAG_intl_extra;
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
@@ -62,6 +63,10 @@ utils.Import(function(from) {
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
+});
+
+utils.ImportFromExperimental(function(from) {
+  FLAG_intl_extra = from.FLAG_intl_extra;
 });
 
 // Utilities for definitions
@@ -988,7 +993,9 @@ function initializeCollator(collator, locales, options) {
   // Writable, configurable and enumerable are set to false by default.
   %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
   collator[resolvedSymbol] = resolved;
-  %object_define_property(collator, 'resolved', resolvedAccessor);
+  if (FLAG_intl_extra) {
+    %object_define_property(collator, 'resolved', resolvedAccessor);
+  }
 
   return collator;
 }
@@ -1209,7 +1216,6 @@ function initializeNumberFormat(numberFormat, locales, options) {
     minimumFractionDigits: {writable: true},
     minimumIntegerDigits: {writable: true},
     numberingSystem: {writable: true},
-    pattern: patternAccessor,
     requestedLocale: {value: requestedLocale, writable: true},
     style: {value: internalOptions.style, writable: true},
     useGrouping: {writable: true}
@@ -1231,7 +1237,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
   numberFormat[resolvedSymbol] = resolved;
-  %object_define_property(numberFormat, 'resolved', resolvedAccessor);
+  if (FLAG_intl_extra) {
+    %object_define_property(resolved, 'pattern', patternAccessor);
+    %object_define_property(numberFormat, 'resolved', resolvedAccessor);
+  }
 
   return numberFormat;
 }
@@ -1337,14 +1346,12 @@ function formatNumber(formatter, value) {
 /**
  * Returns a Number that represents string value that was passed in.
  */
-function parseNumber(formatter, value) {
+function IntlParseNumber(formatter, value) {
   return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
                               GlobalString(value));
 }
 
-
 AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1);
-AddBoundMethod(Intl.NumberFormat, 'v8Parse', parseNumber, 1);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1606,7 +1613,6 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     month: {writable: true},
     numberingSystem: {writable: true},
     [patternSymbol]: {writable: true},
-    pattern: patternAccessor,
     requestedLocale: {value: requestedLocale, writable: true},
     second: {writable: true},
     timeZone: {writable: true},
@@ -1625,7 +1631,10 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
   dateFormat[resolvedSymbol] = resolved;
-  %object_define_property(dateFormat, 'resolved', resolvedAccessor);
+  if (FLAG_intl_extra) {
+    %object_define_property(resolved, 'pattern', patternAccessor);
+    %object_define_property(dateFormat, 'resolved', resolvedAccessor);
+  }
 
   return dateFormat;
 }
@@ -1759,7 +1768,7 @@ function formatDate(formatter, dateValue) {
  * DateTimeFormat.
  * Returns undefined if date string cannot be parsed.
  */
-function parseDate(formatter, value) {
+function IntlParseDate(formatter, value) {
   return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
                             GlobalString(value));
 }
@@ -1767,7 +1776,6 @@ function parseDate(formatter, value) {
 
 // 0 because date is optional argument.
 AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0);
-AddBoundMethod(Intl.DateTimeFormat, 'v8Parse', parseDate, 1);
 
 
 /**
@@ -1842,7 +1850,9 @@ function initializeBreakIterator(iterator, locales, options) {
   %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
                                      internalIterator);
   iterator[resolvedSymbol] = resolved;
-  %object_define_property(iterator, 'resolved', resolvedAccessor);
+  if (FLAG_intl_extra) {
+    %object_define_property(iterator, 'resolved', resolvedAccessor);
+  }
 
   return iterator;
 }
@@ -2221,5 +2231,11 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
         this, locales, options, 'time', 'time', 'dateformattime');
   }
 );
+
+utils.Export(function(to) {
+  to.AddBoundMethod = AddBoundMethod;
+  to.IntlParseDate = IntlParseDate;
+  to.IntlParseNumber = IntlParseNumber;
+});
 
 })

@@ -181,10 +181,13 @@ function PostNatives(utils) {
 
   // Whitelist of exports from normal natives to experimental natives and debug.
   var expose_list = [
+    "AddBoundMethod",
     "ArrayToString",
     "ErrorToString",
     "GetIterator",
     "GetMethod",
+    "IntlParseDate",
+    "IntlParseNumber",
     "IsNaN",
     "MakeError",
     "MakeRangeError",
