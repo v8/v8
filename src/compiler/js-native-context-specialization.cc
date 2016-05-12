@@ -264,7 +264,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                    1 << JSArrayBuffer::WasNeutered::kShift)),
               jsgraph()->Int32Constant(0));
           this_control =
-              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
           break;
         }
