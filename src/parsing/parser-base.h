@@ -633,6 +633,18 @@ class ParserBase : public Traits {
       *ok = false;
     }
   }
+  // for now, this check just collects statistics.
+  void CheckDecimalLiteralWithLeadingZero(int* use_counts, int beg_pos,
+                                          int end_pos) {
+    Scanner::Location token_location =
+        scanner()->decimal_with_leading_zero_position();
+    if (token_location.IsValid() && beg_pos <= token_location.beg_pos &&
+        token_location.end_pos <= end_pos) {
+      scanner()->clear_decimal_with_leading_zero_position();
+      if (use_counts != nullptr)
+        ++use_counts[v8::Isolate::kDecimalWithLeadingZeroInStrictMode];
+    }
+  }
 
   inline void CheckStrictOctalLiteral(int beg_pos, int end_pos, bool* ok) {
     CheckOctalLiteral(beg_pos, end_pos, MessageTemplate::kStrictOctalLiteral,
