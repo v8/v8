@@ -586,9 +586,9 @@ bool FinishCompilation(Isolate* isolate, WasmModule* module,
     DCHECK_EQ(i, func.func_index);
     WasmName str = module->GetName(func.name_offset, func.name_length);
     WasmName str_null = {nullptr, 0};
-    Handle<String> name = factory->InternalizeUtf8String(str);
     Handle<Code> code = Handle<Code>::null();
     Handle<JSFunction> function = Handle<JSFunction>::null();
+    Handle<String> function_name = Handle<String>::null();
     if (func.external) {
       // Lookup external function in FFI object.
       MaybeHandle<JSFunction> function =
@@ -613,8 +613,9 @@ bool FinishCompilation(Isolate* isolate, WasmModule* module,
         return false;
       }
       if (func.exported) {
+        function_name = factory->InternalizeUtf8String(str);
         function = compiler::CompileJSToWasmWrapper(
-            isolate, &module_env, name, code, instance.js_object, i);
+            isolate, &module_env, function_name, code, instance.js_object, i);
         record_code_size(total_code_size, function->code());
       }
     }
@@ -629,7 +630,8 @@ bool FinishCompilation(Isolate* isolate, WasmModule* module,
       // module.
       desc.set_value(function);
       Maybe<bool> status = JSReceiver::DefineOwnProperty(
-          isolate, instance.js_object, name, &desc, Object::THROW_ON_ERROR);
+          isolate, instance.js_object, function_name, &desc,
+          Object::THROW_ON_ERROR);
       if (!status.IsJust())
         thrower.Error("export of %.*s failed.", str.length(), str.start());
     }
