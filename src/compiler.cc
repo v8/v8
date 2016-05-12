@@ -1217,6 +1217,12 @@ bool Compiler::CompileForLiveEdit(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
+  // In order to ensure that live edit function info collection finds the newly
+  // generated shared function infos, clear the script's list temporarily
+  // and restore it at the end of this method.
+  Handle<Object> old_function_infos(script->shared_function_infos(), isolate);
+  script->set_shared_function_infos(Smi::FromInt(0));
+
   // Start a compilation.
   Zone zone(isolate->allocator());
   ParseInfo parse_info(&zone, script);
@@ -1224,13 +1230,21 @@ bool Compiler::CompileForLiveEdit(Handle<Script> script) {
   parse_info.set_global();
   info.MarkAsDebug();
   // TODO(635): support extensions.
-  if (CompileToplevel(&info).is_null()) {
+  const bool compilation_succeeded = !CompileToplevel(&info).is_null();
+
+  // Restore the original function info list in order to remain side-effect
+  // free as much as possible, since some code expects the old shared function
+  // infos to stick around.
+  script->set_shared_function_infos(*old_function_infos);
+
+  if (!compilation_succeeded) {
     return false;
   }
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
-  return true;
+
+  return compilation_succeeded;
 }
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
