@@ -60,7 +60,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         function_tables_(HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        imported_function_table_(this) {
+        imported_function_table_(this),
+        bounds_(typer->bounds()) {
     InitializeAstVisitor(isolate);
   }
 
@@ -320,7 +321,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         Literal* label = clause->label()->AsLiteral();
         Handle<Object> value = label->value();
         DCHECK(value->IsNumber() &&
-               label->bounds().upper->Is(cache_.kAsmSigned));
+               bounds_->get(label).upper->Is(cache_.kAsmSigned));
         int32_t label_value;
         if (!value->ToInt32(&label_value)) {
           UNREACHABLE();
@@ -414,8 +415,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitFunctionLiteral(FunctionLiteral* expr) {
     Scope* scope = expr->scope();
     if (scope_ == kFuncScope) {
-      if (expr->bounds().lower->IsFunction()) {
-        FunctionType* func_type = expr->bounds().lower->AsFunction();
+      if (bounds_->get(expr).lower->IsFunction()) {
+        FunctionType* func_type = bounds_->get(expr).lower->AsFunction();
         LocalType return_type = TypeFrom(func_type->Result());
         current_function_builder_->ReturnType(return_type);
         for (int i = 0; i < expr->parameter_count(); i++) {
@@ -523,7 +524,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (!value->IsNumber() || (scope_ != kFuncScope && scope_ != kInitScope)) {
       return;
     }
-    Type* type = expr->bounds().upper;
+    Type* type = bounds_->get(expr).upper;
     if (type->Is(cache_.kAsmSigned)) {
       int32_t i = 0;
       if (!value->ToInt32(&i)) {
@@ -585,7 +586,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void AddFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
     FunctionType* func_type =
-        funcs->bounds().lower->AsArray()->Element()->AsFunction();
+        bounds_->get(funcs).lower->AsArray()->Element()->AsFunction();
     LocalType return_type = TypeFrom(func_type->Result());
     FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
                              func_type->Arity());
@@ -758,8 +759,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (target_prop != nullptr) {
       // Left hand side is a property access, i.e. the asm.js heap.
       if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
-          expr->target()->AsProperty()->obj()->bounds().lower->Is(
-              cache_.kFloat32Array)) {
+          bounds_->get(expr->target()->AsProperty()->obj())
+              .lower->Is(cache_.kFloat32Array)) {
         current_function_builder_->Emit(kExprF32ConvertF64);
       }
       WasmOpcode opcode;
@@ -799,7 +800,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         if (vp != nullptr && vp->var()->IsParameter() &&
             vp->var()->index() == 1) {
           VariableProxy* target = expr->target()->AsVariableProxy();
-          if (target->bounds().lower->Is(Type::Function())) {
+          if (bounds_->get(target).lower->Is(Type::Function())) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
             imported_function_table_.AddImport(target->var(), name->raw_data(),
@@ -811,7 +812,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
       ArrayLiteral* funcs = expr->value()->AsArrayLiteral();
       if (funcs != nullptr &&
-          funcs->bounds().lower->AsArray()->Element()->IsFunction()) {
+          bounds_->get(funcs).lower->AsArray()->Element()->IsFunction()) {
         VariableProxy* target = expr->target()->AsVariableProxy();
         DCHECK_NOT_NULL(target);
         AddFunctionTable(target, funcs);
@@ -890,8 +891,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitPropertyAndEmitIndex(Property* expr, MachineType* mtype) {
     Expression* obj = expr->obj();
-    DCHECK_EQ(obj->bounds().lower, obj->bounds().upper);
-    Type* type = obj->bounds().lower;
+    DCHECK_EQ(bounds_->get(obj).lower, bounds_->get(obj).upper);
+    Type* type = bounds_->get(obj).lower;
     int size;
     if (type->Is(cache_.kUint8Array)) {
       *mtype = MachineType::Uint8();
@@ -1261,7 +1262,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         uint16_t index;
         VariableProxy* vp = expr->expression()->AsVariableProxy();
         if (vp != nullptr &&
-            Type::Any()->Is(vp->bounds().lower->AsFunction()->Result())) {
+            Type::Any()->Is(bounds_->get(vp).lower->AsFunction()->Result())) {
           LocalType return_type = TypeOf(expr);
           ZoneList<Expression*>* args = expr->arguments();
           FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
@@ -1582,8 +1583,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   TypeIndex TypeIndexOf(Expression* expr) {
-    DCHECK_EQ(expr->bounds().lower, expr->bounds().upper);
-    Type* type = expr->bounds().lower;
+    DCHECK_EQ(bounds_->get(expr).lower, bounds_->get(expr).upper);
+    Type* type = bounds_->get(expr).lower;
     if (type->Is(cache_.kAsmFixnum)) {
       return kFixnum;
     } else if (type->Is(cache_.kAsmSigned)) {
@@ -1688,8 +1689,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   LocalType TypeOf(Expression* expr) {
-    DCHECK_EQ(expr->bounds().lower, expr->bounds().upper);
-    return TypeFrom(expr->bounds().lower);
+    DCHECK_EQ(bounds_->get(expr).lower, bounds_->get(expr).upper);
+    return TypeFrom(bounds_->get(expr).lower);
   }
 
   LocalType TypeFrom(Type* type) {
@@ -1723,6 +1724,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;
+  const AstTypeBounds* bounds_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

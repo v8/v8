@@ -72,7 +72,7 @@ std::string Validate(Zone* zone, const char* source,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
   AsmTyper typer(isolate, zone, *script, root);
   if (typer.Validate()) {
-    ExpressionTypeCollector(isolate, root, types).Run();
+    ExpressionTypeCollector(isolate, root, typer.bounds(), types).Run();
     return "";
   } else {
     return typer.error_message();

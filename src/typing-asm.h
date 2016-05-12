@@ -6,6 +6,7 @@
 #define V8_TYPING_ASM_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast.h"
 #include "src/effects.h"
 #include "src/type-info.h"
@@ -24,6 +25,7 @@ class AsmTyper : public AstVisitor {
   bool Validate();
   void set_allow_simd(bool simd) { allow_simd_ = simd; }
   const char* error_message() { return error_message_; }
+  const AstTypeBounds* bounds() { return &bounds_; }
 
   enum StandardMember {
     kNone = 0,
@@ -116,6 +118,8 @@ class AsmTyper : public AstVisitor {
   bool visiting_exports_;
 
   TypeCache const& cache_;
+
+  AstTypeBounds bounds_;
 
   static const int kErrorMessageLimit = 100;
   char error_message_[kErrorMessageLimit];

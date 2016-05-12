@@ -62,7 +62,8 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       in_function_(false),
       building_function_tables_(false),
       visiting_exports_(false),
-      cache_(TypeCache::Get()) {
+      cache_(TypeCache::Get()),
+      bounds_(zone) {
   InitializeAstVisitor(isolate);
   InitializeStdlib();
 }
@@ -494,11 +495,11 @@ void AsmTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
   Scope* scope = expr->scope();
   DCHECK(scope->is_function_scope());
 
-  if (!expr->bounds().upper->IsFunction()) {
+  if (!bounds_.get(expr).upper->IsFunction()) {
     FAIL(expr, "invalid function literal");
   }
 
-  Type* type = expr->bounds().upper;
+  Type* type = bounds_.get(expr).upper;
   Type* save_return_type = return_type_;
   return_type_ = type->AsFunction()->Result();
   in_function_ = true;
@@ -803,7 +804,7 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
           FAIL(right, "heap access shift must match element size");
         }
       }
-      expr->key()->set_bounds(Bounds(cache_.kAsmSigned));
+      bounds_.set(expr->key(), Bounds(cache_.kAsmSigned));
     }
     Type* result_type;
     if (type->Is(cache_.kAsmIntArrayElement)) {
@@ -954,7 +955,7 @@ void AsmTyper::CheckPolymorphicStdlibArguments(
   }
   // Handle polymorphic stdlib functions specially.
   Expression* arg0 = args->at(0);
-  Type* arg0_type = arg0->bounds().upper;
+  Type* arg0_type = bounds_.get(arg0).upper;
   switch (standard_member) {
     case kMathFround: {
       if (!arg0_type->Is(cache_.kAsmFloat) &&
@@ -983,8 +984,8 @@ void AsmTyper::CheckPolymorphicStdlibArguments(
         FAIL(arg0, "illegal function argument type");
       }
       if (args->length() > 1) {
-        Type* other = Type::Intersect(args->at(0)->bounds().upper,
-                                      args->at(1)->bounds().upper, zone());
+        Type* other = Type::Intersect(bounds_.get(args->at(0)).upper,
+                                      bounds_.get(args->at(1)).upper, zone());
         if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
             !other->Is(cache_.kAsmSigned)) {
           FAIL(arg0, "function arguments types don't match");
@@ -1031,8 +1032,8 @@ void AsmTyper::VisitCall(Call* expr) {
         }
       }
       intish_ = 0;
-      expr->expression()->set_bounds(
-          Bounds(Type::Function(Type::Any(), zone())));
+      bounds_.set(expr->expression(),
+                  Bounds(Type::Function(Type::Any(), zone())));
       IntersectResult(expr, expected_type);
     } else {
       if (fun_type->Arity() != args->length()) {
@@ -1198,11 +1199,12 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       RECURSE(VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
                                           cache_.kAsmSigned, true));
       if (expr->left()->IsCall() && expr->op() == Token::BIT_OR &&
-          Type::Number()->Is(expr->left()->bounds().upper)) {
+          Type::Number()->Is(bounds_.get(expr->left()).upper)) {
         // Force the return types of foreign functions.
-        expr->left()->set_bounds(Bounds(cache_.kAsmSigned));
+        bounds_.set(expr->left(), Bounds(cache_.kAsmSigned));
       }
-      if (in_function_ && !expr->left()->bounds().upper->Is(cache_.kAsmIntQ)) {
+      if (in_function_ &&
+          !bounds_.get(expr->left()).upper->Is(cache_.kAsmIntQ)) {
         FAIL(expr->left(), "intish required");
       }
       return;
@@ -1212,7 +1214,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Literal* left = expr->left()->AsLiteral();
       if (left && left->value()->IsBoolean()) {
         if (left->ToBooleanIsTrue()) {
-          left->set_bounds(Bounds(cache_.kSingletonOne));
+          bounds_.set(left, Bounds(cache_.kSingletonOne));
           RECURSE(VisitWithExpectation(expr->right(), cache_.kAsmIntQ,
                                        "not operator expects an integer"));
           IntersectResult(expr, cache_.kAsmSigned);
@@ -1299,13 +1301,13 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
                  expr->right()->AsLiteral()->raw_value()->AsNumber() == 1.0) {
         // For unary +, expressed as x * 1.0
         if (expr->left()->IsCall() &&
-            Type::Number()->Is(expr->left()->bounds().upper)) {
+            Type::Number()->Is(bounds_.get(expr->left()).upper)) {
           // Force the return types of foreign functions.
-          expr->left()->set_bounds(Bounds(cache_.kAsmDouble));
-          left_type = expr->left()->bounds().upper;
+          bounds_.set(expr->left(), Bounds(cache_.kAsmDouble));
+          left_type = bounds_.get(expr->left()).upper;
         }
         if (!(expr->left()->IsProperty() &&
-              Type::Number()->Is(expr->left()->bounds().upper))) {
+              Type::Number()->Is(bounds_.get(expr->left()).upper))) {
           if (!left_type->Is(cache_.kAsmSigned) &&
               !left_type->Is(cache_.kAsmUnsigned) &&
               !left_type->Is(cache_.kAsmFixnum) &&
@@ -1323,7 +1325,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
                  !expr->right()->AsLiteral()->raw_value()->ContainsDot() &&
                  expr->right()->AsLiteral()->raw_value()->AsNumber() == -1.0) {
         // For unary -, expressed as x * -1
-        expr->right()->set_bounds(Bounds(cache_.kAsmDouble));
+        bounds_.set(expr->right(), Bounds(cache_.kAsmDouble));
         IntersectResult(expr, cache_.kAsmDouble);
         return;
       } else if (type->Is(cache_.kAsmFloat) && expr->op() != Token::MOD) {
@@ -1589,14 +1591,14 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(
 
 void AsmTyper::SetResult(Expression* expr, Type* type) {
   computed_type_ = type;
-  expr->set_bounds(Bounds(computed_type_));
+  bounds_.set(expr, Bounds(computed_type_));
 }
 
 
 void AsmTyper::IntersectResult(Expression* expr, Type* type) {
   computed_type_ = type;
   Type* bounded_type = Type::Intersect(computed_type_, expected_type_, zone());
-  expr->set_bounds(Bounds(bounded_type));
+  bounds_.set(expr, Bounds(bounded_type));
 }
 
 

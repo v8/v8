@@ -7,6 +7,7 @@
 
 #include "src/accessors.h"
 #include "src/allocation.h"
+#include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
@@ -2183,6 +2184,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
 
+  AstTypeBounds* bounds() { return &bounds_; }
+
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
@@ -2915,6 +2918,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool inline_bailout_;
 
   HOsrBuilder* osr_;
+
+  AstTypeBounds bounds_;
 
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.

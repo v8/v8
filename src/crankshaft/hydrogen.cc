@@ -167,11 +167,6 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
     isolate()->GetHTracer()->TraceCompilation(info());
   }
 
-  // Type-check the function.
-  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
-           info()->scope(), info()->osr_ast_id(), info()->literal())
-      .Run();
-
   // Optimization could have been disabled by the parser. Note that this check
   // is only needed because the Hydrogen graph builder is missing some bailouts.
   if (info()->shared_info()->optimization_disabled()) {
@@ -183,6 +178,12 @@ HCompilationJob::Status HCompilationJob::CreateGraphImpl() {
       (info()->is_tracking_positions() || FLAG_trace_ic)
           ? new (info()->zone()) HOptimizedGraphBuilderWithPositions(info())
           : new (info()->zone()) HOptimizedGraphBuilder(info());
+
+  // Type-check the function.
+  AstTyper(info()->isolate(), info()->zone(), info()->closure(),
+           info()->scope(), info()->osr_ast_id(), info()->literal(),
+           graph_builder->bounds())
+      .Run();
 
   graph_ = graph_builder->CreateGraph();
 
@@ -3683,7 +3684,8 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
       break_scope_(NULL),
       inlined_count_(0),
       globals_(10, info->zone()),
-      osr_(new (info->zone()) HOsrBuilder(this)) {
+      osr_(new (info->zone()) HOsrBuilder(this)),
+      bounds_(info->zone()) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
@@ -5172,7 +5174,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
   HValue* tag_value = Top();
-  Type* tag_type = stmt->tag()->bounds().lower;
+  Type* tag_type = bounds_.get(stmt->tag()).lower;
 
   // 1. Build all the tests, with dangling true branches
   BailoutId default_id = BailoutId::None();
@@ -5189,7 +5191,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     if (current_block() == NULL) return Bailout(kUnsupportedSwitchStatement);
     HValue* label_value = Pop();
 
-    Type* label_type = clause->label()->bounds().lower;
+    Type* label_type = bounds_.get(clause->label()).lower;
     Type* combined_type = clause->compare_type();
     HControlInstruction* compare = BuildCompareInstruction(
         Token::EQ_STRICT, tag_value, label_value, tag_type, label_type,
@@ -8653,7 +8655,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // Type-check the inlined function.
   DCHECK(target_shared->has_deoptimization_support());
   AstTyper(target_info.isolate(), target_info.zone(), target_info.closure(),
-           target_info.scope(), target_info.osr_ast_id(), target_info.literal())
+           target_info.scope(), target_info.osr_ast_id(), target_info.literal(),
+           &bounds_)
       .Run();
 
   int inlining_id = 0;
@@ -11127,9 +11130,9 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
     HValue* left,
     HValue* right,
     PushBeforeSimulateBehavior push_sim_result) {
-  Type* left_type = expr->left()->bounds().lower;
-  Type* right_type = expr->right()->bounds().lower;
-  Type* result_type = expr->bounds().lower;
+  Type* left_type = bounds_.get(expr->left()).lower;
+  Type* right_type = bounds_.get(expr->right()).lower;
+  Type* result_type = bounds_.get(expr).lower;
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Handle<AllocationSite> allocation_site = expr->allocation_site();
 
@@ -11664,8 +11667,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  Type* left_type = expr->left()->bounds().lower;
-  Type* right_type = expr->right()->bounds().lower;
+  Type* left_type = bounds_.get(expr->left()).lower;
+  Type* right_type = bounds_.get(expr->right()).lower;
   Type* combined_type = expr->combined_type();
 
   CHECK_ALIVE(VisitForValue(expr->left()));

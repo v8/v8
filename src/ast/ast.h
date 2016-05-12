@@ -337,10 +337,6 @@ class Expression : public AstNode {
   // True iff the expression is a valid target for an assignment.
   bool IsValidReferenceExpressionOrThis() const;
 
-  // Expression type bounds
-  Bounds bounds() const { return bounds_; }
-  void set_bounds(Bounds bounds) { bounds_ = bounds; }
-
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -374,7 +370,6 @@ class Expression : public AstNode {
   Expression(Zone* zone, int pos)
       : AstNode(pos),
         base_id_(BailoutId::None().ToInt()),
-        bounds_(Bounds::Unbounded()),
         bit_field_(0) {}
   static int parent_num_ids() { return 0; }
   void set_to_boolean_types(uint16_t types) {
@@ -390,7 +385,6 @@ class Expression : public AstNode {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   int base_id_;
-  Bounds bounds_;
   class ToBooleanTypesField : public BitField16<uint16_t, 0, 9> {};
   uint16_t bit_field_;
   // Ends with 16-bit field; deriving classes in turn begin with
