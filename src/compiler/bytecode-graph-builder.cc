@@ -1423,6 +1423,8 @@ void BytecodeGraphBuilder::VisitIllegal() {
       jsgraph()->Constant(kIllegalBytecode));
 }
 
+void BytecodeGraphBuilder::VisitNop() {}
+
 void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
   if (merge_environments_[current_offset] != nullptr) {
     if (environment() != nullptr) {

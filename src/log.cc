@@ -1580,12 +1580,15 @@ void Logger::LogCodeObjects() {
 void Logger::LogBytecodeHandlers() {
   if (!FLAG_ignition) return;
 
-  interpreter::Interpreter* interpreter = isolate_->interpreter();
+  const interpreter::OperandScale kOperandScales[] = {
+#define VALUE(Name, _) interpreter::OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
   const int last_index = static_cast<int>(interpreter::Bytecode::kLast);
-  for (auto operand_scale = interpreter::OperandScale::kSingle;
-       operand_scale <= interpreter::OperandScale::kMaxValid;
-       operand_scale =
-           interpreter::Bytecodes::NextOperandScale(operand_scale)) {
+  interpreter::Interpreter* interpreter = isolate_->interpreter();
+  for (auto operand_scale : kOperandScales) {
     for (int index = 0; index <= last_index; ++index) {
       interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
       if (interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {

@@ -45,9 +45,13 @@ void Interpreter::Initialize() {
   }
 
   // Generate bytecode handlers for all bytecodes and scales.
-  for (OperandScale operand_scale = OperandScale::kSingle;
-       operand_scale <= OperandScale::kMaxValid;
-       operand_scale = Bytecodes::NextOperandScale(operand_scale)) {
+  const OperandScale kOperandScales[] = {
+#define VALUE(Name, _) OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
+  for (OperandScale operand_scale : kOperandScales) {
 #define GENERATE_CODE(Name, ...)                                               \
   {                                                                            \
     if (Bytecodes::BytecodeHasHandler(Bytecode::k##Name, operand_scale)) {     \
@@ -93,12 +97,16 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                                           OperandScale operand_scale) {
   static const size_t kEntriesPerOperandScale = 1u << kBitsPerByte;
   size_t index = static_cast<size_t>(bytecode);
-  OperandScale current_scale = OperandScale::kSingle;
-  while (current_scale != operand_scale) {
-    index += kEntriesPerOperandScale;
-    current_scale = Bytecodes::NextOperandScale(current_scale);
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      return index;
+    case OperandScale::kDouble:
+      return index + kEntriesPerOperandScale;
+    case OperandScale::kQuadruple:
+      return index + 2 * kEntriesPerOperandScale;
   }
-  return index;
+  UNREACHABLE();
+  return 0;
 }
 
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
@@ -1766,6 +1774,11 @@ void Interpreter::DoExtraWide(InterpreterAssembler* assembler) {
 void Interpreter::DoIllegal(InterpreterAssembler* assembler) {
   __ Abort(kInvalidBytecode);
 }
+
+// Nop
+//
+// No operation.
+void Interpreter::DoNop(InterpreterAssembler* assembler) { __ Dispatch(); }
 
 // SuspendGenerator <generator>
 //

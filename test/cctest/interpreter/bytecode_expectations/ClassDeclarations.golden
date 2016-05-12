@@ -196,7 +196,7 @@ snippet: "
   class C { constructor() { count++; }}
   return new C();
 "
-frame size: 10
+frame size: 7
 parameter count: 1
 bytecode array length: 74
 bytecodes: [

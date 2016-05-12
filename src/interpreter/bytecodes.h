@@ -98,7 +98,7 @@ namespace interpreter {
     OperandType::kIdx)                                                        \
                                                                               \
   /* Context operations */                                                    \
-  V(PushContext, AccumulatorUse::kRead, OperandType::kReg)                    \
+  V(PushContext, AccumulatorUse::kRead, OperandType::kRegOut)                 \
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                     \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                \
     OperandType::kIdx)                                                        \
@@ -250,7 +250,11 @@ namespace interpreter {
   DEBUG_BREAK_BYTECODE_LIST(V)                                                \
                                                                               \
   /* Illegal bytecode (terminates execution) */                               \
-  V(Illegal, AccumulatorUse::kNone)
+  V(Illegal, AccumulatorUse::kNone)                                           \
+                                                                              \
+  /* No operation (used to maintain source positions for peephole */          \
+  /* eliminated bytecodes). */                                                \
+  V(Nop, AccumulatorUse::kNone)
 
 enum class AccumulatorUse : uint8_t {
   kNone = 0,
@@ -271,12 +275,16 @@ V8_INLINE AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
 
 // Enumeration of scaling factors applicable to scalable operands. Code
 // relies on being able to cast values to integer scaling values.
+#define OPERAND_SCALE_LIST(V) \
+  V(Single, 1)                \
+  V(Double, 2)                \
+  V(Quadruple, 4)
+
 enum class OperandScale : uint8_t {
-  kSingle = 1,
-  kDouble = 2,
-  kQuadruple = 4,
-  kMaxValid = kQuadruple,
-  kInvalid = 8,
+#define DECLARE_OPERAND_SCALE(Name, Scale) k##Name = Scale,
+  OPERAND_SCALE_LIST(DECLARE_OPERAND_SCALE)
+#undef DECLARE_OPERAND_SCALE
+      kLast = kQuadruple
 };
 
 // Enumeration of the size classes of operand types used by
@@ -333,7 +341,7 @@ enum class Bytecode : uint8_t {
 
 // An interpreter Register which is located in the function's Register file
 // in its stack-frame. Register hold parameters, this, and expression values.
-class Register {
+class Register final {
  public:
   explicit Register(int index = kInvalidIndex) : index_(index) {}
 
@@ -464,8 +472,19 @@ class Bytecodes {
   // Returns true if |bytecode| writes the accumulator.
   static bool WritesAccumulator(Bytecode bytecode);
 
+  // Return true if |bytecode| writes the accumulator with a boolean value.
+  static bool WritesBooleanToAccumulator(Bytecode bytecode);
+
+  // Return true if |bytecode| is an accumulator load bytecode,
+  // e.g. LdaConstant, LdaTrue, Ldar.
+  static bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode);
+
   // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
+
+  // Returns a pointer to an array of operand types terminated in
+  // OperandType::kNone.
+  static const OperandType* GetOperandTypes(Bytecode bytecode);
 
   // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
@@ -514,6 +533,13 @@ class Bytecodes {
   // any kind of operand.
   static bool IsJump(Bytecode bytecode);
 
+  // Returns true if the bytecode is a jump that internally coerces the
+  // accumulator to a boolean.
+  static bool IsJumpIfToBoolean(Bytecode bytecode);
+
+  // Returns the equivalent jump bytecode without the accumulator coercion.
+  static Bytecode GetJumpWithoutToBoolean(Bytecode bytecode);
+
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
 
@@ -525,6 +551,9 @@ class Bytecodes {
 
   // Returns true if the bytecode is a debug break.
   static bool IsDebugBreak(Bytecode bytecode);
+
+  // Returns true if the bytecode is Ldar or Star.
+  static bool IsLdarOrStar(Bytecode bytecode);
 
   // Returns true if the bytecode has wider operand forms.
   static bool IsBytecodeWithScalableOperands(Bytecode bytecode);
@@ -540,6 +569,10 @@ class Bytecodes {
 
   // Returns true if |operand_type| represents a register used as an output.
   static bool IsRegisterOutputOperandType(OperandType operand_type);
+
+  // Returns the number of registers represented by a register operand. For
+  // instance, a RegPair represents two registers.
+  static int GetNumberOfRegistersRepresentedBy(OperandType operand_type);
 
   // Returns true if |operand_type| is a maybe register operand
   // (kMaybeReg).
@@ -576,8 +609,21 @@ class Bytecodes {
   // OperandScale values.
   static bool BytecodeHasHandler(Bytecode bytecode, OperandScale operand_scale);
 
-  // Return the next larger operand scale.
-  static OperandScale NextOperandScale(OperandScale operand_scale);
+  // Return the operand size required to hold a signed operand.
+  static OperandSize SizeForSignedOperand(int value);
+
+  // Return the operand size required to hold an unsigned operand.
+  static OperandSize SizeForUnsignedOperand(int value);
+
+  // Return the operand size required to hold an unsigned operand.
+  static OperandSize SizeForUnsignedOperand(size_t value);
+
+  // Return the OperandScale required for bytecode emission of
+  // operand sizes.
+  static OperandScale OperandSizesToScale(
+      OperandSize size0, OperandSize size1 = OperandSize::kByte,
+      OperandSize size2 = OperandSize::kByte,
+      OperandSize size3 = OperandSize::kByte);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

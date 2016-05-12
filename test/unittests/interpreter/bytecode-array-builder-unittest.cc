@@ -22,10 +22,15 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 1, 131);
+  Factory* factory = isolate()->factory();
 
   CHECK_EQ(builder.locals_count(), 131);
   CHECK_EQ(builder.context_count(), 1);
   CHECK_EQ(builder.fixed_register_count(), 132);
+
+  Register reg(0);
+  Register other(reg.index() + 1);
+  Register wide(128);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -34,19 +39,27 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
+      .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
+      .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
+      .StoreAccumulatorInRegister(reg)
+      .LoadLiteral(factory->NewStringFromStaticChars("A constant"))
+      .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
+      .StoreAccumulatorInRegister(reg)
       .LoadNull()
+      .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
+      .StoreAccumulatorInRegister(reg)
       .LoadTrue()
-      .LoadFalse();
+      .StoreAccumulatorInRegister(reg)
+      .LoadFalse()
+      .StoreAccumulatorInRegister(wide);
 
-  Register reg(0);
-  Register other(reg.index() + 1);
-  Register wide(128);
-
-  builder.LoadAccumulatorWithRegister(reg)
+  builder.StackCheck(0)
+      .LoadAccumulatorWithRegister(other)
+      .StoreAccumulatorInRegister(reg)
       .LoadNull()
       .StoreAccumulatorInRegister(reg);
 
@@ -55,7 +68,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, wide);
 
   // Emit global load / store operations.
-  Factory* factory = isolate()->factory();
   Handle<String> name = factory->NewStringFromStaticChars("var_name");
   builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
@@ -331,6 +343,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Insert entry for illegal bytecode as this is never willingly emitted.
   scorecard[Bytecodes::ToByte(Bytecode::kIllegal)] = 1;
 
+  // Insert entry for nop bytecode as this often gets optimized out.
+  scorecard[Bytecodes::ToByte(Bytecode::kNop)] = 1;
+
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
   CHECK_EQ(scorecard[Bytecodes::ToByte(final_bytecode)], 1);
@@ -462,7 +477,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&far4);
   for (int i = 0; i < kFarJumpDistance - 18; i++) {
-    builder.LoadUndefined();
+    builder.Debugger();
   }
   builder.Bind(&far0).Bind(&far1).Bind(&far2).Bind(&far3).Bind(&far4);
   builder.Return();
@@ -502,7 +517,6 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanFalse);
   CHECK_EQ(iterator.GetImmediateOperand(0), 2);
   iterator.Advance();
-
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
   CHECK_EQ(*iterator.GetConstantForIndexOperand(0),
@@ -569,7 +583,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
 
   // Add padding to force wide backwards jumps.
   for (int i = 0; i < 256; i++) {
-    builder.LoadTrue();
+    builder.Debugger();
   }
 
   builder.BinaryOperation(Token::Value::ADD, reg).JumpIfFalse(&label4);
@@ -616,7 +630,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   }
   // Check padding to force wide backwards jumps.
   for (int i = 0; i < 256; i++) {
-    CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaTrue);
+    CHECK_EQ(iterator.current_bytecode(), Bytecode::kDebugger);
     iterator.Advance();
   }
   // Ignore binary operation.
@@ -705,85 +719,6 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
   CHECK(iterator.done());
-}
-
-TEST_F(BytecodeArrayBuilderTest, OperandScales) {
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kByte),
-           OperandScale::kSingle);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kShort),
-           OperandScale::kDouble);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kQuad),
-           OperandScale::kQuadruple);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
-               OperandSize::kShort, OperandSize::kShort, OperandSize::kShort,
-               OperandSize::kShort),
-           OperandScale::kDouble);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
-               OperandSize::kQuad, OperandSize::kShort, OperandSize::kShort,
-               OperandSize::kShort),
-           OperandScale::kQuadruple);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
-               OperandSize::kShort, OperandSize::kQuad, OperandSize::kShort,
-               OperandSize::kShort),
-           OperandScale::kQuadruple);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
-               OperandSize::kShort, OperandSize::kShort, OperandSize::kQuad,
-               OperandSize::kShort),
-           OperandScale::kQuadruple);
-  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
-               OperandSize::kShort, OperandSize::kShort, OperandSize::kShort,
-               OperandSize::kQuad),
-           OperandScale::kQuadruple);
-}
-
-TEST_F(BytecodeArrayBuilderTest, SizesForSignOperands) {
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(0) == OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt8) ==
-        OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt8) ==
-        OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt8 + 1) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt8 - 1) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt16) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt16) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt16 + 1) ==
-        OperandSize::kQuad);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt16 - 1) ==
-        OperandSize::kQuad);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt) ==
-        OperandSize::kQuad);
-  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt) ==
-        OperandSize::kQuad);
-}
-
-TEST_F(BytecodeArrayBuilderTest, SizesForUnsignOperands) {
-  // int overloads
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(0) == OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt8) ==
-        OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt8 + 1) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt16) ==
-        OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt16 + 1) ==
-        OperandSize::kQuad);
-  // size_t overloads
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(static_cast<size_t>(0)) ==
-        OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
-            static_cast<size_t>(kMaxUInt8)) == OperandSize::kByte);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
-            static_cast<size_t>(kMaxUInt8 + 1)) == OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
-            static_cast<size_t>(kMaxUInt16)) == OperandSize::kShort);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
-            static_cast<size_t>(kMaxUInt16 + 1)) == OperandSize::kQuad);
-  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
-            static_cast<size_t>(kMaxUInt32)) == OperandSize::kQuad);
 }
 
 }  // namespace interpreter

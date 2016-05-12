@@ -655,6 +655,9 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
         .CompareOperation(Token::Value::EQ_STRICT, index)
         .JumpIfTrue(&(targets[i]));
   }
+  // TODO(oth): This should be an abort via the runtime with a
+  // corresponding message., An illegal bytecode should never be
+  // emitted in valid bytecode.
   builder()->Illegal();  // Should never get here.
 }
 
