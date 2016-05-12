@@ -193,6 +193,7 @@
         'wasm/test-signatures.h',
         'wasm/test-wasm-function-name-table.cc',
         'wasm/test-wasm-stack.cc',
+        'wasm/test-wasm-trap-position.cc',
         'wasm/wasm-run-utils.h',
       ],
       'conditions': [

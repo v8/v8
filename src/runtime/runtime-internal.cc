@@ -101,10 +101,53 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  USE(byte_offset);  // TODO(clemensh): patch the stack trace with this offset
-  Handle<Object> error = isolate->factory()->NewError(
+  Handle<Object> error_obj = isolate->factory()->NewError(
       static_cast<MessageTemplate::Template>(message_id));
-  return isolate->Throw(*error);
+
+  // For wasm traps, the byte offset (a.k.a source position) can not be
+  // determined from relocation info, since the explicit checks for traps
+  // converge in one singe block which calls this runtime function.
+  // We hence pass the byte offset explicitely, and patch it into the top-most
+  // frame (a wasm frame) on the collected stack trace.
+  // TODO(wasm): This implementation is temporary, see bug #5007:
+  // https://bugs.chromium.org/p/v8/issues/detail?id=5007
+  Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
+  Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->stack_trace_symbol());
+  // Patch the stack trace (array of <receiver, function, code, position>).
+  if (stack_trace_obj->IsJSArray()) {
+    Handle<FixedArray> stack_elements(
+        FixedArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
+    DCHECK_EQ(1, stack_elements->length() % 4);
+    DCHECK(Code::cast(stack_elements->get(3))->kind() == Code::WASM_FUNCTION);
+    DCHECK(stack_elements->get(4)->IsSmi() &&
+           Smi::cast(stack_elements->get(4))->value() >= 0);
+    stack_elements->set(4, Smi::FromInt(-1 - byte_offset));
+  }
+  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
+      error, isolate->factory()->detailed_stack_trace_symbol());
+  // Patch the detailed stack trace (array of JSObjects with various
+  // properties).
+  if (detailed_stack_trace_obj->IsJSArray()) {
+    Handle<FixedArray> stack_elements(
+        FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
+    DCHECK_GE(stack_elements->length(), 1);
+    Handle<JSObject> top_frame(JSObject::cast(stack_elements->get(0)));
+    Handle<String> wasm_offset_key =
+        isolate->factory()->InternalizeOneByteString(
+            STATIC_CHAR_VECTOR("column"));
+    LookupIterator it(top_frame, wasm_offset_key, top_frame,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+    if (it.IsFound()) {
+      DCHECK(JSReceiver::GetDataProperty(&it)->IsSmi());
+      Maybe<bool> data_set = JSReceiver::SetDataProperty(
+          &it, handle(Smi::FromInt(byte_offset), isolate));
+      DCHECK(data_set.IsJust() && data_set.FromJust() == true);
+      USE(data_set);
+    }
+  }
+
+  return isolate->Throw(*error_obj);
 }
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {

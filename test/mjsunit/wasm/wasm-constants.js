@@ -99,6 +99,7 @@ var kSig_d_dd = [2, kAstF64, kAstF64, 1, kAstF64];
 var kSig_l_ll = [2, kAstI64, kAstI64, 1, kAstI64];
 var kSig_i_dd = [2, kAstF64, kAstF64, 1, kAstI32];
 var kSig_v_v = [0, 0];
+var kSig_i_v = [0, 1, kAstI32];
 
 function makeSig_v_xx(x) {
   return [2, x, x, 0];

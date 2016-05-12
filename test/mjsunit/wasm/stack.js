@@ -106,10 +106,9 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
         // isWasm               function   line  pos        file
-        // TODO(clemensh): pos should be 1
-        [    true,    "exec_unreachable",    1,   -1,       null],
+        [    true,    "exec_unreachable",    1,    1,       null],
         [   false, "testWasmUnreachable",  103,    0, "stack.js"],
-        [   false,                  null,  115,    0, "stack.js"]
+        [   false,                  null,  114,    0, "stack.js"]
     ]);
   }
 })();
@@ -122,11 +121,10 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line  pos        file
-        // TODO(clemensh): pos should be 3
-        [    true,                      "?",     2,  -1,       null],
+        [    true,                      "?",     2,   3,       null],
         [    true, "call_mem_out_of_bounds",     3,   1,       null],
-        [   false, "testWasmMemOutOfBounds",   119,   0, "stack.js"],
-        [   false,                     null,   132,   0, "stack.js"]
+        [   false, "testWasmMemOutOfBounds",   118,   0, "stack.js"],
+        [   false,                     null,   130,   0, "stack.js"]
     ]);
   }
 })();

@@ -826,7 +826,10 @@ function GetStackFrames(raw_stack) {
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
-    var pos = %FunctionGetPositionForOffset(code, pc);
+    // For traps in wasm, the bytecode offset is passed as (-1 - offset).
+    // Otherwise, lookup the position from the pc.
+    var pos = IS_NUMBER(fun) && pc < 0 ? (-1 - pc) :
+      %FunctionGetPositionForOffset(code, pc);
     sloppy_frames--;
     frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
   }
