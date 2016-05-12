@@ -1546,6 +1546,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // unless we already have code with debut break slots.
   Handle<SharedFunctionInfo> existing;
   if (maybe_existing.ToHandle(&existing) && existing->is_compiled()) {
+    DCHECK(!existing->is_toplevel());
     if (!outer_info->is_debug() || existing->HasDebugCode()) {
       return existing;
     }
