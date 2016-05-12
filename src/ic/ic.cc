@@ -2615,11 +2615,16 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<Object> receiver =
+      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
+
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver));
+  }
 
   InterceptorInfo* interceptor = holder->GetNamedInterceptor();
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
@@ -2646,10 +2651,15 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<Object> receiver =
+      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
+
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver));
+  }
 
   InterceptorInfo* interceptor = holder->GetNamedInterceptor();
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
