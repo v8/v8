@@ -139,7 +139,6 @@ def run_site(site, domain, args, timeout=None):
             "--no-default-browser-check",
             "--disable-translate",
             "--disable-seccomp-sandbox",
-            "--no-sandbox",
             "--js-flags={}".format(js_flags),
             "--no-first-run",
             "--user-data-dir={}".format(user_data_dir),
