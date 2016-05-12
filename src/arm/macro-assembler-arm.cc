@@ -355,37 +355,6 @@ void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width,
 }
 
 
-void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
-                          Condition cond) {
-  if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
-    DCHECK(!dst.is(pc) && !src.rm().is(pc));
-    DCHECK((satpos >= 0) && (satpos <= 31));
-
-    // These asserts are required to ensure compatibility with the ARMv7
-    // implementation.
-    DCHECK((src.shift_op() == ASR) || (src.shift_op() == LSL));
-    DCHECK(src.rs().is(no_reg));
-
-    Label done;
-    int satval = (1 << satpos) - 1;
-
-    if (cond != al) {
-      b(NegateCondition(cond), &done);  // Skip saturate if !condition.
-    }
-    if (!(src.is_reg() && dst.is(src.rm()))) {
-      mov(dst, src);
-    }
-    tst(dst, Operand(~satval));
-    b(eq, &done);
-    mov(dst, Operand::Zero(), LeaveCC, mi);  // 0 if negative.
-    mov(dst, Operand(satval), LeaveCC, pl);  // satval if positive.
-    bind(&done);
-  } else {
-    usat(dst, satpos, src, cond);
-  }
-}
-
-
 void MacroAssembler::Load(Register dst,
                           const MemOperand& src,
                           Representation r) {
@@ -3745,7 +3714,7 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
 
 
 void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
-  Usat(output_reg, 8, Operand(input_reg));
+  usat(output_reg, 8, Operand(input_reg));
 }
 
 

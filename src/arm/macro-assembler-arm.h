@@ -157,8 +157,6 @@ class MacroAssembler: public Assembler {
            int width,
            Condition cond = al);
   void Bfc(Register dst, Register src, int lsb, int width, Condition cond = al);
-  void Usat(Register dst, int satpos, const Operand& src,
-            Condition cond = al);
 
   void Call(Label* target);
   void Push(Register src) { push(src); }
