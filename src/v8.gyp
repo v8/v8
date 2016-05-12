@@ -2031,7 +2031,6 @@
           'js/harmony-species.js',
           'js/harmony-unicode-regexps.js',
           'js/harmony-string-padding.js',
-          'js/intl-extra.js',
           'js/promise-extra.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
@@ -2041,7 +2040,10 @@
         'conditions': [
           ['v8_enable_i18n_support==1', {
             'library_files': ['js/i18n.js'],
-            'experimental_library_files': ['js/icu-case-mapping.js'],
+            'experimental_library_files': [
+              'js/icu-case-mapping.js',
+              'js/intl-extra.js',
+             ],
           }],
         ],
       },

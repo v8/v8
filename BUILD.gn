@@ -421,7 +421,6 @@ action("js2c_experimental") {
     "src/js/harmony-species.js",
     "src/js/harmony-unicode-regexps.js",
     "src/js/harmony-string-padding.js",
-    "src/js/intl-extra.js",
     "src/js/promise-extra.js",
   ]
 
@@ -430,7 +429,10 @@ action("js2c_experimental") {
   ]
 
   if (v8_enable_i18n_support) {
-    sources += [ "src/js/icu-case-mapping.js" ]
+    sources += [
+      "src/js/icu-case-mapping.js",
+      "src/js/intl-extra.js",
+    ]
   }
 
   args = [
