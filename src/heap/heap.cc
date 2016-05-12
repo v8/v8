@@ -2189,6 +2189,7 @@ bool Heap::CreateInitialMaps() {
   }
 
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
+    fixed_array_map()->set_elements_kind(FAST_HOLEY_ELEMENTS);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
@@ -2263,7 +2264,8 @@ bool Heap::CreateInitialMaps() {
   }
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, fixed_cow_array)
-    DCHECK(fixed_array_map() != fixed_cow_array_map());
+    fixed_cow_array_map()->set_elements_kind(FAST_HOLEY_ELEMENTS);
+    DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
@@ -2313,6 +2315,7 @@ bool Heap::CreateInitialMaps() {
     }
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
+    fixed_double_array_map()->set_elements_kind(FAST_HOLEY_DOUBLE_ELEMENTS);
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
