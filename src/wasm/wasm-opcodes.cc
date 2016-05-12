@@ -79,11 +79,22 @@ static void InitSigTable() {
 #undef SET_SIG_TABLE
 }
 
+class SigTable {
+ public:
+  SigTable() {
+    // TODO(ahaas): Move {InitSigTable} into the class.
+    InitSigTable();
+  }
+  FunctionSig* Signature(WasmOpcode opcode) const {
+    return const_cast<FunctionSig*>(
+        kSimpleExprSigs[kSimpleExprSigTable[static_cast<byte>(opcode)]]);
+  }
+};
+
+static base::LazyInstance<SigTable>::type sig_table = LAZY_INSTANCE_INITIALIZER;
+
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
-  // TODO(titzer): use LazyInstance to make this thread safe.
-  if (kSimpleExprSigTable[kExprI32Add] == 0) InitSigTable();
-  return const_cast<FunctionSig*>(
-      kSimpleExprSigs[kSimpleExprSigTable[static_cast<byte>(opcode)]]);
+  return sig_table.Get().Signature(opcode);
 }
 
 // TODO(titzer): pull WASM_64 up to a common header.

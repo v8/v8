@@ -475,7 +475,8 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
 
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
-DEFINE_BOOL(wasm_parallel_compilation, false, "compile WASM code in parallel")
+DEFINE_INT(wasm_num_compilation_tasks, 0,
+           "number of parallel compilation tasks for wasm")
 DEFINE_BOOL(trace_wasm_encoder, false, "trace encoding of wasm code")
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
