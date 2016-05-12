@@ -961,6 +961,8 @@ void Scope::Print(int n) {
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
   }
+  if (asm_module_) Indent(n1, "// scope is an asm module\n");
+  if (asm_function_) Indent(n1, "// scope is an asm function\n");
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");

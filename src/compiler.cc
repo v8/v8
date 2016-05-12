@@ -30,6 +30,7 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/typing-asm.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -464,6 +465,17 @@ int CodeAndMetadataSize(CompilationInfo* info) {
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   bool success;
   EnsureFeedbackVector(info);
+  if (FLAG_validate_asm && info->scope()->asm_module()) {
+    AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
+                   info->literal());
+    if (FLAG_enable_simd_asmjs) {
+      typer.set_allow_simd(true);
+    }
+    if (!typer.Validate()) {
+      DCHECK(!info->isolate()->has_pending_exception());
+      PrintF("Validation of asm.js module failed: %s", typer.error_message());
+    }
+  }
   if (FLAG_ignition && UseIgnition(info)) {
     success = interpreter::Interpreter::MakeBytecode(info);
   } else {
