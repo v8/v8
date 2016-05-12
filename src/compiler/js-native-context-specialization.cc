@@ -435,12 +435,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (nexus.IsUninitialized()) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      // TODO(turbofan): Implement all eager bailout points correctly in
-      // the graph builder.
-      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
-        return ReduceSoftDeoptimize(node);
-      }
+      return ReduceSoftDeoptimize(node);
     }
     return NoChange();
   }
@@ -452,12 +447,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   } else if (receiver_maps.length() == 0) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      // TODO(turbofan): Implement all eager bailout points correctly in
-      // the graph builder.
-      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
-        return ReduceSoftDeoptimize(node);
-      }
+      return ReduceSoftDeoptimize(node);
     }
     return NoChange();
   }
@@ -917,12 +907,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   if (nexus.IsUninitialized()) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      // TODO(turbofan): Implement all eager bailout points correctly in
-      // the graph builder.
-      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
-        return ReduceSoftDeoptimize(node);
-      }
+      return ReduceSoftDeoptimize(node);
     }
     return NoChange();
   }
@@ -934,12 +919,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   } else if (receiver_maps.length() == 0) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      // TODO(turbofan): Implement all eager bailout points correctly in
-      // the graph builder.
-      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
-        return ReduceSoftDeoptimize(node);
-      }
+      return ReduceSoftDeoptimize(node);
     }
     return NoChange();
   }
