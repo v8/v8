@@ -188,12 +188,13 @@ using v8::MemoryPressureLevel;
   V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
   V(PropertyCell, array_protector, ArrayProtector)                             \
+  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
-  V(PropertyCell, species_protector, SpeciesProtector)
+  V(Cell, species_protector, SpeciesProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \

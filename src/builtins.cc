@@ -1222,23 +1222,18 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
   return true;
 }
 
-
-bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
-  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-  Maybe<bool> maybe = JSReceiver::HasProperty(obj, key);
-  return maybe.FromMaybe(false);
-}
-
-
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-  Handle<Object> value;
-  MaybeHandle<Object> maybeValue =
-      i::Runtime::GetObjectProperty(isolate, obj, key);
-  if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-  if (!value->IsUndefined()) return Just(value->BooleanValue());
+  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+    // Slow path if @@isConcatSpreadable has been used.
+    Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
+    Handle<Object> value;
+    MaybeHandle<Object> maybeValue =
+        i::Runtime::GetObjectProperty(isolate, obj, key);
+    if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
+    if (!value->IsUndefined()) return Just(value->BooleanValue());
+  }
   return Object::IsArray(obj);
 }
 
@@ -1426,8 +1421,24 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
   }
 }
 
+bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
+  DisallowHeapAllocation no_gc;
+  Map* map = obj->map();
+  // If there is only the 'length' property we are fine.
+  if (map->prototype() ==
+          isolate->native_context()->initial_array_prototype() &&
+      map->NumberOfOwnDescriptors() == 1) {
+    return true;
+  }
+  // TODO(cbruni): slower lookup for array subclasses and support slow
+  // @@IsConcatSpreadable lookup.
+  return false;
+}
 
 MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
+  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+    return MaybeHandle<JSArray>();
+  }
   // We shouldn't overflow when adding another len.
   const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
   STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
@@ -1443,14 +1454,15 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
     for (int i = 0; i < n_arguments; i++) {
       Object* arg = (*args)[i];
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
-      if (!JSObject::cast(arg)->HasFastElements()) {
-        return MaybeHandle<JSArray>();
-      }
       if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
         return MaybeHandle<JSArray>();
       }
+      // TODO(cbruni): support fast concatenation of DICTIONARY_ELEMENTS.
+      if (!JSObject::cast(arg)->HasFastElements()) {
+        return MaybeHandle<JSArray>();
+      }
       Handle<JSArray> array(JSArray::cast(arg), isolate);
-      if (HasConcatSpreadableModifier(isolate, array)) {
+      if (!IsSimpleArray(isolate, array)) {
         return MaybeHandle<JSArray>();
       }
       // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
@@ -1458,16 +1470,15 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
       result_len += Smi::cast(array->length())->value();
       DCHECK(result_len >= 0);
       // Throw an Error if we overflow the FixedArray limits
-      if (FixedDoubleArray::kMaxLength < result_len ||
-          FixedArray::kMaxLength < result_len) {
-        AllowHeapAllocation allow_gc;
+      if (FixedArray::kMaxLength < result_len) {
+        AllowHeapAllocation gc;
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength),
                         JSArray);
       }
     }
   }
-  return ElementsAccessor::Concat(isolate, args, n_arguments);
+  return ElementsAccessor::Concat(isolate, args, n_arguments, result_len);
 }
 
 }  // namespace

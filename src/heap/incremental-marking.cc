@@ -942,7 +942,7 @@ void IncrementalMarking::Hurry() {
         MemoryChunk::IncrementLiveBytesFromGC(cache, cache->Size());
       }
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
 }
 

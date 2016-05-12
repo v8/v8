@@ -128,7 +128,7 @@ class ElementsAccessor {
                    uint32_t new_capacity) = 0;
 
   static Handle<JSArray> Concat(Isolate* isolate, Arguments* args,
-                                uint32_t concat_size);
+                                uint32_t concat_size, uint32_t result_length);
 
   virtual uint32_t Push(Handle<JSArray> receiver, Arguments* args,
                         uint32_t push_size) = 0;

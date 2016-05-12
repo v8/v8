@@ -115,7 +115,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
   // done here. In place, there are mjsunit tests harmony/array-species* which
   // ensure that behavior is correct in various invalid protector cases.
 
-  PropertyCell* species_cell = heap()->species_protector();
+  Cell* species_cell = heap()->species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
 }

@@ -859,11 +859,11 @@ static void AddToWeakNativeContextList(Context* context) {
   Heap* heap = context->GetIsolate()->heap();
 #ifdef DEBUG
   { // NOLINT
-    DCHECK(context->get(Context::NEXT_CONTEXT_LINK)->IsUndefined());
+    DCHECK(context->next_context_link()->IsUndefined());
     // Check that context is not in the list yet.
     for (Object* current = heap->native_contexts_list();
          !current->IsUndefined();
-         current = Context::cast(current)->get(Context::NEXT_CONTEXT_LINK)) {
+         current = Context::cast(current)->next_context_link()) {
       DCHECK(current != context);
     }
   }

@@ -2976,31 +2976,17 @@ void ElementsAccessor::TearDown() {
   elements_accessors_ = NULL;
 }
 
-
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
-                                         uint32_t concat_size) {
-  const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-  STATIC_ASSERT(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
-  USE(kHalfOfMaxInt);
-  uint32_t result_len = 0;
-  bool has_raw_doubles = false;
+                                         uint32_t concat_size,
+                                         uint32_t result_len) {
   ElementsKind result_elements_kind = GetInitialFastElementsKind();
+  bool has_raw_doubles = false;
   {
     DisallowHeapAllocation no_gc;
     bool is_holey = false;
-    // Iterate through all the arguments performing checks
-    // and calculating total length.
     for (uint32_t i = 0; i < concat_size; i++) {
-      JSArray* array = JSArray::cast((*args)[i]);
-      uint32_t len = 0;
-      array->length()->ToArrayLength(&len);
-
-      // We shouldn't overflow when adding another len.
-      result_len += len;
-      DCHECK(0 <= result_len);
-      DCHECK(result_len <= FixedDoubleArray::kMaxLength);
-
-      ElementsKind arg_kind = array->GetElementsKind();
+      Object* arg = (*args)[i];
+      ElementsKind arg_kind = JSArray::cast(arg)->GetElementsKind();
       has_raw_doubles = has_raw_doubles || IsFastDoubleElementsKind(arg_kind);
       is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
       result_elements_kind =

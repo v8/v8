@@ -228,7 +228,7 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   Object* context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     VisitAllOptimizedFunctionsForContext(Context::cast(context), visitor);
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
 }
 
@@ -387,7 +387,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
     Context* native_context = Context::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context->get(Context::NEXT_CONTEXT_LINK);
+    context = native_context->next_context_link();
   }
 }
 
@@ -405,7 +405,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   while (!context->IsUndefined()) {
     Context* native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
-    context = native_context->get(Context::NEXT_CONTEXT_LINK);
+    context = native_context->next_context_link();
   }
 }
 
@@ -662,7 +662,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
       length++;
       element = code->next_code_link();
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
   return length;
 }

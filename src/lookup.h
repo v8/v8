@@ -263,9 +263,10 @@ class LookupIterator final BASE_EMBEDDED {
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
   inline void UpdateProtector() {
-    if (FLAG_harmony_species && !IsElement() &&
-        (*name_ == heap()->constructor_string() ||
-         *name_ == heap()->species_symbol())) {
+    if (IsElement()) return;
+    if (*name_ == heap()->is_concat_spreadable_symbol() ||
+        (FLAG_harmony_species && (*name_ == heap()->constructor_string() ||
+                                  *name_ == heap()->species_symbol()))) {
       InternalUpdateProtector();
     }
   }
@@ -352,8 +353,6 @@ class LookupIterator final BASE_EMBEDDED {
   }
 
   State NotFound(JSReceiver* const holder) const;
-
-  bool HolderIsInContextIndex(uint32_t index) const;
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.

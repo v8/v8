@@ -1646,7 +1646,7 @@ int CountNativeContexts() {
   Object* object = CcTest::heap()->native_contexts_list();
   while (!object->IsUndefined()) {
     count++;
-    object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
+    object = Context::cast(object)->next_context_link();
   }
   return count;
 }
@@ -1784,8 +1784,7 @@ static int CountNativeContextsWithGC(Isolate* isolate, int n) {
     count++;
     if (count == n) heap->CollectAllGarbage();
     object =
-        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK),
-                       isolate);
+        Handle<Object>(Context::cast(*object)->next_context_link(), isolate);
   }
   return count;
 }

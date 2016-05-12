@@ -2533,6 +2533,31 @@ bool Isolate::use_crankshaft() const {
          CpuFeatures::SupportsCrankshaft();
 }
 
+bool Isolate::IsArrayOrObjectPrototype(Object* object) {
+  Object* context = heap()->native_contexts_list();
+  while (context != heap()->undefined_value()) {
+    Context* current_context = Context::cast(context);
+    if (current_context->initial_object_prototype() == object ||
+        current_context->initial_array_prototype() == object) {
+      return true;
+    }
+    context = current_context->next_context_link();
+  }
+  return false;
+}
+
+bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
+  DisallowHeapAllocation no_gc;
+  Object* context = heap()->native_contexts_list();
+  while (context != heap()->undefined_value()) {
+    Context* current_context = Context::cast(context);
+    if (current_context->get(index) == object) {
+      return true;
+    }
+    context = current_context->next_context_link();
+  }
+  return false;
+}
 
 bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   PropertyCell* no_elements_cell = heap()->array_protector();
@@ -2593,52 +2618,63 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   return cell_reports_intact;
 }
 
-void Isolate::InvalidateArraySpeciesProtector() {
-  if (!FLAG_harmony_species) return;
-  DCHECK(factory()->species_protector()->value()->IsSmi());
-  DCHECK(IsArraySpeciesLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->species_protector(),
-      handle(Smi::FromInt(kArrayProtectorInvalid), this));
-  DCHECK(!IsArraySpeciesLookupChainIntact());
+bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
+  Cell* is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
+  bool is_is_concat_spreadable_set =
+      Smi::cast(is_concat_spreadable_cell->value())->value() ==
+      kArrayProtectorInvalid;
+#ifdef DEBUG
+  Map* root_array_map = get_initial_js_array_map(GetInitialFastElementsKind());
+  if (root_array_map == NULL) {
+    // Ignore the value of is_concat_spreadable during bootstrap.
+    return !is_is_concat_spreadable_set;
+  }
+  Handle<Object> array_prototype(array_function()->prototype(), this);
+  Handle<Symbol> key = factory()->is_concat_spreadable_symbol();
+  Handle<Object> value;
+  LookupIterator it(array_prototype, key);
+  if (it.IsFound() && !JSReceiver::GetDataProperty(&it)->IsUndefined()) {
+    // TODO(cbruni): Currently we do not revert if we unset the
+    // @@isConcatSpreadable property on Array.prototype or Object.prototype
+    // hence the reverse implication doesn't hold.
+    DCHECK(is_is_concat_spreadable_set);
+    return false;
+  }
+#endif  // DEBUG
+
+  return !is_is_concat_spreadable_set;
 }
 
 void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
-  if (IsFastArrayConstructorPrototypeChainIntact() &&
-      object->map()->is_prototype_map()) {
-    Object* context = heap()->native_contexts_list();
-    while (!context->IsUndefined()) {
-      Context* current_context = Context::cast(context);
-      if (current_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ==
-              *object ||
-          current_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
-              *object) {
-        CountUsage(v8::Isolate::UseCounterFeature::kArrayProtectorDirtied);
-        PropertyCell::SetValueWithInvalidation(
-            factory()->array_protector(),
-            handle(Smi::FromInt(kArrayProtectorInvalid), this));
-        break;
-      }
-      context = current_context->get(Context::NEXT_CONTEXT_LINK);
-    }
-  }
+  if (!object->map()->is_prototype_map()) return;
+  if (!IsFastArrayConstructorPrototypeChainIntact()) return;
+  if (!IsArrayOrObjectPrototype(*object)) return;
+  PropertyCell::SetValueWithInvalidation(
+      factory()->array_protector(),
+      handle(Smi::FromInt(kArrayProtectorInvalid), this));
 }
 
+void Isolate::InvalidateIsConcatSpreadableProtector() {
+  DCHECK(factory()->is_concat_spreadable_protector()->value()->IsSmi());
+  DCHECK(IsIsConcatSpreadableLookupChainIntact());
+  factory()->is_concat_spreadable_protector()->set_value(
+      Smi::FromInt(kArrayProtectorInvalid));
+  DCHECK(!IsIsConcatSpreadableLookupChainIntact());
+}
+
+void Isolate::InvalidateArraySpeciesProtector() {
+  if (!FLAG_harmony_species) return;
+  DCHECK(factory()->species_protector()->value()->IsSmi());
+  DCHECK(IsArraySpeciesLookupChainIntact());
+  factory()->species_protector()->set_value(
+      Smi::FromInt(kArrayProtectorInvalid));
+  DCHECK(!IsArraySpeciesLookupChainIntact());
+}
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
-  if (array->map()->is_prototype_map()) {
-    Object* context = heap()->native_contexts_list();
-    while (!context->IsUndefined()) {
-      Context* current_context = Context::cast(context);
-      if (current_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
-          *array) {
-        return true;
-      }
-      context = current_context->get(Context::NEXT_CONTEXT_LINK);
-    }
-  }
-  return false;
+  DisallowHeapAllocation no_gc;
+  return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
 }
 
 

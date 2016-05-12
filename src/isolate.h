@@ -691,7 +691,7 @@ class Isolate {
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result
-  // of Throw() as its return value.
+  // of Throw() as its return vaue.
   Object* Throw(Object* exception, MessageLocation* location = NULL);
   Object* ThrowIllegalOperation();
 
@@ -959,6 +959,7 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
+  bool IsIsConcatSpreadableLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -975,6 +976,7 @@ class Isolate {
     UpdateArrayProtectorOnSetElement(object);
   }
   void InvalidateArraySpeciesProtector();
+  void InvalidateIsConcatSpreadableProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1107,8 +1109,11 @@ class Isolate {
 
   base::AccountingAllocator* allocator() { return &allocator_; }
 
+  bool IsInAnyContext(Object* object, uint32_t index);
+
  protected:
   explicit Isolate(bool enable_serializer);
+  bool IsArrayOrObjectPrototype(Object* object);
 
  private:
   friend struct GlobalState;

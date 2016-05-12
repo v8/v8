@@ -18,7 +18,7 @@ ContextMeasure::ContextMeasure(Context* context)
       count_(0),
       size_(0) {
   DCHECK(context_->IsNativeContext());
-  Object* next_link = context_->get(Context::NEXT_CONTEXT_LINK);
+  Object* next_link = context_->next_context_link();
   MeasureObject(context_);
   MeasureDeferredObjects();
   context_->set(Context::NEXT_CONTEXT_LINK, next_link);

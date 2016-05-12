@@ -1561,7 +1561,6 @@ bool Object::SameValueZero(Object* other) {
 
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, Handle<Object> original_array) {
-  Handle<Context> native_context = isolate->native_context();
   Handle<Object> default_species = isolate->array_function();
   if (!FLAG_harmony_species) {
     return default_species;
@@ -1586,7 +1585,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
           isolate, constructor_context,
           JSReceiver::GetFunctionRealm(Handle<JSReceiver>::cast(constructor)),
           Object);
-      if (*constructor_context != *native_context &&
+      if (*constructor_context != *isolate->native_context() &&
           *constructor == constructor_context->array_function()) {
         constructor = isolate->factory()->undefined_value();
       }
@@ -4154,6 +4153,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                         LanguageMode language_mode,
                                         StoreFromKeyed store_mode,
                                         bool* found) {
+  it->UpdateProtector();
   DCHECK(it->IsFound());
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
@@ -4236,7 +4236,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
                                 StoreFromKeyed store_mode) {
-  it->UpdateProtector();
   if (it->IsFound()) {
     bool found = true;
     Maybe<bool> result =
@@ -4264,13 +4263,14 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                      StoreFromKeyed store_mode) {
   Isolate* isolate = it->isolate();
 
-  it->UpdateProtector();
   if (it->IsFound()) {
     bool found = true;
     Maybe<bool> result =
         SetPropertyInternal(it, value, language_mode, store_mode, &found);
     if (found) return result;
   }
+
+  it->UpdateProtector();
 
   // The property either doesn't exist on the holder or exists there as a data
   // property.
@@ -4492,6 +4492,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     JSObject::ValidateElements(receiver);
     return result;
   } else {
+    it->UpdateProtector();
     // Migrate to the most up-to-date map that will be able to store |value|
     // under it->name() with |attributes|.
     it->PrepareTransitionToDataProperty(receiver, value, attributes,

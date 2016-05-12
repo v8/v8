@@ -408,6 +408,8 @@ class Context: public FixedArray {
   inline Context* previous();
   inline void set_previous(Context* context);
 
+  inline Object* next_context_link();
+
   inline bool has_extension();
   inline HeapObject* extension();
   inline void set_extension(HeapObject* object);

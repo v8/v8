@@ -1220,7 +1220,7 @@ void Heap::ClearNormalizedMapCaches() {
     if (!cache->IsUndefined()) {
       NormalizedMapCache::cast(cache)->Clear();
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
 }
 
@@ -2836,8 +2836,12 @@ void Heap::CreateInitialObjects() {
   cell->set_value(the_hole_value());
   set_empty_property_cell(*cell);
 
-  Handle<PropertyCell> species_cell = factory->NewPropertyCell();
-  species_cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+  set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
+
+  Handle<Cell> species_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
   set_weak_stack_trace_list(Smi::FromInt(0));
