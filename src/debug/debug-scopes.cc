@@ -5,6 +5,7 @@
 #include "src/debug/debug-scopes.h"
 
 #include "src/ast/scopes.h"
+#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
@@ -80,34 +81,29 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   }
 
   // Reparse the code and analyze the scopes.
-  Scope* scope = NULL;
   // Check whether we are in global, eval or function code.
   Zone zone(isolate->allocator());
+  base::SmartPointer<ParseInfo> info;
   if (scope_info->scope_type() != FUNCTION_SCOPE) {
     // Global or eval code.
     Handle<Script> script(Script::cast(shared_info->script()));
-    ParseInfo info(&zone, script);
+    info.Reset(new ParseInfo(&zone, script));
+    info->set_toplevel();
     if (scope_info->scope_type() == SCRIPT_SCOPE) {
-      info.set_global();
+      info->set_global();
     } else {
       DCHECK(scope_info->scope_type() == EVAL_SCOPE);
-      info.set_eval();
-      info.set_context(Handle<Context>(function->context()));
+      info->set_eval();
+      info->set_context(Handle<Context>(function->context()));
     }
-    if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-      scope = info.literal()->scope();
-    }
-    if (!ignore_nested_scopes) RetrieveScopeChain(scope);
-    if (collect_non_locals) CollectNonLocals(scope);
   } else {
-    // Function code
-    ParseInfo info(&zone, function);
-    if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-      scope = info.literal()->scope();
-    }
-    if (!ignore_nested_scopes) RetrieveScopeChain(scope);
-    if (collect_non_locals) CollectNonLocals(scope);
+    // Inner function.
+    info.Reset(new ParseInfo(&zone, function));
   }
+  Scope* scope = NULL;
+  if (Compiler::ParseAndAnalyze(info.get())) scope = info->literal()->scope();
+  if (!ignore_nested_scopes) RetrieveScopeChain(scope);
+  if (collect_non_locals) CollectNonLocals(scope);
   UnwrapEvaluationContext();
 }
 
@@ -126,8 +122,6 @@ void ScopeIterator::UnwrapEvaluationContext() {
   while (true) {
     if (context_.is_null()) return;
     if (!context_->IsDebugEvaluateContext()) return;
-    // An existing debug-evaluate context can only be outside the local scope.
-    DCHECK(nested_scope_chain_.is_empty());
     Handle<Object> wrapped(context_->get(Context::WRAPPED_CONTEXT_INDEX),
                            isolate_);
     if (wrapped->IsContext()) {
@@ -240,8 +234,10 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
         DCHECK(!scope_info->HasContext() || context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:
-        UNREACHABLE();
+        DCHECK(!scope_info->HasContext() || context_->IsFunctionContext());
+        return ScopeTypeEval;
     }
+    UNREACHABLE();
   }
   if (context_->IsNativeContext()) {
     DCHECK(context_->global_object()->IsJSGlobalObject());
@@ -288,7 +284,8 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
       // Materialize the content of the closure scope into a JSObject.
       return MaterializeClosure();
     case ScopeIterator::ScopeTypeBlock:
-      return MaterializeBlockScope();
+    case ScopeIterator::ScopeTypeEval:
+      return MaterializeInnerScope();
     case ScopeIterator::ScopeTypeModule:
       return MaterializeModuleScope();
   }
@@ -299,7 +296,8 @@ MaybeHandle<JSObject> ScopeIterator::ScopeObject() {
 
 bool ScopeIterator::HasContext() {
   ScopeType type = Type();
-  if (type == ScopeTypeBlock || type == ScopeTypeLocal) {
+  if (type == ScopeTypeBlock || type == ScopeTypeLocal ||
+      type == ScopeTypeEval) {
     if (!nested_scope_chain_.is_empty()) {
       return nested_scope_chain_.last().scope_info->HasContext();
     }
@@ -325,7 +323,8 @@ bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
     case ScopeIterator::ScopeTypeScript:
       return SetScriptVariableValue(variable_name, new_value);
     case ScopeIterator::ScopeTypeBlock:
-      return SetBlockVariableValue(variable_name, new_value);
+    case ScopeIterator::ScopeTypeEval:
+      return SetInnerScopeVariableValue(variable_name, new_value);
     case ScopeIterator::ScopeTypeModule:
       // TODO(2399): should we implement it?
       break;
@@ -486,19 +485,16 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
 
   if (!scope_info->HasContext()) return local_scope;
 
-  // Third fill all context locals.
+  // Fill all context locals.
   Handle<Context> function_context(frame_context->closure_context());
   CopyContextLocalsToScopeObject(scope_info, function_context, local_scope);
 
   // Finally copy any properties from the function context extension.
   // These will be variables introduced by eval.
   if (function_context->closure() == *function &&
-      function_context->has_extension() &&
       !function_context->IsNativeContext()) {
-    bool success = CopyContextExtensionToScopeObject(
-        handle(function_context->extension_object(), isolate_), local_scope,
-        INCLUDE_PROTOS);
-    if (!success) return MaybeHandle<JSObject>();
+    CopyContextExtensionToScopeObject(function_context, local_scope,
+                                      INCLUDE_PROTOS);
   }
 
   return local_scope;
@@ -524,12 +520,7 @@ Handle<JSObject> ScopeIterator::MaterializeClosure() {
 
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
-  if (context->has_extension()) {
-    bool success = CopyContextExtensionToScopeObject(
-        handle(context->extension_object(), isolate_), closure_scope, OWN_ONLY);
-    DCHECK(success);
-    USE(success);
-  }
+  CopyContextExtensionToScopeObject(context, closure_scope, OWN_ONLY);
 
   return closure_scope;
 }
@@ -564,14 +555,14 @@ Handle<JSObject> ScopeIterator::WithContextExtension() {
 
 // Create a plain JSObject which materializes the block scope for the specified
 // block context.
-Handle<JSObject> ScopeIterator::MaterializeBlockScope() {
-  Handle<JSObject> block_scope =
+Handle<JSObject> ScopeIterator::MaterializeInnerScope() {
+  Handle<JSObject> inner_scope =
       isolate_->factory()->NewJSObjectWithNullProto();
 
   Handle<Context> context = Handle<Context>::null();
   if (!nested_scope_chain_.is_empty()) {
     Handle<ScopeInfo> scope_info = nested_scope_chain_.last().scope_info;
-    frame_inspector_->MaterializeStackLocals(block_scope, scope_info);
+    frame_inspector_->MaterializeStackLocals(inner_scope, scope_info);
     if (scope_info->HasContext()) context = CurrentContext();
   } else {
     context = CurrentContext();
@@ -579,17 +570,10 @@ Handle<JSObject> ScopeIterator::MaterializeBlockScope() {
 
   if (!context.is_null()) {
     // Fill all context locals.
-    CopyContextLocalsToScopeObject(handle(context->scope_info()),
-                                   context, block_scope);
-    // Fill all extension variables.
-    if (context->extension_object() != nullptr) {
-      bool success = CopyContextExtensionToScopeObject(
-          handle(context->extension_object()), block_scope, OWN_ONLY);
-      DCHECK(success);
-      USE(success);
-    }
+    CopyContextLocalsToScopeObject(CurrentScopeInfo(), context, inner_scope);
+    CopyContextExtensionToScopeObject(context, inner_scope, OWN_ONLY);
   }
-  return block_scope;
+  return inner_scope;
 }
 
 
@@ -699,9 +683,11 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
   return result;
 }
 
-bool ScopeIterator::SetBlockVariableValue(Handle<String> variable_name,
-                                          Handle<Object> new_value) {
+bool ScopeIterator::SetInnerScopeVariableValue(Handle<String> variable_name,
+                                               Handle<Object> new_value) {
   Handle<ScopeInfo> scope_info = CurrentScopeInfo();
+  DCHECK(scope_info->scope_type() == BLOCK_SCOPE ||
+         scope_info->scope_type() == EVAL_SCOPE);
   JavaScriptFrame* frame = GetFrame();
 
   // Setting stack locals of optimized frames is not supported.
@@ -776,40 +762,36 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
   }
 }
 
-bool ScopeIterator::CopyContextExtensionToScopeObject(
-    Handle<JSObject> extension, Handle<JSObject> scope_object,
+void ScopeIterator::CopyContextExtensionToScopeObject(
+    Handle<Context> context, Handle<JSObject> scope_object,
     KeyCollectionType type) {
-  Handle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, keys, JSReceiver::GetKeys(extension, type, ENUMERABLE_STRINGS),
-      false);
+  if (context->extension_object() == nullptr) return;
+  Handle<JSObject> extension(context->extension_object());
+  Handle<FixedArray> keys =
+      JSReceiver::GetKeys(extension, type, ENUMERABLE_STRINGS)
+          .ToHandleChecked();
 
   for (int i = 0; i < keys->length(); i++) {
     // Names of variables introduced by eval are strings.
     DCHECK(keys->get(i)->IsString());
     Handle<String> key(String::cast(keys->get(i)));
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate_, value, Object::GetPropertyOrElement(extension, key), false);
-    RETURN_ON_EXCEPTION_VALUE(
-        isolate_, JSObject::SetOwnPropertyIgnoreAttributes(
-            scope_object, key, value, NONE), false);
+    Handle<Object> value =
+        Object::GetPropertyOrElement(extension, key).ToHandleChecked();
+    JSObject::SetOwnPropertyIgnoreAttributes(scope_object, key, value, NONE)
+        .Check();
   }
-  return true;
 }
 
 void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
-  if (!scope->is_eval_scope()) {
-    if (scope->is_hidden()) {
-      // We need to add this chain element in case the scope has a context
-      // associated. We need to keep the scope chain and context chain in sync.
-      nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate)));
-    } else {
-      nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
-                                                scope->start_position(),
-                                                scope->end_position()));
-    }
+  if (scope->is_hidden()) {
+    // We need to add this chain element in case the scope has a context
+    // associated. We need to keep the scope chain and context chain in sync.
+    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate)));
+  } else {
+    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
+                                              scope->start_position(),
+                                              scope->end_position()));
   }
   for (int i = 0; i < scope->inner_scopes()->length(); i++) {
     Scope* inner_scope = scope->inner_scopes()->at(i);

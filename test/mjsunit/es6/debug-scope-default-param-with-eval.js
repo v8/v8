@@ -23,17 +23,17 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     var frame = exec_state.frame(0);
-    var top_scope = frame.scope(0);
-    assertTrue(top_scope.scopeObject().propertyNames().includes('y'));
-    assertEquals(7, top_scope.scopeObject().property('y').value().value());
+    var block_scope;
     if (break_count++ == 0) {
       // Inside eval.
-      assertEquals([ debug.ScopeType.Block,
+      assertEquals([ debug.ScopeType.Eval,
+                     debug.ScopeType.Block,
                      debug.ScopeType.Closure,
                      debug.ScopeType.Script,
                      debug.ScopeType.Global ],
                    frame.allScopes().map(s => s.scopeType()));
       exec_state.prepareStep(Debug.StepAction.StepOut);
+      block_scope = frame.scope(1);
     } else {
       // Outside of eval.
       assertEquals([ debug.ScopeType.Block,
@@ -41,8 +41,12 @@ function listener(event, exec_state, event_data, data) {
                      debug.ScopeType.Script,
                      debug.ScopeType.Global ],
                    frame.allScopes().map(s => s.scopeType()));
+      block_scope = frame.scope(0);
     }
+    assertTrue(block_scope.scopeObject().propertyNames().includes('y'));
+    assertEquals(7, block_scope.scopeObject().property('y').value().value());
   } catch (e) {
+    print(e);
     exception = e;
   }
 }

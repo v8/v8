@@ -25,6 +25,7 @@ class ScopeIterator {
     ScopeTypeCatch,
     ScopeTypeBlock,
     ScopeTypeScript,
+    ScopeTypeEval,
     ScopeTypeModule
   };
 
@@ -120,13 +121,13 @@ class ScopeIterator {
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
   Handle<JSObject> MaterializeClosure();
   Handle<JSObject> MaterializeCatchScope();
-  Handle<JSObject> MaterializeBlockScope();
+  Handle<JSObject> MaterializeInnerScope();
   Handle<JSObject> WithContextExtension();
 
   bool SetLocalVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
-  bool SetBlockVariableValue(Handle<String> variable_name,
-                             Handle<Object> new_value);
+  bool SetInnerScopeVariableValue(Handle<String> variable_name,
+                                  Handle<Object> new_value);
   bool SetClosureVariableValue(Handle<String> variable_name,
                                Handle<Object> new_value);
   bool SetScriptVariableValue(Handle<String> variable_name,
@@ -150,7 +151,7 @@ class ScopeIterator {
   void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                       Handle<Context> context,
                                       Handle<JSObject> scope_object);
-  bool CopyContextExtensionToScopeObject(Handle<JSObject> extension,
+  void CopyContextExtensionToScopeObject(Handle<Context> context,
                                          Handle<JSObject> scope_object,
                                          KeyCollectionType type);
 
