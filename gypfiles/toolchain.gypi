@@ -76,6 +76,11 @@
     # it's handled in gypfiles/standalone.gypi.
     'want_separate_host_toolset%': 1,
 
+    # Toolset the d8 binary should be compiled for. Possible values are 'host'
+    # and 'target'. If you want to run v8 tests, it needs to be set to 'target'.
+    # The setting is ignored if want_separate_host_toolset is 0.
+    'v8_toolset_for_d8%': 'target',
+
     # Toolset the shell binary should be compiled for. Possible values are
     # 'host' and 'target'.
     # The setting is ignored if want_separate_host_toolset is 0.

@@ -64,6 +64,7 @@ declare_args() {
 }
 
 v8_random_seed = "314159265"
+v8_toolset_for_d8 = "host"
 v8_toolset_for_shell = "host"
 
 if (is_msan) {
@@ -2065,44 +2066,48 @@ if (is_component_build) {
   }
 }
 
-executable("d8") {
-  sources = [
-    "src/d8.cc",
-    "src/d8.h",
-  ]
+if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain == snapshot_toolchain && v8_toolset_for_d8 == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_d8 == "target")) {
+  executable("d8") {
+    sources = [
+      "src/d8.cc",
+      "src/d8.h",
+    ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
-    # Note: don't use :internal_config here because this target will get
-    # the :external_config applied to it by virtue of depending on :v8, and
-    # you can't have both applied to the same target.
-    ":internal_config_base",
-    ":features",
-    ":toolchain",
-  ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [
+      # Note: don't use :internal_config here because this target will get
+      # the :external_config applied to it by virtue of depending on :v8, and
+      # you can't have both applied to the same target.
+      ":internal_config_base",
+      ":features",
+      ":toolchain",
+    ]
 
-  deps = [
-    ":d8_js2c",
-    ":v8",
-    ":v8_libplatform",
-    "//build/config/sanitizers:deps",
-    "//build/win:default_exe_manifest",
-  ]
+    deps = [
+      ":d8_js2c",
+      ":v8",
+      ":v8_libplatform",
+      "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
+    ]
 
-  # TODO(jochen): Add support for vtunejit.
+    # TODO(jochen): Add support for vtunejit.
 
-  if (is_posix) {
-    sources += [ "src/d8-posix.cc" ]
-  } else if (is_win) {
-    sources += [ "src/d8-windows.cc" ]
-  }
+    if (is_posix) {
+      sources += [ "src/d8-posix.cc" ]
+    } else if (is_win) {
+      sources += [ "src/d8-windows.cc" ]
+    }
 
-  if (!is_component_build) {
-    sources += [ "$target_gen_dir/d8-js.cc" ]
-  }
-  if (v8_enable_i18n_support) {
-    deps += [ "//third_party/icu" ]
+    if (!is_component_build) {
+      sources += [ "$target_gen_dir/d8-js.cc" ]
+    }
+    if (v8_enable_i18n_support) {
+      deps += [ "//third_party/icu" ]
+    }
   }
 }
 
