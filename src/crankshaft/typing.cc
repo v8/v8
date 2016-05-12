@@ -304,14 +304,7 @@ void AstTyper::VisitForInStatement(ForInStatement* stmt) {
   store_.Forget();  // Control may transfer here via 'break'.
 }
 
-
-void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {
-  RECURSE(Visit(stmt->iterable()));
-  store_.Forget();  // Control may transfer here via looping or 'continue'.
-  RECURSE(Visit(stmt->body()));
-  store_.Forget();  // Control may transfer here via 'break'.
-}
-
+void AstTyper::VisitForOfStatement(ForOfStatement* stmt) {}
 
 void AstTyper::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Effects try_effects = EnterEffects();

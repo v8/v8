@@ -3112,7 +3112,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
       body = block;
       each = factory()->NewVariableProxy(temp);
     }
-    stmt->Initialize(each, subject, body);
+    stmt->AsForInStatement()->Initialize(each, subject, body);
   }
 }
 
@@ -3169,8 +3169,8 @@ void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
     }
   }
 
-  for_of->Initialize(each, iterable, body, iterator, assign_iterator,
-                     next_result, result_done, assign_each);
+  for_of->Initialize(body, iterator, assign_iterator, next_result, result_done,
+                     assign_each);
 }
 
 Statement* Parser::DesugarLexicalBindingsInForStatement(

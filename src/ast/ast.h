@@ -790,17 +790,7 @@ class ForEachStatement : public IterationStatement {
     ITERATE      // for (each of subject) body;
   };
 
-  void Initialize(Expression* each, Expression* subject, Statement* body) {
-    IterationStatement::Initialize(body);
-    each_ = each;
-    subject_ = subject;
-  }
-
-  Expression* each() const { return each_; }
-  Expression* subject() const { return subject_; }
-
-  void set_each(Expression* e) { each_ = e; }
-  void set_subject(Expression* e) { subject_ = e; }
+  using IterationStatement::Initialize;
 
   static const char* VisitModeString(VisitMode mode) {
     return mode == ITERATE ? "for-of" : "for-in";
@@ -808,11 +798,7 @@ class ForEachStatement : public IterationStatement {
 
  protected:
   ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos), each_(NULL), subject_(NULL) {}
-
- private:
-  Expression* each_;
-  Expression* subject_;
+      : IterationStatement(zone, labels, pos) {}
 };
 
 
@@ -820,9 +806,21 @@ class ForInStatement final : public ForEachStatement {
  public:
   DECLARE_NODE_TYPE(ForInStatement)
 
+  void Initialize(Expression* each, Expression* subject, Statement* body) {
+    ForEachStatement::Initialize(body);
+    each_ = each;
+    subject_ = subject;
+  }
+
   Expression* enumerable() const {
     return subject();
   }
+
+  Expression* each() const { return each_; }
+  Expression* subject() const { return subject_; }
+
+  void set_each(Expression* e) { each_ = e; }
+  void set_subject(Expression* e) { subject_ = e; }
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
@@ -849,12 +847,17 @@ class ForInStatement final : public ForEachStatement {
 
  protected:
   ForInStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos), for_in_type_(SLOW_FOR_IN) {}
+      : ForEachStatement(zone, labels, pos),
+        each_(nullptr),
+        subject_(nullptr),
+        for_in_type_(SLOW_FOR_IN) {}
   static int parent_num_ids() { return ForEachStatement::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  Expression* each_;
+  Expression* subject_;
   ForInType for_in_type_;
   FeedbackVectorSlot each_slot_;
   FeedbackVectorSlot for_in_feedback_slot_;
@@ -865,24 +868,15 @@ class ForOfStatement final : public ForEachStatement {
  public:
   DECLARE_NODE_TYPE(ForOfStatement)
 
-  void Initialize(Expression* each,
-                  Expression* subject,
-                  Statement* body,
-                  Variable* iterator,
-                  Expression* assign_iterator,
-                  Expression* next_result,
-                  Expression* result_done,
-                  Expression* assign_each) {
-    ForEachStatement::Initialize(each, subject, body);
+  void Initialize(Statement* body, Variable* iterator,
+                  Expression* assign_iterator, Expression* next_result,
+                  Expression* result_done, Expression* assign_each) {
+    ForEachStatement::Initialize(body);
     iterator_ = iterator;
     assign_iterator_ = assign_iterator;
     next_result_ = next_result;
     result_done_ = result_done;
     assign_each_ = assign_each;
-  }
-
-  Expression* iterable() const {
-    return subject();
   }
 
   Variable* iterator() const {

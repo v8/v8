@@ -170,7 +170,6 @@ void AstExpressionVisitor::VisitForInStatement(ForInStatement* stmt) {
 
 
 void AstExpressionVisitor::VisitForOfStatement(ForOfStatement* stmt) {
-  RECURSE(Visit(stmt->iterable()));
   RECURSE(Visit(stmt->assign_iterator()));
   RECURSE(Visit(stmt->next_result()));
   RECURSE(Visit(stmt->result_done()));
