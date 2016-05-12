@@ -550,7 +550,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     isolate->counters()->runtime_call_stats()->Reset();
     return *result;
   } else {
-    DCHECK_EQ(1, args.length());
+    DCHECK_LE(args.length(), 2);
     std::FILE* f;
     if (args[0]->IsString()) {
       // With a string argument, the results are appended to that file.
@@ -565,6 +565,13 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
       CONVERT_SMI_ARG_CHECKED(fd, 0);
       DCHECK(fd == 1 || fd == 2);
       f = fd == 1 ? stdout : stderr;
+    }
+    // The second argument (if any) is a message header to be printed.
+    if (args.length() >= 2) {
+      CONVERT_ARG_HANDLE_CHECKED(String, arg1, 1);
+      arg1->PrintOn(f);
+      std::fputc('\n', f);
+      std::fflush(f);
     }
     OFStream stats_stream(f);
     isolate->counters()->runtime_call_stats()->Print(stats_stream);

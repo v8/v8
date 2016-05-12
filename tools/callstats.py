@@ -49,7 +49,7 @@ def start_replay_server(args, sites):
   with tempfile.NamedTemporaryFile(prefix='callstats-inject-', suffix='.js',
                                    mode='wt', delete=False) as f:
     injection = f.name
-    generate_injection(f, sites)
+    generate_injection(f, sites, args.refresh)
   cmd_args = [
       args.replay_bin,
       "--port=4080",
@@ -75,9 +75,17 @@ def stop_replay_server(server):
   os.remove(server['injection'])
 
 
-def generate_injection(f, sites):
+def generate_injection(f, sites, refreshes=0):
   print >> f, """\
 (function() {
+  let s = window.sessionStorage.getItem("refreshCounter");
+  let refreshTotal = """, refreshes, """;
+  let refreshCounter = s ? parseInt(s) : refreshTotal;
+  let refreshId = refreshTotal - refreshCounter;
+  if (refreshCounter > 0) {
+    window.sessionStorage.setItem("refreshCounter", refreshCounter-1);
+  }
+
   function match(url, item) {
     if ('regexp' in item) return url.match(item.regexp) !== null;
     let url_wanted = item.url;
@@ -92,13 +100,18 @@ def generate_injection(f, sites):
     let url = e.target.URL;
     for (let item of sites) {
       if (!match(url, item)) continue;
-      let timeout = 'timeline' in item ? 2500 * item.timeline + 3000
+      let timeout = 'timeline' in item ? 2500 * item.timeline
                   : 'timeout'  in item ? 1000 * (item.timeout - 3)
                   : 10000;
       console.log("Setting time out of " + timeout + " for: " + url);
-      window.setTimeout(function () {
+      window.setTimeout(function() {
         console.log("Time is out for: " + url);
-        %GetAndResetRuntimeCallStats(1);
+        let msg = "STATS: (" + refreshId + ") " + url;
+        %GetAndResetRuntimeCallStats(1, msg);
+        if (refreshCounter > 0) {
+          console.log("Refresh counter is " + refreshCounter + ", refreshing: " + url);
+          window.location.reload();
+        }
       }, timeout);
       return;
     }
@@ -120,7 +133,9 @@ def run_site(site, domain, args, timeout=None):
   result_template = "{domain}#{count}.txt" if args.repeat else "{domain}.txt"
   count = 0
   if timeout is None: timeout = args.timeout
-  if args.replay_wpr: timeout += 1
+  if args.replay_wpr:
+    timeout *= 1 + args.refresh
+    timeout += 1
   while count == 0 or args.repeat is not None and count < args.repeat:
     count += 1
     result = result_template.format(domain=domain, count=count)
@@ -138,7 +153,6 @@ def run_site(site, domain, args, timeout=None):
         chrome_flags = [
             "--no-default-browser-check",
             "--disable-translate",
-            "--disable-seccomp-sandbox",
             "--js-flags={}".format(js_flags),
             "--no-first-run",
             "--user-data-dir={}".format(user_data_dir),
@@ -149,13 +163,14 @@ def run_site(site, domain, args, timeout=None):
                                     "MAP *:443 localhost:4443, " \
                                     "EXCLUDE localhost",
               "--ignore-certificate-errors",
+              "--disable-seccomp-sandbox",
               "--disable-web-security",
               "--reduce-security-for-testing",
               "--allow-insecure-localhost",
           ]
         else:
           chrome_flags += [
-            "--single-process",
+              "--single-process",
           ]
         if args.chrome_flags:
           chrome_flags += args.chrome_flags.split()
@@ -181,7 +196,7 @@ def run_site(site, domain, args, timeout=None):
               print >> f
               print >> f, "URL: {}".format(site)
           break
-        if retries <= 5: timeout += 1
+        if retries <= 6: timeout += 2 ** (retries-1)
         print("EMPTY RESULT, REPEATING RUN");
       finally:
         if not args.user_data_dir:
@@ -293,6 +308,7 @@ def read_stats(path, S):
       if line.startswith("===="): continue
       if line.startswith("----"): continue
       if line.startswith("URL:"): continue
+      if line.startswith("STATS:"): continue
       # We have a regular line.
       fields = line.split()
       key = fields[0]
@@ -400,7 +416,7 @@ def do_json(args):
         if version not in J: J[version] = {}
         for filename in files:
           if filename.endswith(".txt"):
-            m = re.match(r'^([^#]+)(#.*)?$', filename)
+            m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
             domain = m.group(1)
             if domain not in J[version]: J[version][domain] = {}
             read_stats(os.path.join(root, filename), J[version][domain])
@@ -461,6 +477,9 @@ def main():
   subparsers["run"].add_argument(
       "-n", "--repeat", type=int, metavar="<num>",
       help="specify iterations for each website (default: once)")
+  subparsers["run"].add_argument(
+      "-k", "--refresh", type=int, metavar="<num>", default=0,
+      help="specify refreshes for each iteration (default: 0)")
   subparsers["run"].add_argument(
       "--replay-wpr", type=str, metavar="<path>",
       help="use the specified web page replay (.wpr) archive")
