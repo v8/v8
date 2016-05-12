@@ -9,7 +9,6 @@ if (is_android) {
   import("//build/config/android/config.gni")
 }
 
-v8_use_external_startup_data = false
 v8_optimized_debug = false
 v8_extra_library_files = []
 v8_experimental_extra_library_files = []
