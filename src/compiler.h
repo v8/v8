@@ -120,13 +120,6 @@ class Compiler : public AllStatic {
       JavaScriptFrame* osr_frame);
 };
 
-// TODO(mstarzinger): Move this into the "crankshaft" directory.
-struct InlinedFunctionInfo {
-  explicit InlinedFunctionInfo(int start_position)
-      : start_position(start_position) {}
-  int start_position;
-};
-
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
@@ -386,10 +379,6 @@ class CompilationInfo final {
     prologue_offset_ = prologue_offset;
   }
 
-  std::vector<InlinedFunctionInfo>& inlined_function_infos() {
-    return inlined_function_infos_;
-  }
-
   CompilationDependencies* dependencies() { return &dependencies_; }
 
   int optimization_id() const { return optimization_id_; }
@@ -519,7 +508,6 @@ class CompilationInfo final {
 
   int prologue_offset_;
 
-  std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
 
   InlinedFunctionList inlined_functions_;

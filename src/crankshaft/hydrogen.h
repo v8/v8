@@ -317,6 +317,11 @@ class HLoopInformation final : public ZoneObject {
   HStackCheck* stack_check_;
 };
 
+struct HInlinedFunctionInfo {
+  explicit HInlinedFunctionInfo(int start_position)
+      : start_position(start_position) {}
+  int start_position;
+};
 
 class HGraph final : public ZoneObject {
  public:
@@ -466,6 +471,10 @@ class HGraph final : public ZoneObject {
   // the corresponding script.
   int SourcePositionToScriptPosition(SourcePosition position);
 
+  ZoneVector<HInlinedFunctionInfo>& inlined_function_infos() {
+    return inlined_function_infos_;
+  }
+
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -509,6 +518,8 @@ class HGraph final : public ZoneObject {
   int maximum_environment_size_;
   int no_side_effects_scope_count_;
   bool disallow_adding_new_values_;
+
+  ZoneVector<HInlinedFunctionInfo> inlined_function_infos_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };

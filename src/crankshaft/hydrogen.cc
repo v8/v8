@@ -1373,8 +1373,8 @@ int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
                                         SourcePosition position) {
   DCHECK(info_->is_tracking_positions());
 
-  int inline_id = static_cast<int>(info_->inlined_function_infos().size());
-  InlinedFunctionInfo info(shared->start_position());
+  int inline_id = static_cast<int>(graph()->inlined_function_infos().size());
+  HInlinedFunctionInfo info(shared->start_position());
   if (!shared->script()->IsUndefined()) {
     Handle<Script> script(Script::cast(shared->script()));
 
@@ -1403,7 +1403,7 @@ int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
     }
   }
 
-  info_->inlined_function_infos().push_back(info);
+  graph()->inlined_function_infos().push_back(info);
 
   if (FLAG_hydrogen_track_positions && inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
@@ -3792,7 +3792,8 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       type_change_checksum_(0),
       maximum_environment_size_(0),
       no_side_effects_scope_count_(0),
-      disallow_adding_new_values_(false) {
+      disallow_adding_new_values_(false),
+      inlined_function_infos_(info->zone()) {
   if (info->IsStub()) {
     // For stubs, explicitly add the context to the environment.
     start_environment_ = new (zone_)
@@ -3826,9 +3827,7 @@ void HGraph::FinalizeUniqueness() {
 
 int HGraph::SourcePositionToScriptPosition(SourcePosition pos) {
   return (FLAG_hydrogen_track_positions && !pos.IsUnknown())
-             ? info()->inlined_function_infos()
-                       .at(pos.inlining_id())
-                       .start_position +
+             ? inlined_function_infos_.at(pos.inlining_id()).start_position +
                    pos.position()
              : pos.raw();
 }
