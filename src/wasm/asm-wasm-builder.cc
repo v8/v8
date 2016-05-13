@@ -566,8 +566,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
       if (var->is_function()) {
         uint16_t index = LookupOrInsertFunction(var);
         builder_->FunctionAt(index)->Exported(1);
-        builder_->FunctionAt(index)
-            ->SetName(raw_name->raw_data(), raw_name->length());
+        builder_->FunctionAt(index)->SetName(
+            reinterpret_cast<const char*>(raw_name->raw_data()),
+            raw_name->length());
       }
     }
   }
@@ -632,12 +633,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
    private:
     class ImportedFunctionIndices : public ZoneObject {
      public:
-      const unsigned char* name_;
+      const char* name_;
       int name_length_;
       WasmModuleBuilder::SignatureMap signature_to_index_;
 
-      ImportedFunctionIndices(const unsigned char* name, int name_length,
-                              Zone* zone)
+      ImportedFunctionIndices(const char* name, int name_length, Zone* zone)
           : name_(name), name_length_(name_length), signature_to_index_(zone) {}
     };
     ZoneHashMap table_;
@@ -649,7 +649,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
                  ZoneAllocationPolicy(builder->zone())),
           builder_(builder) {}
 
-    void AddImport(Variable* v, const unsigned char* name, int name_length) {
+    void AddImport(Variable* v, const char* name, int name_length) {
       ImportedFunctionIndices* indices = new (builder_->zone())
           ImportedFunctionIndices(name, name_length, builder_->zone());
       ZoneHashMap::Entry* entry = table_.LookupOrInsert(
@@ -667,17 +667,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
       if (pos != indices->signature_to_index_.end()) {
         return pos->second;
       } else {
-        uint16_t index = builder_->builder_->AddFunction();
+        uint32_t index = builder_->builder_->AddImport(
+            indices->name_, indices->name_length_, sig);
         indices->signature_to_index_[sig] = index;
-        WasmFunctionBuilder* function = builder_->builder_->FunctionAt(index);
-        function->External(1);
-        function->SetName(indices->name_, indices->name_length_);
-        if (sig->return_count() > 0) {
-          function->ReturnType(sig->GetReturn());
-        }
-        for (size_t i = 0; i < sig->parameter_count(); i++) {
-          function->AddParam(sig->GetParam(i));
-        }
         return index;
       }
     }
@@ -803,8 +795,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
           if (bounds_->get(target).lower->Is(Type::Function())) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
-            imported_function_table_.AddImport(target->var(), name->raw_data(),
-                                               name->length());
+            imported_function_table_.AddImport(
+                target->var(), reinterpret_cast<const char*>(name->raw_data()),
+                name->length());
           }
         }
         // Property values in module scope don't emit code, so return.
@@ -1275,13 +1268,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
           }
           index =
               imported_function_table_.GetFunctionIndex(vp->var(), sig.Build());
+          VisitCallArgs(expr);
+          current_function_builder_->Emit(kExprCallImport);
+          current_function_builder_->EmitVarInt(expr->arguments()->length());
+          current_function_builder_->EmitVarInt(index);
         } else {
           index = LookupOrInsertFunction(vp->var());
+          VisitCallArgs(expr);
+          current_function_builder_->Emit(kExprCallFunction);
+          current_function_builder_->EmitVarInt(expr->arguments()->length());
+          current_function_builder_->EmitVarInt(index);
         }
-        VisitCallArgs(expr);
-        current_function_builder_->Emit(kExprCallFunction);
-        current_function_builder_->EmitVarInt(expr->arguments()->length());
-        current_function_builder_->EmitVarInt(index);
         break;
       }
       case Call::KEYED_PROPERTY_CALL: {

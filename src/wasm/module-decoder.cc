@@ -176,8 +176,7 @@ class ModuleDecoder : public Decoder {
                                          0,        // local_i64_count
                                          0,        // local_f32_count
                                          0,        // local_f64_count
-                                         false,    // exported
-                                         false});  // external
+                                         false});  // exported
             WasmFunction* function = &module->functions.back();
             function->sig_index = consume_sig_index(module, &function->sig);
           }
@@ -235,8 +234,7 @@ class ModuleDecoder : public Decoder {
                                          0,        // local_i64_count
                                          0,        // local_f32_count
                                          0,        // local_f64_count
-                                         false,    // exported
-                                         false});  // external
+                                         false});  // exported
             WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
           }
@@ -244,10 +242,9 @@ class ModuleDecoder : public Decoder {
             for (uint32_t i = 0; i < functions_count; i++) {
               if (failed()) break;
               WasmFunction* function = &module->functions[i];
-              if (!function->external) {
-                VerifyFunctionBody(i, &menv, function);
-                if (result_.failed())
-                  error(result_.error_pc, result_.error_msg.get());
+              VerifyFunctionBody(i, &menv, function);
+              if (result_.failed()) {
+                error(result_.error_pc, result_.error_msg.get());
               }
             }
           }
@@ -474,7 +471,6 @@ class ModuleDecoder : public Decoder {
     function->code_start_offset = off(pc_);   // ---- code start
     function->code_end_offset = off(limit_);  // ---- code end
     function->exported = false;               // ---- exported
-    function->external = false;               // ---- external
 
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
@@ -523,25 +519,17 @@ class ModuleDecoder : public Decoder {
       function->sig = module->signatures[function->sig_index];
     }
 
-    TRACE("  +%d  <function attributes:%s%s%s%s%s>\n",
+    TRACE("  +%d  <function attributes:%s%s%s>\n",
           static_cast<int>(pc_ - start_),
           decl_bits & kDeclFunctionName ? " name" : "",
-          decl_bits & kDeclFunctionImport ? " imported" : "",
           decl_bits & kDeclFunctionLocals ? " locals" : "",
-          decl_bits & kDeclFunctionExport ? " exported" : "",
-          (decl_bits & kDeclFunctionImport) == 0 ? " body" : "");
+          decl_bits & kDeclFunctionExport ? " exported" : "");
 
     function->exported = decl_bits & kDeclFunctionExport;
 
     if (decl_bits & kDeclFunctionName) {
       function->name_offset =
           consume_string(&function->name_length, function->exported);
-    }
-
-    // Imported functions have no locals or body.
-    if (decl_bits & kDeclFunctionImport) {
-      function->external = true;
-      return;
     }
 
     if (decl_bits & kDeclFunctionLocals) {

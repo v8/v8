@@ -3016,7 +3016,8 @@ class WasmCompilationUnit {
     ok_ = job_->OptimizeGraph() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     // TODO(ahaas): The counters are not thread-safe at the moment.
-    //    isolate_->counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
+    //    isolate_->counters()->wasm_compile_function_peak_memory_bytes()
+    // ->AddSample(
     //        static_cast<int>(jsgraph->graph()->zone()->allocation_size()));
 
     if (FLAG_trace_wasm_decode_time) {

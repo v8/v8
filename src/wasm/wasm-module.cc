@@ -504,12 +504,8 @@ void InitializeParallelCompilation(
   }
 
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); i++) {
-    if (!functions[i].external) {
-      compilation_units[i] = compiler::CreateWasmCompilationUnit(
-          &thrower, isolate, &module_env, &functions[i], i);
-    } else {
-      compilation_units[i] = nullptr;
-    }
+    compilation_units[i] = compiler::CreateWasmCompilationUnit(
+        &thrower, isolate, &module_env, &functions[i], i);
   }
 }
 
@@ -564,9 +560,7 @@ void FinishCompilationUnits(
       executed_units.pop();
     }
     int j = compiler::GetIndexOfWasmCompilationUnit(unit);
-    if (!module->functions[j].external) {
-      results[j] = compiler::FinishCompilation(unit);
-    }
+    results[j] = compiler::FinishCompilation(unit);
   }
 }
 
@@ -585,39 +579,26 @@ bool FinishCompilation(Isolate* isolate, WasmModule* module,
 
     DCHECK_EQ(i, func.func_index);
     WasmName str = module->GetName(func.name_offset, func.name_length);
-    WasmName str_null = {nullptr, 0};
     Handle<Code> code = Handle<Code>::null();
     Handle<JSFunction> function = Handle<JSFunction>::null();
     Handle<String> function_name = Handle<String>::null();
-    if (func.external) {
-      // Lookup external function in FFI object.
-      MaybeHandle<JSFunction> function =
-          LookupFunction(thrower, factory, ffi, i, str, str_null);
-      if (function.is_null()) {
-        return false;
-      }
-      code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
-                                              function.ToHandleChecked(),
-                                              func.sig, str, str_null);
+    if (FLAG_wasm_num_compilation_tasks != 0) {
+      code = results[i];
     } else {
-      if (FLAG_wasm_num_compilation_tasks != 0) {
-        code = results[i];
-      } else {
-        // Compile the function.
-        code = compiler::CompileWasmFunction(&thrower, isolate, &module_env,
-                                             &func);
-      }
-      if (code.is_null()) {
-        thrower.Error("Compilation of #%d:%.*s failed.", i, str.length(),
-                      str.start());
-        return false;
-      }
-      if (func.exported) {
-        function_name = factory->InternalizeUtf8String(str);
-        function = compiler::CompileJSToWasmWrapper(
-            isolate, &module_env, function_name, code, instance.js_object, i);
-        record_code_size(total_code_size, function->code());
-      }
+      // Compile the function.
+      code =
+          compiler::CompileWasmFunction(&thrower, isolate, &module_env, &func);
+    }
+    if (code.is_null()) {
+      thrower.Error("Compilation of #%d:%.*s failed.", i, str.length(),
+                    str.start());
+      return false;
+    }
+    if (func.exported) {
+      function_name = factory->InternalizeUtf8String(str);
+      function = compiler::CompileJSToWasmWrapper(
+          isolate, &module_env, function_name, code, instance.js_object, i);
+      record_code_size(total_code_size, function->code());
     }
     if (!code.is_null()) {
       // Install the code into the linker table.
@@ -954,19 +935,17 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   int main_index = 0;
   for (const WasmFunction& func : module->functions) {
     DCHECK_EQ(index, func.func_index);
-    if (!func.external) {
-      // Compile the function and install it in the code table.
-      Handle<Code> code =
-          compiler::CompileWasmFunction(&thrower, isolate, &module_env, &func);
-      if (!code.is_null()) {
-        if (func.exported) {
-          main_code = code;
-          main_index = index;
-        }
-        linker.Finish(index, code);
+    // Compile the function and install it in the code table.
+    Handle<Code> code =
+        compiler::CompileWasmFunction(&thrower, isolate, &module_env, &func);
+    if (!code.is_null()) {
+      if (func.exported) {
+        main_code = code;
+        main_index = index;
       }
-      if (thrower.error()) return -1;
+      linker.Finish(index, code);
     }
+    if (thrower.error()) return -1;
     index++;
   }
 

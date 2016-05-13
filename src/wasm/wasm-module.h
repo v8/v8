@@ -96,7 +96,6 @@ struct WasmSection {
 
 enum WasmFunctionDeclBit {
   kDeclFunctionName = 0x01,
-  kDeclFunctionImport = 0x02,
   kDeclFunctionLocals = 0x04,
   kDeclFunctionExport = 0x08
 };
@@ -121,7 +120,6 @@ struct WasmFunction {
   uint16_t local_f32_count;      // number of f32 local variables.
   uint16_t local_f64_count;      // number of f64 local variables.
   bool exported;                 // true if this function is exported.
-  bool external;  // true if this function is externally supplied.
 };
 
 // Static representation of an imported WASM function.
