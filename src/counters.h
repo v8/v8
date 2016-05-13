@@ -670,48 +670,46 @@ class RuntimeCallTimerScope {
   /* Asm/Wasm. */                                                             \
   HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
-#define HISTOGRAM_TIMER_LIST(HT)                                               \
-  /* Garbage collection timers. */                                             \
-  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
-  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
-  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
-     MILLISECOND)                                                              \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_context, V8.GCContext, 10000,                                          \
-     MILLISECOND) /* GC context cleanup time */                                \
-  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
-  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
-  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \
-     MILLISECOND)                                                              \
-  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000,  \
-     MILLISECOND)                                                              \
-  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
-     MILLISECOND)                                                              \
-  /* Parsing timers. */                                                        \
-  HT(parse, V8.ParseMicroSeconds, 1000000, MICROSECOND)                        \
-  HT(parse_lazy, V8.ParseLazyMicroSeconds, 1000000, MICROSECOND)               \
-  HT(pre_parse, V8.PreParseMicroSeconds, 1000000, MICROSECOND)                 \
-  /* Compilation times. */                                                     \
-  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
-  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
-  /* Serialization as part of compilation (code caching) */                    \
-  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND)  \
-  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,          \
-     MICROSECOND)                                                              \
-  /* Total compilation time incl. caching/parsing */                           \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
-  /* Total JavaScript execution time (including callbacks and runtime calls */ \
-  HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
-  /* Asm/Wasm */                                                               \
-  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,       \
-     1000000, MICROSECOND)                                                     \
-  HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,        \
-     MICROSECOND)                                                              \
-  HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,    \
-     MICROSECOND)                                                              \
-  HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,      \
-     MICROSECOND)                                                              \
-  HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
+#define HISTOGRAM_TIMER_LIST(HT)                                              \
+  /* Garbage collection timers. */                                            \
+  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                        \
+  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                        \
+  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,           \
+     MILLISECOND)                                                             \
+  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                        \
+  HT(gc_context, V8.GCContext, 10000,                                         \
+     MILLISECOND) /* GC context cleanup time */                               \
+  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000, \
+     MILLISECOND)                                                             \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
+     MILLISECOND)                                                             \
+  /* Parsing timers. */                                                       \
+  HT(parse, V8.ParseMicroSeconds, 1000000, MICROSECOND)                       \
+  HT(parse_lazy, V8.ParseLazyMicroSeconds, 1000000, MICROSECOND)              \
+  HT(pre_parse, V8.PreParseMicroSeconds, 1000000, MICROSECOND)                \
+  /* Compilation times. */                                                    \
+  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                   \
+  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)          \
+  /* Serialization as part of compilation (code caching) */                   \
+  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
+  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
+  /* Total compilation time incl. caching/parsing */                          \
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
+  /* Asm/Wasm */                                                              \
+  HT(wasm_instantiate_module_time, V8.WasmInstantiateModuleMicroSeconds,      \
+     1000000, MICROSECOND)                                                    \
+  HT(wasm_decode_module_time, V8.WasmDecodeModuleMicroSeconds, 1000000,       \
+     MICROSECOND)                                                             \
+  HT(wasm_decode_function_time, V8.WasmDecodeFunctionMicroSeconds, 1000000,   \
+     MICROSECOND)                                                             \
+  HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,     \
+     MICROSECOND)                                                             \
+  HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000, \
      MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
