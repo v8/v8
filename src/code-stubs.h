@@ -402,6 +402,18 @@ class CodeStub BASE_EMBEDDED {
   void GenerateAssembly(CodeStubAssembler* assembler) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
+#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(NAME, SUPER)                       \
+ public:                                                                       \
+  static compiler::Node* Generate(CodeStubAssembler* assembler,                \
+                                  compiler::Node* left, compiler::Node* right, \
+                                  compiler::Node* context);                    \
+  void GenerateAssembly(CodeStubAssembler* assembler) const override {         \
+    assembler->Return(Generate(assembler, assembler->Parameter(0),             \
+                               assembler->Parameter(1),                        \
+                               assembler->Parameter(2)));                      \
+  }                                                                            \
+  DEFINE_CODE_STUB(NAME, SUPER)
+
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
  public:                                      \
   Handle<Code> GenerateCode() override;       \
@@ -681,7 +693,7 @@ class AddStub final : public TurboFanCodeStub {
   explicit AddStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(Add, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Add, TurboFanCodeStub);
 };
 
 class SubtractStub final : public TurboFanCodeStub {
@@ -689,7 +701,7 @@ class SubtractStub final : public TurboFanCodeStub {
   explicit SubtractStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(Subtract, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Subtract, TurboFanCodeStub);
 };
 
 class MultiplyStub final : public TurboFanCodeStub {
@@ -697,7 +709,7 @@ class MultiplyStub final : public TurboFanCodeStub {
   explicit MultiplyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(Multiply, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Multiply, TurboFanCodeStub);
 };
 
 class DivideStub final : public TurboFanCodeStub {
@@ -705,7 +717,7 @@ class DivideStub final : public TurboFanCodeStub {
   explicit DivideStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(Divide, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Divide, TurboFanCodeStub);
 };
 
 class ModulusStub final : public TurboFanCodeStub {
@@ -713,7 +725,7 @@ class ModulusStub final : public TurboFanCodeStub {
   explicit ModulusStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(Modulus, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Modulus, TurboFanCodeStub);
 };
 
 class ShiftRightStub final : public TurboFanCodeStub {
@@ -721,7 +733,7 @@ class ShiftRightStub final : public TurboFanCodeStub {
   explicit ShiftRightStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(ShiftRight, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftRight, TurboFanCodeStub);
 };
 
 class ShiftRightLogicalStub final : public TurboFanCodeStub {
@@ -730,7 +742,7 @@ class ShiftRightLogicalStub final : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(ShiftRightLogical, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftRightLogical, TurboFanCodeStub);
 };
 
 class ShiftLeftStub final : public TurboFanCodeStub {
@@ -738,7 +750,7 @@ class ShiftLeftStub final : public TurboFanCodeStub {
   explicit ShiftLeftStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(ShiftLeft, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(ShiftLeft, TurboFanCodeStub);
 };
 
 class BitwiseAndStub final : public TurboFanCodeStub {
@@ -746,7 +758,7 @@ class BitwiseAndStub final : public TurboFanCodeStub {
   explicit BitwiseAndStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(BitwiseAnd, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseAnd, TurboFanCodeStub);
 };
 
 class BitwiseOrStub final : public TurboFanCodeStub {
@@ -754,7 +766,7 @@ class BitwiseOrStub final : public TurboFanCodeStub {
   explicit BitwiseOrStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(BitwiseOr, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseOr, TurboFanCodeStub);
 };
 
 class BitwiseXorStub final : public TurboFanCodeStub {
@@ -762,7 +774,7 @@ class BitwiseXorStub final : public TurboFanCodeStub {
   explicit BitwiseXorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_TURBOFAN_CODE_STUB(BitwiseXor, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(BitwiseXor, TurboFanCodeStub);
 };
 
 class IncStub final : public TurboFanCodeStub {
