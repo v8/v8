@@ -655,10 +655,14 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
         .CompareOperation(Token::Value::EQ_STRICT, index)
         .JumpIfTrue(&(targets[i]));
   }
-  // TODO(oth): This should be an abort via the runtime with a
-  // corresponding message., An illegal bytecode should never be
-  // emitted in valid bytecode.
-  builder()->Illegal();  // Should never get here.
+
+  RegisterAllocationScope register_scope(this);
+  Register reason = register_allocator()->NewRegister();
+  BailoutReason bailout_reason = BailoutReason::kInvalidJumpTableIndex;
+  builder()
+      ->LoadLiteral(Smi::FromInt(static_cast<int>(bailout_reason)))
+      .StoreAccumulatorInRegister(reason)
+      .CallRuntime(Runtime::kAbort, reason, 1);
 }
 
 void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,

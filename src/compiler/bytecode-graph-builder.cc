@@ -1419,8 +1419,8 @@ void BytecodeGraphBuilder::VisitExtraWide() {
 }
 
 void BytecodeGraphBuilder::VisitIllegal() {
-  NewNode(javascript()->CallRuntime(Runtime::kAbort),
-      jsgraph()->Constant(kIllegalBytecode));
+  // Not emitted in valid bytecode.
+  UNREACHABLE();
 }
 
 void BytecodeGraphBuilder::VisitNop() {}

@@ -17,21 +17,20 @@ BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
     BytecodePipelineStage* next_stage)
     : constant_array_builder_(constant_array_builder),
       next_stage_(next_stage),
-      last_(Bytecode::kNop),
-      last_is_valid_(false),
       last_is_discardable_(false) {
-  // TODO(oth): Remove last_is_valid_ and use kIllegal for last_ when
-  // not invalid. Currently blocked on bytecode generator emitting
-  // kIllegal for entry not found in jump table.
+  InvalidateLast();
 }
 
-void BytecodePeepholeOptimizer::InvalidateLast() { last_is_valid_ = false; }
+void BytecodePeepholeOptimizer::InvalidateLast() {
+  last_.set_bytecode(Bytecode::kIllegal);
+}
 
-bool BytecodePeepholeOptimizer::LastIsValid() const { return last_is_valid_; }
+bool BytecodePeepholeOptimizer::LastIsValid() const {
+  return last_.bytecode() != Bytecode::kIllegal;
+}
 
 void BytecodePeepholeOptimizer::SetLast(const BytecodeNode* const node) {
   last_.Clone(node);
-  last_is_valid_ = true;
   last_is_discardable_ = true;
 }
 

@@ -232,8 +232,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();
 
-  BytecodeArrayBuilder& Illegal();
-
   // Debugger.
   BytecodeArrayBuilder& Debugger();
 
@@ -333,6 +331,11 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
+
+  // Not implemented as the illegal bytecode is used inside internally
+  // to indicate a bytecode field is not valid or an error has occured
+  // during bytecode generation.
+  BytecodeArrayBuilder& Illegal();
 
   Isolate* isolate() const { return isolate_; }
   BytecodeArrayWriter* bytecode_array_writer() {

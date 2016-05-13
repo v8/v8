@@ -41,6 +41,8 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
 }
 
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
+  DCHECK_NE(node->bytecode(), Bytecode::kIllegal);
+
   OperandScale operand_scale = node->operand_scale();
   if (operand_scale != OperandScale::kSingle) {
     Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);

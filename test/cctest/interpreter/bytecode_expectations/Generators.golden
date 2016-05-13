@@ -15,16 +15,18 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 195
+bytecode array length: 203
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(12),
+                B(JumpIfUndefined), U8(20),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(49),
-                B(Illegal),
+                B(JumpIfTrue), U8(57),
+                B(LdaSmi), U8(80),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -110,7 +112,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [30, 131, 137],
+  [38, 139, 145],
 ]
 
 ---
@@ -119,19 +121,21 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 289
+bytecode array length: 297
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(18),
+                B(JumpIfUndefined), U8(26),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(1),
                 B(LdaZero),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(55),
+                B(JumpIfTrue), U8(63),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(1),
-                B(JumpIfTrue), U8(127),
-                B(Illegal),
+                B(JumpIfTrueConstant), U8(0),
+                B(LdaSmi), U8(80),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kAbort), R(2), U8(1),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -255,9 +259,10 @@ bytecodes: [
   /*   25 S> */ B(Return),
 ]
 constant pool: [
+  kInstanceTypeDontCare,
 ]
 handlers: [
-  [36, 216, 222],
+  [44, 224, 230],
 ]
 
 ---
@@ -266,19 +271,21 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 792
+bytecode array length: 808
 bytecodes: [
                 B(Ldar), R(new_target),
-                B(JumpIfUndefined), U8(18),
+                B(JumpIfUndefined), U8(26),
                 B(ResumeGenerator), R(new_target),
                 B(Star), R(3),
                 B(LdaZero),
                 B(TestEqualStrict), R(3),
-                B(JumpIfTrue), U8(55),
+                B(JumpIfTrue), U8(63),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(3),
                 B(JumpIfTrueConstant), U8(3),
-                B(Illegal),
+                B(LdaSmi), U8(80),
+                B(Star), R(4),
+                B(CallRuntime), U16(Runtime::kAbort), R(4), U8(1),
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
@@ -344,11 +351,13 @@ bytecodes: [
   /*   30 E> */ B(StaContextSlot), R(1), U8(7),
                 B(LdaSmi), U8(-2),
                 B(TestEqual), R(3),
-                B(JumpIfTrue), U8(9),
+                B(JumpIfTrue), U8(17),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(3),
                 B(JumpIfTrueConstant), U8(9),
-                B(Illegal),
+                B(LdaSmi), U8(80),
+                B(Star), R(11),
+                B(CallRuntime), U16(Runtime::kAbort), R(11), U8(1),
   /*   27 S> */ B(LdaContextSlot), R(1), U8(7),
                 B(Star), R(13),
                 B(LoadIC), R(13), U8(4), U8(7),
@@ -434,7 +443,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9),
-                B(Wide), B(Jump), U16(-222),
+                B(Wide), B(Jump), U16(-230),
                 B(Jump), U8(49),
                 B(Star), R(12),
                 B(LdaConstant), U8(11),
@@ -629,9 +638,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [36, 710, 716],
-  [148, 446, 452],
-  [151, 397, 399],
-  [554, 569, 571],
+  [44, 726, 732],
+  [156, 462, 468],
+  [159, 413, 415],
+  [570, 585, 587],
 ]
 

@@ -113,6 +113,7 @@ namespace internal {
     "Invalid frame for FastNewStrictArgumentsStub")                            \
   V(kInvalidFullCodegenState, "invalid full-codegen state")                    \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
+  V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidLeftHandSideInAssignment, "Invalid left-hand side in assignment")  \
   V(kInvalidLhsInCompoundAssignment, "Invalid lhs in compound assignment")     \
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \

@@ -45,7 +45,6 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   ConstantArrayBuilder* constant_array_builder_;
   BytecodePipelineStage* next_stage_;
   BytecodeNode last_;
-  bool last_is_valid_;
   bool last_is_discardable_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodePeepholeOptimizer);
