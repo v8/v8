@@ -403,6 +403,7 @@ struct TurboCfgFile : public std::ofstream {
 
 void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
   if (FLAG_trace_turbo) {
+    AllowHandleDereference allow_deref;
     FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "a+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
@@ -417,9 +418,11 @@ void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
       fclose(json_file);
     }
   }
-  if (!FLAG_trace_turbo_graph && !FLAG_trace_turbo_scheduler) return;
-  OFStream os(stdout);
-  os << "-- Schedule --------------------------------------\n" << *schedule;
+  if (FLAG_trace_turbo_graph || FLAG_trace_turbo_scheduler) {
+    AllowHandleDereference allow_deref;
+    OFStream os(stdout);
+    os << "-- Schedule --------------------------------------\n" << *schedule;
+  }
 }
 
 
@@ -1305,6 +1308,7 @@ struct PrintGraphPhase {
     Graph* graph = data->graph();
 
     {  // Print JSON.
+      AllowHandleDereference allow_deref;
       FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "a+");
       if (json_file == nullptr) return;
       OFStream json_of(json_file);
@@ -1314,6 +1318,7 @@ struct PrintGraphPhase {
     }
 
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      AllowHandleDereference allow_deref;
       OFStream os(stdout);
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
@@ -1620,6 +1625,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
   Run<InstructionSelectionPhase>(linkage);
 
   if (FLAG_trace_turbo && !data->MayHaveUnverifiableGraph()) {
+    AllowHandleDereference allow_deref;
     TurboCfgFile tcf(isolate());
     tcf << AsC1V("CodeGen", data->schedule(), data->source_positions(),
                  data->sequence());
@@ -1751,10 +1757,10 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<ResolvePhisPhase>();
   Run<BuildLiveRangesPhase>();
   if (FLAG_trace_turbo_graph) {
+    AllowHandleDereference allow_deref;
     OFStream os(stdout);
-    PrintableInstructionSequence printable = {config, data->sequence()};
     os << "----- Instruction sequence before register allocation -----\n"
-       << printable;
+       << PrintableInstructionSequence({config, data->sequence()});
   }
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
@@ -1791,10 +1797,10 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<LocateSpillSlotsPhase>();
 
   if (FLAG_trace_turbo_graph) {
+    AllowHandleDereference allow_deref;
     OFStream os(stdout);
-    PrintableInstructionSequence printable = {config, data->sequence()};
     os << "----- Instruction sequence after register allocation -----\n"
-       << printable;
+       << PrintableInstructionSequence({config, data->sequence()});
   }
 
   if (verifier != nullptr) {
