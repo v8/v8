@@ -321,7 +321,6 @@ void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
 // yet.
 static bool IsVisibleInStackTrace(JSFunction* fun,
                                   Object* caller,
-                                  Object* receiver,
                                   bool* seen_caller) {
   if ((fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
@@ -397,9 +396,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
           Handle<JSFunction> fun = frames[i].function();
           Handle<Object> recv = frames[i].receiver();
           // Filter out internal frames that we do not want to show.
-          if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) {
-            continue;
-          }
+          if (!IsVisibleInStackTrace(*fun, *caller, &seen_caller)) continue;
           // Filter out frames from other security contexts.
           if (!this->context()->HasSameSecurityTokenAs(fun->context())) {
             continue;
