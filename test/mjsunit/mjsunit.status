@@ -290,7 +290,6 @@
   # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-stepin': [PASS, NO_IGNITION],
   'debug-liveedit-stack-padding': [PASS, NO_IGNITION],
-  'debug-liveedit-breakpoints': [PASS, NO_IGNITION],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [PASS, NO_IGNITION],
@@ -845,7 +844,6 @@
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-stepin': [FAIL],
   'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-breakpoints': [FAIL],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],

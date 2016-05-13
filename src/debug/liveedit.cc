@@ -13,6 +13,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"
@@ -1283,12 +1284,11 @@ class RelocInfoBuffer {
   static const int kMaximalBufferSize = 512*MB;
 };
 
-
+namespace {
 // Patch positions in code (changes relocation info section) and possibly
 // returns new instance of code.
-static Handle<Code> PatchPositionsInCode(
-    Handle<Code> code,
-    Handle<JSArray> position_change_array) {
+Handle<Code> PatchPositionsInCode(Handle<Code> code,
+                                  Handle<JSArray> position_change_array) {
   Isolate* isolate = code->GetIsolate();
 
   RelocInfoBuffer buffer_writer(code->relocation_size(),
@@ -1329,6 +1329,24 @@ static Handle<Code> PatchPositionsInCode(
   }
 }
 
+void PatchPositionsInBytecodeArray(Handle<BytecodeArray> bytecode,
+                                   Handle<JSArray> position_change_array) {
+  Isolate* isolate = bytecode->GetIsolate();
+  Zone zone(isolate->allocator());
+  interpreter::SourcePositionTableBuilder builder(isolate, &zone);
+
+  for (interpreter::SourcePositionTableIterator iterator(
+           bytecode->source_position_table());
+       !iterator.done(); iterator.Advance()) {
+    int position = iterator.source_position();
+    int new_position = TranslatePosition(position, position_change_array);
+    builder.AddPosition(iterator.bytecode_offset(), new_position,
+                        iterator.is_statement());
+  }
+
+  bytecode->set_source_position_table(*builder.ToSourcePositionTable());
+}
+}  // namespace
 
 void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
                                       Handle<JSArray> position_change_array) {
@@ -1359,6 +1377,9 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
       // untouched).
       ReplaceCodeObject(Handle<Code>(info->code()), patched_code);
     }
+  } else if (info->HasBytecodeArray()) {
+    PatchPositionsInBytecodeArray(Handle<BytecodeArray>(info->bytecode_array()),
+                                  position_change_array);
   }
 }
 
