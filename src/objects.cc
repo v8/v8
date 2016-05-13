@@ -4289,7 +4289,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   }
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
 
-  LookupIterator::Configuration c = LookupIterator::HIDDEN;
+  LookupIterator::Configuration c = LookupIterator::OWN;
   LookupIterator own_lookup =
       it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
                       : LookupIterator(receiver, it->name(), c);
@@ -5988,7 +5988,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
 Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
                                       LanguageMode language_mode) {
   LookupIterator it(object->GetIsolate(), object, index, object,
-                    LookupIterator::HIDDEN);
+                    LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
 
@@ -5996,7 +5996,7 @@ Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
 Maybe<bool> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
                                        Handle<Name> name,
                                        LanguageMode language_mode) {
-  LookupIterator it(object, name, object, LookupIterator::HIDDEN);
+  LookupIterator it(object, name, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
 
@@ -6005,7 +6005,7 @@ Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
                                                 Handle<Name> name,
                                                 LanguageMode language_mode) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
+      name->GetIsolate(), object, name, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
 
@@ -6106,7 +6106,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
     // 7b. ReturnIfAbrupt(propDesc).
     bool success = false;
     LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, props, next_key, &success, LookupIterator::HIDDEN);
+        isolate, props, next_key, &success, LookupIterator::OWN);
     DCHECK(success);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.IsJust()) return MaybeHandle<Object>();
@@ -6181,7 +6181,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
   bool success = false;
   DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, key, &success, LookupIterator::HIDDEN);
+      isolate, object, key, &success, LookupIterator::OWN);
   DCHECK(success);  // ...so creating a LookupIterator can't fail.
 
   // Deal with access checks first.
@@ -6908,7 +6908,7 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
   bool success = false;
   DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, key, &success, LookupIterator::HIDDEN);
+      isolate, object, key, &success, LookupIterator::OWN);
   DCHECK(success);  // ...so creating a LookupIterator can't fail.
   return GetOwnPropertyDescriptor(&it, desc);
 }
@@ -8283,7 +8283,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
 
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+      isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   return DefineAccessor(&it, getter, setter, attributes);
 }
 
@@ -8327,7 +8327,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   Handle<Name> name(Name::cast(info->name()), isolate);
 
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+      isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
   // Duplicate ACCESS_CHECK outside of GetPropertyAttributes for the case that
   // the FailedAccessCheckCallbackFunction doesn't throw an exception.
@@ -13953,7 +13953,6 @@ void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
   array->GetIsolate()->factory()->NewJSArrayStorage(
       array, length, capacity, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
-
 
 void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   // We should never end in here with a pixel or external array.

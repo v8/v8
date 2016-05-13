@@ -4137,7 +4137,7 @@ BUILTIN(FunctionPrototypeBind) {
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
   LookupIterator length_lookup(target, isolate->factory()->length_string(),
-                               target, LookupIterator::HIDDEN);
+                               target, LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
@@ -4170,7 +4170,7 @@ BUILTIN(FunctionPrototypeBind) {
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
   LookupIterator name_lookup(target, isolate->factory()->name_string(), target,
-                             LookupIterator::HIDDEN);
+                             LookupIterator::OWN);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors()->IsAccessorInfo()) {

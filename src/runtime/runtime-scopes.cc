@@ -44,8 +44,7 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
   }
 
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, global,
-                    LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(global, name, global, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
 
@@ -182,8 +181,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<JSGlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, global,
-                    LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(global, name, global, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   PropertyAttributes old_attributes = maybe.FromJust();
@@ -622,7 +620,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
 
     if (IsLexicalVariableMode(mode)) {
       LookupIterator it(global_object, name, global_object,
-                        LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
       if (!maybe.IsJust()) return isolate->heap()->exception();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {

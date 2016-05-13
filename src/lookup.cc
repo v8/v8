@@ -637,17 +637,7 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
   if (map->prototype() == heap()->null_value()) return NULL;
-
-  DCHECK(!map->IsJSGlobalProxyMap() || map->has_hidden_prototype());
-
-  if (!check_prototype_chain() &&
-      !(check_hidden() && map->has_hidden_prototype()) &&
-      // Always lookup behind the JSGlobalProxy into the JSGlobalObject, even
-      // when not checking other hidden prototypes.
-      !map->IsJSGlobalProxyMap()) {
-    return NULL;
-  }
-
+  if (!check_prototype_chain() && !map->has_hidden_prototype()) return NULL;
   return JSReceiver::cast(map->prototype());
 }
 

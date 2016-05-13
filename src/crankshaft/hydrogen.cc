@@ -5771,6 +5771,7 @@ HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
       return kUseGeneric;
     case LookupIterator::DATA:
       if (access_type == STORE && it->IsReadOnly()) return kUseGeneric;
+      if (!it->GetHolder<JSObject>()->IsJSGlobalObject()) return kUseGeneric;
       return kUseCell;
     case LookupIterator::JSPROXY:
     case LookupIterator::TRANSITION:

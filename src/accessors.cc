@@ -146,6 +146,7 @@ MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
     CHECK(it.HasAccess());
     it.Next();
   }
+  DCHECK(holder.is_identical_to(it.GetHolder<JSObject>()));
   CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   it.ReconfigureDataProperty(value, it.property_attributes());
   return value;

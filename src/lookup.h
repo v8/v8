@@ -16,17 +16,14 @@ class LookupIterator final BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.
-    kHidden = 1 << 0,
-    kInterceptor = 1 << 1,
-    kPrototypeChain = 1 << 2,
+    kInterceptor = 1 << 0,
+    kPrototypeChain = 1 << 1,
 
     // Convience combinations of bits.
     OWN_SKIP_INTERCEPTOR = 0,
     OWN = kInterceptor,
-    HIDDEN_SKIP_INTERCEPTOR = kHidden,
-    HIDDEN = kHidden | kInterceptor,
-    PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kHidden | kPrototypeChain,
-    PROTOTYPE_CHAIN = kHidden | kPrototypeChain | kInterceptor,
+    PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kPrototypeChain,
+    PROTOTYPE_CHAIN = kPrototypeChain | kInterceptor,
     DEFAULT = PROTOTYPE_CHAIN
   };
 
@@ -316,7 +313,6 @@ class LookupIterator final BASE_EMBEDDED {
                       : holder->GetNamedInterceptor();
   }
 
-  bool check_hidden() const { return (configuration_ & kHidden) != 0; }
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
@@ -335,12 +331,7 @@ class LookupIterator final BASE_EMBEDDED {
 
   static Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name) {
-    if (name->IsPrivate()) {
-      return static_cast<Configuration>(configuration &
-                                        HIDDEN_SKIP_INTERCEPTOR);
-    } else {
-      return configuration;
-    }
+    return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
   }
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(

@@ -120,7 +120,7 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
                                           LanguageMode language_mode) {
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, receiver, key, &success, LookupIterator::HIDDEN);
+      isolate, receiver, key, &success, LookupIterator::OWN);
   if (!success) return Nothing<bool>();
 
   return JSReceiver::DeleteProperty(&it, language_mode);
@@ -169,7 +169,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     }
 
     // Slow case.
-    LookupIterator::Configuration c = LookupIterator::HIDDEN;
+    LookupIterator::Configuration c = LookupIterator::OWN;
     LookupIterator it = key_is_array_index
                             ? LookupIterator(isolate, js_obj, index, js_obj, c)
                             : LookupIterator(js_obj, key, js_obj, c);
@@ -300,7 +300,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::OWN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -335,7 +335,7 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::OWN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -1116,7 +1116,7 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   bool success;
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, o, key, &success, LookupIterator::HIDDEN);
+      isolate, o, key, &success, LookupIterator::OWN);
   if (!success) return isolate->heap()->exception();
   MAYBE_RETURN(
       JSReceiver::CreateDataProperty(&it, value, Object::THROW_ON_ERROR),

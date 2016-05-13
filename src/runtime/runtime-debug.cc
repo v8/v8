@@ -358,7 +358,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
-  LookupIterator it(obj, name, LookupIterator::HIDDEN);
+  LookupIterator it(obj, name, LookupIterator::OWN);
   bool has_caught = false;
   Handle<Object> value = DebugGetProperty(&it, &has_caught);
   if (!it.IsFound()) return isolate->heap()->undefined_value();
