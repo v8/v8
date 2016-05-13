@@ -662,7 +662,7 @@ BUILTIN(ArraySlice) {
         !IsJSArrayFastElementMovingAllowed(isolate, array) ||
         !isolate->IsArraySpeciesLookupChainIntact() ||
         // If this is a subclass of Array, then call out to JS
-        !array->map()->new_target_is_base()) {
+        !array->HasArrayPrototype(isolate)) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
@@ -722,7 +722,7 @@ BUILTIN(ArraySplice) {
   Handle<Object> receiver = args.receiver();
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
       // If this is a subclass of Array, then call out to JS.
-      !JSArray::cast(*receiver)->map()->new_target_is_base() ||
+      !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
       // If anything with @@species has been messed with, call out to JS.
       !isolate->IsArraySpeciesLookupChainIntact()) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
