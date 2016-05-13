@@ -4708,20 +4708,20 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(r3);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make r4 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ LoadRR(r4, fp);
-    __ b(&loop_entry, Label::kNear);
-    __ bind(&loop);
+  // Make r4 point to the JavaScript frame.
+  __ LoadRR(r4, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
-    __ bne(&loop, Label::kNear);
+    __ b(&ok, Label::kNear);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
   }
 
   // Check if we have rest parameters (only possible if we have an
@@ -4855,20 +4855,20 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(r3);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make r9 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ LoadRR(r9, fp);
-    __ b(&loop_entry);
-    __ bind(&loop);
+  // Make r9 point to the JavaScript frame.
+  __ LoadRR(r9, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ LoadP(r9, MemOperand(r9, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ LoadP(ip, MemOperand(r9, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
-    __ bne(&loop);
+    __ beq(&ok, Label::kNear);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
   }
 
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
@@ -5109,20 +5109,20 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(r3);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make r4 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ LoadRR(r4, fp);
-    __ b(&loop_entry);
-    __ bind(&loop);
+  // Make r4 point to the JavaScript frame.
+  __ LoadRR(r4, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ LoadP(r4, MemOperand(r4, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ LoadP(ip, MemOperand(r4, StandardFrameConstants::kFunctionOffset));
     __ CmpP(ip, r3);
-    __ bne(&loop);
+    __ beq(&ok, Label::kNear);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ bind(&ok);
   }
 
   // Check if we have an arguments adaptor frame below the function frame.
