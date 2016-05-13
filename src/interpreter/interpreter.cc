@@ -862,21 +862,22 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* to_boolean_value =
       __ CallStub(callable.descriptor(), target, context, accumulator);
-  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
+  Label if_true(assembler), if_false(assembler), end(assembler);
   Node* true_value = __ BooleanConstant(true);
   Node* false_value = __ BooleanConstant(false);
-  Node* condition = __ WordEqual(to_boolean_value, true_value);
-  __ Branch(condition, &if_true, &if_false);
+  __ BranchIfWordEqual(to_boolean_value, true_value, &if_true, &if_false);
   __ Bind(&if_true);
   {
     __ SetAccumulator(false_value);
-    __ Dispatch();
+    __ Goto(&end);
   }
   __ Bind(&if_false);
   {
     __ SetAccumulator(true_value);
-    __ Dispatch();
+    __ Goto(&end);
   }
+  __ Bind(&end);
+  __ Dispatch();
 }
 
 // TypeOf
@@ -1453,10 +1454,8 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   Node* bytecode_flags = __ BytecodeOperandFlag(2);
   Node* closure = __ LoadRegister(Register::function_closure());
 
-  Variable result(assembler, MachineRepresentation::kTagged);
-
   // Check if we can do a fast clone or have to call the runtime.
-  Label end(assembler), if_fast_clone(assembler),
+  Label if_fast_clone(assembler),
       if_not_fast_clone(assembler, Label::kDeferred);
   Node* fast_clone_properties_count =
       __ BitFieldDecode<CreateObjectLiteralFlags::FastClonePropertiesCountBits>(
@@ -1466,11 +1465,11 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   __ Bind(&if_fast_clone);
   {
     // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
-    Node* clone = FastCloneShallowObjectStub::GenerateFastPath(
+    Node* result = FastCloneShallowObjectStub::GenerateFastPath(
         assembler, &if_not_fast_clone, closure, literal_index,
         fast_clone_properties_count);
-    result.Bind(clone);
-    __ Goto(&end);
+    __ SetAccumulator(result);
+    __ Dispatch();
   }
 
   __ Bind(&if_not_fast_clone);
@@ -1486,14 +1485,12 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
         __ Int32Constant(CreateObjectLiteralFlags::FlagsBits::kMask));
     Node* flags = __ SmiTag(flags_raw);
 
-    result.Bind(__ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                               literal_index, constant_elements, flags));
-    __ Goto(&end);
+    Node* result =
+        __ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                       literal_index, constant_elements, flags);
+    __ SetAccumulator(result);
+    __ Dispatch();
   }
-
-  __ Bind(&end);
-  __ SetAccumulator(result.value());
-  __ Dispatch();
 }
 
 // CreateClosure <index> <tenured>
@@ -1521,9 +1518,8 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
 
-  Variable result(assembler, MachineRepresentation::kTagged);
-  Label end(assembler), if_duplicate_parameters(assembler, Label::kDeferred),
-      if_not_duplicate_parameters(assembler);
+  Label if_duplicate_parameters(assembler, Label::kDeferred);
+  Label if_not_duplicate_parameters(assembler);
 
   // Check if function has duplicate parameters.
   // TODO(rmcilroy): Remove this check when FastNewSloppyArgumentsStub supports
@@ -1538,23 +1534,23 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
   Node* compare = __ Word32And(compiler_hints, duplicate_parameters_bit);
   __ BranchIf(compare, &if_duplicate_parameters, &if_not_duplicate_parameters);
 
-  __ Bind(&if_duplicate_parameters);
-  {
-    result.Bind(
-        __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure));
-    __ Goto(&end);
-  }
-
   __ Bind(&if_not_duplicate_parameters);
   {
+    // TODO(rmcilroy): Inline FastNewSloppyArguments when it is a TurboFan stub.
     Callable callable = CodeFactory::FastNewSloppyArguments(isolate_, true);
     Node* target = __ HeapConstant(callable.code());
-    result.Bind(__ CallStub(callable.descriptor(), target, context, closure));
-    __ Goto(&end);
+    Node* result = __ CallStub(callable.descriptor(), target, context, closure);
+    __ SetAccumulator(result);
+    __ Dispatch();
   }
-  __ Bind(&end);
-  __ SetAccumulator(result.value());
-  __ Dispatch();
+
+  __ Bind(&if_duplicate_parameters);
+  {
+    Node* result =
+        __ CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 
@@ -1562,6 +1558,7 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new unmapped arguments object.
 void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
+  // TODO(rmcilroy): Inline FastNewStrictArguments when it is a TurboFan stub.
   Callable callable = CodeFactory::FastNewStrictArguments(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* context = __ GetContext();
@@ -1575,6 +1572,7 @@ void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new rest parameter array.
 void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
+  // TODO(rmcilroy): Inline FastNewRestArguments when it is a TurboFan stub.
   Callable callable = CodeFactory::FastNewRestParameter(isolate_, true);
   Node* target = __ HeapConstant(callable.code());
   Node* closure = __ LoadRegister(Register::function_closure());
@@ -1588,8 +1586,20 @@ void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
 //
 // Performs a stack guard check.
 void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
-  __ StackCheck();
+  Label ok(assembler), stack_check_interrupt(assembler, Label::kDeferred);
+
+  Node* interrupt = __ StackCheckTriggeredInterrupt();
+  __ BranchIf(interrupt, &stack_check_interrupt, &ok);
+
+  __ Bind(&ok);
   __ Dispatch();
+
+  __ Bind(&stack_check_interrupt);
+  {
+    Node* context = __ GetContext();
+    __ CallRuntime(Runtime::kStackGuard, context);
+    __ Dispatch();
+  }
 }
 
 // Throw
@@ -1685,10 +1695,10 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   Node* key = __ LoadFixedArrayElementSmiIndex(cache_array, index);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
-  InterpreterAssembler::Label if_fast(assembler), if_slow(assembler);
+  Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
   Node* condition = __ WordEqual(receiver_map, cache_type);
-  __ Branch(condition, &if_fast, &if_slow);
+  __ BranchIf(condition, &if_fast, &if_slow);
   __ Bind(&if_fast);
   {
     // Enum cache in use for {receiver}, the {key} is definitely valid.
@@ -1724,21 +1734,20 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
   Node* cache_length = __ LoadRegister(cache_length_reg);
 
   // Check if {index} is at {cache_length} already.
-  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
-  Node* condition = __ WordEqual(index, cache_length);
-  __ Branch(condition, &if_true, &if_false);
+  Label if_true(assembler), if_false(assembler), end(assembler);
+  __ BranchIfWordEqual(index, cache_length, &if_true, &if_false);
   __ Bind(&if_true);
   {
-    Node* result = __ BooleanConstant(true);
-    __ SetAccumulator(result);
-    __ Dispatch();
+    __ SetAccumulator(__ BooleanConstant(true));
+    __ Goto(&end);
   }
   __ Bind(&if_false);
   {
-    Node* result = __ BooleanConstant(false);
-    __ SetAccumulator(result);
-    __ Dispatch();
+    __ SetAccumulator(__ BooleanConstant(false));
+    __ Goto(&end);
   }
+  __ Bind(&end);
+  __ Dispatch();
 }
 
 // ForInStep <index>

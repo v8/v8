@@ -460,33 +460,32 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
-  CodeStubAssembler::Label ok(this);
-  CodeStubAssembler::Label interrupt_check(this);
-  CodeStubAssembler::Label end(this);
+  Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
 
   // Update budget by |weight| and check if it reaches zero.
+  Variable new_budget(this, MachineRepresentation::kWord32);
   Node* old_budget =
       Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
-  Node* new_budget = Int32Add(old_budget, weight);
-  Node* condition = Int32GreaterThanOrEqual(new_budget, Int32Constant(0));
+  new_budget.Bind(Int32Add(old_budget, weight));
+  Node* condition =
+      Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
   Branch(condition, &ok, &interrupt_check);
 
   // Perform interrupt and reset budget.
   Bind(&interrupt_check);
-  CallRuntime(Runtime::kInterrupt, GetContext());
-  StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                      BytecodeArrayTaggedPointer(), budget_offset,
-                      Int32Constant(Interpreter::InterruptBudget()));
-  Goto(&end);
+  {
+    CallRuntime(Runtime::kInterrupt, GetContext());
+    new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
+    Goto(&ok);
+  }
 
   // Update budget.
   Bind(&ok);
   StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                      BytecodeArrayTaggedPointer(), budget_offset, new_budget);
-  Goto(&end);
-  Bind(&end);
+                      BytecodeArrayTaggedPointer(), budget_offset,
+                      new_budget.value());
 }
 
 Node* InterpreterAssembler::Advance(int delta) {
@@ -503,10 +502,9 @@ Node* InterpreterAssembler::Jump(Node* delta) {
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
-  CodeStubAssembler::Label match(this);
-  CodeStubAssembler::Label no_match(this);
+  Label match(this), no_match(this);
 
-  Branch(condition, &match, &no_match);
+  BranchIf(condition, &match, &no_match);
   Bind(&match);
   Jump(delta);
   Bind(&no_match);
@@ -618,23 +616,12 @@ compiler::Node* InterpreterAssembler::InterpreterReturn() {
   return DispatchToBytecodeHandler(exit_trampoline_code_object);
 }
 
-void InterpreterAssembler::StackCheck() {
-  CodeStubAssembler::Label end(this);
-  CodeStubAssembler::Label ok(this);
-  CodeStubAssembler::Label stack_guard(this);
-
+Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
   Node* sp = LoadStackPointer();
   Node* stack_limit = Load(
       MachineType::Pointer(),
       ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
-  Node* condition = UintPtrGreaterThanOrEqual(sp, stack_limit);
-  Branch(condition, &ok, &stack_guard);
-  Bind(&stack_guard);
-  CallRuntime(Runtime::kStackGuard, GetContext());
-  Goto(&end);
-  Bind(&ok);
-  Goto(&end);
-  Bind(&end);
+  return UintPtrLessThan(sp, stack_limit);
 }
 
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
@@ -646,18 +633,14 @@ void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
 
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
                                                BailoutReason bailout_reason) {
-  CodeStubAssembler::Label match(this);
-  CodeStubAssembler::Label no_match(this);
-  CodeStubAssembler::Label end(this);
+  Label ok(this), abort(this, Label::kDeferred);
+  BranchIfWordEqual(lhs, rhs, &ok, &abort);
 
-  Node* condition = WordEqual(lhs, rhs);
-  Branch(condition, &match, &no_match);
-  Bind(&no_match);
+  Bind(&abort);
   Abort(bailout_reason);
-  Goto(&end);
-  Bind(&match);
-  Goto(&end);
-  Bind(&end);
+  Goto(&ok);
+
+  Bind(&ok);
 }
 
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
@@ -677,21 +660,21 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
   Node* old_counter =
       Load(MachineType::IntPtr(), counters_table, counter_offset);
 
-  CodeStubAssembler::Label counter_ok(this);
-  CodeStubAssembler::Label counter_saturated(this);
-  CodeStubAssembler::Label end(this);
+  Label counter_ok(this), counter_saturated(this, Label::kDeferred);
 
   Node* counter_reached_max = WordEqual(
       old_counter, IntPtrConstant(std::numeric_limits<uintptr_t>::max()));
-  Branch(counter_reached_max, &counter_saturated, &counter_ok);
+  BranchIf(counter_reached_max, &counter_saturated, &counter_ok);
+
   Bind(&counter_ok);
-  Node* new_counter = IntPtrAdd(old_counter, IntPtrConstant(1));
-  StoreNoWriteBarrier(MachineType::PointerRepresentation(), counters_table,
-                      counter_offset, new_counter);
-  Goto(&end);
+  {
+    Node* new_counter = IntPtrAdd(old_counter, IntPtrConstant(1));
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), counters_table,
+                        counter_offset, new_counter);
+    Goto(&counter_saturated);
+  }
+
   Bind(&counter_saturated);
-  Goto(&end);
-  Bind(&end);
 }
 
 // static

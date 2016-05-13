@@ -115,11 +115,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* Jump(compiler::Node* jump_offset);
 
   // Jump relative to the current bytecode by |jump_offset| if the
-  // |condition| is true. Helper function for JumpIfWordEqual and
-  // JumpIfWordNotEqual.
-  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
-
-  // Jump relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfWordEqual(compiler::Node* lhs, compiler::Node* rhs,
                        compiler::Node* jump_offset);
@@ -129,8 +124,8 @@ class InterpreterAssembler : public CodeStubAssembler {
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
 
-  // Perform a stack guard check.
-  void StackCheck();
+  // Returns true if the stack guard check triggers an interrupt.
+  compiler::Node* StackCheckTriggeredInterrupt();
 
   // Returns from the function.
   compiler::Node* InterpreterReturn();
@@ -206,6 +201,11 @@ class InterpreterAssembler : public CodeStubAssembler {
                                         OperandSize operand_size);
   compiler::Node* BytecodeUnsignedOperand(int operand_index,
                                           OperandSize operand_size);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // |condition| is true. Helper function for JumpIfWordEqual and
+  // JumpIfWordNotEqual.
+  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
 
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.

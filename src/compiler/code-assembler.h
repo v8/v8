@@ -56,6 +56,7 @@ class Schedule;
   V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
+  V(UintPtrLessThan)                             \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
   V(WordNotEqual)                                \
