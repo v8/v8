@@ -80,13 +80,33 @@ class SamplingHeapProfiler {
           pinned_(false) {}
     ~AllocationNode() {
       for (auto child : children_) {
-        delete child;
+        delete child.second;
       }
     }
 
    private:
+    typedef uint64_t FunctionId;
+    static FunctionId function_id(int script_id, int start_position,
+                                  const char* name) {
+      // script_id == kNoScriptId case:
+      //   Use function name pointer as an id. Names derived from VM state
+      //   must not collide with the builtin names. The least significant bit
+      //   of the id is set to 1.
+      if (script_id == v8::UnboundScript::kNoScriptId) {
+        return reinterpret_cast<intptr_t>(name) | 1;
+      }
+      // script_id != kNoScriptId case:
+      //   Use script_id, start_position pair to uniquelly identify the node.
+      //   The least significant bit of the id is set to 0.
+      DCHECK(static_cast<unsigned>(start_position) < (1u << 31));
+      return (static_cast<uint64_t>(script_id) << 32) + (start_position << 1);
+    }
+    AllocationNode* FindOrAddChildNode(const char* name, int script_id,
+                                       int start_position);
+    // TODO(alph): make use of unordered_map's here. Pay attention to
+    // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
-    std::vector<AllocationNode*> children_;
+    std::map<FunctionId, AllocationNode*> children_;
     AllocationNode* const parent_;
     const int script_id_;
     const int script_position_;
@@ -118,8 +138,6 @@ class SamplingHeapProfiler {
   v8::AllocationProfile::Allocation ScaleSample(size_t size,
                                                 unsigned int count);
   AllocationNode* AddStack();
-  AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
-                                     int script_id, int start_position);
 
   Isolate* const isolate_;
   Heap* const heap_;

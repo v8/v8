@@ -125,8 +125,9 @@ void SamplingHeapProfiler::OnWeakCallback(
     while (node->allocations_.empty() && node->children_.empty() &&
            node->parent_ && !node->parent_->pinned_) {
       AllocationNode* parent = node->parent_;
-      parent->children_.erase(
-          std::find(parent->children_.begin(), parent->children_.end(), node));
+      AllocationNode::FunctionId id = AllocationNode::function_id(
+          node->script_id_, node->script_position_, node->name_);
+      parent->children_.erase(id);
       delete node;
       node = parent;
     }
@@ -135,19 +136,18 @@ void SamplingHeapProfiler::OnWeakCallback(
   delete sample;
 }
 
-SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::FindOrAddChildNode(
-    AllocationNode* parent, const char* name, int script_id,
-    int start_position) {
-  for (AllocationNode* child : parent->children_) {
-    if (child->script_id_ == script_id &&
-        child->script_position_ == start_position &&
-        strcmp(child->name_, name) == 0) {
-      return child;
-    }
+SamplingHeapProfiler::AllocationNode*
+SamplingHeapProfiler::AllocationNode::FindOrAddChildNode(const char* name,
+                                                         int script_id,
+                                                         int start_position) {
+  FunctionId id = function_id(script_id, start_position, name);
+  auto it = children_.find(id);
+  if (it != children_.end()) {
+    DCHECK(strcmp(it->second->name_, name) == 0);
+    return it->second;
   }
-  AllocationNode* child =
-      new AllocationNode(parent, name, script_id, start_position);
-  parent->children_.push_back(child);
+  auto child = new AllocationNode(this, name, script_id, start_position);
+  children_.insert(std::make_pair(id, child));
   return child;
 }
 
@@ -188,7 +188,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
         name = "(JS)";
         break;
     }
-    return FindOrAddChildNode(node, name, v8::UnboundScript::kNoScriptId, 0);
+    return node->FindOrAddChildNode(name, v8::UnboundScript::kNoScriptId, 0);
   }
 
   // We need to process the stack in reverse order as the top of the stack is
@@ -201,7 +201,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       Script* script = Script::cast(shared->script());
       script_id = script->id();
     }
-    node = FindOrAddChildNode(node, name, script_id, shared->start_position());
+    node = node->FindOrAddChildNode(name, script_id, shared->start_position());
   }
   return node;
 }
@@ -244,15 +244,13 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
        script_name, node->script_id_, node->script_position_, line, column,
        std::vector<v8::AllocationProfile::Node*>(), allocations}));
   v8::AllocationProfile::Node* current = &profile->nodes().back();
-  size_t child_len = node->children_.size();
-  // The children vector may have nodes appended to it during translation
+  // The children map may have nodes inserted into it during translation
   // because the translation may allocate strings on the JS heap that have
-  // the potential to be sampled. We cache the length of the vector before
-  // iteration so that nodes appended to the vector during iteration are
-  // not processed.
-  for (size_t i = 0; i < child_len; i++) {
+  // the potential to be sampled. That's ok since map iterators are not
+  // invalidated upon std::map insertion.
+  for (auto it : node->children_) {
     current->children.push_back(
-        TranslateAllocationNode(profile, node->children_[i], scripts));
+        TranslateAllocationNode(profile, it.second, scripts));
   }
   node->pinned_ = false;
   return current;
