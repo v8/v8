@@ -126,6 +126,10 @@ config("external_config") {
     ]
   }
   include_dirs = [ "include" ]
+  libs = []
+  if (is_android && current_toolchain != host_toolchain) {
+    libs += [ "log" ]
+  }
 }
 
 # This config should only be applied to code that needs to be explicitly
@@ -2061,11 +2065,6 @@ if (is_component_build) {
     ]
 
     public_configs = [ ":external_config" ]
-
-    libs = []
-    if (is_android && current_toolchain != host_toolchain) {
-      libs += [ "log" ]
-    }
   }
 } else {
   group("v8") {
