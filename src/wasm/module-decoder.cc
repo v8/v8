@@ -172,10 +172,6 @@ class ModuleDecoder : public Decoder {
                                          0,        // name_length
                                          0,        // code_start_offset
                                          0,        // code_end_offset
-                                         0,        // local_i32_count
-                                         0,        // local_i64_count
-                                         0,        // local_f32_count
-                                         0,        // local_f64_count
                                          false});  // exported
             WasmFunction* function = &module->functions.back();
             function->sig_index = consume_sig_index(module, &function->sig);
@@ -230,10 +226,6 @@ class ModuleDecoder : public Decoder {
                                          0,        // name_length
                                          0,        // code_start_offset
                                          0,        // code_end_offset
-                                         0,        // local_i32_count
-                                         0,        // local_i64_count
-                                         0,        // local_f32_count
-                                         0,        // local_f64_count
                                          false});  // exported
             WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
@@ -519,10 +511,8 @@ class ModuleDecoder : public Decoder {
       function->sig = module->signatures[function->sig_index];
     }
 
-    TRACE("  +%d  <function attributes:%s%s%s>\n",
-          static_cast<int>(pc_ - start_),
+    TRACE("  +%d  <function attributes:%s%s>\n", static_cast<int>(pc_ - start_),
           decl_bits & kDeclFunctionName ? " name" : "",
-          decl_bits & kDeclFunctionLocals ? " locals" : "",
           decl_bits & kDeclFunctionExport ? " exported" : "");
 
     function->exported = decl_bits & kDeclFunctionExport;
@@ -530,13 +520,6 @@ class ModuleDecoder : public Decoder {
     if (decl_bits & kDeclFunctionName) {
       function->name_offset =
           consume_string(&function->name_length, function->exported);
-    }
-
-    if (decl_bits & kDeclFunctionLocals) {
-      function->local_i32_count = consume_u16("i32 count");
-      function->local_i64_count = consume_u16("i64 count");
-      function->local_f32_count = consume_u16("f32 count");
-      function->local_f64_count = consume_u16("f64 count");
     }
 
     uint16_t size = consume_u16("body size");

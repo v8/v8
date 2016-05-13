@@ -96,7 +96,6 @@ struct WasmSection {
 
 enum WasmFunctionDeclBit {
   kDeclFunctionName = 0x01,
-  kDeclFunctionLocals = 0x04,
   kDeclFunctionExport = 0x08
 };
 
@@ -115,10 +114,6 @@ struct WasmFunction {
   uint32_t name_length;  // length in bytes of the name.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
   uint32_t code_end_offset;      // offset in the module bytes of code end.
-  uint16_t local_i32_count;      // number of i32 local variables.
-  uint16_t local_i64_count;      // number of i64 local variables.
-  uint16_t local_f32_count;      // number of f32 local variables.
-  uint16_t local_f64_count;      // number of f64 local variables.
   bool exported;                 // true if this function is exported.
 };
 

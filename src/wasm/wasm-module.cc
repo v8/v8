@@ -88,12 +88,6 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
   os << "WASM function with signature " << *function.sig;
 
-  os << " locals: ";
-  if (function.local_i32_count) os << function.local_i32_count << " i32s ";
-  if (function.local_i64_count) os << function.local_i64_count << " i64s ";
-  if (function.local_f32_count) os << function.local_f32_count << " f32s ";
-  if (function.local_f64_count) os << function.local_f64_count << " f64s ";
-
   os << " code bytes: "
      << (function.code_end_offset - function.code_start_offset);
   return os;

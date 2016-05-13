@@ -1177,10 +1177,6 @@ class TestModuleEnv : public ModuleEnv {
                              0,        // name_length
                              0,        // code_start_offset
                              0,        // code_end_offset
-                             0,        // local_i32_count
-                             0,        // local_i64_count
-                             0,        // local_f32_count
-                             0,        // local_f64_count
                              false});  // exported
     CHECK(mod.functions.size() <= 127);
     return static_cast<byte>(mod.functions.size() - 1);

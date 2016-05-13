@@ -168,7 +168,7 @@ class TestingModule : public ModuleEnv {
       module->functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module->functions.push_back({sig, index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false});
+    module->functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;

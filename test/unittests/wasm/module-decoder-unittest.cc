@@ -343,21 +343,16 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
 }
 
 TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
-  const int kCodeStartOffset = 49;
+  const int kCodeStartOffset = 41;
   const int kCodeEndOffset = kCodeStartOffset + 1;
 
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
       // func#0 ------------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 18), 1,
-      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName,
+      SECTION(OLD_FUNCTIONS, 10), 1, kDeclFunctionExport | kDeclFunctionName,
       SIG_INDEX(0),              // signature index
       NAME_LENGTH(2), 'h', 'i',  // name
-      U16_LE(1466),              // local int32 count
-      U16_LE(1355),              // local int64 count
-      U16_LE(1244),              // local float32 count
-      U16_LE(1133),              // local float64 count
       1, 0,                      // size
       kExprNop,
   };
@@ -378,11 +373,6 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(2, function->name_length);
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
-
-    EXPECT_EQ(1466, function->local_i32_count);
-    EXPECT_EQ(1355, function->local_i64_count);
-    EXPECT_EQ(1244, function->local_f32_count);
-    EXPECT_EQ(1133, function->local_f64_count);
 
     EXPECT_TRUE(function->exported);
 
@@ -415,47 +405,6 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
   EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-  EXPECT_EQ(0, function->local_i32_count);
-  EXPECT_EQ(0, function->local_i64_count);
-  EXPECT_EQ(0, function->local_f32_count);
-  EXPECT_EQ(0, function->local_f64_count);
-
-  EXPECT_FALSE(function->exported);
-
-  if (result.val) delete result.val;
-}
-
-TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
-  static const byte kCodeStartOffset = 46;
-  static const byte kCodeEndOffset = kCodeStartOffset + 1;
-
-  static const byte data[] = {
-      SIGNATURES_SECTION_VOID_VOID,  // --
-      SECTION(OLD_FUNCTIONS, 15), 1,
-      // func#0 ------------------------------------------------------
-      kDeclFunctionLocals, 0, 0,  // signature index
-      1, 2,                       // local int32 count
-      3, 4,                       // local int64 count
-      5, 6,                       // local float32 count
-      7, 8,                       // local float64 count
-      1, 0,                       // body size
-      kExprNop                    // body
-  };
-
-  ModuleResult result = DecodeModule(data, data + arraysize(data));
-  EXPECT_OK(result);
-  EXPECT_EQ(1, result.val->functions.size());
-  WasmFunction* function = &result.val->functions.back();
-
-  EXPECT_EQ(0, function->name_length);
-  EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
-  EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
-
-  EXPECT_EQ(513, function->local_i32_count);
-  EXPECT_EQ(1027, function->local_i64_count);
-  EXPECT_EQ(1541, function->local_f32_count);
-  EXPECT_EQ(2055, function->local_f64_count);
-
   EXPECT_FALSE(function->exported);
 
   if (result.val) delete result.val;
@@ -463,7 +412,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   static const byte kNameOffset = 49;
-  static const byte kCodeStartOffset = 61;
+  static const byte kCodeStartOffset = 53;
   static const byte kCodeEndOffset = kCodeStartOffset + 3;
   static const byte kDataSegmentSourceOffset = kCodeEndOffset + 22;
 
@@ -476,18 +425,14 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
       // sig#0 -----------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // func#0 ----------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 20), 1,
-      kDeclFunctionLocals | kDeclFunctionName,  // --
-      SIG_INDEX(0),                             // signature index
-      2, 'h', 'i',                              // name
-      1, 2,                                     // local int32 count
-      3, 4,                                     // local int64 count
-      5, 6,                                     // local float32 count
-      7, 8,                                     // local float64 count
-      3, 0,                                     // body size
-      kExprNop,                                 // func#0 body
-      kExprNop,                                 // func#0 body
-      kExprNop,                                 // func#0 body
+      SECTION(OLD_FUNCTIONS, 12), 1,
+      kDeclFunctionName,  // --
+      SIG_INDEX(0),       // signature index
+      2, 'h', 'i',        // name
+      3, 0,               // body size
+      kExprNop,           // func#0 body
+      kExprNop,           // func#0 body
+      kExprNop,           // func#0 body
       // memory section --------------------------------------------
       SECTION(MEMORY, 3), 28, 28, 1,
       // segment#0 -------------------------------------------------
