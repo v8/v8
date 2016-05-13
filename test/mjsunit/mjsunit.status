@@ -288,21 +288,9 @@
   # Ignition
 
   # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-restart-frame': [PASS, NO_IGNITION],
-  'debug-liveedit-literals': [PASS, NO_IGNITION],
-  'debug-liveedit-3': [PASS, NO_IGNITION],
-  'debug-liveedit-1': [PASS, NO_IGNITION],
-  'debug-liveedit-2': [PASS, NO_IGNITION],
-  'debug-liveedit-patch-positions-replace': [PASS, NO_IGNITION],
-  'debug-liveedit-patch-positions': [PASS, NO_IGNITION],
   'debug-liveedit-stepin': [PASS, NO_IGNITION],
-  'debug-liveedit-newsource': [PASS, NO_IGNITION],
   'debug-liveedit-stack-padding': [PASS, NO_IGNITION],
   'debug-liveedit-breakpoints': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-1': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-2': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-3': [PASS, NO_IGNITION],
-  'es6/generators-debug-liveedit': [PASS, NO_IGNITION],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [PASS, NO_IGNITION],
@@ -855,21 +843,9 @@
 ##############################################################################
 ['ignition or ignition_turbofan', {
    # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-restart-frame': [FAIL],
-  'debug-liveedit-literals': [FAIL],
-  'debug-liveedit-3': [FAIL],
-  'debug-liveedit-1': [FAIL],
-  'debug-liveedit-2': [FAIL],
-  'debug-liveedit-patch-positions-replace': [FAIL],
-  'debug-liveedit-patch-positions': [FAIL],
   'debug-liveedit-stepin': [FAIL],
-  'debug-liveedit-newsource': [FAIL],
-  'debug-liveedit-stack-padding': [FAIL],
+  'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-breakpoints': [FAIL],
-  'es6/debug-liveedit-new-target-1': [FAIL],
-  'es6/debug-liveedit-new-target-2': [FAIL],
-  'es6/debug-liveedit-new-target-3': [FAIL],
-  'es6/generators-debug-liveedit': [FAIL],
 
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],

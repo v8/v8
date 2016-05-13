@@ -623,6 +623,8 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
 
 void FunctionInfoWrapper::SetFunctionCode(Handle<Code> function_code,
                                           Handle<HeapObject> code_scope_info) {
+  // CompileForLiveEdit must deliver full-codegen code.
+  DCHECK(function_code->kind() == Code::FUNCTION);
   Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
   this->SetField(kCodeOffset_, code_wrapper);
 
@@ -1106,9 +1108,18 @@ void LiveEdit::ReplaceFunctionCode(
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  if (shared_info->code()->kind() == Code::FUNCTION) {
-    Handle<Code> code = compile_info_wrapper.GetFunctionCode();
-    ReplaceCodeObject(Handle<Code>(shared_info->code()), code);
+  if (shared_info->is_compiled()) {
+    Handle<Code> new_code = compile_info_wrapper.GetFunctionCode();
+    Handle<Code> old_code(shared_info->code());
+    if (shared_info->HasBytecodeArray()) {
+      // The old code is interpreted. If we clear the bytecode array, the
+      // interpreter entry trampoline will self-heal and go to compiled code.
+      shared_info->ClearBytecodeArray();
+      shared_info->ReplaceCode(*new_code);
+    } else {
+      DCHECK(old_code->kind() == Code::FUNCTION);
+      ReplaceCodeObject(old_code, new_code);
+    }
     Handle<Object> code_scope_info = compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
@@ -1544,6 +1555,13 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
     top_frame = frames[top_frame_index - 2];
     *mode = LiveEdit::CURRENTLY_SET_MODE;
     frame_has_padding = false;
+  } else if (pre_top_frame_code->kind() == Code::BYTECODE_HANDLER) {
+    // Interpreted bytecode takes up two stack frames, one for the bytecode
+    // handler and one for the interpreter entry trampoline. Therefore we shift
+    // up by one frame.
+    *mode = LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL;
+    pre_top_frame = frames[top_frame_index - 2];
+    top_frame = frames[top_frame_index - 1];
   } else {
     return "Unknown structure of stack above changing function";
   }
