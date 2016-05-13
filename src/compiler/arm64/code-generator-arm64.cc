@@ -159,7 +159,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
-      case kMode_Operand2_R_LSL_I:
       case kMode_Operand2_R_LSR_I:
       case kMode_Operand2_R_ASR_I:
       case kMode_Operand2_R_ROR_I:
@@ -168,6 +167,10 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_SXTB:
       case kMode_Operand2_R_SXTH:
         break;
+      case kMode_Operand2_R_LSL_I:
+        *first_index += 3;
+        return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
+                          LSL, InputInt32(index + 2));
       case kMode_MRI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
@@ -1364,7 +1367,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strb:
-      __ Strb(i.InputOrZeroRegister64(2), i.MemoryOperand());
+      __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrh:
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
@@ -1373,31 +1376,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strh:
-      __ Strh(i.InputOrZeroRegister64(2), i.MemoryOperand());
+      __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64StrW:
-      __ Str(i.InputOrZeroRegister32(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
     case kArm64Ldr:
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
-      __ Str(i.InputOrZeroRegister64(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrS:
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
-      __ Str(i.InputFloat32OrZeroRegister(2), i.MemoryOperand());
+      __ Str(i.InputFloat32OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
-      __ Str(i.InputFloat64OrZeroRegister(2), i.MemoryOperand());
+      __ Str(i.InputFloat64OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsb);

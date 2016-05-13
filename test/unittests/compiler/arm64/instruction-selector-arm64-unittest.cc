@@ -2355,8 +2355,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
     EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
@@ -2373,11 +2373,111 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreZero) {
     EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
     ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
-    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(2)));
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
+    EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
     EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
+
+TEST_P(InstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
+  const MemoryAccess memacc = GetParam();
+  TRACED_FORRANGE(int, immediate_shift, 0, 4) {
+    // 32 bit shift
+    {
+      StreamBuilder m(this, memacc.type, MachineType::Pointer(),
+                      MachineType::Int32());
+      Node* const index =
+          m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+      m.Return(m.Load(memacc.type, m.Parameter(0), index));
+      Stream s = m.Build();
+      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(3U, s[0]->InputCount());
+        EXPECT_EQ(1U, s[0]->OutputCount());
+      } else {
+        // Make sure we haven't merged the shift into the load instruction.
+        ASSERT_NE(1U, s.size());
+        EXPECT_NE(memacc.ldr_opcode, s[0]->arch_opcode());
+        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+      }
+    }
+    // 64 bit shift
+    {
+      StreamBuilder m(this, memacc.type, MachineType::Pointer(),
+                      MachineType::Int64());
+      Node* const index =
+          m.Word64Shl(m.Parameter(1), m.Int64Constant(immediate_shift));
+      m.Return(m.Load(memacc.type, m.Parameter(0), index));
+      Stream s = m.Build();
+      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(3U, s[0]->InputCount());
+        EXPECT_EQ(1U, s[0]->OutputCount());
+      } else {
+        // Make sure we haven't merged the shift into the load instruction.
+        ASSERT_NE(1U, s.size());
+        EXPECT_NE(memacc.ldr_opcode, s[0]->arch_opcode());
+        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+      }
+    }
+  }
+}
+
+TEST_P(InstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
+  const MemoryAccess memacc = GetParam();
+  TRACED_FORRANGE(int, immediate_shift, 0, 4) {
+    // 32 bit shift
+    {
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                      MachineType::Int32(), memacc.type);
+      Node* const index =
+          m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+      m.Store(memacc.type.representation(), m.Parameter(0), index,
+              m.Parameter(2), kNoWriteBarrier);
+      m.Return(m.Int32Constant(0));
+      Stream s = m.Build();
+      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(4U, s[0]->InputCount());
+        EXPECT_EQ(0U, s[0]->OutputCount());
+      } else {
+        // Make sure we haven't merged the shift into the store instruction.
+        ASSERT_NE(1U, s.size());
+        EXPECT_NE(memacc.str_opcode, s[0]->arch_opcode());
+        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+      }
+    }
+    // 64 bit shift
+    {
+      StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer(),
+                      MachineType::Int64(), memacc.type);
+      Node* const index =
+          m.Word64Shl(m.Parameter(1), m.Int64Constant(immediate_shift));
+      m.Store(memacc.type.representation(), m.Parameter(0), index,
+              m.Parameter(2), kNoWriteBarrier);
+      m.Return(m.Int64Constant(0));
+      Stream s = m.Build();
+      if (immediate_shift == ElementSizeLog2Of(memacc.type.representation())) {
+        ASSERT_EQ(1U, s.size());
+        EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+        EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+        EXPECT_EQ(4U, s[0]->InputCount());
+        EXPECT_EQ(0U, s[0]->OutputCount());
+      } else {
+        // Make sure we haven't merged the shift into the store instruction.
+        ASSERT_NE(1U, s.size());
+        EXPECT_NE(memacc.str_opcode, s[0]->arch_opcode());
+        EXPECT_NE(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+      }
+    }
   }
 }
 
