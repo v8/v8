@@ -28,6 +28,8 @@ namespace internal {
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileFullCode);
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.CompileFullCode");
 

@@ -131,6 +131,8 @@ int Interpreter::InterruptBudget() {
 }
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
   TRACE_EVENT0("v8", "V8.CompileIgnition");
 

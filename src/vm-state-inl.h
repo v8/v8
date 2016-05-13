@@ -63,18 +63,11 @@ ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif
   isolate_->set_external_callback_scope(this);
-  if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Enter(isolate_, &timer_,
-                            &RuntimeCallStats::ExternalCallback);
-  }
   TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
                      "V8.ExternalCallback");
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
-  if (FLAG_runtime_call_stats) {
-    RuntimeCallStats::Leave(isolate_, &timer_);
-  }
   isolate_->set_external_callback_scope(previous_scope_);
   TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
                    "V8.ExternalCallback");

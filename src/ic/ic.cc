@@ -1197,8 +1197,10 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         if (call_optimization.is_simple_api_call()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
           int index = lookup->GetAccessorIndex();
-          return compiler.CompileLoadCallback(lookup->name(), call_optimization,
-                                              index);
+          Handle<Code> code = compiler.CompileLoadCallback(
+              lookup->name(), call_optimization, index);
+          if (FLAG_runtime_call_stats) return slow_stub();
+          return code;
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
         int expected_arguments = Handle<JSFunction>::cast(getter)
@@ -1216,7 +1218,9 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
         NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        return compiler.CompileLoadCallback(lookup->name(), info);
+        Handle<Code> code = compiler.CompileLoadCallback(lookup->name(), info);
+        if (FLAG_runtime_call_stats) return slow_stub();
+        return code;
       }
       UNREACHABLE();
     }
@@ -1790,8 +1794,10 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-        return compiler.CompileStoreCallback(receiver, lookup->name(), info,
-                                             language_mode());
+        Handle<Code> code = compiler.CompileStoreCallback(
+            receiver, lookup->name(), info, language_mode());
+        if (FLAG_runtime_call_stats) return slow_stub();
+        return code;
       } else {
         DCHECK(accessors->IsAccessorPair());
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
@@ -1802,9 +1808,11 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         if (call_optimization.is_simple_api_call()) {
           DCHECK(call_optimization.IsCompatibleReceiver(receiver, holder));
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-          return compiler.CompileStoreCallback(receiver, lookup->name(),
-                                               call_optimization,
-                                               lookup->GetAccessorIndex());
+          Handle<Code> code = compiler.CompileStoreCallback(
+              receiver, lookup->name(), call_optimization,
+              lookup->GetAccessorIndex());
+          if (FLAG_runtime_call_stats) return slow_stub();
+          return code;
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
         int expected_arguments = JSFunction::cast(*setter)

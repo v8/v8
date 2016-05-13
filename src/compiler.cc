@@ -1024,6 +1024,9 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
     // parsing statistics.
+    RuntimeCallTimerScope runtimeTimer(
+        isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
+                                       : &RuntimeCallStats::Compile);
     HistogramTimer* rate = parse_info->is_eval()
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();

@@ -374,6 +374,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -393,6 +395,8 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   if (FLAG_trace_deopt) {
@@ -422,7 +426,10 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  TimerEventScope<TimerEventDeoptimizeCode> timer(function->GetIsolate());
+  Isolate* isolate = function->GetIsolate();
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::DeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Code* code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
