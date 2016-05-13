@@ -401,7 +401,7 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               : info->isolate()->heap()->empty_string();
     Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
     PROFILE(info->isolate(),
-            CodeCreateEvent(log_tag, *abstract_code, *shared, info, script_name,
+            CodeCreateEvent(log_tag, *abstract_code, *shared, script_name,
                             line_num, column_num));
   }
 }

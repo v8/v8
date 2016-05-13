@@ -1033,8 +1033,8 @@ static void TickLines(bool optimize) {
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), NULL,
-                           *str, line, column);
+  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), *str,
+                           line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor.get(), code_address);

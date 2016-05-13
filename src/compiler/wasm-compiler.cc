@@ -2722,7 +2722,7 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<SharedFunctionInfo> shared =
         isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
     PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
-                                     info, *script_str, 0, 0));
+                                     *script_str, 0, 0));
   }
 }
 

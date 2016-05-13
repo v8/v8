@@ -189,8 +189,7 @@ void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CodeEventLogger::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                       AbstractCode* code,
-                                      SharedFunctionInfo* shared,
-                                      CompilationInfo* info, Name* source,
+                                      SharedFunctionInfo* shared, Name* source,
                                       int line, int column) {
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(shared, code));
@@ -1150,13 +1149,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
 // the SharedFunctionInfo object, we left it to caller
 // to leave logging functions free from heap allocations.
 void Logger::CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                             SharedFunctionInfo* shared, CompilationInfo* info,
-                             Name* source, int line, int column) {
-  PROFILER_LOG(CodeCreateEvent(tag, code, shared, info, source, line, column));
+                             SharedFunctionInfo* shared, Name* source, int line,
+                             int column) {
+  PROFILER_LOG(CodeCreateEvent(tag, code, shared, source, line, column));
 
   if (!is_logging_code_events()) return;
-  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, info, source, line,
-                                 column));
+  CALL_LISTENERS(CodeCreateEvent(tag, code, shared, source, line, column));
 
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
@@ -1616,8 +1614,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
         PROFILE(isolate_,
                 CodeCreateEvent(
                     Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-                    *code, *shared, NULL,
-                    *script_name, line_num, column_num));
+                    *code, *shared, *script_name, line_num, column_num));
       } else {
         // Can't distinguish eval and script here, so always use Script.
         PROFILE(isolate_, CodeCreateEvent(Logger::ToNativeByScript(
@@ -1628,8 +1625,8 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
       PROFILE(isolate_,
               CodeCreateEvent(
                   Logger::ToNativeByScript(Logger::LAZY_COMPILE_TAG, *script),
-                  *code, *shared, NULL,
-                  isolate_->heap()->empty_string(), line_num, column_num));
+                  *code, *shared, isolate_->heap()->empty_string(), line_num,
+                  column_num));
     }
   } else if (shared->IsApiFunction()) {
     // API function.

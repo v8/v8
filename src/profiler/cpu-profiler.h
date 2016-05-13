@@ -20,7 +20,6 @@ namespace internal {
 // Forward declarations.
 class CodeEntry;
 class CodeMap;
-class CompilationInfo;
 class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
@@ -228,8 +227,8 @@ class CpuProfiler : public CodeEventListener {
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* script_name) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, CompilationInfo* info,
-                       Name* script_name, int line, int column) override;
+                       SharedFunctionInfo* shared, Name* script_name, int line,
+                       int column) override;
   void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                        int args_count) override;
   void CodeMovingGCEvent() override {}

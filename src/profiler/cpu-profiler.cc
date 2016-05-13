@@ -260,8 +260,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 
 void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
                                   AbstractCode* abstract_code,
-                                  SharedFunctionInfo* shared,
-                                  CompilationInfo* info, Name* script_name,
+                                  SharedFunctionInfo* shared, Name* script_name,
                                   int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
