@@ -158,9 +158,9 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
   SourcePosition position = deopt_info.position;
-  int inlining_id = deopt_info.inlining_id;
+  int deopt_id = deopt_info.deopt_id;
   int raw_position = position.IsUnknown() ? 0 : position.raw();
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, inlining_id);
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, deopt_id);
 }
 
 
@@ -366,11 +366,9 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
-    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {
-  HEnterInlined* enter_inlined = instr->environment()->entry();
-  int inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
+    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason, int deopt_id) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
-                                    deopt_reason, inlining_id);
+                                    deopt_reason, deopt_id);
   return deopt_info;
 }
 }  // namespace internal

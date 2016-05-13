@@ -120,19 +120,11 @@ class Compiler : public AllStatic {
       JavaScriptFrame* osr_frame);
 };
 
+// TODO(mstarzinger): Move this into the "crankshaft" directory.
 struct InlinedFunctionInfo {
-  InlinedFunctionInfo(int parent_id, SourcePosition inline_position,
-                      int script_id, int start_position)
-      : parent_id(parent_id),
-        inline_position(inline_position),
-        script_id(script_id),
-        start_position(start_position) {}
-  int parent_id;
-  SourcePosition inline_position;
-  int script_id;
+  explicit InlinedFunctionInfo(int start_position)
+      : start_position(start_position) {}
   int start_position;
-
-  static const int kNoParentId = -1;
 };
 
 

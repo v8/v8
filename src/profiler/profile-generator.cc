@@ -5,6 +5,7 @@
 #include "src/profiler/profile-generator.h"
 
 #include "src/ast/scopeinfo.h"
+#include "src/base/adapters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
@@ -118,6 +119,19 @@ const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
   return it != inline_locations_.end() ? &it->second : NULL;
 }
 
+void CodeEntry::AddDeoptInlinedFrames(
+    int deopt_id, std::vector<DeoptInlinedFrame>& inlined_frames) {
+  // It's better to use std::move to place the vector into the map,
+  // but it's not supported by the current stdlibc++ on MacOS.
+  deopt_inlined_frames_
+      .insert(std::make_pair(deopt_id, std::vector<DeoptInlinedFrame>()))
+      .first->second.swap(inlined_frames);
+}
+
+bool CodeEntry::HasDeoptInlinedFramesFor(int deopt_id) const {
+  return deopt_inlined_frames_.find(deopt_id) != deopt_inlined_frames_.end();
+}
+
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo* shared) {
   if (!shared->script()->IsScript()) return;
   Script* script = Script::cast(shared->script());
@@ -131,21 +145,19 @@ CpuProfileDeoptInfo CodeEntry::GetDeoptInfo() {
 
   CpuProfileDeoptInfo info;
   info.deopt_reason = deopt_reason_;
-  if (inlined_function_infos_.empty()) {
+  DCHECK_NE(Deoptimizer::DeoptInfo::kNoDeoptId, deopt_id_);
+  if (deopt_inlined_frames_.find(deopt_id_) == deopt_inlined_frames_.end()) {
     info.stack.push_back(CpuProfileDeoptFrame(
         {script_id_, position_ + deopt_position_.position()}));
-    return info;
-  }
-  // Copy the only branch from the inlining tree where the deopt happened.
-  SourcePosition position = deopt_position_;
-  int inlining_id = deopt_inlining_id_;
-  while (inlining_id != InlinedFunctionInfo::kNoParentId) {
-    InlinedFunctionInfo& inlined_info = inlined_function_infos_.at(inlining_id);
-    info.stack.push_back(
-        CpuProfileDeoptFrame({inlined_info.script_id,
-                              inlined_info.start_position + position.raw()}));
-    position = inlined_info.inline_position;
-    inlining_id = inlined_info.parent_id;
+  } else {
+    size_t deopt_position = deopt_position_.raw();
+    // Copy stack of inlined frames where the deopt happened.
+    std::vector<DeoptInlinedFrame>& frames = deopt_inlined_frames_[deopt_id_];
+    for (DeoptInlinedFrame& inlined_frame : base::Reversed(frames)) {
+      info.stack.push_back(CpuProfileDeoptFrame(
+          {inlined_frame.script_id, deopt_position + inlined_frame.position}));
+      deopt_position = 0;  // Done with innermost frame.
+    }
   }
   return info;
 }

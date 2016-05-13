@@ -2641,23 +2641,6 @@ Handle<Object> GetValueForDebugger(TranslatedFrame::iterator it,
   return it->GetValue();
 }
 
-int ComputeSourcePosition(Handle<SharedFunctionInfo> shared,
-                          BailoutId node_id) {
-  if (shared->HasBytecodeArray()) {
-    BytecodeArray* bytecodes = shared->bytecode_array();
-    // BailoutId points to the next bytecode in the bytecode aray. Subtract
-    // 1 to get the end of current bytecode.
-    return bytecodes->SourcePosition(node_id.ToInt() - 1);
-  } else {
-    Code* non_optimized_code = shared->code();
-    FixedArray* raw_data = non_optimized_code->deoptimization_data();
-    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, *shared);
-    unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
-    return non_optimized_code->SourcePosition(pc_offset);
-  }
-}
-
 }  // namespace
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
@@ -2687,8 +2670,8 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
       parameter_frame != state->begin() &&
       (parameter_frame - 1)->kind() == TranslatedFrame::kConstructStub;
 
-  source_position_ =
-      ComputeSourcePosition(frame_it->shared_info(), frame_it->node_id());
+  source_position_ = Deoptimizer::ComputeSourcePosition(
+      *frame_it->shared_info(), frame_it->node_id());
 
   TranslatedFrame::iterator value_it = frame_it->begin();
   // Get the function. Note that this might materialize the function.
@@ -2752,21 +2735,21 @@ const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   SourcePosition last_position = SourcePosition::Unknown();
   Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
-  int last_inlining_id = InlinedFunctionInfo::kNoParentId;
+  int last_deopt_id = Deoptimizer::DeoptInfo::kNoDeoptId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
              RelocInfo::ModeMask(RelocInfo::POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->pc() >= pc) {
-      return DeoptInfo(last_position, last_reason, last_inlining_id);
+      return DeoptInfo(last_position, last_reason, last_deopt_id);
     }
     if (info->rmode() == RelocInfo::POSITION) {
       int raw_position = static_cast<int>(info->data());
       last_position = raw_position ? SourcePosition::FromRaw(raw_position)
                                    : SourcePosition::Unknown();
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
-      last_inlining_id = static_cast<int>(info->data());
+      last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
       last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
     }
@@ -2774,6 +2757,24 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason, -1);
 }
 
+
+// static
+int Deoptimizer::ComputeSourcePosition(SharedFunctionInfo* shared,
+                                       BailoutId node_id) {
+  if (shared->HasBytecodeArray()) {
+    BytecodeArray* bytecodes = shared->bytecode_array();
+    // BailoutId points to the next bytecode in the bytecode aray. Subtract
+    // 1 to get the end of current bytecode.
+    return bytecodes->SourcePosition(node_id.ToInt() - 1);
+  } else {
+    Code* non_optimized_code = shared->code();
+    FixedArray* raw_data = non_optimized_code->deoptimization_data();
+    DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+    unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
+    unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
+    return non_optimized_code->SourcePosition(pc_offset);
+  }
+}
 
 // static
 TranslatedValue TranslatedValue::NewArgumentsObject(TranslatedState* container,

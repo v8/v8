@@ -1941,7 +1941,7 @@ class HGraphBuilder {
   void set_source_position(SourcePosition position) { position_ = position; }
 
   int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position, int pareint_id);
+                           SourcePosition position);
 
   HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>

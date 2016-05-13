@@ -81,7 +81,7 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   Address start;
   const char* deopt_reason;
   SourcePosition position;
-  int inlining_id;
+  int deopt_id;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -258,6 +258,7 @@ class CpuProfiler : public CodeEventListener {
   void ResetProfiles();
   void LogBuiltins();
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
   Isolate* isolate_;

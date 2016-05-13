@@ -1360,8 +1360,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new (zone()) HGraph(info_, descriptor_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
   if (!info_->IsStub() && info_->is_tracking_positions()) {
-    TraceInlinedFunction(info_->shared_info(), SourcePosition::Unknown(),
-                         InlinedFunctionInfo::kNoParentId);
+    TraceInlinedFunction(info_->shared_info(), SourcePosition::Unknown());
   }
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
@@ -1371,16 +1370,13 @@ HGraph* HGraphBuilder::CreateGraph() {
 }
 
 int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                                        SourcePosition position,
-                                        int parent_id) {
+                                        SourcePosition position) {
   DCHECK(info_->is_tracking_positions());
 
   int inline_id = static_cast<int>(info_->inlined_function_infos().size());
-  InlinedFunctionInfo info(parent_id, position, UnboundScript::kNoScriptId,
-                           shared->start_position());
+  InlinedFunctionInfo info(shared->start_position());
   if (!shared->script()->IsUndefined()) {
     Handle<Script> script(Script::cast(shared->script()));
-    info.script_id = script->id();
 
     if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
       CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
@@ -8661,8 +8657,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   int inlining_id = 0;
   if (top_info()->is_tracking_positions()) {
-    inlining_id = TraceInlinedFunction(target_shared, source_position(),
-                                       function_state()->inlining_id());
+    inlining_id = TraceInlinedFunction(target_shared, source_position());
   }
 
   // Save the pending call context. Set up new one for the inlined function.

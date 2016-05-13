@@ -831,7 +831,7 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case DEOPT_REASON:
       return "deopt reason";
     case DEOPT_ID:
-      return "deopt inlining id";
+      return "deopt index";
     case CONST_POOL:
       return "constant pool";
     case VENEER_POOL:
@@ -2057,13 +2057,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(const int reason, int raw_position,
-                                  int inlining_id) {
+void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
-    RecordRelocInfo(RelocInfo::DEOPT_ID, inlining_id);
+    RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }
 }
 
