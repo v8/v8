@@ -1706,6 +1706,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
                               Register scratch1, Register scratch2,
                               Label* gc_required, AllocationFlags flags) {
   DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1767,7 +1768,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
     STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     AndP(result_end, result, Operand(kDoubleAlignmentMask));
     Label aligned;
-    beq(&aligned);
+    beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       CmpLogicalP(result, alloc_limit);
       bge(gc_required);
@@ -1792,7 +1793,11 @@ void MacroAssembler::Allocate(int object_size, Register result,
     blt(gc_required);
     AddP(result_end, result, result_end);
   }
-  StoreP(result_end, MemOperand(top_address));
+
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    StoreP(result_end, MemOperand(top_address));
+  }
 
   // Tag object.
   AddP(result, result, Operand(kHeapObjectTag));
@@ -1801,6 +1806,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
 void MacroAssembler::Allocate(Register object_size, Register result,
                               Register result_end, Register scratch,
                               Label* gc_required, AllocationFlags flags) {
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1858,7 +1864,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     AndP(result_end, result, Operand(kDoubleAlignmentMask));
     Label aligned;
-    beq(&aligned);
+    beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       CmpLogicalP(result, alloc_limit);
       bge(gc_required);
@@ -1890,6 +1896,110 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     AndP(r0, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, cr0);
   }
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    StoreP(result_end, MemOperand(top_address));
+  }
+
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap if the DOUBLE_ALIGNMENT flag
+  // is not specified. Other registers must not overlap.
+  DCHECK(!AreAliased(object_size, result, scratch, ip));
+  DCHECK(!AreAliased(result_end, result, scratch, ip));
+  DCHECK((flags & DOUBLE_ALIGNMENT) == 0 || !object_size.is(result_end));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  Register top_address = scratch;
+  mov(top_address, Operand(allocation_top));
+  LoadP(result, MemOperand(top_address));
+
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+// Align the next allocation. Storing the filler map without checking top is
+// safe in new-space because the limit of the heap is aligned there.
+#if V8_TARGET_ARCH_S390X
+    STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+#else
+    DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
+    AndP(result_end, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    beq(&aligned, Label::kNear);
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    StoreW(result_end, MemOperand(result));
+    AddP(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
+#endif
+  }
+
+  // Calculate new top using result. Object size may be in words so a shift is
+  // required to get the number of bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    ShiftLeftP(result_end, object_size, Operand(kPointerSizeLog2));
+    AddP(result_end, result, result_end);
+  } else {
+    AddP(result_end, result, object_size);
+  }
+
+  // Update allocation top. result temporarily holds the new top.
+  if (emit_debug_code()) {
+    AndP(r0, result_end, Operand(kObjectAlignmentMask));
+    Check(eq, kUnalignedAllocationInNewSpace, cr0);
+  }
+  StoreP(result_end, MemOperand(top_address));
+
+  // Tag object.
+  AddP(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(!AreAliased(result, scratch1, scratch2, ip));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  DCHECK_EQ(0, object_size & kObjectAlignmentMask);
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address register.
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  mov(top_address, Operand(allocation_top));
+  LoadP(result, MemOperand(top_address));
+
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+// Align the next allocation. Storing the filler map without checking top is
+// safe in new-space because the limit of the heap is aligned there.
+#if V8_TARGET_ARCH_S390X
+    STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+#else
+    DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
+    AndP(result_end, result, Operand(kDoubleAlignmentMask));
+    Label aligned;
+    beq(&aligned, Label::kNear);
+    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
+    StoreW(result_end, MemOperand(result));
+    AddP(result, result, Operand(kDoubleSize / 2));
+    bind(&aligned);
+#endif
+  }
+
+  // Calculate new top using result.
+  AddP(result_end, result, Operand(object_size));
+
+  // The top pointer is not updated for allocation folding dominators.
   StoreP(result_end, MemOperand(top_address));
 
   // Tag object.
