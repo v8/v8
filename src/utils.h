@@ -37,6 +37,11 @@ inline int HexValue(uc32 c) {
   return -1;
 }
 
+inline char HexCharOfValue(int value) {
+  DCHECK(0 <= value && value <= 16);
+  if (value < 10) return value + '0';
+  return value - 10 + 'A';
+}
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 

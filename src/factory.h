@@ -560,6 +560,11 @@ class Factory final {
     return NewRangeError(MessageTemplate::kInvalidStringLength);
   }
 
+  Handle<Object> NewURIError() {
+    return NewError(isolate()->uri_error_function(),
+                    MessageTemplate::kURIMalformed);
+  }
+
   Handle<Object> NewError(Handle<JSFunction> constructor,
                           MessageTemplate::Template template_index,
                           Handle<Object> arg0 = Handle<Object>(),
