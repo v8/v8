@@ -425,6 +425,13 @@ class Scanner {
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
   void clear_octal_position() { octal_pos_ = Location::invalid(); }
+  // Returns the location of the last seen decimal literal with a leading zero.
+  Location decimal_with_leading_zero_position() const {
+    return decimal_with_leading_zero_pos_;
+  }
+  void clear_decimal_with_leading_zero_position() {
+    decimal_with_leading_zero_pos_ = Location::invalid();
+  }
 
   // Returns the value of the last smi that was scanned.
   int smi_value() const { return current_.smi_value_; }
@@ -778,9 +785,9 @@ class Scanner {
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* source_;
 
-
-  // Start position of the octal literal last scanned.
+  // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;
+  Location decimal_with_leading_zero_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;

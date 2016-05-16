@@ -5635,9 +5635,10 @@ class V8_EXPORT Isolate {
     kLegacyFunctionDeclaration = 29,
     kRegExpPrototypeSourceGetter = 30,
     kRegExpPrototypeOldFlagGetter = 31,
+    kDecimalWithLeadingZeroInStrictMode = 32,
 
-    // If you add new values here, you'll also need to update V8Initializer.cpp
-    // in Chromium.
+    // If you add new values here, you'll also need to update Chromium's:
+    // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

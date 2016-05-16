@@ -40,6 +40,7 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
+      decimal_with_leading_zero_pos_(Location::invalid()),
       found_html_comment_(false),
       allow_harmony_exponentiation_operator_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
@@ -981,10 +982,18 @@ void Scanner::ScanDecimalDigits() {
 Token::Value Scanner::ScanNumber(bool seen_period) {
   DCHECK(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
-  enum { DECIMAL, HEX, OCTAL, IMPLICIT_OCTAL, BINARY } kind = DECIMAL;
+  enum {
+    DECIMAL,
+    DECIMAL_WITH_LEADING_ZERO,
+    HEX,
+    OCTAL,
+    IMPLICIT_OCTAL,
+    BINARY
+  } kind = DECIMAL;
 
   LiteralScope literal(this);
   bool at_start = !seen_period;
+  int start_pos = source_pos();  // For reporting octal positions.
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
@@ -993,7 +1002,6 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
-      int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, a hex number, a binary number or
@@ -1035,7 +1043,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         while (true) {
           if (c0_ == '8' || c0_ == '9') {
             at_start = false;
-            kind = DECIMAL;
+            kind = DECIMAL_WITH_LEADING_ZERO;
             break;
           }
           if (c0_  < '0' || '7'  < c0_) {
@@ -1045,11 +1053,13 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
           }
           AddLiteralCharAdvance();
         }
+      } else if (c0_ == '8' || c0_ == '9') {
+        kind = DECIMAL_WITH_LEADING_ZERO;
       }
     }
 
     // Parse decimal digits and allow trailing fractional part.
-    if (kind == DECIMAL) {
+    if (kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO) {
       if (at_start) {
         uint64_t value = 0;
         while (IsDecimalDigit(c0_)) {
@@ -1066,6 +1076,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
           literal.Complete();
           HandleLeadSurrogate();
 
+          if (kind == DECIMAL_WITH_LEADING_ZERO)
+            decimal_with_leading_zero_pos_ = Location(start_pos, source_pos());
           return Token::SMI;
         }
         HandleLeadSurrogate();
@@ -1082,7 +1094,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // scan exponent, if any
   if (c0_ == 'e' || c0_ == 'E') {
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
-    if (kind != DECIMAL) return Token::ILLEGAL;
+    if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
+      return Token::ILLEGAL;
     // scan exponent
     AddLiteralCharAdvance();
     if (c0_ == '+' || c0_ == '-')
@@ -1104,6 +1117,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
   literal.Complete();
 
+  if (kind == DECIMAL_WITH_LEADING_ZERO)
+    decimal_with_leading_zero_pos_ = Location(start_pos, source_pos());
   return Token::NUMBER;
 }
 
