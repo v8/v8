@@ -2587,12 +2587,12 @@ class FunctionLiteral final : public Expression {
   int start_position() const;
   int end_position() const;
   int SourceSize() const { return end_position() - start_position(); }
-  bool is_declaration() const { return IsDeclaration::decode(bitfield_); }
+  bool is_declaration() const { return function_type() == kDeclaration; }
   bool is_named_expression() const {
-    return IsNamedExpression::decode(bitfield_);
+    return function_type() == kNamedExpression;
   }
   bool is_anonymous_expression() const {
-    return IsAnonymousExpression::decode(bitfield_);
+    return function_type() == kAnonymousExpression;
   }
   LanguageMode language_mode() const;
 
@@ -2669,6 +2669,9 @@ class FunctionLiteral final : public Expression {
     bitfield_ = ShouldBeUsedOnceHint::update(bitfield_, true);
   }
 
+  FunctionType function_type() const {
+    return FunctionTypeBits::decode(bitfield_);
+  }
   FunctionKind kind() const { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
@@ -2714,10 +2717,7 @@ class FunctionLiteral final : public Expression {
         function_token_position_(RelocInfo::kNoPosition),
         yield_count_(0) {
     bitfield_ =
-        IsDeclaration::encode(function_type == kDeclaration) |
-        IsNamedExpression::encode(function_type == kNamedExpression) |
-        IsAnonymousExpression::encode(function_type == kAnonymousExpression) |
-        Pretenure::encode(false) |
+        FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
@@ -2727,15 +2727,13 @@ class FunctionLiteral final : public Expression {
   }
 
  private:
-  class IsDeclaration : public BitField16<bool, 0, 1> {};
-  class IsNamedExpression : public BitField16<bool, 1, 1> {};
-  class IsAnonymousExpression : public BitField16<bool, 2, 1> {};
-  class Pretenure : public BitField16<bool, 3, 1> {};
-  class HasDuplicateParameters : public BitField16<bool, 4, 1> {};
-  class IsFunction : public BitField16<bool, 5, 1> {};
-  class ShouldEagerCompile : public BitField16<bool, 6, 1> {};
-  class ShouldBeUsedOnceHint : public BitField16<bool, 7, 1> {};
-  class FunctionKindBits : public BitField16<FunctionKind, 8, 8> {};
+  class FunctionTypeBits : public BitField16<FunctionType, 0, 2> {};
+  class Pretenure : public BitField16<bool, 2, 1> {};
+  class HasDuplicateParameters : public BitField16<bool, 3, 1> {};
+  class IsFunction : public BitField16<bool, 4, 1> {};
+  class ShouldEagerCompile : public BitField16<bool, 5, 1> {};
+  class ShouldBeUsedOnceHint : public BitField16<bool, 6, 1> {};
+  class FunctionKindBits : public BitField16<FunctionKind, 7, 9> {};
 
   // Start with 16-bit field, which should get packed together
   // with Expression's trailing 16-bit field.

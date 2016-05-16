@@ -51,6 +51,8 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
     return PreParserIdentifier::Static();
   } else if (scanner->current_token() == Token::YIELD) {
     return PreParserIdentifier::Yield();
+  } else if (scanner->current_token() == Token::ASYNC) {
+    return PreParserIdentifier::Async();
   }
   if (scanner->UnescapedLiteralMatches("eval", 4)) {
     return PreParserIdentifier::Eval();
@@ -193,6 +195,13 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
         return ParseVariableStatement(kStatementListItem, ok);
       }
       break;
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return ParseAsyncFunctionDeclaration(ok);
+      }
+    /* falls through */
     default:
       break;
   }
@@ -381,22 +390,44 @@ PreParser::Statement PreParser::ParseSubStatement(
   }
 }
 
-
 PreParser::Statement PreParser::ParseHoistableDeclaration(
-    int pos, bool is_generator, bool* ok) {
+    int pos, ParseFunctionFlags flags, bool* ok) {
+  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
+  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
+  DCHECK(!is_generator || !is_async);
+
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
+
+  if (V8_UNLIKELY(is_async_function() && this->IsAwait(name))) {
+    ReportMessageAt(scanner()->location(),
+                    MessageTemplate::kAwaitBindingIdentifier);
+    *ok = false;
+    return Statement::Default();
+  }
+
   ParseFunctionLiteral(name, scanner()->location(),
                        is_strict_reserved ? kFunctionNameIsStrictReserved
                                           : kFunctionNameValidityUnknown,
                        is_generator ? FunctionKind::kGeneratorFunction
-                                    : FunctionKind::kNormalFunction,
+                                    : is_async ? FunctionKind::kAsyncFunction
+                                               : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
+PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
+  return ParseHoistableDeclaration(pos, flags, ok);
+}
 
 PreParser::Statement PreParser::ParseHoistableDeclaration(bool* ok) {
   // FunctionDeclaration ::
@@ -404,10 +435,14 @@ PreParser::Statement PreParser::ParseHoistableDeclaration(bool* ok) {
   // GeneratorDeclaration ::
   //   'function' '*' Identifier '(' FormalParameterListopt ')'
   //      '{' FunctionBody '}'
+
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  return ParseHoistableDeclaration(pos, is_generator, CHECK_OK);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+  }
+  return ParseHoistableDeclaration(pos, flags, ok);
 }
 
 
@@ -566,15 +601,17 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
 PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  if (allow_harmony_restrictive_declarations() && is_generator) {
-    PreParserTraits::ReportMessageAt(
-        scanner()->location(),
-        MessageTemplate::kGeneratorInLegacyContext);
-    *ok = false;
-    return Statement::Default();
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+    if (allow_harmony_restrictive_declarations()) {
+      PreParserTraits::ReportMessageAt(
+          scanner()->location(), MessageTemplate::kGeneratorInLegacyContext);
+      *ok = false;
+      return Statement::Default();
+    }
   }
-  return ParseHoistableDeclaration(pos, is_generator, ok);
+  return ParseHoistableDeclaration(pos, flags, ok);
 }
 
 PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
@@ -1111,6 +1148,37 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   return Expression::Default();
 }
 
+PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function ( FormalParameters[Await] )
+  //       { AsyncFunctionBody }
+  //
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  bool is_strict_reserved = false;
+  Identifier name;
+  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
+
+  if (peek_any_identifier()) {
+    type = FunctionLiteral::kNamedExpression;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+    if (this->IsAwait(name)) {
+      ReportMessageAt(scanner()->location(),
+                      MessageTemplate::kAwaitBindingIdentifier);
+      *ok = false;
+      return Expression::Default();
+    }
+  }
+
+  ParseFunctionLiteral(name, scanner()->location(),
+                       is_strict_reserved ? kFunctionNameIsStrictReserved
+                                          : kFunctionNameValidityUnknown,
+                       FunctionKind::kAsyncFunction, pos, type, language_mode(),
+                       CHECK_OK);
+  return Expression::Default();
+}
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
                                              Scanner::BookmarkScope* bookmark) {
@@ -1172,12 +1240,11 @@ PreParserExpression PreParser::ParseClassLiteral(
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     const bool in_class = true;
-    const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     Identifier name;
     ExpressionClassifier property_classifier(this);
-    ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
+    ParsePropertyDefinition(&checker, in_class, has_extends, MethodKind::Normal,
                             &is_computed_name, &has_seen_constructor,
                             &property_classifier, &name, CHECK_OK);
     ValidateExpression(&property_classifier, CHECK_OK);

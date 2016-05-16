@@ -330,6 +330,10 @@ bool ParserTraits::IsUndefined(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->undefined_string();
 }
 
+bool ParserTraits::IsAwait(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->await_string();
+}
+
 bool ParserTraits::IsPrototype(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->prototype_string();
 }
@@ -798,6 +802,7 @@ Parser::Parser(ParseInfo* info)
       FLAG_harmony_restrictive_declarations);
   set_allow_harmony_exponentiation_operator(
       FLAG_harmony_exponentiation_operator);
+  set_allow_harmony_async_await(FLAG_harmony_async_await);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1075,6 +1080,13 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     bool ok = true;
 
     if (shared_info->is_arrow()) {
+      bool is_async = allow_harmony_async_await() && shared_info->is_async();
+      if (is_async) {
+        DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
+        Consume(Token::ASYNC);
+        DCHECK(peek_any_identifier() || peek() == Token::LPAREN);
+      }
+
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       Scope* scope =
           NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
@@ -1115,8 +1127,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         checkpoint.Restore(&formals.materialized_literals_count);
         // Pass `accept_IN=true` to ParseArrowFunctionLiteral --- This should
         // not be observable, or else the preparser would have failed.
-        Expression* expression =
-            ParseArrowFunctionLiteral(true, formals, formals_classifier, &ok);
+        Expression* expression = ParseArrowFunctionLiteral(
+            true, formals, is_async, formals_classifier, &ok);
         if (ok) {
           // Scanning must end at the same position that was recorded
           // previously. If not, parsing has been interrupted due to a stack
@@ -1255,8 +1267,8 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
   // StatementListItem:
   //    Statement
   //    Declaration
-
-  switch (peek()) {
+  const Token::Value peeked = peek();
+  switch (peeked) {
     case Token::FUNCTION:
       return ParseHoistableDeclaration(NULL, ok);
     case Token::CLASS:
@@ -1271,6 +1283,13 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
         return ParseVariableStatement(kStatementListItem, NULL, ok);
       }
       break;
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return ParseAsyncFunctionDeclaration(NULL, ok);
+      }
+    /* falls through */
     default:
       break;
   }
@@ -1560,7 +1579,10 @@ Statement* Parser::ParseExportDefault(bool* ok) {
             pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
-        result = ParseHoistableDeclaration(pos, is_generator, &names, CHECK_OK);
+        result = ParseHoistableDeclaration(
+            pos, is_generator ? ParseFunctionFlags::kIsGenerator
+                              : ParseFunctionFlags::kIsNormal,
+            &names, CHECK_OK);
       }
       break;
     }
@@ -1578,6 +1600,30 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         result = ParseClassDeclaration(&names, CHECK_OK);
       }
       break;
+
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        Consume(Token::FUNCTION);
+        int pos = position();
+        if (peek() == Token::LPAREN) {
+          // AsyncFunctionDeclaration[+Default] ::
+          //   async [no LineTerminator here] function ( FormalParameters ) {
+          //      AsyncFunctionBody
+          //   }
+          default_export = ParseFunctionLiteral(
+              default_string, Scanner::Location::invalid(),
+              kSkipFunctionNameCheck, FunctionKind::kAsyncFunction, pos,
+              FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
+          result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+        } else {
+          result = ParseHoistableDeclaration(pos, ParseFunctionFlags::kIsAsync,
+                                             &names, CHECK_OK);
+        }
+        break;
+      }
+    /* falls through */
 
     default: {
       int pos = peek_position();
@@ -1702,6 +1748,14 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::CONST:
       result = ParseVariableStatement(kStatementListItem, &names, CHECK_OK);
       break;
+
+    case Token::ASYNC:
+      if (allow_harmony_async_await()) {
+        Consume(Token::ASYNC);
+        result = ParseAsyncFunctionDeclaration(&names, CHECK_OK);
+        break;
+      }
+    /* falls through */
 
     default:
       *ok = false;
@@ -2062,13 +2116,29 @@ Statement* Parser::ParseHoistableDeclaration(
     ZoneList<const AstRawString*>* names, bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  return ParseHoistableDeclaration(pos, is_generator, names, ok);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+  }
+  return ParseHoistableDeclaration(pos, flags, names, ok);
 }
 
+Statement* Parser::ParseAsyncFunctionDeclaration(
+    ZoneList<const AstRawString*>* names, bool* ok) {
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+    *ok = false;
+    ReportUnexpectedToken(scanner()->current_token());
+    return nullptr;
+  }
+  Expect(Token::FUNCTION, CHECK_OK);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
+  return ParseHoistableDeclaration(pos, flags, names, ok);
+}
 
 Statement* Parser::ParseHoistableDeclaration(
-    int pos, bool is_generator, ZoneList<const AstRawString*>* names,
+    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
     bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
@@ -2076,9 +2146,20 @@ Statement* Parser::ParseHoistableDeclaration(
   //   'function' '*' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
   //
   // 'function' and '*' (if present) have been consumed by the caller.
+  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
+  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
+  DCHECK(!is_generator || !is_async);
+
   bool is_strict_reserved = false;
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
+
+  if (V8_UNLIKELY(is_async_function() && this->IsAwait(name))) {
+    ReportMessageAt(scanner()->location(),
+                    MessageTemplate::kAwaitBindingIdentifier);
+    *ok = false;
+    return nullptr;
+  }
 
   FuncNameInferrer::State fni_state(fni_);
   if (fni_ != NULL) fni_->PushEnclosingName(name);
@@ -2087,7 +2168,8 @@ Statement* Parser::ParseHoistableDeclaration(
       is_strict_reserved ? kFunctionNameIsStrictReserved
                          : kFunctionNameValidityUnknown,
       is_generator ? FunctionKind::kGeneratorFunction
-                   : FunctionKind::kNormalFunction,
+                   : is_async ? FunctionKind::kAsyncFunction
+                              : FunctionKind::kNormalFunction,
       pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
 
   // Even if we're not at the top-level of the global or a function
@@ -2400,15 +2482,18 @@ static bool ContainsLabel(ZoneList<const AstRawString*>* labels,
 Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  if (allow_harmony_restrictive_declarations() && is_generator) {
-    ParserTraits::ReportMessageAt(
-        scanner()->location(),
-        MessageTemplate::kGeneratorInLegacyContext);
-    *ok = false;
-    return nullptr;
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+    if (allow_harmony_restrictive_declarations()) {
+      ParserTraits::ReportMessageAt(scanner()->location(),
+                                    MessageTemplate::kGeneratorInLegacyContext);
+      *ok = false;
+      return nullptr;
+    }
   }
-  return ParseHoistableDeclaration(pos, is_generator, nullptr, CHECK_OK);
+
+  return ParseHoistableDeclaration(pos, flags, nullptr, CHECK_OK);
 }
 
 Statement* Parser::ParseExpressionOrLabelledStatement(
@@ -4051,7 +4136,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
                            formals_end_position, CHECK_OK);
     Expect(Token::LBRACE, CHECK_OK);
-
     // Don't include the rest parameter into the function's formal parameter
     // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
     // which says whether we need to create an arguments adaptor frame).
@@ -4207,6 +4291,36 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
+Expression* Parser::ParseAsyncFunctionExpression(bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function ( FormalParameters[Await] )
+  //       { AsyncFunctionBody }
+  //
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  bool is_strict_reserved = false;
+  const AstRawString* name = nullptr;
+  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
+
+  if (peek_any_identifier()) {
+    type = FunctionLiteral::kNamedExpression;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+    if (this->IsAwait(name)) {
+      ReportMessageAt(scanner()->location(),
+                      MessageTemplate::kAwaitBindingIdentifier);
+      *ok = false;
+      return nullptr;
+    }
+  }
+  return ParseFunctionLiteral(name, scanner()->location(),
+                              is_strict_reserved ? kFunctionNameIsStrictReserved
+                                                 : kFunctionNameValidityUnknown,
+                              FunctionKind::kAsyncFunction, pos, type,
+                              language_mode(), CHECK_OK);
+}
 
 void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
                                   int* expected_property_count, bool* ok,
@@ -4606,6 +4720,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_exponentiation_operator);
     SET_ALLOW(harmony_restrictive_declarations);
+    SET_ALLOW(harmony_async_await);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
@@ -4676,13 +4791,12 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     if (Check(Token::SEMICOLON)) continue;
     FuncNameInferrer::State fni_state(fni_);
     const bool in_class = true;
-    const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ExpressionClassifier property_classifier(this);
     const AstRawString* property_name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
-        &checker, in_class, has_extends, is_static, &is_computed_name,
+        &checker, in_class, has_extends, MethodKind::Normal, &is_computed_name,
         &has_seen_constructor, &property_classifier, &property_name, CHECK_OK);
     RewriteNonPattern(&property_classifier, CHECK_OK);
     if (classifier != nullptr) {
@@ -5313,6 +5427,17 @@ void Parser::MarkCollectedTailCallExpressions() {
   }
 }
 
+Expression* ParserTraits::ExpressionListToExpression(
+    ZoneList<Expression*>* args) {
+  AstNodeFactory* factory = parser_->factory();
+  Expression* expr = args->at(0);
+  for (int i = 1; i < args->length(); ++i) {
+    expr = factory->NewBinaryOperation(Token::COMMA, expr, args->at(i),
+                                       expr->position());
+  }
+  return expr;
+}
+
 void ParserTraits::RewriteDestructuringAssignments() {
   parser_->RewriteDestructuringAssignments();
 }
@@ -5333,6 +5458,11 @@ void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
   parser_->RewriteNonPattern(classifier, ok);
 }
 
+Expression* ParserTraits::RewriteAwaitExpression(Expression* value, int pos) {
+  // TODO(caitp): Implement AsyncFunctionAwait()
+  // per tc39.github.io/ecmascript-asyncawait/#abstract-ops-async-function-await
+  return value;
+}
 
 Zone* ParserTraits::zone() const {
   return parser_->function_state_->scope()->zone();

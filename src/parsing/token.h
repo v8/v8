@@ -149,6 +149,7 @@ namespace internal {
                                                                      \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */           \
   T(FUTURE_STRICT_RESERVED_WORD, NULL, 0)                            \
+  K(ASYNC, "async", 0)                                               \
   /* `await` is a reserved word in module code only */               \
   K(AWAIT, "await", 0)                                               \
   K(CLASS, "class", 0)                                               \
@@ -201,6 +202,7 @@ class Token {
                            bool is_generator, bool is_module) {
     switch (tok) {
       case IDENTIFIER:
+      case ASYNC:
         return true;
       case ESCAPED_STRICT_RESERVED_WORD:
       case FUTURE_STRICT_RESERVED_WORD:

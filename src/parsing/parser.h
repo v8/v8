@@ -355,6 +355,7 @@ class ParserTraits {
   bool IsArguments(const AstRawString* identifier) const;
   bool IsEvalOrArguments(const AstRawString* identifier) const;
   bool IsUndefined(const AstRawString* identifier) const;
+  bool IsAwait(const AstRawString* identifier) const;
   V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
 
   // Returns true if the expression is of type "this.foo".
@@ -554,6 +555,8 @@ class ParserTraits {
       const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
 
+  V8_INLINE Expression* ParseAsyncFunctionExpression(bool* ok);
+
   V8_INLINE DoExpression* ParseDoExpression(bool* ok);
 
   void ReindexLiterals(const ParserFormalParameters& parameters);
@@ -637,6 +640,8 @@ class ParserTraits {
                                       ZoneList<v8::internal::Expression*>* args,
                                       int pos);
 
+  Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
+
   // Rewrite all DestructuringAssignments in the current FunctionState.
   V8_INLINE void RewriteDestructuringAssignments();
 
@@ -644,6 +649,8 @@ class ParserTraits {
                                               Expression* right, int pos);
   V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
                                                     Expression* right, int pos);
+
+  V8_INLINE Expression* RewriteAwaitExpression(Expression* value, int pos);
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
@@ -772,7 +779,13 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
-  Statement* ParseHoistableDeclaration(int pos, bool is_generator,
+  Statement* ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
+                                       ZoneList<const AstRawString*>* names,
+                                       bool* ok);
+  Statement* ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
+                                           bool* ok);
+  Expression* ParseAsyncFunctionExpression(bool* ok);
+  Statement* ParseFunctionDeclaration(int pos, bool is_generator,
                                       ZoneList<const AstRawString*>* names,
                                       bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
@@ -1255,6 +1268,9 @@ void ParserTraits::AddParameterInitializationBlock(
   }
 }
 
+Expression* ParserTraits::ParseAsyncFunctionExpression(bool* ok) {
+  return parser_->ParseAsyncFunctionExpression(ok);
+}
 
 DoExpression* ParserTraits::ParseDoExpression(bool* ok) {
   return parser_->ParseDoExpression(ok);

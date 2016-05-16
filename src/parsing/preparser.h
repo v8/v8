@@ -61,6 +61,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Await() {
     return PreParserIdentifier(kAwaitIdentifier);
   }
+  static PreParserIdentifier Async() {
+    return PreParserIdentifier(kAsyncIdentifier);
+  }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const { return IsEval() || IsArguments(); }
@@ -72,6 +75,7 @@ class PreParserIdentifier {
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsEnum() const { return type_ == kEnumIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
+  bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsFutureStrictReserved() const {
     return type_ == kFutureStrictReservedIdentifier ||
            type_ == kLetIdentifier || type_ == kStaticIdentifier ||
@@ -100,7 +104,8 @@ class PreParserIdentifier {
     kPrototypeIdentifier,
     kConstructorIdentifier,
     kEnumIdentifier,
-    kAwaitIdentifier
+    kAwaitIdentifier,
+    kAsyncIdentifier
   };
 
   explicit PreParserIdentifier(Type type) : type_(type) {}
@@ -622,6 +627,14 @@ class PreParserTraits {
     return identifier.IsArguments();
   }
 
+  static bool IsAwait(PreParserIdentifier identifier) {
+    return identifier.IsAwait();
+  }
+
+  static bool IsAsync(PreParserIdentifier identifier) {
+    return identifier.IsAsync();
+  }
+
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
     return identifier.IsEvalOrArguments();
   }
@@ -865,6 +878,8 @@ class PreParserTraits {
       PreParserExpression expression, const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
 
+  V8_INLINE PreParserExpression ParseAsyncFunctionExpression(bool* ok);
+
   void ReindexLiterals(const PreParserFormalParameters& paramaters) {}
 
   struct TemplateLiteralState {};
@@ -937,6 +952,11 @@ class PreParserTraits {
                                            PreParserExpressionList args,
                                            int pos);
 
+  inline PreParserExpression ExpressionListToExpression(
+      PreParserExpressionList args) {
+    return PreParserExpression::Default();
+  }
+
   inline void RewriteDestructuringAssignments() {}
 
   inline PreParserExpression RewriteExponentiation(PreParserExpression left,
@@ -959,6 +979,9 @@ class PreParserTraits {
 
   inline void RewriteNonPattern(Type::ExpressionClassifier* classifier,
                                 bool* ok);
+
+  inline PreParserExpression RewriteAwaitExpression(PreParserExpression value,
+                                                    int pos);
 
   V8_INLINE Zone* zone() const;
   V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const;
@@ -1076,8 +1099,11 @@ class PreParser : public ParserBase<PreParserTraits> {
                               bool* ok);
   Statement ParseScopedStatement(bool legacy, bool* ok);
   Statement ParseHoistableDeclaration(bool* ok);
-  Statement ParseHoistableDeclaration(int pos, bool is_generator, bool* ok);
+  Statement ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
+                                      bool* ok);
   Statement ParseFunctionDeclaration(bool* ok);
+  Statement ParseAsyncFunctionDeclaration(bool* ok);
+  Expression ParseAsyncFunctionExpression(bool* ok);
   Statement ParseClassDeclaration(bool* ok);
   Statement ParseBlock(bool* ok);
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
@@ -1166,6 +1192,9 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
   // lists that are too long.
 }
 
+PreParserExpression PreParserTraits::ParseAsyncFunctionExpression(bool* ok) {
+  return pre_parser_->ParseAsyncFunctionExpression(ok);
+}
 
 PreParserExpression PreParserTraits::ParseDoExpression(bool* ok) {
   return pre_parser_->ParseDoExpression(ok);
@@ -1177,6 +1206,10 @@ void PreParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
   pre_parser_->ValidateExpression(classifier, ok);
 }
 
+PreParserExpression PreParserTraits::RewriteAwaitExpression(
+    PreParserExpression value, int pos) {
+  return value;
+}
 
 Zone* PreParserTraits::zone() const {
   return pre_parser_->function_state_->scope()->zone();

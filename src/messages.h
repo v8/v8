@@ -358,6 +358,7 @@ class CallSite {
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
+  T(ConstructorIsAsync, "Class constructor may not be an async method")        \
   T(DerivedConstructorReturn,                                                  \
     "Derived constructors may only return object or undefined")                \
   T(DuplicateConstructor, "A class may only have one constructor")             \
@@ -432,6 +433,10 @@ class CallSite {
   T(TemplateOctalLiteral,                                                      \
     "Octal literals are not allowed in template strings.")                     \
   T(ThisFormalParameter, "'this' is not a valid formal parameter name")        \
+  T(AwaitBindingIdentifier,                                                    \
+    "'await' is not a valid identifier name in an async function")             \
+  T(AwaitExpressionFormalParameter,                                            \
+    "Illegal await-expression in formal parameters of async function")         \
   T(TooManyArguments,                                                          \
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \

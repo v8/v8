@@ -249,6 +249,7 @@ Token::Value Scanner::Next() {
   if (V8_UNLIKELY(next_next_.token != Token::UNINITIALIZED)) {
     next_ = next_next_;
     next_next_.token = Token::UNINITIALIZED;
+    has_line_terminator_before_next_ = has_line_terminator_after_next_;
     return current_.token;
   }
   has_line_terminator_before_next_ = false;
@@ -274,7 +275,12 @@ Token::Value Scanner::PeekAhead() {
     return next_next_.token;
   }
   TokenDesc prev = current_;
+  bool has_line_terminator_before_next =
+      has_line_terminator_before_next_ || has_multiline_comment_before_next_;
   Next();
+  has_line_terminator_after_next_ =
+      has_line_terminator_before_next_ || has_multiline_comment_before_next_;
+  has_line_terminator_before_next_ = has_line_terminator_before_next;
   Token::Value ret = next_.token;
   next_next_ = next_;
   next_ = current_;
@@ -1136,6 +1142,7 @@ uc32 Scanner::ScanUnicodeEscape() {
 
 #define KEYWORDS(KEYWORD_GROUP, KEYWORD)                    \
   KEYWORD_GROUP('a')                                        \
+  KEYWORD("async", Token::ASYNC)                            \
   KEYWORD("await", Token::AWAIT)                            \
   KEYWORD_GROUP('b')                                        \
   KEYWORD("break", Token::BREAK)                            \

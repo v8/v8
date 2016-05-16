@@ -1508,7 +1508,8 @@ enum ParserFlag {
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
   kAllowHarmonyExponentiationOperator,
-  kAllowHarmonyForIn
+  kAllowHarmonyForIn,
+  kAllowHarmonyAsyncAwait
 };
 
 enum ParserSyncTestResult {
@@ -1529,6 +1530,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_exponentiation_operator(
       flags.Contains(kAllowHarmonyExponentiationOperator));
   parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
+  parser->set_allow_harmony_async_await(
+      flags.Contains(kAllowHarmonyAsyncAwait));
 }
 
 
@@ -7446,6 +7449,234 @@ TEST(ExponentiationOperatorErrors) {
       kAllowHarmonyExponentiationOperator};
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
+}
+
+TEST(AsyncAwait) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'use strict';", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    "var asyncFn = async function() { await 1; };",
+    "var asyncFn = async function withName() { await 1; };",
+    "var asyncFn = async () => await 'test';",
+    "var asyncFn = async x => await x + 'test';",
+    "async function asyncFn() { await 1; }",
+    "var O = { async method() { await 1; } }",
+    "var O = { async ['meth' + 'od']() { await 1; } }",
+    "var O = { async 'method'() { await 1; } }",
+    "var O = { async 0() { await 1; } }",
+    "async function await() {}",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+
+  // clang-format off
+  const char* async_body_context_data[][2] = {
+    { "async function f() {", "}" },
+    { "var f = async function() {", "}" },
+    { "var f = async() => {", "}" },
+    { "var O = { async method() {", "} }" },
+    { "'use strict'; async function f() {", "}" },
+    { "'use strict'; var f = async function() {", "}" },
+    { "'use strict'; var f = async() => {", "}" },
+    { "'use strict'; var O = { async method() {", "} }" },
+    { NULL, NULL }
+  };
+
+  const char* body_context_data[][2] = {
+    { "function f() {", "}" },
+    { "function* g() {", "}" },
+    { "var f = function() {", "}" },
+    { "var g = function*() {", "}" },
+    { "var O = { method() {", "} }" },
+    { "var O = { *method() {", "} }" },
+    { "var f = () => {", "}" },
+    { "'use strict'; function f() {", "}" },
+    { "'use strict'; function* g() {", "}" },
+    { "'use strict'; var f = function() {", "}" },
+    { "'use strict'; var g = function*() {", "}" },
+    { "'use strict'; var O = { method() {", "} }" },
+    { "'use strict'; var O = { *method() {", "} }" },
+    { "'use strict'; var f = () => {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* body_data[] = {
+    "var async = 1; return async;",
+    "let async = 1; return async;",
+    "const async = 1; return async;",
+    "function async() {} return async();",
+    "var async = async => async; return async();",
+    "function foo() { var await = 1; return await; }",
+    "function foo(await) { return await; }",
+    "function* foo() { var await = 1; return await; }",
+    "function* foo(await) { return await; }",
+    "var f = (await) => await;",
+    "var f = () => { var await = 1; return await; }",
+    "var O = { method() { var await = 1; return await; } };",
+    "var O = { method(await) { return await; } };",
+    "var O = { *method() { var await = 1; return await; } };",
+    "var O = { *method(await) { return await; } };",
+
+    "(function await() {})",
+    NULL
+  };
+  // clang-format on
+
+  RunParserSyncTest(async_body_context_data, body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(body_context_data, body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(AsyncAwaitErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'use strict';", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+
+  const char* strict_context_data[][2] = {
+    { "'use strict';", "" },
+    { NULL, NULL }
+  };
+
+  const char* error_data[] = {
+    "var asyncFn = async function() { var await = 1; };",
+    "var asyncFn = async function() { var { await } = 1; };",
+    "var asyncFn = async function() { var [ await ] = 1; };",
+    "var asyncFn = async function await() {};",
+    "var asyncFn = async () => var await = 'test';",
+    "var asyncFn = async await => await + 'test';",
+    "var asyncFn = async function(await) {};",
+    "var asyncFn = async function() { return async (await) => {}; }",
+    "var asyncFn = async (await) => 'test';",
+    "var asyncFn = async x => { var await = 1; }",
+    "var asyncFn = async x => { var { await } = 1; }",
+    "var asyncFn = async x => { var [ await ] = 1; }",
+    "async function f(await) {}",
+    "async function f() { var await = 1; }",
+    "async function f() { var { await } = 1; }",
+    "async function f() { var [ await ] = 1; }",
+
+    "var O = { async method(a, a) {} }",
+    "var O = { async ['meth' + 'od'](a, a) {} }",
+    "var O = { async 'method'(a, a) {} }",
+    "var O = { async 0(a, a) {} }",
+
+    "async function f() { var O = { async [await](a, a) {} } }",
+
+    "var asyncFn = async function() { await; }",
+    "async function f() { await; }",
+    "var O = { async method() { await; } };",
+    "var f = async() => await;",
+    "var f = async() => { await; };",
+
+    "var asyncFn = async function*() {}",
+    "async function* f() {}",
+    "var O = { *async method() {} };",
+    "var O = { async *method() {} };",
+    "var O = { async method*() {} };",
+
+    "var asyncFn = async function(x = await 1) { return x; }",
+    "async function f(x = await 1) { return x; }",
+    "var f = async(x = await 1) => x;",
+    "var O = { async method(x = await 1) { return x; } };",
+
+    "var f = async(x = await) => 1;",
+
+    "class C { async constructor() {} }",
+    "class C {}; class C2 extends C { async constructor() {} }",
+    "class C { static async prototype() {} }",
+    "class C {}; class C2 extends C { static async prototype() {} }",
+
+    "var f = async() => ((async(x = await 1) => x)();",
+
+    "var asyncFn = async function() { function await() {} }",
+    "var asyncFn = async() => { function await() {} }",
+    "var O = { async method() { function await() {} } }",
+    "async function foo() { function await() {} }",
+
+    NULL
+  };
+
+  const char* strict_error_data[] = {
+    "var O = { async method(eval) {} }",
+    "var O = { async ['meth' + 'od'](eval) {} }",
+    "var O = { async 'method'(eval) {} }",
+    "var O = { async 0(eval) {} }",
+
+    "var O = { async method(arguments) {} }",
+    "var O = { async ['meth' + 'od'](arguments) {} }",
+    "var O = { async 'method'(arguments) {} }",
+    "var O = { async 0(arguments) {} }",
+
+    "var O = { async method(dupe, dupe) {} }",
+
+    // TODO(caitp): preparser needs to report duplicate parameter errors, too.
+    // "var f = async(dupe, dupe) => {}",
+
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
+  RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(AsyncAwaitModule) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    "export default async function() { await 1; }",
+    "export default async function async() { await 1; }",
+    "export async function async() { await 1; }",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                          arraysize(always_flags), NULL, 0, false);
+}
+
+TEST(AsyncAwaitModuleErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { NULL, NULL }
+  };
+
+  const char* error_data[] = {
+    "export default (async function await() {})",
+    "export default async function await() {}",
+    "export async function await() {}",
+    "export async function() {}",
+    "export async",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0,
+                          always_flags, arraysize(always_flags), NULL, 0,
+                          false);
 }
 
 TEST(RestrictiveForInErrors) {

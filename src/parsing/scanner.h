@@ -442,6 +442,12 @@ class Scanner {
            has_multiline_comment_before_next_;
   }
 
+  bool HasAnyLineTerminatorAfterNext() {
+    Token::Value ensure_next_next = PeekAhead();
+    USE(ensure_next_next);
+    return has_line_terminator_after_next_;
+  }
+
   // Scans the input as a regular expression pattern, previous
   // character(s) must be /(=). Returns true if a pattern is scanned.
   bool ScanRegExpPattern(bool seen_equal);
@@ -786,6 +792,7 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
+  bool has_line_terminator_after_next_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;

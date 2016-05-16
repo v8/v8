@@ -204,14 +204,16 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_simd, "harmony simd")                                       \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
+  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")      \
+  V(harmony_async_await, "harmony async-await")
 #else
-#define HARMONY_INPROGRESS(V)                                  \
-  V(harmony_function_sent, "harmony function.sent")            \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")    \
-  V(harmony_simd, "harmony simd")                              \
-  V(harmony_do_expressions, "harmony do-expressions")          \
-  V(harmony_regexp_property, "harmony unicode regexp property classes")
+#define HARMONY_INPROGRESS(V)                                           \
+  V(harmony_function_sent, "harmony function.sent")                     \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
+  V(harmony_simd, "harmony simd")                                       \
+  V(harmony_do_expressions, "harmony do-expressions")                   \
+  V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_async_await, "harmony async-await")
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
