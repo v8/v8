@@ -178,7 +178,8 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  function->shared()->set_disable_optimization_reason(kOptimizationDisabled);
+  function->shared()->set_disable_optimization_reason(
+      kOptimizationDisabledForTest);
   function->shared()->set_optimization_disabled(true);
   return isolate->heap()->undefined_value();
 }

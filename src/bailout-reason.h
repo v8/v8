@@ -170,7 +170,8 @@ namespace internal {
   V(kOperandNotANumber, "Operand not a number")                                \
   V(kObjectTagged, "The object is tagged")                                     \
   V(kObjectNotTagged, "The object is not tagged")                              \
-  V(kOptimizationDisabled, "Optimization is disabled")                         \
+  V(kOptimizationDisabled, "Optimization disabled")                            \
+  V(kOptimizationDisabledForTest, "Optimization disabled for test")            \
   V(kOptimizedTooManyTimes, "Optimized too many times")                        \
   V(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister,                   \
     "Out of virtual registers while trying to allocate temp register")         \
