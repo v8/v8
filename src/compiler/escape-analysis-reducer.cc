@@ -28,8 +28,7 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
       escape_analysis_(escape_analysis),
       zone_(zone),
       fully_reduced_(static_cast<int>(jsgraph->graph()->NodeCount() * 2), zone),
-      exists_virtual_allocate_(true) {}
-
+      exists_virtual_allocate_(escape_analysis->ExistsVirtualAllocate()) {}
 
 Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&

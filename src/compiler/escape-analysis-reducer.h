@@ -29,9 +29,6 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
                         EscapeAnalysis* escape_analysis, Zone* zone);
 
   Reduction Reduce(Node* node) final;
-  void SetExistsVirtualAllocate(bool exists) {
-    exists_virtual_allocate_ = exists;
-  }
   void VerifyReplacement() const;
 
  private:
