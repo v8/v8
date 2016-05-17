@@ -422,6 +422,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
         descriptor_(nullptr),
         testing_module_(module),
         debug_name_(debug_name),
+        local_decls(main_zone(), sig),
         source_position_table_(this->graph()) {
     if (module) {
       // Get a new function from the testing module.
@@ -471,7 +472,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   }
 
   byte AllocateLocal(LocalType type) {
-    uint32_t index = local_decls.AddLocals(1, type, sig);
+    uint32_t index = local_decls.AddLocals(1, type);
     byte result = static_cast<byte>(index);
     DCHECK_EQ(index, result);
     return result;

@@ -67,8 +67,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void InitializeInitFunction() {
     init_function_index_ = builder_->AddFunction();
+    FunctionSig::Builder b(zone(), 0, 0);
     current_function_builder_ = builder_->FunctionAt(init_function_index_);
-    current_function_builder_->ReturnType(kAstStmt);
+    current_function_builder_->SetSignature(b.Build());
     builder_->MarkStartFunction(init_function_index_);
     current_function_builder_ = nullptr;
   }
@@ -83,7 +84,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitFunctionDeclaration(FunctionDeclaration* decl) {
     DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
-    uint16_t index = LookupOrInsertFunction(decl->proxy()->var());
+    uint32_t index = LookupOrInsertFunction(decl->proxy()->var());
     current_function_builder_ = builder_->FunctionAt(index);
     scope_ = kFuncScope;
     RECURSE(Visit(decl->fun()));
@@ -411,14 +412,19 @@ class AsmWasmBuilderImpl : public AstVisitor {
     Scope* scope = expr->scope();
     if (scope_ == kFuncScope) {
       if (bounds_->get(expr).lower->IsFunction()) {
+        // Build the signature for the function.
         FunctionType* func_type = bounds_->get(expr).lower->AsFunction();
         LocalType return_type = TypeFrom(func_type->Result());
-        current_function_builder_->ReturnType(return_type);
+        FunctionSig::Builder b(zone(), return_type == kAstStmt ? 0 : 1,
+                               func_type->Arity());
+        if (return_type != kAstStmt) b.AddReturn(return_type);
         for (int i = 0; i < expr->parameter_count(); i++) {
           LocalType type = TypeFrom(func_type->Parameter(i));
           DCHECK_NE(kAstStmt, type);
-          LookupOrInsertLocal(scope->parameter(i), type);
+          b.AddParam(type);
+          InsertParameter(scope->parameter(i), type, i);
         }
+        current_function_builder_->SetSignature(b.Build());
       } else {
         UNREACHABLE();
       }
@@ -559,7 +565,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       DCHECK(name->IsPropertyName());
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
-        uint16_t index = LookupOrInsertFunction(var);
+        uint32_t index = LookupOrInsertFunction(var);
         builder_->FunctionAt(index)->Exported(1);
         builder_->FunctionAt(index)->SetName(
             reinterpret_cast<const char*>(raw_name->raw_data()),
@@ -592,7 +598,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     for (int i = 0; i < func_type->Arity(); i++) {
       sig.AddParam(TypeFrom(func_type->Parameter(i)));
     }
-    uint16_t signature_index = builder_->AddSignature(sig.Build());
+    uint32_t signature_index = builder_->AddSignature(sig.Build());
     InsertFunctionTable(table->var(), next_table_index_, signature_index);
     next_table_index_ += funcs->values()->length();
     for (int i = 0; i < funcs->values()->length(); i++) {
@@ -604,11 +610,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   struct FunctionTableIndices : public ZoneObject {
     uint32_t start_index;
-    uint16_t signature_index;
+    uint32_t signature_index;
   };
 
   void InsertFunctionTable(Variable* v, uint32_t start_index,
-                           uint16_t signature_index) {
+                           uint32_t signature_index) {
     FunctionTableIndices* container = new (zone()) FunctionTableIndices();
     container->start_index = start_index;
     container->signature_index = signature_index;
@@ -652,7 +658,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       entry->value = indices;
     }
 
-    uint16_t GetFunctionIndex(Variable* v, FunctionSig* sig) {
+    uint32_t GetFunctionIndex(Variable* v, FunctionSig* sig) {
       ZoneHashMap::Entry* entry = table_.Lookup(v, ComputePointerHash(v));
       DCHECK_NOT_NULL(entry);
       ImportedFunctionIndices* indices =
@@ -1069,7 +1075,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
       case AsmTyper::kMathAbs: {
         if (call_type == kAstI32) {
-          uint16_t tmp = current_function_builder_->AddLocal(kAstI32);
+          uint32_t tmp = current_function_builder_->AddLocal(kAstI32);
 
           // if set_local(tmp, x) < 0
           Visit(call->arguments()->at(0));
@@ -1104,8 +1110,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       case AsmTyper::kMathMin: {
         // TODO(bradnelson): Change wasm to match Math.min in asm.js mode.
         if (call_type == kAstI32) {
-          uint16_t tmp_x = current_function_builder_->AddLocal(kAstI32);
-          uint16_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+          uint32_t tmp_x = current_function_builder_->AddLocal(kAstI32);
+          uint32_t tmp_y = current_function_builder_->AddLocal(kAstI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
@@ -1139,8 +1145,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       case AsmTyper::kMathMax: {
         // TODO(bradnelson): Change wasm to match Math.max in asm.js mode.
         if (call_type == kAstI32) {
-          uint16_t tmp_x = current_function_builder_->AddLocal(kAstI32);
-          uint16_t tmp_y = current_function_builder_->AddLocal(kAstI32);
+          uint32_t tmp_x = current_function_builder_->AddLocal(kAstI32);
+          uint32_t tmp_y = current_function_builder_->AddLocal(kAstI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
@@ -1247,7 +1253,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
             return;
           }
         }
-        uint16_t index;
+        uint32_t index;
         VariableProxy* vp = expr->expression()->AsVariableProxy();
         if (vp != nullptr &&
             Type::Any()->Is(bounds_->get(vp).lower->AsFunction()->Result())) {
@@ -1628,20 +1634,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitRewritableExpression(RewritableExpression* expr) { UNREACHABLE(); }
 
   struct IndexContainer : public ZoneObject {
-    uint16_t index;
+    uint32_t index;
   };
 
-  uint16_t LookupOrInsertLocal(Variable* v, LocalType type) {
+  uint32_t LookupOrInsertLocal(Variable* v, LocalType type) {
     DCHECK_NOT_NULL(current_function_builder_);
     ZoneHashMap::Entry* entry =
         local_variables_.Lookup(v, ComputePointerHash(v));
     if (entry == nullptr) {
-      uint16_t index;
-      if (v->IsParameter()) {
-        index = current_function_builder_->AddParam(type);
-      } else {
-        index = current_function_builder_->AddLocal(type);
-      }
+      uint32_t index;
+      DCHECK(!v->IsParameter());
+      index = current_function_builder_->AddLocal(type);
       IndexContainer* container = new (zone()) IndexContainer();
       container->index = index;
       entry = local_variables_.LookupOrInsert(v, ComputePointerHash(v),
@@ -1651,11 +1654,24 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return (reinterpret_cast<IndexContainer*>(entry->value))->index;
   }
 
-  uint16_t LookupOrInsertGlobal(Variable* v, LocalType type) {
+  void InsertParameter(Variable* v, LocalType type, uint32_t index) {
+    DCHECK(v->IsParameter());
+    DCHECK_NOT_NULL(current_function_builder_);
+    ZoneHashMap::Entry* entry =
+        local_variables_.Lookup(v, ComputePointerHash(v));
+    DCHECK_NULL(entry);
+    IndexContainer* container = new (zone()) IndexContainer();
+    container->index = index;
+    entry = local_variables_.LookupOrInsert(v, ComputePointerHash(v),
+                                            ZoneAllocationPolicy(zone()));
+    entry->value = container;
+  }
+
+  uint32_t LookupOrInsertGlobal(Variable* v, LocalType type) {
     ZoneHashMap::Entry* entry =
         global_variables_.Lookup(v, ComputePointerHash(v));
     if (entry == nullptr) {
-      uint16_t index =
+      uint32_t index =
           builder_->AddGlobal(WasmOpcodes::MachineTypeFor(type), 0);
       IndexContainer* container = new (zone()) IndexContainer();
       container->index = index;
@@ -1666,11 +1682,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return (reinterpret_cast<IndexContainer*>(entry->value))->index;
   }
 
-  uint16_t LookupOrInsertFunction(Variable* v) {
+  uint32_t LookupOrInsertFunction(Variable* v) {
     DCHECK_NOT_NULL(builder_);
     ZoneHashMap::Entry* entry = functions_.Lookup(v, ComputePointerHash(v));
     if (entry == nullptr) {
-      uint16_t index = builder_->AddFunction();
+      uint32_t index = builder_->AddFunction();
       IndexContainer* container = new (zone()) IndexContainer();
       container->index = index;
       entry = functions_.LookupOrInsert(v, ComputePointerHash(v),
@@ -1712,7 +1728,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   AsmTyper* typer_;
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
-  uint16_t init_function_index_;
+  uint32_t init_function_index_;
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;

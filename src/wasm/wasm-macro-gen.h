@@ -7,6 +7,8 @@
 
 #include "src/wasm/wasm-opcodes.h"
 
+#include "src/zone-containers.h"
+
 #define U32_LE(v)                                    \
   static_cast<byte>(v), static_cast<byte>((v) >> 8), \
       static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
@@ -130,8 +132,12 @@ inline void CheckI64v(int64_t value, int length) {
 
 // A helper for encoding local declarations prepended to the body of a
 // function.
+// TODO(titzer): move this to an appropriate header.
 class LocalDeclEncoder {
  public:
+  explicit LocalDeclEncoder(Zone* zone, FunctionSig* s = nullptr)
+      : sig(s), local_decls(zone), total(0) {}
+
   // Prepend local declarations by creating a new buffer and copying data
   // over. The new buffer must be delete[]'d by the caller.
   void Prepend(const byte** start, const byte** end) const {
@@ -157,19 +163,16 @@ class LocalDeclEncoder {
 
   // Add locals declarations to this helper. Return the index of the newly added
   // local(s), with an optional adjustment for the parameters.
-  uint32_t AddLocals(uint32_t count, LocalType type,
-                     FunctionSig* sig = nullptr) {
-    if (count == 0) {
-      return static_cast<uint32_t>((sig ? sig->parameter_count() : 0) +
-                                   local_decls.size());
-    }
-    size_t pos = local_decls.size();
+  uint32_t AddLocals(uint32_t count, LocalType type) {
+    uint32_t result =
+        static_cast<uint32_t>(total + (sig ? sig->parameter_count() : 0));
+    total += count;
     if (local_decls.size() > 0 && local_decls.back().second == type) {
       count += local_decls.back().first;
       local_decls.pop_back();
     }
     local_decls.push_back(std::pair<uint32_t, LocalType>(count, type));
-    return static_cast<uint32_t>(pos + (sig ? sig->parameter_count() : 0));
+    return result;
   }
 
   size_t Size() const {
@@ -178,8 +181,14 @@ class LocalDeclEncoder {
     return size;
   }
 
+  bool has_sig() const { return sig != nullptr; }
+  FunctionSig* get_sig() const { return sig; }
+  void set_sig(FunctionSig* s) { sig = s; }
+
  private:
-  std::vector<std::pair<uint32_t, LocalType>> local_decls;
+  FunctionSig* sig;
+  ZoneVector<std::pair<uint32_t, LocalType>> local_decls;
+  size_t total;
 
   size_t SizeofUint32v(uint32_t val) const {
     size_t size = 1;

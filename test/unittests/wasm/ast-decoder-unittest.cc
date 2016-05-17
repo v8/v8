@@ -68,7 +68,8 @@ class AstDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, LocalType> LocalsDecl;
 
-  AstDecoderTest() : module(nullptr) {}
+  AstDecoderTest() : module(nullptr), local_decls(zone()) {}
+
   TestSignatures sigs;
   ModuleEnv* module;
   LocalDeclEncoder local_decls;
@@ -2421,7 +2422,7 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
 TEST_F(LocalDeclDecoderTest, UseEncoder) {
   const byte* data = nullptr;
   const byte* end = nullptr;
-  LocalDeclEncoder local_decls;
+  LocalDeclEncoder local_decls(zone());
 
   local_decls.AddLocals(5, kAstF32);
   local_decls.AddLocals(1337, kAstI32);

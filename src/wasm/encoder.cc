@@ -95,18 +95,8 @@ byte* EmitSection(WasmSection::Code code, byte** b) {
 }
 }  // namespace
 
-struct WasmFunctionBuilder::Type {
-  bool param_;
-  LocalType type_;
-};
-
 WasmFunctionBuilder::WasmFunctionBuilder(Zone* zone)
-    : return_type_(kAstI32),
-      locals_(zone),
-      exported_(0),
-      body_(zone),
-      local_indices_(zone),
-      name_(zone) {}
+    : locals_(zone), exported_(0), body_(zone), name_(zone) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];
@@ -117,44 +107,27 @@ void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   }
 }
 
-uint16_t WasmFunctionBuilder::AddParam(LocalType type) {
-  return AddVar(type, true);
+void WasmFunctionBuilder::SetSignature(FunctionSig* sig) {
+  DCHECK(!locals_.has_sig());
+  locals_.set_sig(sig);
 }
 
-uint16_t WasmFunctionBuilder::AddLocal(LocalType type) {
-  return AddVar(type, false);
-}
-
-uint16_t WasmFunctionBuilder::AddVar(LocalType type, bool param) {
-  locals_.push_back({param, type});
-  return static_cast<uint16_t>(locals_.size() - 1);
-}
-
-void WasmFunctionBuilder::ReturnType(LocalType type) { return_type_ = type; }
-
-void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
-  EmitCode(code, code_size, nullptr, 0);
+uint32_t WasmFunctionBuilder::AddLocal(LocalType type) {
+  DCHECK(locals_.has_sig());
+  return locals_.AddLocals(1, type);
 }
 
 void WasmFunctionBuilder::EmitGetLocal(uint32_t local_index) {
-  local_indices_.push_back(static_cast<uint32_t>(body_.size() + 1));
   EmitWithVarInt(kExprGetLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
-  local_indices_.push_back(static_cast<uint32_t>(body_.size() + 1));
   EmitWithVarInt(kExprSetLocal, local_index);
 }
 
-void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size,
-                                   const uint32_t* local_indices,
-                                   uint32_t indices_size) {
-  size_t size = body_.size();
+void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
   for (size_t i = 0; i < code_size; i++) {
     body_.push_back(code[i]);
-  }
-  for (size_t i = 0; i < indices_size; i++) {
-    local_indices_.push_back(local_indices[i] + static_cast<uint32_t>(size));
   }
 }
 
@@ -190,35 +163,6 @@ void WasmFunctionBuilder::EmitI32Const(int32_t value) {
   }
 }
 
-uint32_t WasmFunctionBuilder::EmitEditableVarIntImmediate() {
-  // Guess that the immediate will be 1 byte. If it is more, we'll have to
-  // shift everything down.
-  body_.push_back(0);
-  return static_cast<uint32_t>(body_.size()) - 1;
-}
-
-void WasmFunctionBuilder::EditVarIntImmediate(uint32_t offset,
-                                              const uint32_t immediate) {
-  uint32_t immediate_size =
-      static_cast<uint32_t>(LEBHelper::sizeof_u32v(immediate));
-  // In EmitEditableVarIntImmediate, we guessed that we'd only need one byte.
-  // If we need more, shift everything down to make room for the larger
-  // immediate.
-  if (immediate_size > 1) {
-    uint32_t diff = immediate_size - 1;
-    body_.insert(body_.begin() + offset, diff, 0);
-
-    for (size_t i = 0; i < local_indices_.size(); ++i) {
-      if (local_indices_[i] >= offset) {
-        local_indices_[i] += diff;
-      }
-    }
-  }
-  DCHECK(offset + immediate_size <= body_.size());
-  byte* p = &body_[offset];
-  v8::internal::wasm::EmitVarInt(&p, immediate);
-}
-
 void WasmFunctionBuilder::Exported(uint8_t flag) { exported_ = flag; }
 
 void WasmFunctionBuilder::SetName(const char* name, int name_length) {
@@ -233,102 +177,17 @@ void WasmFunctionBuilder::SetName(const char* name, int name_length) {
 WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
                                                 WasmModuleBuilder* mb) const {
   WasmFunctionEncoder* e =
-      new (zone) WasmFunctionEncoder(zone, return_type_, exported_);
-  uint16_t* var_index = zone->NewArray<uint16_t>(locals_.size());
-  IndexVars(e, var_index);
-  if (body_.size() > 0) {
-    // TODO(titzer): iterate over local indexes, not the bytes.
-    const byte* start = &body_[0];
-    size_t local_index = 0;
-    for (size_t i = 0; i < body_.size();) {
-      if (local_index < local_indices_.size() &&
-          i == local_indices_[local_index]) {
-        // Read the old index.
-        uint32_t index = 0;
-        uint8_t b = 0;
-        uint32_t shift = 0;
-        while ((b = start[i++]) >= 0x80) {
-          index |= (b & 0x7F) << shift;
-          shift += 7;
-        }
-        index |= b << shift;
-
-        // Write the new index.
-        uint16_t new_index = var_index[index];
-        while (new_index >= 0x80) {
-          e->body_.push_back(new_index | 0x80);
-          new_index >>= 7;
-        }
-        e->body_.push_back(new_index);
-
-        local_index++;
-      } else {
-        e->body_.push_back(*(start + i));
-        i++;
-      }
-    }
-  }
-  FunctionSig::Builder sig(zone, return_type_ == kAstStmt ? 0 : 1,
-                           e->params_.size());
-  if (return_type_ != kAstStmt) {
-    sig.AddReturn(static_cast<LocalType>(return_type_));
-  }
-  for (size_t i = 0; i < e->params_.size(); i++) {
-    sig.AddParam(static_cast<LocalType>(e->params_[i]));
-  }
-  e->signature_index_ = mb->AddSignature(sig.Build());
+      new (zone) WasmFunctionEncoder(zone, locals_, exported_);
+  // TODO(titzer): lame memcpy here.
+  e->body_.insert(e->body_.begin(), body_.begin(), body_.end());
+  e->signature_index_ = mb->AddSignature(locals_.get_sig());
   e->name_.insert(e->name_.begin(), name_.begin(), name_.end());
   return e;
 }
 
-void WasmFunctionBuilder::IndexVars(WasmFunctionEncoder* e,
-                                    uint16_t* var_index) const {
-  uint16_t param = 0;
-  uint16_t i32 = 0;
-  uint16_t i64 = 0;
-  uint16_t f32 = 0;
-  uint16_t f64 = 0;
-  for (size_t i = 0; i < locals_.size(); i++) {
-    if (locals_.at(i).param_) {
-      param++;
-    } else if (locals_.at(i).type_ == kAstI32) {
-      i32++;
-    } else if (locals_.at(i).type_ == kAstI64) {
-      i64++;
-    } else if (locals_.at(i).type_ == kAstF32) {
-      f32++;
-    } else if (locals_.at(i).type_ == kAstF64) {
-      f64++;
-    }
-  }
-  e->local_i32_count_ = i32;
-  e->local_i64_count_ = i64;
-  e->local_f32_count_ = f32;
-  e->local_f64_count_ = f64;
-  f64 = param + i32 + i64 + f32;
-  f32 = param + i32 + i64;
-  i64 = param + i32;
-  i32 = param;
-  param = 0;
-  for (size_t i = 0; i < locals_.size(); i++) {
-    if (locals_.at(i).param_) {
-      e->params_.push_back(locals_.at(i).type_);
-      var_index[i] = param++;
-    } else if (locals_.at(i).type_ == kAstI32) {
-      var_index[i] = i32++;
-    } else if (locals_.at(i).type_ == kAstI64) {
-      var_index[i] = i64++;
-    } else if (locals_.at(i).type_ == kAstF32) {
-      var_index[i] = f32++;
-    } else if (locals_.at(i).type_ == kAstF64) {
-      var_index[i] = f64++;
-    }
-  }
-}
-
-WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalType return_type,
+WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals,
                                          bool exported)
-    : params_(zone), exported_(exported), body_(zone), name_(zone) {}
+    : locals_(locals), exported_(exported), body_(zone), name_(zone) {}
 
 uint32_t WasmFunctionEncoder::HeaderSize() const {
   uint32_t size = 3;
@@ -342,14 +201,7 @@ uint32_t WasmFunctionEncoder::HeaderSize() const {
 }
 
 uint32_t WasmFunctionEncoder::BodySize(void) const {
-  // TODO(titzer): embed a LocalDeclEncoder in the WasmFunctionEncoder
-  LocalDeclEncoder local_decl;
-  local_decl.AddLocals(local_i32_count_, kAstI32);
-  local_decl.AddLocals(local_i64_count_, kAstI64);
-  local_decl.AddLocals(local_f32_count_, kAstF32);
-  local_decl.AddLocals(local_f64_count_, kAstF64);
-
-  return static_cast<uint32_t>(body_.size() + local_decl.Size());
+  return static_cast<uint32_t>(body_.size() + locals_.Size());
 }
 
 uint32_t WasmFunctionEncoder::NameSize() const {
@@ -371,15 +223,8 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
     }
   }
 
-  // TODO(titzer): embed a LocalDeclEncoder in the WasmFunctionEncoder
-  LocalDeclEncoder local_decl;
-  local_decl.AddLocals(local_i32_count_, kAstI32);
-  local_decl.AddLocals(local_i64_count_, kAstI64);
-  local_decl.AddLocals(local_f32_count_, kAstF32);
-  local_decl.AddLocals(local_f64_count_, kAstF64);
-
-  EmitUint16(header, static_cast<uint16_t>(body_.size() + local_decl.Size()));
-  (*header) += local_decl.Emit(*header);
+  EmitUint16(header, static_cast<uint16_t>(body_.size() + locals_.Size()));
+  (*header) += locals_.Emit(*header);
   if (body_.size() > 0) {
     std::memcpy(*header, &body_[0], body_.size());
     (*header) += body_.size();
@@ -462,14 +307,14 @@ uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   if (pos != signature_map_.end()) {
     return pos->second;
   } else {
-    uint16_t index = static_cast<uint16_t>(signatures_.size());
+    uint32_t index = static_cast<uint32_t>(signatures_.size());
     signature_map_[sig] = index;
     signatures_.push_back(sig);
     return index;
   }
 }
 
-void WasmModuleBuilder::AddIndirectFunction(uint16_t index) {
+void WasmModuleBuilder::AddIndirectFunction(uint32_t index) {
   indirect_functions_.push_back(index);
 }
 
@@ -479,7 +324,7 @@ uint32_t WasmModuleBuilder::AddImport(const char* name, int name_length,
   return static_cast<uint32_t>(imports_.size() - 1);
 }
 
-void WasmModuleBuilder::MarkStartFunction(uint16_t index) {
+void WasmModuleBuilder::MarkStartFunction(uint32_t index) {
   start_function_index_ = index;
 }
 
