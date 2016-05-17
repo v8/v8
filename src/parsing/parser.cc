@@ -4280,10 +4280,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       //   FunctionExpression; even without enclosing parentheses it might be
       //   immediately invoked.
       // - The function literal shouldn't be hinted to eagerly compile.
+      // - For asm.js functions the body needs to be available when module
+      //   validation is active, because we examine the entire module at once.
       bool use_temp_zone =
           FLAG_lazy && !allow_natives() && extension_ == NULL && allow_lazy() &&
           function_type == FunctionLiteral::kDeclaration &&
-          eager_compile_hint != FunctionLiteral::kShouldEagerCompile;
+          eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
+          !(FLAG_validate_asm && scope->asm_function());
       // Open a new BodyScope, which sets our AstNodeFactory to allocate in the
       // new temporary zone if the preconditions are satisfied, and ensures that
       // the previous zone is always restored after parsing the body.
