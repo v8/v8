@@ -23,6 +23,7 @@
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/string-builder.h"
+#include "src/uri.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -2106,6 +2107,26 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+// ES6 section 18.2.6.4 encodeURI (uri)
+BUILTIN(GlobalEncodeURI) {
+  HandleScope scope(isolate);
+  Handle<String> uri;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uri, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  return Uri::EncodeUri(isolate, uri);
+}
+
+// ES6 section 18.2.6.5 encodeURIComponenet (uriComponent)
+BUILTIN(GlobalEncodeURIComponent) {
+  HandleScope scope(isolate);
+  Handle<String> uriComponent;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uriComponent,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  return Uri::EncodeUriComponent(isolate, uriComponent);
+}
 
 namespace {
 

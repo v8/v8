@@ -219,18 +219,6 @@ function URIDecodeComponent(component) {
   return Decode(component, reservedPredicate);
 }
 
-// ECMA-262 - 15.1.3.3.
-function URIEncode(uri) {
-  uri = TO_STRING(uri);
-  return %URIEncode(uri, true);
-}
-
-// ECMA-262 - 15.1.3.4
-function URIEncodeComponent(component) {
-  component = TO_STRING(component);
-  return %URIEncode(component, false);
-}
-
 // -------------------------------------------------------------------
 // Install exported functions.
 
@@ -240,9 +228,7 @@ utils.InstallFunctions(global, DONT_ENUM, [
   "escape", URIEscapeJS,
   "unescape", URIUnescapeJS,
   "decodeURI", URIDecode,
-  "decodeURIComponent", URIDecodeComponent,
-  "encodeURI", URIEncode,
-  "encodeURIComponent", URIEncodeComponent
+  "decodeURIComponent", URIDecodeComponent
 ]);
 
 })

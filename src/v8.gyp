@@ -1131,6 +1131,8 @@
         'unicode-cache.h',
         'unicode-decoder.cc',
         'unicode-decoder.h',
+        'uri.cc',
+        'uri.h',
         'utils-inl.h',
         'utils.cc',
         'utils.h',

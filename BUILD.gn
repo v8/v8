@@ -320,7 +320,7 @@ config("toolchain") {
 
 template("v8_source_set") {
   source_set(target_name) {
-    forward_variables_from(invoker, "*", ["configs"])
+    forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
@@ -667,9 +667,7 @@ v8_source_set("v8_nosnapshot") {
     "src/snapshot/snapshot-empty.cc",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("v8_snapshot") {
@@ -701,9 +699,7 @@ v8_source_set("v8_snapshot") {
     "$target_gen_dir/snapshot.cc",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 if (v8_use_external_startup_data) {
@@ -727,9 +723,7 @@ if (v8_use_external_startup_data) {
       "src/snapshot/snapshot-external.cc",
     ]
 
-    configs = [
-      ":internal_config",
-    ]
+    configs = [ ":internal_config" ]
   }
 }
 
@@ -1476,6 +1470,8 @@ v8_source_set("v8_base") {
     "src/unicode-inl.h",
     "src/unicode.cc",
     "src/unicode.h",
+    "src/uri.cc",
+    "src/uri.h",
     "src/utils-inl.h",
     "src/utils.cc",
     "src/utils.h",
@@ -1822,9 +1818,7 @@ v8_source_set("v8_base") {
     ]
   }
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 
   defines = []
   deps = [
@@ -1917,9 +1911,7 @@ v8_source_set("v8_libbase") {
     "src/base/utils/random-number-generator.h",
   ]
 
-  configs = [
-    ":internal_config_base",
-  ]
+  configs = [ ":internal_config_base" ]
 
   defines = []
 
@@ -1979,13 +1971,9 @@ v8_source_set("v8_libplatform") {
     "src/libplatform/worker-thread.h",
   ]
 
-  configs = [
-    ":internal_config_base",
-  ]
+  configs = [ ":internal_config_base" ]
 
-  public_configs = [
-    ":libplatform_config"
-  ]
+  public_configs = [ ":libplatform_config" ]
 
   deps = [
     ":v8_libbase",
@@ -2000,9 +1988,7 @@ v8_source_set("fuzzer_support") {
     "test/fuzzer/fuzzer-support.h",
   ]
 
-  configs = [
-    ":internal_config_base",
-  ]
+  configs = [ ":internal_config_base" ]
 
   deps = [
     snapshot_target,
@@ -2158,9 +2144,7 @@ v8_source_set("json_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("parser_fuzzer") {
@@ -2172,9 +2156,7 @@ v8_source_set("parser_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("regexp_fuzzer") {
@@ -2186,9 +2168,7 @@ v8_source_set("regexp_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("wasm_fuzzer") {
@@ -2200,9 +2180,7 @@ v8_source_set("wasm_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("wasm_asmjs_fuzzer") {
@@ -2214,7 +2192,5 @@ v8_source_set("wasm_asmjs_fuzzer") {
     ":fuzzer_support",
   ]
 
-  configs = [
-    ":internal_config",
-  ]
+  configs = [ ":internal_config" ]
 }

@@ -2819,11 +2819,22 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   native_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
+  Handle<JSGlobalObject> global_object =
+      handle(native_context()->global_object());
+
+  // Install Global.encodeURI.
+  SimpleInstallFunction(global_object, "encodeURI", Builtins::kGlobalEncodeURI,
+                        1, false);
+
+  // Install Global.encodeURIComponent.
+  SimpleInstallFunction(global_object, "encodeURIComponent",
+                        Builtins::kGlobalEncodeURIComponent, 1, false);
+
   // Install Global.eval.
   {
-    Handle<JSFunction> eval = SimpleInstallFunction(
-        handle(native_context()->global_object()), factory()->eval_string(),
-        Builtins::kGlobalEval, 1, false);
+    Handle<JSFunction> eval =
+        SimpleInstallFunction(global_object, factory()->eval_string(),
+                              Builtins::kGlobalEval, 1, false);
     native_context()->set_global_eval_fun(*eval);
   }
 
@@ -2866,8 +2877,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   {
     Handle<String> key = factory()->Promise_string();
     Handle<JSFunction> function = Handle<JSFunction>::cast(
-        JSReceiver::GetProperty(handle(native_context()->global_object()), key)
-            .ToHandleChecked());
+        JSReceiver::GetProperty(global_object, key).ToHandleChecked());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_PROMISE_TYPE);
     function->shared()->set_construct_stub(

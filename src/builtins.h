@@ -116,6 +116,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
   V(AsyncFunctionConstructor, kTargetAndNewTarget)             \
                                                                \
+  V(GlobalEncodeURI, kNone)                                    \
+  V(GlobalEncodeURIComponent, kNone)                           \
+                                                               \
   V(GlobalEval, kTarget)                                       \
                                                                \
   V(MathAcos, kNone)                                           \
