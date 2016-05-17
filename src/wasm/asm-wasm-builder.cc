@@ -187,7 +187,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->Emit(kExprNop);
     current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
     current_function_builder_->EmitVarInt(block_distance);
   }
@@ -211,7 +210,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(i >= 0);
-    current_function_builder_->Emit(kExprNop);
     current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
     current_function_builder_->EmitVarInt(block_distance);
   }
@@ -263,13 +261,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
       current_function_builder_->Emit(kExprI32Eq);
       current_function_builder_->Emit(kExprIf);
       DCHECK(case_to_block.find(node->begin) != case_to_block.end());
-      current_function_builder_->Emit(kExprNop);
       current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
       current_function_builder_->EmitVarInt(1 + if_depth +
                                             case_to_block.at(node->begin));
       current_function_builder_->Emit(kExprEnd);
     } else {
-      current_function_builder_->Emit(kExprNop);
       if (node->begin != 0) {
         VisitVariableProxy(tag);
         current_function_builder_->EmitI32Const(node->begin);
@@ -342,7 +338,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
           root->begin == root->end) {
         current_function_builder_->EmitWithU8(kExprBr, ARITY_0);
         current_function_builder_->EmitVarInt(default_block);
-        current_function_builder_->Emit(kExprNop);
       }
     }
     for (int i = 0; i < case_count; i++) {
