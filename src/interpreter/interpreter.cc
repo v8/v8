@@ -1642,7 +1642,9 @@ void Interpreter::DoReThrow(InterpreterAssembler* assembler) {
 //
 // Return the value in the accumulator.
 void Interpreter::DoReturn(InterpreterAssembler* assembler) {
-  __ InterpreterReturn();
+  __ UpdateInterruptBudgetOnReturn();
+  Node* accumulator = __ GetAccumulator();
+  __ Return(accumulator);
 }
 
 // Debugger

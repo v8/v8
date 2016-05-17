@@ -13738,8 +13738,9 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(
     int pc_and_state = this->PcAndState(i)->value();
     os << std::setw(6) << this->AstId(i).ToInt() << "  " << std::setw(8)
        << FullCodeGenerator::PcField::decode(pc_and_state) << "  "
-       << FullCodeGenerator::State2String(
-              FullCodeGenerator::StateField::decode(pc_and_state)) << "\n";
+       << Deoptimizer::BailoutStateToString(
+              FullCodeGenerator::BailoutStateField::decode(pc_and_state))
+       << "\n";
   }
 }
 

@@ -848,9 +848,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            " @%d => node=%d, pc=0x%08" V8PRIxPTR ", caller sp=0x%08" V8PRIxPTR
            ", state=%s, took %0.3f ms]\n",
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
-           caller_frame_top_, FullCodeGenerator::State2String(
-                                  static_cast<FullCodeGenerator::State>(
-                                      output_[index]->GetState()->value())),
+           caller_frame_top_, BailoutStateToString(static_cast<BailoutState>(
+                                  output_[index]->GetState()->value())),
            ms);
   }
 }
@@ -1062,10 +1061,11 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
 
   // If we are going to the catch handler, then the exception lives in
   // the accumulator.
-  FullCodeGenerator::State state =
-      goto_catch_handler ? FullCodeGenerator::TOS_REG
-                         : FullCodeGenerator::StateField::decode(pc_and_state);
-  output_frame->SetState(Smi::FromInt(state));
+  BailoutState state =
+      goto_catch_handler
+          ? BailoutState::TOS_REGISTER
+          : FullCodeGenerator::BailoutStateField::decode(pc_and_state);
+  output_frame->SetState(Smi::FromInt(static_cast<int>(state)));
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
@@ -1281,7 +1281,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   Code* dispatch_builtin =
       builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
-  output_frame->SetState(0);
+  // Restore accumulator (TOS) register.
+  output_frame->SetState(
+      Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
@@ -1297,14 +1299,11 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
-    Code* continuation =
-        builtins->builtin(Builtins::kInterpreterNotifyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     if (bailout_type_ == LAZY) {
-      continuation =
-          builtins->builtin(Builtins::kInterpreterNotifyLazyDeoptimized);
+      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
     } else if (bailout_type_ == SOFT) {
-      continuation =
-          builtins->builtin(Builtins::kInterpreterNotifySoftDeoptimized);
+      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
     } else {
       CHECK_EQ(bailout_type_, EAGER);
     }
@@ -1518,7 +1517,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the constructor function to the
   // top of the reconstructed stack and then using the
-  // FullCodeGenerator::TOS_REG machinery.
+  // BailoutState::TOS_REGISTER machinery.
   if (is_topmost) {
     height_in_bytes += kPointerSize;
   }
@@ -1639,7 +1638,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "constructor result\n");
 
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -1693,7 +1693,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the accessor function to the
   // top of the reconstructed stack and then using the
-  // FullCodeGenerator::TOS_REG machinery.
+  // BailoutState::TOS_REGISTER machinery.
   // We don't need to restore the result in case of a setter call because we
   // have to return the stored value but not the result of the setter function.
   bool should_preserve_result = is_topmost && !is_setter_stub_frame;
@@ -1812,9 +1812,11 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "accessor result\n");
 
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
   } else {
-    output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+    output_frame->SetState(
+        Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -2069,7 +2071,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
     output_frame->SetConstantPool(constant_pool_value);
     output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
   }
-  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+  output_frame->SetState(
+      Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
   Code* notify_failure =
       isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
   output_frame->SetContinuation(

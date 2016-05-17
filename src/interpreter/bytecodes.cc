@@ -150,6 +150,11 @@ int Bytecodes::Size(Bytecode bytecode, OperandScale operand_scale) {
 
 
 // static
+size_t Bytecodes::ReturnCount(Bytecode bytecode) {
+  return bytecode == Bytecode::kReturn ? 1 : 0;
+}
+
+// static
 int Bytecodes::NumberOfOperands(Bytecode bytecode) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
