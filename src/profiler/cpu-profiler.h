@@ -13,6 +13,7 @@
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 
 namespace v8 {
 namespace internal {

@@ -10,7 +10,7 @@
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 #include "src/splay-tree-inl.h"
 #include "src/unicode.h"
 

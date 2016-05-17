@@ -48,7 +48,7 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/profiler/sampler.h"
+#include "src/profiler/tick-sample.h"
 #include "src/property-descriptor.h"
 #include "src/property-details.h"
 #include "src/property.h"
