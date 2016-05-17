@@ -712,6 +712,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         }
         break;
       case IrOpcode::kSelect:
+      case IrOpcode::kGuard:
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
@@ -721,7 +722,8 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         break;
       default:
         if (use->op()->EffectInputCount() == 0 &&
-            uses->op()->EffectInputCount() > 0) {
+            uses->op()->EffectInputCount() > 0 &&
+            !IrOpcode::IsJsOpcode(use->opcode())) {
           TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
                 use->op()->mnemonic());
           UNREACHABLE();
