@@ -91,7 +91,6 @@ namespace internal {
   V(kGraphBuildingFailed, "Optimized graph construction failed")               \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")       \
   V(kHydrogenFilter, "Optimization disabled by filter")                        \
-  V(kIllegalBytecode, "Illegal bytecode")                                      \
   V(kImportDeclaration, "Import declaration")                                  \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
