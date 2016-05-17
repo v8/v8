@@ -1096,7 +1096,7 @@ class Parser : public ParserBase<ParserTraits> {
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
 
-  Expression* BuildCreateJSGeneratorObject(int pos);
+  Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
   Expression* BuildPromiseResolve(Expression* value, int pos);
   Expression* BuildPromiseReject(Expression* value, int pos);
 

@@ -4025,7 +4025,7 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
 
   Expression* init_generator_variable = factory()->NewAssignment(
       Token::INIT, factory()->NewVariableProxy(temp),
-      BuildCreateJSGeneratorObject(pos), RelocInfo::kNoPosition);
+      BuildCreateJSGeneratorObject(pos, kind), RelocInfo::kNoPosition);
   body->Add(factory()->NewExpressionStatement(init_generator_variable,
                                               RelocInfo::kNoPosition),
             zone());
@@ -4627,11 +4627,14 @@ Block* Parser::BuildRejectPromiseOnException(Block* block) {
   return block;
 }
 
-Expression* Parser::BuildCreateJSGeneratorObject(int pos) {
+Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
   DCHECK_NOT_NULL(function_state_->generator_object_variable());
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewThisFunction(pos), zone());
-  args->Add(ThisExpression(scope_, factory(), RelocInfo::kNoPosition), zone());
+  args->Add(IsArrowFunction(kind)
+                ? GetLiteralUndefined(pos)
+                : ThisExpression(scope_, factory(), RelocInfo::kNoPosition),
+            zone());
   return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
                                    pos);
 }
@@ -4702,7 +4705,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
           factory()->NewBlock(nullptr, 3, false, RelocInfo::kNoPosition);
 
       {
-        Expression* allocation = BuildCreateJSGeneratorObject(pos);
+        Expression* allocation = BuildCreateJSGeneratorObject(pos, kind);
         VariableProxy* init_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
         Assignment* assignment = factory()->NewAssignment(
