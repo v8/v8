@@ -3047,6 +3047,30 @@ class AstVisitor BASE_EMBEDDED {
 
 
 // ----------------------------------------------------------------------------
+// Traversing visitor
+// - fully traverses the entire AST.
+
+class AstTraversalVisitor : public AstVisitor {
+ public:
+  explicit AstTraversalVisitor(Isolate* isolate);
+  virtual ~AstTraversalVisitor() {}
+
+  // Iteration left-to-right.
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitExpressions(ZoneList<Expression*>* expressions) override;
+
+// Individual nodes
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+ private:
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+  DISALLOW_COPY_AND_ASSIGN(AstTraversalVisitor);
+};
+
+// ----------------------------------------------------------------------------
 // AstNode factory
 
 class AstNodeFactory final BASE_EMBEDDED {
