@@ -138,7 +138,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CountOperation(Token::Value::ADD).CountOperation(Token::Value::SUB);
 
   // Emit unary operator invocations.
-  builder.LogicalNot().TypeOf();
+  builder
+      .LogicalNot()  // ToBooleanLogicalNot
+      .LogicalNot()  // non-ToBoolean LogicalNot
+      .TypeOf();
 
   // Emit delete
   builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);

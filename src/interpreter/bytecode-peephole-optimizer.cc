@@ -95,15 +95,21 @@ bool BytecodePeepholeOptimizer::LastBytecodePutsNameInAccumulator() const {
 }
 
 void BytecodePeepholeOptimizer::UpdateCurrentBytecode(BytecodeNode* current) {
-  // Conditional jumps with boolean conditions are emiitted in
-  // ToBoolean form by the bytecode array builder,
-  // i.e. JumpIfToBooleanTrue rather JumpIfTrue. The ToBoolean element
-  // can be removed if the previous bytecode put a boolean value in
-  // the accumulator.
   if (Bytecodes::IsJumpIfToBoolean(current->bytecode()) &&
       Bytecodes::WritesBooleanToAccumulator(last_.bytecode())) {
+    // Conditional jumps with boolean conditions are emitted in
+    // ToBoolean form by the bytecode array builder,
+    // i.e. JumpIfToBooleanTrue rather JumpIfTrue. The ToBoolean element
+    // can be removed if the previous bytecode put a boolean value in
+    // the accumulator.
     Bytecode jump = Bytecodes::GetJumpWithoutToBoolean(current->bytecode());
     current->set_bytecode(jump, current->operand(0), current->operand_scale());
+  } else if (current->bytecode() == Bytecode::kToBooleanLogicalNot &&
+             Bytecodes::WritesBooleanToAccumulator(last_.bytecode())) {
+    // Logical-nots are emitted in ToBoolean form by the bytecode array
+    // builder, The ToBoolean element can be removed if the previous bytecode
+    // put a boolean value in the accumulator.
+    current->set_bytecode(Bytecode::kLogicalNot);
   }
 }
 

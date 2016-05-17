@@ -188,7 +188,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op) {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot() {
-  Output(Bytecode::kLogicalNot);
+  Output(Bytecode::kToBooleanLogicalNot);
   return *this;
 }
 

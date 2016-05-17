@@ -243,6 +243,7 @@ bool Bytecodes::WritesBooleanToAccumulator(Bytecode bytecode) {
   switch (bytecode) {
     case Bytecode::kLdaTrue:
     case Bytecode::kLdaFalse:
+    case Bytecode::kToBooleanLogicalNot:
     case Bytecode::kLogicalNot:
     case Bytecode::kTestEqual:
     case Bytecode::kTestNotEqual:

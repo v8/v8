@@ -60,7 +60,7 @@ bytecodes: [
   /*   42 E> */ B(Star), R(0),
   /*   49 E> */ B(StackCheck),
   /*   56 S> */ B(Ldar), R(0),
-                B(LogicalNot),
+                B(ToBooleanLogicalNot),
   /*   58 E> */ B(Star), R(0),
   /*   74 S> */ B(Ldar), R(0),
                 B(Star), R(1),

@@ -62,6 +62,7 @@ namespace internal {
     "EmitLoadRegister: Unsupported double immediate")                          \
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
+  V(kExpectedBooleanValue, "Expected boolean value")                           \
   V(kExpectedFunctionObject, "Expected function object in register")           \
   V(kExpectedHeapNumber, "Expected HeapNumber")                                \
   V(kExpectedNativeContext, "Expected native context")                         \

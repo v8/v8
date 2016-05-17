@@ -1140,6 +1140,13 @@ void BytecodeGraphBuilder::VisitDec() {
 }
 
 void BytecodeGraphBuilder::VisitLogicalNot() {
+  Node* value = environment()->LookupAccumulator();
+  Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
+                       jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  environment()->BindAccumulator(node);
+}
+
+void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
   Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
                         environment()->LookupAccumulator());
   Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,

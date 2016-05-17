@@ -150,6 +150,7 @@ namespace interpreter {
   /* Unary Operators */                                                       \
   V(Inc, AccumulatorUse::kReadWrite)                                          \
   V(Dec, AccumulatorUse::kReadWrite)                                          \
+  V(ToBooleanLogicalNot, AccumulatorUse::kReadWrite)                          \
   V(LogicalNot, AccumulatorUse::kReadWrite)                                   \
   V(TypeOf, AccumulatorUse::kReadWrite)                                       \
   V(DeletePropertyStrict, AccumulatorUse::kReadWrite, OperandType::kReg)      \

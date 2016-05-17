@@ -143,6 +143,8 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);
+  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
+                           BailoutReason bailout_reason);
 
  protected:
   Bytecode bytecode() const { return bytecode_; }
@@ -222,10 +224,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
   compiler::Node* DispatchToBytecodeHandlerEntry(
       compiler::Node* handler_entry, compiler::Node* bytecode_offset);
-
-  // Abort operations for debug code.
-  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                           BailoutReason bailout_reason);
 
   OperandScale operand_scale() const { return operand_scale_; }
 

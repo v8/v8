@@ -21,6 +21,10 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 
+namespace compiler {
+class Node;
+}  // namespace compiler
+
 namespace interpreter {
 
 class InterpreterAssembler;
@@ -122,6 +126,9 @@ class Interpreter {
 
   // Generates code to perform a type conversion.
   void DoTypeConversionOp(Callable callable, InterpreterAssembler* assembler);
+
+  // Generates code to perform logical-not on boolean |value|.
+  void DoLogicalNotOp(compiler::Node* value, InterpreterAssembler* assembler);
 
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,
