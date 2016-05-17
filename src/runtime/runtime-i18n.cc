@@ -24,6 +24,7 @@
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/locid.h"
+#include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/rbbi.h"
@@ -41,6 +42,24 @@
 
 namespace v8 {
 namespace internal {
+namespace {
+
+const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
+                                    base::SmartArrayPointer<uc16>* dest,
+                                    int32_t length) {
+  DCHECK(flat.IsFlat());
+  if (flat.IsOneByte()) {
+    if (dest->is_empty()) {
+      dest->Reset(NewArray<uc16>(length));
+      CopyChars(dest->get(), flat.ToOneByteVector().start(), length);
+    }
+    return reinterpret_cast<const UChar*>(dest->get());
+  } else {
+    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().start());
+  }
+}
+
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
@@ -557,14 +576,20 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
   if (!collator) return isolate->ThrowIllegalOperation();
 
-  v8::String::Value string_value1(v8::Utils::ToLocal(string1));
-  v8::String::Value string_value2(v8::Utils::ToLocal(string2));
-  const UChar* u_string1 = reinterpret_cast<const UChar*>(*string_value1);
-  const UChar* u_string2 = reinterpret_cast<const UChar*>(*string_value2);
+  string1 = String::Flatten(string1);
+  string2 = String::Flatten(string2);
+  DisallowHeapAllocation no_gc;
+  int32_t length1 = string1->length();
+  int32_t length2 = string2->length();
+  String::FlatContent flat1 = string1->GetFlatContent();
+  String::FlatContent flat2 = string2->GetFlatContent();
+  base::SmartArrayPointer<uc16> sap1;
+  base::SmartArrayPointer<uc16> sap2;
+  const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
+  const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
   UErrorCode status = U_ZERO_ERROR;
   UCollationResult result =
-      collator->compare(u_string1, string_value1.length(), u_string2,
-                        string_value2.length(), status);
+      collator->compare(string_val1, length1, string_val2, length2, status);
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
@@ -573,25 +598,51 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
 
 RUNTIME_FUNCTION(Runtime_StringNormalize) {
   HandleScope scope(isolate);
-  static const UNormalizationMode normalizationForms[] = {
-      UNORM_NFC, UNORM_NFD, UNORM_NFKC, UNORM_NFKD};
+  static const struct {
+    const char* name;
+    UNormalization2Mode mode;
+  } normalizationForms[] = {
+      {"nfc", UNORM2_COMPOSE},
+      {"nfc", UNORM2_DECOMPOSE},
+      {"nfkc", UNORM2_COMPOSE},
+      {"nfkc", UNORM2_DECOMPOSE},
+  };
 
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_HANDLE_CHECKED(String, stringValue, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
   RUNTIME_ASSERT(form_id >= 0 &&
                  static_cast<size_t>(form_id) < arraysize(normalizationForms));
 
-  v8::String::Value string_value(v8::Utils::ToLocal(stringValue));
-  const UChar* u_value = reinterpret_cast<const UChar*>(*string_value);
-
-  // TODO(mnita): check Normalizer2 (not available in ICU 46)
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString input(false, u_value, string_value.length());
+  int length = s->length();
+  s = String::Flatten(s);
   icu::UnicodeString result;
-  icu::Normalizer::normalize(input, normalizationForms[form_id], 0, result,
-                             status);
+  base::SmartArrayPointer<uc16> sap;
+  UErrorCode status = U_ZERO_ERROR;
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat = s->GetFlatContent();
+    const UChar* src = GetUCharBufferFromFlat(flat, &sap, length);
+    icu::UnicodeString input(false, src, length);
+    // Getting a singleton. Should not free it.
+    const icu::Normalizer2* normalizer =
+        icu::Normalizer2::getInstance(nullptr, normalizationForms[form_id].name,
+                                      normalizationForms[form_id].mode, status);
+    DCHECK(U_SUCCESS(status));
+    RUNTIME_ASSERT(normalizer != nullptr);
+    int32_t normalized_prefix_length =
+        normalizer->spanQuickCheckYes(input, status);
+    // Quick return if the input is already normalized.
+    if (length == normalized_prefix_length) return *s;
+    icu::UnicodeString unnormalized =
+        input.tempSubString(normalized_prefix_length);
+    // Read-only alias of the normalized prefix.
+    result.setTo(false, input.getBuffer(), normalized_prefix_length);
+    // copy-on-write; normalize the suffix and append to |result|.
+    normalizer->normalizeSecondAndAppend(result, unnormalized, status);
+  }
+
   if (U_FAILURE(status)) {
     return isolate->heap()->undefined_value();
   }
@@ -665,9 +716,13 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
       break_iterator_holder->GetInternalField(1));
   delete u_text;
 
-  v8::String::Value text_value(v8::Utils::ToLocal(text));
-  u_text = new icu::UnicodeString(reinterpret_cast<const UChar*>(*text_value),
-                                  text_value.length());
+  int length = text->length();
+  text = String::Flatten(text);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = text->GetFlatContent();
+  base::SmartArrayPointer<uc16> sap;
+  const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
+  u_text = new icu::UnicodeString(text_value, length);
   break_iterator_holder->SetInternalField(1, reinterpret_cast<Smi*>(u_text));
 
   break_iterator->setText(*u_text);
@@ -762,21 +817,6 @@ void ConvertCaseWithTransliterator(icu::UnicodeString* input,
           status));
   if (U_FAILURE(status)) return;
   translit->transliterate(*input);
-}
-
-const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
-                                    base::SmartArrayPointer<uc16>* dest,
-                                    int32_t length) {
-  DCHECK(flat.IsFlat());
-  if (flat.IsOneByte()) {
-    if (dest->is_empty()) {
-      dest->Reset(NewArray<uc16>(length));
-      CopyChars(dest->get(), flat.ToOneByteVector().start(), length);
-    }
-    return reinterpret_cast<const UChar*>(dest->get());
-  } else {
-    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().start());
-  }
 }
 
 MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
