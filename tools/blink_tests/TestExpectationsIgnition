@@ -1,5 +1,5 @@
 [ Linux ] fast/dom/MutationObserver/weak-callback-gc-crash.html [ Failure ]
-[ Linux ] inspector/sources/debugger/live-edit-no-reveal.html [ Failure ]
+[ Linux ] inspector/sources/debugger/live-edit-no-reveal.html [ Skip ]
 [ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-detached-dom-tree.html [ Failure ]
 [ Linux ] fast/xpath/xpath-other-nodeset-result-should-mark-its-nodeset.html [ Failure ]
 [ Linux ] netinfo/gc-unused-listeners.html [ Failure ]
