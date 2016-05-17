@@ -63,8 +63,8 @@
     'merges': {
       'filepath': '.',
     },
-    'v8_gyp': {
-      'filepath': 'tools/gyp/v8.gyp|src/v8.gyp',
+    'gypfiles': {
+      'filepath': 'gypfiles/',
     },
   },
 
@@ -100,7 +100,7 @@
       # Only enabled on branches created with tools/release/create_release.py
       # 'v8-merges@googlegroups.com',
     ],
-    'v8_gyp': [
+    'gypfiles': [
       'machenbach@chromium.org',
     ],
   },
