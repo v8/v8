@@ -40,6 +40,9 @@ examples:
 
   # Open the heatmap in an interactive viewer
   $ tools/ignition/bytecode_dispatches_report.py -p -i
+
+  # Display the top 5 sources and destinations of dispatches to/from LdaZero
+  $ tools/ignition/bytecode_dispatches_report.py -f LdaZero -n 5
 """
 
 __COUNTER_BITS = struct.calcsize("P") * 8  # Size in bits of a pointer
@@ -85,6 +88,32 @@ def print_top_bytecodes(dispatches_table):
   print "Top bytecodes:"
   for bytecode, counter in top_bytecodes:
     print "{:>12d}\t{}".format(counter, bytecode)
+
+
+def find_top_dispatch_sources(dispatches_table, destination, top_count):
+  def source_counters_generator():
+    for source, table_row in dispatches_table.items():
+      if destination in table_row:
+        yield source, table_row[destination]
+
+  return heapq.nlargest(top_count, source_counters_generator(),
+                        key=lambda x: x[1])
+
+
+def print_top_dispatch_sources_and_destinations(dispatches_table, bytecode,
+                                                top_count):
+  top_sources = find_top_dispatch_sources(dispatches_table, bytecode, top_count)
+  top_destinations = heapq.nlargest(top_count,
+                                    dispatches_table[bytecode].items(),
+                                    key=lambda x: x[1])
+
+  print "Top sources of dispatches to {}:".format(bytecode)
+  for source_name, counter in top_sources:
+    print "{:>12d}\t{}".format(counter, source_name)
+
+  print "\nTop destinations of dispatches from {}:".format(bytecode)
+  for destination_name, counter in top_destinations:
+    print "{:>12d}\t{}".format(counter, destination_name)
 
 
 def build_counters_matrix(dispatches_table):
@@ -167,11 +196,16 @@ def parse_command_line():
     help="print the top bytecode dispatch pairs"
   )
   command_line_parser.add_argument(
-    "--top-bytecode-dispatch-pairs-number", "-n",
+    "--top-entries-count", "-n",
     metavar="N",
     type=int,
     default=10,
-    help="print N top bytecode dispatch pairs when running with -t (default 10)"
+    help="print N top entries when running with -t or -f (default 10)"
+  )
+  command_line_parser.add_argument(
+    "--top-dispatches-for-bytecode", "-f",
+    metavar="<bytecode name>",
+    help="print top dispatch sources and destinations to the specified bytecode"
   )
   command_line_parser.add_argument(
     "--output-filename", "-o",
@@ -211,7 +245,11 @@ def main():
       pyplot.savefig(program_options.output_filename)
   elif program_options.top_bytecode_dispatch_pairs:
     print_top_bytecode_dispatch_pairs(
-      dispatches_table, program_options.top_bytecode_dispatch_pairs_number)
+      dispatches_table, program_options.top_entries_count)
+  elif program_options.top_dispatches_for_bytecode:
+    print_top_dispatch_sources_and_destinations(
+      dispatches_table, program_options.top_dispatches_for_bytecode,
+      program_options.top_entries_count)
   else:
     print_top_bytecodes(dispatches_table)
 
