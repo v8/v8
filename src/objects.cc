@@ -12192,10 +12192,16 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   IncrementalStringBuilder builder(isolate);
   if (!shared_info->is_arrow()) {
     if (shared_info->is_concise_method()) {
-      if (shared_info->is_generator()) builder.AppendCharacter('*');
+      if (shared_info->is_generator()) {
+        builder.AppendCharacter('*');
+      } else if (shared_info->is_async()) {
+        builder.AppendCString("async ");
+      }
     } else {
       if (shared_info->is_generator()) {
         builder.AppendCString("function* ");
+      } else if (shared_info->is_async()) {
+        builder.AppendCString("async function ");
       } else {
         builder.AppendCString("function ");
       }
