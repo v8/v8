@@ -42,6 +42,9 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
 
+  // If live-edit has dropped frames, we are not going back to dispatch.
+  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::FromInt(0);
+
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =

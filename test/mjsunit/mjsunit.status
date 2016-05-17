@@ -287,10 +287,6 @@
   ############################################################################
   # Ignition
 
-  # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-stepin': [PASS, NO_IGNITION],
-  'debug-liveedit-stack-padding': [PASS, NO_IGNITION],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [PASS, NO_IGNITION],
   'regress/regress-4121': [PASS, NO_IGNITION],
@@ -841,10 +837,6 @@
 
 ##############################################################################
 ['ignition or ignition_turbofan', {
-   # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-stepin': [FAIL],
-  'debug-liveedit-stack-padding': [SKIP],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],

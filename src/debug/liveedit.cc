@@ -1121,6 +1121,11 @@ void LiveEdit::ReplaceFunctionCode(
       DCHECK(old_code->kind() == Code::FUNCTION);
       ReplaceCodeObject(old_code, new_code);
     }
+    if (shared_info->HasDebugInfo()) {
+      // Existing break points will be re-applied. Reset the debug info here.
+      isolate->debug()->RemoveDebugInfoAndClearFromShared(
+          handle(shared_info->GetDebugInfo()));
+    }
     Handle<Object> code_scope_info = compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
@@ -1820,7 +1825,8 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
   // Adjust break_frame after some frames has been dropped.
   StackFrame::Id new_id = StackFrame::NO_ID;
   for (int i = bottom_js_frame_index + 1; i < frames.length(); i++) {
-    if (frames[i]->type() == StackFrame::JAVA_SCRIPT) {
+    if (frames[i]->type() == StackFrame::JAVA_SCRIPT ||
+        frames[i]->type() == StackFrame::INTERPRETED) {
       new_id = frames[i]->id();
       break;
     }
