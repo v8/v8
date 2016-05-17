@@ -94,8 +94,6 @@ class CallSite {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
-  T(CalledNonCallableInstanceOf,                                               \
-    "Right-hand side of 'instanceof' is not callable")                         \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
@@ -132,8 +130,6 @@ class CallSite {
   T(GeneratorRunning, "Generator is already running")                          \
   T(IllegalInvocation, "Illegal invocation")                                   \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
-  T(InstanceofFunctionExpected,                                                \
-    "Expecting a function in instanceof check, but got %")                     \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidArgument, "invalid_argument")                                       \
@@ -150,6 +146,8 @@ class CallSite {
     "Method invoked on undefined or null value.")                              \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NoAccess, "no access")                                                     \
+  T(NonCallableInInstanceOfCheck,                                              \
+    "Right-hand side of 'instanceof' is not callable")                         \
   T(NonCoercible, "Cannot match against 'undefined' or 'null'.")               \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectInInstanceOfCheck,                                                \

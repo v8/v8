@@ -1233,6 +1233,14 @@ class Object {
                                                         Handle<Object> lhs,
                                                         Handle<Object> rhs);
 
+  // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
+  MUST_USE_RESULT static MaybeHandle<Object> OrdinaryHasInstance(
+      Isolate* isolate, Handle<Object> callable, Handle<Object> object);
+
+  // ES6 section 12.10.4 Runtime Semantics: InstanceofOperator(O, C)
+  MUST_USE_RESULT static MaybeHandle<Object> InstanceOf(
+      Isolate* isolate, Handle<Object> object, Handle<Object> callable);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
   // ES6 [[Set]] (when passed DONT_THROW)

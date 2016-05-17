@@ -1189,7 +1189,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> has_instance = InstallFunction(
         prototype, factory->has_instance_symbol(), JS_OBJECT_TYPE,
         JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-        Builtins::kFunctionHasInstance,
+        Builtins::kFunctionPrototypeHasInstance,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
 
     // Set the expected parameters for @@hasInstance to 1; required by builtin.
@@ -1197,9 +1197,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Set the length for the function to satisfy ECMA-262.
     has_instance->shared()->set_length(1);
-
-    // Install in the native context
-    native_context()->set_ordinary_has_instance(*has_instance);
 
     // Install the "constructor" property on the %FunctionPrototype%.
     JSObject::AddProperty(prototype, factory->constructor_string(),

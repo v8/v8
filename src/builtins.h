@@ -283,7 +283,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(DatePrototypeGetUTCMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
   V(DatePrototypeGetUTCSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
                                                                                \
-  V(FunctionHasInstance, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(FunctionPrototypeApply, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(FunctionPrototypeCall, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
                                                                                \
@@ -312,21 +311,22 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
-#define BUILTIN_LIST_T(V)         \
-  V(GeneratorPrototypeNext, 2)    \
-  V(GeneratorPrototypeReturn, 2)  \
-  V(GeneratorPrototypeThrow, 2)   \
-  V(MathCeil, 2)                  \
-  V(MathClz32, 2)                 \
-  V(MathFloor, 2)                 \
-  V(MathRound, 2)                 \
-  V(MathSqrt, 2)                  \
-  V(MathTrunc, 2)                 \
-  V(ObjectHasOwnProperty, 2)      \
-  V(ArrayIsArray, 2)              \
-  V(StringPrototypeCharAt, 2)     \
-  V(StringPrototypeCharCodeAt, 2) \
-  V(AtomicsLoad, 3)               \
+#define BUILTIN_LIST_T(V)            \
+  V(FunctionPrototypeHasInstance, 2) \
+  V(GeneratorPrototypeNext, 2)       \
+  V(GeneratorPrototypeReturn, 2)     \
+  V(GeneratorPrototypeThrow, 2)      \
+  V(MathCeil, 2)                     \
+  V(MathClz32, 2)                    \
+  V(MathFloor, 2)                    \
+  V(MathRound, 2)                    \
+  V(MathSqrt, 2)                     \
+  V(MathTrunc, 2)                    \
+  V(ObjectHasOwnProperty, 2)         \
+  V(ArrayIsArray, 2)                 \
+  V(StringPrototypeCharAt, 2)        \
+  V(StringPrototypeCharCodeAt, 2)    \
+  V(AtomicsLoad, 3)                  \
   V(AtomicsStore, 4)
 
 // Define list of builtin handlers implemented in assembly.
@@ -594,7 +594,6 @@ class Builtins {
   // ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( )
   static void Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm);
 
-  static void Generate_FunctionHasInstance(MacroAssembler* masm);
   static void Generate_FunctionPrototypeApply(MacroAssembler* masm);
   static void Generate_FunctionPrototypeCall(MacroAssembler* masm);
 
@@ -631,6 +630,10 @@ class Builtins {
   static void Generate_NumberConstructor(MacroAssembler* masm);
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
   static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
+
+  // ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
+  static void Generate_FunctionPrototypeHasInstance(
+      CodeStubAssembler* assembler);
 
   // ES6 section 25.3.1.2 Generator.prototype.next ( value )
   static void Generate_GeneratorPrototypeNext(CodeStubAssembler* assembler);

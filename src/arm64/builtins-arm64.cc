@@ -1683,30 +1683,6 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- x0      : argc
-  //  -- jssp[0] : first argument (left-hand side)
-  //  -- jssp[8] : receiver (right-hand side)
-  // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_FunctionHasInstance");
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Ldr(InstanceOfDescriptor::LeftRegister(),
-           MemOperand(fp, 2 * kPointerSize));  // Load left-hand side.
-    __ Ldr(InstanceOfDescriptor::RightRegister(),
-           MemOperand(fp, 3 * kPointerSize));  // Load right-hand side.
-    InstanceOfStub stub(masm->isolate(), true);
-    __ CallStub(&stub);
-  }
-
-  // Pop the argument and the receiver.
-  __ Drop(2);
-  __ Ret();
-}
-
-// static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0       : argc

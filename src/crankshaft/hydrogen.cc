@@ -11680,18 +11680,24 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   }
 
   if (op == Token::INSTANCEOF) {
-    DCHECK(!FLAG_harmony_instanceof);
     // Check to see if the rhs of the instanceof is a known function.
     if (right->IsConstant() &&
         HConstant::cast(right)->handle(isolate())->IsJSFunction()) {
-      Handle<JSFunction> constructor =
+      Handle<JSFunction> function =
           Handle<JSFunction>::cast(HConstant::cast(right)->handle(isolate()));
-      if (constructor->IsConstructor() &&
-          !constructor->map()->has_non_instance_prototype()) {
-        JSFunction::EnsureHasInitialMap(constructor);
-        DCHECK(constructor->has_initial_map());
-        Handle<Map> initial_map(constructor->initial_map(), isolate());
+      // Make sure the prototype of {function} is the %FunctionPrototype%, and
+      // it already has a meaningful initial map (i.e. we constructed at least
+      // one instance using the constructor {function}).
+      // We can only use the fast case if @@hasInstance was not used so far.
+      if (function->has_initial_map() &&
+          function->map()->prototype() ==
+              function->native_context()->closure() &&
+          !function->map()->has_non_instance_prototype() &&
+          isolate()->IsHasInstanceLookupChainIntact()) {
+        Handle<Map> initial_map(function->initial_map(), isolate());
         top_info()->dependencies()->AssumeInitialMapCantChange(initial_map);
+        top_info()->dependencies()->AssumePropertyCell(
+            isolate()->factory()->has_instance_protector());
         HInstruction* prototype =
             Add<HConstant>(handle(initial_map->prototype(), isolate()));
         HHasInPrototypeChainAndBranch* result =
@@ -11700,7 +11706,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       }
     }
 
-    HInstanceOf* result = New<HInstanceOf>(left, right);
+    Callable callable = CodeFactory::InstanceOf(isolate());
+    HValue* stub = Add<HConstant>(callable.code());
+    HValue* values[] = {context(), left, right};
+    HCallWithDescriptor* result = New<HCallWithDescriptor>(
+        stub, 0, callable.descriptor(), ArrayVector(values));
+    result->set_type(HType::Boolean());
     return ast_context()->ReturnInstruction(result, expr->id());
 
   } else if (op == Token::IN) {
@@ -12801,45 +12812,6 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
 void HOptimizedGraphBuilder::GenerateCall(CallRuntime* call) {
   DCHECK_LE(2, call->arguments()->length());
   CHECK_ALIVE(VisitExpressions(call->arguments()));
-
-  // Try and customize ES6 instanceof here.
-  // We should at least have the constructor on the expression stack.
-  if (FLAG_harmony_instanceof && FLAG_harmony_instanceof_opt &&
-      call->arguments()->length() == 3) {
-    HValue* target = environment()->ExpressionStackAt(2);
-    if (target->IsConstant()) {
-      HConstant* constant_function = HConstant::cast(target);
-      if (constant_function->handle(isolate())->IsJSFunction()) {
-        Handle<JSFunction> func =
-            Handle<JSFunction>::cast(constant_function->handle(isolate()));
-        if (*func == isolate()->native_context()->ordinary_has_instance()) {
-          // Look at the function, which will be argument 1.
-          HValue* right = environment()->ExpressionStackAt(1);
-          if (right->IsConstant() &&
-              HConstant::cast(right)->handle(isolate())->IsJSFunction()) {
-            Handle<JSFunction> constructor = Handle<JSFunction>::cast(
-                HConstant::cast(right)->handle(isolate()));
-            if (constructor->IsConstructor() &&
-                !constructor->map()->has_non_instance_prototype()) {
-              JSFunction::EnsureHasInitialMap(constructor);
-              DCHECK(constructor->has_initial_map());
-              Handle<Map> initial_map(constructor->initial_map(), isolate());
-              top_info()->dependencies()->AssumeInitialMapCantChange(
-                  initial_map);
-              HInstruction* prototype =
-                  Add<HConstant>(handle(initial_map->prototype(), isolate()));
-              HValue* left = environment()->ExpressionStackAt(0);
-              HHasInPrototypeChainAndBranch* result =
-                  New<HHasInPrototypeChainAndBranch>(left, prototype);
-              Drop(3);
-              return ast_context()->ReturnControl(result, call->id());
-            }
-          }
-        }
-      }
-    }
-  }
-
   CallTrampolineDescriptor descriptor(isolate());
   PushArgumentsFromEnvironment(call->arguments()->length() - 1);
   HValue* trampoline = Add<HConstant>(isolate()->builtins()->Call());
@@ -13077,13 +13049,6 @@ void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
       Add<HConstant>(ExternalReference::debug_is_active_address(isolate()));
   HValue* value =
       Add<HLoadNamedField>(ref, nullptr, HObjectAccess::ForExternalUInteger8());
-  return ast_context()->ReturnValue(value);
-}
-
-void HOptimizedGraphBuilder::GenerateGetOrdinaryHasInstance(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 0);
-  // ordinary_has_instance is immutable so we can treat it as a constant.
-  HValue* value = Add<HConstant>(isolate()->ordinary_has_instance());
   return ast_context()->ReturnValue(value);
 }
 

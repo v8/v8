@@ -2415,6 +2415,21 @@ void Builtins::Generate_MathTrunc(CodeStubAssembler* assembler) {
 }
 
 // -----------------------------------------------------------------------------
+// ES6 section 19.2 Function Objects
+
+// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
+void Builtins::Generate_FunctionPrototypeHasInstance(
+    CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* f = assembler->Parameter(0);
+  Node* v = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* result = assembler->OrdinaryHasInstance(context, f, v);
+  assembler->Return(result);
+}
+
+// -----------------------------------------------------------------------------
 // ES6 section 25.3 Generator Objects
 
 namespace {
@@ -4217,7 +4232,6 @@ BUILTIN(FunctionPrototypeBind) {
   }
   return *function;
 }
-
 
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {

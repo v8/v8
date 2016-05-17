@@ -571,6 +571,88 @@ MaybeHandle<Object> Object::BitwiseXor(Isolate* isolate, Handle<Object> lhs,
                                               NumberToInt32(*rhs));
 }
 
+// static
+MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
+                                                Handle<Object> callable,
+                                                Handle<Object> object) {
+  // The {callable} must have a [[Call]] internal method.
+  if (!callable->IsCallable()) return isolate->factory()->false_value();
+
+  // Check if {callable} is a bound function, and if so retrieve its
+  // [[BoundTargetFunction]] and use that instead of {callable}.
+  if (callable->IsJSBoundFunction()) {
+    Handle<Object> bound_callable(
+        Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
+        isolate);
+    return Object::InstanceOf(isolate, object, bound_callable);
+  }
+
+  // If {object} is not a receiver, return false.
+  if (!object->IsJSReceiver()) return isolate->factory()->false_value();
+
+  // Get the "prototype" of {callable}; raise an error if it's not a receiver.
+  Handle<Object> prototype;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, prototype,
+      Object::GetProperty(callable, isolate->factory()->prototype_string()),
+      Object);
+  if (!prototype->IsJSReceiver()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype),
+        Object);
+  }
+
+  // Return whether or not {prototype} is in the prototype chain of {object}.
+  Maybe<bool> result = JSReceiver::HasInPrototypeChain(
+      isolate, Handle<JSReceiver>::cast(object), prototype);
+  if (result.IsNothing()) return MaybeHandle<Object>();
+  return isolate->factory()->ToBoolean(result.FromJust());
+}
+
+// static
+MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
+                                       Handle<Object> callable) {
+  if (FLAG_harmony_instanceof) {
+    // The {callable} must be a receiver.
+    if (!callable->IsJSReceiver()) {
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck),
+          Object);
+    }
+
+    // Lookup the @@hasInstance method on {callable}.
+    Handle<Object> inst_of_handler;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, inst_of_handler,
+        JSReceiver::GetMethod(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->has_instance_symbol()),
+        Object);
+    if (!inst_of_handler->IsUndefined()) {
+      // Call the {inst_of_handler} on the {callable}.
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          Execution::Call(isolate, inst_of_handler, callable, 1, &object),
+          Object);
+      return isolate->factory()->ToBoolean(result->BooleanValue());
+    }
+  }
+
+  // The {callable} must have a [[Call]] internal method.
+  if (!callable->IsCallable()) {
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck),
+        Object);
+  }
+
+  // Fall back to OrdinaryHasInstance with {callable} and {object}.
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      JSReceiver::OrdinaryHasInstance(isolate, callable, object), Object);
+  return result;
+}
 
 Maybe<bool> Object::IsArray(Handle<Object> object) {
   if (object->IsJSArray()) return Just(true);
@@ -1389,6 +1471,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   }
 }
 
+// static
 Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
                                             Handle<JSReceiver> object,
                                             Handle<Object> proto) {
@@ -1401,7 +1484,6 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
     }
   }
 }
-
 
 Map* Object::GetRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;

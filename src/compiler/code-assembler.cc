@@ -205,14 +205,10 @@ Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
     }
   }
 
-  compiler::Node* roots_array_start =
+  Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
-  USE(roots_array_start);
-
-  // TODO(danno): Implement the root-access case where the root is not constant
-  // and must be loaded from the root array.
-  UNIMPLEMENTED();
-  return nullptr;
+  return Load(MachineType::AnyTagged(), roots_array_start,
+              IntPtrConstant(root_index * kPointerSize));
 }
 
 Node* CodeAssembler::Store(MachineRepresentation rep, Node* base, Node* value) {
@@ -237,6 +233,14 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
                                  Node* index, Node* value) {
   return raw_assembler_->AtomicStore(rep, base, index, value);
+}
+
+Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
+  DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
+  Node* roots_array_start =
+      ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  return StoreNoWriteBarrier(MachineRepresentation::kTagged, roots_array_start,
+                             IntPtrConstant(root_index * kPointerSize), value);
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {

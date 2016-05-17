@@ -245,6 +245,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                         Label* if_found, Label* if_not_found,
                         Label* call_runtime);
 
+  // Instanceof helpers.
+  // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
+  compiler::Node* OrdinaryHasInstance(compiler::Node* context,
+                                      compiler::Node* callable,
+                                      compiler::Node* object);
+
  private:
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,

@@ -545,7 +545,6 @@ class FullCodeGenerator: public AstVisitor {
   F(ToName)                             \
   F(ToObject)                           \
   F(DebugIsActive)                      \
-  F(GetOrdinaryHasInstance)             \
   F(CreateIterResultObject)
 
 #define GENERATOR_DECLARATION(Name) void Emit##Name(CallRuntime* call);

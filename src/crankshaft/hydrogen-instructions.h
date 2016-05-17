@@ -95,7 +95,6 @@ class LChunkBuilder;
   V(HasCachedArrayIndexAndBranch)             \
   V(HasInstanceTypeAndBranch)                 \
   V(InnerAllocatedObject)                     \
-  V(InstanceOf)                               \
   V(InvokeFunction)                           \
   V(HasInPrototypeChainAndBranch)             \
   V(IsStringAndBranch)                        \
@@ -4268,27 +4267,6 @@ class HTypeofIsAndBranch final : public HUnaryControlInstruction {
         type_literal_(Unique<String>::CreateUninitialized(type_literal)) { }
 
   Unique<String> type_literal_;
-};
-
-
-class HInstanceOf final : public HBinaryOperation {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HInstanceOf, HValue*, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf)
-
- private:
-  HInstanceOf(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right, HType::Boolean()) {
-    set_representation(Representation::Tagged());
-    SetAllSideEffects();
-  }
 };
 
 

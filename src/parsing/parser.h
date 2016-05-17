@@ -677,8 +677,6 @@ class ParserTraits {
   Expression* RewriteYieldStar(
       Expression* generator, Expression* expression, int pos);
 
-  Expression* RewriteInstanceof(Expression* lhs, Expression* rhs, int pos);
-
  private:
   Parser* parser_;
 

@@ -317,11 +317,11 @@ namespace internal {
   F(ThrowCalledOnNullOrUndefined, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
-  F(GetOrdinaryHasInstance, 0, 1)                   \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(EnqueueMicrotask, 1, 1)                         \
   F(RunMicrotasks, 0, 1)                            \
-  F(WasmGetFunctionName, 2, 1)
+  F(WasmGetFunctionName, 2, 1)                      \
+  F(OrdinaryHasInstance, 2, 1)
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \
@@ -432,8 +432,6 @@ namespace internal {
   F(SameValue, 2, 1)                                 \
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
-  F(InstanceOf, 2, 1)                                \
-  F(OrdinaryHasInstance, 2, 1)                       \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
@@ -458,7 +456,8 @@ namespace internal {
   F(LessThan, 2, 1)                     \
   F(GreaterThan, 2, 1)                  \
   F(LessThanOrEqual, 2, 1)              \
-  F(GreaterThanOrEqual, 2, 1)
+  F(GreaterThanOrEqual, 2, 1)           \
+  F(InstanceOf, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \

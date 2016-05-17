@@ -120,6 +120,12 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
          Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
 }
 
+bool Isolate::IsHasInstanceLookupChainIntact() {
+  if (!FLAG_harmony_instanceof) return true;
+  PropertyCell* has_instance_cell = heap()->has_instance_protector();
+  return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
+}
+
 }  // namespace internal
 }  // namespace v8
 

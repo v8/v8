@@ -194,6 +194,7 @@ using v8::MemoryPressureLevel;
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
+  V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
   V(Cell, species_protector, SpeciesProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.

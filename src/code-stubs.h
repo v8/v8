@@ -31,7 +31,6 @@ namespace internal {
   V(CompareIC)                              \
   V(DoubleToI)                              \
   V(FunctionPrototype)                      \
-  V(InstanceOf)                             \
   V(InternalArrayConstructor)               \
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
@@ -121,6 +120,7 @@ namespace internal {
   V(InternalArrayNoArgumentConstructor)     \
   V(Dec)                                    \
   V(FastCloneShallowObject)                 \
+  V(InstanceOf)                             \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
   V(GreaterThan)                            \
@@ -781,6 +781,15 @@ class DecStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(Dec, TurboFanCodeStub);
 };
 
+class InstanceOfStub final : public TurboFanCodeStub {
+ public:
+  explicit InstanceOfStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
+  DEFINE_TURBOFAN_CODE_STUB(InstanceOf, TurboFanCodeStub);
+};
+
 class LessThanStub final : public TurboFanCodeStub {
  public:
   explicit LessThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -1236,24 +1245,6 @@ class FastArrayPushStub : public HydrogenCodeStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastArrayPush);
   DEFINE_HYDROGEN_CODE_STUB(FastArrayPush, HydrogenCodeStub);
-};
-
-class InstanceOfStub final : public PlatformCodeStub {
- public:
-  explicit InstanceOfStub(Isolate* isolate, bool es6_instanceof = false)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = IsES6InstanceOfBits::encode(es6_instanceof);
-  }
-
-  bool is_es6_instanceof() const {
-    return IsES6InstanceOfBits::decode(minor_key_);
-  }
-
- private:
-  class IsES6InstanceOfBits : public BitField<bool, 0, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(InstanceOf);
-  DEFINE_PLATFORM_CODE_STUB(InstanceOf, PlatformCodeStub);
 };
 
 

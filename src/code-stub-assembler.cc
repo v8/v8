@@ -1416,5 +1416,141 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
 }
 
+Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
+                                             Node* object) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label return_false(this), return_true(this),
+      return_runtime(this, Label::kDeferred), return_result(this);
+
+  // Goto runtime if {object} is a Smi.
+  GotoIf(WordIsSmi(object), &return_runtime);
+
+  // Load map of {object}.
+  Node* object_map = LoadMap(object);
+
+  // Lookup the {callable} and {object} map in the global instanceof cache.
+  // Note: This is safe because we clear the global instanceof cache whenever
+  // we change the prototype of any object.
+  Node* instanceof_cache_function =
+      LoadRoot(Heap::kInstanceofCacheFunctionRootIndex);
+  Node* instanceof_cache_map = LoadRoot(Heap::kInstanceofCacheMapRootIndex);
+  {
+    Label instanceof_cache_miss(this);
+    GotoUnless(WordEqual(instanceof_cache_function, callable),
+               &instanceof_cache_miss);
+    GotoUnless(WordEqual(instanceof_cache_map, object_map),
+               &instanceof_cache_miss);
+    var_result.Bind(LoadRoot(Heap::kInstanceofCacheAnswerRootIndex));
+    Goto(&return_result);
+    Bind(&instanceof_cache_miss);
+  }
+
+  // Goto runtime if {callable} is a Smi.
+  GotoIf(WordIsSmi(callable), &return_runtime);
+
+  // Load map of {callable}.
+  Node* callable_map = LoadMap(callable);
+
+  // Goto runtime if {callable} is not a JSFunction.
+  Node* callable_instance_type = LoadMapInstanceType(callable_map);
+  GotoUnless(
+      Word32Equal(callable_instance_type, Int32Constant(JS_FUNCTION_TYPE)),
+      &return_runtime);
+
+  // Goto runtime if {callable} is not a constructor or has
+  // a non-instance "prototype".
+  Node* callable_bitfield = LoadMapBitField(callable_map);
+  GotoUnless(
+      Word32Equal(Word32And(callable_bitfield,
+                            Int32Constant((1 << Map::kHasNonInstancePrototype) |
+                                          (1 << Map::kIsConstructor))),
+                  Int32Constant(1 << Map::kIsConstructor)),
+      &return_runtime);
+
+  // Get the "prototype" (or initial map) of the {callable}.
+  Node* callable_prototype =
+      LoadObjectField(callable, JSFunction::kPrototypeOrInitialMapOffset);
+  {
+    Variable var_callable_prototype(this, MachineRepresentation::kTagged);
+    Label callable_prototype_valid(this);
+    var_callable_prototype.Bind(callable_prototype);
+
+    // Resolve the "prototype" if the {callable} has an initial map.  Afterwards
+    // the {callable_prototype} will be either the JSReceiver prototype object
+    // or the hole value, which means that no instances of the {callable} were
+    // created so far and hence we should return false.
+    Node* callable_prototype_instance_type =
+        LoadInstanceType(callable_prototype);
+    GotoUnless(
+        Word32Equal(callable_prototype_instance_type, Int32Constant(MAP_TYPE)),
+        &callable_prototype_valid);
+    var_callable_prototype.Bind(
+        LoadObjectField(callable_prototype, Map::kPrototypeOffset));
+    Goto(&callable_prototype_valid);
+    Bind(&callable_prototype_valid);
+    callable_prototype = var_callable_prototype.value();
+  }
+
+  // Update the global instanceof cache with the current {object} map and
+  // {callable}.  The cached answer will be set when it is known below.
+  StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, callable);
+  StoreRoot(Heap::kInstanceofCacheMapRootIndex, object_map);
+
+  // Loop through the prototype chain looking for the {callable} prototype.
+  Variable var_object_map(this, MachineRepresentation::kTagged);
+  var_object_map.Bind(object_map);
+  Label loop(this, &var_object_map);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* object_map = var_object_map.value();
+
+    // Check if the current {object} needs to be access checked.
+    Node* object_bitfield = LoadMapBitField(object_map);
+    GotoUnless(
+        Word32Equal(Word32And(object_bitfield,
+                              Int32Constant(1 << Map::kIsAccessCheckNeeded)),
+                    Int32Constant(0)),
+        &return_runtime);
+
+    // Check if the current {object} is a proxy.
+    Node* object_instance_type = LoadMapInstanceType(object_map);
+    GotoIf(Word32Equal(object_instance_type, Int32Constant(JS_PROXY_TYPE)),
+           &return_runtime);
+
+    // Check the current {object} prototype.
+    Node* object_prototype = LoadMapPrototype(object_map);
+    GotoIf(WordEqual(object_prototype, callable_prototype), &return_true);
+    GotoIf(WordEqual(object_prototype, NullConstant()), &return_false);
+
+    // Continue with the prototype.
+    var_object_map.Bind(LoadMap(object_prototype));
+    Goto(&loop);
+  }
+
+  Bind(&return_true);
+  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(true));
+  var_result.Bind(BooleanConstant(true));
+  Goto(&return_result);
+
+  Bind(&return_false);
+  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(false));
+  var_result.Bind(BooleanConstant(false));
+  Goto(&return_result);
+
+  Bind(&return_runtime);
+  {
+    // Invalidate the global instanceof cache.
+    StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, SmiConstant(0));
+    // Fallback to the runtime implementation.
+    var_result.Bind(
+        CallRuntime(Runtime::kOrdinaryHasInstance, context, callable, object));
+  }
+  Goto(&return_result);
+
+  Bind(&return_result);
+  return var_result.value();
+}
+
 }  // namespace internal
 }  // namespace v8

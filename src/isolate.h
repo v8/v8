@@ -959,6 +959,7 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
+  inline bool IsHasInstanceLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
@@ -976,6 +977,7 @@ class Isolate {
     UpdateArrayProtectorOnSetElement(object);
   }
   void InvalidateArraySpeciesProtector();
+  void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
 
   // Returns true if array is the initial array prototype in any native context.

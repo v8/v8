@@ -1759,6 +1759,43 @@ void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   }
 }
 
+void InstanceOfStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* object = assembler->Parameter(0);
+  Node* callable = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+
+  Label return_runtime(assembler, Label::kDeferred);
+
+  // Check if no one installed @@hasInstance somewhere.
+  assembler->GotoUnless(
+      assembler->WordEqual(
+          assembler->LoadObjectField(
+              assembler->LoadRoot(Heap::kHasInstanceProtectorRootIndex),
+              PropertyCell::kValueOffset),
+          assembler->SmiConstant(Smi::FromInt(Isolate::kArrayProtectorValid))),
+      &return_runtime);
+
+  // Check if {callable} is a valid receiver.
+  assembler->GotoIf(assembler->WordIsSmi(callable), &return_runtime);
+  assembler->GotoIf(
+      assembler->Word32Equal(
+          assembler->Word32And(
+              assembler->LoadMapBitField(assembler->LoadMap(callable)),
+              assembler->Int32Constant(1 << Map::kIsCallable)),
+          assembler->Int32Constant(0)),
+      &return_runtime);
+
+  // Use the inline OrdinaryHasInstance directly.
+  assembler->Return(assembler->OrdinaryHasInstance(context, callable, object));
+
+  // TODO(bmeurer): Use GetPropertyStub here once available.
+  assembler->Bind(&return_runtime);
+  assembler->TailCallRuntime(Runtime::kInstanceOf, context, object, callable);
+}
+
 namespace {
 
 enum RelationalComparisonMode {

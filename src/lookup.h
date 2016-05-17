@@ -263,7 +263,9 @@ class LookupIterator final BASE_EMBEDDED {
     if (IsElement()) return;
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         (FLAG_harmony_species && (*name_ == heap()->constructor_string() ||
-                                  *name_ == heap()->species_symbol()))) {
+                                  *name_ == heap()->species_symbol())) ||
+        (FLAG_harmony_instanceof &&
+         (*name_ == heap()->has_instance_symbol()))) {
       InternalUpdateProtector();
     }
   }

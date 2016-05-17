@@ -798,7 +798,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kHasCachedArrayIndexAndBranch:
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
-    case HValue::kInstanceOf:
     case HValue::kIsSmiAndBranch:
     case HValue::kIsStringAndBranch:
     case HValue::kIsUndetectableAndBranch:
@@ -1649,12 +1648,6 @@ std::ostream& HUnknownOSRValue::PrintDataTo(std::ostream& os) const {  // NOLINT
   if (environment_->is_special_index(index_)) type = "special";
   if (environment_->is_parameter_index(index_)) type = "parameter";
   return os << type << " @ " << index_;
-}
-
-
-std::ostream& HInstanceOf::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << NameOf(left()) << " " << NameOf(right()) << " "
-            << NameOf(context());
 }
 
 

@@ -48,10 +48,6 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r0; }
 
 
-const Register InstanceOfDescriptor::LeftRegister() { return r1; }
-const Register InstanceOfDescriptor::RightRegister() { return r0; }
-
-
 const Register StringCompareDescriptor::LeftRegister() { return r1; }
 const Register StringCompareDescriptor::RightRegister() { return r0; }
 

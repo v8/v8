@@ -992,9 +992,6 @@ class PreParserTraits {
 
   inline PreParserExpression RewriteYieldStar(
       PreParserExpression generator, PreParserExpression expr, int pos);
-  inline PreParserExpression RewriteInstanceof(PreParserExpression lhs,
-                                               PreParserExpression rhs,
-                                               int pos);
 
  private:
   PreParser* pre_parser_;
@@ -1229,12 +1226,6 @@ ZoneList<PreParserExpression>* PreParserTraits::GetNonPatternList() const {
 
 PreParserExpression PreParserTraits::RewriteYieldStar(
     PreParserExpression generator, PreParserExpression expression, int pos) {
-  return PreParserExpression::Default();
-}
-
-PreParserExpression PreParserTraits::RewriteInstanceof(PreParserExpression lhs,
-                                                       PreParserExpression rhs,
-                                                       int pos) {
   return PreParserExpression::Default();
 }
 

@@ -531,13 +531,6 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_GetOrdinaryHasInstance) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-
-  return isolate->native_context()->ordinary_has_instance();
-}
-
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   if (args.length() == 0) {
@@ -598,5 +591,17 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   isolate->RunMicrotasks();
   return isolate->heap()->undefined_value();
 }
+
+RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, callable, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Object::OrdinaryHasInstance(isolate, callable, object));
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

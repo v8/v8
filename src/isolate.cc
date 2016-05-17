@@ -2652,6 +2652,15 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
       handle(Smi::FromInt(kArrayProtectorInvalid), this));
 }
 
+void Isolate::InvalidateHasInstanceProtector() {
+  DCHECK(factory()->has_instance_protector()->value()->IsSmi());
+  DCHECK(IsHasInstanceLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->has_instance_protector(),
+      handle(Smi::FromInt(kArrayProtectorInvalid), this));
+  DCHECK(!IsHasInstanceLookupChainIntact());
+}
+
 void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(factory()->is_concat_spreadable_protector()->value()->IsSmi());
   DCHECK(IsIsConcatSpreadableLookupChainIntact());

@@ -79,7 +79,6 @@ class LCodeGen;
   V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
-  V(InstanceOf)                              \
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
@@ -1132,22 +1131,6 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
 
   Token::Value op() const { return hydrogen()->token(); }
-};
-
-
-class LInstanceOf final : public LTemplateInstruction<1, 3, 0> {
- public:
-  LInstanceOf(LOperand* context, LOperand* left, LOperand* right) {
-    inputs_[0] = context;
-    inputs_[1] = left;
-    inputs_[2] = right;
-  }
-
-  LOperand* context() const { return inputs_[0]; }
-  LOperand* left() const { return inputs_[1]; }
-  LOperand* right() const { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(InstanceOf, "instance-of")
 };
 
 

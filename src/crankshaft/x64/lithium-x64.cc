@@ -957,17 +957,6 @@ LInstruction* LChunkBuilder::DoArgumentsElements(HArgumentsElements* elems) {
 }
 
 
-LInstruction* LChunkBuilder::DoInstanceOf(HInstanceOf* instr) {
-  LOperand* left =
-      UseFixed(instr->left(), InstanceOfDescriptor::LeftRegister());
-  LOperand* right =
-      UseFixed(instr->right(), InstanceOfDescriptor::RightRegister());
-  LOperand* context = UseFixed(instr->context(), rsi);
-  LInstanceOf* result = new (zone()) LInstanceOf(context, left, right);
-  return MarkAsCall(DefineFixed(result, rax), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoHasInPrototypeChainAndBranch(
     HHasInPrototypeChainAndBranch* instr) {
   LOperand* object = UseRegister(instr->object());

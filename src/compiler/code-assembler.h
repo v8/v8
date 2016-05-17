@@ -236,6 +236,9 @@ class CodeAssembler {
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value);
 
+  // Store a value to the root array.
+  Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
+
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name) Node* name(Node* a, Node* b);
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
