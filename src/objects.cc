@@ -15449,6 +15449,9 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source), JSRegExp);
 
+  RETURN_ON_EXCEPTION(isolate, RegExpImpl::Compile(regexp, source, flags),
+                      JSRegExp);
+
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
 
@@ -15468,9 +15471,6 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
         Handle<Smi>(Smi::FromInt(0), isolate), writable)
         .Check();
   }
-
-  RETURN_ON_EXCEPTION(isolate, RegExpImpl::Compile(regexp, source, flags),
-                      JSRegExp);
 
   return regexp;
 }
