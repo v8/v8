@@ -3,12 +3,17 @@
 // found in the LICENSE file.
 
 function ObjectWithKeys(count, keyOffset = 0, keyGen) {
-  var o = {};
+  var body = "";
   for (var i = 0; i < count; i++) {
     var key = keyGen(i + keyOffset);
-    o[key] = "value";
+    if (typeof key === "string") {
+      body += `this.${key} = 0\n`;
+    } else {
+      body += `this[${key}] = 0\n`;
+    }
   }
-  return o;
+  var f = new Function(body);
+  return new f();
 }
 
 function ObjectWithProperties(count, keyOffset) {
@@ -166,7 +171,7 @@ var TestData = [];
     var proto_mode = cachable ? "" : "-with-slow-proto";
     var name = `${obj_mode}-obj${proto_mode}`;
     var objects = [];
-    [10, 50, 100, 200, 500, 1000].forEach((prop_count) => {
+    [10, 50, 100, 200, 500].forEach((prop_count) => {
       // Create object with prop_count properties and prop_count elements.
       obj = ObjectWithProtoKeys(5, prop_count * 2, cachable,
                                 ObjectWithMixedKeys);
@@ -188,6 +193,14 @@ function CreateTestFunction(template, object, keys) {
              template(object, keys);
   var func = new Function("object", "keys", text);
   return () => func(object, keys);
+}
+
+function CombineTestFunctions(tests) {
+  return () => {
+    for (var i = 0; i < tests.length; i++ ) {
+      tests[i]();
+    }
+  };
 }
 
 var TestFunctions = [
@@ -241,16 +254,18 @@ for (var test_function_desc of TestFunctions) {
     for (var test_data of TestData) {
       var name = suit_name + "--" + test_data.name;
 
+      var tests = [];
       for (var object of test_data.objects) {
         var keys = test_function_desc.keys(object);
         keys = MakeKeyQueries(keys, query_kind);
 
-        var test_function = CreateTestFunction(test_function_desc.template,
-                                               object, keys);
-
-        var benchmark = new Benchmark(name, false, true, 400, test_function);
-        benchmarks.push(benchmark);
+        var test = CreateTestFunction(test_function_desc.template, object,
+                                      keys);
+        tests.push(test);
       }
+      var run_function = CombineTestFunctions(tests);
+      var benchmark = new Benchmark(name, false, false, 0, run_function);
+      benchmarks.push(benchmark);
     }
     Benchmarks.push(new BenchmarkSuite(suit_name, [100], benchmarks));
   }
