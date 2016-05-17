@@ -259,7 +259,7 @@ Node* CodeStubAssembler::SmiToWord32(Node* value) {
 }
 
 Node* CodeStubAssembler::SmiToFloat64(Node* value) {
-  return ChangeInt32ToFloat64(SmiUntag(value));
+  return ChangeInt32ToFloat64(SmiToWord32(value));
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
