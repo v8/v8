@@ -858,10 +858,8 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   // below doesn't support it yet.
   DCHECK((src.am() != PreIndex) && (src.am() != NegPreIndex));
 
-  // Generate two ldr instructions if ldrd is not available.
-  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size() &&
-      (dst1.code() % 2 == 0) && (dst1.code() + 1 == dst2.code())) {
-    CpuFeatureScope scope(this, ARMv7);
+  // Generate two ldr instructions if ldrd is not applicable.
+  if ((dst1.code() % 2 == 0) && (dst1.code() + 1 == dst2.code())) {
     ldrd(dst1, dst2, src, cond);
   } else {
     if ((src.am() == Offset) || (src.am() == NegOffset)) {
@@ -899,10 +897,8 @@ void MacroAssembler::Strd(Register src1, Register src2,
   // below doesn't support it yet.
   DCHECK((dst.am() != PreIndex) && (dst.am() != NegPreIndex));
 
-  // Generate two str instructions if strd is not available.
-  if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size() &&
-      (src1.code() % 2 == 0) && (src1.code() + 1 == src2.code())) {
-    CpuFeatureScope scope(this, ARMv7);
+  // Generate two str instructions if strd is not applicable.
+  if ((src1.code() % 2 == 0) && (src1.code() + 1 == src2.code())) {
     strd(src1, src2, dst, cond);
   } else {
     MemOperand dst2(dst);
