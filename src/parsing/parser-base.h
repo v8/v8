@@ -3243,11 +3243,17 @@ bool ParserBase<Traits>::IsNextLetKeyword() {
     case Token::LBRACK:
     case Token::IDENTIFIER:
     case Token::STATIC:
-    case Token::LET:  // Yes, you can do let let = ... in sloppy mode
+    case Token::LET:  // `let let;` is disallowed by static semantics, but the
+                      // token must be first interpreted as a keyword in order
+                      // for those semantics to apply. This ensures that ASI is
+                      // not honored when a LineTerminator separates the
+                      // tokens.
     case Token::YIELD:
     case Token::AWAIT:
     case Token::ASYNC:
       return true;
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+      return is_sloppy(language_mode());
     default:
       return false;
   }
