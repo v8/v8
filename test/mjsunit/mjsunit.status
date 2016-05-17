@@ -55,6 +55,9 @@
   'es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
+  # TODO(caitp): fix super-call and super-property in async arrow functions
+  'harmony/async-arrow-lexical-super': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 

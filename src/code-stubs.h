@@ -1023,7 +1023,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
  private:
   STATIC_ASSERT(LANGUAGE_END == 3);
   class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
-  class FunctionKindBits : public BitField<FunctionKind, 2, 8> {};
+  class FunctionKindBits : public BitField<FunctionKind, 2, 9> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);

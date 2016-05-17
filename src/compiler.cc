@@ -430,7 +430,7 @@ void EnsureFeedbackVector(CompilationInfo* info) {
 
 bool UseIgnition(CompilationInfo* info) {
   if (info->is_debug()) return false;
-  if (info->shared_info()->is_generator() && !FLAG_ignition_generators) {
+  if (info->shared_info()->is_resumable() && !FLAG_ignition_generators) {
     return false;
   }
 

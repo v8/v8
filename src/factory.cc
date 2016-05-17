@@ -1662,7 +1662,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
-  DCHECK(function->shared()->is_generator());
+  DCHECK(function->shared()->is_resumable());
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map());
   DCHECK_EQ(JS_GENERATOR_OBJECT_TYPE, map->instance_type());
@@ -2066,6 +2066,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
+    shared->DisableOptimization(kGenerator);
+  }
+  if (IsAsyncFunction(kind)) {
+    // TODO(caitp): Enable optimization of async functions when they are enabled
+    // for generators functions.
     shared->DisableOptimization(kGenerator);
   }
   return shared;

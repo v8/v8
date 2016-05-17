@@ -1058,6 +1058,7 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
   if (IsGeneratorFunction(kind)) return false;
+  if (IsAsyncFunction(kind)) return false;
   return true;
 }
 

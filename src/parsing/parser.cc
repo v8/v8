@@ -2754,6 +2754,8 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 
   if (is_generator()) {
     return_value = BuildIteratorResult(return_value, true);
+  } else if (is_async_function()) {
+    return_value = BuildPromiseResolve(return_value, return_value->position());
   }
 
   result = factory()->NewReturnStatement(return_value, loc.beg_pos);
@@ -3994,6 +3996,63 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
 }
 
+void ParserTraits::ParseAsyncArrowSingleExpressionBody(
+    ZoneList<Statement*>* body, bool accept_IN,
+    Type::ExpressionClassifier* classifier, int pos, bool* ok) {
+  parser_->DesugarAsyncFunctionBody(
+      parser_->ast_value_factory()->empty_string(), parser_->scope_, body,
+      classifier, kAsyncArrowFunction, FunctionBody::SingleExpression,
+      accept_IN, pos, ok);
+}
+
+void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
+                                      Scope* scope, ZoneList<Statement*>* body,
+                                      ExpressionClassifier* classifier,
+                                      FunctionKind kind, FunctionBody body_type,
+                                      bool accept_IN, int pos, bool* ok) {
+  // function async_function() {
+  //   try {
+  //     .generator_object = %CreateGeneratorObject();
+  //     ... function body ...
+  //   } catch (e) {
+  //     return Promise.reject(e);
+  //   }
+  // }
+  scope->ForceContextAllocation();
+  Variable* temp =
+      scope_->NewTemporary(ast_value_factory()->dot_generator_object_string());
+  function_state_->set_generator_object_variable(temp);
+
+  Expression* init_generator_variable = factory()->NewAssignment(
+      Token::INIT, factory()->NewVariableProxy(temp),
+      BuildCreateJSGeneratorObject(pos), RelocInfo::kNoPosition);
+  body->Add(factory()->NewExpressionStatement(init_generator_variable,
+                                              RelocInfo::kNoPosition),
+            zone());
+
+  Block* try_block = factory()->NewBlock(NULL, 8, true, RelocInfo::kNoPosition);
+
+  ZoneList<Statement*>* inner_body = try_block->statements();
+
+  Expression* return_value = nullptr;
+  if (body_type == FunctionBody::Normal) {
+    ParseStatementList(inner_body, Token::RBRACE, ok);
+    if (!*ok) return;
+    return_value = factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
+  } else {
+    return_value = ParseAssignmentExpression(accept_IN, classifier, ok);
+    if (!*ok) return;
+    ParserTraits::RewriteNonPattern(classifier, ok);
+    if (!*ok) return;
+  }
+
+  return_value = BuildPromiseResolve(return_value, return_value->position());
+  inner_body->Add(
+      factory()->NewReturnStatement(return_value, return_value->position()),
+      zone());
+  body->Add(BuildRejectPromiseOnException(try_block), zone());
+  scope->set_end_position(scanner()->location().end_pos);
+}
 
 DoExpression* Parser::ParseDoExpression(bool* ok) {
   // AssignmentExpression ::
@@ -4542,6 +4601,54 @@ Block* Parser::BuildParameterInitializationBlock(
   return init_block;
 }
 
+Block* Parser::BuildRejectPromiseOnException(Block* block) {
+  // try { <block> } catch (error) { return Promise.reject(error); }
+  Block* try_block = block;
+  Scope* catch_scope = NewScope(scope_, CATCH_SCOPE);
+  catch_scope->set_is_hidden();
+  Variable* catch_variable =
+      catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
+                                kCreatedInitialized, Variable::NORMAL);
+  Block* catch_block =
+      factory()->NewBlock(nullptr, 1, true, RelocInfo::kNoPosition);
+
+  Expression* promise_reject = BuildPromiseReject(
+      factory()->NewVariableProxy(catch_variable), RelocInfo::kNoPosition);
+
+  ReturnStatement* return_promise_reject =
+      factory()->NewReturnStatement(promise_reject, RelocInfo::kNoPosition);
+  catch_block->statements()->Add(return_promise_reject, zone());
+  TryStatement* try_catch_statement =
+      factory()->NewTryCatchStatement(try_block, catch_scope, catch_variable,
+                                      catch_block, RelocInfo::kNoPosition);
+
+  block = factory()->NewBlock(nullptr, 1, true, RelocInfo::kNoPosition);
+  block->statements()->Add(try_catch_statement, zone());
+  return block;
+}
+
+Expression* Parser::BuildCreateJSGeneratorObject(int pos) {
+  DCHECK_NOT_NULL(function_state_->generator_object_variable());
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  args->Add(factory()->NewThisFunction(pos), zone());
+  args->Add(ThisExpression(scope_, factory(), RelocInfo::kNoPosition), zone());
+  return factory()->NewCallRuntime(Runtime::kCreateJSGeneratorObject, args,
+                                   pos);
+}
+
+Expression* Parser::BuildPromiseResolve(Expression* value, int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+  args->Add(value, zone());
+  return factory()->NewCallRuntime(Context::PROMISE_CREATE_RESOLVED_INDEX, args,
+                                   pos);
+}
+
+Expression* Parser::BuildPromiseReject(Expression* value, int pos) {
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+  args->Add(value, zone());
+  return factory()->NewCallRuntime(Context::PROMISE_CREATE_REJECTED_INDEX, args,
+                                   pos);
+}
 
 ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     const AstRawString* function_name, int pos,
@@ -4595,14 +4702,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
           factory()->NewBlock(nullptr, 3, false, RelocInfo::kNoPosition);
 
       {
-        ZoneList<Expression*>* arguments =
-            new (zone()) ZoneList<Expression*>(2, zone());
-        arguments->Add(factory()->NewThisFunction(pos), zone());
-        arguments->Add(
-            ThisExpression(scope_, factory(), RelocInfo::kNoPosition), zone());
-        CallRuntime* allocation = factory()->NewCallRuntime(
-            Runtime::kCreateJSGeneratorObject, arguments, pos);
-
+        Expression* allocation = BuildCreateJSGeneratorObject(pos);
         VariableProxy* init_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
         Assignment* assignment = factory()->NewAssignment(
@@ -4638,6 +4738,10 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
                                                   RelocInfo::kNoPosition),
                 zone());
+    } else if (IsAsyncFunction(kind)) {
+      const bool accept_IN = true;
+      DesugarAsyncFunctionBody(function_name, inner_scope, body, nullptr, kind,
+                               FunctionBody::Normal, accept_IN, pos, CHECK_OK);
     } else {
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
@@ -4659,6 +4763,11 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     DCHECK_EQ(body, inner_block->statements());
     SetLanguageMode(scope_, inner_scope->language_mode());
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
+
+    if (IsAsyncFunction(kind)) {
+      init_block = BuildRejectPromiseOnException(init_block);
+    }
+
     DCHECK_NOT_NULL(init_block);
 
     inner_scope->set_end_position(scanner()->location().end_pos);
@@ -5463,9 +5572,28 @@ void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
 }
 
 Expression* ParserTraits::RewriteAwaitExpression(Expression* value, int pos) {
-  // TODO(caitp): Implement AsyncFunctionAwait()
-  // per tc39.github.io/ecmascript-asyncawait/#abstract-ops-async-function-await
-  return value;
+  // yield %AsyncFunctionAwait(.generator_object, <operand>)
+  Variable* generator_object_variable =
+      parser_->function_state_->generator_object_variable();
+
+  // If generator_object_variable is null,
+  if (!generator_object_variable) return value;
+
+  Expression* generator_object =
+      parser_->factory()->NewVariableProxy(generator_object_variable);
+
+  ZoneList<Expression*>* async_function_await_args =
+      new (zone()) ZoneList<Expression*>(2, zone());
+  async_function_await_args->Add(generator_object, zone());
+  async_function_await_args->Add(value, zone());
+  Expression* async_function_await = parser_->factory()->NewCallRuntime(
+      Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args,
+      RelocInfo::kNoPosition);
+
+  generator_object =
+      parser_->factory()->NewVariableProxy(generator_object_variable);
+  return parser_->factory()->NewYield(generator_object, async_function_await,
+                                      pos);
 }
 
 Zone* ParserTraits::zone() const {

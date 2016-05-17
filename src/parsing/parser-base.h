@@ -3321,18 +3321,25 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
              function_state_->return_expr_context());
       ReturnExprScope allow_tail_calls(
           function_state_, ReturnExprContext::kInsideValidReturnStatement);
-      ExpressionT expression =
-          ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
-      Traits::RewriteNonPattern(&classifier, CHECK_OK);
       body = this->NewStatementList(1, zone());
-      this->AddParameterInitializationBlock(formal_parameters, body, CHECK_OK);
-      body->Add(factory()->NewReturnStatement(expression, pos), zone());
+      this->AddParameterInitializationBlock(formal_parameters, body, is_async,
+                                            CHECK_OK);
+      if (is_async) {
+        this->ParseAsyncArrowSingleExpressionBody(body, accept_IN, &classifier,
+                                                  pos, CHECK_OK);
+        Traits::RewriteNonPattern(&classifier, CHECK_OK);
+      } else {
+        ExpressionT expression =
+            ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
+        Traits::RewriteNonPattern(&classifier, CHECK_OK);
+        body->Add(factory()->NewReturnStatement(expression, pos), zone());
+        if (allow_tailcalls() && !is_sloppy(language_mode())) {
+          // ES6 14.6.1 Static Semantics: IsInTailPosition
+          this->MarkTailPosition(expression);
+        }
+      }
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
-      if (allow_tailcalls() && !is_sloppy(language_mode())) {
-        // ES6 14.6.1 Static Semantics: IsInTailPosition
-        this->MarkTailPosition(expression);
-      }
       this->MarkCollectedTailCallExpressions();
     }
     super_loc = function_state.super_location();

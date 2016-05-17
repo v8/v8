@@ -114,6 +114,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(FunctionPrototypeToString, kNone)                          \
                                                                \
   V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
+  V(AsyncFunctionConstructor, kTargetAndNewTarget)             \
                                                                \
   V(GlobalEval, kTarget)                                       \
                                                                \

@@ -421,6 +421,7 @@ action("js2c_experimental") {
   sources = [
     "src/js/macros.py",
     "src/messages.h",
+    "src/js/harmony-async-await.js",
     "src/js/harmony-atomics.js",
     "src/js/harmony-regexp-exec.js",
     "src/js/harmony-sharedarraybuffer.js",

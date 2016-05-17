@@ -1296,6 +1296,19 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   return PreParserExpression::Default();
 }
 
+void PreParserTraits::ParseAsyncArrowSingleExpressionBody(
+    PreParserStatementList body, bool accept_IN,
+    Type::ExpressionClassifier* classifier, int pos, bool* ok) {
+  Scope* scope = pre_parser_->scope_;
+  scope->ForceContextAllocation();
+
+  PreParserExpression return_value =
+      pre_parser_->ParseAssignmentExpression(accept_IN, classifier, ok);
+  if (!*ok) return;
+
+  body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
+}
+
 #undef CHECK_OK
 
 

@@ -860,8 +860,8 @@ class PreParserTraits {
   }
 
   static void AddParameterInitializationBlock(
-      const PreParserFormalParameters& parameters,
-      PreParserStatementList list, bool* ok) {}
+      const PreParserFormalParameters& parameters, PreParserStatementList list,
+      bool is_async, bool* ok) {}
 
   V8_INLINE void SkipLazyFunctionBody(int* materialized_literal_count,
                                       int* expected_property_count, bool* ok) {
@@ -877,6 +877,10 @@ class PreParserTraits {
       PreParserFormalParameters* parameters,
       PreParserExpression expression, const Scanner::Location& params_loc,
       Scanner::Location* duplicate_loc, bool* ok);
+
+  void ParseAsyncArrowSingleExpressionBody(
+      PreParserStatementList body, bool accept_IN,
+      Type::ExpressionClassifier* classifier, int pos, bool* ok);
 
   V8_INLINE PreParserExpression ParseAsyncFunctionExpression(bool* ok);
 

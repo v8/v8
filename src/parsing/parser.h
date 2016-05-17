@@ -535,7 +535,11 @@ class ParserTraits {
 
   V8_INLINE void AddParameterInitializationBlock(
       const ParserFormalParameters& parameters,
-      ZoneList<v8::internal::Statement*>* body, bool* ok);
+      ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok);
+
+  void ParseAsyncArrowSingleExpressionBody(
+      ZoneList<Statement*>* body, bool accept_IN,
+      Type::ExpressionClassifier* classifier, int pos, bool* ok);
 
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
@@ -971,6 +975,12 @@ class Parser : public ParserBase<ParserTraits> {
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
       Expression* cond, Statement* next, Statement* body, bool* ok);
 
+  void DesugarAsyncFunctionBody(const AstRawString* function_name, Scope* scope,
+                                ZoneList<Statement*>* body,
+                                Type::ExpressionClassifier* classifier,
+                                FunctionKind kind, FunctionBody type,
+                                bool accept_IN, int pos, bool* ok);
+
   void RewriteDoExpression(Expression* expr, bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
@@ -1041,6 +1051,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
+  Block* BuildRejectPromiseOnException(Block* block);
 
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
@@ -1084,6 +1095,10 @@ class Parser : public ParserBase<ParserTraits> {
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
+
+  Expression* BuildCreateJSGeneratorObject(int pos);
+  Expression* BuildPromiseResolve(Expression* value, int pos);
+  Expression* BuildPromiseReject(Expression* value, int pos);
 
   Scanner scanner_;
   PreParser* reusable_preparser_;
@@ -1254,14 +1269,18 @@ void ParserTraits::DeclareFormalParameter(
   }
 }
 
-
 void ParserTraits::AddParameterInitializationBlock(
     const ParserFormalParameters& parameters,
-    ZoneList<v8::internal::Statement*>* body, bool* ok) {
+    ZoneList<v8::internal::Statement*>* body, bool is_async, bool* ok) {
   if (!parameters.is_simple) {
     auto* init_block =
         parser_->BuildParameterInitializationBlock(parameters, ok);
     if (!*ok) return;
+
+    if (is_async) {
+      init_block = parser_->BuildRejectPromiseOnException(init_block);
+    }
+
     if (init_block != nullptr) {
       body->Add(init_block, parser_->zone());
     }

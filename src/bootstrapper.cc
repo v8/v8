@@ -163,6 +163,7 @@ class Genesis BASE_EMBEDDED {
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateIteratorMaps(Handle<JSFunction> empty);
+  void CreateAsyncFunctionMaps(Handle<JSFunction> empty);
   void CreateJSProxyMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
@@ -804,6 +805,32 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   Map::SetPrototype(generator_object_prototype_map, generator_object_prototype);
   native_context()->set_generator_object_prototype_map(
       *generator_object_prototype_map);
+}
+
+void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
+  // %AsyncFunctionPrototype% intrinsic
+  Handle<JSObject> async_function_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  SetObjectPrototype(async_function_prototype, empty);
+
+  JSObject::AddProperty(async_function_prototype,
+                        factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked("AsyncFunction"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  Handle<Map> strict_function_map(
+      native_context()->strict_function_without_prototype_map());
+  Handle<Map> sloppy_async_function_map =
+      Map::Copy(strict_function_map, "SloppyAsyncFunction");
+  sloppy_async_function_map->set_is_constructor(false);
+  Map::SetPrototype(sloppy_async_function_map, async_function_prototype);
+  native_context()->set_sloppy_async_function_map(*sloppy_async_function_map);
+
+  Handle<Map> strict_async_function_map =
+      Map::Copy(strict_function_map, "StrictAsyncFunction");
+  strict_async_function_map->set_is_constructor(false);
+  Map::SetPrototype(strict_async_function_map, async_function_prototype);
+  native_context()->set_strict_async_function_map(*strict_async_function_map);
 }
 
 void Genesis::CreateJSProxyMaps() {
@@ -2411,6 +2438,42 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           script_is_embedder_debug_script, attribs);
       script_map->AppendDescriptor(&d);
     }
+
+    {
+      PrototypeIterator iter(native_context->sloppy_async_function_map());
+      Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
+
+      static const bool kUseStrictFunctionMap = true;
+      Handle<JSFunction> async_function_constructor = InstallFunction(
+          container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
+          async_function_prototype, Builtins::kAsyncFunctionConstructor,
+          kUseStrictFunctionMap);
+      async_function_constructor->set_prototype_or_initial_map(
+          native_context->sloppy_async_function_map());
+      async_function_constructor->shared()->DontAdaptArguments();
+      async_function_constructor->shared()->set_construct_stub(
+          *isolate->builtins()->AsyncFunctionConstructor());
+      async_function_constructor->shared()->set_length(1);
+      InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
+                                       Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+
+      JSObject::AddProperty(
+          async_function_prototype, factory->constructor_string(),
+          async_function_constructor,
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      JSFunction::SetPrototype(async_function_constructor,
+                               async_function_prototype);
+
+      Handle<JSFunction> async_function_next =
+          SimpleInstallFunction(container, "AsyncFunctionNext",
+                                Builtins::kGeneratorPrototypeNext, 2, false);
+      Handle<JSFunction> async_function_throw =
+          SimpleInstallFunction(container, "AsyncFunctionThrow",
+                                Builtins::kGeneratorPrototypeThrow, 2, false);
+      async_function_next->shared()->set_native(true);
+      async_function_throw->shared()->set_native(true);
+    }
   }
 }
 
@@ -3031,7 +3094,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* icu_case_mapping_natives[] = {"native icu-case-mapping.js",
                                                    nullptr};
 #endif
-  static const char* harmony_async_await_natives[] = {nullptr};
+  static const char* harmony_async_await_natives[] = {
+      "native harmony-async-await.js", nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
@@ -3627,6 +3691,7 @@ Genesis::Genesis(Isolate* isolate,
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
     CreateIteratorMaps(empty_function);
+    CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);

@@ -11948,7 +11948,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
-  DCHECK(function->IsConstructor() || function->shared()->is_generator());
+  DCHECK(function->IsConstructor() || function->shared()->is_resumable());
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
@@ -11959,7 +11959,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // First create a new map with the size and number of in-object properties
   // suggested by the function.
   InstanceType instance_type;
-  if (function->shared()->is_generator()) {
+  if (function->shared()->is_resumable()) {
     instance_type = JS_GENERATOR_OBJECT_TYPE;
   } else {
     instance_type = JS_OBJECT_TYPE;

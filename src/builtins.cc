@@ -4223,6 +4223,13 @@ BUILTIN(GeneratorFunctionConstructor) {
   return *result;
 }
 
+BUILTIN(AsyncFunctionConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, CreateDynamicFunction(isolate, args, "async function"));
+  return *result;
+}
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {

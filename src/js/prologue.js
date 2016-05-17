@@ -183,6 +183,8 @@ function PostNatives(utils) {
   var expose_list = [
     "AddBoundMethod",
     "ArrayToString",
+    "AsyncFunctionNext",
+    "AsyncFunctionThrow",
     "ErrorToString",
     "GetIterator",
     "GetMethod",
@@ -201,6 +203,9 @@ function PostNatives(utils) {
     "PromiseChain",
     "PromiseDefer",
     "PromiseAccept",
+    "PromiseCreateRejected",
+    "PromiseCreateResolved",
+    "PromiseThen",
     "RegExpSubclassExecJS",
     "RegExpSubclassMatch",
     "RegExpSubclassReplace",
