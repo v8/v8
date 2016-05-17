@@ -27,8 +27,7 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
                                            OperandScale operand_scale)
     : CodeStubAssembler(isolate, zone, InterpreterDispatchDescriptor(isolate),
                         Code::ComputeFlags(Code::BYTECODE_HANDLER),
-                        Bytecodes::ToString(bytecode),
-                        Bytecodes::ReturnCount(bytecode)),
+                        Bytecodes::ToString(bytecode), 0),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       accumulator_(this, MachineRepresentation::kTagged),
@@ -601,7 +600,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
 }
 
-void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
+compiler::Node* InterpreterAssembler::InterpreterReturn() {
   // TODO(rmcilroy): Investigate whether it is worth supporting self
   // optimization of primitive functions like FullCodegen.
 
@@ -611,6 +610,10 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
       Int32Sub(Int32Constant(kHeapObjectTag + BytecodeArray::kHeaderSize),
                BytecodeOffset());
   UpdateInterruptBudget(profiling_weight);
+
+  Node* exit_trampoline_code_object =
+      HeapConstant(isolate()->builtins()->InterpreterExitTrampoline());
+  return DispatchToBytecodeHandler(exit_trampoline_code_object);
 }
 
 Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {

@@ -685,30 +685,30 @@ int Heap::NextScriptId() {
   return last_id;
 }
 
+
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
+
 
 void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
   DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
+
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
   DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
+
 
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
   DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
-  set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
-}
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
