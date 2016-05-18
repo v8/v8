@@ -1533,6 +1533,9 @@ void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
 
 class RecordMigratedSlotVisitor final : public ObjectVisitor {
  public:
+  explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
+      : collector_(collector) {}
+
   inline void VisitPointer(Object** p) final {
     RecordMigratedSlot(*p, reinterpret_cast<Address>(p));
   }
@@ -1552,6 +1555,54 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     }
   }
 
+  inline void VisitCodeTarget(RelocInfo* rinfo) final {
+    DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Code* host = rinfo->host();
+    collector_->RecordRelocSlot(host, rinfo, target);
+  }
+
+  inline void VisitDebugTarget(RelocInfo* rinfo) final {
+    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+           rinfo->IsPatchedDebugBreakSlotSequence());
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
+    Code* host = rinfo->host();
+    collector_->RecordRelocSlot(host, rinfo, target);
+  }
+
+  inline void VisitEmbeddedPointer(RelocInfo* rinfo) final {
+    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    HeapObject* object = HeapObject::cast(rinfo->target_object());
+    Code* host = rinfo->host();
+    collector_->RecordRelocSlot(host, rinfo, object);
+  }
+
+  inline void VisitCell(RelocInfo* rinfo) final {
+    DCHECK(rinfo->rmode() == RelocInfo::CELL);
+    Cell* cell = rinfo->target_cell();
+    Code* host = rinfo->host();
+    collector_->RecordRelocSlot(host, rinfo, cell);
+  }
+
+  // Entries that will never move.
+  inline void VisitCodeAgeSequence(RelocInfo* rinfo) final {
+    DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+    Code* stub = rinfo->code_age_stub();
+    USE(stub);
+    DCHECK(!Page::FromAddress(stub->address())->IsEvacuationCandidate());
+  }
+
+  // Entries that are skipped for recording.
+  inline void VisitExternalReference(RelocInfo* rinfo) final {}
+  inline void VisitExternalReference(Address* p) final {}
+  inline void VisitRuntimeEntry(RelocInfo* rinfo) final {}
+  inline void VisitExternalOneByteString(
+      v8::String::ExternalOneByteStringResource** resource) final {}
+  inline void VisitExternalTwoByteString(
+      v8::String::ExternalStringResource** resource) final {}
+  inline void VisitInternalReference(RelocInfo* rinfo) final {}
+  inline void VisitEmbedderReference(Object** p, uint16_t class_id) final {}
+
  private:
   inline void RecordMigratedSlot(Object* value, Address slot) {
     if (value->IsHeapObject()) {
@@ -1563,6 +1614,8 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
       }
     }
   }
+
+  MarkCompactCollector* collector_;
 };
 
 class MarkCompactCollector::HeapObjectVisitor {
@@ -1620,7 +1673,7 @@ class MarkCompactCollector::EvacuateVisitorBase
         PROFILE(heap_->isolate(),
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }
-      RecordMigratedSlotVisitor visitor;
+      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
       dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
@@ -1629,9 +1682,9 @@ class MarkCompactCollector::EvacuateVisitorBase
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }
       heap_->CopyBlock(dst_addr, src_addr, size);
-      RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(dst_addr),
-                                             RELOCATED_CODE_OBJECT, dst_addr);
       Code::cast(dst)->Relocate(dst_addr - src_addr);
+      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
+      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1799,7 +1852,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 class MarkCompactCollector::EvacuateNewSpacePageVisitor final
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  EvacuateNewSpacePageVisitor() : promoted_size_(0) {}
+  explicit EvacuateNewSpacePageVisitor(Heap* heap)
+      : heap_(heap), promoted_size_(0) {}
 
   static void TryMoveToOldSpace(Page* page, PagedSpace* owner) {
     if (page->heap()->new_space()->ReplaceWithEmptyPage(page)) {
@@ -1813,7 +1867,7 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
       object->GetHeap()->array_buffer_tracker()->Promote(
           JSArrayBuffer::cast(object));
     }
-    RecordMigratedSlotVisitor visitor;
+    RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBodyFast(&visitor);
     promoted_size_ += object->Size();
     return true;
@@ -1822,6 +1876,7 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
   intptr_t promoted_size() { return promoted_size_; }
 
  private:
+  Heap* heap_;
   intptr_t promoted_size_;
 };
 
@@ -1847,24 +1902,16 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
 class MarkCompactCollector::EvacuateRecordOnlyVisitor final
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  explicit EvacuateRecordOnlyVisitor(AllocationSpace space) : space_(space) {}
+  explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
   inline bool Visit(HeapObject* object) {
-    if (space_ == OLD_SPACE) {
-      RecordMigratedSlotVisitor visitor;
-      object->IterateBody(&visitor);
-    } else {
-      DCHECK_EQ(space_, CODE_SPACE);
-      // Add a typed slot for the whole code object.
-      RememberedSet<OLD_TO_OLD>::InsertTyped(
-          Page::FromAddress(object->address()), RELOCATED_CODE_OBJECT,
-          object->address());
-    }
+    RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
+    object->IterateBody(&visitor);
     return true;
   }
 
  private:
-  AllocationSpace space_;
+  Heap* heap_;
 };
 
 void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
@@ -2769,11 +2816,6 @@ static inline void UpdateTypedSlot(Isolate* isolate, ObjectVisitor* v,
       v->VisitCodeEntry(addr);
       break;
     }
-    case RELOCATED_CODE_OBJECT: {
-      HeapObject* obj = HeapObject::FromAddress(addr);
-      Code::BodyDescriptor::IterateBody(obj, v);
-      break;
-    }
     case DEBUG_TARGET_SLOT: {
       RelocInfo rinfo(isolate, addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0,
                       NULL);
@@ -3061,7 +3103,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
                                     kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
                            &local_pretenuring_feedback_),
-        new_space_page_visitor(),
+        new_space_page_visitor(collector->heap()),
         old_space_visitor_(collector->heap(), &compaction_spaces_),
         duration_(0.0),
         bytes_compacted_(0) {}
@@ -3172,7 +3214,7 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
       if (!result) {
         // Aborted compaction page. We can record slots here to have them
         // processed in parallel later on.
-        EvacuateRecordOnlyVisitor record_visitor(page->owner()->identity());
+        EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
         result = EvacuateSinglePage<kKeepMarking>(page, &record_visitor);
         DCHECK(result);
         USE(result);
