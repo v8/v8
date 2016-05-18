@@ -836,30 +836,27 @@ void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
   DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
-void Interpreter::DoCountOp(Callable callable,
-                            InterpreterAssembler* assembler) {
-  Node* target = __ HeapConstant(callable.code());
+template <class Generator>
+void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result = __ CallStub(callable.descriptor(), target, context, value);
+  Node* result = Generator::Generate(assembler, value, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
-
 
 // Inc
 //
 // Increments value in the accumulator by one.
 void Interpreter::DoInc(InterpreterAssembler* assembler) {
-  DoCountOp(CodeFactory::Inc(isolate_), assembler);
+  DoUnaryOp<IncStub>(assembler);
 }
-
 
 // Dec
 //
 // Decrements value in the accumulator by one.
 void Interpreter::DoDec(InterpreterAssembler* assembler) {
-  DoCountOp(CodeFactory::Dec(isolate_), assembler);
+  DoUnaryOp<DecStub>(assembler);
 }
 
 void Interpreter::DoLogicalNotOp(Node* value, InterpreterAssembler* assembler) {

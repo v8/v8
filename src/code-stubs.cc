@@ -1651,25 +1651,27 @@ compiler::Node* BitwiseXorStub::Generate(CodeStubAssembler* assembler,
   return result;
 }
 
-void IncStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* value,
+                                  compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(1);
-
   // Shared entry for floating point increment.
-  Label do_finc(assembler);
+  Label do_finc(assembler), end(assembler);
   Variable var_finc_value(assembler, MachineRepresentation::kFloat64);
 
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
+  Variable result_var(assembler, MachineRepresentation::kTagged);
   Label start(assembler, &value_var);
-  value_var.Bind(assembler->Parameter(0));
+  value_var.Bind(value);
   assembler->Goto(&start);
   assembler->Bind(&start);
   {
-    Node* value = value_var.value();
+    value = value_var.value();
 
     Label if_issmi(assembler), if_isnotsmi(assembler);
     assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
@@ -1686,7 +1688,8 @@ void IncStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
-      assembler->Return(assembler->Projection(0, pair));
+      result_var.Bind(assembler->Projection(0, pair));
+      assembler->Goto(&end);
 
       assembler->Bind(&if_overflow);
       {
@@ -1715,7 +1718,8 @@ void IncStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&if_valuenotnumber);
       {
         // Convert to a Number first and try again.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         value_var.Bind(assembler->CallStub(callable, context, value));
         assembler->Goto(&start);
       }
@@ -1727,30 +1731,35 @@ void IncStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* finc_value = var_finc_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* finc_result = assembler->Float64Add(finc_value, one);
-    Node* result = assembler->ChangeFloat64ToTagged(finc_result);
-    assembler->Return(result);
+    result_var.Bind(assembler->ChangeFloat64ToTagged(finc_result));
+    assembler->Goto(&end);
   }
+
+  assembler->Bind(&end);
+  return result_var.value();
 }
 
-void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* value,
+                                  compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(1);
-
   // Shared entry for floating point decrement.
-  Label do_fdec(assembler);
+  Label do_fdec(assembler), end(assembler);
   Variable var_fdec_value(assembler, MachineRepresentation::kFloat64);
 
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
+  Variable result_var(assembler, MachineRepresentation::kTagged);
   Label start(assembler, &value_var);
-  value_var.Bind(assembler->Parameter(0));
+  value_var.Bind(value);
   assembler->Goto(&start);
   assembler->Bind(&start);
   {
-    Node* value = value_var.value();
+    value = value_var.value();
 
     Label if_issmi(assembler), if_isnotsmi(assembler);
     assembler->Branch(assembler->WordIsSmi(value), &if_issmi, &if_isnotsmi);
@@ -1767,7 +1776,8 @@ void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
-      assembler->Return(assembler->Projection(0, pair));
+      result_var.Bind(assembler->Projection(0, pair));
+      assembler->Goto(&end);
 
       assembler->Bind(&if_overflow);
       {
@@ -1796,7 +1806,8 @@ void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       assembler->Bind(&if_valuenotnumber);
       {
         // Convert to a Number first and try again.
-        Callable callable = CodeFactory::NonNumberToNumber(isolate());
+        Callable callable =
+            CodeFactory::NonNumberToNumber(assembler->isolate());
         value_var.Bind(assembler->CallStub(callable, context, value));
         assembler->Goto(&start);
       }
@@ -1808,9 +1819,12 @@ void DecStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     Node* fdec_value = var_fdec_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* fdec_result = assembler->Float64Sub(fdec_value, one);
-    Node* result = assembler->ChangeFloat64ToTagged(fdec_result);
-    assembler->Return(result);
+    result_var.Bind(assembler->ChangeFloat64ToTagged(fdec_result));
+    assembler->Goto(&end);
   }
+
+  assembler->Bind(&end);
+  return result_var.value();
 }
 
 void InstanceOfStub::GenerateAssembly(CodeStubAssembler* assembler) const {

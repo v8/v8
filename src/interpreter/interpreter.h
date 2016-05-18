@@ -70,19 +70,20 @@ class Interpreter {
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
-  // Generates code to perform the binary operations via |callable|.
+  // Generates code to perform the binary operation via |callable|.
   void DoBinaryOp(Callable callable, InterpreterAssembler* assembler);
 
-  // Generates code to perform the binary operations via |function_id|.
+  // Generates code to perform the binary operation via |function_id|.
   void DoBinaryOp(Runtime::FunctionId function_id,
                   InterpreterAssembler* assembler);
 
-  // Generates code to perform the binary operations via |Generator|.
+  // Generates code to perform the binary operation via |Generator|.
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
-  // Generates code to perform the count operations via |callable|.
-  void DoCountOp(Callable callable, InterpreterAssembler* assembler);
+  // Generates code to perform the unary operation via |Generator|.
+  template <class Generator>
+  void DoUnaryOp(InterpreterAssembler* assembler);
 
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
