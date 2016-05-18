@@ -11907,8 +11907,13 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     new_map->SetConstructor(*value);
     new_map->set_non_instance_prototype(true);
     Isolate* isolate = new_map->GetIsolate();
+
     construct_prototype = handle(
-        function->context()->native_context()->initial_object_prototype(),
+        IsGeneratorFunction(function->shared()->kind())
+            ? function->context()
+                  ->native_context()
+                  ->initial_generator_prototype()
+            : function->context()->native_context()->initial_object_prototype(),
         isolate);
   } else {
     function->map()->set_non_instance_prototype(false);

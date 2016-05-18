@@ -749,6 +749,8 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   Handle<JSObject> generator_object_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
+  native_context()->set_initial_generator_prototype(
+      *generator_object_prototype);
   SetObjectPrototype(generator_object_prototype, iterator_prototype);
   Handle<JSObject> generator_function_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
