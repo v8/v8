@@ -51,10 +51,6 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
 
 
-const Register InstanceOfDescriptor::LeftRegister() { return edx; }
-const Register InstanceOfDescriptor::RightRegister() { return eax; }
-
-
 const Register StringCompareDescriptor::LeftRegister() { return edx; }
 const Register StringCompareDescriptor::RightRegister() { return eax; }
 

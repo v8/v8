@@ -1218,29 +1218,6 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
 }
 
 // static
-void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : argc
-  //  -- esp[0] : return address
-  //  -- esp[4] : first argument (left-hand side)
-  //  -- esp[8] : receiver (right-hand side)
-  // -----------------------------------
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ mov(InstanceOfDescriptor::LeftRegister(),
-           Operand(ebp, 2 * kPointerSize));  // Load left-hand side.
-    __ mov(InstanceOfDescriptor::RightRegister(),
-           Operand(ebp, 3 * kPointerSize));  // Load right-hand side.
-    InstanceOfStub stub(masm->isolate(), true);
-    __ CallStub(&stub);
-  }
-
-  // Pop the argument and the receiver.
-  __ ret(2 * kPointerSize);
-}
-
-// static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc
