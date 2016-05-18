@@ -4413,6 +4413,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       break;
     // ------------- Arithmetic instructions.
     case ADDIU: {
+      DCHECK(is_int32(rs));
       int32_t alu32_out = static_cast<int32_t>(rs + se_imm16);
       // Sign-extend result of 32bit operation into 64bit register.
       SetResult(rt_reg, static_cast<int64_t>(alu32_out));
