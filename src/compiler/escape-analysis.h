@@ -22,7 +22,6 @@ class VirtualObject;
 // an object is virtual and eliminated.
 class EscapeAnalysis {
  public:
-  typedef NodeId Alias;
   EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
   ~EscapeAnalysis();
 
@@ -56,13 +55,9 @@ class EscapeAnalysis {
   VirtualState* CopyForModificationAt(VirtualState* state, Node* node);
   VirtualObject* CopyForModificationAt(VirtualObject* obj, VirtualState* state,
                                        Node* node);
-  VirtualObject* GetVirtualObject(Node* at, NodeId id);
 
-  bool SetEscaped(Node* node);
-  Node* replacement(NodeId id);
   Node* replacement(Node* node);
   Node* ResolveReplacement(Node* node);
-  Node* GetReplacement(NodeId id);
   bool SetReplacement(Node* node, Node* rep);
   bool UpdateReplacement(VirtualState* state, Node* node, Node* rep);
 
@@ -70,10 +65,6 @@ class EscapeAnalysis {
 
   void DebugPrint();
   void DebugPrintState(VirtualState* state);
-  void DebugPrintObject(VirtualObject* state, Alias id);
-
-  Alias GetAlias(NodeId id) const;
-  Alias AliasCount() const;
 
   Graph* graph() const;
   Zone* zone() const { return zone_; }

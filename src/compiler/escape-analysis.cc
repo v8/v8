@@ -24,7 +24,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-using Alias = EscapeAnalysis::Alias;
+typedef NodeId Alias;
 
 #ifdef DEBUG
 #define TRACE(...)                                    \
@@ -1092,8 +1092,8 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
           if (!obj->AllFieldsClear()) {
             obj = CopyForModificationAt(obj, state, node);
             obj->ClearAllFields();
-            TRACE("Cleared all fields of @%d:#%d\n", GetAlias(obj->id()),
-                  obj->id());
+            TRACE("Cleared all fields of @%d:#%d\n",
+                  status_analysis_->GetAlias(obj->id()), obj->id());
           }
         }
         break;
@@ -1119,7 +1119,7 @@ VirtualObject* EscapeAnalysis::CopyForModificationAt(VirtualObject* obj,
                                                      Node* node) {
   if (obj->NeedCopyForModification()) {
     state = CopyForModificationAt(state, node);
-    return state->Copy(obj, GetAlias(obj->id()));
+    return state->Copy(obj, status_analysis_->GetAlias(obj->id()));
   }
   return obj;
 }
@@ -1160,7 +1160,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
 void EscapeAnalysis::ProcessStart(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kStart);
   virtual_states_[node->id()] =
-      new (zone()) VirtualState(node, zone(), AliasCount());
+      new (zone()) VirtualState(node, zone(), status_analysis_->AliasCount());
 }
 
 bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
@@ -1169,7 +1169,8 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
 
   VirtualState* mergeState = virtual_states_[node->id()];
   if (!mergeState) {
-    mergeState = new (zone()) VirtualState(node, zone(), AliasCount());
+    mergeState =
+        new (zone()) VirtualState(node, zone(), status_analysis_->AliasCount());
     virtual_states_[node->id()] = mergeState;
     changed = true;
     TRACE("Effect Phi #%d got new virtual state %p.\n", node->id(),
@@ -1187,7 +1188,8 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
     if (state) {
       cache_->states().push_back(state);
       if (state == mergeState) {
-        mergeState = new (zone()) VirtualState(node, zone(), AliasCount());
+        mergeState = new (zone())
+            VirtualState(node, zone(), status_analysis_->AliasCount());
         virtual_states_[node->id()] = mergeState;
         changed = true;
       }
@@ -1216,7 +1218,7 @@ void EscapeAnalysis::ProcessAllocation(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
   ForwardVirtualState(node);
   VirtualState* state = virtual_states_[node->id()];
-  Alias alias = GetAlias(node->id());
+  Alias alias = status_analysis_->GetAlias(node->id());
 
   // Check if we have already processed this node.
   if (state->VirtualObjectFromAlias(alias)) {
@@ -1248,19 +1250,16 @@ void EscapeAnalysis::ProcessFinishRegion(Node* node) {
   Node* allocation = NodeProperties::GetValueInput(node, 0);
   if (allocation->opcode() == IrOpcode::kAllocate) {
     VirtualState* state = virtual_states_[node->id()];
-    VirtualObject* obj = state->VirtualObjectFromAlias(GetAlias(node->id()));
+    VirtualObject* obj =
+        state->VirtualObjectFromAlias(status_analysis_->GetAlias(node->id()));
     DCHECK_NOT_NULL(obj);
     obj->SetInitialized();
   }
 }
 
-Node* EscapeAnalysis::replacement(NodeId id) {
-  if (id >= replacements_.size()) return nullptr;
-  return replacements_[id];
-}
-
 Node* EscapeAnalysis::replacement(Node* node) {
-  return replacement(node->id());
+  if (node->id() >= replacements_.size()) return nullptr;
+  return replacements_[node->id()];
 }
 
 bool EscapeAnalysis::SetReplacement(Node* node, Node* rep) {
@@ -1291,16 +1290,11 @@ Node* EscapeAnalysis::ResolveReplacement(Node* node) {
 }
 
 Node* EscapeAnalysis::GetReplacement(Node* node) {
-  return GetReplacement(node->id());
-}
-
-Node* EscapeAnalysis::GetReplacement(NodeId id) {
-  Node* node = nullptr;
-  while (replacement(id)) {
-    node = replacement(id);
-    id = node->id();
+  Node* result = nullptr;
+  while (replacement(node)) {
+    node = result = replacement(node);
   }
-  return node;
+  return result;
 }
 
 bool EscapeAnalysis::IsVirtual(Node* node) {
@@ -1315,17 +1309,6 @@ bool EscapeAnalysis::IsEscaped(Node* node) {
     return false;
   }
   return status_analysis_->IsEscaped(node);
-}
-
-bool EscapeAnalysis::SetEscaped(Node* node) {
-  return status_analysis_->SetEscaped(node);
-}
-
-VirtualObject* EscapeAnalysis::GetVirtualObject(Node* at, NodeId id) {
-  if (VirtualState* states = virtual_states_[at->id()]) {
-    return states->VirtualObjectFromAlias(GetAlias(id));
-  }
-  return nullptr;
 }
 
 bool EscapeAnalysis::CompareVirtualObjects(Node* left, Node* right) {
@@ -1445,7 +1428,7 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
     }
   } else {
     // We have a load from a non-const index, cannot eliminate object.
-    if (SetEscaped(from)) {
+    if (status_analysis_->SetEscaped(from)) {
       TRACE(
           "Setting #%d (%s) to escaped because load element #%d from non-const "
           "index #%d (%s)\n",
@@ -1500,7 +1483,7 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
     }
   } else {
     // We have a store to a non-const index, cannot eliminate object.
-    if (SetEscaped(to)) {
+    if (status_analysis_->SetEscaped(to)) {
       TRACE(
           "Setting #%d (%s) to escaped because store element #%d to non-const "
           "index #%d (%s)\n",
@@ -1511,8 +1494,8 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
       if (!obj->AllFieldsClear()) {
         obj = CopyForModificationAt(obj, state, node);
         obj->ClearAllFields();
-        TRACE("Cleared all fields of @%d:#%d\n", GetAlias(obj->id()),
-              obj->id());
+        TRACE("Cleared all fields of @%d:#%d\n",
+              status_analysis_->GetAlias(obj->id()), obj->id());
       }
     }
   }
@@ -1560,21 +1543,17 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
   return nullptr;
 }
 
-void EscapeAnalysis::DebugPrintObject(VirtualObject* object, Alias alias) {
-  PrintF("  Alias @%d: Object #%d with %zu fields\n", alias, object->id(),
-         object->field_count());
-  for (size_t i = 0; i < object->field_count(); ++i) {
-    if (Node* f = object->GetField(i)) {
-      PrintF("    Field %zu = #%d (%s)\n", i, f->id(), f->op()->mnemonic());
-    }
-  }
-}
-
 void EscapeAnalysis::DebugPrintState(VirtualState* state) {
   PrintF("Dumping virtual state %p\n", static_cast<void*>(state));
-  for (Alias alias = 0; alias < AliasCount(); ++alias) {
+  for (Alias alias = 0; alias < status_analysis_->AliasCount(); ++alias) {
     if (VirtualObject* object = state->VirtualObjectFromAlias(alias)) {
-      DebugPrintObject(object, alias);
+      PrintF("  Alias @%d: Object #%d with %zu fields\n", alias, object->id(),
+             object->field_count());
+      for (size_t i = 0; i < object->field_count(); ++i) {
+        if (Node* f = object->GetField(i)) {
+          PrintF("    Field %zu = #%d (%s)\n", i, f->id(), f->op()->mnemonic());
+        }
+      }
     }
   }
 }
@@ -1597,14 +1576,14 @@ void EscapeAnalysis::DebugPrint() {
 VirtualObject* EscapeAnalysis::GetVirtualObject(VirtualState* state,
                                                 Node* node) {
   if (node->id() >= status_analysis_->GetAliasMap().size()) return nullptr;
-  Alias alias = GetAlias(node->id());
+  Alias alias = status_analysis_->GetAlias(node->id());
   if (alias >= state->size()) return nullptr;
   return state->VirtualObjectFromAlias(alias);
 }
 
 bool EscapeAnalysis::ExistsVirtualAllocate() {
   for (size_t id = 0; id < status_analysis_->GetAliasMap().size(); ++id) {
-    Alias alias = GetAlias(static_cast<NodeId>(id));
+    Alias alias = status_analysis_->GetAlias(static_cast<NodeId>(id));
     if (alias < EscapeStatusAnalysis::kUntrackable) {
       if (status_analysis_->IsVirtual(static_cast<int>(id))) {
         return true;
@@ -1612,14 +1591,6 @@ bool EscapeAnalysis::ExistsVirtualAllocate() {
     }
   }
   return false;
-}
-
-Alias EscapeAnalysis::GetAlias(NodeId id) const {
-  return status_analysis_->GetAlias(id);
-}
-
-Alias EscapeAnalysis::AliasCount() const {
-  return status_analysis_->AliasCount();
 }
 
 Graph* EscapeAnalysis::graph() const { return status_analysis_->graph(); }
