@@ -1909,6 +1909,7 @@
       ],
       'include_dirs+': [
         '..',
+        '../include',
       ],
       'sources': [
         '../include/libplatform/libplatform.h',
