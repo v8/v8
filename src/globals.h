@@ -706,7 +706,6 @@ enum CpuFeature {
   MIPSr6,
   // ARM64
   ALWAYS_ALIGN_CSP,
-  COHERENT_CACHE,
   // PPC
   FPR_GPR_MOV,
   LWSYNC,
