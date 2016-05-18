@@ -127,8 +127,8 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Returns true if the stack guard check triggers an interrupt.
   compiler::Node* StackCheckTriggeredInterrupt();
 
-  // Returns from the function.
-  compiler::Node* InterpreterReturn();
+  // Updates the profiler interrupt budget for a return.
+  void UpdateInterruptBudgetOnReturn();
 
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();

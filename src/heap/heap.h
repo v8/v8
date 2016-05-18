@@ -205,8 +205,8 @@ using v8::MemoryPressureLevel;
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset) \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)       \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)             \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
-
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)             \
+  V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 #define ROOT_LIST(V)  \
   STRONG_ROOT_LIST(V) \
@@ -794,6 +794,7 @@ class Heap {
   inline void SetConstructStubDeoptPCOffset(int pc_offset);
   inline void SetGetterStubDeoptPCOffset(int pc_offset);
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
+  inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);

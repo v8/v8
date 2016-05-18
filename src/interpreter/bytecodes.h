@@ -240,7 +240,7 @@ namespace interpreter {
   /* Non-local flow control */                                                \
   V(Throw, AccumulatorUse::kRead)                                             \
   V(ReThrow, AccumulatorUse::kRead)                                           \
-  V(Return, AccumulatorUse::kNone)                                            \
+  V(Return, AccumulatorUse::kRead)                                            \
                                                                               \
   /* Generators */                                                            \
   V(SuspendGenerator, AccumulatorUse::kRead, OperandType::kReg)               \
@@ -509,6 +509,9 @@ class Bytecodes {
 
   // Returns the size of |operand|.
   static OperandSize SizeOfOperand(OperandType operand, OperandScale scale);
+
+  // Returns the number of values which |bytecode| returns.
+  static size_t ReturnCount(Bytecode bytecode);
 
   // Returns true if the bytecode is a conditional jump taking
   // an immediate byte operand (OperandType::kImm).

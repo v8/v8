@@ -14,6 +14,7 @@
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
+#include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
 
@@ -28,11 +29,6 @@ class JumpPatchSite;
 
 class FullCodeGenerator: public AstVisitor {
  public:
-  enum State {
-    NO_REGISTERS,
-    TOS_REG
-  };
-
   FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
         info_(info),
@@ -60,19 +56,10 @@ class FullCodeGenerator: public AstVisitor {
 
   static bool MakeCode(CompilationInfo* info);
 
-  // Encode state and pc-offset as a BitField<type, start, size>.
+  // Encode bailout state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
-  class StateField : public BitField<State, 0, 1> { };
-  class PcField    : public BitField<unsigned, 1, 30-1> { };
-
-  static const char* State2String(State state) {
-    switch (state) {
-      case NO_REGISTERS: return "NO_REGISTERS";
-      case TOS_REG: return "TOS_REG";
-    }
-    UNREACHABLE();
-    return NULL;
-  }
+  class BailoutStateField : public BitField<Deoptimizer::BailoutState, 0, 1> {};
+  class PcField : public BitField<unsigned, 1, 30 - 1> {};
 
   static const int kMaxBackEdgeWeight = 127;
 
@@ -106,6 +93,8 @@ class FullCodeGenerator: public AstVisitor {
   static Register result_register();
 
  private:
+  typedef Deoptimizer::BailoutState BailoutState;
+
   class Breakable;
   class Iteration;
   class TryFinally;
@@ -366,21 +355,21 @@ class FullCodeGenerator: public AstVisitor {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, TOS_REG);
+    PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   }
 
   void VisitForStackValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -452,8 +441,8 @@ class FullCodeGenerator: public AstVisitor {
                              NilValue nil);
 
   // Bailout support.
-  void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(BailoutId id, State state);
+  void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
+  void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
 
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
