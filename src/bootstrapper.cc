@@ -2466,12 +2466,12 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
       Handle<JSFunction> async_function_next =
           SimpleInstallFunction(container, "AsyncFunctionNext",
-                                Builtins::kGeneratorPrototypeNext, 2, false);
+                                Builtins::kGeneratorPrototypeNext, 1, true);
       Handle<JSFunction> async_function_throw =
           SimpleInstallFunction(container, "AsyncFunctionThrow",
-                                Builtins::kGeneratorPrototypeThrow, 2, false);
-      async_function_next->shared()->set_native(true);
-      async_function_throw->shared()->set_native(true);
+                                Builtins::kGeneratorPrototypeThrow, 1, true);
+      async_function_next->shared()->set_native(false);
+      async_function_throw->shared()->set_native(false);
     }
   }
 }
