@@ -87,11 +87,11 @@ function InstallConstructor(object, name, func) {
 /**
  * Adds bound method to the prototype of the given object.
  */
-function AddBoundMethod(obj, methodName, implementation, length) {
+function AddBoundMethod(obj, methodName, implementation, length, type) {
   %CheckIsBootstrapping();
   var internalName = %CreatePrivateSymbol(methodName);
   var getter = function() {
-    if (!%IsInitializedIntlObject(this)) {
+    if (!%IsInitializedIntlObjectOfType(this, type)) {
       throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
     }
     if (IS_UNDEFINED(this[internalName])) {
@@ -1082,7 +1082,7 @@ function compare(collator, x, y) {
 };
 
 
-AddBoundMethod(Intl.Collator, 'compare', compare, 2);
+AddBoundMethod(Intl.Collator, 'compare', compare, 2, 'collator');
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1351,7 +1351,7 @@ function IntlParseNumber(formatter, value) {
                               GlobalString(value));
 }
 
-AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1);
+AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat');
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1775,7 +1775,7 @@ function IntlParseDate(formatter, value) {
 
 
 // 0 because date is optional argument.
-AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0);
+AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat');
 
 
 /**
@@ -1963,11 +1963,13 @@ function breakType(iterator) {
 }
 
 
-AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1);
-AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1,
+               'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0,
+               'breakiterator');
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {

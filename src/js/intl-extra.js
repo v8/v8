@@ -14,7 +14,9 @@ var AddBoundMethod = utils.ImportNow("AddBoundMethod");
 var IntlParseDate = utils.ImportNow("IntlParseDate");
 var IntlParseNumber = utils.ImportNow("IntlParseNumber");
 
-AddBoundMethod(GlobalIntl.DateTimeFormat, 'v8Parse', IntlParseDate, 1);
-AddBoundMethod(GlobalIntl.NumberFormat, 'v8Parse', IntlParseNumber, 1);
+AddBoundMethod(GlobalIntl.DateTimeFormat, 'v8Parse', IntlParseDate, 1,
+               'dateformat');
+AddBoundMethod(GlobalIntl.NumberFormat, 'v8Parse', IntlParseNumber, 1,
+               'numberformat');
 
 })
