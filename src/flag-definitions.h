@@ -189,8 +189,8 @@ DEFINE_BOOL(promise_extra, false, "additional V8 Promise functions")
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, promise_extra, true)
 
 DEFINE_BOOL(intl_extra, true, "additional V8 Intl functions")
-// Removing extra Intl functions is staged
-DEFINE_NEG_IMPLICATION(harmony, intl_extra)
+// Removing extra Intl functions is shipped
+DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
 
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
