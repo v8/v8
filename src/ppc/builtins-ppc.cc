@@ -1074,8 +1074,19 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadPX(ip, MemOperand(kInterpreterDispatchTableRegister, ip));
   __ Call(ip);
 
-  // Even though the first bytecode handler was called, we will never return.
-  __ Abort(kUnexpectedReturnFromBytecodeHandler);
+  masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
+
+  // The return value is in r3.
+
+  // Get the arguments + reciever count.
+  __ LoadP(r5, MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ lwz(r5, FieldMemOperand(r5, BytecodeArray::kParameterSizeOffset));
+
+  // Leave the frame (also dropping the register file).
+  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+
+  __ add(sp, sp, r5);
+  __ blr();
 
   // If the bytecode array is no longer present, then the underlying function
   // has been switched to a different kind of code and we heal the closure by
@@ -1091,20 +1102,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_InterpreterExitTrampoline(MacroAssembler* masm) {
-  // The return value is in accumulator, which is already in r3.
-
-  // Leave the frame (also dropping the register file).
-  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-
-  // Drop receiver + arguments and return.
-  __ lwz(r0, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                             BytecodeArray::kParameterSizeOffset));
-  __ add(sp, sp, r0);
-  __ blr();
-}
-
-
 static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
                                          Register count, Register scratch) {
   Label loop;
@@ -1115,7 +1112,6 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
   __ push(scratch);
   __ bdnz(&loop);
 }
-
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
@@ -1139,7 +1135,6 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
                                             tail_call_mode),
           RelocInfo::CODE_TARGET);
 }
-
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
@@ -1165,8 +1160,17 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+  // Set the return address to the correct point in the interpreter entry
+  // trampoline.
+  Smi* interpreter_entry_return_pc_offset(
+      masm->isolate()->heap()->interpreter_entry_return_pc_offset());
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
+  __ Move(r5, masm->isolate()->builtins()->InterpreterEntryTrampoline());
+  __ addi(r0, r5, Operand(interpreter_entry_return_pc_offset->value() +
+                          Code::kHeaderSize - kHeapObjectTag));
+  __ mtlr(r0);
 
-static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   // Initialize the dispatch table register.
   __ mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
@@ -1196,56 +1200,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ ShiftLeftImm(ip, r4, Operand(kPointerSizeLog2));
   __ LoadPX(ip, MemOperand(kInterpreterDispatchTableRegister, ip));
   __ Jump(ip);
-}
-
-
-static void Generate_InterpreterNotifyDeoptimizedHelper(
-    MacroAssembler* masm, Deoptimizer::BailoutType type) {
-  // Enter an internal frame.
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-
-    // Pass the deoptimization type to the runtime system.
-    __ LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(type)));
-    __ Push(r4);
-    __ CallRuntime(Runtime::kNotifyDeoptimized);
-    // Tear down internal frame.
-  }
-
-  // Drop state (we don't use these for interpreter deopts) and and pop the
-  // accumulator value into the accumulator register.
-  __ Drop(1);
-  __ Pop(kInterpreterAccumulatorRegister);
-
-  // Enter the bytecode dispatch.
-  Generate_EnterBytecodeDispatch(masm);
-}
-
-
-void Builtins::Generate_InterpreterNotifyDeoptimized(MacroAssembler* masm) {
-  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
-}
-
-
-void Builtins::Generate_InterpreterNotifySoftDeoptimized(MacroAssembler* masm) {
-  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::SOFT);
-}
-
-
-void Builtins::Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm) {
-  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
-}
-
-void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
-  // Set the address of the interpreter entry trampoline as a return address.
-  // This simulates the initial call to bytecode handlers in interpreter entry
-  // trampoline. The return will never actually be taken, but our stack walker
-  // uses this address to determine whether a frame is interpreted.
-  __ mov(r0,
-         Operand(masm->isolate()->builtins()->InterpreterEntryTrampoline()));
-  __ mtlr(r0);
-
-  Generate_EnterBytecodeDispatch(masm);
 }
 
 
@@ -1541,14 +1495,17 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiUntag(r9);
   // Switch on the state.
   Label with_tos_register, unknown_state;
-  __ cmpi(r9, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ cmpi(r9,
+          Operand(static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS)));
   __ bne(&with_tos_register);
   __ addi(sp, sp, Operand(1 * kPointerSize));  // Remove state.
   __ Ret();
 
   __ bind(&with_tos_register);
+  DCHECK_EQ(kInterpreterAccumulatorRegister.code(), r3.code());
   __ LoadP(r3, MemOperand(sp, 1 * kPointerSize));
-  __ cmpi(r9, Operand(FullCodeGenerator::TOS_REG));
+  __ cmpi(r9,
+          Operand(static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER)));
   __ bne(&unknown_state);
   __ addi(sp, sp, Operand(2 * kPointerSize));  // Remove state.
   __ Ret();
