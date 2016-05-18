@@ -312,7 +312,8 @@ void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
-  SerializerReference back_reference(source_.GetInt());
+  SerializerReference back_reference =
+      SerializerReference::FromBitfield(source_.GetInt());
   if (space == LO_SPACE) {
     CHECK(back_reference.chunk_index() == 0);
     uint32_t index = back_reference.large_object_index();

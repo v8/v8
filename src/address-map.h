@@ -60,8 +60,11 @@ class RootIndexMap : public AddressMapBase {
 
 class SerializerReference {
  public:
-  explicit SerializerReference(uint32_t bitfield) : bitfield_(bitfield) {}
   SerializerReference() : bitfield_(Special(kInvalidValue)) {}
+
+  static SerializerReference FromBitfield(uint32_t bitfield) {
+    return SerializerReference(bitfield);
+  }
 
   static SerializerReference BackReference(AllocationSpace space,
                                            uint32_t chunk_index,
@@ -129,13 +132,15 @@ class SerializerReference {
   }
 
  private:
+  explicit SerializerReference(uint32_t bitfield) : bitfield_(bitfield) {}
+
   inline static uint32_t Special(int value) {
     return SpaceBits::encode(kSpecialValueSpace) |
            ValueIndexBits::encode(value);
   }
 
   // We use the 32-bit bitfield to encode either a back reference, a special
-  // value, or a attached reference index.
+  // value, or an attached reference index.
   // Back reference:
   //   [ Space index             ] [ Chunk index ] [ Chunk offset ]
   //   [ LO_SPACE                ] [ large object index           ]
@@ -160,6 +165,7 @@ class SerializerReference {
   class ChunkIndexBits
       : public BitField<uint32_t, ChunkOffsetBits::kNext, kChunkIndexSize> {};
   class ValueIndexBits : public BitField<uint32_t, 0, kValueIndexSize> {};
+  STATIC_ASSERT(ChunkIndexBits::kNext == ValueIndexBits::kNext);
   class SpaceBits : public BitField<int, kValueIndexSize, kSpaceTagSize> {};
   STATIC_ASSERT(SpaceBits::kNext == 32);
 
@@ -174,20 +180,18 @@ class SerializerReferenceMap : public AddressMapBase {
  public:
   SerializerReferenceMap()
       : no_allocation_(),
-        map_(new HashMap(HashMap::PointersMatch)),
+        map_(HashMap::PointersMatch),
         attached_reference_index_(0) {}
 
-  ~SerializerReferenceMap() { delete map_; }
-
   SerializerReference Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(map_, obj, false);
+    HashMap::Entry* entry = LookupEntry(&map_, obj, false);
     return entry ? SerializerReference(GetValue(entry)) : SerializerReference();
   }
 
   void Add(HeapObject* obj, SerializerReference b) {
     DCHECK(b.is_valid());
-    DCHECK_NULL(LookupEntry(map_, obj, false));
-    HashMap::Entry* entry = LookupEntry(map_, obj, true);
+    DCHECK_NULL(LookupEntry(&map_, obj, false));
+    HashMap::Entry* entry = LookupEntry(&map_, obj, true);
     SetValue(entry, b.bitfield_);
   }
 
@@ -200,7 +204,7 @@ class SerializerReferenceMap : public AddressMapBase {
 
  private:
   DisallowHeapAllocation no_allocation_;
-  HashMap* map_;
+  HashMap map_;
   int attached_reference_index_;
   DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };
