@@ -27,10 +27,6 @@ Decision DecideCondition(Node* const cond) {
       Int32Matcher mcond(cond);
       return mcond.Value() ? Decision::kTrue : Decision::kFalse;
     }
-    case IrOpcode::kInt64Constant: {
-      Int64Matcher mcond(cond);
-      return mcond.Value() ? Decision::kTrue : Decision::kFalse;
-    }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher mcond(cond);
       return mcond.Value()->BooleanValue() ? Decision::kTrue : Decision::kFalse;
