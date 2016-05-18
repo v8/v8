@@ -387,9 +387,9 @@ Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsStackSlot();
-Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

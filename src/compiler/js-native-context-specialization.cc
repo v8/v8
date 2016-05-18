@@ -305,7 +305,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_control =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
-          this_value = graph()->NewNode(common()->Guard(Type::Number()),
+          this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                         this_value, this_control);
 
           if (!field_index.is_inobject() || field_index.is_hidden_field() ||
@@ -348,8 +348,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_control =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
-          this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
-                                        this_value, this_control);
+          this_value =
+              graph()->NewNode(simplified()->TypeGuard(type_cache_.kSmi),
+                               this_value, this_control);
         } else if (field_type->Is(Type::TaggedPointer())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
@@ -690,8 +691,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
       this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                       frame_state, this_effect, this_control);
-      this_index = graph()->NewNode(common()->Guard(Type::Number()), this_index,
-                                    this_control);
+      this_index = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
+                                    this_index, this_control);
     }
 
     // Convert the {index} to an unsigned32 value and check if the result is
@@ -813,8 +814,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         }
         // Rename the result to represent the actual type (not polluted by the
         // hole).
-        this_value = graph()->NewNode(common()->Guard(element_type), this_value,
-                                      this_control);
+        this_value = graph()->NewNode(simplified()->TypeGuard(element_type),
+                                      this_value, this_control);
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
         // Perform the hole check on the result.
         Node* check =
@@ -847,14 +848,14 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
         this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                         frame_state, this_effect, this_control);
-        this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
+        this_value = graph()->NewNode(simplified()->TypeGuard(type_cache_.kSmi),
                                       this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         Node* check =
             graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
         this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                         frame_state, this_effect, this_control);
-        this_value = graph()->NewNode(common()->Guard(Type::Number()),
+        this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                       this_value, this_control);
       }
       this_effect = graph()->NewNode(simplified()->StoreElement(element_access),

@@ -712,7 +712,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         }
         break;
       case IrOpcode::kSelect:
-      case IrOpcode::kGuard:
+      case IrOpcode::kTypeGuard:
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),

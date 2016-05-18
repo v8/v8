@@ -137,7 +137,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
   // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                    node->InputAt(0), graph()->start());
   node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractHighWord32());
@@ -146,7 +146,7 @@ Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
   // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                    node->InputAt(0), graph()->start());
   node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractLowWord32());

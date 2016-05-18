@@ -760,15 +760,6 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
 }
 
 
-const Operator* CommonOperatorBuilder::Guard(Type* type) {
-  return new (zone()) Operator1<Type*>(      // --
-      IrOpcode::kGuard, Operator::kKontrol,  // opcode
-      "Guard",                               // name
-      1, 0, 1, 1, 0, 0,                      // counts
-      type);                                 // parameter
-}
-
-
 const Operator* CommonOperatorBuilder::StateValues(int arguments) {
   switch (arguments) {
 #define CACHED_STATE_VALUES(arguments) \

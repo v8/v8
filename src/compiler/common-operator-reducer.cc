@@ -70,8 +70,6 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
-    case IrOpcode::kGuard:
-      return ReduceGuard(node);
     default:
       break;
   }
@@ -392,16 +390,6 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
     default:
       break;
   }
-  return NoChange();
-}
-
-
-Reduction CommonOperatorReducer::ReduceGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kGuard, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetTypeOrAny(input);
-  Type* const guard_type = OpParameter<Type*>(node);
-  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 

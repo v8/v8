@@ -41,7 +41,7 @@ class EffectControlLinearizer {
   };
 
   bool TryWireInStateEffect(Node* node, Node** effect, Node** control);
-  ValueEffectControl LowerGuard(Node* node, Node* effect, Node* control);
+  ValueEffectControl LowerTypeGuard(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerChangeBitToTagged(Node* node, Node* effect,
                                             Node* control);
   ValueEffectControl LowerChangeInt31ToTaggedSigned(Node* node, Node* effect,

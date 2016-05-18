@@ -864,7 +864,7 @@ struct TypedLoweringPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     LoadElimination load_elimination(&graph_reducer, data->graph(),
-                                     data->common());
+                                     data->jsgraph()->simplified());
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     MaybeHandle<LiteralsArray> literals_array =
         data->info()->is_native_context_specializing()

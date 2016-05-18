@@ -1309,12 +1309,12 @@ class IsStackSlotMatcher final : public NodeMatcher {
   const Matcher<MachineRepresentation> rep_matcher_;
 };
 
-class IsGuardMatcher final : public NodeMatcher {
+class IsTypeGuardMatcher final : public NodeMatcher {
  public:
-  IsGuardMatcher(const Matcher<Type*>& type_matcher,
-                 const Matcher<Node*>& value_matcher,
-                 const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kGuard),
+  IsTypeGuardMatcher(const Matcher<Type*>& type_matcher,
+                     const Matcher<Node*>& value_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTypeGuard),
         type_matcher_(type_matcher),
         value_matcher_(value_matcher),
         control_matcher_(control_matcher) {}
@@ -2015,11 +2015,11 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& control_matcher) {
+Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher) {
   return MakeMatcher(
-      new IsGuardMatcher(type_matcher, value_matcher, control_matcher));
+      new IsTypeGuardMatcher(type_matcher, value_matcher, control_matcher));
 }
 
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,

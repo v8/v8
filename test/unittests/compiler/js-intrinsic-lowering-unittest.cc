@@ -92,7 +92,7 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleLo) {
                        input, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
-              IsFloat64ExtractLowWord32(IsGuard(Type::Number(), input, _)));
+              IsFloat64ExtractLowWord32(IsTypeGuard(Type::Number(), input, _)));
 }
 
 
@@ -109,8 +109,8 @@ TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleHi) {
       graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleHi, 1),
                        input, context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFloat64ExtractHighWord32(IsGuard(Type::Number(), input, _)));
+  EXPECT_THAT(r.replacement(), IsFloat64ExtractHighWord32(
+                                   IsTypeGuard(Type::Number(), input, _)));
 }
 
 

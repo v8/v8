@@ -48,7 +48,6 @@
   V(Phi)                 \
   V(EffectPhi)           \
   V(CheckPoint)          \
-  V(Guard)               \
   V(BeginRegion)         \
   V(FinishRegion)        \
   V(FrameState)          \
@@ -220,7 +219,8 @@
   V(ObjectIsReceiver)              \
   V(ObjectIsSmi)                   \
   V(ObjectIsString)                \
-  V(ObjectIsUndetectable)
+  V(ObjectIsUndetectable)          \
+  V(TypeGuard)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \

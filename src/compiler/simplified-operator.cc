@@ -172,6 +172,11 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   return OpParameter<ElementAccess>(op);
 }
 
+Type* TypeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
+  return OpParameter<Type*>(op);
+}
+
 #define PURE_OP_LIST(V)                                    \
   V(BooleanNot, Operator::kNoProperties, 1)                \
   V(BooleanToNumber, Operator::kNoProperties, 1)           \
@@ -282,6 +287,22 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
+const Operator* SimplifiedOperatorBuilder::TypeGuard(Type* type) {
+  class TypeGuardOperator final : public Operator1<Type*> {
+   public:
+    explicit TypeGuardOperator(Type* type)
+        : Operator1<Type*>(                           // --
+              IrOpcode::kTypeGuard, Operator::kPure,  // opcode
+              "TypeGuard",                            // name
+              1, 0, 1, 1, 0, 0,                       // counts
+              type) {}                                // parameter
+
+    void PrintParameter(std::ostream& os) const final {
+      parameter()->PrintTo(os);
+    }
+  };
+  return new (zone()) TypeGuardOperator(type);
+}
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
   switch (pretenure) {
