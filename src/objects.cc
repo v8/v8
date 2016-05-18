@@ -115,6 +115,17 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
   return result;
 }
 
+// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+// static
+MaybeHandle<JSReceiver> Object::ConvertReceiver(Isolate* isolate,
+                                                Handle<Object> object) {
+  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+  if (*object == isolate->heap()->null_value() ||
+      *object == isolate->heap()->undefined_value()) {
+    return handle(isolate->global_proxy(), isolate);
+  }
+  return Object::ToObject(isolate, object);
+}
 
 // static
 MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
@@ -1060,6 +1071,12 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
         v8::ToCData<v8::AccessorNameGetterCallback>(info->getter());
     if (call_fun == nullptr) return isolate->factory()->undefined_value();
 
+    if (info->is_sloppy() && !receiver->IsJSReceiver()) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                 Object::ConvertReceiver(isolate, receiver),
+                                 Object);
+    }
+
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    Object::DONT_THROW);
     Handle<Object> result = args.Call(call_fun, name);
@@ -1129,6 +1146,12 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // marked as special_data_property. They cannot both be writable and not
     // have a setter.
     if (call_fun == nullptr) return Just(true);
+
+    if (info->is_sloppy() && !receiver->IsJSReceiver()) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, receiver, Object::ConvertReceiver(isolate, receiver),
+          Nothing<bool>());
+    }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    should_throw);
@@ -4084,8 +4107,14 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   bool result;
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<bool>());
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, should_throw);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -5416,9 +5445,14 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
       !interceptor->can_intercept_symbols()) {
     return Just(ABSENT);
   }
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<PropertyAttributes>());
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, Object::DONT_THROW);
   if (!interceptor->query()->IsUndefined()) {
     Handle<Object> result;
     if (it->IsElement()) {
@@ -6018,9 +6052,15 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   if (interceptor->deleter()->IsUndefined()) return Nothing<bool>();
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<bool>());
+  }
 
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, should_throw);
   Handle<Object> result;
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -16285,9 +16325,13 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   Handle<Object> result;
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, Object::DONT_THROW);
 
   if (it->IsElement()) {
     uint32_t index = it->index();

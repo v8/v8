@@ -1131,6 +1131,10 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object, Handle<Context> context);
 
+  // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+  MUST_USE_RESULT static MaybeHandle<JSReceiver> ConvertReceiver(
+      Isolate* isolate, Handle<Object> object);
+
   // ES6 section 7.1.14 ToPropertyKey
   MUST_USE_RESULT static inline MaybeHandle<Name> ToName(Isolate* isolate,
                                                          Handle<Object> input);
@@ -10405,6 +10409,9 @@ class AccessorInfo: public Struct {
   inline bool is_special_data_property();
   inline void set_is_special_data_property(bool value);
 
+  inline bool is_sloppy();
+  inline void set_is_sloppy(bool value);
+
   inline PropertyAttributes property_attributes();
   inline void set_property_attributes(PropertyAttributes attributes);
 
@@ -10441,7 +10448,8 @@ class AccessorInfo: public Struct {
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
   static const int kSpecialDataProperty = 2;
-  class AttributesField : public BitField<PropertyAttributes, 3, 3> {};
+  static const int kIsSloppy = 3;
+  class AttributesField : public BitField<PropertyAttributes, 4, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };
