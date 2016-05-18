@@ -1,16 +1,3 @@
-[ Linux ] editing/input/text-input-controller-leak-document.html [ Failure ]
-[ Linux ] fast/dom/MutationObserver/weak-callback-gc-crash.html [ Failure ]
-[ Linux ] fast/dom/NodeIterator/NodeIterator-dont-overcollect.html [ Failure ]
-[ Linux ] fast/dom/NodeList/nodelist-reachable.html [ Failure ]
-[ Linux ] fast/dom/StyleSheet/gc-rule-children-wrappers.html [ Failure ]
-[ Linux ] fast/harness/internals-observe-gc.html [ Failure ]
-[ Linux ] fast/xpath/xpath-iterator-result-should-mark-its-nodeset.html [ Failure ]
-[ Linux ] fast/xpath/xpath-other-nodeset-result-should-mark-its-nodeset.html [ Failure ]
-[ Linux ] fast/xpath/xpath-snapshot-result-should-mark-its-nodeset.html [ Failure ]
-[ Linux ] netinfo/gc-frame-listeners.html [ Failure ]
-[ Linux ] netinfo/gc-unused-listeners.html [ Failure ]
-[ Linux ] storage/indexeddb/cursor-leak.html [ Failure ]
-
 # Failures due to eager compilation, crbug/608287.
 [ Linux ] inspector/sources/debugger-frameworks/frameworks-jquery.html [ Failure ]
 [ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-active-dom-object.html [ Failure ]
