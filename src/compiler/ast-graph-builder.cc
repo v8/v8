@@ -2251,7 +2251,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
 
 
 void AstGraphBuilder::VisitYield(Yield* expr) {
-  // TODO(turbofan): Implement yield here.
+  // Generator functions are supported only by going through Ignition first.
   SetStackOverflow();
   ast_context()->ProduceValue(jsgraph()->UndefinedConstant());
 }

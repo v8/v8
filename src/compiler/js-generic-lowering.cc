@@ -680,9 +680,6 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSYield(Node* node) { UNIMPLEMENTED(); }
-
-
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

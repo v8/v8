@@ -151,7 +151,6 @@
   V(JSForInStep)            \
   V(JSLoadMessage)          \
   V(JSStoreMessage)         \
-  V(JSYield)                \
   V(JSStackCheck)
 
 #define JS_OP_LIST(V)     \

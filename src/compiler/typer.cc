@@ -1528,9 +1528,6 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 // JS other operators.
 
 
-Type* Typer::Visitor::TypeJSYield(Node* node) { return Type::Any(); }
-
-
 Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
   return Type::Receiver();
 }

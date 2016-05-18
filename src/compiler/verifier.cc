@@ -605,7 +605,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kJSCallFunction:
     case IrOpcode::kJSCallRuntime:
-    case IrOpcode::kJSYield:
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;

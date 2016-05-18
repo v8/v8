@@ -391,7 +391,6 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(ToNumber, Operator::kNoProperties, 1, 1)               \
   V(ToObject, Operator::kFoldable, 1, 1)                   \
   V(ToString, Operator::kNoProperties, 1, 1)               \
-  V(Yield, Operator::kNoProperties, 1, 1)                  \
   V(Create, Operator::kEliminatable, 2, 1)                 \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1) \
   V(HasProperty, Operator::kNoProperties, 2, 1)            \
