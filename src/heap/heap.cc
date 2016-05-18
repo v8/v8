@@ -893,8 +893,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     isolate()->optimizing_compile_dispatcher()->Flush();
   }
   isolate()->ClearSerializerData();
-  set_current_gc_flags(kAbortIncrementalMarkingMask |
-                       kReduceMemoryFootprintMask);
+  set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
@@ -4046,10 +4045,22 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 }
 
 
+bool Heap::IsHeapIterable() {
+  // TODO(hpayer): This function is not correct. Allocation folding in old
+  // space breaks the iterability.
+  return new_space_top_after_last_gc_ == new_space()->top();
+}
+
+
 void Heap::MakeHeapIterable() {
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  if (!IsHeapIterable()) {
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
+  }
   if (mark_compact_collector()->sweeping_in_progress()) {
     mark_compact_collector()->EnsureSweepingCompleted();
   }
+  DCHECK(IsHeapIterable());
 }
 
 
@@ -4594,7 +4605,10 @@ void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
 
-  MakeHeapIterable();
+  if (mark_compact_collector()->sweeping_in_progress()) {
+    // We have to wait here for the sweeper threads to have an iterable heap.
+    mark_compact_collector()->EnsureSweepingCompleted();
+  }
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
