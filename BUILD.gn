@@ -18,6 +18,10 @@ import("//build_overrides/v8.gni")
 import("snapshot_toolchain.gni")
 
 declare_args() {
+  # Use ICU data file (icudtl.dat) if true or library (shared on windows,
+  # static otherwise).
+  icu_use_data_file_flag = true
+
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
   v8_use_snapshot = true
@@ -1836,8 +1840,13 @@ v8_source_set("v8_base") {
       deps += [ "//third_party/icu:icudata" ]
     }
 
-    # TODO(jochen): Add support for icu_use_data_file_flag
-    defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
+    if (icu_use_data_file_flag) {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
+    } else if (is_win) {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED" ]
+    } else {
+      defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC" ]
+    }
   } else {
     sources -= [
       "src/i18n.cc",

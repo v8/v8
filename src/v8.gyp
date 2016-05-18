@@ -1603,7 +1603,20 @@
           'dependencies': [
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
-          ]
+          ],
+          'conditions': [
+            ['icu_use_data_file_flag==1', {
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
+            }, { # else icu_use_data_file_flag !=1
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
+                }, {
+                  'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
+                }],
+              ],
+            }],
+          ],
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             'i18n.cc',
@@ -1613,17 +1626,6 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
-          ],
-        }],
-        ['icu_use_data_file_flag==1', {
-          'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
-        }, { # else icu_use_data_file_flag !=1
-          'conditions': [
-            ['OS=="win"', {
-              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
-            }, {
-              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
-            }],
           ],
         }],
       ],
