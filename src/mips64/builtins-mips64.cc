@@ -1474,8 +1474,9 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiUntag(a6);
   // Switch on the state.
   Label with_tos_register, unknown_state;
-  __ Branch(&with_tos_register, ne, a6,
-            Operand(static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS)));
+  __ Branch(
+      &with_tos_register, ne, a6,
+      Operand(static_cast<int64_t>(Deoptimizer::BailoutState::NO_REGISTERS)));
   __ Ret(USE_DELAY_SLOT);
   // Safe to fill delay slot Addu will emit one instruction.
   __ Daddu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
@@ -1483,8 +1484,9 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ bind(&with_tos_register);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), v0.code());
   __ ld(v0, MemOperand(sp, 1 * kPointerSize));
-  __ Branch(&unknown_state, ne, a6,
-            Operand(static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER)));
+  __ Branch(
+      &unknown_state, ne, a6,
+      Operand(static_cast<int64_t>(Deoptimizer::BailoutState::TOS_REGISTER)));
 
   __ Ret(USE_DELAY_SLOT);
   // Safe to fill delay slot Addu will emit one instruction.
