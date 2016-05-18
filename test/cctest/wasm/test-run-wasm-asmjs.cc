@@ -26,7 +26,7 @@ using namespace v8::internal::wasm;
 #define RET(x) x, kExprReturn, 1
 #define RET_I8(x) kExprI8Const, x, kExprReturn, 1
 
-TEST(Run_WASM_Int32AsmjsDivS) {
+WASM_EXEC_TEST(Int32AsmjsDivS) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -37,7 +37,7 @@ TEST(Run_WASM_Int32AsmjsDivS) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-TEST(Run_WASM_Int32AsmjsRemS) {
+WASM_EXEC_TEST(Int32AsmjsRemS) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -48,7 +48,7 @@ TEST(Run_WASM_Int32AsmjsRemS) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-TEST(Run_WASM_Int32AsmjsDivU) {
+WASM_EXEC_TEST(Int32AsmjsDivU) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -59,7 +59,7 @@ TEST(Run_WASM_Int32AsmjsDivU) {
   CHECK_EQ(0, r.Call(kMin, 0));
 }
 
-TEST(Run_WASM_Int32AsmjsRemU) {
+WASM_EXEC_TEST(Int32AsmjsRemU) {
   WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -70,7 +70,7 @@ TEST(Run_WASM_Int32AsmjsRemU) {
   CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
-TEST(Run_Wasm_I32AsmjsSConvertF32) {
+WASM_EXEC_TEST(I32AsmjsSConvertF32) {
   WasmRunner<int32_t> r(MachineType::Float32());
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF32, WASM_GET_LOCAL(0)));
 
@@ -80,7 +80,7 @@ TEST(Run_Wasm_I32AsmjsSConvertF32) {
   }
 }
 
-TEST(Run_Wasm_I32AsmjsSConvertF64) {
+WASM_EXEC_TEST(I32AsmjsSConvertF64) {
   WasmRunner<int32_t> r(MachineType::Float64());
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF64, WASM_GET_LOCAL(0)));
 
@@ -90,7 +90,7 @@ TEST(Run_Wasm_I32AsmjsSConvertF64) {
   }
 }
 
-TEST(Run_Wasm_I32AsmjsUConvertF32) {
+WASM_EXEC_TEST(I32AsmjsUConvertF32) {
   WasmRunner<uint32_t> r(MachineType::Float32());
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF32, WASM_GET_LOCAL(0)));
 
@@ -100,7 +100,7 @@ TEST(Run_Wasm_I32AsmjsUConvertF32) {
   }
 }
 
-TEST(Run_Wasm_I32AsmjsUConvertF64) {
+WASM_EXEC_TEST(I32AsmjsUConvertF64) {
   WasmRunner<uint32_t> r(MachineType::Float64());
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF64, WASM_GET_LOCAL(0)));
 
@@ -110,9 +110,8 @@ TEST(Run_Wasm_I32AsmjsUConvertF64) {
   }
 }
 
-TEST(Run_Wasm_LoadMemI32_oob_asm) {
+WASM_EXEC_TEST(LoadMemI32_oob_asm) {
   TestingModule module;
-  module.origin = kAsmJsOrigin;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
   WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
@@ -131,9 +130,8 @@ TEST(Run_Wasm_LoadMemI32_oob_asm) {
   }
 }
 
-TEST(Run_Wasm_LoadMemF32_oob_asm) {
+WASM_EXEC_TEST(LoadMemF32_oob_asm) {
   TestingModule module;
-  module.origin = kAsmJsOrigin;
   float* memory = module.AddMemoryElems<float>(8);
   WasmRunner<float> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
@@ -152,9 +150,8 @@ TEST(Run_Wasm_LoadMemF32_oob_asm) {
   }
 }
 
-TEST(Run_Wasm_LoadMemF64_oob_asm) {
+WASM_EXEC_TEST(LoadMemF64_oob_asm) {
   TestingModule module;
-  module.origin = kAsmJsOrigin;
   double* memory = module.AddMemoryElems<double>(8);
   WasmRunner<double> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
@@ -175,9 +172,8 @@ TEST(Run_Wasm_LoadMemF64_oob_asm) {
   }
 }
 
-TEST(Run_Wasm_StoreMemI32_oob_asm) {
+WASM_EXEC_TEST(StoreMemI32_oob_asm) {
   TestingModule module;
-  module.origin = kAsmJsOrigin;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
   WasmRunner<int32_t> r(&module, MachineType::Uint32(), MachineType::Uint32());
   module.RandomizeMemory(1112);

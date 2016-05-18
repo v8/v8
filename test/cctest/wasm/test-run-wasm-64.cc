@@ -90,7 +90,7 @@ FOREACH_I64_OPERATOR(DECLARE_CONST)
 #define REQUIRE(name) \
   if (!WASM_64 && !kSupported_##name) return
 
-TEST(Run_Wasm_I64Const) {
+WASM_EXEC_TEST(I64Const) {
   REQUIRE(I64Const);
   WasmRunner<int64_t> r;
   const int64_t kExpectedValue = 0x1122334455667788LL;
@@ -99,7 +99,7 @@ TEST(Run_Wasm_I64Const) {
   CHECK_EQ(kExpectedValue, r.Call());
 }
 
-TEST(Run_Wasm_I64Const_many) {
+WASM_EXEC_TEST(I64Const_many) {
   REQUIRE(I64Const);
   int cntr = 0;
   FOR_INT32_INPUTS(i) {
@@ -112,7 +112,7 @@ TEST(Run_Wasm_I64Const_many) {
   }
 }
 
-TEST(Run_Wasm_Return_I64) {
+WASM_EXEC_TEST(Return_I64) {
   REQUIRE(I64Return);
   WasmRunner<int64_t> r(MachineType::Int64());
 
@@ -121,7 +121,7 @@ TEST(Run_Wasm_Return_I64) {
   FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
 }
 
-TEST(Run_WasmI64Add) {
+WASM_EXEC_TEST(I64Add) {
   REQUIRE(I64Add);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -130,7 +130,7 @@ TEST(Run_WasmI64Add) {
   }
 }
 
-TEST(Run_Wasm_I64Sub) {
+WASM_EXEC_TEST(I64Sub) {
   REQUIRE(I64Sub);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -139,7 +139,7 @@ TEST(Run_Wasm_I64Sub) {
   }
 }
 
-TEST(Run_WasmI64DivS) {
+WASM_EXEC_TEST(I64DivS) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -156,7 +156,7 @@ TEST(Run_WasmI64DivS) {
   }
 }
 
-TEST(Run_WasmI64DivS_Trap) {
+WASM_EXEC_TEST(I64DivS_Trap) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -167,7 +167,7 @@ TEST(Run_WasmI64DivS_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
 }
 
-TEST(Run_WasmI64DivS_Byzero_Const) {
+WASM_EXEC_TEST(I64DivS_Byzero_Const) {
   REQUIRE(I64DivS);
   for (int8_t denom = -2; denom < 8; denom++) {
     WasmRunner<int64_t> r(MachineType::Int64());
@@ -182,7 +182,7 @@ TEST(Run_WasmI64DivS_Byzero_Const) {
   }
 }
 
-TEST(Run_WasmI64DivU) {
+WASM_EXEC_TEST(I64DivU) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -197,7 +197,7 @@ TEST(Run_WasmI64DivU) {
   }
 }
 
-TEST(Run_WasmI64DivU_Trap) {
+WASM_EXEC_TEST(I64DivU_Trap) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -207,7 +207,7 @@ TEST(Run_WasmI64DivU_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
 }
 
-TEST(Run_WasmI64DivU_Byzero_Const) {
+WASM_EXEC_TEST(I64DivU_Byzero_Const) {
   REQUIRE(I64DivU);
   for (uint64_t denom = 0xfffffffffffffffe; denom < 8; denom++) {
     WasmRunner<uint64_t> r(MachineType::Uint64());
@@ -223,7 +223,7 @@ TEST(Run_WasmI64DivU_Byzero_Const) {
   }
 }
 
-TEST(Run_WasmI64RemS) {
+WASM_EXEC_TEST(I64RemS) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -238,7 +238,7 @@ TEST(Run_WasmI64RemS) {
   }
 }
 
-TEST(Run_WasmI64RemS_Trap) {
+WASM_EXEC_TEST(I64RemS_Trap) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -249,7 +249,7 @@ TEST(Run_WasmI64RemS_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
 }
 
-TEST(Run_WasmI64RemU) {
+WASM_EXEC_TEST(I64RemU) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -264,7 +264,7 @@ TEST(Run_WasmI64RemU) {
   }
 }
 
-TEST(Run_Wasm_I64RemU_Trap) {
+WASM_EXEC_TEST(I64RemU_Trap) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -274,7 +274,7 @@ TEST(Run_Wasm_I64RemU_Trap) {
   CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
 }
 
-TEST(Run_Wasm_I64And) {
+WASM_EXEC_TEST(I64And) {
   REQUIRE(I64And);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -283,7 +283,7 @@ TEST(Run_Wasm_I64And) {
   }
 }
 
-TEST(Run_Wasm_I64Ior) {
+WASM_EXEC_TEST(I64Ior) {
   REQUIRE(I64Ior);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -292,7 +292,7 @@ TEST(Run_Wasm_I64Ior) {
   }
 }
 
-TEST(Run_Wasm_I64Xor) {
+WASM_EXEC_TEST(I64Xor) {
   REQUIRE(I64Xor);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -301,7 +301,7 @@ TEST(Run_Wasm_I64Xor) {
   }
 }
 
-TEST(Run_Wasm_I64Shl) {
+WASM_EXEC_TEST(I64Shl) {
   REQUIRE(I64Shl);
   {
     WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
@@ -336,7 +336,7 @@ TEST(Run_Wasm_I64Shl) {
   }
 }
 
-TEST(Run_Wasm_I64ShrU) {
+WASM_EXEC_TEST(I64ShrU) {
   REQUIRE(I64ShrU);
   {
     WasmRunner<uint64_t> r(MachineType::Uint64(), MachineType::Uint64());
@@ -371,7 +371,7 @@ TEST(Run_Wasm_I64ShrU) {
   }
 }
 
-TEST(Run_Wasm_I64ShrS) {
+WASM_EXEC_TEST(I64ShrS) {
   REQUIRE(I64ShrS);
   {
     WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
@@ -406,7 +406,7 @@ TEST(Run_Wasm_I64ShrS) {
   }
 }
 
-TEST(Run_Wasm_I64Eq) {
+WASM_EXEC_TEST(I64Eq) {
   REQUIRE(I64Eq);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -415,7 +415,7 @@ TEST(Run_Wasm_I64Eq) {
   }
 }
 
-TEST(Run_Wasm_I64Ne) {
+WASM_EXEC_TEST(I64Ne) {
   REQUIRE(I64Ne);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_NE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -424,7 +424,7 @@ TEST(Run_Wasm_I64Ne) {
   }
 }
 
-TEST(Run_Wasm_I64LtS) {
+WASM_EXEC_TEST(I64LtS) {
   REQUIRE(I64LtS);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -433,7 +433,7 @@ TEST(Run_Wasm_I64LtS) {
   }
 }
 
-TEST(Run_Wasm_I64LeS) {
+WASM_EXEC_TEST(I64LeS) {
   REQUIRE(I64LeS);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_LES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -442,7 +442,7 @@ TEST(Run_Wasm_I64LeS) {
   }
 }
 
-TEST(Run_Wasm_I64LtU) {
+WASM_EXEC_TEST(I64LtU) {
   REQUIRE(I64LtU);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -451,7 +451,7 @@ TEST(Run_Wasm_I64LtU) {
   }
 }
 
-TEST(Run_Wasm_I64LeU) {
+WASM_EXEC_TEST(I64LeU) {
   REQUIRE(I64LeU);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -460,7 +460,7 @@ TEST(Run_Wasm_I64LeU) {
   }
 }
 
-TEST(Run_Wasm_I64GtS) {
+WASM_EXEC_TEST(I64GtS) {
   REQUIRE(I64GtS);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -469,7 +469,7 @@ TEST(Run_Wasm_I64GtS) {
   }
 }
 
-TEST(Run_Wasm_I64GeS) {
+WASM_EXEC_TEST(I64GeS) {
   REQUIRE(I64GeS);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_GES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -478,7 +478,7 @@ TEST(Run_Wasm_I64GeS) {
   }
 }
 
-TEST(Run_Wasm_I64GtU) {
+WASM_EXEC_TEST(I64GtU) {
   REQUIRE(I64GtU);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -487,7 +487,7 @@ TEST(Run_Wasm_I64GtU) {
   }
 }
 
-TEST(Run_Wasm_I64GeU) {
+WASM_EXEC_TEST(I64GeU) {
   REQUIRE(I64GeU);
   WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -496,7 +496,7 @@ TEST(Run_Wasm_I64GeU) {
   }
 }
 
-TEST(Run_Wasm_I32ConvertI64) {
+WASM_EXEC_TEST(I32ConvertI64) {
   REQUIRE(I32ConvertI64);
   FOR_INT64_INPUTS(i) {
     WasmRunner<int32_t> r;
@@ -505,21 +505,21 @@ TEST(Run_Wasm_I32ConvertI64) {
   }
 }
 
-TEST(Run_Wasm_I64SConvertI32) {
+WASM_EXEC_TEST(I64SConvertI32) {
   REQUIRE(I64SConvertI32);
   WasmRunner<int64_t> r(MachineType::Int32());
   BUILD(r, WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)));
   FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i)); }
 }
 
-TEST(Run_Wasm_I64UConvertI32) {
+WASM_EXEC_TEST(I64UConvertI32) {
   REQUIRE(I64UConvertI32);
   WasmRunner<int64_t> r(MachineType::Uint32());
   BUILD(r, WASM_I64_UCONVERT_I32(WASM_GET_LOCAL(0)));
   FOR_UINT32_INPUTS(i) { CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i)); }
 }
 
-TEST(Run_WasmI64Popcnt) {
+WASM_EXEC_TEST(I64Popcnt) {
   struct {
     int64_t expected;
     uint64_t input;
@@ -536,14 +536,14 @@ TEST(Run_WasmI64Popcnt) {
   }
 }
 
-TEST(Run_WasmF32SConvertI64) {
+WASM_EXEC_TEST(F32SConvertI64) {
   REQUIRE(F32SConvertI64);
   WasmRunner<float> r(MachineType::Int64());
   BUILD(r, WASM_F32_SCONVERT_I64(WASM_GET_LOCAL(0)));
   FOR_INT64_INPUTS(i) { CHECK_FLOAT_EQ(static_cast<float>(*i), r.Call(*i)); }
 }
 
-TEST(Run_WasmF32UConvertI64) {
+WASM_EXEC_TEST(F32UConvertI64) {
   REQUIRE(F32UConvertI64);
   struct {
     uint64_t input;
@@ -631,14 +631,14 @@ TEST(Run_WasmF32UConvertI64) {
   }
 }
 
-TEST(Run_WasmF64SConvertI64) {
+WASM_EXEC_TEST(F64SConvertI64) {
   REQUIRE(F64SConvertI64);
   WasmRunner<double> r(MachineType::Int64());
   BUILD(r, WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0)));
   FOR_INT64_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(*i), r.Call(*i)); }
 }
 
-TEST(Run_Wasm_F64UConvertI64) {
+WASM_EXEC_TEST(F64UConvertI64) {
   REQUIRE(F64UConvertI64);
   struct {
     uint64_t input;
@@ -725,7 +725,7 @@ TEST(Run_Wasm_F64UConvertI64) {
   }
 }
 
-TEST(Run_Wasm_I64SConvertF32a) {
+WASM_EXEC_TEST(I64SConvertF32a) {
   WasmRunner<int64_t> r(MachineType::Float32());
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
@@ -739,7 +739,7 @@ TEST(Run_Wasm_I64SConvertF32a) {
   }
 }
 
-TEST(Run_Wasm_I64SConvertF64a) {
+WASM_EXEC_TEST(I64SConvertF64a) {
   WasmRunner<int64_t> r(MachineType::Float64());
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
@@ -753,7 +753,7 @@ TEST(Run_Wasm_I64SConvertF64a) {
   }
 }
 
-TEST(Run_Wasm_I64UConvertF32a) {
+WASM_EXEC_TEST(I64UConvertF32a) {
   WasmRunner<uint64_t> r(MachineType::Float32());
   BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
 
@@ -767,7 +767,7 @@ TEST(Run_Wasm_I64UConvertF32a) {
   }
 }
 
-TEST(Run_Wasm_I64UConvertF64a) {
+WASM_EXEC_TEST(I64UConvertF64a) {
   WasmRunner<uint64_t> r(MachineType::Float64());
   BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
 
@@ -781,7 +781,7 @@ TEST(Run_Wasm_I64UConvertF64a) {
   }
 }
 
-TEST(Run_WasmCallI64Parameter) {
+WASM_EXEC_TEST(CallI64Parameter) {
   // Build the target function.
   LocalType param_types[20];
   for (int i = 0; i < 20; i++) param_types[i] = kAstI64;
@@ -855,7 +855,7 @@ void TestI64Cmp(WasmOpcode opcode, int64_t expected, int64_t a, int64_t b) {
       TestI64Binop(kExpr##name, expected, a, b); \
   } while (false)
 
-TEST(Run_Wasm_I64Binops) {
+WASM_EXEC_TEST(I64Binops) {
   TEST_I64_BINOP(I64Add, -5586332274295447011, 0x501b72ebabc26847,
                  0x625de9793d8f79d6);
   TEST_I64_BINOP(I64Sub, 9001903251710731490, 0xf24fe6474640002e,
@@ -892,7 +892,7 @@ TEST(Run_Wasm_I64Binops) {
     if (WASM_64 || kSupported_##name) TestI64Cmp(kExpr##name, expected, a, b); \
   } while (false)
 
-TEST(Run_Wasm_I64Compare) {
+WASM_EXEC_TEST(I64Compare) {
   TEST_I64_CMP(I64Eq, 0, 0xB915D8FA494064F0, 0x04D700B2536019A3);
   TEST_I64_CMP(I64Ne, 1, 0xC2FAFAAAB0446CDC, 0x52A3328F780C97A3);
   TEST_I64_CMP(I64LtS, 0, 0x673636E6306B0578, 0x028EC9ECA78F7227);
@@ -905,7 +905,7 @@ TEST(Run_Wasm_I64Compare) {
   TEST_I64_CMP(I64GeU, 0, 0x0886A0C58C7AA224, 0x5DDBE5A81FD7EE47);
 }
 
-TEST(Run_Wasm_I64Clz) {
+WASM_EXEC_TEST(I64Clz) {
   REQUIRE(I64Clz);
   struct {
     int64_t expected;
@@ -951,7 +951,7 @@ TEST(Run_Wasm_I64Clz) {
   }
 }
 
-TEST(Run_Wasm_I64Ctz) {
+WASM_EXEC_TEST(I64Ctz) {
   REQUIRE(I64Ctz);
   struct {
     int64_t expected;
@@ -997,7 +997,7 @@ TEST(Run_Wasm_I64Ctz) {
   }
 }
 
-TEST(Run_Wasm_I64Popcnt) {
+WASM_EXEC_TEST(I64Popcnt2) {
   REQUIRE(I64Popcnt);
   struct {
     int64_t expected;
@@ -1068,7 +1068,7 @@ TEST(Run_TestI64WasmRunner) {
 }
 }
 
-TEST(Run_WasmCall_Int64Sub) {
+WASM_EXEC_TEST(Call_Int64Sub) {
   REQUIRE(I64Sub);
   // Build the target function.
   TestSignatures sigs;
@@ -1095,7 +1095,7 @@ TEST(Run_WasmCall_Int64Sub) {
   }
 }
 
-TEST(Run_Wasm_LoadStoreI64_sx) {
+WASM_EXEC_TEST(LoadStoreI64_sx) {
   REQUIRE(I64LoadStore);
   REQUIRE(DepthFirst);
   byte loads[] = {kExprI64LoadMem8S, kExprI64LoadMem16S, kExprI64LoadMem32S,
@@ -1136,7 +1136,7 @@ TEST(Run_Wasm_LoadStoreI64_sx) {
   }
 }
 
-TEST(Run_Wasm_I64SConvertF32b) {
+WASM_EXEC_TEST(I64SConvertF32b) {
   REQUIRE(I64SConvertF32);
   WasmRunner<int64_t> r(MachineType::Float32());
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
@@ -1151,7 +1151,7 @@ TEST(Run_Wasm_I64SConvertF32b) {
   }
 }
 
-TEST(Run_Wasm_I64SConvertF64b) {
+WASM_EXEC_TEST(I64SConvertF64b) {
   REQUIRE(I64SConvertF64);
   WasmRunner<int64_t> r(MachineType::Float64());
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
@@ -1166,7 +1166,7 @@ TEST(Run_Wasm_I64SConvertF64b) {
   }
 }
 
-TEST(Run_Wasm_I64UConvertF32b) {
+WASM_EXEC_TEST(I64UConvertF32b) {
   REQUIRE(I64UConvertF32);
   WasmRunner<uint64_t> r(MachineType::Float32());
   BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
@@ -1180,7 +1180,7 @@ TEST(Run_Wasm_I64UConvertF32b) {
   }
 }
 
-TEST(Run_Wasm_I64UConvertF64b) {
+WASM_EXEC_TEST(I64UConvertF64b) {
   REQUIRE(I64UConvertF64);
   WasmRunner<uint64_t> r(MachineType::Float64());
   BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
@@ -1194,7 +1194,7 @@ TEST(Run_Wasm_I64UConvertF64b) {
   }
 }
 
-TEST(Run_Wasm_I64ReinterpretF64) {
+WASM_EXEC_TEST(I64ReinterpretF64) {
   REQUIRE(I64ReinterpretF64);
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
@@ -1210,7 +1210,7 @@ TEST(Run_Wasm_I64ReinterpretF64) {
   }
 }
 
-TEST(Run_Wasm_F64ReinterpretI64) {
+WASM_EXEC_TEST(F64ReinterpretI64) {
   REQUIRE(F64ReinterpretI64);
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
@@ -1228,7 +1228,7 @@ TEST(Run_Wasm_F64ReinterpretI64) {
   }
 }
 
-TEST(Run_Wasm_LoadMemI64) {
+WASM_EXEC_TEST(LoadMemI64) {
   REQUIRE(I64LoadStore);
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
@@ -1247,7 +1247,7 @@ TEST(Run_Wasm_LoadMemI64) {
   CHECK_EQ(77777777, r.Call());
 }
 
-TEST(Run_Wasm_MemI64_Sum) {
+WASM_EXEC_TEST(MemI64_Sum) {
   REQUIRE(I64LoadStore);
   REQUIRE(I64Add);
   REQUIRE(I64Sub);
@@ -1283,7 +1283,7 @@ TEST(Run_Wasm_MemI64_Sum) {
   }
 }
 
-TEST(Run_Wasm_I64Global) {
+WASM_EXEC_TEST(I64Global) {
   REQUIRE(I64LoadStore);
   REQUIRE(I64SConvertI32);
   REQUIRE(I64And);
@@ -1305,7 +1305,7 @@ TEST(Run_Wasm_I64Global) {
   }
 }
 
-TEST(Run_Wasm_I64Eqz) {
+WASM_EXEC_TEST(I64Eqz) {
   REQUIRE(I64Eq);
 
   WasmRunner<int32_t> r(MachineType::Int64());
@@ -1317,7 +1317,7 @@ TEST(Run_Wasm_I64Eqz) {
   }
 }
 
-TEST(Run_Wasm_I64Ror) {
+WASM_EXEC_TEST(I64Ror) {
   REQUIRE(I64Ror);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_ROR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -1330,7 +1330,7 @@ TEST(Run_Wasm_I64Ror) {
   }
 }
 
-TEST(Run_Wasm_I64Rol) {
+WASM_EXEC_TEST(I64Rol) {
   REQUIRE(I64Rol);
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_ROL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
