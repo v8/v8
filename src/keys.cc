@@ -22,6 +22,33 @@ KeyAccumulator::~KeyAccumulator() {
   }
 }
 
+namespace {
+
+static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
+  int len = array->length();
+  for (int i = 0; i < len; i++) {
+    Object* e = array->get(i);
+    if (!(e->IsName() || e->IsNumber())) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+MaybeHandle<FixedArray> KeyAccumulator::GetKeys(
+    Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
+    GetKeysConversion keys_conversion, bool filter_proxy_keys) {
+  USE(ContainsOnlyValidKeys);
+  Isolate* isolate = object->GetIsolate();
+  KeyAccumulator accumulator(isolate, type, filter);
+  accumulator.set_filter_proxy_keys(filter_proxy_keys);
+  MAYBE_RETURN(accumulator.CollectKeys(object, object),
+               MaybeHandle<FixedArray>());
+  Handle<FixedArray> keys = accumulator.GetKeys(keys_conversion);
+  DCHECK(ContainsOnlyValidKeys(keys));
+  return keys;
+}
+
 Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   if (length_ == 0) {
     return isolate_->factory()->empty_fixed_array();
@@ -568,7 +595,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
     GetKeysConversion convert) {
-  return JSReceiver::GetKeys(receiver_, type_, ENUMERABLE_STRINGS, KEEP_NUMBERS,
+  return JSReceiver::GetKeys(receiver_, type_, filter_, KEEP_NUMBERS,
                              filter_proxy_keys_);
 }
 

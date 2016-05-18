@@ -36,6 +36,11 @@ class KeyAccumulator final BASE_EMBEDDED {
       : isolate_(isolate), type_(type), filter_(filter) {}
   ~KeyAccumulator();
 
+  static MaybeHandle<FixedArray> GetKeys(Handle<JSReceiver> object,
+                                         KeyCollectionType type,
+                                         PropertyFilter filter,
+                                         GetKeysConversion keys_conversion,
+                                         bool filter_proxy_keys);
   Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
                           Handle<JSReceiver> object);
@@ -115,8 +120,6 @@ class FastKeyAccumulator {
                      KeyCollectionType type, PropertyFilter filter)
       : isolate_(isolate), receiver_(receiver), type_(type), filter_(filter) {
     Prepare();
-    // TODO(cbruni): pass filter_ directly to the KeyAccumulator.
-    USE(filter_);
   }
 
   bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
@@ -134,9 +137,9 @@ class FastKeyAccumulator {
   Handle<JSReceiver> receiver_;
   KeyCollectionType type_;
   PropertyFilter filter_;
+  bool filter_proxy_keys_ = true;
   bool is_receiver_simple_enum_ = false;
   bool has_empty_prototype_ = false;
-  bool filter_proxy_keys_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
 };

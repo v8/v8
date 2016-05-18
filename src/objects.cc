@@ -8152,16 +8152,6 @@ int Map::NextFreePropertyIndex() {
 }
 
 
-static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
-  int len = array->length();
-  for (int i = 0; i < len; i++) {
-    Object* e = array->get(i);
-    if (!(e->IsName() || e->IsNumber())) return false;
-  }
-  return true;
-}
-
-
 bool Map::OnlyHasSimpleProperties() {
   // Wrapped string elements aren't explicitly stored in the elements backing
   // store, but are loaded indirectly from the underlying string.
@@ -8175,15 +8165,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             PropertyFilter filter,
                                             GetKeysConversion keys_conversion,
                                             bool filter_proxy_keys) {
-  USE(ContainsOnlyValidKeys);
-  Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate, type, filter);
-  accumulator.set_filter_proxy_keys(filter_proxy_keys);
-  MAYBE_RETURN(accumulator.CollectKeys(object, object),
-               MaybeHandle<FixedArray>());
-  Handle<FixedArray> keys = accumulator.GetKeys(keys_conversion);
-  DCHECK(ContainsOnlyValidKeys(keys));
-  return keys;
+  return KeyAccumulator::GetKeys(object, type, filter, keys_conversion,
+                                 filter_proxy_keys);
 }
 
 MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
@@ -8280,7 +8263,6 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   MAYBE_RETURN(accumulator.CollectKeys(object, object),
                MaybeHandle<FixedArray>());
   Handle<FixedArray> keys = accumulator.GetKeys(CONVERT_TO_STRING);
-  DCHECK(ContainsOnlyValidKeys(keys));
 
   values_or_entries = isolate->factory()->NewFixedArray(keys->length());
   int length = 0;
