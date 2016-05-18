@@ -1734,10 +1734,10 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_target_arch == "mips64el") {
     sources += [
-      "compiler/mips64/code-generator-mips64.cc",
-      "compiler/mips64/instruction-codes-mips64.h",
-      "compiler/mips64/instruction-scheduler-mips64.cc",
-      "compiler/mips64/instruction-selector-mips64.cc",
+      "src/compiler/mips64/code-generator-mips64.cc",
+      "src/compiler/mips64/instruction-codes-mips64.h",
+      "src/compiler/mips64/instruction-scheduler-mips64.cc",
+      "src/compiler/mips64/instruction-selector-mips64.cc",
       "src/crankshaft/mips64/lithium-codegen-mips64.cc",
       "src/crankshaft/mips64/lithium-codegen-mips64.h",
       "src/crankshaft/mips64/lithium-gap-resolver-mips64.cc",
