@@ -47,6 +47,7 @@
   V(Select)              \
   V(Phi)                 \
   V(EffectPhi)           \
+  V(CheckPoint)          \
   V(Guard)               \
   V(BeginRegion)         \
   V(FinishRegion)        \

@@ -190,6 +190,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
+  const Operator* CheckPoint();
   const Operator* Guard(Type* type);
   const Operator* BeginRegion();
   const Operator* FinishRegion();
