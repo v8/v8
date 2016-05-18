@@ -1483,7 +1483,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ bind(&with_tos_register);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), v0.code());
   __ ld(v0, MemOperand(sp, 1 * kPointerSize));
-  __ Branch(&unknown_state, ne, t2,
+  __ Branch(&unknown_state, ne, a6,
             Operand(static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER)));
 
   __ Ret(USE_DELAY_SLOT);
