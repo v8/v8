@@ -351,6 +351,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
                                                    Node** control) {
   ValueEffectControl state(nullptr, nullptr, nullptr);
   switch (node->opcode()) {
+    case IrOpcode::kGuard:
+      state = LowerGuard(node, *effect, *control);
+      break;
     case IrOpcode::kChangeBitToTagged:
       state = LowerChangeBitToTagged(node, *effect, *control);
       break;
@@ -409,6 +412,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
   *effect = state.effect;
   *control = state.control;
   return true;
+}
+
+EffectControlLinearizer::ValueEffectControl EffectControlLinearizer::LowerGuard(
+    Node* node, Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
