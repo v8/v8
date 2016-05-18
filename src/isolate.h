@@ -58,7 +58,6 @@ class EmptyStatement;
 class ExternalCallbackScope;
 class ExternalReferenceTable;
 class Factory;
-class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
 class HStatistics;
@@ -383,8 +382,6 @@ typedef List<HeapObject*> DebugObjectCache;
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
-  /* Part of the state of liveedit. */                                         \
-  V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \

@@ -691,105 +691,6 @@ Handle<SharedFunctionInfo> SharedInfoWrapper::GetInfo() {
 }
 
 
-class FunctionInfoListener {
- public:
-  explicit FunctionInfoListener(Isolate* isolate) {
-    current_parent_index_ = -1;
-    len_ = 0;
-    result_ = isolate->factory()->NewJSArray(10);
-  }
-
-  void FunctionStarted(FunctionLiteral* fun) {
-    HandleScope scope(isolate());
-    FunctionInfoWrapper info = FunctionInfoWrapper::Create(isolate());
-    info.SetInitialProperties(fun->name(), fun->start_position(),
-                              fun->end_position(), fun->parameter_count(),
-                              fun->materialized_literal_count(),
-                              current_parent_index_);
-    current_parent_index_ = len_;
-    SetElementSloppy(result_, len_, info.GetJSArray());
-    len_++;
-  }
-
-  void FunctionDone() {
-    HandleScope scope(isolate());
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
-        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
-             .ToHandleChecked());
-    current_parent_index_ = info.GetParentIndex();
-  }
-
-  // Saves full information about a function: its code, its scope info
-  // and a SharedFunctionInfo object.
-  void FunctionInfo(Handle<SharedFunctionInfo> shared, Scope* scope,
-                    Zone* zone) {
-    if (!shared->IsSharedFunctionInfo()) {
-      return;
-    }
-    FunctionInfoWrapper info = FunctionInfoWrapper::cast(
-        *JSReceiver::GetElement(isolate(), result_, current_parent_index_)
-             .ToHandleChecked());
-    info.SetFunctionCode(Handle<Code>(shared->code()),
-                         Handle<HeapObject>(shared->scope_info()));
-    info.SetSharedFunctionInfo(shared);
-
-    Handle<Object> scope_info_list = SerializeFunctionScope(scope, zone);
-    info.SetFunctionScopeInfo(scope_info_list);
-  }
-
-  Handle<JSArray> GetResult() { return result_; }
-
- private:
-  Isolate* isolate() const { return result_->GetIsolate(); }
-
-  Handle<Object> SerializeFunctionScope(Scope* scope, Zone* zone) {
-    Handle<JSArray> scope_info_list = isolate()->factory()->NewJSArray(10);
-    int scope_info_length = 0;
-
-    // Saves some description of scope. It stores name and indexes of
-    // variables in the whole scope chain. Null-named slots delimit
-    // scopes of this chain.
-    Scope* current_scope = scope;
-    while (current_scope != NULL) {
-      HandleScope handle_scope(isolate());
-      ZoneList<Variable*> stack_list(current_scope->StackLocalCount(), zone);
-      ZoneList<Variable*> context_list(
-          current_scope->ContextLocalCount(), zone);
-      ZoneList<Variable*> globals_list(current_scope->ContextGlobalCount(),
-                                       zone);
-      current_scope->CollectStackAndContextLocals(&stack_list, &context_list,
-                                                  &globals_list);
-      context_list.Sort(&Variable::CompareIndex);
-
-      for (int i = 0; i < context_list.length(); i++) {
-        SetElementSloppy(scope_info_list,
-                         scope_info_length,
-                         context_list[i]->name());
-        scope_info_length++;
-        SetElementSloppy(
-            scope_info_list,
-            scope_info_length,
-            Handle<Smi>(Smi::FromInt(context_list[i]->index()), isolate()));
-        scope_info_length++;
-      }
-      SetElementSloppy(scope_info_list,
-                       scope_info_length,
-                       Handle<Object>(isolate()->heap()->null_value(),
-                                      isolate()));
-      scope_info_length++;
-
-      current_scope = current_scope->outer_scope();
-    }
-
-    return scope_info_list;
-  }
-
-  Handle<JSArray> result_;
-  int len_;
-  int current_parent_index_;
-};
-
-
 void LiveEdit::InitializeThreadLocal(Debug* debug) {
   debug->thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
 }
@@ -825,11 +726,10 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
                                                  Handle<String> source) {
   Isolate* isolate = script->GetIsolate();
 
-  FunctionInfoListener listener(isolate);
+  MaybeHandle<JSArray> infos;
   Handle<Object> original_source =
       Handle<Object>(script->source(), isolate);
   script->set_source(*source);
-  isolate->set_active_function_info_listener(&listener);
 
   {
     // Creating verbose TryCatch from public API is currently the only way to
@@ -838,7 +738,7 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
     try_catch.SetVerbose(true);
 
     // A logical 'try' section.
-    Compiler::CompileForLiveEdit(script);
+    infos = Compiler::CompileForLiveEdit(script);
   }
 
   // A logical 'catch' section.
@@ -876,11 +776,10 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
   }
 
   // A logical 'finally' section.
-  isolate->set_active_function_info_listener(NULL);
   script->set_source(*original_source);
 
   if (rethrow_exception.is_null()) {
-    return listener.GetResult();
+    return infos.ToHandleChecked();
   } else {
     return isolate->Throw<JSArray>(rethrow_exception);
   }
@@ -2038,35 +1937,107 @@ const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   return NULL;
 }
 
-
-LiveEditFunctionTracker::LiveEditFunctionTracker(Isolate* isolate,
-                                                 FunctionLiteral* fun)
-    : isolate_(isolate) {
-  if (isolate_->active_function_info_listener() != NULL) {
-    isolate_->active_function_info_listener()->FunctionStarted(fun);
-  }
+Handle<JSArray> LiveEditFunctionTracker::Collect(FunctionLiteral* node,
+                                                 Handle<Script> script,
+                                                 Zone* zone, Isolate* isolate) {
+  LiveEditFunctionTracker visitor(script, zone, isolate);
+  visitor.VisitFunctionLiteral(node);
+  return visitor.result_;
 }
 
-
-LiveEditFunctionTracker::~LiveEditFunctionTracker() {
-  if (isolate_->active_function_info_listener() != NULL) {
-    isolate_->active_function_info_listener()->FunctionDone();
-  }
+LiveEditFunctionTracker::LiveEditFunctionTracker(Handle<Script> script,
+                                                 Zone* zone, Isolate* isolate)
+    : AstTraversalVisitor(isolate) {
+  current_parent_index_ = -1;
+  isolate_ = isolate;
+  len_ = 0;
+  result_ = isolate->factory()->NewJSArray(10);
+  script_ = script;
+  zone_ = zone;
 }
 
+void LiveEditFunctionTracker::VisitFunctionLiteral(FunctionLiteral* node) {
+  Scope* scope = node->scope();
 
-void LiveEditFunctionTracker::RecordFunctionInfo(
-    Handle<SharedFunctionInfo> info, FunctionLiteral* lit,
-    Zone* zone) {
-  if (isolate_->active_function_info_listener() != NULL) {
-    isolate_->active_function_info_listener()->FunctionInfo(info, lit->scope(),
-                                                            zone);
-  }
+  // FunctionStarted is called in pre-order.
+  FunctionStarted(node);
+
+  VisitDeclarations(scope->declarations());
+  VisitStatements(node->body());
+
+  // FunctionDone are called in post-order.
+  // TODO(jgruber): If required, replace the (linear cost)
+  // FindSharedFunctionInfo call with a more efficient implementation.
+  Handle<SharedFunctionInfo> info =
+      script_->FindSharedFunctionInfo(node).ToHandleChecked();
+  FunctionDone(info, scope);
 }
 
+void LiveEditFunctionTracker::FunctionStarted(FunctionLiteral* fun) {
+  HandleScope handle_scope(isolate_);
+  FunctionInfoWrapper info = FunctionInfoWrapper::Create(isolate_);
+  info.SetInitialProperties(fun->name(), fun->start_position(),
+                            fun->end_position(), fun->parameter_count(),
+                            fun->materialized_literal_count(),
+                            current_parent_index_);
+  current_parent_index_ = len_;
+  SetElementSloppy(result_, len_, info.GetJSArray());
+  len_++;
+}
 
-bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
-  return isolate->active_function_info_listener() != NULL;
+// Saves full information about a function: its code, its scope info
+// and a SharedFunctionInfo object.
+void LiveEditFunctionTracker::FunctionDone(Handle<SharedFunctionInfo> shared,
+                                           Scope* scope) {
+  HandleScope handle_scope(isolate_);
+  FunctionInfoWrapper info = FunctionInfoWrapper::cast(
+      *JSReceiver::GetElement(isolate_, result_, current_parent_index_)
+           .ToHandleChecked());
+  info.SetFunctionCode(Handle<Code>(shared->code()),
+                       Handle<HeapObject>(shared->scope_info()));
+  info.SetSharedFunctionInfo(shared);
+
+  Handle<Object> scope_info_list = SerializeFunctionScope(scope);
+  info.SetFunctionScopeInfo(scope_info_list);
+
+  current_parent_index_ = info.GetParentIndex();
+}
+
+Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
+  Handle<JSArray> scope_info_list = isolate_->factory()->NewJSArray(10);
+  int scope_info_length = 0;
+
+  // Saves some description of scope. It stores name and indexes of
+  // variables in the whole scope chain. Null-named slots delimit
+  // scopes of this chain.
+  Scope* current_scope = scope;
+  while (current_scope != NULL) {
+    HandleScope handle_scope(isolate_);
+    ZoneList<Variable*> stack_list(current_scope->StackLocalCount(), zone_);
+    ZoneList<Variable*> context_list(current_scope->ContextLocalCount(), zone_);
+    ZoneList<Variable*> globals_list(current_scope->ContextGlobalCount(),
+                                     zone_);
+    current_scope->CollectStackAndContextLocals(&stack_list, &context_list,
+                                                &globals_list);
+    context_list.Sort(&Variable::CompareIndex);
+
+    for (int i = 0; i < context_list.length(); i++) {
+      SetElementSloppy(scope_info_list, scope_info_length,
+                       context_list[i]->name());
+      scope_info_length++;
+      SetElementSloppy(
+          scope_info_list, scope_info_length,
+          Handle<Smi>(Smi::FromInt(context_list[i]->index()), isolate_));
+      scope_info_length++;
+    }
+    SetElementSloppy(scope_info_list, scope_info_length,
+                     Handle<Object>(isolate_->heap()->null_value(), isolate_));
+    scope_info_length++;
+
+    current_scope = current_scope->outer_scope();
+  }
+
+  return scope_info_list;
 }
 
 }  // namespace internal

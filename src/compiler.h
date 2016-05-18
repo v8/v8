@@ -48,7 +48,7 @@ class Compiler : public AllStatic {
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<JSFunction> function);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
-  static bool CompileForLiveEdit(Handle<Script> script);
+  static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
   // Generate and install code from previously queued compilation job.
   static void FinalizeCompilationJob(CompilationJob* job);

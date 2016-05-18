@@ -1019,7 +1019,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     DCHECK(!info->is_debug() || !parse_info->allow_lazy_parsing());
 
     FunctionLiteral* lit = parse_info->literal();
-    LiveEditFunctionTracker live_edit_tracker(isolate, lit);
 
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
@@ -1068,8 +1067,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     if (!script.is_null())
       script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-
-    live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
 
   return result;
@@ -1228,7 +1225,7 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   return true;
 }
 
-bool Compiler::CompileForLiveEdit(Handle<Script> script) {
+MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
@@ -1244,22 +1241,23 @@ bool Compiler::CompileForLiveEdit(Handle<Script> script) {
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   parse_info.set_global();
   info.MarkAsDebug();
+
   // TODO(635): support extensions.
   const bool compilation_succeeded = !CompileToplevel(&info).is_null();
+  Handle<JSArray> infos;
+  if (compilation_succeeded) {
+    // Check postconditions on success.
+    DCHECK(!isolate->has_pending_exception());
+    infos = LiveEditFunctionTracker::Collect(parse_info.literal(), script,
+                                             &zone, isolate);
+  }
 
   // Restore the original function info list in order to remain side-effect
   // free as much as possible, since some code expects the old shared function
   // infos to stick around.
   script->set_shared_function_infos(*old_function_infos);
 
-  if (!compilation_succeeded) {
-    return false;
-  }
-
-  // Check postconditions on success.
-  DCHECK(!isolate->has_pending_exception());
-
-  return compilation_succeeded;
+  return infos;
 }
 
 // TODO(turbofan): In the future, unoptimized code with deopt support could
@@ -1589,7 +1587,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_debug()) info.MarkAsDebug();
 
-  LiveEditFunctionTracker live_edit_tracker(isolate, literal);
   // Determine if the function can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
@@ -1632,7 +1629,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   if (maybe_existing.is_null()) {
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info);
-    live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
   }
 
   return result;
