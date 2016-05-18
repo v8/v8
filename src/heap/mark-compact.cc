@@ -2892,6 +2892,16 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     }
   }
 
+  void VisitCodeEntry(Address entry_address) override {
+    Object* code = Code::GetObjectFromEntryAddress(entry_address);
+    Object* old_code = code;
+    VisitPointer(&code);
+    if (code != old_code) {
+      Memory::Address_at(entry_address) =
+          reinterpret_cast<Code*>(code)->entry();
+    }
+  }
+
   void VisitDebugTarget(RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
            rinfo->IsPatchedDebugBreakSlotSequence());
