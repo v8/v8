@@ -541,9 +541,6 @@ class Heap {
   static const int kAbortIncrementalMarkingMask = 2;
   static const int kFinalizeIncrementalMarkingMask = 4;
 
-  // Making the heap iterable requires us to abort incremental marking.
-  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
-
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
 
@@ -663,9 +660,6 @@ class Heap {
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
-
-  // Check whether the heap is currently iterable.
-  bool IsHeapIterable();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
@@ -1033,9 +1027,7 @@ class Heap {
       AllocationSpace space, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
-  // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
-  // non-zero, then the slower precise sweeper is used, which leaves the heap
-  // in a state where we can iterate over the heap visiting all objects.
+  // Performs a full garbage collection.
   void CollectAllGarbage(
       int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
@@ -1537,7 +1529,7 @@ class Heap {
   void EnsureFillerObjectAtTop();
 
   // Ensure that we have swept all spaces in such a way that we can iterate
-  // over all objects.  May cause a GC.
+  // over all objects.
   void MakeHeapIterable();
 
   // Performs garbage collection operation.
