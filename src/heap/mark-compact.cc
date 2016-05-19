@@ -3666,8 +3666,9 @@ class PointerUpdateJobTraits {
  private:
   static void UpdateUntypedPointers(Heap* heap, MemoryChunk* chunk) {
     if (direction == OLD_TO_NEW) {
-      RememberedSet<OLD_TO_NEW>::IterateWithWrapper(heap, chunk,
-                                                    UpdateOldToNewSlot);
+      RememberedSet<OLD_TO_NEW>::Iterate(chunk, [heap, chunk](Address slot) {
+        return CheckAndUpdateOldToNewSlot(heap, slot);
+      });
     } else {
       RememberedSet<OLD_TO_OLD>::Iterate(chunk, [](Address slot) {
         return UpdateSlot(reinterpret_cast<Object**>(slot));
@@ -3685,14 +3686,30 @@ class PointerUpdateJobTraits {
     }
   }
 
-  static void UpdateOldToNewSlot(HeapObject** address, HeapObject* object) {
-    MapWord map_word = object->map_word();
-    // There could still be stale pointers in large object space, map space,
-    // and old space for pages that have been promoted.
-    if (map_word.IsForwardingAddress()) {
-      // Update the corresponding slot.
-      *address = map_word.ToForwardingAddress();
+  static SlotCallbackResult CheckAndUpdateOldToNewSlot(Heap* heap,
+                                                       Address slot_address) {
+    Object** slot = reinterpret_cast<Object**>(slot_address);
+    if (heap->InFromSpace(*slot)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
+      DCHECK(heap_object->IsHeapObject());
+      MapWord map_word = heap_object->map_word();
+      // There could still be stale pointers in large object space, map space,
+      // and old space for pages that have been promoted.
+      if (map_word.IsForwardingAddress()) {
+        // Update the corresponding slot.
+        *slot = map_word.ToForwardingAddress();
+      }
+      // If the object was in from space before and is after executing the
+      // callback in to space, the object is still live.
+      // Unfortunately, we do not know about the slot. It could be in a
+      // just freed free space object.
+      if (heap->InToSpace(*slot)) {
+        return KEEP_SLOT;
+      }
+    } else {
+      DCHECK(!heap->InNewSpace(*slot));
     }
+    return REMOVE_SLOT;
   }
 };
 

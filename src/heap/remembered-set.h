@@ -98,27 +98,6 @@ class RememberedSet {
     }
   }
 
-  // Iterates and filters the remembered set with the given callback.
-  // The callback should take (HeapObject** slot, HeapObject* target) and
-  // update the slot.
-  // A special wrapper takes care of filtering the slots based on their values.
-  // For OLD_TO_NEW case: slots that do not point to the ToSpace after
-  // callback invocation will be removed from the set.
-  template <typename Callback>
-  static void IterateWithWrapper(Heap* heap, Callback callback) {
-    Iterate(heap, [heap, callback](Address addr) {
-      return Wrapper(heap, addr, callback);
-    });
-  }
-
-  template <typename Callback>
-  static void IterateWithWrapper(Heap* heap, MemoryChunk* chunk,
-                                 Callback callback) {
-    Iterate(chunk, [heap, callback](Address addr) {
-      return Wrapper(heap, addr, callback);
-    });
-  }
-
   // Given a page and a typed slot in that page, this function adds the slot
   // to the remembered set.
   static void InsertTyped(Page* page, SlotType slot_type, Address slot_addr) {
@@ -210,30 +189,6 @@ class RememberedSet {
       chunk->AllocateOldToNewSlots();
       return chunk->old_to_new_slots();
     }
-  }
-
-  template <typename Callback>
-  static SlotCallbackResult Wrapper(Heap* heap, Address slot_address,
-                                    Callback slot_callback) {
-    STATIC_ASSERT(direction == OLD_TO_NEW);
-    Object** slot = reinterpret_cast<Object**>(slot_address);
-    Object* object = *slot;
-    if (heap->InFromSpace(object)) {
-      HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-      DCHECK(heap_object->IsHeapObject());
-      slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-      object = *slot;
-      // If the object was in from space before and is after executing the
-      // callback in to space, the object is still live.
-      // Unfortunately, we do not know about the slot. It could be in a
-      // just freed free space object.
-      if (heap->InToSpace(object)) {
-        return KEEP_SLOT;
-      }
-    } else {
-      DCHECK(!heap->InNewSpace(object));
-    }
-    return REMOVE_SLOT;
   }
 
   static bool IsValidSlot(Heap* heap, MemoryChunk* chunk, Object** slot);

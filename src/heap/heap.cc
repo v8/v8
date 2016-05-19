@@ -1669,8 +1669,9 @@ void Heap::Scavenge() {
   {
     // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    RememberedSet<OLD_TO_NEW>::IterateWithWrapper(this,
-                                                  Scavenger::ScavengeObject);
+    RememberedSet<OLD_TO_NEW>::Iterate(this, [this](Address addr) {
+      return Scavenger::CheckAndScavengeObject(this, addr);
+    });
   }
 
   {
