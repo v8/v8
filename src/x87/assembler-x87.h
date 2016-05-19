@@ -654,6 +654,14 @@ class Assembler : public AssemblerBase {
   void xchg_b(Register reg, const Operand& op);
   void xchg_w(Register reg, const Operand& op);
 
+  // Lock prefix
+  void lock();
+
+  // CompareExchange
+  void cmpxchg(const Operand& dst, Register src);
+  void cmpxchg_b(const Operand& dst, Register src);
+  void cmpxchg_w(const Operand& dst, Register src);
+
   // Arithmetics
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);

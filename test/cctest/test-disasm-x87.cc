@@ -395,10 +395,28 @@ TEST(DisasmIa320) {
 
   // xchg.
   {
+    __ xchg_b(eax, Operand(eax, 8));
+    __ xchg_w(eax, Operand(ebx, 8));
     __ xchg(eax, eax);
     __ xchg(eax, ebx);
     __ xchg(ebx, ebx);
     __ xchg(ebx, Operand(esp, 12));
+  }
+
+  // cmpxchg.
+  {
+    __ cmpxchg_b(Operand(esp, 12), eax);
+    __ cmpxchg_w(Operand(ebx, ecx, times_4, 10000), eax);
+    __ cmpxchg(Operand(ebx, ecx, times_4, 10000), eax);
+  }
+
+  // lock prefix.
+  {
+    __ lock();
+    __ cmpxchg(Operand(esp, 12), ebx);
+
+    __ lock();
+    __ xchg_w(eax, Operand(ecx, 8));
   }
 
   // Nop instructions
