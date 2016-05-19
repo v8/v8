@@ -986,6 +986,14 @@ class Assembler : public AssemblerBase {
             Register src2,
             const MemOperand& dst, Condition cond = al);
 
+  // Load/Store exclusive instructions
+  void ldrex(Register dst, Register src, Condition cond = al);
+  void strex(Register src1, Register src2, Register dst, Condition cond = al);
+  void ldrexb(Register dst, Register src, Condition cond = al);
+  void strexb(Register src1, Register src2, Register dst, Condition cond = al);
+  void ldrexh(Register dst, Register src, Condition cond = al);
+  void strexh(Register src1, Register src2, Register dst, Condition cond = al);
+
   // Preload instructions
   void pld(const MemOperand& address);
 

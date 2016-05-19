@@ -1171,3 +1171,17 @@ TEST(Barrier) {
 
   VERIFY_RUN();
 }
+
+
+TEST(LoadStoreExclusive) {
+  SET_UP();
+
+  COMPARE(ldrexb(r0, r1), "e1d10f9f       ldrexb r0, [r1]");
+  COMPARE(strexb(r0, r1, r2), "e1c20f91       strexb r0, r1, [r2]");
+  COMPARE(ldrexh(r0, r1), "e1f10f9f       ldrexh r0, [r1]");
+  COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
+  COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
+  COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
+
+  VERIFY_RUN();
+}
