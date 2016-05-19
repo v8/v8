@@ -399,11 +399,15 @@ static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  Code* interpreter_baseline_on_return =
+      isolate->builtins()->builtin(Builtins::kInterpreterMarkBaselineOnReturn);
 
   return (pc >= interpreter_entry_trampoline->instruction_start() &&
           pc < interpreter_entry_trampoline->instruction_end()) ||
          (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end());
+          pc < interpreter_bytecode_dispatch->instruction_end()) ||
+         (pc >= interpreter_baseline_on_return->instruction_start() &&
+          pc < interpreter_baseline_on_return->instruction_end());
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
@@ -444,13 +448,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     Code* code_obj =
         GetContainingCode(iterator->isolate(), *(state->pc_address));
     if (code_obj != nullptr) {
-      if (code_obj->is_interpreter_entry_trampoline() ||
-          code_obj->is_interpreter_enter_bytecode_dispatch()) {
-        return INTERPRETED;
-      }
       switch (code_obj->kind()) {
         case Code::BUILTIN:
           if (marker->IsSmi()) break;
+          if (code_obj->is_interpreter_trampoline_builtin()) {
+            return INTERPRETED;
+          }
           // We treat frames for BUILTIN Code objects as OptimizedFrame for now
           // (all the builtins with JavaScript linkage are actually generated
           // with TurboFan currently, so this is sound).

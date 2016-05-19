@@ -237,6 +237,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(NotifyStubFailureSaveDoubles, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
                                                                                \
   V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(InterpreterMarkBaselineOnReturn, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
   V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(InterpreterPushArgsAndTailCall, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
@@ -657,6 +658,7 @@ class Builtins {
 
   static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm);
+  static void Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm);
   static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
     return Generate_InterpreterPushArgsAndCallImpl(masm,
                                                    TailCallMode::kDisallow);

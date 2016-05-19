@@ -4787,13 +4787,6 @@ bool Code::IsCodeStubOrIC() {
          kind() == COMPARE_IC || kind() == TO_BOOLEAN_IC;
 }
 
-
-bool Code::IsJavaScriptCode() {
-  return kind() == FUNCTION || kind() == OPTIMIZED_FUNCTION ||
-         is_interpreter_entry_trampoline();
-}
-
-
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
@@ -4833,18 +4826,11 @@ inline bool Code::is_hydrogen_stub() {
   return is_crankshafted() && kind() != OPTIMIZED_FUNCTION;
 }
 
-
-inline bool Code::is_interpreter_entry_trampoline() {
-  Handle<Code> interpreter_entry =
-      GetIsolate()->builtins()->InterpreterEntryTrampoline();
-  return interpreter_entry.location() != nullptr && *interpreter_entry == this;
-}
-
-inline bool Code::is_interpreter_enter_bytecode_dispatch() {
-  Handle<Code> interpreter_handler =
-      GetIsolate()->builtins()->InterpreterEnterBytecodeDispatch();
-  return interpreter_handler.location() != nullptr &&
-         *interpreter_handler == this;
+inline bool Code::is_interpreter_trampoline_builtin() {
+  Builtins* builtins = GetIsolate()->builtins();
+  return this == *builtins->InterpreterEntryTrampoline() ||
+         this == *builtins->InterpreterEnterBytecodeDispatch() ||
+         this == *builtins->InterpreterMarkBaselineOnReturn();
 }
 
 inline void Code::set_is_crankshafted(bool value) {
@@ -6123,7 +6109,7 @@ void Map::InobjectSlackTrackingStep() {
 
 AbstractCode* JSFunction::abstract_code() {
   Code* code = this->code();
-  if (code->is_interpreter_entry_trampoline()) {
+  if (code->is_interpreter_trampoline_builtin()) {
     return AbstractCode::cast(shared()->bytecode_array());
   } else {
     return AbstractCode::cast(code);

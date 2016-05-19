@@ -34,7 +34,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       // replace it with lazy-compile builtin. Only exception is when we are
       // serializing the canonical interpreter-entry-trampoline builtin.
       if (code->kind() == Code::FUNCTION ||
-          (!serializing_builtins_ && code->is_interpreter_entry_trampoline())) {
+          (!serializing_builtins_ &&
+           code->is_interpreter_trampoline_builtin())) {
         obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
       }
     } else if (obj->IsBytecodeArray()) {

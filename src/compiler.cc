@@ -789,18 +789,23 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 class InterpreterActivationsFinder : public ThreadVisitor,
                                      public OptimizedFunctionVisitor {
  public:
-  SharedFunctionInfo* shared_;
-  bool has_activations_;
-
   explicit InterpreterActivationsFinder(SharedFunctionInfo* shared)
       : shared_(shared), has_activations_(false) {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    Address* activation_pc_address = nullptr;
     JavaScriptFrameIterator it(isolate, top);
-    for (; !it.done() && !has_activations_; it.Advance()) {
+    for (; !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
       if (!frame->is_interpreted()) continue;
-      if (frame->function()->shared() == shared_) has_activations_ = true;
+      if (frame->function()->shared() == shared_) {
+        has_activations_ = true;
+        activation_pc_address = frame->pc_address();
+      }
+    }
+
+    if (activation_pc_address) {
+      activation_pc_addresses_.push_back(activation_pc_address);
     }
   }
 
@@ -810,19 +815,39 @@ class InterpreterActivationsFinder : public ThreadVisitor,
 
   void EnterContext(Context* context) {}
   void LeaveContext(Context* context) {}
+
+  bool MarkActivationsForBaselineOnReturn(Isolate* isolate) {
+    if (activation_pc_addresses_.empty()) return false;
+
+    for (Address* activation_pc_address : activation_pc_addresses_) {
+      DCHECK(isolate->inner_pointer_to_code_cache()
+                 ->GetCacheEntry(*activation_pc_address)
+                 ->code->is_interpreter_trampoline_builtin());
+      *activation_pc_address =
+          isolate->builtins()->InterpreterMarkBaselineOnReturn()->entry();
+    }
+    return true;
+  }
+
+  bool has_activations() { return has_activations_; }
+
+ private:
+  SharedFunctionInfo* shared_;
+  bool has_activations_;
+  std::vector<Address*> activation_pc_addresses_;
 };
 
-bool HasInterpreterActivations(Isolate* isolate, SharedFunctionInfo* shared) {
-  InterpreterActivationsFinder activations_finder(shared);
-  activations_finder.VisitThread(isolate, isolate->thread_local_top());
-  isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
+bool HasInterpreterActivations(
+    Isolate* isolate, InterpreterActivationsFinder* activations_finder) {
+  activations_finder->VisitThread(isolate, isolate->thread_local_top());
+  isolate->thread_manager()->IterateArchivedThreads(activations_finder);
   if (FLAG_turbo_from_bytecode) {
     // If we are able to optimize functions directly from bytecode, then there
     // might be optimized functions that rely on bytecode being around. We need
     // to prevent switching the given function to baseline code in those cases.
-    Deoptimizer::VisitAllOptimizedFunctions(isolate, &activations_finder);
+    Deoptimizer::VisitAllOptimizedFunctions(isolate, activations_finder);
   }
-  return activations_finder.has_activations_;
+  return activations_finder->has_activations();
 }
 
 MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
@@ -860,12 +885,22 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   // of interpreter activations of the given function. The reasons are:
   //  1) The debugger assumes each function is either full-code or bytecode.
   //  2) The underlying bytecode is cleared below, breaking stack unwinding.
-  if (HasInterpreterActivations(isolate, function->shared())) {
+  InterpreterActivationsFinder activations_finder(function->shared());
+  if (HasInterpreterActivations(isolate, &activations_finder)) {
     if (FLAG_trace_opt) {
       OFStream os(stdout);
       os << "[unable to switch " << Brief(*function) << " due to activations]"
          << std::endl;
     }
+
+    if (activations_finder.MarkActivationsForBaselineOnReturn(isolate)) {
+      if (FLAG_trace_opt) {
+        OFStream os(stdout);
+        os << "[marking " << Brief(function->shared())
+           << " for baseline recompilation on return]" << std::endl;
+      }
+    }
+
     return MaybeHandle<Code>();
   }
 
@@ -1282,9 +1317,11 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     //  2) The underlying bytecode is cleared below, breaking stack unwinding.
     // The expensive check for activations only needs to be done when the given
     // function has bytecode, otherwise we can be sure there are no activations.
-    if (shared->HasBytecodeArray() &&
-        HasInterpreterActivations(info->isolate(), *shared)) {
-      return false;
+    if (shared->HasBytecodeArray()) {
+      InterpreterActivationsFinder activations_finder(*shared);
+      if (HasInterpreterActivations(info->isolate(), &activations_finder)) {
+        return false;
+      }
     }
 
     // If the current code has reloc info for serialization, also include
