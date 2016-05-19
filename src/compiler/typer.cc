@@ -2008,6 +2008,8 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
 
 // Machine operators.
 
+Type* Typer::Visitor::TypeDebugBreak(Node* node) { return Type::None(); }
+
 Type* Typer::Visitor::TypeLoad(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeStackSlot(Node* node) { return Type::Any(); }

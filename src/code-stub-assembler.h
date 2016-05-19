@@ -75,6 +75,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InnerAllocate(compiler::Node* previous,
                                 compiler::Node* offset);
 
+  void Assert(compiler::Node* condition);
+
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
   // Check that the value is a positive smi.

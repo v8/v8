@@ -263,6 +263,7 @@ class InstructionSelector final {
   void VisitDeoptimize(DeoptimizeKind kind, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
+  void VisitDebugBreak();
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);

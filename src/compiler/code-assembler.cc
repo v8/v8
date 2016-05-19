@@ -131,6 +131,8 @@ void CodeAssembler::Return(Node* value) {
   return raw_assembler_->Return(value);
 }
 
+void CodeAssembler::DebugBreak() { raw_assembler_->DebugBreak(); }
+
 void CodeAssembler::Bind(CodeAssembler::Label* label) { return label->Bind(); }
 
 Node* CodeAssembler::LoadFramePointer() {

@@ -584,6 +584,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchDebugBreak:
+      __ stop("kArchDebugBreak");
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.

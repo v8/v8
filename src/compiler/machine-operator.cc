@@ -526,6 +526,13 @@ struct MachineOperatorGlobalCache {
   AtomicStore##Type##Operator kAtomicStore##Type;
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef STORE
+
+  struct DebugBreakOperator : public Operator {
+    DebugBreakOperator()
+        : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
+                   0, 0, 0, 0, 0) {}
+  };
+  DebugBreakOperator kDebugBreak;
 };
 
 
@@ -604,6 +611,9 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   return nullptr;
 }
 
+const Operator* MachineOperatorBuilder::DebugBreak() {
+  return &cache_.kDebugBreak;
+}
 
 const Operator* MachineOperatorBuilder::CheckedLoad(
     CheckedLoadRepresentation rep) {

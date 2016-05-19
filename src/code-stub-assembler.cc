@@ -22,6 +22,18 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const char* name)
     : compiler::CodeAssembler(isolate, zone, parameter_count, flags, name) {}
 
+void CodeStubAssembler::Assert(Node* condition) {
+#if defined(DEBUG)
+  Label ok(this);
+  Label not_ok(this);
+  Branch(condition, &ok, &not_ok);
+  Bind(&not_ok);
+  DebugBreak();
+  Goto(&ok);
+  Bind(&ok);
+#endif
+}
+
 Node* CodeStubAssembler::BooleanMapConstant() {
   return HeapConstant(isolate()->factory()->boolean_map());
 }

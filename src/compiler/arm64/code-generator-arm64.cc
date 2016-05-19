@@ -711,6 +711,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       break;
+    case kArchDebugBreak:
+      __ Debug("kArchDebugBreak", 0, BREAK);
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.

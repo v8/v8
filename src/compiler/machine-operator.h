@@ -128,6 +128,8 @@ class MachineOperatorBuilder final : public ZoneObject {
       MachineRepresentation word = MachineType::PointerRepresentation(),
       Flags supportedOperators = kNoFlags);
 
+  const Operator* DebugBreak();
+
   const Operator* Word32And();
   const Operator* Word32Or();
   const Operator* Word32Xor();

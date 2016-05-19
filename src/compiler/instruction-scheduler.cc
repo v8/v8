@@ -222,6 +222,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
+    case kArchDebugBreak:
       return kNoOpcodeFlags;
 
     case kArchStackPointer:

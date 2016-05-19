@@ -203,6 +203,8 @@ class CodeAssembler {
   Node* Parameter(int value);
   void Return(Node* value);
 
+  void DebugBreak();
+
   void Bind(Label* label);
   void Goto(Label* label);
   void GotoIf(Node* condition, Label* true_label);
