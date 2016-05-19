@@ -188,7 +188,7 @@ DEFINE_BOOL(promise_extra, false, "additional V8 Promise functions")
 // Removing extra Promise functions is shipped
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, promise_extra, true)
 
-DEFINE_BOOL(intl_extra, true, "additional V8 Intl functions")
+DEFINE_BOOL(intl_extra, false, "additional V8 Intl functions")
 // Removing extra Intl functions is shipped
 DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
 
