@@ -484,11 +484,48 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ insertps(xmm5, xmm1, 123);
       __ extractps(rax, xmm1, 0);
       __ pextrd(rbx, xmm15, 0);
       __ pextrd(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);
-      __ pinsrd(xmm5, rax, 1);
+      __ pinsrd(xmm5, Operand(rax, 4), 1);
+
+      __ cmpps(xmm5, xmm1, 1);
+      __ cmpeqps(xmm5, xmm1);
+      __ cmpltps(xmm5, xmm1);
+      __ cmpleps(xmm5, xmm1);
+      __ cmpneqps(xmm5, xmm1);
+      __ cmpnltps(xmm5, xmm1);
+      __ cmpnleps(xmm5, xmm1);
+
+      __ minps(xmm5, xmm1);
+      __ minps(xmm5, Operand(rdx, 4));
+      __ maxps(xmm5, xmm1);
+      __ maxps(xmm5, Operand(rdx, 4));
+      __ rcpps(xmm5, xmm1);
+      __ rcpps(xmm5, Operand(rdx, 4));
+      __ sqrtps(xmm5, xmm1);
+      __ sqrtps(xmm5, Operand(rdx, 4));
+      __ movups(xmm5, xmm1);
+      __ movups(xmm5, Operand(rdx, 4));
+      __ movups(Operand(rdx, 4), xmm5);
+      __ paddd(xmm5, xmm1);
+      __ paddd(xmm5, Operand(rdx, 4));
+      __ psubd(xmm5, xmm1);
+      __ psubd(xmm5, Operand(rdx, 4));
+      __ pmulld(xmm5, xmm1);
+      __ pmulld(xmm5, Operand(rdx, 4));
+      __ pmuludq(xmm5, xmm1);
+      __ pmuludq(xmm5, Operand(rdx, 4));
+      __ punpackldq(xmm5, xmm1);
+      __ punpackldq(xmm5, Operand(rdx, 4));
+      __ psrldq(xmm5, 123);
+      __ pshufd(xmm5, xmm1, 3);
+      __ cvtps2dq(xmm5, xmm1);
+      __ cvtps2dq(xmm5, Operand(rdx, 4));
+      __ cvtdq2ps(xmm5, xmm1);
+      __ cvtdq2ps(xmm5, Operand(rdx, 4));
     }
   }
 
