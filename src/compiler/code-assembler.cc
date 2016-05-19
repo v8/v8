@@ -10,6 +10,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
@@ -87,8 +88,12 @@ bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
   return raw_assembler_->machine()->Float64RoundTruncate().IsSupported();
 }
 
-Node* CodeAssembler::Int32Constant(int value) {
+Node* CodeAssembler::Int32Constant(int32_t value) {
   return raw_assembler_->Int32Constant(value);
+}
+
+Node* CodeAssembler::Int64Constant(int64_t value) {
+  return raw_assembler_->Int64Constant(value);
 }
 
 Node* CodeAssembler::IntPtrConstant(intptr_t value) {
@@ -121,6 +126,30 @@ Node* CodeAssembler::Float64Constant(double value) {
 
 Node* CodeAssembler::NaNConstant() {
   return LoadRoot(Heap::kNanValueRootIndex);
+}
+
+bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
+  Int64Matcher m(node);
+  if (m.HasValue() &&
+      m.IsInRange(std::numeric_limits<int32_t>::min(),
+                  std::numeric_limits<int32_t>::max())) {
+    out_value = static_cast<int32_t>(m.Value());
+    return true;
+  }
+
+  return false;
+}
+
+bool CodeAssembler::ToInt64Constant(Node* node, int64_t& out_value) {
+  Int64Matcher m(node);
+  if (m.HasValue()) out_value = m.Value();
+  return m.HasValue();
+}
+
+bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
+  IntPtrMatcher m(node);
+  if (m.HasValue()) out_value = m.Value();
+  return m.HasValue();
 }
 
 Node* CodeAssembler::Parameter(int value) {

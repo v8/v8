@@ -190,7 +190,8 @@ class CodeAssembler {
   // ===========================================================================
 
   // Constants.
-  Node* Int32Constant(int value);
+  Node* Int32Constant(int32_t value);
+  Node* Int64Constant(int64_t value);
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
   Node* SmiConstant(Smi* value);
@@ -199,6 +200,10 @@ class CodeAssembler {
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
   Node* NaNConstant();
+
+  bool ToInt32Constant(Node* node, int32_t& out_value);
+  bool ToInt64Constant(Node* node, int64_t& out_value);
+  bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   Node* Parameter(int value);
   void Return(Node* value);

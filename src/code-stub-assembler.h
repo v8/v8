@@ -32,6 +32,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                     Code::Flags flags, const char* name);
 
+  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
+
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
   compiler::Node* HeapNumberMapConstant();
@@ -134,14 +136,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
   // Load an array element from a FixedArray.
-  compiler::Node* LoadFixedArrayElementInt32Index(compiler::Node* object,
-                                                  compiler::Node* int32_index,
-                                                  int additional_offset = 0);
-  compiler::Node* LoadFixedArrayElementSmiIndex(compiler::Node* object,
-                                                compiler::Node* smi_index,
-                                                int additional_offset = 0);
-  compiler::Node* LoadFixedArrayElementConstantIndex(compiler::Node* object,
-                                                     int index);
+  compiler::Node* LoadFixedArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);
@@ -162,24 +160,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
                                          compiler::Node* map);
   // Store an array element to a FixedArray.
-  compiler::Node* StoreFixedArrayElementInt32Index(compiler::Node* object,
-                                                   compiler::Node* index,
-                                                   compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
-                                                       compiler::Node* index,
-                                                       compiler::Node* value);
-  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
-                                                         compiler::Node* index,
-                                                         compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementInt32Index(compiler::Node* object,
-                                                   int index,
-                                                   compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
-                                                       int index,
-                                                       compiler::Node* value);
-  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
-                                                         int index,
-                                                         compiler::Node* value);
+  compiler::Node* StoreFixedArrayElement(
+      compiler::Node* object, compiler::Node* index, compiler::Node* value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+
+  compiler::Node* StoreFixedDoubleArrayElement(
+      compiler::Node* object, compiler::Node* index, compiler::Node* value,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Allocate a HeapNumber without initializing its value.
   compiler::Node* AllocateHeapNumber();
@@ -191,8 +179,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqTwoByteString(int length);
   // Allocated an JSArray
   compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
-                                  int capacity, int length,
-                                  compiler::Node* allocation_site = nullptr);
+                                  compiler::Node* capacity,
+                                  compiler::Node* length,
+                                  compiler::Node* allocation_site = nullptr,
+                                  ParameterMode mode = INTEGER_PARAMETERS);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
@@ -254,6 +244,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* object);
 
  private:
+  compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
+                                         ElementsKind kind, ParameterMode mode,
+                                         int base_size = 0);
+
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,
                                      compiler::Node* top_address,

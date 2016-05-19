@@ -1645,7 +1645,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   Node* cache_array = __ LoadRegister(cache_array_reg);
 
   // Load the next key from the enumeration array.
-  Node* key = __ LoadFixedArrayElementSmiIndex(cache_array, index);
+  Node* key = __ LoadFixedArrayElement(cache_array, index, 0,
+                                       CodeStubAssembler::SMI_PARAMETERS);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
@@ -1665,8 +1666,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
     Node* type_feedback_vector = __ LoadTypeFeedbackVector();
     Node* megamorphic_sentinel =
         __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
-    __ StoreFixedArrayElementNoWriteBarrier(type_feedback_vector, vector_index,
-                                            megamorphic_sentinel);
+    __ StoreFixedArrayElement(type_feedback_vector, vector_index,
+                              megamorphic_sentinel, SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();

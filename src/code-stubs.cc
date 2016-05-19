@@ -3496,8 +3496,7 @@ void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* descriptors = assembler->LoadMapDescriptors(map);
   Node* offset =
       assembler->Int32Constant(DescriptorArray::ToValueIndex(index()));
-  Node* callback =
-      assembler->LoadFixedArrayElementInt32Index(descriptors, offset);
+  Node* callback = assembler->LoadFixedArrayElement(descriptors, offset);
   assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                           holder, callback);
 }
@@ -3888,9 +3887,10 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
   Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
       assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* allocation_site = assembler->LoadFixedArrayElementSmiIndex(
+  Node* allocation_site = assembler->LoadFixedArrayElement(
       literals_array, literals_index,
-      LiteralsArray::kFirstLiteralIndex * kPointerSize);
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
   assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
                     call_runtime);
 
@@ -4488,9 +4488,10 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
           : nullptr;
   Node* array_map =
       assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
-  Node* array = assembler->AllocateJSArray(elements_kind(), array_map,
-                                           JSArray::kPreallocatedArrayElements,
-                                           0, allocation_site);
+  Node* array = assembler->AllocateJSArray(
+      elements_kind(), array_map,
+      assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
+      assembler->IntPtrConstant(0), allocation_site);
   assembler->Return(array);
 }
 
@@ -4501,9 +4502,10 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
       assembler->Parameter(
           ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
       JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array = assembler->AllocateJSArray(elements_kind(), array_map,
-                                           JSArray::kPreallocatedArrayElements,
-                                           0, nullptr);
+  Node* array = assembler->AllocateJSArray(
+      elements_kind(), array_map,
+      assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
+      assembler->IntPtrConstant(0), nullptr);
   assembler->Return(array);
 }
 

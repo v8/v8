@@ -255,6 +255,10 @@ Node* CodeStubAssembler::SmiFromWord32(Node* value) {
 }
 
 Node* CodeStubAssembler::SmiTag(Node* value) {
+  int32_t constant_value;
+  if (ToInt32Constant(value, constant_value) && Smi::IsValid(constant_value)) {
+    return SmiConstant(Smi::FromInt(constant_value));
+  }
   return WordShl(value, SmiShiftBitsConstant());
 }
 
@@ -535,13 +539,13 @@ Node* CodeStubAssembler::AllocateUninitializedFixedArray(Node* length) {
   return result;
 }
 
-Node* CodeStubAssembler::LoadFixedArrayElementInt32Index(
-    Node* object, Node* index, int additional_offset) {
-  Node* header_size = IntPtrConstant(additional_offset +
-                                     FixedArray::kHeaderSize - kHeapObjectTag);
-  index = ChangeInt32ToIntPtr(index);
-  Node* scaled_index = WordShl(index, IntPtrConstant(kPointerSizeLog2));
-  Node* offset = IntPtrAdd(scaled_index, header_size);
+Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
+                                               int additional_offset,
+                                               ParameterMode parameter_mode) {
+  int32_t header_size =
+      FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
+  Node* offset = ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS,
+                                        parameter_mode, header_size);
   return Load(MachineType::AnyTagged(), object, offset);
 }
 
@@ -550,37 +554,15 @@ Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
               IntPtrConstant(Map::kInstanceSizeOffset - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
-                                                       Node* smi_index,
-                                                       int additional_offset) {
-  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
-  Node* header_size = IntPtrConstant(additional_offset +
-                                     FixedArray::kHeaderSize - kHeapObjectTag);
-  Node* scaled_index =
-      (kSmiShiftBits > kPointerSizeLog2)
-          ? WordSar(smi_index, IntPtrConstant(kSmiShiftBits - kPointerSizeLog2))
-          : WordShl(smi_index,
-                    IntPtrConstant(kPointerSizeLog2 - kSmiShiftBits));
-  Node* offset = IntPtrAdd(scaled_index, header_size);
-  return Load(MachineType::AnyTagged(), object, offset);
-}
-
-Node* CodeStubAssembler::LoadFixedArrayElementConstantIndex(Node* object,
-                                                            int index) {
-  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
-                                index * kPointerSize);
-  return Load(MachineType::AnyTagged(), object, offset);
-}
-
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
-  return LoadFixedArrayElementConstantIndex(context,
-                                            Context::NATIVE_CONTEXT_INDEX);
+  return LoadFixedArrayElement(context,
+                               Int32Constant(Context::NATIVE_CONTEXT_INDEX));
 }
 
 Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
                                                 Node* native_context) {
-  return LoadFixedArrayElementConstantIndex(native_context,
-                                            Context::ArrayMapIndex(kind));
+  return LoadFixedArrayElement(native_context,
+                               Int32Constant(Context::ArrayMapIndex(kind)));
 }
 
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
@@ -607,62 +589,30 @@ Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
       IntPtrConstant(HeapNumber::kMapOffset - kHeapObjectTag), map);
 }
 
-Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
-                                                              Node* index,
-                                                              Node* value) {
-  index = ChangeInt32ToIntPtr(index);
+Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
+                                                Node* value,
+                                                WriteBarrierMode barrier_mode,
+                                                ParameterMode parameter_mode) {
+  DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+         barrier_mode == UPDATE_WRITE_BARRIER);
   Node* offset =
-      IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
-                IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
-                             value);
+      ElementOffsetFromIndex(index_node, FAST_HOLEY_ELEMENTS, parameter_mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  MachineRepresentation rep = MachineRepresentation::kTagged;
+  if (barrier_mode == SKIP_WRITE_BARRIER) {
+    return StoreNoWriteBarrier(rep, object, offset, value);
+  } else {
+    return Store(rep, object, offset, value);
+  }
 }
 
-Node* CodeStubAssembler::StoreFixedArrayElementInt32Index(Node* object,
-                                                          Node* index,
-                                                          Node* value) {
-  index = ChangeInt32ToIntPtr(index);
+Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
+    Node* object, Node* index_node, Node* value, ParameterMode parameter_mode) {
   Node* offset =
-      IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
-                IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
-  return Store(MachineRepresentation::kTagged, object, offset, value);
-}
-
-Node* CodeStubAssembler::StoreFixedDoubleArrayElementInt32Index(Node* object,
-                                                                Node* index,
-                                                                Node* value) {
-  index = ChangeInt32ToIntPtr(index);
-  Node* offset =
-      IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
-                IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
-  return StoreNoWriteBarrier(MachineRepresentation::kFloat64, object, offset,
-                             value);
-}
-
-Node* CodeStubAssembler::StoreFixedArrayElementInt32Index(Node* object,
-                                                          int index,
-                                                          Node* value) {
-  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
-                                index * kPointerSize);
-  return Store(MachineRepresentation::kTagged, object, offset, value);
-}
-
-Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
-                                                              int index,
-                                                              Node* value) {
-  Node* offset = IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag +
-                                index * kPointerSize);
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
-                             value);
-}
-
-Node* CodeStubAssembler::StoreFixedDoubleArrayElementInt32Index(Node* object,
-                                                                int index,
-                                                                Node* value) {
-  Node* offset = IntPtrConstant(FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-                                index * kDoubleSize);
-  return StoreNoWriteBarrier(MachineRepresentation::kFloat64, object, offset,
-                             value);
+      ElementOffsetFromIndex(index_node, FAST_DOUBLE_ELEMENTS, parameter_mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  MachineRepresentation rep = MachineRepresentation::kFloat64;
+  return StoreNoWriteBarrier(rep, object, offset, value);
 }
 
 Node* CodeStubAssembler::AllocateHeapNumber() {
@@ -698,18 +648,22 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
 }
 
 Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
-                                         int capacity, int length,
-                                         compiler::Node* allocation_site) {
+                                         Node* capacity_node, Node* length_node,
+                                         compiler::Node* allocation_site,
+                                         ParameterMode mode) {
   bool is_double = IsFastDoubleElementsKind(kind);
-  int element_size = is_double ? kDoubleSize : kPointerSize;
-  int total_size =
-      JSArray::kSize + FixedArray::kHeaderSize + element_size * capacity;
+  int base_size = JSArray::kSize + FixedArray::kHeaderSize;
   int elements_offset = JSArray::kSize;
 
   if (allocation_site != nullptr) {
-    total_size += AllocationMemento::kSize;
+    base_size += AllocationMemento::kSize;
     elements_offset += AllocationMemento::kSize;
   }
+
+  int32_t capacity;
+  bool constant_capacity = ToInt32Constant(capacity_node, capacity);
+  Node* total_size =
+      ElementOffsetFromIndex(capacity_node, kind, mode, base_size);
 
   // Allocate both array and elements object, and initialize the JSArray.
   Heap* heap = isolate()->heap();
@@ -719,8 +673,9 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       HeapConstant(Handle<HeapObject>(heap->empty_fixed_array()));
   StoreObjectFieldNoWriteBarrier(array, JSArray::kPropertiesOffset,
                                  empty_properties);
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset,
-                                 SmiConstant(Smi::FromInt(length)));
+  StoreObjectFieldNoWriteBarrier(
+      array, JSArray::kLengthOffset,
+      mode == SMI_PARAMETERS ? length_node : SmiTag(length_node));
 
   if (allocation_site != nullptr) {
     InitializeAllocationMemento(array, JSArray::kSize, allocation_site);
@@ -732,17 +687,19 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   Handle<Map> elements_map(is_double ? heap->fixed_double_array_map()
                                      : heap->fixed_array_map());
   StoreMapNoWriteBarrier(elements, HeapConstant(elements_map));
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                 SmiConstant(Smi::FromInt(capacity)));
+  StoreObjectFieldNoWriteBarrier(
+      elements, FixedArray::kLengthOffset,
+      mode == SMI_PARAMETERS ? capacity_node : SmiTag(capacity_node));
 
   Node* double_hole = Float64Constant(bit_cast<double>(kHoleNanInt64));
   Node* hole = HeapConstant(Handle<HeapObject>(heap->the_hole_value()));
-  if (capacity <= kElementLoopUnrollThreshold) {
+  if (constant_capacity && capacity <= kElementLoopUnrollThreshold) {
     for (int i = 0; i < capacity; ++i) {
       if (is_double) {
-        StoreFixedDoubleArrayElementInt32Index(elements, i, double_hole);
+        StoreFixedDoubleArrayElement(elements, Int32Constant(i), double_hole);
       } else {
-        StoreFixedArrayElementNoWriteBarrier(elements, i, hole);
+        StoreFixedArrayElement(elements, Int32Constant(i), hole,
+                               SKIP_WRITE_BARRIER);
       }
     }
   } else {
@@ -1243,7 +1200,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
     // cache already.
     Label if_entryisundefined(this, Label::kDeferred),
         if_entryisnotundefined(this);
-    Node* entry = LoadFixedArrayElementInt32Index(cache, code);
+    Node* entry = LoadFixedArrayElement(cache, code);
     Branch(WordEqual(entry, UndefinedConstant()), &if_entryisundefined,
            &if_entryisnotundefined);
 
@@ -1254,7 +1211,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
       StoreNoWriteBarrier(
           MachineRepresentation::kWord8, result,
           IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag), code);
-      StoreFixedArrayElementInt32Index(cache, code, result);
+      StoreFixedArrayElement(cache, code, result);
       var_result.Bind(result);
       Goto(&if_done);
     }
@@ -1381,7 +1338,7 @@ void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
     Bind(&if_notdone);
     {
       Node* array_index = Int32Add(offset, Int32Mul(index, factor));
-      Node* current = LoadFixedArrayElementInt32Index(descriptors, array_index);
+      Node* current = LoadFixedArrayElement(descriptors, array_index);
       Label if_unequal(this);
       Branch(WordEqual(current, name), if_found, &if_unequal);
       Bind(&if_unequal);
@@ -1422,7 +1379,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
            if_not_found);
 
     Bind(&if_iskeyinrange);
-    Node* element = LoadFixedArrayElementInt32Index(elements, index);
+    Node* element = LoadFixedArrayElement(elements, index);
     Node* the_hole = LoadRoot(Heap::kTheHoleValueRootIndex);
     Branch(WordEqual(element, the_hole), if_not_found, if_found);
   }
@@ -1562,6 +1519,39 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
 
   Bind(&return_result);
   return var_result.value();
+}
+
+compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
+                                                          ElementsKind kind,
+                                                          ParameterMode mode,
+                                                          int base_size) {
+  bool is_double = IsFastDoubleElementsKind(kind);
+  int element_size_shift = is_double ? kDoubleSizeLog2 : kPointerSizeLog2;
+  int element_size = 1 << element_size_shift;
+  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+  int32_t index = 0;
+  bool constant_index = false;
+  if (mode == SMI_PARAMETERS) {
+    element_size_shift -= kSmiShiftBits;
+    intptr_t temp = 0;
+    constant_index = ToIntPtrConstant(index_node, temp);
+    index = temp >> kSmiShiftBits;
+  } else {
+    constant_index = ToInt32Constant(index_node, index);
+  }
+  if (constant_index) {
+    return IntPtrConstant(base_size + element_size * index);
+  }
+  if (base_size == 0) {
+    return (element_size_shift >= 0)
+               ? WordShl(index_node, IntPtrConstant(element_size_shift))
+               : WordShr(index_node, IntPtrConstant(-element_size_shift));
+  }
+  return IntPtrAdd(
+      Int32Constant(base_size),
+      (element_size_shift >= 0)
+          ? WordShl(index_node, IntPtrConstant(element_size_shift))
+          : WordShr(index_node, IntPtrConstant(-element_size_shift)));
 }
 
 }  // namespace internal

@@ -520,9 +520,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(
-        m.SmiTag(value),
-        IsWordShl(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiTag(value),
+                IsIntPtrConstant(static_cast<intptr_t>(44)
+                                 << (kSmiShiftSize + kSmiTagSize)));
     EXPECT_THAT(
         m.SmiUntag(value),
         IsWordSar(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
