@@ -101,10 +101,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
-  // Update data pointers to the external strings containing natives sources.
-  Natives::UpdateSourceCache(isolate_->heap());
-  ExtraNatives::UpdateSourceCache(isolate_->heap());
-
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());

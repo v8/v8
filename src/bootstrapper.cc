@@ -36,12 +36,10 @@ Handle<String> Bootstrapper::SourceLookup(int index) {
     Vector<const char> source = Source::GetScriptSource(index);
     NativesExternalStringResource* resource =
         new NativesExternalStringResource(source.start(), source.length());
-    // We do not expect this to throw an exception. Change this if it does.
-    Handle<String> source_code = isolate_->factory()
-                                     ->NewExternalStringFromOneByte(resource)
-                                     .ToHandleChecked();
+    Handle<ExternalOneByteString> source_code =
+        isolate_->factory()->NewNativeSourceString(resource);
     // Mark this external string with a special map.
-    source_code->set_map(isolate_->heap()->native_source_string_map());
+    DCHECK(source_code->is_short());
     Source::GetSourceCache(heap)->set(index, *source_code);
   }
   Handle<Object> cached_source(Source::GetSourceCache(heap)->get(index),

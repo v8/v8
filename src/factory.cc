@@ -704,6 +704,21 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   return external_string;
 }
 
+Handle<ExternalOneByteString> Factory::NewNativeSourceString(
+    const ExternalOneByteString::Resource* resource) {
+  size_t length = resource->length();
+  DCHECK_LE(length, static_cast<size_t>(String::kMaxLength));
+
+  Handle<Map> map = native_source_string_map();
+  Handle<ExternalOneByteString> external_string =
+      New<ExternalOneByteString>(map, OLD_SPACE);
+  external_string->set_length(static_cast<int>(length));
+  external_string->set_hash_field(String::kEmptyHashField);
+  external_string->set_resource(resource);
+
+  return external_string;
+}
+
 
 Handle<Symbol> Factory::NewSymbol() {
   CALL_HEAP_FUNCTION(

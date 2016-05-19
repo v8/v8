@@ -687,6 +687,9 @@ bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
 
 void Serializer::ObjectSerializer::VisitExternalOneByteString(
     v8::String::ExternalOneByteStringResource** resource_pointer) {
+  DCHECK_EQ(serializer_->isolate()->heap()->native_source_string_map(),
+            object_->map());
+  DCHECK(ExternalOneByteString::cast(object_)->is_short());
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   if (SerializeExternalNativeSourceString(
