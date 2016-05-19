@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/compiler.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone.h"
 
@@ -20,7 +21,6 @@ class JSGraph;
 class Graph;
 class Operator;
 class SourcePositionTable;
-class WasmCompilationUnit;
 }
 
 namespace wasm {
@@ -35,10 +35,41 @@ typedef compiler::JSGraph TFGraph;
 }
 
 namespace compiler {
-// Compiles a single function, producing a code object.
-Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower, Isolate* isolate,
-                                 wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction* function);
+class WasmCompilationUnit final {
+ public:
+  WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
+                      wasm::ModuleEnv* module_env,
+                      const wasm::WasmFunction* function, uint32_t index);
+
+  Zone* graph_zone() { return graph_zone_.get(); }
+  int index() const { return index_; }
+
+  void ExecuteCompilation();
+  Handle<Code> FinishCompilation();
+
+  static Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower,
+                                          Isolate* isolate,
+                                          wasm::ModuleEnv* module_env,
+                                          const wasm::WasmFunction* function) {
+    WasmCompilationUnit unit(thrower, isolate, module_env, function, 0);
+    unit.ExecuteCompilation();
+    return unit.FinishCompilation();
+  }
+
+ private:
+  wasm::ErrorThrower* thrower_;
+  Isolate* isolate_;
+  wasm::ModuleEnv* module_env_;
+  const wasm::WasmFunction* function_;
+  // The graph zone is deallocated at the end of ExecuteCompilation.
+  base::SmartPointer<Zone> graph_zone_;
+  JSGraph* jsgraph_;
+  Zone compilation_zone_;
+  CompilationInfo info_;
+  base::SmartPointer<CompilationJob> job_;
+  uint32_t index_;
+  bool ok_;
+};
 
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
@@ -52,16 +83,6 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 Handle<JSFunction> CompileJSToWasmWrapper(
     Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
     Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index);
-
-WasmCompilationUnit* CreateWasmCompilationUnit(
-    wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
-    const wasm::WasmFunction* function, uint32_t index);
-
-void ExecuteCompilation(WasmCompilationUnit* unit);
-
-Handle<Code> FinishCompilation(WasmCompilationUnit* unit);
-
-uint32_t GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.

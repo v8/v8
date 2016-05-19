@@ -2939,180 +2939,133 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
   return std::make_pair(jsgraph, source_position_table);
 }
 
-class WasmCompilationUnit {
- public:
-  WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
-                      wasm::ModuleEnv* module_env,
-                      const wasm::WasmFunction* function, uint32_t index)
-      : thrower_(thrower),
-        isolate_(isolate),
-        module_env_(module_env),
-        function_(function),
-        graph_zone_(new Zone(isolate->allocator())),
-        jsgraph_(new (graph_zone()) JSGraph(
-            isolate, new (graph_zone()) Graph(graph_zone()),
-            new (graph_zone()) CommonOperatorBuilder(graph_zone()), nullptr,
-            nullptr,
-            new (graph_zone()) MachineOperatorBuilder(
-                graph_zone(), MachineType::PointerRepresentation(),
-                InstructionSelector::SupportedMachineOperatorFlags()))),
-        compilation_zone_(isolate->allocator()),
-        info_(function->name_length != 0
-                  ? module_env->module->GetNameOrNull(function->name_offset,
-                                                      function->name_length)
-                  : ArrayVector("wasm"),
-              isolate, &compilation_zone_,
-              Code::ComputeFlags(Code::WASM_FUNCTION)),
-        job_(),
-        index_(index),
-        ok_(true) {
-    // Create and cache this node in the main thread.
-    jsgraph_->CEntryStubConstant(1);
+WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
+                                         Isolate* isolate,
+                                         wasm::ModuleEnv* module_env,
+                                         const wasm::WasmFunction* function,
+                                         uint32_t index)
+    : thrower_(thrower),
+      isolate_(isolate),
+      module_env_(module_env),
+      function_(function),
+      graph_zone_(new Zone(isolate->allocator())),
+      jsgraph_(new (graph_zone()) JSGraph(
+          isolate, new (graph_zone()) Graph(graph_zone()),
+          new (graph_zone()) CommonOperatorBuilder(graph_zone()), nullptr,
+          nullptr, new (graph_zone()) MachineOperatorBuilder(
+                       graph_zone(), MachineType::PointerRepresentation(),
+                       InstructionSelector::SupportedMachineOperatorFlags()))),
+      compilation_zone_(isolate->allocator()),
+      info_(function->name_length != 0
+                ? module_env->module->GetNameOrNull(function->name_offset,
+                                                    function->name_length)
+                : ArrayVector("wasm"),
+            isolate, &compilation_zone_,
+            Code::ComputeFlags(Code::WASM_FUNCTION)),
+      job_(),
+      index_(index),
+      ok_(true) {
+  // Create and cache this node in the main thread.
+  jsgraph_->CEntryStubConstant(1);
+}
+
+void WasmCompilationUnit::ExecuteCompilation() {
+  // TODO(ahaas): The counters are not thread-safe at the moment.
+  //    HistogramTimerScope wasm_compile_function_time_scope(
+  //        isolate_->counters()->wasm_compile_function_time());
+  if (FLAG_trace_wasm_compiler) {
+    OFStream os(stdout);
+    os << "Compiling WASM function "
+       << wasm::WasmFunctionName(function_, module_env_) << std::endl;
+    os << std::endl;
   }
 
-  Zone* graph_zone() { return graph_zone_.get(); }
+  double decode_ms = 0;
+  size_t node_count = 0;
 
-  void ExecuteCompilation() {
-    // TODO(ahaas): The counters are not thread-safe at the moment.
-    //    HistogramTimerScope wasm_compile_function_time_scope(
-    //        isolate_->counters()->wasm_compile_function_time());
-    if (FLAG_trace_wasm_compiler) {
-      OFStream os(stdout);
-      os << "Compiling WASM function "
-         << wasm::WasmFunctionName(function_, module_env_) << std::endl;
-      os << std::endl;
-    }
+  base::SmartPointer<Zone> graph_zone(graph_zone_.Detach());
+  std::pair<JSGraph*, SourcePositionTable*> graph_result =
+      BuildGraphForWasmFunction(jsgraph_, thrower_, isolate_, module_env_,
+                                function_, &decode_ms);
+  JSGraph* jsgraph = graph_result.first;
+  SourcePositionTable* source_positions = graph_result.second;
 
-    double decode_ms = 0;
-    size_t node_count = 0;
-
-    base::SmartPointer<Zone> graph_zone(graph_zone_.Detach());
-    std::pair<JSGraph*, SourcePositionTable*> graph_result =
-        BuildGraphForWasmFunction(jsgraph_, thrower_, isolate_, module_env_,
-                                  function_, &decode_ms);
-    JSGraph* jsgraph = graph_result.first;
-    SourcePositionTable* source_positions = graph_result.second;
-
-    if (jsgraph == nullptr) {
-      ok_ = false;
-      return;
-    }
-
-    base::ElapsedTimer pipeline_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      node_count = jsgraph->graph()->NodeCount();
-      pipeline_timer.Start();
-    }
-
-    // Run the compiler pipeline to generate machine code.
-    CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
-        &compilation_zone_, function_->sig);
-    if (jsgraph->machine()->Is32()) {
-      descriptor =
-          module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
-    }
-    job_.Reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph->graph(),
-                                               descriptor, source_positions));
-    ok_ = job_->OptimizeGraph() == CompilationJob::SUCCEEDED;
-    // TODO(bradnelson): Improve histogram handling of size_t.
-    // TODO(ahaas): The counters are not thread-safe at the moment.
-    //    isolate_->counters()->wasm_compile_function_peak_memory_bytes()
-    // ->AddSample(
-    //        static_cast<int>(jsgraph->graph()->zone()->allocation_size()));
-
-    if (FLAG_trace_wasm_decode_time) {
-      double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
-      PrintF(
-          "wasm-compilation phase 1 ok: %d bytes, %0.3f ms decode, %zu nodes, "
-          "%0.3f ms pipeline\n",
-          static_cast<int>(function_->code_end_offset -
-                           function_->code_start_offset),
-          decode_ms, node_count, pipeline_ms);
-    }
+  if (jsgraph == nullptr) {
+    ok_ = false;
+    return;
   }
 
-  Handle<Code> FinishCompilation() {
-    if (!ok_) {
-      return Handle<Code>::null();
-    }
-    if (job_->GenerateCode() != CompilationJob::SUCCEEDED) {
-      return Handle<Code>::null();
-    }
-    base::ElapsedTimer compile_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      compile_timer.Start();
-    }
-    Handle<Code> code = info_.code();
-    DCHECK(!code.is_null());
-    DCHECK(code->deoptimization_data() == nullptr ||
-           code->deoptimization_data()->length() == 0);
-    Handle<FixedArray> deopt_data =
-        isolate_->factory()->NewFixedArray(2, TENURED);
-    if (!module_env_->instance->js_object.is_null()) {
-      deopt_data->set(0, *module_env_->instance->js_object);
-    }
-    deopt_data->set(1, Smi::FromInt(function_->func_index));
-    deopt_data->set_length(2);
-    code->set_deoptimization_data(*deopt_data);
-
-    RecordFunctionCompilation(
-        Logger::FUNCTION_TAG, &info_, "WASM_function", function_->func_index,
-        module_env_->module->GetName(function_->name_offset,
-                                     function_->name_length));
-
-    if (FLAG_trace_wasm_decode_time) {
-      double compile_ms = compile_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-code-generation ok: %d bytes, %0.3f ms code generation\n",
-             static_cast<int>(function_->code_end_offset -
-                              function_->code_start_offset),
-             compile_ms);
-    }
-
-    return code;
+  base::ElapsedTimer pipeline_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    node_count = jsgraph->graph()->NodeCount();
+    pipeline_timer.Start();
   }
 
-  wasm::ErrorThrower* thrower_;
-  Isolate* isolate_;
-  wasm::ModuleEnv* module_env_;
-  const wasm::WasmFunction* function_;
-  // The graph zone is deallocated at the end of ExecuteCompilation.
-  base::SmartPointer<Zone> graph_zone_;
-  JSGraph* jsgraph_;
-  Zone compilation_zone_;
-  CompilationInfo info_;
-  base::SmartPointer<CompilationJob> job_;
-  uint32_t index_;
-  bool ok_;
-};
+  // Run the compiler pipeline to generate machine code.
+  CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
+      &compilation_zone_, function_->sig);
+  if (jsgraph->machine()->Is32()) {
+    descriptor =
+        module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
+  }
+  job_.Reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph->graph(),
+                                             descriptor, source_positions));
+  ok_ = job_->OptimizeGraph() == CompilationJob::SUCCEEDED;
+  // TODO(bradnelson): Improve histogram handling of size_t.
+  // TODO(ahaas): The counters are not thread-safe at the moment.
+  //    isolate_->counters()->wasm_compile_function_peak_memory_bytes()
+  // ->AddSample(
+  //        static_cast<int>(jsgraph->graph()->zone()->allocation_size()));
 
-WasmCompilationUnit* CreateWasmCompilationUnit(
-    wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
-    const wasm::WasmFunction* function, uint32_t index) {
-  return new WasmCompilationUnit(thrower, isolate, module_env, function, index);
+  if (FLAG_trace_wasm_decode_time) {
+    double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
+    PrintF(
+        "wasm-compilation phase 1 ok: %d bytes, %0.3f ms decode, %zu nodes, "
+        "%0.3f ms pipeline\n",
+        static_cast<int>(function_->code_end_offset -
+                         function_->code_start_offset),
+        decode_ms, node_count, pipeline_ms);
+  }
 }
 
-void ExecuteCompilation(WasmCompilationUnit* unit) {
-  unit->ExecuteCompilation();
-}
+Handle<Code> WasmCompilationUnit::FinishCompilation() {
+  if (!ok_) {
+    return Handle<Code>::null();
+  }
+  if (job_->GenerateCode() != CompilationJob::SUCCEEDED) {
+    return Handle<Code>::null();
+  }
+  base::ElapsedTimer compile_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    compile_timer.Start();
+  }
+  Handle<Code> code = info_.code();
+  DCHECK(!code.is_null());
+  DCHECK(code->deoptimization_data() == nullptr ||
+         code->deoptimization_data()->length() == 0);
+  Handle<FixedArray> deopt_data =
+      isolate_->factory()->NewFixedArray(2, TENURED);
+  if (!module_env_->instance->js_object.is_null()) {
+    deopt_data->set(0, *module_env_->instance->js_object);
+  }
+  deopt_data->set(1, Smi::FromInt(function_->func_index));
+  deopt_data->set_length(2);
+  code->set_deoptimization_data(*deopt_data);
 
-uint32_t GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit) {
-  return unit->index_;
-}
+  RecordFunctionCompilation(
+      Logger::FUNCTION_TAG, &info_, "WASM_function", function_->func_index,
+      module_env_->module->GetName(function_->name_offset,
+                                   function_->name_length));
 
-Handle<Code> FinishCompilation(WasmCompilationUnit* unit) {
-  Handle<Code> result = unit->FinishCompilation();
-  delete unit;
-  return result;
-}
+  if (FLAG_trace_wasm_decode_time) {
+    double compile_ms = compile_timer.Elapsed().InMillisecondsF();
+    PrintF("wasm-code-generation ok: %d bytes, %0.3f ms code generation\n",
+           static_cast<int>(function_->code_end_offset -
+                            function_->code_start_offset),
+           compile_ms);
+  }
 
-// Helper function to compile a single function.
-Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower, Isolate* isolate,
-                                 wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction* function) {
-  WasmCompilationUnit* unit =
-      CreateWasmCompilationUnit(thrower, isolate, module_env, function, 0);
-  ExecuteCompilation(unit);
-  return FinishCompilation(unit);
+  return code;
 }
 
 }  // namespace compiler
