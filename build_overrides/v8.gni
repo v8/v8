@@ -22,7 +22,7 @@ if (((v8_target_arch == "ia32" ||
   v8_enable_gdbjit = true
 }
 
-icu_use_data_file_flag = false
+icu_use_data_file = false
 v8_imminent_deprecation_warnings = true
 v8_optimized_debug = false
 v8_extra_library_files = []
