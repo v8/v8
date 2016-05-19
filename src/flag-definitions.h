@@ -543,8 +543,6 @@ DEFINE_BOOL(enable_neon, ENABLE_NEON_DEFAULT,
             "enable use of NEON instructions if available (ARM only)")
 DEFINE_BOOL(enable_sudiv, true,
             "enable use of SDIV and UDIV instructions if available (ARM only)")
-DEFINE_BOOL(enable_mls, true,
-            "enable use of MLS instructions if available (ARM only)")
 DEFINE_BOOL(enable_movw_movt, false,
             "enable loading 32-bit constant by means of movw/movt "
             "instruction pairs (ARM only)")
@@ -562,7 +560,6 @@ DEFINE_IMPLICATION(enable_armv8, enable_vfp3)
 DEFINE_IMPLICATION(enable_armv8, enable_neon)
 DEFINE_IMPLICATION(enable_armv8, enable_32dregs)
 DEFINE_IMPLICATION(enable_armv8, enable_sudiv)
-DEFINE_IMPLICATION(enable_armv8, enable_mls)
 
 // bootstrapper.cc
 DEFINE_STRING(expose_natives_as, NULL, "expose natives in global object")

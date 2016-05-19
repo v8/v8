@@ -2228,7 +2228,7 @@ TEST_F(InstructionSelectorTest, Int32SubWithInt32MulForMLS) {
                   MachineType::Int32(), MachineType::Int32());
   m.Return(
       m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
-  Stream s = m.Build(MLS);
+  Stream s = m.Build(ARMv7);
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmMls, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2324,7 +2324,7 @@ TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIVAndMLS) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
-  Stream s = m.Build(MLS, SUDIV);
+  Stream s = m.Build(ARMv7, SUDIV);
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArmSdiv, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -2530,7 +2530,7 @@ TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIVAndMLS) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   m.Return(m.Uint32Mod(m.Parameter(0), m.Parameter(1)));
-  Stream s = m.Build(MLS, SUDIV);
+  Stream s = m.Build(ARMv7, SUDIV);
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArmUdiv, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());

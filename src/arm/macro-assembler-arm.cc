@@ -255,8 +255,8 @@ void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
 
 void MacroAssembler::Mls(Register dst, Register src1, Register src2,
                          Register srcA, Condition cond) {
-  if (CpuFeatures::IsSupported(MLS)) {
-    CpuFeatureScope scope(this, MLS);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(this, ARMv7);
     mls(dst, src1, src2, srcA, cond);
   } else {
     DCHECK(!srcA.is(ip));

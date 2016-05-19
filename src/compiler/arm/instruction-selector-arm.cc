@@ -294,7 +294,7 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode div_opcode,
   InstructionOperand right_operand = g.UseRegister(m.right().node());
   EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
           left_operand, right_operand);
-  if (selector->IsSupported(MLS)) {
+  if (selector->IsSupported(ARMv7)) {
     selector->Emit(kArmMls, result_operand, div_operand, right_operand,
                    left_operand);
   } else {
@@ -1022,7 +1022,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 void InstructionSelector::VisitInt32Sub(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (IsSupported(MLS) && m.right().IsInt32Mul() &&
+  if (IsSupported(ARMv7) && m.right().IsInt32Mul() &&
       CanCover(node, m.right().node())) {
     Int32BinopMatcher mright(m.right().node());
     Emit(kArmMls, g.DefineAsRegister(node), g.UseRegister(mright.left().node()),
