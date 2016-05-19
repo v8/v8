@@ -2799,129 +2799,15 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
   }
 }
 
-static inline void UpdateTypedSlot(Isolate* isolate, ObjectVisitor* v,
-                                   SlotType slot_type, Address addr) {
-  switch (slot_type) {
-    case CODE_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::CODE_TARGET, 0, NULL);
-      rinfo.Visit(isolate, v);
-      break;
-    }
-    case CELL_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::CELL, 0, NULL);
-      rinfo.Visit(isolate, v);
-      break;
-    }
-    case CODE_ENTRY_SLOT: {
-      v->VisitCodeEntry(addr);
-      break;
-    }
-    case DEBUG_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0,
-                      NULL);
-      if (rinfo.IsPatchedDebugBreakSlotSequence()) rinfo.Visit(isolate, v);
-      break;
-    }
-    case EMBEDDED_OBJECT_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
-      rinfo.Visit(isolate, v);
-      break;
-    }
-    case OBJECT_SLOT: {
-      v->VisitPointer(reinterpret_cast<Object**>(addr));
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-}
+static inline SlotCallbackResult UpdateSlot(Object** slot) {
+  Object* obj = reinterpret_cast<Object*>(
+      base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
 
-
-// Visitor for updating pointers from live objects in old spaces to new space.
-// It does not expect to encounter pointers to dead objects.
-class PointersUpdatingVisitor : public ObjectVisitor {
- public:
-  explicit PointersUpdatingVisitor(Heap* heap) : heap_(heap) {}
-
-  void VisitPointer(Object** p) override { UpdatePointer(p); }
-
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) UpdatePointer(p);
-  }
-
-  void VisitCell(RelocInfo* rinfo) override {
-    DCHECK(rinfo->rmode() == RelocInfo::CELL);
-    Object* cell = rinfo->target_cell();
-    Object* old_cell = cell;
-    VisitPointer(&cell);
-    if (cell != old_cell) {
-      rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
-    }
-  }
-
-  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    Object* target = rinfo->target_object();
-    Object* old_target = target;
-    VisitPointer(&target);
-    // Avoid unnecessary changes that might unnecessary flush the instruction
-    // cache.
-    if (target != old_target) {
-      rinfo->set_target_object(target);
-    }
-  }
-
-  void VisitCodeTarget(RelocInfo* rinfo) override {
-    DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    Object* old_target = target;
-    VisitPointer(&target);
-    if (target != old_target) {
-      rinfo->set_target_address(Code::cast(target)->instruction_start());
-    }
-  }
-
-  void VisitCodeAgeSequence(RelocInfo* rinfo) override {
-    DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
-    Object* stub = rinfo->code_age_stub();
-    DCHECK(stub != NULL);
-    VisitPointer(&stub);
-    if (stub != rinfo->code_age_stub()) {
-      rinfo->set_code_age_stub(Code::cast(stub));
-    }
-  }
-
-  void VisitCodeEntry(Address entry_address) override {
-    Object* code = Code::GetObjectFromEntryAddress(entry_address);
-    Object* old_code = code;
-    VisitPointer(&code);
-    if (code != old_code) {
-      Memory::Address_at(entry_address) =
-          reinterpret_cast<Code*>(code)->entry();
-    }
-  }
-
-  void VisitDebugTarget(RelocInfo* rinfo) override {
-    DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-           rinfo->IsPatchedDebugBreakSlotSequence());
-    Object* target =
-        Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-    VisitPointer(&target);
-    rinfo->set_debug_call_address(Code::cast(target)->instruction_start());
-  }
-
-  static inline void UpdateSlot(Heap* heap, Object** slot) {
-    Object* obj = reinterpret_cast<Object*>(
-        base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
-
-    if (!obj->IsHeapObject()) return;
-
+  if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
-
     MapWord map_word = heap_obj->map_word();
     if (map_word.IsForwardingAddress()) {
-      DCHECK(heap->InFromSpace(heap_obj) ||
+      DCHECK(heap_obj->GetHeap()->InFromSpace(heap_obj) ||
              MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
              Page::FromAddress(heap_obj->address())
                  ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
@@ -2930,15 +2816,151 @@ class PointersUpdatingVisitor : public ObjectVisitor {
           reinterpret_cast<base::AtomicWord*>(slot),
           reinterpret_cast<base::AtomicWord>(obj),
           reinterpret_cast<base::AtomicWord>(target));
-      DCHECK(!heap->InFromSpace(target) &&
+      DCHECK(!heap_obj->GetHeap()->InFromSpace(target) &&
              !MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
   }
+  return REMOVE_SLOT;
+}
 
- private:
-  inline void UpdatePointer(Object** p) { UpdateSlot(heap_, p); }
+// Updates a cell slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateCell(RelocInfo* rinfo, Callback callback) {
+  DCHECK(rinfo->rmode() == RelocInfo::CELL);
+  Object* cell = rinfo->target_cell();
+  Object* old_cell = cell;
+  SlotCallbackResult result = callback(&cell);
+  if (cell != old_cell) {
+    rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
+  }
+  return result;
+}
 
-  Heap* heap_;
+// Updates a code entry slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateCodeEntry(Address entry_address,
+                                          Callback callback) {
+  Object* code = Code::GetObjectFromEntryAddress(entry_address);
+  Object* old_code = code;
+  SlotCallbackResult result = callback(&code);
+  if (code != old_code) {
+    Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
+  }
+  return result;
+}
+
+// Updates a code target slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
+                                           Callback callback) {
+  DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  Object* old_target = target;
+  SlotCallbackResult result = callback(&target);
+  if (target != old_target) {
+    rinfo->set_target_address(Code::cast(target)->instruction_start());
+  }
+  return result;
+}
+
+// Updates an embedded pointer slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateEmbeddedPointer(RelocInfo* rinfo,
+                                                Callback callback) {
+  DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  Object* target = rinfo->target_object();
+  Object* old_target = target;
+  SlotCallbackResult result = callback(&target);
+  if (target != old_target) {
+    rinfo->set_target_object(target);
+  }
+  return result;
+}
+
+// Updates a debug target slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateDebugTarget(RelocInfo* rinfo,
+                                            Callback callback) {
+  DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+         rinfo->IsPatchedDebugBreakSlotSequence());
+  Object* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
+  SlotCallbackResult result = callback(&target);
+  rinfo->set_debug_call_address(Code::cast(target)->instruction_start());
+  return result;
+}
+
+// Updates a typed slot using an untyped slot callback.
+// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+template <typename Callback>
+static SlotCallbackResult UpdateTypedSlot(Isolate* isolate, SlotType slot_type,
+                                          Address addr, Callback callback) {
+  switch (slot_type) {
+    case CODE_TARGET_SLOT: {
+      RelocInfo rinfo(isolate, addr, RelocInfo::CODE_TARGET, 0, NULL);
+      return UpdateCodeTarget(&rinfo, callback);
+    }
+    case CELL_TARGET_SLOT: {
+      RelocInfo rinfo(isolate, addr, RelocInfo::CELL, 0, NULL);
+      return UpdateCell(&rinfo, callback);
+    }
+    case CODE_ENTRY_SLOT: {
+      return UpdateCodeEntry(addr, callback);
+    }
+    case DEBUG_TARGET_SLOT: {
+      RelocInfo rinfo(isolate, addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0,
+                      NULL);
+      if (rinfo.IsPatchedDebugBreakSlotSequence()) {
+        return UpdateDebugTarget(&rinfo, callback);
+      }
+      return REMOVE_SLOT;
+    }
+    case EMBEDDED_OBJECT_SLOT: {
+      RelocInfo rinfo(isolate, addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
+      return UpdateEmbeddedPointer(&rinfo, callback);
+    }
+    case OBJECT_SLOT: {
+      return callback(reinterpret_cast<Object**>(addr));
+    }
+    case NUMBER_OF_SLOT_TYPES:
+      break;
+  }
+  UNREACHABLE();
+  return REMOVE_SLOT;
+}
+
+
+// Visitor for updating pointers from live objects in old spaces to new space.
+// It does not expect to encounter pointers to dead objects.
+class PointersUpdatingVisitor : public ObjectVisitor {
+ public:
+  void VisitPointer(Object** p) override { UpdateSlot(p); }
+
+  void VisitPointers(Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) UpdateSlot(p);
+  }
+
+  void VisitCell(RelocInfo* rinfo) override { UpdateCell(rinfo, UpdateSlot); }
+
+  void VisitEmbeddedPointer(RelocInfo* rinfo) override {
+    UpdateEmbeddedPointer(rinfo, UpdateSlot);
+  }
+
+  void VisitCodeTarget(RelocInfo* rinfo) override {
+    UpdateCodeTarget(rinfo, UpdateSlot);
+  }
+
+  void VisitCodeEntry(Address entry_address) override {
+    UpdateCodeEntry(entry_address, UpdateSlot);
+  }
+
+  void VisitDebugTarget(RelocInfo* rinfo) override {
+    UpdateDebugTarget(rinfo, UpdateSlot);
+  }
 };
 
 static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
@@ -3629,12 +3651,12 @@ template <PointerDirection direction>
 class PointerUpdateJobTraits {
  public:
   typedef int PerPageData;  // Per page data is not used in this job.
-  typedef PointersUpdatingVisitor* PerTaskData;
+  typedef int PerTaskData;  // Per task data is not used in this job.
 
-  static bool ProcessPageInParallel(Heap* heap, PerTaskData visitor,
-                                    MemoryChunk* chunk, PerPageData) {
+  static bool ProcessPageInParallel(Heap* heap, PerTaskData, MemoryChunk* chunk,
+                                    PerPageData) {
     UpdateUntypedPointers(heap, chunk);
-    UpdateTypedPointers(heap, chunk, visitor);
+    UpdateTypedPointers(heap, chunk);
     return true;
   }
   static const bool NeedSequentialFinalization = false;
@@ -3647,22 +3669,18 @@ class PointerUpdateJobTraits {
       RememberedSet<OLD_TO_NEW>::IterateWithWrapper(heap, chunk,
                                                     UpdateOldToNewSlot);
     } else {
-      RememberedSet<OLD_TO_OLD>::Iterate(chunk, [heap](Address slot) {
-        PointersUpdatingVisitor::UpdateSlot(heap,
-                                            reinterpret_cast<Object**>(slot));
-        return REMOVE_SLOT;
+      RememberedSet<OLD_TO_OLD>::Iterate(chunk, [](Address slot) {
+        return UpdateSlot(reinterpret_cast<Object**>(slot));
       });
     }
   }
 
-  static void UpdateTypedPointers(Heap* heap, MemoryChunk* chunk,
-                                  PointersUpdatingVisitor* visitor) {
+  static void UpdateTypedPointers(Heap* heap, MemoryChunk* chunk) {
     if (direction == OLD_TO_OLD) {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk, [isolate, visitor](SlotType type, Address slot) {
-            UpdateTypedSlot(isolate, visitor, type, slot);
-            return REMOVE_SLOT;
+          chunk, [isolate](SlotType type, Address slot) {
+            return UpdateTypedSlot(isolate, type, slot, UpdateSlot);
           });
     }
   }
@@ -3691,10 +3709,9 @@ void UpdatePointersInParallel(Heap* heap) {
       heap, heap->isolate()->cancelable_task_manager());
   RememberedSet<direction>::IterateMemoryChunks(
       heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
-  PointersUpdatingVisitor visitor(heap);
   int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
-  job.Run(num_tasks, [&visitor](int i) { return &visitor; });
+  job.Run(num_tasks, [](int i) { return 0; });
 }
 
 class ToSpacePointerUpdateJobTraits {
@@ -3731,7 +3748,7 @@ void UpdateToSpacePointersInParallel(Heap* heap) {
     Address end = page->Contains(space_end) ? space_end : page->area_end();
     job.AddPage(page, std::make_pair(start, end));
   }
-  PointersUpdatingVisitor visitor(heap);
+  PointersUpdatingVisitor visitor;
   int num_tasks = FLAG_parallel_pointer_update ? job.NumberOfPages() : 1;
   job.Run(num_tasks, [&visitor](int i) { return &visitor; });
 }
@@ -3739,7 +3756,7 @@ void UpdateToSpacePointersInParallel(Heap* heap) {
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor(heap());
+  PointersUpdatingVisitor updating_visitor;
 
   {
     TRACE_GC(heap()->tracer(),
