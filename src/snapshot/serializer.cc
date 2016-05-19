@@ -707,25 +707,27 @@ void Serializer::ObjectSerializer::VisitExternalOneByteString(
 }
 
 Address Serializer::ObjectSerializer::PrepareCode() {
-  // To make snapshots reproducible, we make a copy of the code object
-  // and wipe all pointers in the copy, which we then serialize.
-  Code* original = Code::cast(object_);
-  Code* code = serializer_->CopyCode(original);
+  Code* code = Code::cast(object_);
+  if (FLAG_predictable) {
+    // To make snapshots reproducible, we make a copy of the code object
+    // and wipe all pointers in the copy, which we then serialize.
+    code = serializer_->CopyCode(code);
+    int mode_mask = RelocInfo::kCodeTargetMask |
+                    RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                    RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+      RelocInfo* rinfo = it.rinfo();
+      rinfo->WipeOut();
+    }
+    // We need to wipe out the header fields *after* wiping out the
+    // relocations, because some of these fields are needed for the latter.
+    code->WipeOutHeader();
+  }
   // Code age headers are not serializable.
   code->MakeYoung(serializer_->isolate());
-  int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    rinfo->WipeOut();
-  }
-  // We need to wipe out the header fields *after* wiping out the
-  // relocations, because some of these fields are needed for the latter.
-  code->WipeOutHeader();
   return code->address();
 }
 
