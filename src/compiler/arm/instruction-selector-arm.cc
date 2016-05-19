@@ -115,6 +115,24 @@ bool TryMatchShift(InstructionSelector* selector,
   return false;
 }
 
+template <IrOpcode::Value kOpcode, int kImmMin, int kImmMax,
+          AddressingMode kImmMode>
+bool TryMatchShiftImmediate(InstructionSelector* selector,
+                            InstructionCode* opcode_return, Node* node,
+                            InstructionOperand* value_return,
+                            InstructionOperand* shift_return) {
+  ArmOperandGenerator g(selector);
+  if (node->opcode() == kOpcode) {
+    Int32BinopMatcher m(node);
+    if (m.right().IsInRange(kImmMin, kImmMax)) {
+      *opcode_return |= AddressingModeField::encode(kImmMode);
+      *value_return = g.UseRegister(m.left().node());
+      *shift_return = g.UseImmediate(m.right().node());
+      return true;
+    }
+  }
+  return false;
+}
 
 bool TryMatchROR(InstructionSelector* selector, InstructionCode* opcode_return,
                  Node* node, InstructionOperand* value_return,
@@ -142,6 +160,14 @@ bool TryMatchLSL(InstructionSelector* selector, InstructionCode* opcode_return,
                                                value_return, shift_return);
 }
 
+bool TryMatchLSLImmediate(InstructionSelector* selector,
+                          InstructionCode* opcode_return, Node* node,
+                          InstructionOperand* value_return,
+                          InstructionOperand* shift_return) {
+  return TryMatchShiftImmediate<IrOpcode::kWord32Shl, 0, 31,
+                                kMode_Operand2_R_LSL_I>(
+      selector, opcode_return, node, value_return, shift_return);
+}
 
 bool TryMatchLSR(InstructionSelector* selector, InstructionCode* opcode_return,
                  Node* node, InstructionOperand* value_return,
@@ -312,8 +338,11 @@ void InstructionSelector::VisitLoad(Node* node) {
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
 
-  ArchOpcode opcode = kArchNop;
+  InstructionCode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
       opcode = kArmVldrF32;
@@ -339,13 +368,24 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
 
+  outputs[0] = g.DefineAsRegister(node);
+  inputs[0] = g.UseRegister(base);
+
   if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+    input_count = 2;
+    inputs[1] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RI);
+  } else if ((opcode == kArmLdr) &&
+             TryMatchLSLImmediate(this, &opcode, index, &inputs[1],
+                                  &inputs[2])) {
+    input_count = 3;
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+    input_count = 2;
+    inputs[1] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RR);
   }
+
+  Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
 }
 
 
@@ -397,7 +437,10 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    ArchOpcode opcode = kArchNop;
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+
+    InstructionCode opcode = kArchNop;
     switch (rep) {
       case MachineRepresentation::kFloat32:
         opcode = kArmVstrF32;
@@ -423,13 +466,23 @@ void InstructionSelector::VisitStore(Node* node) {
         return;
     }
 
+    inputs[0] = g.UseRegister(value);
+    inputs[1] = g.UseRegister(base);
+
     if (g.CanBeImmediate(index, opcode)) {
-      Emit(opcode | AddressingModeField::encode(kMode_Offset_RI), g.NoOutput(),
-           g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+      input_count = 3;
+      inputs[2] = g.UseImmediate(index);
+      opcode |= AddressingModeField::encode(kMode_Offset_RI);
+    } else if ((opcode == kArmStr) &&
+               TryMatchLSLImmediate(this, &opcode, index, &inputs[2],
+                                    &inputs[3])) {
+      input_count = 4;
     } else {
-      Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), g.NoOutput(),
-           g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
+      input_count = 3;
+      inputs[2] = g.UseRegister(index);
+      opcode |= AddressingModeField::encode(kMode_Offset_RR);
     }
+    Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 

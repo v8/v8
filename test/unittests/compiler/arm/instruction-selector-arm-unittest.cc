@@ -1392,8 +1392,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
     EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_Offset_RI, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
@@ -1403,6 +1403,39 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessTest,
                         ::testing::ValuesIn(kMemoryAccesses));
 
+TEST_F(InstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
+  TRACED_FORRANGE(int, immediate_shift, 1, 31) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                    MachineType::Int32());
+    Node* const index =
+        m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+    m.Return(m.Load(MachineType::Int32(), m.Parameter(0), index));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmLdr, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
+  TRACED_FORRANGE(int, immediate_shift, 1, 31) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                    MachineType::Int32(), MachineType::Int32());
+    Node* const index =
+        m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+    m.Store(MachineRepresentation::kWord32, m.Parameter(0), index,
+            m.Parameter(2), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmStr, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Conversions.

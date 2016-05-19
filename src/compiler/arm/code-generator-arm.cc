@@ -125,13 +125,16 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R:
       case kMode_Operand2_R_ASR_I:
       case kMode_Operand2_R_ASR_R:
-      case kMode_Operand2_R_LSL_I:
       case kMode_Operand2_R_LSL_R:
       case kMode_Operand2_R_LSR_I:
       case kMode_Operand2_R_LSR_R:
       case kMode_Operand2_R_ROR_I:
       case kMode_Operand2_R_ROR_R:
         break;
+      case kMode_Operand2_R_LSL_I:
+        *first_index += 3;
+        return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
+                          LSL, InputInt32(index + 2));
       case kMode_Offset_RI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
@@ -1121,59 +1124,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ldrsb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmStrb: {
-      size_t index = 0;
-      MemOperand operand = i.InputOffset(&index);
-      __ strb(i.InputRegister(index), operand);
+    case kArmStrb:
+      __ strb(i.InputRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    }
     case kArmLdrh:
       __ ldrh(i.OutputRegister(), i.InputOffset());
       break;
     case kArmLdrsh:
       __ ldrsh(i.OutputRegister(), i.InputOffset());
       break;
-    case kArmStrh: {
-      size_t index = 0;
-      MemOperand operand = i.InputOffset(&index);
-      __ strh(i.InputRegister(index), operand);
+    case kArmStrh:
+      __ strh(i.InputRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    }
     case kArmLdr:
       __ ldr(i.OutputRegister(), i.InputOffset());
       break;
-    case kArmStr: {
-      size_t index = 0;
-      MemOperand operand = i.InputOffset(&index);
-      __ str(i.InputRegister(index), operand);
+    case kArmStr:
+      __ str(i.InputRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    }
     case kArmVldrF32: {
       __ vldr(i.OutputFloat32Register(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmVstrF32: {
-      size_t index = 0;
-      MemOperand operand = i.InputOffset(&index);
-      __ vstr(i.InputFloat32Register(index), operand);
+    case kArmVstrF32:
+      __ vstr(i.InputFloat32Register(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    }
     case kArmVldrF64:
       __ vldr(i.OutputFloat64Register(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmVstrF64: {
-      size_t index = 0;
-      MemOperand operand = i.InputOffset(&index);
-      __ vstr(i.InputFloat64Register(index), operand);
+    case kArmVstrF64:
+      __ vstr(i.InputFloat64Register(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    }
     case kArmFloat32Max: {
       CpuFeatureScope scope(masm(), ARMv8);
       // (b < a) ? a : b
