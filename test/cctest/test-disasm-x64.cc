@@ -745,10 +745,29 @@ TEST(DisasmX64) {
 
   // xchg.
   {
+    __ xchgb(rax, Operand(rax, 8));
+    __ xchgw(rax, Operand(rbx, 8));
     __ xchgq(rax, rax);
     __ xchgq(rax, rbx);
     __ xchgq(rbx, rbx);
     __ xchgq(rbx, Operand(rsp, 12));
+  }
+
+  // cmpxchg.
+  {
+    __ cmpxchgb(Operand(rsp, 12), rax);
+    __ cmpxchgw(Operand(rbx, rcx, times_4, 10000), rax);
+    __ cmpxchgl(Operand(rbx, rcx, times_4, 10000), rax);
+    __ cmpxchgq(Operand(rbx, rcx, times_4, 10000), rax);
+  }
+
+  // lock prefix.
+  {
+    __ lock();
+    __ cmpxchgl(Operand(rsp, 12), rbx);
+
+    __ lock();
+    __ xchgw(rax, Operand(rcx, 8));
   }
 
   // Nop instructions

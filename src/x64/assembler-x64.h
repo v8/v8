@@ -421,11 +421,11 @@ class Operand BASE_EMBEDDED {
   friend class Assembler;
 };
 
-
 #define ASSEMBLER_INSTRUCTION_LIST(V) \
   V(add)                              \
   V(and)                              \
   V(cmp)                              \
+  V(cmpxchg)                          \
   V(dec)                              \
   V(idiv)                             \
   V(div)                              \
@@ -444,7 +444,6 @@ class Operand BASE_EMBEDDED {
   V(test)                             \
   V(xchg)                             \
   V(xor)
-
 
 // Shift instructions on operands/registers with kPointerSize, kInt32Size and
 // kInt64Size.
@@ -788,8 +787,14 @@ class Assembler : public AssemblerBase {
   void decb(Register dst);
   void decb(const Operand& dst);
 
+  // Lock prefix.
+  void lock();
+
   void xchgb(Register reg, const Operand& op);
   void xchgw(Register reg, const Operand& op);
+
+  void cmpxchgb(const Operand& dst, Register src);
+  void cmpxchgw(const Operand& dst, Register src);
 
   // Sign-extends rax into rdx:rax.
   void cqo();
@@ -2053,6 +2058,11 @@ class Assembler : public AssemblerBase {
   void emit_cmp(const Operand& dst, Immediate src, int size) {
     immediate_arithmetic_op(0x7, dst, src, size);
   }
+
+  // Compare {al,ax,eax,rax} with src.  If equal, set ZF and write dst into
+  // src. Otherwise clear ZF and write src into {al,ax,eax,rax}.  This
+  // operation is only atomic if prefixed by the lock instruction.
+  void emit_cmpxchg(const Operand& dst, Register src, int size);
 
   void emit_dec(Register dst, int size);
   void emit_dec(const Operand& dst, int size);

@@ -142,18 +142,17 @@ enum InstructionType {
   SHORT_IMMEDIATE_INSTR
 };
 
-
 enum Prefixes {
   ESCAPE_PREFIX = 0x0F,
   OPERAND_SIZE_OVERRIDE_PREFIX = 0x66,
   ADDRESS_SIZE_OVERRIDE_PREFIX = 0x67,
   VEX3_PREFIX = 0xC4,
   VEX2_PREFIX = 0xC5,
+  LOCK_PREFIX = 0xF0,
   REPNE_PREFIX = 0xF2,
   REP_PREFIX = 0xF3,
   REPEQ_PREFIX = REP_PREFIX
 };
-
 
 struct InstructionDesc {
   const char* mnem;
@@ -1607,6 +1606,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer("%s %s,%d", (regop == 6) ? "psllq" : "psrlq",
                        NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
+      } else if (opcode == 0xB1) {
+        current += PrintOperands("cmpxchg", OPER_REG_OP_ORDER, current);
       } else {
         const char* mnemonic = "?";
         if (opcode == 0x54) {
@@ -1884,6 +1885,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightOperand(current);
   } else if (opcode == 0x0B) {
     AppendToBuffer("ud2");
+  } else if (opcode == 0xB0 || opcode == 0xB1) {
+    // CMPXCHG.
+    if (opcode == 0xB0) {
+      byte_size_operand_ = true;
+    }
+    current += PrintOperands(mnemonic, OPER_REG_OP_ORDER, current);
   } else {
     UnimplementedInstruction();
   }
@@ -1926,6 +1933,9 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "shrd";
     case 0xAF:
       return "imul";
+    case 0xB0:
+    case 0xB1:
+      return "cmpxchg";
     case 0xB6:
       return "movzxb";
     case 0xB7:
@@ -1963,6 +1973,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       if (rex_w()) AppendToBuffer("REX.W ");
     } else if ((current & 0xFE) == 0xF2) {  // Group 1 prefix (0xF2 or 0xF3).
       group_1_prefix_ = current;
+    } else if (current == LOCK_PREFIX) {
+      AppendToBuffer("lock ");
     } else if (current == VEX3_PREFIX) {
       vex_byte0_ = current;
       vex_byte1_ = *(data + 1);

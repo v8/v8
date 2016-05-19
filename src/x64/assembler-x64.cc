@@ -1016,6 +1016,40 @@ void Assembler::cmpb_al(Immediate imm8) {
   emit(imm8.value_);
 }
 
+void Assembler::lock() {
+  EnsureSpace ensure_space(this);
+  emit(0xf0);
+}
+
+void Assembler::cmpxchgb(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(src, dst);
+  } else {
+    emit_optional_rex_32(src, dst);
+  }
+  emit(0x0f);
+  emit(0xb0);
+  emit_operand(src, dst);
+}
+
+void Assembler::cmpxchgw(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(src, dst);
+  emit(0x0f);
+  emit(0xb1);
+  emit_operand(src, dst);
+}
+
+void Assembler::emit_cmpxchg(const Operand& dst, Register src, int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(src, dst, size);
+  emit(0x0f);
+  emit(0xb1);
+  emit_operand(src, dst);
+}
 
 void Assembler::cpuid() {
   EnsureSpace ensure_space(this);

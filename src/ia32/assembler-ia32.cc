@@ -730,6 +730,33 @@ void Assembler::xchg_w(Register reg, const Operand& op) {
   emit_operand(reg, op);
 }
 
+void Assembler::lock() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF0);
+}
+
+void Assembler::cmpxchg(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xB1);
+  emit_operand(src, dst);
+}
+
+void Assembler::cmpxchg_b(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xB0);
+  emit_operand(src, dst);
+}
+
+void Assembler::cmpxchg_w(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xB1);
+  emit_operand(src, dst);
+}
+
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   emit_arith(2, Operand(dst), Immediate(imm32));
