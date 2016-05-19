@@ -934,7 +934,7 @@ class ToBooleanStub final : public TurboFanCodeStub {
   explicit ToBooleanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_CODE_STUB(ToBoolean, TurboFanCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(ToBoolean, TurboFanCodeStub);
 };
 
 class ToIntegerStub final : public TurboFanCodeStub {

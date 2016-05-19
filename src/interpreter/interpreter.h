@@ -73,13 +73,12 @@ class Interpreter {
   // Generates code to perform the binary operation via |callable|.
   void DoBinaryOp(Callable callable, InterpreterAssembler* assembler);
 
-  // Generates code to perform the binary operation via |function_id|.
-  void DoBinaryOp(Runtime::FunctionId function_id,
-                  InterpreterAssembler* assembler);
-
   // Generates code to perform the binary operation via |Generator|.
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
+
+  // Generates code to perform the unary operation via |callable|.
+  void DoUnaryOp(Callable callable, InterpreterAssembler* assembler);
 
   // Generates code to perform the unary operation via |Generator|.
   template <class Generator>
@@ -125,12 +124,6 @@ class Interpreter {
   // Generates code to perform a constructor call.
   void DoCallConstruct(InterpreterAssembler* assembler);
 
-  // Generates code to perform a type conversion.
-  void DoTypeConversionOp(Callable callable, InterpreterAssembler* assembler);
-
-  // Generates code to perform logical-not on boolean |value|.
-  void DoLogicalNotOp(compiler::Node* value, InterpreterAssembler* assembler);
-
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,
                 InterpreterAssembler* assembler);
@@ -142,6 +135,16 @@ class Interpreter {
   // Generates code to perform a lookup slot store depending on |language_mode|.
   void DoStoreLookupSlot(LanguageMode language_mode,
                          InterpreterAssembler* assembler);
+
+  // Generates code to perform logical-not on boolean |value| and returns the
+  // result.
+  compiler::Node* BuildLogicalNot(compiler::Node* value,
+                                  InterpreterAssembler* assembler);
+
+  // Generates code to convert |value| to a boolean and returns the
+  // result.
+  compiler::Node* BuildToBoolean(compiler::Node* value,
+                                 InterpreterAssembler* assembler);
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 

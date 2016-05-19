@@ -3638,13 +3638,17 @@ void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   }
 }
 
-void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+// static
+compiler::Node* ToBooleanStub::Generate(CodeStubAssembler* assembler,
+                                        compiler::Node* value,
+                                        compiler::Node* context) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
 
-  Node* value = assembler->Parameter(0);
+  Variable result(assembler, MachineRepresentation::kTagged);
   Label if_valueissmi(assembler), if_valueisnotsmi(assembler),
-      return_true(assembler), return_false(assembler);
+      return_true(assembler), return_false(assembler), end(assembler);
 
   // Check if {value} is a Smi or a HeapObject.
   assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
@@ -3722,7 +3726,8 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       // The {value} is an Oddball, and every Oddball knows its boolean value.
       Node* value_toboolean =
           assembler->LoadObjectField(value, Oddball::kToBooleanOffset);
-      assembler->Return(value_toboolean);
+      result.Bind(value_toboolean);
+      assembler->Goto(&end);
     }
 
     assembler->Bind(&if_valueisother);
@@ -3740,11 +3745,21 @@ void ToBooleanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
                         &return_true, &return_false);
     }
   }
+
   assembler->Bind(&return_false);
-  assembler->Return(assembler->BooleanConstant(false));
+  {
+    result.Bind(assembler->BooleanConstant(false));
+    assembler->Goto(&end);
+  }
 
   assembler->Bind(&return_true);
-  assembler->Return(assembler->BooleanConstant(true));
+  {
+    result.Bind(assembler->BooleanConstant(true));
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&end);
+  return result.value();
 }
 
 void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
