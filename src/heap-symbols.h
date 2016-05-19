@@ -12,6 +12,10 @@
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
   V(Array_string, "Array")                                         \
+  V(array_to_string, "[object Array]")                             \
+  V(object_to_string, "[object Object]")                           \
+  V(string_to_string, "[object String]")                           \
+  V(function_to_string, "[object Function]")                       \
   V(bind_string, "bind")                                           \
   V(bool16x8_string, "bool16x8")                                   \
   V(Bool16x8_string, "Bool16x8")                                   \

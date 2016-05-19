@@ -15236,8 +15236,12 @@ bool JSObject::WasConstructedFromApiFunction() {
 
 MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
                                                 Handle<Object> object) {
-  if (object->IsUndefined()) return isolate->factory()->undefined_to_string();
-  if (object->IsNull()) return isolate->factory()->null_to_string();
+  if (*object == isolate->heap()->undefined_value()) {
+    return isolate->factory()->undefined_to_string();
+  }
+  if (*object == isolate->heap()->null_value()) {
+    return isolate->factory()->null_to_string();
+  }
 
   Handle<JSReceiver> receiver =
       Object::ToObject(isolate, object).ToHandleChecked();
@@ -15258,6 +15262,18 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
                                JSReceiver::BuiltinStringTag(receiver), String);
   }
 
+  if (*tag == isolate->heap()->Object_string()) {
+    return isolate->factory()->object_to_string();
+  }
+  if (*tag == isolate->heap()->String_string()) {
+    return isolate->factory()->string_to_string();
+  }
+  if (*tag == isolate->heap()->Array_string()) {
+    return isolate->factory()->array_to_string();
+  }
+  if (*tag == isolate->heap()->Function_string()) {
+    return isolate->factory()->function_to_string();
+  }
   IncrementalStringBuilder builder(isolate);
   builder.AppendCString("[object ");
   builder.AppendString(tag);
