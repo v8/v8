@@ -119,15 +119,16 @@ bool CodeRange::SetUp(size_t requested) {
     requested = kMinimumCodeRangeSize;
   }
 
+  const size_t reserved_area =
+      kReservedCodeRangePages * base::OS::CommitPageSize();
+  if (requested < (kMaximalCodeRangeSize - reserved_area))
+    requested += reserved_area;
+
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
-#ifdef V8_TARGET_ARCH_MIPS64
-  // To use pseudo-relative jumps such as j/jal instructions which have 28-bit
-  // encoded immediate, the addresses have to be in range of 256Mb aligned
-  // region.
-  code_range_ = new base::VirtualMemory(requested, kMaximalCodeRangeSize);
-#else
-  code_range_ = new base::VirtualMemory(requested);
-#endif
+
+  code_range_ = new base::VirtualMemory(
+      requested, Max(kCodeRangeAreaAlignment,
+                     static_cast<size_t>(base::OS::AllocateAlignment())));
   CHECK(code_range_ != NULL);
   if (!code_range_->IsReserved()) {
     delete code_range_;
@@ -141,18 +142,16 @@ bool CodeRange::SetUp(size_t requested) {
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
-  if (kReservedCodeRangePages) {
-    if (!code_range_->Commit(
-            base, kReservedCodeRangePages * base::OS::CommitPageSize(), true)) {
+  if (reserved_area > 0) {
+    if (!code_range_->Commit(base, reserved_area, true)) {
       delete code_range_;
       code_range_ = NULL;
       return false;
     }
-    base += kReservedCodeRangePages * base::OS::CommitPageSize();
+    base += reserved_area;
   }
   Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
-  size_t size = code_range_->size() - (aligned_base - base) -
-                kReservedCodeRangePages * base::OS::CommitPageSize();
+  size_t size = code_range_->size() - (aligned_base - base) - reserved_area;
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
 
@@ -415,8 +414,8 @@ void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
   // Code which is part of the code-range does not have its own VirtualMemory.
   DCHECK(code_range() == NULL ||
          !code_range()->contains(static_cast<Address>(reservation->address())));
-  DCHECK(executable == NOT_EXECUTABLE || code_range() == NULL ||
-         !code_range()->valid() || reservation->size() <= Page::kPageSize);
+  DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid() ||
+         reservation->size() <= Page::kPageSize);
 
   reservation->Release();
 }
@@ -430,8 +429,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     DCHECK(executable == EXECUTABLE);
     code_range()->FreeRawMemory(base, size);
   } else {
-    DCHECK(executable == NOT_EXECUTABLE || code_range() == NULL ||
-           !code_range()->valid());
+    DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
     bool result = base::VirtualMemory::ReleaseRegion(base, size);
     USE(result);
     DCHECK(result);
@@ -561,8 +559,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       }
     } else {
       CodeRange* code_range = heap_->memory_allocator()->code_range();
-      DCHECK(code_range != NULL && code_range->valid() &&
-             IsFlagSet(IS_EXECUTABLE));
+      DCHECK(code_range->valid() && IsFlagSet(IS_EXECUTABLE));
       if (!code_range->CommitRawMemory(start, length)) return false;
     }
 
@@ -578,8 +575,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       if (!reservation_.Uncommit(start, length)) return false;
     } else {
       CodeRange* code_range = heap_->memory_allocator()->code_range();
-      DCHECK(code_range != NULL && code_range->valid() &&
-             IsFlagSet(IS_EXECUTABLE));
+      DCHECK(code_range->valid() && IsFlagSet(IS_EXECUTABLE));
       if (!code_range->UncommitRawMemory(start, length)) return false;
     }
   }
@@ -673,10 +669,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
 #ifdef V8_TARGET_ARCH_MIPS64
     // Use code range only for large object space on mips64 to keep address
     // range within 256-MB memory region.
-    if (code_range() != NULL && code_range()->valid() &&
-        reserve_area_size > CodePageAreaSize()) {
+    if (code_range()->valid() && reserve_area_size > CodePageAreaSize()) {
 #else
-    if (code_range() != NULL && code_range()->valid()) {
+    if (code_range()->valid()) {
 #endif
       base =
           code_range()->AllocateRawMemory(chunk_size, commit_size, &chunk_size);

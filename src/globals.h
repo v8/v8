@@ -150,8 +150,10 @@ const bool kRequiresCodeRange = true;
 // encoded immediate, the addresses have to be in range of 256MB aligned
 // region. Used only for large object space.
 const size_t kMaximalCodeRangeSize = 256 * MB;
+const size_t kCodeRangeAreaAlignment = 256 * MB;
 #else
 const size_t kMaximalCodeRangeSize = 512 * MB;
+const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
@@ -170,11 +172,13 @@ const bool kRequiresCodeRange = true;
 const size_t kMaximalCodeRangeSize = 256 * MB;
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
+const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #else
 const bool kRequiresCodeRange = false;
 const size_t kMaximalCodeRangeSize = 0 * MB;
 const size_t kMinimumCodeRangeSize = 0 * MB;
 const size_t kReservedCodeRangePages = 0;
+const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #endif
 #endif
 

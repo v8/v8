@@ -203,36 +203,31 @@ static void VerifyMemoryChunk(Isolate* isolate,
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  const int pageSize = Page::kPageSize;
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
                                 0));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
-  const size_t code_range_size = 4 * pageSize;
-  if (!code_range->SetUp(
-          code_range_size +
-          RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
-                  MemoryChunk::kAlignment) +
-          v8::internal::MemoryAllocator::CodePageAreaSize())) {
+  const size_t code_range_size = 4 * Page::kPageSize;
+  if (!code_range->SetUp(code_range_size)) {
     return;
   }
 
   Address address;
   size_t size;
-  size_t request_size = code_range_size - 2 * pageSize;
+  size_t request_size = code_range_size - 2 * Page::kPageSize;
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);
-  CHECK(address != NULL);
+  CHECK_NOT_NULL(address);
 
   Address null_address;
   size_t null_size;
-  request_size = code_range_size - pageSize;
+  request_size = code_range_size - Page::kPageSize;
   null_address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &null_size);
-  CHECK(null_address == NULL);
+  CHECK_NULL(null_address);
 
   code_range->FreeRawMemory(address, size);
   delete code_range;
@@ -281,8 +276,8 @@ TEST(MemoryChunk) {
                       NOT_EXECUTABLE);
     delete code_range;
 
-    // Without CodeRange.
-    code_range = NULL;
+    // Without a valid CodeRange, i.e., omitting SetUp.
+    code_range = new CodeRange(isolate);
     VerifyMemoryChunk(isolate,
                       heap,
                       code_range,
@@ -298,6 +293,7 @@ TEST(MemoryChunk) {
                       initial_commit_area_size,
                       second_commit_area_size,
                       NOT_EXECUTABLE);
+    delete code_range;
   }
 }
 

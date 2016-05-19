@@ -1418,8 +1418,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   int obj_size = Code::SizeFor(body_size);
 
   Handle<Code> code = NewCodeRaw(obj_size, immovable);
-  DCHECK(isolate()->heap()->memory_allocator()->code_range() == NULL ||
-         !isolate()->heap()->memory_allocator()->code_range()->valid() ||
+  DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
          isolate()->heap()->memory_allocator()->code_range()->contains(
              code->address()) ||
          obj_size <= isolate()->heap()->code_space()->AreaSize());

@@ -1154,15 +1154,6 @@ class CodeRange {
   void FreeRawMemory(Address buf, size_t length);
 
  private:
-  // Frees the range of virtual memory, and frees the data structures used to
-  // manage it.
-  void TearDown();
-
-  Isolate* isolate_;
-
-  // The reserved range of virtual memory that all code objects are put in.
-  base::VirtualMemory* code_range_;
-  // Plain old data class, just a struct plus a constructor.
   class FreeBlock {
    public:
     FreeBlock() : start(0), size(0) {}
@@ -1181,6 +1172,26 @@ class CodeRange {
     size_t size;
   };
 
+  // Frees the range of virtual memory, and frees the data structures used to
+  // manage it.
+  void TearDown();
+
+  // Finds a block on the allocation list that contains at least the
+  // requested amount of memory.  If none is found, sorts and merges
+  // the existing free memory blocks, and searches again.
+  // If none can be found, returns false.
+  bool GetNextAllocationBlock(size_t requested);
+  // Compares the start addresses of two free blocks.
+  static int CompareFreeBlockAddress(const FreeBlock* left,
+                                     const FreeBlock* right);
+  bool ReserveBlock(const size_t requested_size, FreeBlock* block);
+  void ReleaseBlock(const FreeBlock* block);
+
+  Isolate* isolate_;
+
+  // The reserved range of virtual memory that all code objects are put in.
+  base::VirtualMemory* code_range_;
+
   // The global mutex guards free_list_ and allocation_list_ as GC threads may
   // access both lists concurrently to the main thread.
   base::Mutex code_range_mutex_;
@@ -1194,17 +1205,6 @@ class CodeRange {
   // The block at current_allocation_block_index_ is the current block.
   List<FreeBlock> allocation_list_;
   int current_allocation_block_index_;
-
-  // Finds a block on the allocation list that contains at least the
-  // requested amount of memory.  If none is found, sorts and merges
-  // the existing free memory blocks, and searches again.
-  // If none can be found, returns false.
-  bool GetNextAllocationBlock(size_t requested);
-  // Compares the start addresses of two free blocks.
-  static int CompareFreeBlockAddress(const FreeBlock* left,
-                                     const FreeBlock* right);
-  bool ReserveBlock(const size_t requested_size, FreeBlock* block);
-  void ReleaseBlock(const FreeBlock* block);
 
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };
