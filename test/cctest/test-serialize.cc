@@ -36,6 +36,7 @@
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
+#include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
@@ -1833,6 +1834,55 @@ TEST(Regress503552) {
   delete script_data;
 }
 
+#if V8_TARGET_ARCH_X64
+TEST(CodeSerializerCell) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  HandleScope handles(isolate);
+
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
+  assembler.enable_serializer();
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
+  CHECK(isolate->heap()->InNewSpace(*number));
+  MacroAssembler* masm = &assembler;
+  masm->MoveHeapObject(rax, number);
+  masm->ret(0);
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::FUNCTION), masm->CodeObject());
+  code->set_has_reloc_info_for_serialization(true);
+
+  RelocIterator rit1(*code, 1 << RelocInfo::CELL);
+  CHECK_EQ(*number, rit1.rinfo()->target_cell()->value());
+
+  Handle<String> source = isolate->factory()->empty_string();
+  Handle<SharedFunctionInfo> sfi =
+      isolate->factory()->NewSharedFunctionInfo(source, code, false);
+  ScriptData* script_data = CodeSerializer::Serialize(isolate, sfi, source);
+
+  Handle<SharedFunctionInfo> copy =
+      CodeSerializer::Deserialize(isolate, script_data, source)
+          .ToHandleChecked();
+  RelocIterator rit2(copy->code(), 1 << RelocInfo::CELL);
+  CHECK(rit2.rinfo()->target_cell()->IsCell());
+  Handle<Cell> cell(rit2.rinfo()->target_cell());
+  CHECK(cell->value()->IsHeapNumber());
+  CHECK_EQ(0.3, HeapNumber::cast(cell->value())->value());
+
+  delete script_data;
+}
+#endif  // V8_TARGET_ARCH_X64
 
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;

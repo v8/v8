@@ -503,12 +503,11 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         emit_write_barrier = false;                                            \
       }                                                                        \
       if (within == kInnerPointer) {                                           \
-        if (space_number != CODE_SPACE || new_object->IsCode()) {              \
-          Code* new_code_object = reinterpret_cast<Code*>(new_object);         \
+        if (new_object->IsCode()) {                                            \
+          Code* new_code_object = Code::cast(new_object);                      \
           new_object =                                                         \
               reinterpret_cast<Object*>(new_code_object->instruction_start()); \
         } else {                                                               \
-          DCHECK(space_number == CODE_SPACE);                                  \
           Cell* cell = Cell::cast(new_object);                                 \
           new_object = reinterpret_cast<Object*>(cell->ValueAddress());        \
         }                                                                      \
@@ -575,6 +574,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // pointer because it points at the entry point, not at the start of the
       // code object.
       SINGLE_CASE(kNewObject, kPlain, kInnerPointer, CODE_SPACE)
+      // Support for pointers into a cell. It's an inner pointer because it
+      // points directly at the value field, not the start of the cell object.
+      SINGLE_CASE(kNewObject, kPlain, kInnerPointer, OLD_SPACE)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
       ALL_SPACES(kNewObject, kFromCode, kInnerPointer)
@@ -601,8 +603,12 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // object.
       ALL_SPACES(kBackref, kFromCode, kInnerPointer)
       ALL_SPACES(kBackrefWithSkip, kFromCode, kInnerPointer)
-      ALL_SPACES(kBackref, kPlain, kInnerPointer)
-      ALL_SPACES(kBackrefWithSkip, kPlain, kInnerPointer)
+      // Support for direct instruction pointers in functions.
+      SINGLE_CASE(kBackref, kPlain, kInnerPointer, CODE_SPACE)
+      SINGLE_CASE(kBackrefWithSkip, kPlain, kInnerPointer, CODE_SPACE)
+      // Support for pointers into a cell.
+      SINGLE_CASE(kBackref, kPlain, kInnerPointer, OLD_SPACE)
+      SINGLE_CASE(kBackrefWithSkip, kPlain, kInnerPointer, OLD_SPACE)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)
