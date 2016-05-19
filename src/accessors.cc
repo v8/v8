@@ -438,6 +438,40 @@ Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
 
 
 //
+// Accessors::ScriptGetLineEnds
+//
+
+
+void Accessors::ScriptLineEndsGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.Holder());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Script::InitLineEnds(script);
+  DCHECK(script->line_ends()->IsFixedArray());
+  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  // We do not want anyone to modify this array from JS.
+  DCHECK(*line_ends == isolate->heap()->empty_fixed_array() ||
+         line_ends->map() == isolate->heap()->fixed_cow_array_map());
+  Handle<JSArray> js_array =
+      isolate->factory()->NewJSArrayWithElements(line_ends);
+  info.GetReturnValue().Set(Utils::ToLocal(js_array));
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("line_ends")));
+  return MakeAccessor(isolate, name, &ScriptLineEndsGetter, nullptr,
+                      attributes);
+}
+
+
+//
 // Accessors::ScriptSourceUrl
 //
 
