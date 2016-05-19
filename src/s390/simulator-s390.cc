@@ -5948,6 +5948,18 @@ uintptr_t Simulator::PopAddress() {
   uint8_t imm_val = AS(SIInstruction)->I2Value();          \
   int length = 4;
 
+#define DECODE_SIL_INSTRUCTION(b1, d1, i2)     \
+  int b1 = AS(SILInstruction)->B1Value();      \
+  intptr_t d1 = AS(SILInstruction)->D1Value(); \
+  int16_t i2 = AS(SILInstruction)->I2Value();  \
+  int length = 6;
+
+#define DECODE_SIY_INSTRUCTION(b1, d1, i2)     \
+  int b1 = AS(SIYInstruction)->B1Value();      \
+  intptr_t d1 = AS(SIYInstruction)->D1Value(); \
+  uint8_t i2 = AS(SIYInstruction)->I2Value();  \
+  int length = 6;
+
 #define DECODE_RRE_INSTRUCTION(r1, r2)    \
   int r1 = AS(RREInstruction)->R1Value(); \
   int r2 = AS(RREInstruction)->R2Value(); \
@@ -6016,6 +6028,13 @@ uintptr_t Simulator::PopAddress() {
   Condition m1 = static_cast<Condition>(AS(RIInstruction)->R1Value()); \
   int16_t i2 = AS(RIInstruction)->I2Value();                           \
   int length = 4;
+
+#define DECODE_RXE_INSTRUCTION(r1, b2, x2, d2) \
+  int r1 = AS(RXEInstruction)->R1Value();      \
+  int b2 = AS(RXEInstruction)->B2Value();      \
+  int x2 = AS(RXEInstruction)->X2Value();      \
+  int d2 = AS(RXEInstruction)->D2Value();      \
+  int length = 6;
 
 #define GET_ADDRESS(index_reg, base_reg, offset)       \
   (((index_reg) == 0) ? 0 : get_register(index_reg)) + \
@@ -9164,13 +9183,49 @@ EVALUATE(LGH) {
   return length;
 }
 
-EVALUATE(LLGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGF) {
+  DCHECK_OPCODE(LLGF);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  // Miscellaneous Loads and Stores
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t addr = x2_val + b2_val + d2;
+  uint64_t mem_val = static_cast<uint64_t>(ReadWU(addr, instr));
+  set_register(r1, mem_val);
+  return length;
+}
 
 EVALUATE(LLGT) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(AGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AGF) {
+  DCHECK_OPCODE(AGF);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint64_t r1_val = get_register(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  uint64_t alu_out = r1_val;
+  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  alu_out += mem_val;
+  SetS390ConditionCode<int64_t>(alu_out, 0);
+  set_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(SGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SGF) {
+  DCHECK_OPCODE(SGF);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  uint64_t r1_val = get_register(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  uint64_t alu_out = r1_val;
+  uint32_t mem_val = ReadW(b2_val + d2_val + x2_val, instr);
+  alu_out -= mem_val;
+  SetS390ConditionCode<int64_t>(alu_out, 0);
+  set_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(ALGF) { return DecodeInstructionOriginal(instr); }
 
@@ -9180,13 +9235,54 @@ EVALUATE(MSGF) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(DSGF) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LRV) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRV) {
+  DCHECK_OPCODE(LRV);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t mem_addr = b2_val + x2_val + d2;
+  int32_t mem_val = ReadW(mem_addr, instr);
+  set_low_register(r1, ByteReverse(mem_val));
+  return length;
+}
 
-EVALUATE(LRVH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRVH) {
+  DCHECK_OPCODE(LRVH);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t mem_addr = b2_val + x2_val + d2;
+  int16_t mem_val = ReadH(mem_addr, instr);
+  int32_t result = ByteReverse(mem_val) & 0x0000ffff;
+  result |= r1_val & 0xffff0000;
+  set_low_register(r1, result);
+  return length;
+}
 
-EVALUATE(CG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CG) {
+  DCHECK_OPCODE(CG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t alu_out = get_register(r1);
+  int64_t mem_val = ReadDW(b2_val + x2_val + d2);
+  SetS390ConditionCode<int64_t>(alu_out, mem_val);
+  set_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(CLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLG) {
+  DCHECK_OPCODE(CLG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t alu_out = get_register(r1);
+  int64_t mem_val = ReadDW(b2_val + x2_val + d2);
+  SetS390ConditionCode<uint64_t>(alu_out, mem_val);
+  set_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(NTSTG) { return DecodeInstructionOriginal(instr); }
 
@@ -9206,9 +9302,28 @@ EVALUATE(CGH) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(PFD) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(STRV) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STRV) {
+  DCHECK_OPCODE(STRV);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t mem_addr = b2_val + x2_val + d2;
+  WriteW(mem_addr, ByteReverse(r1_val), instr);
+  return length;
+}
 
-EVALUATE(STRVH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STRVH) {
+  DCHECK_OPCODE(STRVH);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t mem_addr = b2_val + x2_val + d2;
+  int16_t result = static_cast<int16_t>(r1_val >> 16);
+  WriteH(mem_addr, ByteReverse(result), instr);
+  return length;
+}
 
 EVALUATE(BCTG) { return DecodeInstructionOriginal(instr); }
 
@@ -9224,25 +9339,126 @@ EVALUATE(MSY) {
   return length;
 }
 
-EVALUATE(NY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NY) {
+  DCHECK_OPCODE(NY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  alu_out &= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(CLY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLY) {
+  DCHECK_OPCODE(CLY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  SetS390ConditionCode<uint32_t>(alu_out, mem_val);
+  return length;
+}
 
-EVALUATE(OY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OY) {
+  DCHECK_OPCODE(OY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  alu_out |= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(XY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XY) {
+  DCHECK_OPCODE(XY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  alu_out ^= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_low_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(CY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CY) {
+  DCHECK_OPCODE(CY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  SetS390ConditionCode<int32_t>(alu_out, mem_val);
+  return length;
+}
 
-EVALUATE(AY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AY) {
+  DCHECK_OPCODE(AY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  bool isOF = false;
+  isOF = CheckOverflowForIntAdd(alu_out, mem_val, int32_t);
+  alu_out += mem_val;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(SY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SY) {
+  DCHECK_OPCODE(SY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int32_t alu_out = get_low_register<int32_t>(r1);
+  int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
+  bool isOF = false;
+  isOF = CheckOverflowForIntSub(alu_out, mem_val, int32_t);
+  alu_out -= mem_val;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(MFY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(ALY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALY) {
+  DCHECK_OPCODE(ALY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  alu_out += mem_val;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<uint32_t>(alu_out, 0);
+  return length;
+}
 
-EVALUATE(SLY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLY) {
+  DCHECK_OPCODE(SLY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  uint32_t alu_out = get_low_register<uint32_t>(r1);
+  uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
+  alu_out -= mem_val;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<uint32_t>(alu_out, 0);
+  return length;
+}
 
 EVALUATE(STHY) {
   DCHECK_OPCODE(STHY);
@@ -9256,7 +9472,18 @@ EVALUATE(STHY) {
   return length;
 }
 
-EVALUATE(LAY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAY) {
+  DCHECK_OPCODE(LAY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  // Load Address
+  int rb = b2;
+  int rx = x2;
+  int offset = d2;
+  int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
+  int64_t rx_val = (rx == 0) ? 0 : get_register(rx);
+  set_register(r1, rx_val + rb_val + offset);
+  return length;
+}
 
 EVALUATE(STCY) {
   DCHECK_OPCODE(STCY);
@@ -9274,7 +9501,17 @@ EVALUATE(ICY) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(LAEY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LB) {
+  DCHECK_OPCODE(LB);
+  // Miscellaneous Loads and Stores
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t addr = x2_val + b2_val + d2;
+  int32_t mem_val = ReadB(addr);
+  set_low_register(r1, mem_val);
+  return length;
+}
 
 EVALUATE(LGB) {
   DCHECK_OPCODE(LGB);
@@ -9302,17 +9539,84 @@ EVALUATE(LHY) {
 
 EVALUATE(CHY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(AHY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AHY) {
+  DCHECK_OPCODE(AHY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  int32_t mem_val =
+      static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val, instr));
+  int32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r1_val + mem_val;
+  isOF = CheckOverflowForIntAdd(r1_val, mem_val, int32_t);
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
 
-EVALUATE(SHY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SHY) {
+  DCHECK_OPCODE(SHY);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  int32_t mem_val =
+      static_cast<int32_t>(ReadH(b2_val + d2_val + x2_val, instr));
+  int32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r1_val - mem_val;
+  isOF = CheckOverflowForIntSub(r1_val, mem_val, int64_t);
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
 
 EVALUATE(MHY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(NG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NG) {
+  DCHECK_OPCODE(NG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t alu_out = get_register(r1);
+  int64_t mem_val = ReadDW(b2_val + x2_val + d2);
+  alu_out &= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(OG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OG) {
+  DCHECK_OPCODE(OG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t alu_out = get_register(r1);
+  int64_t mem_val = ReadDW(b2_val + x2_val + d2);
+  alu_out |= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(XG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XG) {
+  DCHECK_OPCODE(XG);
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t alu_out = get_register(r1);
+  int64_t mem_val = ReadDW(b2_val + x2_val + d2);
+  alu_out ^= mem_val;
+  SetS390BitWiseConditionCode<uint32_t>(alu_out);
+  set_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(LGAT) { return DecodeInstructionOriginal(instr); }
 
@@ -9328,9 +9632,29 @@ EVALUATE(STPQ) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(LPQ) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LLGH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGH) {
+  DCHECK_OPCODE(LLGH);
+  // Load Logical Halfword
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val, instr);
+  set_register(r1, mem_val);
+  return length;
+}
 
-EVALUATE(LLH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLH) {
+  DCHECK_OPCODE(LLH);
+  // Load Logical Halfword
+  DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  uint16_t mem_val = ReadHU(b2_val + d2_val + x2_val, instr);
+  set_low_register(r1, mem_val);
+  return length;
+}
 
 EVALUATE(ML) { return DecodeInstructionOriginal(instr); }
 
@@ -9370,9 +9694,25 @@ EVALUATE(MVCDK) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(MVHHI) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(MVGHI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVGHI) {
+  DCHECK_OPCODE(MVGHI);
+  // Move Integer (64)
+  DECODE_SIL_INSTRUCTION(b1, d1, i2);
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t src_addr = b1_val + d1;
+  WriteDW(src_addr, i2);
+  return length;
+}
 
-EVALUATE(MVHI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVHI) {
+  DCHECK_OPCODE(MVHI);
+  // Move Integer (32)
+  DECODE_SIL_INSTRUCTION(b1, d1, i2);
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t src_addr = b1_val + d1;
+  WriteW(src_addr, i2, instr);
+  return length;
+}
 
 EVALUATE(CHHSI) { return DecodeInstructionOriginal(instr); }
 
@@ -9386,21 +9726,143 @@ EVALUATE(TBEGIN) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(TBEGINC) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LMG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LMG) {
+  DCHECK_OPCODE(LMG);
+  // Store Multiple 64-bits.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  int rb = b2;
+  int offset = d2;
 
-EVALUATE(SRAG) { return DecodeInstructionOriginal(instr); }
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
 
-EVALUATE(SLAG) { return DecodeInstructionOriginal(instr); }
+  int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
 
-EVALUATE(SRLG) { return DecodeInstructionOriginal(instr); }
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int64_t value = ReadDW(rb_val + offset + 8 * i);
+    set_register((r1 + i) % 16, value);
+  }
+  return length;
+}
 
-EVALUATE(SLLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRAG) {
+  DCHECK_OPCODE(SRAG);
+  // 64-bit non-clobbering shift-left/right arithmetic
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int64_t r3_val = get_register(r3);
+  intptr_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r3_val >> shiftBits;
+  set_register(r1, alu_out);
+  SetS390ConditionCode<intptr_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(SLAG) {
+  DCHECK_OPCODE(SLAG);
+  // 64-bit non-clobbering shift-left/right arithmetic
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int64_t r3_val = get_register(r3);
+  intptr_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForShiftLeft(r3_val, shiftBits);
+  alu_out = r3_val << shiftBits;
+  set_register(r1, alu_out);
+  SetS390ConditionCode<intptr_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
+
+EVALUATE(SRLG) {
+  DCHECK_OPCODE(SRLG);
+  // For SLLG/SRLG, the 64-bit third operand is shifted the number
+  // of bits specified by the second-operand address, and the result is
+  // placed at the first-operand location. Except for when the R1 and R3
+  // fields designate the same register, the third operand remains
+  // unchanged in general register R3.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  // unsigned
+  uint64_t r3_val = get_register(r3);
+  uint64_t alu_out = 0;
+  alu_out = r3_val >> shiftBits;
+  set_register(r1, alu_out);
+  return length;
+}
+
+EVALUATE(SLLG) {
+  DCHECK_OPCODE(SLLG);
+  // For SLLG/SRLG, the 64-bit third operand is shifted the number
+  // of bits specified by the second-operand address, and the result is
+  // placed at the first-operand location. Except for when the R1 and R3
+  // fields designate the same register, the third operand remains
+  // unchanged in general register R3.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  // unsigned
+  uint64_t r3_val = get_register(r3);
+  uint64_t alu_out = 0;
+  alu_out = r3_val << shiftBits;
+  set_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(CSY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(RLLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RLLG) {
+  DCHECK_OPCODE(RLLG);
+  // For SLLG/SRLG, the 64-bit third operand is shifted the number
+  // of bits specified by the second-operand address, and the result is
+  // placed at the first-operand location. Except for when the R1 and R3
+  // fields designate the same register, the third operand remains
+  // unchanged in general register R3.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  // unsigned
+  uint64_t r3_val = get_register(r3);
+  uint64_t alu_out = 0;
+  uint64_t rotateBits = r3_val >> (64 - shiftBits);
+  alu_out = (r3_val << shiftBits) | (rotateBits);
+  set_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(STMG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STMG) {
+  DCHECK_OPCODE(STMG);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  int rb = b2;
+  int offset = d2;
+
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
+
+  int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
+
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int64_t value = get_register((r1 + i) % 16);
+    WriteDW(rb_val + offset + 8 * i, value);
+  }
+  return length;
+}
 
 EVALUATE(STMH) { return DecodeInstructionOriginal(instr); }
 
@@ -9418,23 +9880,97 @@ EVALUATE(BXLEG) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(ECAG) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(TMY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TMY) {
+  DCHECK_OPCODE(TMY);
+  // Test Under Mask (Mem - Imm) (8)
+  DECODE_SIY_INSTRUCTION(b1, d1, i2);
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t d1_val = d1;
+  intptr_t addr = b1_val + d1_val;
+  uint8_t mem_val = ReadB(addr);
+  uint8_t imm_val = i2;
+  uint8_t selected_bits = mem_val & imm_val;
+  // CC0: Selected bits are zero
+  // CC1: Selected bits mixed zeros and ones
+  // CC3: Selected bits all ones
+  if (0 == selected_bits) {
+    condition_reg_ = CC_EQ;  // CC0
+  } else if (selected_bits == imm_val) {
+    condition_reg_ = 0x1;  // CC3
+  } else {
+    condition_reg_ = 0x4;  // CC1
+  }
+  return length;
+}
 
 EVALUATE(MVIY) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(NIY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(CLIY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLIY) {
+  DCHECK_OPCODE(CLIY);
+  DECODE_SIY_INSTRUCTION(b1, d1, i2);
+  // Compare Immediate (Mem - Imm) (8)
+  int64_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+  intptr_t d1_val = d1;
+  intptr_t addr = b1_val + d1_val;
+  uint8_t mem_val = ReadB(addr);
+  uint8_t imm_val = i2;
+  SetS390ConditionCode<uint8_t>(mem_val, imm_val);
+  return length;
+}
 
 EVALUATE(OIY) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(XIY) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(ASI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ASI) {
+  DCHECK_OPCODE(ASI);
+  // TODO(bcleung): Change all fooInstr->I2Value() to template functions.
+  // The below static cast to 8 bit and then to 32 bit is necessary
+  // because siyInstr->I2Value() returns a uint8_t, which a direct
+  // cast to int32_t could incorrectly interpret.
+  DECODE_SIY_INSTRUCTION(b1, d1, i2_unsigned);
+  int8_t i2_8bit = static_cast<int8_t>(i2_unsigned);
+  int32_t i2 = static_cast<int32_t>(i2_8bit);
+  intptr_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+
+  int d1_val = d1;
+  intptr_t addr = b1_val + d1_val;
+
+  int32_t mem_val = ReadW(addr, instr);
+  bool isOF = CheckOverflowForIntAdd(mem_val, i2, int32_t);
+  int32_t alu_out = mem_val + i2;
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  WriteW(addr, alu_out, instr);
+  return length;
+}
 
 EVALUATE(ALSI) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(AGSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AGSI) {
+  DCHECK_OPCODE(AGSI);
+  // TODO(bcleung): Change all fooInstr->I2Value() to template functions.
+  // The below static cast to 8 bit and then to 32 bit is necessary
+  // because siyInstr->I2Value() returns a uint8_t, which a direct
+  // cast to int32_t could incorrectly interpret.
+  DECODE_SIY_INSTRUCTION(b1, d1, i2_unsigned);
+  int8_t i2_8bit = static_cast<int8_t>(i2_unsigned);
+  int64_t i2 = static_cast<int64_t>(i2_8bit);
+  intptr_t b1_val = (b1 == 0) ? 0 : get_register(b1);
+
+  int d1_val = d1;
+  intptr_t addr = b1_val + d1_val;
+
+  int64_t mem_val = ReadDW(addr);
+  int isOF = CheckOverflowForIntAdd(mem_val, i2, int64_t);
+  int64_t alu_out = mem_val + i2;
+  SetS390ConditionCode<uint64_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  WriteDW(addr, alu_out);
+  return length;
+}
 
 EVALUATE(ALGSI) { return DecodeInstructionOriginal(instr); }
 
@@ -9446,21 +9982,124 @@ EVALUATE(MVCLU) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(CLCLU) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(STMY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STMY) {
+  DCHECK_OPCODE(STMY);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // Load/Store Multiple (32)
+  int offset = d2;
+
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
+
+  int32_t b2_val = (b2 == 0) ? 0 : get_low_register<int32_t>(b2);
+
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int32_t value = get_low_register<int32_t>((r1 + i) % 16);
+    WriteW(b2_val + offset + 4 * i, value, instr);
+  }
+  return length;
+}
 
 EVALUATE(LMH) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LMY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LMY) {
+  DCHECK_OPCODE(LMY);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // Load/Store Multiple (32)
+  int offset = d2;
+
+  // Regs roll around if r3 is less than r1.
+  // Artifically increase r3 by 16 so we can calculate
+  // the number of regs stored properly.
+  if (r3 < r1) r3 += 16;
+
+  int32_t b2_val = (b2 == 0) ? 0 : get_low_register<int32_t>(b2);
+
+  // Store each register in ascending order.
+  for (int i = 0; i <= r3 - r1; i++) {
+    int32_t value = ReadW(b2_val + offset + 4 * i, instr);
+    set_low_register((r1 + i) % 16, value);
+  }
+  return length;
+}
 
 EVALUATE(TP) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(SRAK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRAK) {
+  DCHECK_OPCODE(SRAK);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // 32-bit non-clobbering shift-left/right arithmetic
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int32_t r3_val = get_low_register<int32_t>(r3);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  alu_out = r3_val >> shiftBits;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
 
-EVALUATE(SLAK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLAK) {
+  DCHECK_OPCODE(SLAK);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // 32-bit non-clobbering shift-left/right arithmetic
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  int32_t r3_val = get_low_register<int32_t>(r3);
+  int32_t alu_out = 0;
+  bool isOF = false;
+  isOF = CheckOverflowForShiftLeft(r3_val, shiftBits);
+  alu_out = r3_val << shiftBits;
+  set_low_register(r1, alu_out);
+  SetS390ConditionCode<int32_t>(alu_out, 0);
+  SetS390OverflowCode(isOF);
+  return length;
+}
 
-EVALUATE(SRLK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRLK) {
+  DCHECK_OPCODE(SRLK);
+  // For SLLK/SRLL, the 32-bit third operand is shifted the number
+  // of bits specified by the second-operand address, and the result is
+  // placed at the first-operand location. Except for when the R1 and R3
+  // fields designate the same register, the third operand remains
+  // unchanged in general register R3.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  // unsigned
+  uint32_t r3_val = get_low_register<uint32_t>(r3);
+  uint32_t alu_out = 0;
+  alu_out = r3_val >> shiftBits;
+  set_low_register(r1, alu_out);
+  return length;
+}
 
-EVALUATE(SLLK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLLK) {
+  DCHECK_OPCODE(SLLK);
+  // For SLLK/SRLL, the 32-bit third operand is shifted the number
+  // of bits specified by the second-operand address, and the result is
+  // placed at the first-operand location. Except for when the R1 and R3
+  // fields designate the same register, the third operand remains
+  // unchanged in general register R3.
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  // only takes rightmost 6 bits
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int shiftBits = (b2_val + d2) & 0x3F;
+  // unsigned
+  uint32_t r3_val = get_low_register<uint32_t>(r3);
+  uint32_t alu_out = 0;
+  alu_out = r3_val << shiftBits;
+  set_low_register(r1, alu_out);
+  return length;
+}
 
 EVALUATE(LOCG) { return DecodeInstructionOriginal(instr); }
 
@@ -9528,7 +10167,20 @@ EVALUATE(CGIB) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(CIB) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(LDEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LDEB) {
+  DCHECK_OPCODE(LDEB);
+  // Load Float
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int rb = b2;
+  int rx = x2;
+  int offset = d2;
+  int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
+  int64_t rx_val = (rx == 0) ? 0 : get_register(rx);
+  double ret =
+      static_cast<double>(*reinterpret_cast<float*>(rx_val + rb_val + offset));
+  set_d_register_from_double(r1, ret);
+  return length;
+}
 
 EVALUATE(LXDB) { return DecodeInstructionOriginal(instr); }
 
@@ -9560,21 +10212,92 @@ EVALUATE(TCXB) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(SQEB) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(SQDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SQDB) {
+  DCHECK_OPCODE(SQDB);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  r1_val = std::sqrt(dbl_val);
+  set_d_register_from_double(r1, r1_val);
+  return length;
+}
 
 EVALUATE(MEEB) { return DecodeInstructionOriginal(instr); }
 
 EVALUATE(KDB) { return DecodeInstructionOriginal(instr); }
 
-EVALUATE(CDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDB) {
+  DCHECK_OPCODE(CDB);
 
-EVALUATE(ADB) { return DecodeInstructionOriginal(instr); }
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  SetS390ConditionCode<double>(r1_val, dbl_val);
+  return length;
+}
 
-EVALUATE(SDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ADB) {
+  DCHECK_OPCODE(ADB);
 
-EVALUATE(MDB) { return DecodeInstructionOriginal(instr); }
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  r1_val += dbl_val;
+  set_d_register_from_double(r1, r1_val);
+  SetS390ConditionCode<double>(r1_val, 0);
+  return length;
+}
 
-EVALUATE(DDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SDB) {
+  DCHECK_OPCODE(SDB);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  r1_val -= dbl_val;
+  set_d_register_from_double(r1, r1_val);
+  SetS390ConditionCode<double>(r1_val, 0);
+  return length;
+}
+
+EVALUATE(MDB) {
+  DCHECK_OPCODE(MDB);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  r1_val *= dbl_val;
+  set_d_register_from_double(r1, r1_val);
+  SetS390ConditionCode<double>(r1_val, 0);
+  return length;
+}
+
+EVALUATE(DDB) {
+  DCHECK_OPCODE(DDB);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  double r1_val = get_double_from_d_register(r1);
+  double dbl_val = ReadDouble(b2_val + x2_val + d2_val);
+  r1_val /= dbl_val;
+  set_d_register_from_double(r1, r1_val);
+  SetS390ConditionCode<double>(r1_val, 0);
+  return length;
+}
 
 EVALUATE(MADB) { return DecodeInstructionOriginal(instr); }
 
