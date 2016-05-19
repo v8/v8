@@ -25,47 +25,22 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-declare_args() {
-  # The snapshot needs to be compiled for the host, but compiled with
-  # a toolchain that matches the bit-width of the target.
-  v8_snapshot_toolchain = ""
-}
+# The snapshot needs to be compiled for the host, but compiled with
+# a toolchain that matches the bit-width of the target.
 
 # TODO(GYP): For now we only support 32-bit little-endian target builds from an
 # x64 Linux host. Eventually we need to support all of the host/target
 # configurations v8 runs on.
-if (v8_snapshot_toolchain == "") {
-  if (host_cpu == "x64" && host_os == "linux") {
-    if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
-      if (target_os == "android" || is_clang) {
-        v8_snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-      } else if (target_os == "chromeos") {
-        # TODO(dpranke): crbug.com/608596: Remove this clause once the
-        # CrOS ebuilds are setting v8_snapshot_toolchain directly and
-        # we've cleaned up the sysroot settings in //build.
-        v8_snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-      } else {
-        v8_snapshot_toolchain = "//build/toolchain/linux:x86"
-      }
-
-    } else if (target_cpu == "x64" || target_cpu == "arm64" ||
-               target_cpu == "mips64el") {
-      if (target_os == "android" || is_clang) {
-        v8_snapshot_toolchain = "//build/toolchain/linux:clang_x64"
-      } else {
-        v8_snapshot_toolchain = "//build/toolchain/linux:x64"
-      }
-    } else {
-      assert(false, "Need environment for this arch: $target_cpu")
-    }
-  } else if (host_os == "mac" && target_os == "win") {
-    v8_snapshot_toolchain = "//build/toolchain/mac:clang_$target_cpu"
+if (host_cpu == "x64" && host_os == "linux") {
+  if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x86"
+  } else if (target_cpu == "x64" || target_cpu == "arm64" || target_cpu == "mips64el") {
+    snapshot_toolchain = "//build/toolchain/linux:clang_x64"
   } else {
-    v8_snapshot_toolchain = default_toolchain
+    assert(false, "Need environment for this arch: $target_cpu")
   }
+} else {
+  snapshot_toolchain = default_toolchain
 }
 
-# TODO(dpranke): snapshot_toolchain is provided for backwards compatibility
-# and should be removed once all callers are updated to refer to
-# v8_snapshot_toolchain directly.
-snapshot_toolchain = v8_snapshot_toolchain
+

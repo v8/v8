@@ -615,7 +615,7 @@ action("run_mksnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":mksnapshot($v8_snapshot_toolchain)",
+    ":mksnapshot($snapshot_toolchain)",
   ]
 
   script = "tools/run.py"
@@ -625,7 +625,7 @@ action("run_mksnapshot") {
   ]
 
   args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
+    "./" + rebase_path(get_label_info(":mksnapshot($snapshot_toolchain)",
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--startup_src",
@@ -2012,7 +2012,7 @@ v8_source_set("fuzzer_support") {
 # Executables
 #
 
-if (current_toolchain == v8_snapshot_toolchain) {
+if (current_toolchain == snapshot_toolchain) {
   executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2114,7 +2114,7 @@ executable("d8") {
   }
 }
 
-if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == v8_snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
+if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
   executable("v8_shell") {
     sources = [
       "samples/shell.cc",
