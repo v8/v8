@@ -1511,8 +1511,9 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiUntag(r8);
   // Switch on the state.
   Label with_tos_register, unknown_state;
-  __ CmpP(r8,
-          Operand(static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS)));
+  __ CmpP(
+      r8,
+      Operand(static_cast<intptr_t>(Deoptimizer::BailoutState::NO_REGISTERS)));
   __ bne(&with_tos_register);
   __ la(sp, MemOperand(sp, 1 * kPointerSize));  // Remove state.
   __ Ret();
@@ -1520,8 +1521,9 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ bind(&with_tos_register);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), r2.code());
   __ LoadP(r2, MemOperand(sp, 1 * kPointerSize));
-  __ CmpP(r8,
-          Operand(static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER)));
+  __ CmpP(
+      r8,
+      Operand(static_cast<intptr_t>(Deoptimizer::BailoutState::TOS_REGISTER)));
   __ bne(&unknown_state);
   __ la(sp, MemOperand(sp, 2 * kPointerSize));  // Remove state.
   __ Ret();
