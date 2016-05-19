@@ -12365,42 +12365,93 @@ void Script::InitLineEnds(Handle<Script> script) {
   DCHECK(script->line_ends()->IsFixedArray());
 }
 
-
-int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
-  int line_number = GetLineNumber(script, code_pos);
-  if (line_number == -1) return -1;
+#define SMI_VALUE(x) (Smi::cast(x)->value())
+bool Script::GetPositionInfo(int position, PositionInfo* info,
+                             OffsetFlag offset_flag) {
+  Handle<Script> script(this);
+  InitLineEnds(script);
 
   DisallowHeapAllocation no_allocation;
-  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
-  line_number = line_number - script->line_offset();
-  if (line_number == 0) return code_pos + script->column_offset();
-  int prev_line_end_pos =
-      Smi::cast(line_ends_array->get(line_number - 1))->value();
-  return code_pos - (prev_line_end_pos + 1);
-}
 
-
-int Script::GetLineNumberWithArray(int code_pos) {
-  DisallowHeapAllocation no_allocation;
   DCHECK(line_ends()->IsFixedArray());
-  FixedArray* line_ends_array = FixedArray::cast(line_ends());
-  int line_ends_len = line_ends_array->length();
-  if (line_ends_len == 0) return -1;
+  FixedArray* ends = FixedArray::cast(line_ends());
 
-  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos) {
-    return line_offset();
+  const int ends_len = ends->length();
+  if (ends_len == 0) return false;
+
+  // Return early on invalid positions. Negative positions behave as if 0 was
+  // passed, and positions beyond the end of the script return as failure.
+  if (position < 0) {
+    position = 0;
+  } else if (position > SMI_VALUE(ends->get(ends_len - 1))) {
+    return false;
   }
 
-  int left = 0;
-  int right = line_ends_len;
-  while (int half = (right - left) / 2) {
-    if ((Smi::cast(line_ends_array->get(left + half)))->value() > code_pos) {
-      right -= half;
-    } else {
-      left += half;
+  // Determine line number by doing a binary search on the line ends array.
+  if (SMI_VALUE(ends->get(0)) >= position) {
+    info->line = 0;
+    info->line_start = 0;
+    info->column = position;
+  } else {
+    int left = 0;
+    int right = ends_len - 1;
+
+    while (right > 0) {
+      DCHECK_LE(left, right);
+      const int mid = (left + right) / 2;
+      if (position > SMI_VALUE(ends->get(mid))) {
+        left = mid + 1;
+      } else if (position <= SMI_VALUE(ends->get(mid - 1))) {
+        right = mid - 1;
+      } else {
+        info->line = mid;
+        break;
+      }
+    }
+    DCHECK(SMI_VALUE(ends->get(info->line)) >= position &&
+           SMI_VALUE(ends->get(info->line - 1)) < position);
+    info->line_start = SMI_VALUE(ends->get(info->line - 1)) + 1;
+    info->column = position - info->line_start;
+  }
+
+  // Line end is position of the linebreak character.
+  info->line_end = SMI_VALUE(ends->get(info->line));
+  if (info->line_end > 0) {
+    DCHECK(source()->IsString());
+    Handle<String> src(String::cast(source()));
+    if (src->Get(info->line_end - 1) == '\r') {
+      info->line_end--;
     }
   }
-  return right + line_offset();
+
+  // Add offsets if requested.
+  if (offset_flag == kWithOffset) {
+    if (info->line == 0) {
+      info->column += column_offset();
+    }
+    info->line += line_offset();
+  }
+
+  return true;
+}
+#undef SMI_VALUE
+
+int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
+  PositionInfo info;
+  if (!script->GetPositionInfo(code_pos, &info, kWithOffset)) {
+    return -1;
+  }
+
+  return info.column;
+}
+
+int Script::GetLineNumberWithArray(int code_pos) {
+  PositionInfo info;
+  if (!GetPositionInfo(code_pos, &info, kWithOffset)) {
+    return -1;
+  }
+
+  return info.line;
 }
 
 
