@@ -30,10 +30,13 @@ void testFunctionNameTable(Vector<Vector<const char>> names) {
 
   WasmModule module;
   std::vector<char> all_names;
+  // No name should have offset 0, because that encodes unnamed functions.
+  // In real wasm binary, offset 0 is impossible anyway.
+  all_names.push_back('\0');
 
   uint32_t func_index = 0;
   for (Vector<const char> name : names) {
-    size_t name_offset = all_names.size();
+    size_t name_offset = name.start() ? all_names.size() : 0;
     all_names.insert(all_names.end(), name.start(),
                      name.start() + name.length());
     // Make every second function name null-terminated.
@@ -53,19 +56,21 @@ void testFunctionNameTable(Vector<Vector<const char>> names) {
 
   func_index = 0;
   for (Vector<const char> name : names) {
-    Handle<Object> string_obj = GetWasmFunctionNameFromTable(
+    MaybeHandle<String> string = GetWasmFunctionNameFromTable(
         Handle<ByteArray>::cast(wasm_function_name_table), func_index);
-    CHECK(!string_obj.is_null());
-    CHECK(string_obj->IsString());
-    Handle<String> string = Handle<String>::cast(string_obj);
-    CHECK(string->IsUtf8EqualTo(name));
+    if (name.start()) {
+      CHECK(string.ToHandleChecked()->IsUtf8EqualTo(name));
+    } else {
+      CHECK(string.is_null());
+    }
     ++func_index;
   }
 }
 
 void testFunctionNameTable(Vector<const char *> names) {
   std::vector<Vector<const char>> names_vec;
-  for (const char *name : names) names_vec.push_back(CStrVector(name));
+  for (const char *name : names)
+    names_vec.push_back(name ? CStrVector(name) : Vector<const char>());
   testFunctionNameTable(Vector<Vector<const char>>(
       names_vec.data(), static_cast<int>(names_vec.size())));
 }
@@ -106,5 +111,10 @@ TEST(ThreeUnnamedFunctions) {
 
 TEST(UTF8Names) {
   const char *names[] = {"↱fun↰", "↺", "alpha:α beta:β"};
+  testFunctionNameTable(ArrayVector(names));
+}
+
+TEST(UnnamedVsEmptyNames) {
+  const char *names[] = {"", nullptr, nullptr, ""};
   testFunctionNameTable(ArrayVector(names));
 }

@@ -630,12 +630,6 @@ function CallSiteGetScriptNameOrSourceURL() {
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
   CheckCallSite(this, "getFunctionName");
-  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
-    var wasm = GET_PRIVATE(this, callSiteWasmObjectSymbol);
-    var func_index = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
-    if (IS_UNDEFINED(wasm)) return "<WASM>";
-    return %WasmGetFunctionName(wasm, func_index);
-  }
   return %CallSiteGetFunctionNameRT(this);
 }
 
@@ -679,7 +673,8 @@ function CallSiteToString() {
     var funName = this.getFunctionName();
     var funcIndex = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
     var pos = this.getPosition();
-    return funName + " (<WASM>:" + funcIndex + ":" + pos + ")";
+    if (IS_NULL(funName)) funName = "<WASM UNNAMED>";
+    return funName + " (<WASM>[" + funcIndex + "]+" + pos + ")";
   }
 
   var fileName;

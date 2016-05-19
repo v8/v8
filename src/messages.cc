@@ -205,12 +205,13 @@ Handle<Object> CallSite::GetFileName() {
 
 Handle<Object> CallSite::GetFunctionName() {
   if (IsWasm()) {
-    if (wasm_obj_->IsUndefined()) return isolate_->factory()->null_value();
-    // wasm_obj_ can be a String if we generate WASM code directly in a test
-    // case.
-    if (wasm_obj_->IsString()) return wasm_obj_;
-    return wasm::GetWasmFunctionName(Handle<JSObject>::cast(wasm_obj_),
-                                     wasm_func_index_);
+    MaybeHandle<String> name;
+    if (!wasm_obj_->IsUndefined()) {
+      name = wasm::GetWasmFunctionName(Handle<JSObject>::cast(wasm_obj_),
+                                       wasm_func_index_);
+    }
+    if (name.is_null()) return isolate_->factory()->null_value();
+    return name.ToHandleChecked();
   }
   Handle<String> result = JSFunction::GetName(fun_);
   if (result->length() != 0) return result;

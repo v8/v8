@@ -332,7 +332,7 @@ static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
                                               wasm::WasmName module_name,
                                               wasm::WasmName function_name) {
-  if (function_name.start()) {
+  if (!function_name.is_empty()) {
     thrower.Error("Import #%d module=\"%.*s\" function=\"%.*s\" error: %s",
                   index, module_name.length(), module_name.start(),
                   function_name.length(), function_name.start(), error);
@@ -368,7 +368,7 @@ static MaybeHandle<JSFunction> LookupFunction(
   }
 
   Handle<Object> function;
-  if (function_name.start()) {
+  if (!function_name.is_empty()) {
     // Look up the function in the module.
     Handle<String> name = factory->InternalizeUtf8String(function_name);
     MaybeHandle<Object> result = Object::GetProperty(module, name);
@@ -977,13 +977,12 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   return -1;
 }
 
-Handle<Object> GetWasmFunctionName(Handle<JSObject> wasm, uint32_t func_index) {
-  Handle<Object> func_names_arr_obj = handle(
-      wasm->GetInternalField(kWasmFunctionNamesArray), wasm->GetIsolate());
-  if (func_names_arr_obj->IsUndefined())
-    return func_names_arr_obj;  // Return undefined.
+MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
+                                        uint32_t func_index) {
+  Object* func_names_arr_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
+  if (func_names_arr_obj->IsUndefined()) return Handle<String>::null();
   return GetWasmFunctionNameFromTable(
-      Handle<ByteArray>::cast(func_names_arr_obj), func_index);
+      handle(ByteArray::cast(func_names_arr_obj)), func_index);
 }
 
 }  // namespace wasm

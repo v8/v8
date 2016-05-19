@@ -16,12 +16,15 @@ namespace wasm {
 struct WasmModule;
 
 // Encode all function names of the WasmModule into one ByteArray.
+// Returns undefined if the array length would not fit in an integer value.
 Handle<Object> BuildFunctionNamesTable(Isolate* isolate, WasmModule* module);
 
-// Extract the function name for the given func_index from the wasm module.
-// Returns undefined if the function index is invalid.
-Handle<Object> GetWasmFunctionNameFromTable(Handle<ByteArray> wasm_names_table,
-                                            uint32_t func_index);
+// Extract the function name for the given func_index from the function name
+// table.
+// Returns a null handle if the respective function is unnamed (not to be
+// confused with empty names) or the function name is not a valid UTF-8 string.
+MaybeHandle<String> GetWasmFunctionNameFromTable(
+    Handle<ByteArray> wasm_names_table, uint32_t func_index);
 
 }  // namespace wasm
 }  // namespace internal

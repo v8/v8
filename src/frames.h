@@ -971,8 +971,6 @@ class WasmFrame : public StandardFrame {
   Object* wasm_obj();
   uint32_t function_index();
 
-  Object* function_name();
-
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());
     return static_cast<WasmFrame*>(frame);

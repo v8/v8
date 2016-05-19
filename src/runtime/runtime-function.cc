@@ -311,15 +311,5 @@ RUNTIME_FUNCTION(Runtime_FunctionToString) {
              : *JSFunction::ToString(Handle<JSFunction>::cast(function));
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetFunctionName) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, wasm, 0);
-  CONVERT_SMI_ARG_CHECKED(func_index, 1);
-
-  return *wasm::GetWasmFunctionName(wasm, func_index);
-}
-
 }  // namespace internal
 }  // namespace v8

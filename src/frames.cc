@@ -16,7 +16,6 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -1353,13 +1352,6 @@ uint32_t WasmFrame::function_index() {
   func_index_obj->ToUint32(&val);
   DCHECK(val != static_cast<uint32_t>(-1));
   return val;
-}
-
-Object* WasmFrame::function_name() {
-  Object* wasm_object = wasm_obj();
-  if (wasm_object->IsUndefined()) return wasm_object;
-  Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
-  return *wasm::GetWasmFunctionName(wasm, function_index());
 }
 
 namespace {

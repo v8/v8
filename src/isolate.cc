@@ -39,7 +39,7 @@
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
-
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -616,11 +616,17 @@ class CaptureStackTraceHelper {
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
-      Handle<Object> fun_name = handle(frame->function_name(), isolate_);
-      if (fun_name->IsUndefined())
-        fun_name = isolate_->factory()->InternalizeUtf8String(
-            Vector<const char>("<WASM>"));
-      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
+      Object* wasm_object = frame->wasm_obj();
+      Handle<String> name;
+      if (!wasm_object->IsUndefined()) {
+        Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
+        wasm::GetWasmFunctionName(wasm, frame->function_index())
+            .ToHandle(&name);
+      }
+      if (name.is_null()) {
+        name = isolate_->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
+      }
+      JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number.
     if (!line_key_.is_null()) {

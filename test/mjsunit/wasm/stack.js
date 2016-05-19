@@ -28,7 +28,7 @@ function verifyStack(frames, expected) {
     var toString;
     if (exp[0]) {
       var funName = exp[1] == "?" ? "" : exp[1];
-      toString = funName + " (<WASM>:" + exp[2] + ":" + exp[3] + ")";
+      toString = funName + " (<WASM>[" + exp[2] + "]+" + exp[3] + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
     }
@@ -72,7 +72,7 @@ var module = builder.instantiate({func: STACK});
   var expected_string = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:42:11)\n" +           // --
-    "    at main (<WASM>:0:1)\n" +                // --
+    "    at main (<WASM>[0]+1)\n" +               // --
     "    at testSimpleStack (stack.js:79:18)\n" + // --
     "    at stack.js:81:3";                       // --
 
