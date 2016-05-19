@@ -463,6 +463,8 @@ void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+inline void Assembler::EmitHelper(uint8_t x);
 
 template <typename T>
 void Assembler::EmitHelper(T x) {
@@ -471,6 +473,14 @@ void Assembler::EmitHelper(T x) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+void Assembler::EmitHelper(uint8_t x) {
+  *reinterpret_cast<uint8_t*>(pc_) = x;
+  pc_ += sizeof(x);
+  if (reinterpret_cast<intptr_t>(pc_) % kInstrSize == 0) {
+    CheckTrampolinePoolQuick();
+  }
+}
 
 void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {
