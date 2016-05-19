@@ -1039,13 +1039,6 @@ Handle<Code> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         return SimpleFieldLoad(index);
       }
-      if (Accessors::IsJSArrayBufferViewFieldAccessor(map, lookup->name(),
-                                                      &object_offset)) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_ArrayBufferViewLoadFieldStub);
-        FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
-        ArrayBufferViewLoadFieldStub stub(isolate(), index);
-        return stub.GetCode();
-      }
 
       if (IsCompatibleReceiver(lookup, map)) {
         Handle<Object> accessors = lookup->GetAccessors();
@@ -1181,8 +1174,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
       int object_offset;
       DCHECK(!Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
                                                  &object_offset));
-      DCHECK(!Accessors::IsJSArrayBufferViewFieldAccessor(map, lookup->name(),
-                                                          &object_offset));
 #endif
 
       DCHECK(IsCompatibleReceiver(lookup, map));

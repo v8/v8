@@ -6559,7 +6559,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsIntegerIndexedExotic() {
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(map_)) return false;
   if (IsJSObjectFieldAccessor()) return IsLoad();
-  if (IsJSArrayBufferViewFieldAccessor()) return IsLoad();
   if (map_->IsJSFunctionMap() && map_->is_constructor() &&
       !map_->has_non_instance_prototype() &&
       name_.is_identical_to(isolate()->factory()->prototype_string())) {
@@ -6603,17 +6602,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
       PropertyAccessInfo test_info(builder_, access_type_, maps->at(i), name_);
       HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
       if (!test_info.GetJSObjectFieldAccess(&test_access)) return false;
-      if (!access.Equals(test_access)) return false;
-    }
-    return true;
-  }
-  if (GetJSArrayBufferViewFieldAccess(&access)) {
-    for (int i = 1; i < maps->length(); ++i) {
-      PropertyAccessInfo test_info(builder_, access_type_, maps->at(i), name_);
-      HObjectAccess test_access = HObjectAccess::ForMap();  // bogus default
-      if (!test_info.GetJSArrayBufferViewFieldAccess(&test_access)) {
-        return false;
-      }
       if (!access.Equals(test_access)) return false;
     }
     return true;
@@ -6668,12 +6656,6 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   HObjectAccess access = HObjectAccess::ForMap();  // bogus default
   if (info->GetJSObjectFieldAccess(&access)) {
     DCHECK(info->IsLoad());
-    return New<HLoadNamedField>(object, checked_object, access);
-  }
-
-  if (info->GetJSArrayBufferViewFieldAccess(&access)) {
-    DCHECK(info->IsLoad());
-    checked_object = Add<HCheckArrayBufferNotNeutered>(checked_object);
     return New<HLoadNamedField>(object, checked_object, access);
   }
 

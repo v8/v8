@@ -404,26 +404,6 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
                                                  field_index, field_type);
     return true;
   }
-  // Check for special JSArrayBufferView field accessors.
-  if (Accessors::IsJSArrayBufferViewFieldAccessor(map, name, &offset)) {
-    FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
-    Type* field_type = Type::Tagged();
-    if (Name::Equals(factory()->byte_length_string(), name) ||
-        Name::Equals(factory()->byte_offset_string(), name)) {
-      // The JSArrayBufferView::byte_length and JSArrayBufferView::byte_offset
-      // properties are always numbers in the range [0, kMaxSafeInteger].
-      field_type = type_cache_.kPositiveSafeInteger;
-    } else if (map->IsJSTypedArrayMap()) {
-      DCHECK(Name::Equals(factory()->length_string(), name));
-      // The JSTypedArray::length property is always a number in the range
-      // [0, kMaxSafeInteger].
-      field_type = type_cache_.kPositiveSafeInteger;
-    }
-    *access_info = PropertyAccessInfo::DataField(
-        Type::Class(map, zone()), field_index, field_type,
-        FieldCheck::kJSArrayBufferViewBufferNotNeutered);
-    return true;
-  }
   return false;
 }
 

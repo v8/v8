@@ -86,23 +86,6 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
 }
 
 
-bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
-                                                 Handle<Name> name,
-                                                 int* object_offset) {
-  DCHECK(name->IsUniqueName());
-  Isolate* isolate = name->GetIsolate();
-
-  switch (map->instance_type()) {
-    case JS_DATA_VIEW_TYPE:
-      return CheckForName(name, isolate->factory()->byte_length_string(),
-                          JSDataView::kByteLengthOffset, object_offset) ||
-             CheckForName(name, isolate->factory()->byte_offset_string(),
-                          JSDataView::kByteOffsetOffset, object_offset);
-    default:
-      return false;
-  }
-}
-
 namespace {
 
 MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(

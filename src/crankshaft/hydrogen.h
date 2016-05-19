@@ -2622,20 +2622,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       return false;
     }
 
-    bool IsJSArrayBufferViewFieldAccessor() {
-      int offset;  // unused
-      return Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset);
-    }
-
-    bool GetJSArrayBufferViewFieldAccess(HObjectAccess* access) {
-      int offset;
-      if (Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset)) {
-        *access = HObjectAccess::ForMapAndOffset(map_, offset);
-        return true;
-      }
-      return false;
-    }
-
     bool has_holder() { return !holder_.is_null(); }
     bool IsLoad() const { return access_type_ == LOAD; }
 
