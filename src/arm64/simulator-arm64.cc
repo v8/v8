@@ -1900,6 +1900,9 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
   }
 }
 
+void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
+  // TODO(binji)
+}
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
   if ((address >= stack_limit_) && (address < stack)) {

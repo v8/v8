@@ -914,6 +914,34 @@ void DisassemblingDecoder::VisitLoadStorePairOffset(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+void DisassemblingDecoder::VisitLoadStoreAcquireRelease(Instruction *instr) {
+  const char *mnemonic = "unimplemented";
+  const char *form = "'Wt, ['Xn]";
+  const char *form_x = "'Xt, ['Xn]";
+  const char *form_stlx = "'Ws, 'Wt, ['Xn]";
+  const char *form_stlx_x = "'Ws, 'Xt, ['Xn]";
+
+  switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
+    case LDAXR_b: mnemonic = "ldaxrb"; break;
+    case STLR_b:  mnemonic = "stlrb"; break;
+    case LDAR_b:  mnemonic = "ldarb"; break;
+    case LDAXR_h: mnemonic = "ldaxrh"; break;
+    case STLR_h:  mnemonic = "stlrh"; break;
+    case LDAR_h:  mnemonic = "ldarh"; break;
+    case LDAXR_w: mnemonic = "ldaxr"; break;
+    case STLR_w:  mnemonic = "stlr"; break;
+    case LDAR_w:  mnemonic = "ldar"; break;
+    case LDAXR_x: mnemonic = "ldaxr"; form = form_x; break;
+    case STLR_x:  mnemonic = "stlr"; form = form_x; break;
+    case LDAR_x:  mnemonic = "ldar"; form = form_x; break;
+    case STLXR_h: mnemonic = "stlxrh"; form = form_stlx; break;
+    case STLXR_b: mnemonic = "stlxrb"; form = form_stlx; break;
+    case STLXR_w: mnemonic = "stlxr"; form = form_stlx; break;
+    case STLXR_x: mnemonic = "stlxr"; form = form_stlx_x; break;
+    default: form = "(LoadStoreAcquireReleaseMask)";
+  }
+  Format(instr, mnemonic, form);
+}
 
 void DisassemblingDecoder::VisitFPCompare(Instruction* instr) {
   const char *mnemonic = "unimplemented";
@@ -1295,6 +1323,9 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       }
       break;
     }
+    case 's':
+      reg_num = instr->Rs();
+      break;
     default: UNREACHABLE();
   }
 
