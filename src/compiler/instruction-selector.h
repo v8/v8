@@ -139,6 +139,8 @@ class InstructionSelector final {
   // TODO(sigurds) This should take a CpuFeatures argument.
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
+  static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
   // ===========================================================================

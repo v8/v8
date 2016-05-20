@@ -1247,7 +1247,29 @@ WASM_EXEC_TEST(LoadMemI64) {
   CHECK_EQ(77777777, r.Call());
 }
 
-WASM_EXEC_TEST(MemI64_Sum) {
+WASM_EXEC_TEST(Run_Wasm_LoadMemI64_alignment) {
+  REQUIRE(I64LoadStore);
+  TestingModule module;
+  int64_t* memory = module.AddMemoryElems<int64_t>(8);
+  for (byte alignment = 0; alignment <= 3; alignment++) {
+    module.RandomizeMemory(1111);
+    WasmRunner<int64_t> r(&module);
+
+    BUILD(r,
+          WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_I8(0), alignment));
+
+    memory[0] = 0xaabbccdd00112233LL;
+    CHECK_EQ(0xaabbccdd00112233LL, r.Call());
+
+    memory[0] = 0x33aabbccdd001122LL;
+    CHECK_EQ(0x33aabbccdd001122LL, r.Call());
+
+    memory[0] = 77777777;
+    CHECK_EQ(77777777, r.Call());
+  }
+}
+
+WASM_EXEC_TEST(Run_Wasm_MemI64_Sum) {
   REQUIRE(I64LoadStore);
   REQUIRE(I64Add);
   REQUIRE(I64Sub);
@@ -1283,7 +1305,24 @@ WASM_EXEC_TEST(MemI64_Sum) {
   }
 }
 
-WASM_EXEC_TEST(I64Global) {
+WASM_EXEC_TEST(Run_Wasm_StoreMemI64_alignment) {
+  TestingModule module;
+  int64_t* memory = module.AddMemoryElems<int64_t>(4);
+  const int64_t kWritten = 0x12345678abcd0011ll;
+
+  for (byte i = 0; i <= 3; i++) {
+    WasmRunner<int64_t> r(&module, MachineType::Int64());
+    BUILD(r, WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ZERO, i,
+                                      WASM_GET_LOCAL(0)));
+    module.RandomizeMemory(1111);
+    memory[0] = 0;
+
+    CHECK_EQ(kWritten, r.Call(kWritten));
+    CHECK_EQ(kWritten, memory[0]);
+  }
+}
+
+WASM_EXEC_TEST(Run_Wasm_I64Global) {
   REQUIRE(I64LoadStore);
   REQUIRE(I64SConvertI32);
   REQUIRE(I64And);

@@ -2100,6 +2100,13 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return flags;
 }
 
+// static
+MachineOperatorBuilder::AlignmentRequirements
+InstructionSelector::AlignmentRequirements() {
+  return MachineOperatorBuilder::AlignmentRequirements::
+      FullUnalignedAccessSupport();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

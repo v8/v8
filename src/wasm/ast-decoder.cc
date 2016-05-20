@@ -1104,8 +1104,8 @@ class SR_WasmDecoder : public WasmDecoder {
   int DecodeLoadMem(LocalType type, MachineType mem_type) {
     MemoryAccessOperand operand(this, pc_);
     Value index = Pop(0, kAstI32);
-    TFNode* node =
-        BUILD(LoadMem, type, mem_type, index.node, operand.offset, position());
+    TFNode* node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
+                         operand.alignment, position());
     Push(type, node);
     return 1 + operand.length;
   }
@@ -1114,7 +1114,8 @@ class SR_WasmDecoder : public WasmDecoder {
     MemoryAccessOperand operand(this, pc_);
     Value val = Pop(1, type);
     Value index = Pop(0, kAstI32);
-    BUILD(StoreMem, mem_type, index.node, operand.offset, val.node, position());
+    BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
+          val.node, position());
     Push(type, val.node);
     return 1 + operand.length;
   }

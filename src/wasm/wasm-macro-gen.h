@@ -364,6 +364,15 @@ class LocalDeclEncoder {
       static_cast<byte>(                                                   \
           v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, true)), \
       ZERO_ALIGNMENT, static_cast<byte>(offset)
+#define WASM_LOAD_MEM_ALIGNMENT(type, index, alignment)                        \
+  index, static_cast<byte>(                                                    \
+             v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \
+      alignment, ZERO_OFFSET
+#define WASM_STORE_MEM_ALIGNMENT(type, index, alignment, val)              \
+  index, val,                                                              \
+      static_cast<byte>(                                                   \
+          v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, true)), \
+      alignment, ZERO_OFFSET
 
 #define WASM_CALL_FUNCTION0(index) \
   kExprCallFunction, 0, static_cast<byte>(index)

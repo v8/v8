@@ -1822,6 +1822,13 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kWord64Popcnt;
 }
 
+// static
+MachineOperatorBuilder::AlignmentRequirements
+InstructionSelector::AlignmentRequirements() {
+  return MachineOperatorBuilder::AlignmentRequirements::
+      FullUnalignedAccessSupport();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

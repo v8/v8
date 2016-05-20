@@ -1287,7 +1287,28 @@ WASM_EXEC_TEST(LoadMemI32) {
   CHECK_EQ(77777777, r.Call(0));
 }
 
-WASM_EXEC_TEST(LoadMemI32_oob) {
+WASM_EXEC_TEST(Run_Wasm_LoadMemI32_alignment) {
+  TestingModule module;
+  int32_t* memory = module.AddMemoryElems<int32_t>(8);
+  for (byte alignment = 0; alignment <= 2; alignment++) {
+    WasmRunner<int32_t> r(&module, MachineType::Int32());
+    module.RandomizeMemory(1111);
+
+    BUILD(r,
+          WASM_LOAD_MEM_ALIGNMENT(MachineType::Int32(), WASM_I8(0), alignment));
+
+    memory[0] = 0x1a2b3c4d;
+    CHECK_EQ(0x1a2b3c4d, r.Call(0));
+
+    memory[0] = 0x5e6f7a8b;
+    CHECK_EQ(0x5e6f7a8b, r.Call(0));
+
+    memory[0] = 0x9ca0b1c2;
+    CHECK_EQ(0x9ca0b1c2, r.Call(0));
+  }
+}
+
+WASM_EXEC_TEST(Run_Wasm_LoadMemI32_oob) {
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
   WasmRunner<int32_t> r(&module, MachineType::Uint32());
@@ -1357,9 +1378,7 @@ WASM_EXEC_TEST(LoadMemI32_offset) {
   CHECK_EQ(44444444, r.Call(8));
 }
 
-#if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
-
-WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
+WASM_EXEC_TEST(Run_Wasm_LoadMemI32_const_oob_misaligned) {
   const int kMemSize = 12;
   // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
   for (int offset = 0; offset < kMemSize + 5; offset++) {
@@ -1382,9 +1401,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
   }
 }
 
-#endif
-
-WASM_EXEC_TEST(LoadMemI32_const_oob) {
+WASM_EXEC_TEST(Run_Wasm_LoadMemI32_const_oob) {
   const int kMemSize = 24;
   for (int offset = 0; offset < kMemSize + 5; offset += 4) {
     for (int index = 0; index < kMemSize + 5; index += 4) {
@@ -1406,7 +1423,24 @@ WASM_EXEC_TEST(LoadMemI32_const_oob) {
   }
 }
 
-WASM_EXEC_TEST(StoreMemI32_offset) {
+WASM_EXEC_TEST(Run_Wasm_StoreMemI32_alignment) {
+  TestingModule module;
+  int32_t* memory = module.AddMemoryElems<int32_t>(4);
+  const int32_t kWritten = 0x12345678;
+
+  for (byte i = 0; i <= 2; i++) {
+    WasmRunner<int32_t> r(&module, MachineType::Int32());
+    BUILD(r, WASM_STORE_MEM_ALIGNMENT(MachineType::Int32(), WASM_ZERO, i,
+                                      WASM_GET_LOCAL(0)));
+    module.RandomizeMemory(1111);
+    memory[0] = 0;
+
+    CHECK_EQ(kWritten, r.Call(kWritten));
+    CHECK_EQ(kWritten, memory[0]);
+  }
+}
+
+WASM_EXEC_TEST(Run_Wasm_StoreMemI32_offset) {
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(4);
   WasmRunner<int32_t> r(&module, MachineType::Int32());

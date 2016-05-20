@@ -539,11 +539,13 @@ struct MachineOperatorGlobalCache {
 static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
-
-MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone,
-                                               MachineRepresentation word,
-                                               Flags flags)
-    : cache_(kCache.Get()), word_(word), flags_(flags) {
+MachineOperatorBuilder::MachineOperatorBuilder(
+    Zone* zone, MachineRepresentation word, Flags flags,
+    AlignmentRequirements alignmentRequirements)
+    : cache_(kCache.Get()),
+      word_(word),
+      flags_(flags),
+      alignment_requirements_(alignmentRequirements) {
   DCHECK(word == MachineRepresentation::kWord32 ||
          word == MachineRepresentation::kWord64);
 }

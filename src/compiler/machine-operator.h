@@ -123,10 +123,74 @@ class MachineOperatorBuilder final : public ZoneObject {
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
+  class AlignmentRequirements {
+   public:
+    enum UnalignedAccessSupport { kNoSupport, kSomeSupport, kFullSupport };
+
+    bool IsUnalignedLoadSupported(const MachineType& machineType,
+                                  uint8_t alignment) const {
+      return IsUnalignedSupported(unalignedLoadSupportedTypes_, machineType,
+                                  alignment);
+    }
+
+    bool IsUnalignedStoreSupported(const MachineType& machineType,
+                                   uint8_t alignment) const {
+      return IsUnalignedSupported(unalignedStoreSupportedTypes_, machineType,
+                                  alignment);
+    }
+
+    static AlignmentRequirements FullUnalignedAccessSupport() {
+      return AlignmentRequirements(kFullSupport);
+    }
+    static AlignmentRequirements NoUnalignedAccessSupport() {
+      return AlignmentRequirements(kNoSupport);
+    }
+    static AlignmentRequirements SomeUnalignedAccessSupport(
+        const Vector<MachineType>& unalignedLoadSupportedTypes,
+        const Vector<MachineType>& unalignedStoreSupportedTypes) {
+      return AlignmentRequirements(kSomeSupport, unalignedLoadSupportedTypes,
+                                   unalignedStoreSupportedTypes);
+    }
+
+   private:
+    explicit AlignmentRequirements(
+        AlignmentRequirements::UnalignedAccessSupport unalignedAccessSupport,
+        Vector<MachineType> unalignedLoadSupportedTypes =
+            Vector<MachineType>(NULL, 0),
+        Vector<MachineType> unalignedStoreSupportedTypes =
+            Vector<MachineType>(NULL, 0))
+        : unalignedSupport_(unalignedAccessSupport),
+          unalignedLoadSupportedTypes_(unalignedLoadSupportedTypes),
+          unalignedStoreSupportedTypes_(unalignedStoreSupportedTypes) {}
+
+    bool IsUnalignedSupported(const Vector<MachineType>& supported,
+                              const MachineType& machineType,
+                              uint8_t alignment) const {
+      if (unalignedSupport_ == kFullSupport) {
+        return true;
+      } else if (unalignedSupport_ == kNoSupport) {
+        return false;
+      } else {
+        for (MachineType m : supported) {
+          if (m == machineType) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+
+    const AlignmentRequirements::UnalignedAccessSupport unalignedSupport_;
+    const Vector<MachineType> unalignedLoadSupportedTypes_;
+    const Vector<MachineType> unalignedStoreSupportedTypes_;
+  };
+
   explicit MachineOperatorBuilder(
       Zone* zone,
       MachineRepresentation word = MachineType::PointerRepresentation(),
-      Flags supportedOperators = kNoFlags);
+      Flags supportedOperators = kNoFlags,
+      AlignmentRequirements alignmentRequirements =
+          AlignmentRequirements::NoUnalignedAccessSupport());
 
   const Operator* DebugBreak();
 
@@ -515,6 +579,18 @@ class MachineOperatorBuilder final : public ZoneObject {
   bool Is64() const { return word() == MachineRepresentation::kWord64; }
   MachineRepresentation word() const { return word_; }
 
+  bool UnalignedLoadSupported(const MachineType& machineType,
+                              uint8_t alignment) {
+    return alignment_requirements_.IsUnalignedLoadSupported(machineType,
+                                                            alignment);
+  }
+
+  bool UnalignedStoreSupported(const MachineType& machineType,
+                               uint8_t alignment) {
+    return alignment_requirements_.IsUnalignedStoreSupported(machineType,
+                                                             alignment);
+  }
+
 // Pseudo operators that translate to 32/64-bit operators depending on the
 // word-size of the target machine assumed by this builder.
 #define PSEUDO_OP_LIST(V) \
@@ -549,6 +625,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   MachineOperatorGlobalCache const& cache_;
   MachineRepresentation const word_;
   Flags const flags_;
+  AlignmentRequirements const alignment_requirements_;
 
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);
 };
