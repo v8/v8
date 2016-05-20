@@ -3711,6 +3711,35 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           object->set_length(*length);
           return object;
         }
+        case JS_FUNCTION_TYPE: {
+          Handle<JSFunction> object =
+              isolate_->factory()->NewFunctionFromSharedFunctionInfo(
+                  handle(isolate_->object_function()->shared()),
+                  handle(isolate_->context()));
+          slot->value_ = object;
+          // We temporarily allocated a JSFunction for the {Object} function
+          // within the current context, to break cycles in the object graph.
+          // The correct function and context will be set below once available.
+          Handle<Object> properties = MaterializeAt(frame_index, value_index);
+          Handle<Object> elements = MaterializeAt(frame_index, value_index);
+          Handle<Object> prototype = MaterializeAt(frame_index, value_index);
+          Handle<Object> shared = MaterializeAt(frame_index, value_index);
+          Handle<Object> context = MaterializeAt(frame_index, value_index);
+          Handle<Object> literals = MaterializeAt(frame_index, value_index);
+          Handle<Object> entry = MaterializeAt(frame_index, value_index);
+          Handle<Object> next_link = MaterializeAt(frame_index, value_index);
+          object->ReplaceCode(*isolate_->builtins()->CompileLazy());
+          object->set_map(*map);
+          object->set_properties(FixedArray::cast(*properties));
+          object->set_elements(FixedArrayBase::cast(*elements));
+          object->set_prototype_or_initial_map(*prototype);
+          object->set_shared(SharedFunctionInfo::cast(*shared));
+          object->set_context(Context::cast(*context));
+          object->set_literals(LiteralsArray::cast(*literals));
+          CHECK(entry->IsNumber());  // Entry to compile lazy stub.
+          CHECK(next_link->IsUndefined());
+          return object;
+        }
         case FIXED_ARRAY_TYPE: {
           Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
           int32_t length = 0;
