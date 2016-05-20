@@ -1327,10 +1327,23 @@ bool EscapeAnalysis::CompareVirtualObjects(Node* left, Node* right) {
   return false;
 }
 
-int EscapeAnalysis::OffsetFromAccess(Node* node) {
-  DCHECK(OpParameter<FieldAccess>(node).offset % kPointerSize == 0);
-  return OpParameter<FieldAccess>(node).offset / kPointerSize;
+namespace {
+
+int OffsetForFieldAccess(Node* node) {
+  FieldAccess access = FieldAccessOf(node->op());
+  DCHECK_EQ(access.offset % kPointerSize, 0);
+  return access.offset / kPointerSize;
 }
+
+int OffsetForElementAccess(Node* node, int index) {
+  ElementAccess access = ElementAccessOf(node->op());
+  DCHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
+            kPointerSizeLog2);
+  DCHECK_EQ(access.header_size % kPointerSize, 0);
+  return access.header_size / kPointerSize + index;
+}
+
+}  // namespace
 
 void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
                                         VirtualState* state) {
@@ -1374,7 +1387,7 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
   Node* from = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
   VirtualState* state = virtual_states_[node->id()];
   if (VirtualObject* object = GetVirtualObject(state, from)) {
-    int offset = OffsetFromAccess(node);
+    int offset = OffsetForFieldAccess(node);
     if (!object->IsTracked() ||
         static_cast<size_t>(offset) >= object->field_count()) {
       return;
@@ -1386,8 +1399,8 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
     // Record that the load has this alias.
     UpdateReplacement(state, node, value);
   } else if (from->opcode() == IrOpcode::kPhi &&
-             OpParameter<FieldAccess>(node).offset % kPointerSize == 0) {
-    int offset = OffsetFromAccess(node);
+             FieldAccessOf(node->op()).offset % kPointerSize == 0) {
+    int offset = OffsetForFieldAccess(node);
     // Only binary phis are supported for now.
     ProcessLoadFromPhi(offset, from, node, state);
   } else {
@@ -1406,19 +1419,13 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
          index_node->opcode() != IrOpcode::kInt64Constant &&
          index_node->opcode() != IrOpcode::kFloat32Constant &&
          index_node->opcode() != IrOpcode::kFloat64Constant);
-  ElementAccess access = OpParameter<ElementAccess>(node);
   if (index.HasValue()) {
-    int offset = index.Value() + access.header_size / kPointerSize;
     if (VirtualObject* object = GetVirtualObject(state, from)) {
-      CHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-               kPointerSizeLog2);
-      CHECK_EQ(access.header_size % kPointerSize, 0);
-
+      int offset = OffsetForElementAccess(node, index.Value());
       if (!object->IsTracked() ||
           static_cast<size_t>(offset) >= object->field_count()) {
         return;
       }
-
       Node* value = object->GetField(offset);
       if (value) {
         value = ResolveReplacement(value);
@@ -1426,8 +1433,7 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
       // Record that the load has this alias.
       UpdateReplacement(state, node, value);
     } else if (from->opcode() == IrOpcode::kPhi) {
-      ElementAccess access = OpParameter<ElementAccess>(node);
-      int offset = index.Value() + access.header_size / kPointerSize;
+      int offset = OffsetForElementAccess(node, index.Value());
       ProcessLoadFromPhi(offset, from, node, state);
     } else {
       UpdateReplacement(state, node, nullptr);
@@ -1450,7 +1456,7 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
   Node* to = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
   VirtualState* state = virtual_states_[node->id()];
   VirtualObject* obj = GetVirtualObject(state, to);
-  int offset = OffsetFromAccess(node);
+  int offset = OffsetForFieldAccess(node);
   if (obj && obj->IsTracked() &&
       static_cast<size_t>(offset) < obj->field_count()) {
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
@@ -1471,16 +1477,12 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
          index_node->opcode() != IrOpcode::kInt64Constant &&
          index_node->opcode() != IrOpcode::kFloat32Constant &&
          index_node->opcode() != IrOpcode::kFloat64Constant);
-  ElementAccess access = OpParameter<ElementAccess>(node);
   VirtualState* state = virtual_states_[node->id()];
   VirtualObject* obj = GetVirtualObject(state, to);
   if (index.HasValue()) {
-    int offset = index.Value() + access.header_size / kPointerSize;
+    int offset = OffsetForElementAccess(node, index.Value());
     if (obj && obj->IsTracked() &&
         static_cast<size_t>(offset) < obj->field_count()) {
-      CHECK_GE(ElementSizeLog2Of(access.machine_type.representation()),
-               kPointerSizeLog2);
-      CHECK_EQ(access.header_size % kPointerSize, 0);
       Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 2));
       if (obj->GetField(offset) != val) {
         obj = CopyForModificationAt(obj, state, node);

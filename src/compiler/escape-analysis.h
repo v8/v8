@@ -51,7 +51,6 @@ class EscapeAnalysis {
                           VirtualState* states);
 
   void ForwardVirtualState(Node* node);
-  int OffsetFromAccess(Node* node);
   VirtualState* CopyForModificationAt(VirtualState* state, Node* node);
   VirtualObject* CopyForModificationAt(VirtualObject* obj, VirtualState* state,
                                        Node* node);
