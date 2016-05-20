@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api.h"
 #include "src/api-natives.h"
+#include "src/api.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/isolate.h"
@@ -121,7 +122,8 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
-    i::ParseInfo* info, i::Handle<i::Object> foreign, ErrorThrower* thrower) {
+    i::ParseInfo* info, ErrorThrower* thrower,
+    i::Handle<i::FixedArray>* foreign_args) {
   info->set_global();
   info->set_lazy(false);
   info->set_allow_lazy_parsing(false);
@@ -149,18 +151,18 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
     return nullptr;
   }
 
-  auto module =
-      v8::internal::wasm::AsmWasmBuilder(info->isolate(), info->zone(),
-                                         info->literal(), foreign, &typer)
-          .Run();
+  v8::internal::wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),
+                                             info->literal(), &typer);
+
+  auto module = builder.Run(foreign_args);
 
   return module;
 }
 
-void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
-                             const byte* start, const byte* end,
-                             ErrorThrower* thrower,
-                             internal::wasm::ModuleOrigin origin) {
+i::MaybeHandle<i::JSObject> InstantiateModuleCommon(
+    const v8::FunctionCallbackInfo<v8::Value>& args, const byte* start,
+    const byte* end, ErrorThrower* thrower,
+    internal::wasm::ModuleOrigin origin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
@@ -176,6 +178,7 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
   internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
       isolate, &zone, start, end, false, origin);
 
+  i::MaybeHandle<i::JSObject> object;
   if (result.failed() && origin == internal::wasm::kAsmJsOrigin) {
     thrower->Error("Asm.js converted module failed to decode");
   } else if (result.failed()) {
@@ -188,8 +191,7 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
       ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
     }
 
-    i::MaybeHandle<i::JSObject> object =
-        result.val->Instantiate(isolate, ffi, memory);
+    object = result.val->Instantiate(isolate, ffi, memory);
 
     if (!object.is_null()) {
       args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
@@ -197,6 +199,7 @@ void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
   }
 
   if (result.val) delete result.val;
+  return object;
 }
 
 void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -221,13 +224,54 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
     foreign = v8::Utils::OpenHandle(*local_foreign);
   }
 
-  auto module = TranslateAsmModule(&info, foreign, &thrower);
+  i::Handle<i::FixedArray> foreign_args;
+  auto module = TranslateAsmModule(&info, &thrower, &foreign_args);
   if (module == nullptr) {
     return;
   }
 
-  InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower,
-                          internal::wasm::kAsmJsOrigin);
+  i::MaybeHandle<i::Object> maybe_module_object =
+      InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower,
+                              internal::wasm::kAsmJsOrigin);
+  if (maybe_module_object.is_null()) {
+    return;
+  }
+
+  i::Handle<i::Name> name =
+      factory->NewStringFromStaticChars("__foreign_init__");
+
+  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
+  i::MaybeHandle<i::Object> maybe_init =
+      i::Object::GetProperty(module_object, name);
+  DCHECK(!maybe_init.is_null());
+
+  i::Handle<i::Object> init = maybe_init.ToHandleChecked();
+  i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
+  i::Handle<i::Object>* foreign_args_array =
+      new i::Handle<i::Object>[foreign_args->length()];
+  for (int j = 0; j < foreign_args->length(); j++) {
+    if (!foreign.is_null()) {
+      i::MaybeHandle<i::Name> name = i::Object::ToName(
+          isolate, i::Handle<i::Object>(foreign_args->get(j), isolate));
+      if (!name.is_null()) {
+        i::MaybeHandle<i::Object> val =
+            i::Object::GetProperty(foreign, name.ToHandleChecked());
+        if (!val.is_null()) {
+          foreign_args_array[j] = val.ToHandleChecked();
+          continue;
+        }
+      }
+    }
+    foreign_args_array[j] = undefined;
+  }
+  i::MaybeHandle<i::Object> retval = i::Execution::Call(
+      isolate, init, undefined, foreign_args->length(), foreign_args_array);
+  delete[] foreign_args_array;
+
+  if (retval.is_null()) {
+    thrower.Error(
+        "WASM.instantiateModuleFromAsm(): foreign init function failed");
+  }
 }
 
 void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {

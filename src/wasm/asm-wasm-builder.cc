@@ -33,10 +33,16 @@ namespace wasm {
 
 enum AsmScope { kModuleScope, kInitScope, kFuncScope, kExportScope };
 
+struct ForeignVariable {
+  Handle<Name> name;
+  Variable* var;
+  LocalType type;
+};
+
 class AsmWasmBuilderImpl : public AstVisitor {
  public:
   AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal,
-                     Handle<Object> foreign, AsmTyper* typer)
+                     AsmTyper* typer)
       : local_variables_(HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
@@ -51,11 +57,12 @@ class AsmWasmBuilderImpl : public AstVisitor {
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
-        foreign_(foreign),
         typer_(typer),
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
+        foreign_variables_(zone),
         init_function_index_(0),
+        foreign_init_function_index_(0),
         next_table_index_(0),
         function_tables_(HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
@@ -74,9 +81,43 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_ = nullptr;
   }
 
+  void BuildForeignInitFunction() {
+    foreign_init_function_index_ = builder_->AddFunction();
+    FunctionSig::Builder b(zone(), 0, foreign_variables_.size());
+    for (auto i = foreign_variables_.begin(); i != foreign_variables_.end();
+         ++i) {
+      b.AddParam(i->type);
+    }
+    current_function_builder_ =
+        builder_->FunctionAt(foreign_init_function_index_);
+    current_function_builder_->Exported(1);
+    std::string raw_name = "__foreign_init__";
+    current_function_builder_->SetName(raw_name.data(),
+                                       static_cast<int>(raw_name.size()));
+    current_function_builder_->SetSignature(b.Build());
+    for (size_t pos = 0; pos < foreign_variables_.size(); ++pos) {
+      current_function_builder_->EmitGetLocal(static_cast<uint32_t>(pos));
+      ForeignVariable* fv = &foreign_variables_[pos];
+      uint32_t index = LookupOrInsertGlobal(fv->var, fv->type);
+      current_function_builder_->EmitWithVarInt(kExprStoreGlobal, index);
+    }
+    current_function_builder_ = nullptr;
+  }
+
+  i::Handle<i::FixedArray> GetForeignArgs() {
+    i::Handle<FixedArray> ret = isolate_->factory()->NewFixedArray(
+        static_cast<int>(foreign_variables_.size()));
+    for (size_t i = 0; i < foreign_variables_.size(); ++i) {
+      ForeignVariable* fv = &foreign_variables_[i];
+      ret->set(static_cast<int>(i), *fv->name);
+    }
+    return ret;
+  }
+
   void Compile() {
     InitializeInitFunction();
     RECURSE(VisitFunctionLiteral(literal_));
+    BuildForeignInitFunction();
   }
 
   void VisitVariableDeclaration(VariableDeclaration* decl) {}
@@ -706,13 +747,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
           DCHECK(binop->right()->IsLiteral());
           DCHECK_EQ(1.0, binop->right()->AsLiteral()->raw_value()->AsNumber());
           DCHECK(binop->right()->AsLiteral()->raw_value()->ContainsDot());
-          VisitForeignVariable(true, prop);
+          DCHECK(target->IsVariableProxy());
+          VisitForeignVariable(true, target->AsVariableProxy()->var(), prop);
+          *is_nop = true;
           return;
         } else if (binop->op() == Token::BIT_OR) {
           DCHECK(binop->right()->IsLiteral());
           DCHECK_EQ(0.0, binop->right()->AsLiteral()->raw_value()->AsNumber());
           DCHECK(!binop->right()->AsLiteral()->raw_value()->ContainsDot());
-          VisitForeignVariable(false, prop);
+          DCHECK(target->IsVariableProxy());
+          VisitForeignVariable(false, target->AsVariableProxy()->var(), prop);
+          *is_nop = true;
           return;
         } else {
           UNREACHABLE();
@@ -835,51 +880,18 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitThrow(Throw* expr) { UNREACHABLE(); }
 
-  void VisitForeignVariable(bool is_float, Property* expr) {
+  void VisitForeignVariable(bool is_float, Variable* var, Property* expr) {
     DCHECK(expr->obj()->AsVariableProxy());
     DCHECK(VariableLocation::PARAMETER ==
            expr->obj()->AsVariableProxy()->var()->location());
     DCHECK_EQ(1, expr->obj()->AsVariableProxy()->var()->index());
     Literal* key_literal = expr->key()->AsLiteral();
     DCHECK_NOT_NULL(key_literal);
-    if (!key_literal->value().is_null() && !foreign_.is_null() &&
-        foreign_->IsObject()) {
+    if (!key_literal->value().is_null()) {
       Handle<Name> name =
           i::Object::ToName(isolate_, key_literal->value()).ToHandleChecked();
-      MaybeHandle<Object> maybe_value = i::Object::GetProperty(foreign_, name);
-      if (!maybe_value.is_null()) {
-        Handle<Object> value = maybe_value.ToHandleChecked();
-        if (is_float) {
-          MaybeHandle<Object> maybe_nvalue = i::Object::ToNumber(value);
-          if (!maybe_nvalue.is_null()) {
-            Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
-            if (nvalue->IsNumber()) {
-              double val = nvalue->Number();
-              byte code[] = {WASM_F64(val)};
-              current_function_builder_->EmitCode(code, sizeof(code));
-              return;
-            }
-          }
-        } else {
-          MaybeHandle<Object> maybe_nvalue =
-              i::Object::ToInt32(isolate_, value);
-          if (!maybe_nvalue.is_null()) {
-            Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
-            if (nvalue->IsNumber()) {
-              int32_t val = static_cast<int32_t>(nvalue->Number());
-              current_function_builder_->EmitI32Const(val);
-              return;
-            }
-          }
-        }
-      }
-    }
-    if (is_float) {
-      byte code[] = {WASM_F64(std::numeric_limits<double>::quiet_NaN())};
-      current_function_builder_->EmitCode(code, sizeof(code));
-    } else {
-      byte code[] = {WASM_I32V_1(0)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      LocalType type = is_float ? kAstF64 : kAstI32;
+      foreign_variables_.push_back({name, var, type});
     }
   }
 
@@ -1724,11 +1736,12 @@ class AsmWasmBuilderImpl : public AstVisitor {
   FunctionLiteral* literal_;
   Isolate* isolate_;
   Zone* zone_;
-  Handle<Object> foreign_;
   AsmTyper* typer_;
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
+  ZoneVector<ForeignVariable> foreign_variables_;
   uint32_t init_function_index_;
+  uint32_t foreign_init_function_index_;
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;
@@ -1741,19 +1754,15 @@ class AsmWasmBuilderImpl : public AstVisitor {
 };
 
 AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                               FunctionLiteral* literal, Handle<Object> foreign,
-                               AsmTyper* typer)
-    : isolate_(isolate),
-      zone_(zone),
-      literal_(literal),
-      foreign_(foreign),
-      typer_(typer) {}
+                               FunctionLiteral* literal, AsmTyper* typer)
+    : isolate_(isolate), zone_(zone), literal_(literal), typer_(typer) {}
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-WasmModuleIndex* AsmWasmBuilder::Run() {
-  AsmWasmBuilderImpl impl(isolate_, zone_, literal_, foreign_, typer_);
+WasmModuleIndex* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
+  AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
   impl.Compile();
+  *foreign_args = impl.GetForeignArgs();
   WasmModuleWriter* writer = impl.builder_->Build(zone_);
   return writer->WriteTo(zone_);
 }

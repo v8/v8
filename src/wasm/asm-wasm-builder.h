@@ -21,14 +21,13 @@ namespace wasm {
 class AsmWasmBuilder {
  public:
   explicit AsmWasmBuilder(Isolate* isolate, Zone* zone, FunctionLiteral* root,
-                          Handle<Object> foreign, AsmTyper* typer);
-  WasmModuleIndex* Run();
+                          AsmTyper* typer);
+  WasmModuleIndex* Run(Handle<FixedArray>* foreign_args);
 
  private:
   Isolate* isolate_;
   Zone* zone_;
   FunctionLiteral* literal_;
-  Handle<Object> foreign_;
   AsmTyper* typer_;
 };
 }  // namespace wasm
