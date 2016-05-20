@@ -719,14 +719,9 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
   }
   // 4. Let len be ? ToLength(? Get(obj, "length")).
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-  Handle<Object> raw_length_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, raw_length_obj,
-      JSReceiver::GetProperty(receiver, isolate->factory()->length_string()),
-      FixedArray);
   Handle<Object> raw_length_number;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
-                             Object::ToLength(isolate, raw_length_obj),
+                             Object::GetLengthFromArrayLike(isolate, receiver),
                              FixedArray);
   uint32_t len;
   if (!raw_length_number->ToUint32(&len) ||
@@ -771,6 +766,16 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
   return list;
 }
 
+
+// static
+MaybeHandle<Object> Object::GetLengthFromArrayLike(Isolate* isolate,
+                                                   Handle<Object> object) {
+  Handle<Object> val;
+  Handle<Object> key = isolate->factory()->length_string();
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, val, Runtime::GetObjectProperty(isolate, object, key), Object);
+  return Object::ToLength(isolate, val);
+}
 
 // static
 Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {

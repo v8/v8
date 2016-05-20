@@ -1177,6 +1177,10 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<FixedArray> CreateListFromArrayLike(
       Isolate* isolate, Handle<Object> object, ElementTypes element_types);
 
+  // Get length property and apply ToLength.
+  MUST_USE_RESULT static MaybeHandle<Object> GetLengthFromArrayLike(
+      Isolate* isolate, Handle<Object> object);
+
   // Check whether |object| is an instance of Error or NativeError.
   static bool IsErrorObject(Isolate* isolate, Handle<Object> object);
 

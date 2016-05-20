@@ -85,8 +85,10 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(Result SerializeJSArray(Handle<JSArray> object));
   INLINE(Result SerializeJSObject(Handle<JSObject> object));
 
-  Result SerializeJSArraySlow(Handle<JSArray> object, uint32_t start,
-                              uint32_t length);
+  Result SerializeJSProxy(Handle<JSProxy> object);
+  Result SerializeJSReceiverSlow(Handle<JSReceiver> object);
+  Result SerializeArrayLikeSlow(Handle<JSReceiver> object, uint32_t start,
+                                uint32_t length);
 
   void SerializeString(Handle<String> object);
 
@@ -326,7 +328,7 @@ void BasicJsonStringifier::StackPop() {
 template <bool deferred_string_key>
 BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
     Handle<Object> object, bool comma, Handle<Object> key) {
-  if (object->IsJSObject()) {
+  if (object->IsJSReceiver()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, object,
         ApplyToJsonFunction(object, key),
@@ -372,11 +374,14 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
-      } else if (object->IsJSObject()) {
+      } else if (object->IsJSReceiver()) {
         if (object->IsCallable()) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (object->IsAccessCheckNeeded() || object->IsJSGlobalProxy()) break;
         if (deferred_string_key) SerializeDeferredKey(comma, key);
+        if (object->IsJSProxy()) {
+          return SerializeJSProxy(Handle<JSProxy>::cast(object));
+        }
         return SerializeJSObject(Handle<JSObject>::cast(object));
       }
   }
@@ -494,7 +499,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       for (uint32_t i = 0; i < length; i++) {
         if (object->length() != *old_length ||
             object->GetElementsKind() != FAST_ELEMENTS) {
-          Result result = SerializeJSArraySlow(object, i, length);
+          Result result = SerializeArrayLikeSlow(object, i, length);
           if (result != SUCCESS) return result;
           break;
         }
@@ -516,7 +521,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
     // The FAST_HOLEY_* cases could be handled in a faster way. They resemble
     // the non-holey cases except that a lookup is necessary for holes.
     default: {
-      Result result = SerializeJSArraySlow(object, 0, length);
+      Result result = SerializeArrayLikeSlow(object, 0, length);
       if (result != SUCCESS) return result;
       break;
     }
@@ -528,9 +533,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   return SUCCESS;
 }
 
-
-BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
-    Handle<JSArray> object, uint32_t start, uint32_t length) {
+BasicJsonStringifier::Result BasicJsonStringifier::SerializeArrayLikeSlow(
+    Handle<JSReceiver> object, uint32_t start, uint32_t length) {
   for (uint32_t i = start; i < length; i++) {
     Separator(i == 0);
     Handle<Object> element;
@@ -552,7 +556,6 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
   return SUCCESS;
 }
 
-
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
     Handle<JSObject> object) {
   HandleScope handle_scope(isolate_);
@@ -560,15 +563,17 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   if (stack_push != SUCCESS) return stack_push;
   DCHECK(!object->IsJSGlobalProxy() && !object->IsJSGlobalObject());
 
-  builder_.AppendCharacter('{');
-  Indent();
-  bool comma = false;
-
-  if (object->HasFastProperties() &&
-      !object->HasIndexedInterceptor() &&
-      !object->HasNamedInterceptor() &&
-      object->elements()->length() == 0) {
-    Handle<Map> map(object->map());
+  if (object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+      object->HasFastProperties() &&
+      Handle<JSObject>::cast(object)->elements()->length() == 0) {
+    DCHECK(object->IsJSObject());
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
+    DCHECK(!js_obj->HasIndexedInterceptor());
+    DCHECK(!js_obj->HasNamedInterceptor());
+    Handle<Map> map(js_obj->map());
+    builder_.AppendCharacter('{');
+    Indent();
+    bool comma = false;
     for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
       Handle<Name> name(map->instance_descriptors()->GetKey(i), isolate_);
       // TODO(rossberg): Should this throw?
@@ -577,60 +582,104 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.type() == DATA && *map == object->map()) {
+      if (details.type() == DATA && *map == js_obj->map()) {
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        Isolate* isolate = object->GetIsolate();
-        if (object->IsUnboxedDoubleField(field_index)) {
-          double value = object->RawFastDoublePropertyAt(field_index);
-          property = isolate->factory()->NewHeapNumber(value);
-
+        if (js_obj->IsUnboxedDoubleField(field_index)) {
+          double value = js_obj->RawFastDoublePropertyAt(field_index);
+          property = isolate_->factory()->NewHeapNumber(value);
         } else {
-          property = handle(object->RawFastPropertyAt(field_index), isolate);
+          property = handle(js_obj->RawFastPropertyAt(field_index), isolate_);
         }
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate_, property,
-            Object::GetPropertyOrElement(object, key),
+            isolate_, property, Object::GetPropertyOrElement(js_obj, key),
             EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
       if (result == EXCEPTION) return result;
     }
+    Unindent();
+    if (comma) NewLine();
+    builder_.AppendCharacter('}');
   } else {
-    Handle<FixedArray> contents;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate_, contents,
-        JSReceiver::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS), EXCEPTION);
+    Result result = SerializeJSReceiverSlow(object);
+    if (result != SUCCESS) return result;
+  }
+  StackPop();
+  return SUCCESS;
+}
 
-    for (int i = 0; i < contents->length(); i++) {
-      Object* key = contents->get(i);
-      Handle<String> key_handle;
-      MaybeHandle<Object> maybe_property;
-      if (key->IsString()) {
-        key_handle = Handle<String>(String::cast(key), isolate_);
-        maybe_property = Object::GetPropertyOrElement(object, key_handle);
+BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSReceiverSlow(
+    Handle<JSReceiver> object) {
+  Handle<FixedArray> contents;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, contents,
+      JSReceiver::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS), EXCEPTION);
+
+  builder_.AppendCharacter('{');
+  Indent();
+  bool comma = false;
+  for (int i = 0; i < contents->length(); i++) {
+    Object* key = contents->get(i);
+    Handle<String> key_handle;
+    MaybeHandle<Object> maybe_property;
+    if (key->IsString()) {
+      key_handle = Handle<String>(String::cast(key), isolate_);
+      maybe_property = Object::GetPropertyOrElement(object, key_handle);
+    } else {
+      DCHECK(key->IsNumber());
+      key_handle = factory()->NumberToString(Handle<Object>(key, isolate_));
+      if (key->IsSmi()) {
+        maybe_property =
+            JSReceiver::GetElement(isolate_, object, Smi::cast(key)->value());
       } else {
-        DCHECK(key->IsNumber());
-        key_handle = factory()->NumberToString(Handle<Object>(key, isolate_));
-        if (key->IsSmi()) {
-          maybe_property =
-              JSReceiver::GetElement(isolate_, object, Smi::cast(key)->value());
-        } else {
-          maybe_property = Object::GetPropertyOrElement(object, key_handle);
-        }
+        maybe_property = Object::GetPropertyOrElement(object, key_handle);
       }
-      Handle<Object> property;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate_, property, maybe_property, EXCEPTION);
-      Result result = SerializeProperty(property, comma, key_handle);
-      if (!comma && result == SUCCESS) comma = true;
-      if (result == EXCEPTION) return result;
     }
+    Handle<Object> property;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, property, maybe_property,
+                                     EXCEPTION);
+    Result result = SerializeProperty(property, comma, key_handle);
+    if (!comma && result == SUCCESS) comma = true;
+    if (result == EXCEPTION) return result;
   }
   Unindent();
   if (comma) NewLine();
   builder_.AppendCharacter('}');
+  return SUCCESS;
+}
+
+BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSProxy(
+    Handle<JSProxy> object) {
+  Result stack_push = StackPush(object);
+  if (stack_push != SUCCESS) return stack_push;
+  Maybe<bool> is_array = Object::IsArray(object);
+  if (is_array.IsNothing()) return EXCEPTION;
+  if (is_array.FromJust()) {
+    Handle<Object> length_object;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, length_object,
+        Object::GetLengthFromArrayLike(isolate_, object), EXCEPTION);
+    uint32_t length;
+    if (!length_object->ToUint32(&length)) {
+      // Technically, we need to be able to handle lengths outside the
+      // uint32_t range. However, we would run into string size overflow
+      // if we tried to stringify such an array.
+      isolate_->Throw(*isolate_->factory()->NewInvalidStringLengthError());
+      return EXCEPTION;
+    }
+    builder_.AppendCharacter('[');
+    Indent();
+    Result result = SerializeArrayLikeSlow(object, 0, length);
+    if (result != SUCCESS) return result;
+    Unindent();
+    if (length > 0) NewLine();
+    builder_.AppendCharacter(']');
+  } else {
+    Result result = SerializeJSReceiverSlow(object);
+    if (result != SUCCESS) return result;
+  }
   StackPop();
   return SUCCESS;
 }
