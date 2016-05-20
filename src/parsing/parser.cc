@@ -4696,7 +4696,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       // We produce:
       //
       // try { InitialYield; ...body...; return {value: undefined, done: true} }
-      // finally { %GeneratorClose(generator) }
+      // finally { %_GeneratorClose(generator) }
       //
       // - InitialYield yields the actual generator object.
       // - Any return statement inside the body will have its argument wrapped
@@ -4736,7 +4736,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
           function_state_->generator_object_variable());
       args->Add(call_proxy, zone());
       Expression* call = factory()->NewCallRuntime(
-          Runtime::kGeneratorClose, args, RelocInfo::kNoPosition);
+          Runtime::kInlineGeneratorClose, args, RelocInfo::kNoPosition);
       finally_block->statements()->Add(
           factory()->NewExpressionStatement(call, RelocInfo::kNoPosition),
           zone());

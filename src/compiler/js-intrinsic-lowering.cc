@@ -40,6 +40,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleHi(node);
     case Runtime::kInlineDoubleLo:
       return ReduceDoubleLo(node);
+    case Runtime::kInlineGeneratorClose:
+      return ReduceGeneratorClose(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
@@ -152,6 +154,19 @@ Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
   return Change(node, machine()->Float64ExtractLowWord32());
 }
 
+Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
+  Node* const generator = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Node* const closed = jsgraph()->Constant(JSGeneratorObject::kGeneratorClosed);
+  Node* const undefined = jsgraph()->UndefinedConstant();
+  Operator const* const op = simplified()->StoreField(
+      AccessBuilder::ForJSGeneratorObjectContinuation());
+
+  ReplaceWithValue(node, undefined, node);
+  NodeProperties::RemoveType(node);
+  return Change(node, op, generator, closed, effect, control);
+}
 
 Reduction JSIntrinsicLowering::ReduceIsInstanceType(
     Node* node, InstanceType instance_type) {
