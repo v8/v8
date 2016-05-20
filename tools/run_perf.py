@@ -856,8 +856,10 @@ class CustomMachineConfiguration:
     try:
       with open("/sys/devices/system/cpu/present", "r") as f:
         indexes = f.readline()
-        first, last = map(int, indexes.split("-"))
-        return range(first, last + 1)
+        r = map(int, indexes.split("-"))
+        if len(r) == 1:
+          return range(r[0], r[0] + 1)
+        return range(r[0], r[1] + 1)
     except Exception as e:
       print "Failed to retrieve number of CPUs."
       raise e
