@@ -1333,7 +1333,7 @@ class HGraphBuilder {
             class P7, class P8, class P9>
   HInstruction* AddUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7,
                             P8 p8, P9 p9) {
-    return AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8, p8));
+    return AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8, p9));
   }
 
   template <class I, class P1, class P2, class P3, class P4, class P5, class P6,
