@@ -794,6 +794,12 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         break;
       case IrOpcode::kSelect:
       case IrOpcode::kTypeGuard:
+      // TODO(mstarzinger): The following list of operators will eventually be
+      // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
+      case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kObjectIsNumber:
+      case IrOpcode::kObjectIsString:
+      case IrOpcode::kObjectIsUndetectable:
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
