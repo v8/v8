@@ -1110,6 +1110,8 @@ class Isolate {
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
+  void SetRAILMode(RAILMode rail_mode);
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1221,6 +1223,24 @@ class Isolate {
 
   void RunMicrotasksInternal();
 
+  const char* RAILModeName(RAILMode rail_mode) const {
+    switch (rail_mode) {
+      case PERFORMANCE_DEFAULT:
+        return "DEFAULT";
+      case PERFORMANCE_RESPONSE:
+        return "RESPONSE";
+      case PERFORMANCE_ANIMATION:
+        return "ANIMATION";
+      case PERFORMANCE_IDLE:
+        return "IDLE";
+      case PERFORMANCE_LOAD:
+        return "LOAD";
+      default:
+        UNREACHABLE();
+    }
+    return "";
+  }
+
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
@@ -1267,6 +1287,7 @@ class Isolate {
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
+  RAILMode rail_mode_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;

@@ -7686,6 +7686,11 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
                                                      Locker::IsLocked(this));
 }
 
+void Isolate::SetRAILMode(RAILMode rail_mode) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->SetRAILMode(rail_mode);
+}
+
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

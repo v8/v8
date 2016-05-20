@@ -1883,6 +1883,7 @@ Isolate::Isolate(bool enable_serializer)
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      rail_mode_(PERFORMANCE_DEFAULT),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
@@ -3026,6 +3027,12 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
+void Isolate::SetRAILMode(RAILMode rail_mode) {
+  rail_mode_ = rail_mode;
+  if (FLAG_trace_rail) {
+    PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode_));
+  }
+}
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();

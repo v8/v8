@@ -5357,6 +5357,31 @@ struct JitCodeEvent {
 };
 
 /**
+ * Option flags passed to the SetRAILMode function.
+ * See documentation https://developers.google.com/web/tools/chrome-devtools/
+ * profile/evaluate-performance/rail
+ */
+enum RAILMode {
+  // Default performance mode: V8 will optimize for both latency and
+  // throughput in this mode.
+  PERFORMANCE_DEFAULT,
+  // Response performance mode: In this mode very low virtual machine latency
+  // is provided. V8 will try to avoid JavaScript execution interruptions.
+  // Throughput may be throttled.
+  PERFORMANCE_RESPONSE,
+  // Animation performance mode: In this mode low virtual machine latency is
+  // provided. V8 will try to avoid as many JavaScript execution interruptions
+  // as possible. Throughput may be throttled
+  PERFORMANCE_ANIMATION,
+  // Idle performance mode: The embedder is idle. V8 can complete deferred work
+  // in this mode.
+  PERFORMANCE_IDLE,
+  // Load performance mode: In this mode high throughput is provided. V8 may
+  // turn off latency optimizations.
+  PERFORMANCE_LOAD
+};
+
+/**
  * Option flags passed to the SetJitCodeEventHandler function.
  */
 enum JitCodeEventOptions {
@@ -6156,6 +6181,15 @@ class V8_EXPORT Isolate {
    * V8 uses these notifications to guide heuristics.
    */
   void IsolateInBackgroundNotification();
+
+  /**
+   * Optional notification to tell V8 the current performance requirements
+   * of the embedder based on RAIL.
+   * V8 uses these notifications to guide heuristics.
+   * This is an unfinished experimental feature. Semantics and implementation
+   * may change frequently.
+   */
+  void SetRAILMode(RAILMode rail_mode);
 
   /**
    * Allows the host application to provide the address of a function that is
