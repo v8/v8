@@ -521,6 +521,26 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 }
 
+static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
+                                  Register scratch2) {
+  Register args_count = scratch1;
+  Register return_pc = scratch2;
+
+  // Get the arguments + reciever count.
+  __ mov(args_count,
+         Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(args_count,
+         FieldOperand(args_count, BytecodeArray::kParameterSizeOffset));
+
+  // Leave the frame (also dropping the register file).
+  __ leave();
+
+  // Drop receiver + arguments.
+  __ pop(return_pc);
+  __ add(esp, args_count);
+  __ push(return_pc);
+}
+
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
 // stack left to right.  The actual argument count matches the formal parameter
@@ -624,18 +644,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // The return value is in eax.
-
-  // Get the arguments + reciever count.
-  __ mov(ebx, Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ mov(ebx, FieldOperand(ebx, BytecodeArray::kParameterSizeOffset));
-
-  // Leave the frame (also dropping the register file).
-  __ leave();
-
-  // Drop receiver + arguments and return.
-  __ pop(ecx);
-  __ add(esp, ebx);
-  __ push(ecx);
+  LeaveInterpreterFrame(masm, ebx, ecx);
   __ ret(0);
 
   // Load debug copy of the bytecode array.
@@ -660,6 +669,31 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(FieldOperand(edi, JSFunction::kCodeEntryOffset), ecx);
   __ RecordWriteCodeEntryField(edi, ecx, ebx);
   __ jmp(ecx);
+}
+
+void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
+  // Save the function and context for call to CompileBaseline.
+  __ mov(edi, Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  __ mov(kContextRegister,
+         Operand(ebp, StandardFrameConstants::kContextOffset));
+
+  // Leave the frame before recompiling for baseline so that we don't count as
+  // an activation on the stack.
+  LeaveInterpreterFrame(masm, ebx, ecx);
+
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Push return value.
+    __ push(eax);
+
+    // Push function as argument and compile for baseline.
+    __ push(edi);
+    __ CallRuntime(Runtime::kCompileBaseline);
+
+    // Restore return value.
+    __ pop(eax);
+  }
+  __ ret(0);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
