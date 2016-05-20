@@ -1496,9 +1496,11 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   DCHECK_NOT_NULL(data.schedule());
 
   if (FLAG_trace_turbo) {
-    TurboJsonFile json_of(&info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info.GetDebugName().get()
-            << "\", \"source\":\"\",\n\"phases\":[";
+    {
+      TurboJsonFile json_of(&info, std::ios_base::trunc);
+      json_of << "{\"function\":\"" << info.GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+    }
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
