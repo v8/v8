@@ -214,7 +214,7 @@ function GetSourceLine(message) {
   var start_position = %MessageGetStartPosition(message);
   var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
-  return location.sourceText;
+  return location.sourceText();
 }
 
 
@@ -225,27 +225,68 @@ function GetSourceLine(message) {
        else the line number.
  */
 function ScriptLineFromPosition(position) {
-  var info = %ScriptPositionInfo(this, position, false);
-  return (info == null) ? -1 : info.line;
+  var lower = 0;
+  var upper = this.lineCount() - 1;
+  var line_ends = this.line_ends;
+
+  // We'll never find invalid positions so bail right away.
+  if (position > line_ends[upper]) {
+    return -1;
+  }
+
+  // This means we don't have to safe-guard indexing line_ends[i - 1].
+  if (position <= line_ends[0]) {
+    return 0;
+  }
+
+  // Binary search to find line # from position range.
+  while (upper >= 1) {
+    var i = (lower + upper) >> 1;
+
+    if (position > line_ends[i]) {
+      lower = i + 1;
+    } else if (position <= line_ends[i - 1]) {
+      upper = i - 1;
+    } else {
+      return i;
+    }
+  }
+
+  return -1;
 }
 
 
 /**
  * Get information on a specific source position.
- * Returns an object with the following following properties:
- *   script     : script object for the source
- *   line       : source line number
- *   column     : source column within the line
- *   position   : position within the source
- *   sourceText : a string containing the current line
  * @param {number} position The source position
  * @param {boolean} include_resource_offset Set to true to have the resource
  *     offset added to the location
- * @return If line is negative or not in the source null is returned.
+ * @return {SourceLocation}
+ *     If line is negative or not in the source null is returned.
  */
 function ScriptLocationFromPosition(position,
                                     include_resource_offset) {
-  return %ScriptPositionInfo(this, position, !!include_resource_offset);
+  var line = this.lineFromPosition(position);
+  if (line == -1) return null;
+
+  // Determine start, end and column.
+  var line_ends = this.line_ends;
+  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
+  var end = line_ends[line];
+  if (end > 0 && %_StringCharAt(this.source, end - 1) === '\r') {
+    end--;
+  }
+  var column = position - start;
+
+  // Adjust according to the offset within the resource.
+  if (include_resource_offset) {
+    line += this.line_offset;
+    if (line == this.line_offset) {
+      column += this.column_offset;
+    }
+  }
+
+  return new SourceLocation(this, position, line, column, start, end);
 }
 
 
@@ -261,7 +302,8 @@ function ScriptLocationFromPosition(position,
  * @param {number} opt_offset_position The offset from the begining of the
  *     source from where the line and column calculation starts.
  *     Default value is 0
- * @return If line is negative or not in the source null is returned.
+ * @return {SourceLocation}
+ *     If line is negative or not in the source null is returned.
  */
 function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
   // Default is the first line in the script. Lines in the script is relative
@@ -291,7 +333,7 @@ function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
     }
 
     return this.locationFromPosition(
-        %ScriptLineStartPosition(this, offset_line + line) + column);
+        this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
   }
 }
 
@@ -325,14 +367,15 @@ function ScriptSourceSlice(opt_from_line, opt_to_line) {
     return null;
   }
 
-  var from_position = %ScriptLineStartPosition(this, from_line);
-  var to_position = %ScriptLineStartPosition(this, to_line);
+  var line_ends = this.line_ends;
+  var from_position = from_line == 0 ? 0 : line_ends[from_line - 1] + 1;
+  var to_position = to_line == 0 ? 0 : line_ends[to_line - 1] + 1;
 
   // Return a source slice with line numbers re-adjusted to the resource.
   return new SourceSlice(this,
                          from_line + this.line_offset,
                          to_line + this.line_offset,
-                         from_position, to_position);
+                          from_position, to_position);
 }
 
 
@@ -350,8 +393,9 @@ function ScriptSourceLine(opt_line) {
   }
 
   // Return the source line.
-  var start = %ScriptLineStartPosition(this, line);
-  var end = %ScriptLineEndPosition(this, line);
+  var line_ends = this.line_ends;
+  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
+  var end = line_ends[line];
   return %_Call(StringSubstring, this.source, start, end);
 }
 
@@ -363,7 +407,17 @@ function ScriptSourceLine(opt_line) {
  */
 function ScriptLineCount() {
   // Return number of source lines.
-  return %ScriptLineCount(this);
+  return this.line_ends.length;
+}
+
+
+/**
+ * Returns the position of the nth line end.
+ * @return {number}
+ *     Zero-based position of the nth line end in the script.
+ */
+function ScriptLineEnd(n) {
+  return this.line_ends[n];
 }
 
 
@@ -388,6 +442,7 @@ utils.SetUpLockedPrototype(Script, [
     "name",
     "source_url",
     "source_mapping_url",
+    "line_ends",
     "line_offset",
     "column_offset"
   ], [
@@ -398,7 +453,55 @@ utils.SetUpLockedPrototype(Script, [
     "sourceLine", ScriptSourceLine,
     "lineCount", ScriptLineCount,
     "nameOrSourceURL", ScriptNameOrSourceURL,
+    "lineEnd", ScriptLineEnd
   ]
+);
+
+
+/**
+ * Class for source location. A source location is a position within some
+ * source with the following properties:
+ *   script   : script object for the source
+ *   line     : source line number
+ *   column   : source column within the line
+ *   position : position within the source
+ *   start    : position of start of source context (inclusive)
+ *   end      : position of end of source context (not inclusive)
+ * Source text for the source context is the character interval
+ * [start, end[. In most cases end will point to a newline character.
+ * It might point just past the final position of the source if the last
+ * source line does not end with a newline character.
+ * @param {Script} script The Script object for which this is a location
+ * @param {number} position Source position for the location
+ * @param {number} line The line number for the location
+ * @param {number} column The column within the line for the location
+ * @param {number} start Source position for start of source context
+ * @param {number} end Source position for end of source context
+ * @constructor
+ */
+function SourceLocation(script, position, line, column, start, end) {
+  this.script = script;
+  this.position = position;
+  this.line = line;
+  this.column = column;
+  this.start = start;
+  this.end = end;
+}
+
+
+/**
+ * Get the source text for a SourceLocation
+ * @return {String}
+ *     Source text for this location.
+ */
+function SourceLocationSourceText() {
+  return %_Call(StringSubstring, this.script.source, this.start, this.end);
+}
+
+
+utils.SetUpLockedPrototype(SourceLocation,
+  ["script", "position", "line", "column", "start", "end"],
+  ["sourceText", SourceLocationSourceText]
 );
 
 

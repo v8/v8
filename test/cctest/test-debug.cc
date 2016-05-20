@@ -6081,48 +6081,53 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
 };
 
-TEST(DebugScriptLineEndsAreAscending) {
+
+TEST(DebugGetLoadedScripts) {
   DebugLocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(env->GetIsolate());
   env.ExposeDebug();
 
-  // Compile a test script.
-  v8::Local<v8::String> script = v8_str(isolate,
-                                        "function f() {\n"
-                                        "  debugger;\n"
-                                        "}\n");
+  v8::Local<v8::Context> context = env.context();
+  EmptyExternalStringResource source_ext_str;
+  v8::Local<v8::String> source =
+      v8::String::NewExternalTwoByte(env->GetIsolate(), &source_ext_str)
+          .ToLocalChecked();
+  CHECK(v8::Script::Compile(context, source).IsEmpty());
+  Handle<i::ExternalTwoByteString> i_source(
+      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
+  // This situation can happen if source was an external string disposed
+  // by its owner.
+  i_source->set_resource(0);
 
-  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str(isolate, "name"));
-  v8::Local<v8::Script> script1 =
-      v8::Script::Compile(env.context(), script, &origin1).ToLocalChecked();
-  USE(script1);
+  bool allow_natives_syntax = i::FLAG_allow_natives_syntax;
+  i::FLAG_allow_natives_syntax = true;
+  EnableDebugger(env->GetIsolate());
+  v8::MaybeLocal<v8::Value> result =
+      CompileRun(env.context(),
+                 "var scripts = %DebugGetLoadedScripts();"
+                 "var count = scripts.length;"
+                 "for (var i = 0; i < count; ++i) {"
+                 "  var lines = scripts[i].lineCount();"
+                 "  if (lines < 1) throw 'lineCount';"
+                 "  var last = -1;"
+                 "  for (var j = 0; j < lines; ++j) {"
+                 "    var end = scripts[i].lineEnd(j);"
+                 "    if (last >= end) throw 'lineEnd';"
+                 "    last = end;"
+                 "  }"
+                 "}");
+  CHECK(!result.IsEmpty());
+  DisableDebugger(env->GetIsolate());
+  // Must not crash while accessing line_ends.
+  i::FLAG_allow_natives_syntax = allow_natives_syntax;
 
-  Handle<v8::internal::FixedArray> instances;
-  {
-    v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    v8::internal::DebugScope debug_scope(debug);
-    CHECK(!debug_scope.failed());
-    instances = debug->GetLoadedScripts();
-  }
-
-  CHECK_GT(instances->length(), 0);
-  for (int i = 0; i < instances->length(); i++) {
-    Handle<v8::internal::Script> script = Handle<v8::internal::Script>(
-        v8::internal::Script::cast(instances->get(i)));
-
-    v8::internal::Script::InitLineEnds(script);
-    v8::internal::FixedArray* ends =
-        v8::internal::FixedArray::cast(script->line_ends());
-    CHECK_GT(ends->length(), 0);
-
-    int prev_end = -1;
-    for (int j = 0; j < ends->length(); j++) {
-      const int curr_end = v8::internal::Smi::cast(ends->get(j))->value();
-      CHECK_GT(curr_end, prev_end);
-      prev_end = curr_end;
-    }
-  }
+  // Some scripts are retrieved - at least the number of native scripts.
+  CHECK_GT(env->Global()
+               ->Get(context, v8_str(env->GetIsolate(), "count"))
+               .ToLocalChecked()
+               ->Int32Value(context)
+               .FromJust(),
+           8);
 }
 
 
