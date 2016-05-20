@@ -218,6 +218,7 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       case CMD_CONTINUE:
         UNREACHABLE();
       case CMD_RETURN:
+        generator()->builder()->SetReturnPosition();
         generator()->builder()->Return();
         return true;
       case CMD_RETHROW:

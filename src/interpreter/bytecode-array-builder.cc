@@ -760,7 +760,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
-  SetReturnPosition();
   Output(Bytecode::kReturn);
   exit_seen_in_block_ = true;
   return *this;
@@ -864,6 +863,7 @@ void BytecodeArrayBuilder::LeaveBasicBlock() {
 void BytecodeArrayBuilder::EnsureReturn() {
   if (!exit_seen_in_block_) {
     LoadUndefined();
+    SetReturnPosition();
     Return();
   }
   DCHECK(exit_seen_in_block_);

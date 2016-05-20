@@ -262,6 +262,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
   void SetExpressionPosition(Expression* expr);
   void SetExpressionAsStatementPosition(Expression* expr);
 
+  // Set position for return.
+  void SetReturnPosition();
+
   // Accessors
   TemporaryRegisterAllocator* temporary_register_allocator() {
     return &temporary_allocator_;
@@ -325,9 +328,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Attach latest source position to |node|.
   void AttachSourceInfo(BytecodeNode* node);
-
-  // Set position for return.
-  void SetReturnPosition();
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
