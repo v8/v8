@@ -17139,6 +17139,8 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     EnumIndexComparator<Derived> cmp(static_cast<Derived*>(raw_dict));
     Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
+    FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(keys->isolate()->heap(), *array, 0,
+                                       array->length());
   }
 
   for (int i = 0; i < array_size; i++) {
