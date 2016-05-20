@@ -49,19 +49,21 @@ STATIC_ASSERT(Heap::kMinObjectSizeInWords >= 2);
 
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     :  // NOLINT
+      heap_(heap),
+      page_parallel_job_semaphore_(0),
 #ifdef DEBUG
       state_(IDLE),
 #endif
       marking_parity_(ODD_MARKING_PARITY),
       was_marked_incrementally_(false),
       evacuation_(false),
-      heap_(heap),
+      compacting_(false),
+      black_allocation_(false),
+      have_code_to_deoptimize_(false),
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
       code_flusher_(nullptr),
       embedder_heap_tracer_(nullptr),
-      have_code_to_deoptimize_(false),
-      compacting_(false),
       sweeper_(heap) {
 }
 
@@ -480,7 +482,7 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->ParallelSweepSpace(static_cast<AllocationSpace>(space_id), 0);
     }
-    pending_sweeper_tasks_->Signal("SweeperTask::Run");
+    pending_sweeper_tasks_->Signal();
   }
 
   Sweeper* sweeper_;
@@ -585,7 +587,7 @@ bool MarkCompactCollector::Sweeper::IsSweepingCompleted() {
           base::TimeDelta::FromSeconds(0))) {
     return false;
   }
-  pending_sweeper_tasks_semaphore_.Signal("Sweeper::IsSweepingCompleted");
+  pending_sweeper_tasks_semaphore_.Signal();
   return true;
 }
 
@@ -3352,7 +3354,8 @@ class EvacuationJobTraits {
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
   PageParallelJob<EvacuationJobTraits> job(
-      heap_, heap_->isolate()->cancelable_task_manager());
+      heap_, heap_->isolate()->cancelable_task_manager(),
+      &page_parallel_job_semaphore_);
 
   int abandoned_pages = 0;
   intptr_t live_bytes = 0;
@@ -3721,9 +3724,9 @@ int NumberOfPointerUpdateTasks(int pages) {
 }
 
 template <PointerDirection direction>
-void UpdatePointersInParallel(Heap* heap) {
+void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
   PageParallelJob<PointerUpdateJobTraits<direction> > job(
-      heap, heap->isolate()->cancelable_task_manager());
+      heap, heap->isolate()->cancelable_task_manager(), semaphore);
   RememberedSet<direction>::IterateMemoryChunks(
       heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   int num_pages = job.NumberOfPages();
@@ -3752,9 +3755,9 @@ class ToSpacePointerUpdateJobTraits {
   }
 };
 
-void UpdateToSpacePointersInParallel(Heap* heap) {
+void UpdateToSpacePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
   PageParallelJob<ToSpacePointerUpdateJobTraits> job(
-      heap, heap->isolate()->cancelable_task_manager());
+      heap, heap->isolate()->cancelable_task_manager(), semaphore);
   Address space_start = heap->new_space()->bottom();
   Address space_end = heap->new_space()->top();
   NewSpacePageIterator it(space_start, space_end);
@@ -3778,17 +3781,17 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
-    UpdateToSpacePointersInParallel(heap_);
+    UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_);
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-    UpdatePointersInParallel<OLD_TO_NEW>(heap_);
+    UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_);
   }
 
   {
     Heap* heap = this->heap();
     TRACE_GC(heap->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
-    UpdatePointersInParallel<OLD_TO_OLD>(heap_);
+    UpdatePointersInParallel<OLD_TO_OLD>(heap_, &page_parallel_job_semaphore_);
   }
 
   {

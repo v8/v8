@@ -2159,7 +2159,7 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
       client_data);
   isolate_->logger()->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
-  command_received_.Signal("Debug::EnqueueCommandMessage");
+  command_received_.Signal();
 
   // Set the debug command break flag to have the command processed.
   if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();

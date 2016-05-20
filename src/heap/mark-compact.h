@@ -644,27 +644,6 @@ class MarkCompactCollector {
                                    int* target_fragmentation_percent,
                                    int* max_evacuated_bytes);
 
-#ifdef DEBUG
-  enum CollectorState {
-    IDLE,
-    PREPARE_GC,
-    MARK_LIVE_OBJECTS,
-    SWEEP_SPACES,
-    ENCODE_FORWARDING_ADDRESSES,
-    UPDATE_POINTERS,
-    RELOCATE_OBJECTS
-  };
-
-  // The current stage of the collector.
-  CollectorState state_;
-#endif
-
-  MarkingParity marking_parity_;
-
-  bool was_marked_incrementally_;
-
-  bool evacuation_;
-
   // Finishes GC, performs heap verification if enabled.
   void Finish();
 
@@ -850,6 +829,38 @@ class MarkCompactCollector {
 #endif
 
   Heap* heap_;
+
+  base::Semaphore page_parallel_job_semaphore_;
+
+#ifdef DEBUG
+  enum CollectorState {
+    IDLE,
+    PREPARE_GC,
+    MARK_LIVE_OBJECTS,
+    SWEEP_SPACES,
+    ENCODE_FORWARDING_ADDRESSES,
+    UPDATE_POINTERS,
+    RELOCATE_OBJECTS
+  };
+
+  // The current stage of the collector.
+  CollectorState state_;
+#endif
+
+  MarkingParity marking_parity_;
+
+  bool was_marked_incrementally_;
+
+  bool evacuation_;
+
+  // True if we are collecting slots to perform evacuation from evacuation
+  // candidates.
+  bool compacting_;
+
+  bool black_allocation_;
+
+  bool have_code_to_deoptimize_;
+
   base::VirtualMemory* marking_deque_memory_;
   size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
@@ -859,16 +870,8 @@ class MarkCompactCollector {
 
   EmbedderHeapTracer* embedder_heap_tracer_;
 
-  bool have_code_to_deoptimize_;
-
   List<Page*> evacuation_candidates_;
   List<Page*> newspace_evacuation_candidates_;
-
-  // True if we are collecting slots to perform evacuation from evacuation
-  // candidates.
-  bool compacting_;
-
-  bool black_allocation_;
 
   Sweeper sweeper_;
 
