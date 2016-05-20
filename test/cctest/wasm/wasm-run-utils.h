@@ -72,8 +72,10 @@ const uint32_t kMaxGlobalsSize = 128;
 // {WasmModuleInstance}.
 class TestingModule : public ModuleEnv {
  public:
-  TestingModule() : instance_(&module_), global_offset(0) {
-    module_.shared_isolate = CcTest::InitIsolateOnce();
+  TestingModule()
+      : instance_(&module_),
+        isolate_(CcTest::InitIsolateOnce()),
+        global_offset(0) {
     module = &module_;
     instance = &instance_;
     instance->module = &module_;
@@ -178,23 +180,21 @@ class TestingModule : public ModuleEnv {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
-    Isolate* isolate = module->shared_isolate;
     WasmName module_name = ArrayVector("test");
     WasmName function_name;
-    Handle<Code> code = CompileWasmToJSWrapper(isolate, this, jsfunc, sig,
+    Handle<Code> code = CompileWasmToJSWrapper(isolate_, this, jsfunc, sig,
                                                module_name, function_name);
     instance->function_code[index] = code;
     return index;
   }
 
   Handle<JSFunction> WrapCode(uint32_t index) {
-    Isolate* isolate = module->shared_isolate;
     // Wrap the code so it can be called as a JS function.
-    Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
-    Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
+    Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
+    Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
-    WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
-    return compiler::CompileJSToWasmWrapper(isolate, this, name, code,
+    WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
+    return compiler::CompileJSToWasmWrapper(isolate_, this, name, code,
                                             module_object, index);
   }
 
@@ -203,9 +203,8 @@ class TestingModule : public ModuleEnv {
   }
 
   void AddIndirectFunctionTable(int* functions, int table_size) {
-    Isolate* isolate = module->shared_isolate;
     Handle<FixedArray> fixed =
-        isolate->factory()->NewFixedArray(2 * table_size);
+        isolate_->factory()->NewFixedArray(2 * table_size);
     instance->function_table = fixed;
     DCHECK_EQ(0u, module->function_table.size());
     for (int i = 0; i < table_size; i++) {
@@ -228,6 +227,7 @@ class TestingModule : public ModuleEnv {
  private:
   WasmModule module_;
   WasmModuleInstance instance_;
+  Isolate* isolate_;
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
 

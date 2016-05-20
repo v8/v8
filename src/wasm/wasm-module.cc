@@ -318,8 +318,7 @@ bool AllocateGlobals(ErrorThrower* thrower, Isolate* isolate,
 }  // namespace
 
 WasmModule::WasmModule()
-    : shared_isolate(nullptr),
-      module_start(nullptr),
+    : module_start(nullptr),
       module_end(nullptr),
       min_mem_pages(0),
       max_mem_pages(0),
@@ -626,7 +625,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                               Handle<JSArrayBuffer> memory) {
   HistogramTimerScope wasm_instantiate_module_time_scope(
       isolate->counters()->wasm_instantiate_module_time());
-  this->shared_isolate = isolate;  // TODO(titzer): have a real shared isolate.
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
 

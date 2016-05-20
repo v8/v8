@@ -159,7 +159,6 @@ struct WasmModule {
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
   static const uint32_t kMaxMemPages = 16384;   // Maximum memory size =  1gb
 
-  Isolate* shared_isolate;    // isolate for storing shared code.
   const byte* module_start;   // starting address for the module bytes.
   const byte* module_end;     // end address for the module bytes.
   uint32_t min_mem_pages;     // minimum size of the memory in 64k pages.
