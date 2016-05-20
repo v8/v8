@@ -227,8 +227,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 MaybeHandle<Object> Runtime::BasicJsonStringify(Isolate* isolate,
-                                                Handle<Object> object) {
-  return BasicJsonStringifier(isolate).Stringify(object);
+                                                Handle<Object> object,
+                                                Handle<String> gap) {
+  return BasicJsonStringifier(isolate, gap).Stringify(object);
 }
 
 MaybeHandle<Object> Runtime::BasicJsonStringifyString(Isolate* isolate,

@@ -25,11 +25,12 @@ RUNTIME_FUNCTION(Runtime_QuoteJSONString) {
 
 RUNTIME_FUNCTION(Runtime_BasicJSONStringify) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, gap, 1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::BasicJsonStringify(isolate, object));
+      isolate, result, Runtime::BasicJsonStringify(isolate, object, gap));
   return *result;
 }
 

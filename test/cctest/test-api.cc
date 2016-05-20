@@ -22048,6 +22048,20 @@ THREADED_TEST(JSONStringifyObject) {
   ExpectString("JSON.stringify(obj)", *utf8);
 }
 
+THREADED_TEST(JSONStringifyObjectWithGap) {
+  LocalContext context;
+  HandleScope scope(context->GetIsolate());
+  Local<Value> value =
+      v8::JSON::Parse(context.local(), v8_str("{\"x\":42}")).ToLocalChecked();
+  Local<Object> obj = value->ToObject(context.local()).ToLocalChecked();
+  Local<Object> global = context->Global();
+  global->Set(context.local(), v8_str("obj"), obj).FromJust();
+  Local<String> json =
+      v8::JSON::Stringify(context.local(), obj, v8_str("*")).ToLocalChecked();
+  v8::String::Utf8Value utf8(json);
+  ExpectString("JSON.stringify(obj, null,  '*')", *utf8);
+}
+
 #if V8_OS_POSIX && !V8_OS_NACL
 class ThreadInterruptTest {
  public:

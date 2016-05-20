@@ -35,7 +35,10 @@ function testStringify(expected, object) {
   // Test fast case that bails out to slow case.
   assertEquals(expected, JSON.stringify(object));
   // Test slow case.
-  assertEquals(expected, JSON.stringify(object, undefined, 0));
+  assertEquals(expected, JSON.stringify(object, (key, value) => value));
+  // Test gap.
+  assertEquals(JSON.stringify(object, null, "="),
+               JSON.stringify(object, (key, value) => value, "="));
 }
 
 
@@ -66,6 +69,7 @@ testStringify(undefined, proxy_fun);
 testStringify('[1,null]', [1, proxy_fun]);
 
 var parent1a = { b: proxy1 };
+testStringify('{"b":{"a":"A","b":"B","c":"C"}}', parent1a);
 testStringify('{"b":{"a":"A","b":"B","c":"C"}}', parent1a);
 
 var parent1b = { a: 123, b: proxy1, c: true };

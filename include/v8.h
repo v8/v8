@@ -1658,7 +1658,8 @@ class V8_EXPORT JSON {
    * \return The corresponding string if successfully stringified.
    */
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> Stringify(
-      Local<Context> context, Local<Object> json_object);
+      Local<Context> context, Local<Object> json_object,
+      Local<String> gap = Local<String>());
 };
 
 

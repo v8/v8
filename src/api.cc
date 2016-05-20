@@ -2769,12 +2769,17 @@ Local<Value> JSON::Parse(Local<String> json_string) {
 }
 
 MaybeLocal<String> JSON::Stringify(Local<Context> context,
-                                   Local<Object> json_object) {
+                                   Local<Object> json_object,
+                                   Local<String> gap) {
   PREPARE_FOR_EXECUTION(context, JSON, Stringify, String);
   i::Handle<i::Object> object = Utils::OpenHandle(*json_object);
+  i::Handle<i::String> gap_string = gap.IsEmpty()
+                                        ? isolate->factory()->empty_string()
+                                        : Utils::OpenHandle(*gap);
   i::Handle<i::Object> maybe;
   has_pending_exception =
-      !i::Runtime::BasicJsonStringify(isolate, object).ToHandle(&maybe);
+      !i::Runtime::BasicJsonStringify(isolate, object, gap_string)
+           .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> result;
   has_pending_exception =

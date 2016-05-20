@@ -324,9 +324,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \
-  F(BasicJSONStringify, 1, 1)      \
+  F(BasicJSONStringify, 2, 1)      \
   F(ParseJson, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
@@ -1094,7 +1093,7 @@ class Runtime : public AllStatic {
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
   MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringify(
-      Isolate* isolate, Handle<Object> object);
+      Isolate* isolate, Handle<Object> object, Handle<String> gap);
 
   MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringifyString(
       Isolate* isolate, Handle<String> string);

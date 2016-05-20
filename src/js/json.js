@@ -202,7 +202,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 function JSONStringify(value, replacer, space) {
   if (arguments.length === 1 && !IS_PROXY(value)) {
-    return %BasicJSONStringify(value);
+    return %BasicJSONStringify(value, "");
   }
   if (!IS_CALLABLE(replacer) && %is_arraylike(replacer)) {
     var property_list = new InternalArray();
@@ -248,8 +248,8 @@ function JSONStringify(value, replacer, space) {
   } else {
     gap = "";
   }
-  if (!IS_CALLABLE(replacer) && !property_list && !gap && !IS_PROXY(value)) {
-    return %BasicJSONStringify(value);
+  if (!IS_CALLABLE(replacer) && !property_list && !IS_PROXY(value)) {
+    return %BasicJSONStringify(value, gap);
   }
   return JSONSerialize('', {'': value}, replacer, new Stack(), "", gap);
 }
@@ -285,11 +285,14 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
 // -------------------------------------------------------------------
 // JSON Builtins
 
-function JsonSerializeAdapter(key, object) {
+function JsonSerializeAdapter(key, object, indent, gap) {
   var holder = {};
   holder[key] = object;
   // No need to pass the actual holder since there is no replacer function.
-  return JSONSerialize(key, holder, UNDEFINED, new Stack(), "", "");
+  var current_indent = "";
+  for (var i = 0; i < indent; i++) current_indent += gap;
+  return JSONSerialize(
+      key, holder, UNDEFINED, new Stack(), current_indent, gap);
 }
 
 %InstallToContext(["json_serialize_adapter", JsonSerializeAdapter]);
