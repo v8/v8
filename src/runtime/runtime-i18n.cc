@@ -1145,6 +1145,23 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
                            reinterpret_cast<const char*>(lang_str));
 }
 
+RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  if (isolate->serializer_enabled()) return isolate->heap()->undefined_value();
+  if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
+    Handle<FixedArray> date_cache_version =
+        isolate->factory()->NewFixedArray(1, TENURED);
+    date_cache_version->set(0, Smi::FromInt(0));
+    isolate->eternal_handles()->CreateSingleton(
+        isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
+  }
+  Handle<FixedArray> date_cache_version =
+      Handle<FixedArray>::cast(isolate->eternal_handles()->GetSingleton(
+          EternalHandles::DATE_CACHE_VERSION));
+  return date_cache_version->get(0);
+}
+
 }  // namespace internal
 }  // namespace v8
 

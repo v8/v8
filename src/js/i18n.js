@@ -1991,6 +1991,23 @@ var defaultObjects = {
   'dateformattime': UNDEFINED,
 };
 
+function clearDefaultObjects() {
+  defaultObjects['dateformatall'] = UNDEFINED;
+  defaultObjects['dateformatdate'] = UNDEFINED;
+  defaultObjects['dateformattime'] = UNDEFINED;
+}
+
+var date_cache_version = 0;
+
+function checkDateCacheCurrent() {
+  var new_date_cache_version = %DateCacheVersion();
+  if (new_date_cache_version == date_cache_version) {
+    return;
+  }
+  date_cache_version = new_date_cache_version;
+
+  clearDefaultObjects();
+}
 
 /**
  * Returns cached or newly created instance of a given service.
@@ -1999,6 +2016,7 @@ var defaultObjects = {
 function cachedOrNewService(service, locales, options, defaults) {
   var useOptions = (IS_UNDEFINED(defaults)) ? options : defaults;
   if (IS_UNDEFINED(locales) && IS_UNDEFINED(options)) {
+    checkDateCacheCurrent();
     if (IS_UNDEFINED(defaultObjects[service])) {
       defaultObjects[service] = new savedObjects[service](locales, useOptions);
     }
