@@ -6180,11 +6180,6 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
         JSObject::cast(site->transition_info()), isolate());
   }
 
-  ElementsKind boilerplate_elements_kind = expr->constant_elements_kind();
-  if (!boilerplate_object.is_null()) {
-    boilerplate_elements_kind = boilerplate_object->GetElementsKind();
-  }
-
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
   if (!boilerplate_object.is_null() &&
@@ -6235,20 +6230,28 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
     HValue* key = Add<HConstant>(i);
 
-    switch (boilerplate_elements_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS: {
-        Add<HStoreKeyed>(elements, key, value, nullptr,
-                         boilerplate_elements_kind);
-        break;
+    if (!boilerplate_object.is_null()) {
+      ElementsKind boilerplate_elements_kind =
+          boilerplate_object->GetElementsKind();
+      switch (boilerplate_elements_kind) {
+        case FAST_SMI_ELEMENTS:
+        case FAST_HOLEY_SMI_ELEMENTS:
+        case FAST_ELEMENTS:
+        case FAST_HOLEY_ELEMENTS:
+        case FAST_DOUBLE_ELEMENTS:
+        case FAST_HOLEY_DOUBLE_ELEMENTS: {
+          Add<HStoreKeyed>(elements, key, value, nullptr,
+                           boilerplate_elements_kind);
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
       }
-      default:
-        UNREACHABLE();
-        break;
+    } else {
+      HInstruction* instr = BuildKeyedGeneric(
+          STORE, expr, expr->LiteralFeedbackSlot(), literal, key, value);
+      AddInstruction(instr);
     }
 
     Add<HSimulate>(expr->GetIdForElement(i));
