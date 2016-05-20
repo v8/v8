@@ -2349,7 +2349,9 @@ TEST(NoErrorsGenerator) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {kAllowHarmonySloppy};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 
