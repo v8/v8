@@ -1377,15 +1377,19 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
 
-  for (int i = 0; i < environment()->register_count(); ++i) {
-    Node* value = environment()->LookupRegister(interpreter::Register(i));
-    NewNode(javascript()->CallRuntime(Runtime::kGeneratorStoreRegister),
-        generator, jsgraph()->Constant(i), value);
+  int register_count = environment()->register_count();
+  int value_input_count = 2 + register_count;
+
+  Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
+  value_inputs[0] = generator;
+  value_inputs[1] = state;
+  for (int i = 0; i < register_count; ++i) {
+    value_inputs[2 + i] =
+        environment()->LookupRegister(interpreter::Register(i));
   }
 
-  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContext), generator);
-  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContinuation),
-      generator, state);
+  MakeNode(javascript()->GeneratorStore(register_count), value_input_count,
+           value_inputs, false);
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {
@@ -1393,23 +1397,16 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
 
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
-  Node* state = NewNode(javascript()->CallRuntime(
-      Runtime::kGeneratorGetContinuation), generator);
 
   // Bijection between registers and array indices must match that used in
   // InterpreterAssembler::ExportRegisterFile.
   for (int i = 0; i < environment()->register_count(); ++i) {
-    Node* value = NewNode(
-        javascript()->CallRuntime(Runtime::kGeneratorLoadRegister),
-        generator, jsgraph()->Constant(i));
+    Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
     environment()->BindRegister(interpreter::Register(i), value);
-
-    NewNode(javascript()->CallRuntime(Runtime::kGeneratorStoreRegister),
-        generator, jsgraph()->Constant(i), jsgraph()->StaleRegisterConstant());
   }
 
-  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContinuation),
-      generator, jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+  Node* state =
+      NewNode(javascript()->GeneratorRestoreContinuation(), generator);
 
   environment()->BindAccumulator(state, &states);
 }

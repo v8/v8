@@ -1630,6 +1630,104 @@ Reduction JSTypedLowering::ReduceJSForInStep(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorStore, node->opcode());
+  Node* generator = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  int register_count = OpParameter<int>(node);
+
+  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectOperandStack();
+  FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
+  FieldAccess continuation_field =
+      AccessBuilder::ForJSGeneratorObjectContinuation();
+
+  Node* array = graph()->NewNode(simplified()->LoadField(array_field),
+                                 generator, effect, control);
+
+  for (int i = 0; i < register_count; ++i) {
+    Node* value = NodeProperties::GetValueInput(node, 2 + i);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)), array,
+        value, effect, control);
+  }
+
+  effect = graph()->NewNode(simplified()->StoreField(context_field), generator,
+                            context, effect, control);
+
+  // Change the JSGeneratorStore node to a StoreField node.
+  DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(node->op()));
+  DCHECK_EQ(1, OperatorProperties::GetContextInputCount(node->op()));
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+  for (int i = 0; i < register_count; ++i) {
+    node->RemoveInput(NodeProperties::FirstValueIndex(node) + 2);
+  }
+  NodeProperties::RemoveType(node);
+  NodeProperties::ChangeOp(node, simplified()->StoreField(continuation_field));
+
+  NodeProperties::ReplaceEffectInput(node, effect);
+
+  return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreContinuation(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContinuation, node->opcode());
+  Node* generator = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  FieldAccess continuation_field =
+      AccessBuilder::ForJSGeneratorObjectContinuation();
+
+  Node* continuation = graph()->NewNode(
+      simplified()->LoadField(continuation_field), generator, effect, control);
+
+  // Change the JSGeneratorRestoreContinuation node to a StoreField node.
+  DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(node->op()));
+  DCHECK_EQ(1, OperatorProperties::GetContextInputCount(node->op()));
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+  node->InsertInput(
+      graph()->zone(), 1,
+      jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+  NodeProperties::RemoveType(node);
+  NodeProperties::ChangeOp(node, simplified()->StoreField(continuation_field));
+
+  NodeProperties::ReplaceEffectInput(node, continuation);
+  ReplaceWithValue(node, continuation, node, control);
+
+  return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreRegister, node->opcode());
+  Node* generator = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  int index = OpParameter<int>(node);
+
+  FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectOperandStack();
+  FieldAccess element_field = AccessBuilder::ForFixedArraySlot(index);
+
+  Node* array = graph()->NewNode(simplified()->LoadField(array_field),
+                                 generator, effect, control);
+  Node* element = graph()->NewNode(simplified()->LoadField(element_field),
+                                   array, array, control);
+
+  // Change the JSGeneratorRestoreRegister node to a StoreField node.
+  DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(node->op()));
+  DCHECK_EQ(1, OperatorProperties::GetContextInputCount(node->op()));
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+  node->ReplaceInput(0, array);
+  node->InsertInput(graph()->zone(), 1, jsgraph()->StaleRegisterConstant());
+  NodeProperties::RemoveType(node);
+  NodeProperties::ChangeOp(node, simplified()->StoreField(element_field));
+
+  NodeProperties::ReplaceEffectInput(node, element);
+  ReplaceWithValue(node, element, node, control);
+
+  return Changed(node);
+}
 
 Reduction JSTypedLowering::ReduceSelect(Node* node) {
   DCHECK_EQ(IrOpcode::kSelect, node->opcode());
@@ -1766,6 +1864,12 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSForInNext(node);
     case IrOpcode::kJSForInStep:
       return ReduceJSForInStep(node);
+    case IrOpcode::kJSGeneratorStore:
+      return ReduceJSGeneratorStore(node);
+    case IrOpcode::kJSGeneratorRestoreContinuation:
+      return ReduceJSGeneratorRestoreContinuation(node);
+    case IrOpcode::kJSGeneratorRestoreRegister:
+      return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
     default:

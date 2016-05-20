@@ -130,6 +130,40 @@ FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kContextOffset,
+                        Handle<Name>(),
+                        Type::Internal(),
+                        MachineType::AnyTagged(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
+  TypeCache const& type_cache = TypeCache::Get();
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kContinuationOffset,
+                        Handle<Name>(),
+                        type_cache.kSmi,
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kOperandStackOffset,
+                        Handle<Name>(),
+                        Type::Internal(),
+                        MachineType::AnyTagged(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {
   TypeCache const& type_cache = TypeCache::Get();
   FieldAccess access = {kTaggedBase,

@@ -140,17 +140,20 @@
   V(JSCreateModuleContext)    \
   V(JSCreateScriptContext)
 
-#define JS_OTHER_OP_LIST(V) \
-  V(JSCallConstruct)        \
-  V(JSCallFunction)         \
-  V(JSCallRuntime)          \
-  V(JSConvertReceiver)      \
-  V(JSForInDone)            \
-  V(JSForInNext)            \
-  V(JSForInPrepare)         \
-  V(JSForInStep)            \
-  V(JSLoadMessage)          \
-  V(JSStoreMessage)         \
+#define JS_OTHER_OP_LIST(V)         \
+  V(JSCallConstruct)                \
+  V(JSCallFunction)                 \
+  V(JSCallRuntime)                  \
+  V(JSConvertReceiver)              \
+  V(JSForInDone)                    \
+  V(JSForInNext)                    \
+  V(JSForInPrepare)                 \
+  V(JSForInStep)                    \
+  V(JSLoadMessage)                  \
+  V(JSStoreMessage)                 \
+  V(JSGeneratorStore)               \
+  V(JSGeneratorRestoreContinuation) \
+  V(JSGeneratorRestoreRegister)     \
   V(JSStackCheck)
 
 #define JS_OP_LIST(V)     \

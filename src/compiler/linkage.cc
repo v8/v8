@@ -144,11 +144,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
-    case Runtime::kGeneratorSetContext:
     case Runtime::kGeneratorGetContinuation:
-    case Runtime::kGeneratorSetContinuation:
-    case Runtime::kGeneratorLoadRegister:
-    case Runtime::kGeneratorStoreRegister:
     case Runtime::kGetSuperConstructor:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:

@@ -376,34 +376,35 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
-#define CACHED_OP_LIST(V)                                  \
-  V(Equal, Operator::kNoProperties, 2, 1)                  \
-  V(NotEqual, Operator::kNoProperties, 2, 1)               \
-  V(StrictEqual, Operator::kPure, 2, 1)                    \
-  V(StrictNotEqual, Operator::kPure, 2, 1)                 \
-  V(LessThan, Operator::kNoProperties, 2, 1)               \
-  V(GreaterThan, Operator::kNoProperties, 2, 1)            \
-  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)        \
-  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)     \
-  V(ToInteger, Operator::kNoProperties, 1, 1)              \
-  V(ToLength, Operator::kNoProperties, 1, 1)               \
-  V(ToName, Operator::kNoProperties, 1, 1)                 \
-  V(ToNumber, Operator::kNoProperties, 1, 1)               \
-  V(ToObject, Operator::kFoldable, 1, 1)                   \
-  V(ToString, Operator::kNoProperties, 1, 1)               \
-  V(Create, Operator::kEliminatable, 2, 1)                 \
-  V(CreateIterResultObject, Operator::kEliminatable, 2, 1) \
-  V(HasProperty, Operator::kNoProperties, 2, 1)            \
-  V(TypeOf, Operator::kPure, 1, 1)                         \
-  V(InstanceOf, Operator::kNoProperties, 2, 1)             \
-  V(ForInDone, Operator::kPure, 2, 1)                      \
-  V(ForInNext, Operator::kNoProperties, 4, 1)              \
-  V(ForInPrepare, Operator::kNoProperties, 1, 3)           \
-  V(ForInStep, Operator::kPure, 1, 1)                      \
-  V(LoadMessage, Operator::kNoThrow, 0, 1)                 \
-  V(StoreMessage, Operator::kNoThrow, 1, 0)                \
-  V(StackCheck, Operator::kNoProperties, 0, 0)             \
-  V(CreateWithContext, Operator::kNoProperties, 2, 1)      \
+#define CACHED_OP_LIST(V)                                   \
+  V(Equal, Operator::kNoProperties, 2, 1)                   \
+  V(NotEqual, Operator::kNoProperties, 2, 1)                \
+  V(StrictEqual, Operator::kPure, 2, 1)                     \
+  V(StrictNotEqual, Operator::kPure, 2, 1)                  \
+  V(LessThan, Operator::kNoProperties, 2, 1)                \
+  V(GreaterThan, Operator::kNoProperties, 2, 1)             \
+  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)         \
+  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)      \
+  V(ToInteger, Operator::kNoProperties, 1, 1)               \
+  V(ToLength, Operator::kNoProperties, 1, 1)                \
+  V(ToName, Operator::kNoProperties, 1, 1)                  \
+  V(ToNumber, Operator::kNoProperties, 1, 1)                \
+  V(ToObject, Operator::kFoldable, 1, 1)                    \
+  V(ToString, Operator::kNoProperties, 1, 1)                \
+  V(Create, Operator::kEliminatable, 2, 1)                  \
+  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)  \
+  V(HasProperty, Operator::kNoProperties, 2, 1)             \
+  V(TypeOf, Operator::kPure, 1, 1)                          \
+  V(InstanceOf, Operator::kNoProperties, 2, 1)              \
+  V(ForInDone, Operator::kPure, 2, 1)                       \
+  V(ForInNext, Operator::kNoProperties, 4, 1)               \
+  V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
+  V(ForInStep, Operator::kPure, 1, 1)                       \
+  V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
+  V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
+  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
+  V(StackCheck, Operator::kNoProperties, 0, 0)              \
+  V(CreateWithContext, Operator::kNoProperties, 2, 1)       \
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)
 
 struct JSOperatorGlobalCache final {
@@ -625,6 +626,21 @@ const Operator* JSOperatorBuilder::LoadProperty(
       access);                                             // parameter
 }
 
+const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
+  return new (zone()) Operator1<int>(                   // --
+      IrOpcode::kJSGeneratorStore, Operator::kNoThrow,  // opcode
+      "JSGeneratorStore",                               // name
+      2 + register_count, 1, 1, 0, 1, 0,                // counts
+      register_count);                                  // parameter
+}
+
+const Operator* JSOperatorBuilder::GeneratorRestoreRegister(int index) {
+  return new (zone()) Operator1<int>(                             // --
+      IrOpcode::kJSGeneratorRestoreRegister, Operator::kNoThrow,  // opcode
+      "JSGeneratorRestoreRegister",                               // name
+      1, 1, 1, 1, 1, 0,                                           // counts
+      index);                                                     // parameter
+}
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
                                               Handle<Name> name,

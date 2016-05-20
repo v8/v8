@@ -52,6 +52,15 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSFunction::next_function_link() field.
   static FieldAccess ForJSFunctionNextFunctionLink();
 
+  // Provides access to JSGeneratorObject::context() field.
+  static FieldAccess ForJSGeneratorObjectContext();
+
+  // Provides access to JSGeneratorObject::continuation() field.
+  static FieldAccess ForJSGeneratorObjectContinuation();
+
+  // Provides access to JSGeneratorObject::operand_stack() field.
+  static FieldAccess ForJSGeneratorObjectOperandStack();
+
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
 

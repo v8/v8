@@ -470,6 +470,13 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* LoadMessage();
   const Operator* StoreMessage();
 
+  // Used to implement Ignition's SuspendGenerator bytecode.
+  const Operator* GeneratorStore(int register_count);
+
+  // Used to implement Ignition's ResumeGenerator bytecode.
+  const Operator* GeneratorRestoreContinuation();
+  const Operator* GeneratorRestoreRegister(int index);
+
   const Operator* StackCheck();
 
   const Operator* CreateFunctionContext(int slot_count);
