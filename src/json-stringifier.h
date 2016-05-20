@@ -33,11 +33,6 @@ class BasicJsonStringifier BASE_EMBEDDED {
       Handle<Object> object,
       Handle<Object> key);
 
-  Result SerializeGeneric(Handle<Object> object,
-                          Handle<Object> key,
-                          bool deferred_comma,
-                          bool deferred_key);
-
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
     return Serialize_<false>(obj, false, factory()->empty_string());
@@ -363,21 +358,23 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
           return UNCHANGED;
       }
     case JS_ARRAY_TYPE:
-      if (object->IsAccessCheckNeeded()) break;
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object));
     case JS_VALUE_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSValue(Handle<JSValue>::cast(object));
+    case SIMD128_VALUE_TYPE:
+    case SYMBOL_TYPE:
+      return UNCHANGED;
     default:
       if (object->IsString()) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
-      } else if (object->IsJSReceiver()) {
+      } else {
+        DCHECK(object->IsJSReceiver());
         if (object->IsCallable()) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
-        if (object->IsAccessCheckNeeded() || object->IsJSGlobalProxy()) break;
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (object->IsJSProxy()) {
           return SerializeJSProxy(Handle<JSProxy>::cast(object));
@@ -386,30 +383,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
       }
   }
 
-  return SerializeGeneric(object, key, comma, deferred_string_key);
-}
-
-
-BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
-    Handle<Object> object,
-    Handle<Object> key,
-    bool deferred_comma,
-    bool deferred_key) {
-  Handle<JSFunction> fun = isolate_->json_serialize_adapter();
-  Handle<Object> indent(Smi::FromInt(indent_), isolate_);
-  Handle<Object> argv[] = {key, object, indent, gap_string_};
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, result,
-      Execution::Call(isolate_, fun, object, arraysize(argv), argv), EXCEPTION);
-  if (result->IsUndefined()) return UNCHANGED;
-  if (deferred_key) {
-    if (key->IsSmi()) key = factory()->NumberToString(key);
-    SerializeDeferredKey(deferred_comma, key);
-  }
-
-  builder_.AppendString(Handle<String>::cast(result));
-  return SUCCESS;
+  UNREACHABLE();
+  return UNCHANGED;
 }
 
 
@@ -433,8 +408,6 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     builder_.AppendCString(value->IsTrue() ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
-    CHECK(!object->IsAccessCheckNeeded());
-    CHECK(!object->IsJSGlobalProxy());
     return SerializeJSObject(object);
   }
   return SUCCESS;
@@ -471,6 +444,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   if (stack_push != SUCCESS) return stack_push;
   uint32_t length = 0;
   CHECK(object->length()->ToArrayLength(&length));
+  DCHECK(!object->IsAccessCheckNeeded());
   builder_.AppendCharacter('[');
   Indent();
   switch (object->GetElementsKind()) {
@@ -561,12 +535,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  DCHECK(!object->IsJSGlobalProxy() && !object->IsJSGlobalObject());
 
   if (object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
       object->HasFastProperties() &&
       Handle<JSObject>::cast(object)->elements()->length() == 0) {
     DCHECK(object->IsJSObject());
+    DCHECK(!object->IsJSGlobalProxy());
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
     DCHECK(!js_obj->HasIndexedInterceptor());
     DCHECK(!js_obj->HasNamedInterceptor());

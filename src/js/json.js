@@ -280,19 +280,4 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toJSON", DateToJSON
 ]);
 
-// -------------------------------------------------------------------
-// JSON Builtins
-
-function JsonSerializeAdapter(key, object, indent, gap) {
-  var holder = {};
-  holder[key] = object;
-  // No need to pass the actual holder since there is no replacer function.
-  var current_indent = "";
-  for (var i = 0; i < indent; i++) current_indent += gap;
-  return JSONSerialize(
-      key, holder, UNDEFINED, new Stack(), current_indent, gap);
-}
-
-%InstallToContext(["json_serialize_adapter", JsonSerializeAdapter]);
-
 })
