@@ -647,9 +647,10 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // We do not (yet?) flush code for generator functions, because we don't know
-  // if there are still live activations (generator objects) on the heap.
-  if (shared_info->is_generator()) {
+  // We do not (yet?) flush code for generator functions, or async functions,
+  // because we don't know if there are still live activations
+  // (generator objects) on the heap.
+  if (shared_info->is_resumable()) {
     return false;
   }
 
