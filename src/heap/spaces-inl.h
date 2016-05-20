@@ -382,6 +382,7 @@ Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
 }
 
 void Page::MarkNeverAllocateForTesting() {
+  DCHECK(this->owner()->identity() != NEW_SPACE);
   DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
   SetFlag(NEVER_ALLOCATE_ON_PAGE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);

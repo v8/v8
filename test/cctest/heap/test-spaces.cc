@@ -32,7 +32,6 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -208,14 +207,15 @@ TEST(Regress3540) {
                                 0));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
-  const size_t code_range_size = 4 * Page::kPageSize;
+  size_t code_range_size =
+      kMinimumCodeRangeSize > 0 ? kMinimumCodeRangeSize : 3 * MB;
   if (!code_range->SetUp(code_range_size)) {
     return;
   }
 
   Address address;
   size_t size;
-  size_t request_size = code_range_size - 2 * Page::kPageSize;
+  size_t request_size = code_range_size - Page::kPageSize;
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);

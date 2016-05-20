@@ -43,8 +43,7 @@
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
-
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 using v8::Just;
@@ -76,57 +75,48 @@ TEST(MarkingDeque) {
   DeleteArray(mem);
 }
 
-
-HEAP_TEST(Promotion) {
+TEST(Promotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  heap->ConfigureHeap(1, 1, 1, 0);
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    v8::HandleScope sc(CcTest::isolate());
+    Heap* heap = isolate->heap();
 
-  v8::HandleScope sc(CcTest::isolate());
+    heap::SealCurrentObjects(heap);
 
-  // Allocate a fixed array in the new space.
-  int array_length =
-      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
-      (4 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
-  Handle<FixedArray> array(FixedArray::cast(obj));
+    int array_length =
+        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
-  // Array should be in the new space.
-  CHECK(heap->InSpace(*array, NEW_SPACE));
-
-  // Call mark compact GC, so array becomes an old object.
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
-
-  // Array now sits in the old space
-  CHECK(heap->InSpace(*array, OLD_SPACE));
+    // Array should be in the new space.
+    CHECK(heap->InSpace(*array, NEW_SPACE));
+    heap->CollectAllGarbage();
+    heap->CollectAllGarbage();
+    CHECK(heap->InSpace(*array, OLD_SPACE));
+  }
 }
-
 
 HEAP_TEST(NoPromotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  heap->ConfigureHeap(1, 1, 1, 0);
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    v8::HandleScope sc(CcTest::isolate());
+    Heap* heap = isolate->heap();
 
-  v8::HandleScope sc(CcTest::isolate());
+    heap::SealCurrentObjects(heap);
 
-  // Allocate a big fixed array in the new space.
-  int array_length =
-      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
-      (2 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
-  Handle<FixedArray> array(FixedArray::cast(obj));
+    int array_length =
+        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
-  // Array should be in the new space.
-  CHECK(heap->InSpace(*array, NEW_SPACE));
-
-  // Simulate a full old space to make promotion fail.
-  SimulateFullSpace(heap->old_space());
-
-  // Call mark compact GC, and it should pass.
-  heap->CollectGarbage(OLD_SPACE);
+    heap->set_force_oom(true);
+    // Array should be in the new space.
+    CHECK(heap->InSpace(*array, NEW_SPACE));
+    heap->CollectAllGarbage();
+    heap->CollectAllGarbage();
+    CHECK(heap->InSpace(*array, NEW_SPACE));
+  }
 }
-
 
 HEAP_TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;

@@ -19,8 +19,7 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
-
+#include "test/cctest/heap/heap-utils.h"
 
 using v8::IdleTask;
 using v8::Task;
@@ -120,7 +119,7 @@ TEST(IncrementalMarkingUsingIdleTasks) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
-  SimulateFullSpace(CcTest::heap()->old_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
   marking->Start();
@@ -145,7 +144,7 @@ TEST(IncrementalMarkingUsingIdleTasksAfterGC) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
-  SimulateFullSpace(CcTest::heap()->old_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   CcTest::heap()->CollectAllGarbage();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
@@ -171,7 +170,7 @@ TEST(IncrementalMarkingUsingDelayedTasks) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
-  SimulateFullSpace(CcTest::heap()->old_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
   marking->Start();

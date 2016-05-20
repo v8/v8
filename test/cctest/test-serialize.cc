@@ -47,7 +47,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -1828,7 +1828,7 @@ TEST(Regress503552) {
       false);
   delete script_data;
 
-  SimulateIncrementalMarking(isolate->heap());
+  heap::SimulateIncrementalMarking(isolate->heap());
 
   script_data = CodeSerializer::Serialize(isolate, shared, source);
   delete script_data;

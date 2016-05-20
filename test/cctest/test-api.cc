@@ -51,7 +51,7 @@
 #include "src/utils.h"
 #include "src/vm-state.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 static const bool kLogThreading = false;
 
@@ -634,7 +634,7 @@ TEST(MakingExternalUnalignedOneByteString) {
       "slice('abcdefghijklmnopqrstuvwxyz');"));
 
   // Trigger GCs so that the newly allocated string moves to old gen.
-  SimulateFullSpace(CcTest::heap()->old_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
 
@@ -14798,8 +14798,8 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env(isolate);
       i::AlwaysAllocateScope always_allocate(i_isolate);
-      SimulateFullSpace(i::FLAG_ignition ? heap->old_space()
-                                         : heap->code_space());
+      i::heap::SimulateFullSpace(i::FLAG_ignition ? heap->old_space()
+                                                  : heap->code_space());
       CompileRun(script);
 
       // Keep a strong reference to the code object in the handle scope.
@@ -19001,7 +19001,7 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   ++prologue_call_count_alloc;
 
   // Simulate full heap to see if we will reenter this callback
-  SimulateFullSpace(CcTest::heap()->new_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
 
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
@@ -19021,7 +19021,7 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   ++epilogue_call_count_alloc;
 
   // Simulate full heap to see if we will reenter this callback
-  SimulateFullSpace(CcTest::heap()->new_space());
+  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
 
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());

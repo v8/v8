@@ -35,7 +35,7 @@
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -175,8 +175,8 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_space());
+  heap::SimulateFullSpace(CcTest::heap()->new_space());
+  heap::SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
@@ -206,8 +206,8 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_space());
+  heap::SimulateFullSpace(CcTest::heap()->new_space());
+  heap::SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Lookup() should not cause GC ever.
   CHECK(table->Lookup(key)->IsTheHole());
