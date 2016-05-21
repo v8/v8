@@ -691,12 +691,35 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       elements, FixedArray::kLengthOffset,
       mode == SMI_PARAMETERS ? capacity_node : SmiTag(capacity_node));
 
-  Node* double_hole = Float64Constant(bit_cast<double>(kHoleNanInt64));
+  int const first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Node* hole = HeapConstant(Handle<HeapObject>(heap->the_hole_value()));
+  Node* double_hole =
+      Is64() ? Int64Constant(kHoleNanInt64) : Int32Constant(kHoleNanLower32);
+  DCHECK_EQ(kHoleNanLower32, kHoleNanUpper32);
   if (constant_capacity && capacity <= kElementLoopUnrollThreshold) {
     for (int i = 0; i < capacity; ++i) {
       if (is_double) {
-        StoreFixedDoubleArrayElement(elements, Int32Constant(i), double_hole);
+        Node* offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
+                                              first_element_offset);
+        // Don't use doubles to store the hole double, since manipulating the
+        // signaling NaN used for the hole in C++, e.g. with bit_cast, will
+        // change its value on ia32 (the x87 stack is used to return values
+        // and stores to the stack silently clear the signalling bit).
+        //
+        // TODO(danno): When we have a Float32/Float64 wrapper class that
+        // preserves double bits during manipulation, remove this code/change
+        // this to an indexed Float64 store.
+        if (Is64()) {
+          StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                              double_hole);
+        } else {
+          StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                              double_hole);
+          offset = ElementOffsetFromIndex(Int32Constant(i), kind, mode,
+                                          first_element_offset + kPointerSize);
+          StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                              double_hole);
+        }
       } else {
         StoreFixedArrayElement(elements, Int32Constant(i), hole,
                                SKIP_WRITE_BARRIER);
