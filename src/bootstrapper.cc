@@ -1320,6 +1320,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       string_map->AppendDescriptor(&d);
     }
 
+    // Install the String.fromCharCode function.
+    SimpleInstallFunction(string_fun, "fromCharCode",
+                          Builtins::kStringFromCharCode, 1, false);
+
     // Create the %StringPrototype%
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));
