@@ -1565,13 +1565,16 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   if (constant_index) {
     return IntPtrConstant(base_size + element_size * index);
   }
+  if (Is64() && mode == INTEGER_PARAMETERS) {
+    index_node = ChangeInt32ToInt64(index_node);
+  }
   if (base_size == 0) {
     return (element_size_shift >= 0)
                ? WordShl(index_node, IntPtrConstant(element_size_shift))
                : WordShr(index_node, IntPtrConstant(-element_size_shift));
   }
   return IntPtrAdd(
-      Int32Constant(base_size),
+      IntPtrConstant(base_size),
       (element_size_shift >= 0)
           ? WordShl(index_node, IntPtrConstant(element_size_shift))
           : WordShr(index_node, IntPtrConstant(-element_size_shift)));
