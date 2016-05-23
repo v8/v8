@@ -849,6 +849,7 @@ void EscapeStatusAnalysis::DebugPrint() {
 EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
                                Zone* zone)
     : zone_(zone),
+      slot_not_analyzed_(graph->NewNode(common->NumberConstant(0x1c0debad))),
       common_(common),
       status_analysis_(new (zone) EscapeStatusAnalysis(this, graph, zone)),
       virtual_states_(zone),
@@ -1460,6 +1461,15 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
   if (obj && obj->IsTracked() &&
       static_cast<size_t>(offset) < obj->field_count()) {
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
+    // TODO(mstarzinger): The following is a workaround to not track the code
+    // entry field in virtual JSFunction objects. We only ever store the inner
+    // pointer into the compile lazy stub in this field and the deoptimizer has
+    // this assumption hard-coded in {TranslatedState::MaterializeAt} as well.
+    if (val->opcode() == IrOpcode::kInt32Constant ||
+        val->opcode() == IrOpcode::kInt64Constant) {
+      DCHECK_EQ(JSFunction::kCodeEntryOffset, FieldAccessOf(node->op()).offset);
+      val = slot_not_analyzed_;
+    }
     if (obj->GetField(offset) != val) {
       obj = CopyForModificationAt(obj, state, node);
       obj->SetField(offset, val);

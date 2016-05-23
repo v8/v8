@@ -70,6 +70,7 @@ class EscapeAnalysis {
   CommonOperatorBuilder* common() const { return common_; }
 
   Zone* const zone_;
+  Node* const slot_not_analyzed_;
   CommonOperatorBuilder* const common_;
   EscapeStatusAnalysis* status_analysis_;
   ZoneVector<VirtualState*> virtual_states_;
