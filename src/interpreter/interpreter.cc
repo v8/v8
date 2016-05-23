@@ -250,7 +250,8 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
                                     NewStringType::kNormal)
                 .ToLocalChecked();
         Local<v8::Number> counter_object = v8::Number::New(isolate, counter);
-        CHECK(counters_row->Set(context, to_name_object, counter_object)
+        CHECK(counters_row
+                  ->DefineOwnProperty(context, to_name_object, counter_object)
                   .IsJust());
       }
     }
@@ -261,7 +262,9 @@ Local<v8::Object> Interpreter::GetDispatchCountersObject() {
                                 NewStringType::kNormal)
             .ToLocalChecked();
 
-    CHECK(counters_map->Set(context, from_name_object, counters_row).IsJust());
+    CHECK(
+        counters_map->DefineOwnProperty(context, from_name_object, counters_row)
+            .IsJust());
   }
 
   return counters_map;
