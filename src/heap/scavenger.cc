@@ -289,14 +289,6 @@ class ScavengingVisitor : public StaticVisitorBase {
   static inline void EvacuateJSArrayBuffer(Map* map, HeapObject** slot,
                                            HeapObject* object) {
     ObjectEvacuationStrategy<POINTER_OBJECT>::Visit(map, slot, object);
-
-    Heap* heap = map->GetHeap();
-    MapWord map_word = object->map_word();
-    DCHECK(map_word.IsForwardingAddress());
-    HeapObject* target = map_word.ToForwardingAddress();
-    if (!heap->InNewSpace(target)) {
-      heap->array_buffer_tracker()->Promote(JSArrayBuffer::cast(target));
-    }
   }
 
 
