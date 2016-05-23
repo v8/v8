@@ -1264,7 +1264,9 @@ v8_source_set("v8_base") {
     "src/isolate-inl.h",
     "src/isolate.cc",
     "src/isolate.h",
+    "src/json-parser.cc",
     "src/json-parser.h",
+    "src/json-stringifier.cc",
     "src/json-stringifier.h",
     "src/keys.cc",
     "src/keys.h",
@@ -2102,7 +2104,10 @@ executable("d8") {
   }
 }
 
-if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") || (current_toolchain == v8_snapshot_toolchain && v8_toolset_for_shell == "host") || (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
+if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
+    (current_toolchain == v8_snapshot_toolchain &&
+     v8_toolset_for_shell == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
   executable("v8_shell") {
     sources = [
       "samples/shell.cc",

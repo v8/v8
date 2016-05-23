@@ -8,6 +8,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/isolate-inl.h"
 #include "src/json-parser.h"
+#include "src/json-stringifier.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -19,7 +20,7 @@ RUNTIME_FUNCTION(Runtime_QuoteJSONString) {
   DCHECK(args.length() == 1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::BasicJsonStringifyString(isolate, string));
+      isolate, result, BasicJsonStringifier::StringifyString(isolate, string));
   return *result;
 }
 
@@ -30,7 +31,7 @@ RUNTIME_FUNCTION(Runtime_BasicJSONStringify) {
   CONVERT_ARG_HANDLE_CHECKED(String, gap, 1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::BasicJsonStringify(isolate, object, gap));
+      isolate, result, BasicJsonStringifier(isolate, gap).Stringify(object));
   return *result;
 }
 

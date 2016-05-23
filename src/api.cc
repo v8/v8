@@ -40,6 +40,7 @@
 #include "src/icu_util.h"
 #include "src/isolate-inl.h"
 #include "src/json-parser.h"
+#include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -2777,9 +2778,9 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                         ? isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
   i::Handle<i::Object> maybe;
-  has_pending_exception =
-      !i::Runtime::BasicJsonStringify(isolate, object, gap_string)
-           .ToHandle(&maybe);
+  has_pending_exception = !i::BasicJsonStringifier(isolate, gap_string)
+                               .Stringify(object)
+                               .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> result;
   has_pending_exception =
