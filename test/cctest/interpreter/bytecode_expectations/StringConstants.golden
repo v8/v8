@@ -35,7 +35,7 @@ bytecode array length: 8
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   58 S> */ B(LdaConstant), U8(1),
   /*   82 S> */ B(Return),
 ]
@@ -56,7 +56,7 @@ bytecode array length: 8
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   57 S> */ B(LdaConstant), U8(0),
   /*   79 S> */ B(Return),
 ]

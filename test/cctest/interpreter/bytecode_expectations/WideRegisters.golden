@@ -171,11 +171,12 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 9
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1494 S> */ B(Wide), B(Ldar), R16(127),
-  /* 1497 E> */ B(Star), R(0),
+                B(Star), R(0),
+  /* 1505 S> */ B(Nop),
   /* 1516 S> */ B(Return),
 ]
 constant pool: [
@@ -347,11 +348,12 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1494 S> */ B(Wide), B(Ldar), R16(126),
-  /* 1499 E> */ B(Wide), B(Star), R16(127),
+                B(Wide), B(Star), R16(127),
+  /* 1507 S> */ B(Nop),
   /* 1520 S> */ B(Return),
 ]
 constant pool: [
@@ -711,7 +713,7 @@ bytecode array length: 48
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(LdaZero),
-  /* 1503 E> */ B(Star), R(0),
+                B(Star), R(0),
   /* 1506 S> */ B(Wide), B(Ldar), R16(129),
                 B(Wide), B(Star), R16(157),
                 B(LdaSmi), U8(3),
@@ -903,9 +905,9 @@ bytecode array length: 66
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(LdaZero),
-  /* 1503 E> */ B(Star), R(0),
+                B(Star), R(0),
   /* 1515 S> */ B(LdaZero),
-  /* 1515 E> */ B(Star), R(1),
+                B(Star), R(1),
   /* 1523 S> */ B(LdaZero),
   /* 1528 E> */ B(Wide), B(Star), R16(128),
   /* 1538 S> */ B(Wide), B(Ldar), R16(128),
@@ -1102,9 +1104,9 @@ bytecode array length: 84
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(Wide), B(LdaSmi), U16(1234),
-  /* 1503 E> */ B(Star), R(0),
+                B(Star), R(0),
   /* 1518 S> */ B(LdaZero),
-  /* 1518 E> */ B(Star), R(1),
+                B(Star), R(1),
   /* 1534 S> */ B(Ldar), R(0),
                 B(JumpIfUndefined), U8(69),
                 B(JumpIfNull), U8(67),
@@ -1309,13 +1311,13 @@ bytecodes: [
   /* 1509 E> */ B(Ldar), R(63),
                 B(Wide), B(Star), R16(158),
                 B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
-  /* 1497 E> */ B(Star), R(0),
+                B(Star), R(0),
   /* 1515 S> */ B(Ldar), R(27),
                 B(Wide), B(Star), R16(157),
   /* 1530 E> */ B(Wide), B(Ldar), R16(143),
                 B(Wide), B(Star), R16(158),
                 B(Wide), B(CallRuntime), U16(Runtime::kAdd), R16(157), U16(2),
-  /* 1518 E> */ B(Star), R(1),
+                B(Star), R(1),
   /* 1537 S> */ B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),
   /* 1549 S> */ B(Ldar), R(1),
   /* 1560 S> */ B(Return),

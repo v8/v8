@@ -15,11 +15,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
+  /*   88 S> */ B(Nop),
   /*   98 S> */ B(Return),
 ]
 constant pool: [
@@ -37,11 +38,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 6
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
+  /*   77 S> */ B(Nop),
   /*   87 S> */ B(Return),
 ]
 constant pool: [
@@ -67,7 +69,7 @@ bytecode array length: 66
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(1),
   /*   53 E> */ B(Star), R(1),
   /*   65 S> */ B(Ldar), R(0),
@@ -80,12 +82,12 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(12),
                 B(Mul), R(2),
-  /*   77 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   89 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-  /*   91 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*  102 S> */ B(Star), R(2),
                 B(LdaSmi), U8(3),
   /*  108 E> */ B(TestEqual), R(2),
@@ -214,7 +216,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaSmi), U8(1),
                 B(Add), R(1),
-  /*  124 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*  135 S> */ B(Jump), U8(4),
                 B(Jump), U8(-48),
   /*  144 S> */ B(Ldar), R(0),
@@ -241,7 +243,7 @@ bytecode array length: 39
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   54 S> */ B(LdaSmi), U8(1),
   /*   54 E> */ B(Star), R(1),
   /*   64 S> */ B(Ldar), R(0),
@@ -251,7 +253,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(12),
                 B(Mul), R(2),
-  /*   73 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   85 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
@@ -283,7 +285,7 @@ bytecode array length: 66
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(1),
   /*   53 E> */ B(Star), R(1),
   /*   56 E> */ B(StackCheck),
@@ -291,7 +293,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(10),
                 B(Mul), R(2),
-  /*   65 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   77 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(5),
@@ -338,7 +340,7 @@ bytecode array length: 37
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   54 S> */ B(LdaSmi), U8(1),
   /*   54 E> */ B(Star), R(1),
   /*   57 E> */ B(StackCheck),
@@ -346,7 +348,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(12),
                 B(Mul), R(2),
-  /*   66 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   78 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
@@ -379,7 +381,7 @@ bytecode array length: 54
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(1),
   /*   53 E> */ B(Star), R(1),
   /*   56 E> */ B(StackCheck),
@@ -387,7 +389,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(10),
                 B(Mul), R(2),
-  /*   65 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   77 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(5),
@@ -398,7 +400,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-  /*  100 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*  111 S> */ B(Star), R(2),
                 B(LdaSmi), U8(6),
   /*  117 E> */ B(TestEqual), R(2),
@@ -429,7 +431,7 @@ bytecode array length: 56
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(1),
   /*   53 E> */ B(Star), R(1),
   /*   56 E> */ B(StackCheck),
@@ -437,7 +439,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(10),
                 B(Mul), R(2),
-  /*   65 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   77 S> */ B(Ldar), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(5),
@@ -448,7 +450,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-  /*  100 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*  111 S> */ B(Star), R(2),
                 B(LdaSmi), U8(6),
   /*  117 E> */ B(TestEqual), R(2),
@@ -645,7 +647,7 @@ bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   58 S> */ B(LdaZero),
   /*   58 E> */ B(Star), R(1),
   /*   63 S> */ B(Ldar), R(1),
@@ -658,7 +660,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-  /*   87 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   98 S> */ B(Jump), U8(2),
   /*   72 S> */ B(Ldar), R(1),
                 B(Star), R(2),
@@ -688,7 +690,7 @@ bytecode array length: 34
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   58 S> */ B(LdaSmi), U8(10),
   /*   58 E> */ B(Star), R(1),
   /*   62 S> */ B(Ldar), R(1),
@@ -725,9 +727,9 @@ bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   58 S> */ B(LdaZero),
-  /*   58 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   91 S> */ B(Ldar), R(0),
   /*  101 S> */ B(Return),
 ]
@@ -751,7 +753,7 @@ bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   58 S> */ B(LdaZero),
   /*   58 E> */ B(Star), R(1),
   /*   45 E> */ B(StackCheck),
@@ -759,7 +761,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-  /*   78 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   89 S> */ B(Star), R(2),
                 B(LdaSmi), U8(20),
   /*   95 E> */ B(TestEqual), R(2),

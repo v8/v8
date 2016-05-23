@@ -40,7 +40,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   46 S> */ B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -73,7 +73,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
                 B(Ldar), R(1),
                 B(Star), R(0),
-  /*   45 E> */ B(LdaUndefined),
+                B(LdaUndefined),
   /*   52 S> */ B(Return),
 ]
 constant pool: [
@@ -94,7 +94,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(20),
   /*   48 E> */ B(Star), R(1),
                 B(Ldar), R(0),

@@ -35,7 +35,7 @@ bytecode array length: 39
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
                 B(Star), R(2),
                 B(LdaZero),
@@ -86,7 +86,7 @@ bytecode array length: 69
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(2),
                 B(Star), R(2),
                 B(LdaZero),

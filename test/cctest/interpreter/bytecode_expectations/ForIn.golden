@@ -65,30 +65,31 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 46
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(1),
-  /*   68 S> */ B(JumpIfUndefined), U8(38),
-                B(JumpIfNull), U8(36),
+                B(Star), R(1),
+  /*   68 S> */ B(JumpIfUndefined), U8(39),
+                B(JumpIfNull), U8(37),
                 B(ToObject),
                 B(Star), R(3),
                 B(ForInPrepare), R(4),
                 B(LdaZero),
                 B(Star), R(7),
   /*   63 S> */ B(ForInDone), R(7), R(6),
-                B(JumpIfTrue), U8(23),
+                B(JumpIfTrue), U8(24),
                 B(ForInNext), R(3), R(7), R(4), U8(1),
-                B(JumpIfUndefined), U8(10),
+                B(JumpIfUndefined), U8(11),
                 B(Star), R(0),
   /*   54 E> */ B(StackCheck),
                 B(Ldar), R(0),
                 B(Star), R(2),
+  /*   73 S> */ B(Nop),
   /*   85 S> */ B(Return),
                 B(ForInStep), R(7),
                 B(Star), R(7),
-                B(Jump), U8(-24),
+                B(Jump), U8(-25),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
@@ -109,7 +110,7 @@ bytecode array length: 57
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-  /*   42 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
                 B(JumpIfUndefined), U8(47),
                 B(JumpIfNull), U8(45),
@@ -158,7 +159,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(3),
                 B(JumpIfUndefined), U8(79),
                 B(JumpIfNull), U8(77),
@@ -218,7 +219,7 @@ bytecode array length: 69
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(3),
                 B(JumpIfUndefined), U8(56),
                 B(JumpIfNull), U8(54),

@@ -37,11 +37,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 7
 bytecodes: [
   /*   21 E> */ B(StackCheck),
                 B(Ldar), R(closure),
                 B(Star), R(0),
+  /*   26 S> */ B(Nop),
   /*   36 S> */ B(Return),
 ]
 constant pool: [

@@ -565,6 +565,10 @@ class Bytecodes {
   // Returns true if the bytecode is a scaling prefix bytecode.
   static bool IsPrefixScalingBytecode(Bytecode bytecode);
 
+  // Returns true if the bytecode has no effects outside the current
+  // interpreter frame.
+  static bool IsWithoutExternalSideEffects(Bytecode bytecode);
+
   // Returns true if |operand_type| is any type of register operand.
   static bool IsRegisterOperandType(OperandType operand_type);
 

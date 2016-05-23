@@ -489,6 +489,15 @@ bool Bytecodes::IsPrefixScalingBytecode(Bytecode bytecode) {
 }
 
 // static
+bool Bytecodes::IsWithoutExternalSideEffects(Bytecode bytecode) {
+  // These bytecodes only manipulate interpreter frame state and will
+  // never throw.
+  return (IsAccumulatorLoadWithoutEffects(bytecode) || IsLdarOrStar(bytecode) ||
+          bytecode == Bytecode::kMov || bytecode == Bytecode::kNop ||
+          IsJump(bytecode));
+}
+
+// static
 bool Bytecodes::IsJumpOrReturn(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn || IsJump(bytecode);
 }

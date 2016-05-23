@@ -55,7 +55,7 @@ bytecode array length: 20
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
   /*   75 E> */ B(Ldar), R(0),
@@ -80,7 +80,7 @@ bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
   /*   59 E> */ B(Ldar), R(0),
@@ -253,7 +253,7 @@ bytecode array length: 33
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Mov), R(1), R(2),
@@ -307,7 +307,7 @@ bytecode array length: 37
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(35),
                 B(Star), R(1),
                 B(Mov), R(1), R(2),
@@ -341,7 +341,7 @@ bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(1),
                 B(Star), R(1),
   /*   64 E> */ B(Ldar), R(0),
@@ -378,7 +378,7 @@ bytecode array length: 53
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(1), U8(35),
                 B(Star), R(1),
                 B(Mov), R(1), R(2),
@@ -417,7 +417,7 @@ bytecode array length: 77
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(35),
                 B(Star), R(1),
                 B(Mov), R(1), R(2),

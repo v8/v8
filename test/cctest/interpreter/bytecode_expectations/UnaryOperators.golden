@@ -86,7 +86,7 @@ bytecode array length: 13
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(101),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   47 S> */ B(Star), R(1),
                 B(LdaSmi), U8(3),
                 B(Mul), R(1),
@@ -106,11 +106,11 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   56 S> */ B(Star), R(2),
   /*   66 E> */ B(Ldar), R(0),
                 B(Mul), R(2),
@@ -118,7 +118,8 @@ bytecodes: [
                 B(LdaSmi), U8(1),
                 B(Sub), R(3),
                 B(LdaUndefined),
-  /*   56 E> */ B(Star), R(1),
+                B(Star), R(1),
+  /*   74 S> */ B(Nop),
   /*   84 S> */ B(Return),
 ]
 constant pool: [
@@ -137,7 +138,7 @@ bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   46 S> */ B(Star), R(1),
                 B(LdaSmi), U8(-1),
                 B(BitwiseXor), R(1),
@@ -159,7 +160,7 @@ bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   46 S> */ B(Star), R(1),
                 B(LdaSmi), U8(1),
                 B(Mul), R(1),
@@ -181,7 +182,7 @@ bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
-  /*   42 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   46 S> */ B(Star), R(1),
                 B(LdaSmi), U8(-1),
                 B(Mul), R(1),

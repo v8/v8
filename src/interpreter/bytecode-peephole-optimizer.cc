@@ -94,7 +94,8 @@ bool BytecodePeepholeOptimizer::LastBytecodePutsNameInAccumulator() const {
            GetConstantForIndexOperand(&last_, 0)->IsName()));
 }
 
-void BytecodePeepholeOptimizer::UpdateCurrentBytecode(BytecodeNode* current) {
+void BytecodePeepholeOptimizer::UpdateLastAndCurrentBytecodes(
+    BytecodeNode* current) {
   if (Bytecodes::IsJumpIfToBoolean(current->bytecode()) &&
       Bytecodes::WritesBooleanToAccumulator(last_.bytecode())) {
     // Conditional jumps with boolean conditions are emitted in
@@ -110,6 +111,18 @@ void BytecodePeepholeOptimizer::UpdateCurrentBytecode(BytecodeNode* current) {
     // builder, The ToBoolean element can be removed if the previous bytecode
     // put a boolean value in the accumulator.
     current->set_bytecode(Bytecode::kLogicalNot);
+  }
+
+  if (current->source_info().is_statement() &&
+      last_.source_info().is_expression() &&
+      Bytecodes::IsWithoutExternalSideEffects(last_.bytecode())) {
+    // The last bytecode has been marked as expression. It has no
+    // external effects so can't throw and the current bytecode is a
+    // source position. Remove the expression position on the last
+    // bytecode to open up potential peephole optimizations and to
+    // save the memory and perf cost of storing the unneeded
+    // expression position.
+    last_.source_info().set_invalid();
   }
 }
 
@@ -134,6 +147,44 @@ bool BytecodePeepholeOptimizer::CanElideCurrent(
   }
 }
 
+bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
+    const BytecodeNode* const current) const {
+  //
+  // The rules for allowing the elision of the last bytecode based
+  // on source position are:
+  //
+  //                     C U R R E N T
+  //              +--------+--------+--------+
+  //              |  None  |  Expr  |  Stmt  |
+  //  L  +--------+--------+--------+--------+
+  //     |  None  |  YES   |  YES   |  YES   |
+  //  A  +--------+--------+--------+--------+
+  //     |  Expr  |  YES   | MAYBE  |  MAYBE |
+  //  S  +--------+--------+--------+--------+
+  //     |  Stmt  |  YES   |   NO   |   NO   |
+  //  T  +--------+--------+--------+--------+
+  //
+  // The goal is not lose any statement positions and not lose useful
+  // expression positions. Whenever the last bytecode is elided it's
+  // source position information is applied to the current node
+  // updating it if necessary.
+  //
+  //
+  // The last bytecode can be elided for the MAYBE cases if the last
+  // bytecode is known not to throw. If it throws, the system would
+  // not have correct stack trace information. The appropriate check
+  // for this would be Bytecodes::IsWithoutExternalSideEffects(), which
+  // is checked in BytecodePeepholeOptimizer::UpdateLastAndCurrentBytecodes()
+  // to keep the check here simple.
+  //
+  // In rare cases, bytecode generation produces consecutive bytecodes
+  // with the same expression positions. In principle, the latter of
+  // these can be elided, but would make this function more expensive.
+  //
+  return (!last_.source_info().is_valid() ||
+          !current->source_info().is_valid());
+}
+
 bool BytecodePeepholeOptimizer::CanElideLast(
     const BytecodeNode* const current) const {
   if (!last_is_discardable_) {
@@ -141,8 +192,7 @@ bool BytecodePeepholeOptimizer::CanElideLast(
   }
 
   if (last_.bytecode() == Bytecode::kNop) {
-    // Nop are placeholders for holding source position information
-    // and can be elided.
+    // Nop are placeholders for holding source position information.
     return true;
   } else if (Bytecodes::IsAccumulatorLoadWithoutEffects(current->bytecode()) &&
              Bytecodes::IsAccumulatorLoadWithoutEffects(last_.bytecode())) {
@@ -156,18 +206,16 @@ bool BytecodePeepholeOptimizer::CanElideLast(
 }
 
 BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
-  UpdateCurrentBytecode(current);
-
+  UpdateLastAndCurrentBytecodes(current);
   if (CanElideCurrent(current)) {
     if (current->source_info().is_valid()) {
       current->set_bytecode(Bytecode::kNop);
     } else {
       current = nullptr;
     }
-  } else if (CanElideLast(current)) {
-    if (last_.source_info().is_valid()) {
-      current->source_info().Update(last_.source_info());
-    }
+  } else if (CanElideLast(current) &&
+             CanElideLastBasedOnSourcePosition(current)) {
+    current->source_info().Update(last_.source_info());
     InvalidateLast();
   }
   return current;

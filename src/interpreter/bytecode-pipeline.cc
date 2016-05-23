@@ -12,7 +12,6 @@ namespace internal {
 namespace interpreter {
 
 void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
-  DCHECK(entry.is_valid());
   if (!is_valid() || (entry.is_statement() && !is_statement()) ||
       (entry.is_statement() && is_statement() &&
        entry.source_position() > source_position())) {
@@ -116,7 +115,7 @@ void BytecodeNode::Print(std::ostream& os) const {
   os.copyfmt(saved_state);
 
   if (source_info_.is_valid()) {
-    os << source_info_;
+    os << ' ' << source_info_;
   }
   os << '\n';
 #else

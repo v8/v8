@@ -223,7 +223,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
                 B(Star), R(0),
-  /*   49 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   87 S> */ B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(2),
                 B(Star), R(4),

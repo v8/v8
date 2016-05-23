@@ -52,6 +52,7 @@ class BytecodeSourceInfo final {
   }
 
   bool is_statement() const { return is_valid() && is_statement_; }
+  bool is_expression() const { return is_valid() && !is_statement_; }
 
   bool is_valid() const { return source_position_ != kUninitializedPosition; }
   void set_invalid() { source_position_ = kUninitializedPosition; }

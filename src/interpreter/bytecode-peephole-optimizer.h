@@ -29,9 +29,11 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
  private:
   BytecodeNode* Optimize(BytecodeNode* current);
 
-  void UpdateCurrentBytecode(BytecodeNode* const current);
+  void UpdateLastAndCurrentBytecodes(BytecodeNode* const current);
   bool CanElideCurrent(const BytecodeNode* const current) const;
   bool CanElideLast(const BytecodeNode* const current) const;
+  bool CanElideLastBasedOnSourcePosition(
+      const BytecodeNode* const current) const;
 
   void InvalidateLast();
   bool LastIsValid() const;
