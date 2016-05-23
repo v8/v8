@@ -83,14 +83,14 @@ var GlobalPromise = function Promise(resolver) {
 
   var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
   var callbacks = CreateResolvingFunctions(promise);
-
+  var debug_is_active = DEBUG_IS_ACTIVE;
   try {
-    %DebugPushPromise(promise, Promise);
+    if (debug_is_active) %DebugPushPromise(promise, Promise);
     resolver(callbacks.resolve, callbacks.reject);
   } catch (e) {
     %_Call(callbacks.reject, UNDEFINED, e);
   } finally {
-    %DebugPopPromise();
+    if (debug_is_active) %DebugPopPromise();
   }
 
   return promise;
@@ -127,14 +127,15 @@ function PromiseDone(promise, status, value, promiseQueue) {
 }
 
 function PromiseHandle(value, handler, deferred) {
+  var debug_is_active = DEBUG_IS_ACTIVE;
   try {
-    %DebugPushPromise(deferred.promise, PromiseHandle);
+    if (debug_is_active) %DebugPushPromise(deferred.promise, PromiseHandle);
     var result = handler(value);
     deferred.resolve(result);
   } catch (exception) {
     try { deferred.reject(exception); } catch (e) { }
   } finally {
-    %DebugPopPromise();
+    if (debug_is_active) %DebugPopPromise();
   }
 }
 
