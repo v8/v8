@@ -785,13 +785,8 @@ DEFINE_INT(random_seed, 0,
 
 // objects.cc
 DEFINE_BOOL(trace_weak_arrays, false, "Trace WeakFixedArray usage")
-DEFINE_BOOL(track_prototype_users, false,
-            "Keep track of which maps refer to a given prototype object")
 DEFINE_BOOL(trace_prototype_users, false,
             "Trace updates to prototype user tracking")
-DEFINE_BOOL(eliminate_prototype_chain_checks, true,
-            "Collapse prototype chain checks into single-cell checks")
-DEFINE_IMPLICATION(eliminate_prototype_chain_checks, track_prototype_users)
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")
 DEFINE_BOOL(trace_for_in_enumerate, false, "Trace for-in enumerate slow-paths")
 #if TRACE_MAPS

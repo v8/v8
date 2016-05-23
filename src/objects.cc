@@ -2797,7 +2797,6 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
                                                Handle<Map> new_map,
                                                Isolate* isolate) {
-  if (!FLAG_track_prototype_users) return;
   if (!old_map->is_prototype_map()) return;
   DCHECK(new_map->is_prototype_map());
   bool was_registered = JSObject::UnregisterPrototypeUser(old_map, isolate);
@@ -11598,7 +11597,6 @@ void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
 
 // static
 void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
-  DCHECK(FLAG_track_prototype_users);
   // Contract: In line with InvalidatePrototypeChains()'s requirements,
   // leaf maps don't need to register as users, only prototypes do.
   DCHECK(user->is_prototype_map());
@@ -11704,7 +11702,6 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
 
 // static
 void JSObject::InvalidatePrototypeChains(Map* map) {
-  if (!FLAG_eliminate_prototype_chain_checks) return;
   DisallowHeapAllocation no_gc;
   InvalidatePrototypeChainsInternal(map);
 }
