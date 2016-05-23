@@ -405,9 +405,8 @@ void Page::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-MemoryChunkIterator::MemoryChunkIterator(Heap* heap, Mode mode)
+MemoryChunkIterator::MemoryChunkIterator(Heap* heap)
     : state_(kOldSpaceState),
-      mode_(mode),
       old_iterator_(heap->old_space()),
       code_iterator_(heap->code_space()),
       map_iterator_(heap->map_space()),
@@ -423,14 +422,14 @@ MemoryChunk* MemoryChunkIterator::next() {
       // Fall through.
     }
     case kMapState: {
-      if (mode_ != ALL_BUT_MAP_SPACE && map_iterator_.has_next()) {
+      if (map_iterator_.has_next()) {
         return map_iterator_.next();
       }
       state_ = kCodeState;
       // Fall through.
     }
     case kCodeState: {
-      if (mode_ != ALL_BUT_CODE_SPACE && code_iterator_.has_next()) {
+      if (code_iterator_.has_next()) {
         return code_iterator_.next();
       }
       state_ = kLargeObjectState;

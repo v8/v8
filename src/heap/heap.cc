@@ -1672,6 +1672,15 @@ void Heap::Scavenge() {
     RememberedSet<OLD_TO_NEW>::Iterate(this, [this](Address addr) {
       return Scavenger::CheckAndScavengeObject(this, addr);
     });
+
+    RememberedSet<OLD_TO_NEW>::IterateTyped(
+        this, [this](SlotType type, Address addr) {
+          return UpdateTypedSlotHelper::UpdateTypedSlot(
+              isolate(), type, addr, [this](Object** addr) {
+                return Scavenger::CheckAndScavengeObject(
+                    this, reinterpret_cast<Address>(addr));
+              });
+        });
   }
 
   {

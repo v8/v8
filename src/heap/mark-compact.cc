@@ -2825,117 +2825,6 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
   return REMOVE_SLOT;
 }
 
-// Updates a cell slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateCell(RelocInfo* rinfo, Callback callback) {
-  DCHECK(rinfo->rmode() == RelocInfo::CELL);
-  Object* cell = rinfo->target_cell();
-  Object* old_cell = cell;
-  SlotCallbackResult result = callback(&cell);
-  if (cell != old_cell) {
-    rinfo->set_target_cell(reinterpret_cast<Cell*>(cell));
-  }
-  return result;
-}
-
-// Updates a code entry slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateCodeEntry(Address entry_address,
-                                          Callback callback) {
-  Object* code = Code::GetObjectFromEntryAddress(entry_address);
-  Object* old_code = code;
-  SlotCallbackResult result = callback(&code);
-  if (code != old_code) {
-    Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
-  }
-  return result;
-}
-
-// Updates a code target slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
-                                           Callback callback) {
-  DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
-  Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  Object* old_target = target;
-  SlotCallbackResult result = callback(&target);
-  if (target != old_target) {
-    rinfo->set_target_address(Code::cast(target)->instruction_start());
-  }
-  return result;
-}
-
-// Updates an embedded pointer slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateEmbeddedPointer(RelocInfo* rinfo,
-                                                Callback callback) {
-  DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  Object* target = rinfo->target_object();
-  Object* old_target = target;
-  SlotCallbackResult result = callback(&target);
-  if (target != old_target) {
-    rinfo->set_target_object(target);
-  }
-  return result;
-}
-
-// Updates a debug target slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateDebugTarget(RelocInfo* rinfo,
-                                            Callback callback) {
-  DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-         rinfo->IsPatchedDebugBreakSlotSequence());
-  Object* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-  SlotCallbackResult result = callback(&target);
-  rinfo->set_debug_call_address(Code::cast(target)->instruction_start());
-  return result;
-}
-
-// Updates a typed slot using an untyped slot callback.
-// The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
-template <typename Callback>
-static SlotCallbackResult UpdateTypedSlot(Isolate* isolate, SlotType slot_type,
-                                          Address addr, Callback callback) {
-  switch (slot_type) {
-    case CODE_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::CODE_TARGET, 0, NULL);
-      return UpdateCodeTarget(&rinfo, callback);
-    }
-    case CELL_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::CELL, 0, NULL);
-      return UpdateCell(&rinfo, callback);
-    }
-    case CODE_ENTRY_SLOT: {
-      return UpdateCodeEntry(addr, callback);
-    }
-    case DEBUG_TARGET_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION, 0,
-                      NULL);
-      if (rinfo.IsPatchedDebugBreakSlotSequence()) {
-        return UpdateDebugTarget(&rinfo, callback);
-      }
-      return REMOVE_SLOT;
-    }
-    case EMBEDDED_OBJECT_SLOT: {
-      RelocInfo rinfo(isolate, addr, RelocInfo::EMBEDDED_OBJECT, 0, NULL);
-      return UpdateEmbeddedPointer(&rinfo, callback);
-    }
-    case OBJECT_SLOT: {
-      return callback(reinterpret_cast<Object**>(addr));
-    }
-    case NUMBER_OF_SLOT_TYPES:
-      break;
-  }
-  UNREACHABLE();
-  return REMOVE_SLOT;
-}
-
-
 // Visitor for updating pointers from live objects in old spaces to new space.
 // It does not expect to encounter pointers to dead objects.
 class PointersUpdatingVisitor : public ObjectVisitor {
@@ -2946,22 +2835,24 @@ class PointersUpdatingVisitor : public ObjectVisitor {
     for (Object** p = start; p < end; p++) UpdateSlot(p);
   }
 
-  void VisitCell(RelocInfo* rinfo) override { UpdateCell(rinfo, UpdateSlot); }
+  void VisitCell(RelocInfo* rinfo) override {
+    UpdateTypedSlotHelper::UpdateCell(rinfo, UpdateSlot);
+  }
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) override {
-    UpdateEmbeddedPointer(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateEmbeddedPointer(rinfo, UpdateSlot);
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) override {
-    UpdateCodeTarget(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlot);
   }
 
   void VisitCodeEntry(Address entry_address) override {
-    UpdateCodeEntry(entry_address, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateCodeEntry(entry_address, UpdateSlot);
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) override {
-    UpdateDebugTarget(rinfo, UpdateSlot);
+    UpdateTypedSlotHelper::UpdateDebugTarget(rinfo, UpdateSlot);
   }
 };
 
@@ -3512,6 +3403,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
     Address start = code->instruction_start();
     Address end = code->address() + code->Size();
     RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(page, start, end);
+    RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, start, end);
   }
 }
 
@@ -3684,7 +3576,18 @@ class PointerUpdateJobTraits {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_OLD>::IterateTyped(
           chunk, [isolate](SlotType type, Address slot) {
-            return UpdateTypedSlot(isolate, type, slot, UpdateSlot);
+            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, type, slot,
+                                                          UpdateSlot);
+          });
+    } else {
+      Isolate* isolate = heap->isolate();
+      RememberedSet<OLD_TO_NEW>::IterateTyped(
+          chunk, [isolate, heap](SlotType type, Address slot) {
+            return UpdateTypedSlotHelper::UpdateTypedSlot(
+                isolate, type, slot, [heap](Object** slot) {
+                  return CheckAndUpdateOldToNewSlot(
+                      heap, reinterpret_cast<Address>(slot));
+                });
           });
     }
   }

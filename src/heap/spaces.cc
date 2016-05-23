@@ -504,6 +504,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->InitializeReservedMemory();
   chunk->old_to_new_slots_ = nullptr;
   chunk->old_to_old_slots_ = nullptr;
+  chunk->typed_old_to_new_slots_ = nullptr;
   chunk->typed_old_to_old_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
@@ -1036,6 +1037,8 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   }
   if (old_to_new_slots_ != nullptr) ReleaseOldToNewSlots();
   if (old_to_old_slots_ != nullptr) ReleaseOldToOldSlots();
+  if (typed_old_to_new_slots_ != nullptr) ReleaseTypedOldToNewSlots();
+  if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
 }
 
 static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
@@ -1066,6 +1069,16 @@ void MemoryChunk::AllocateOldToOldSlots() {
 void MemoryChunk::ReleaseOldToOldSlots() {
   delete[] old_to_old_slots_;
   old_to_old_slots_ = nullptr;
+}
+
+void MemoryChunk::AllocateTypedOldToNewSlots() {
+  DCHECK(nullptr == typed_old_to_new_slots_);
+  typed_old_to_new_slots_ = new TypedSlotSet(address());
+}
+
+void MemoryChunk::ReleaseTypedOldToNewSlots() {
+  delete typed_old_to_new_slots_;
+  typed_old_to_new_slots_ = nullptr;
 }
 
 void MemoryChunk::AllocateTypedOldToOldSlots() {
