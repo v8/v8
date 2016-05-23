@@ -441,7 +441,8 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
           CallDescriptor::kNeedsFrameState);
       node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
       node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-      node->InsertInput(graph()->zone(), 3, jsgraph()->UndefinedConstant());
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(0));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
       NodeProperties::ChangeOp(node, common()->Call(desc));
     } else if (arity == 1) {
       // TODO(bmeurer): Optimize for the 0 length non-holey case?
