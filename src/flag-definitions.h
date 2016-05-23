@@ -206,18 +206,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_async_await, "harmony async-await")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#ifdef V8_I18N_SUPPORT
-#define HARMONY_STAGED(V)                                                    \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
-  V(harmony_tailcalls, "harmony tail calls")                                 \
-  V(harmony_explicit_tailcalls, "harmony explicit tail calls")               \
-  V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
-  V(harmony_object_own_property_descriptors,                                 \
-    "harmony Object.getOwnPropertyDescriptors()")                            \
-  V(harmony_string_padding, "harmony String-padding methods")                \
-  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
-#else
-#define HARMONY_STAGED(V)                                                    \
+#define HARMONY_STAGED_BASE(V)                                               \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_explicit_tailcalls, "harmony explicit tail calls")               \
@@ -225,6 +214,13 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
   V(harmony_string_padding, "harmony String-padding methods")
+
+#ifdef V8_I18N_SUPPORT
+#define HARMONY_STAGED(V) \
+  HARMONY_STAGED_BASE(V)  \
+  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
+#else
+#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
