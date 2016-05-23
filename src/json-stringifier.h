@@ -198,7 +198,8 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate, Handle<String> gap)
   stack_ = factory()->NewJSArray(8);
   int gap_length = gap->length();
   if (gap_length != 0) {
-    String::Flatten(gap);
+    gap = String::Flatten(gap);
+    if (gap->IsTwoByteRepresentation()) builder_.ChangeEncoding();
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = gap->GetFlatContent();
     gap_ = NewArray<uc16>(gap_length + 1);
@@ -206,7 +207,6 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate, Handle<String> gap)
       CopyChars(gap_, flat.ToOneByteVector().start(), gap_length);
     } else {
       CopyChars(gap_, flat.ToUC16Vector().start(), gap_length);
-      builder_.ChangeEncoding();
     }
     gap_[gap_length] = '\0';
   } else {
