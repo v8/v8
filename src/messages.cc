@@ -182,9 +182,14 @@ CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
       // invalid: neither javascript nor wasm
       return;
     }
+    Handle<Object> maybe_wasm_obj = JSObject::GetDataProperty(
+        call_site_obj, isolate->factory()->call_site_wasm_obj_symbol());
+    if (!maybe_wasm_obj->IsJSObject()) {
+      // invalid: neither javascript nor wasm
+      return;
+    }
     // wasm
-    wasm_obj_ = Handle<JSObject>::cast(JSObject::GetDataProperty(
-        call_site_obj, isolate->factory()->call_site_wasm_obj_symbol()));
+    wasm_obj_ = Handle<JSObject>::cast(maybe_wasm_obj);
     wasm_func_index_ = Smi::cast(*maybe_wasm_func_index)->value();
     DCHECK(static_cast<int>(wasm_func_index_) >= 0);
   }
@@ -205,11 +210,8 @@ Handle<Object> CallSite::GetFileName() {
 
 Handle<Object> CallSite::GetFunctionName() {
   if (IsWasm()) {
-    MaybeHandle<String> name;
-    if (!wasm_obj_->IsUndefined()) {
-      name = wasm::GetWasmFunctionName(Handle<JSObject>::cast(wasm_obj_),
-                                       wasm_func_index_);
-    }
+    MaybeHandle<String> name = wasm::GetWasmFunctionName(
+        Handle<JSObject>::cast(wasm_obj_), wasm_func_index_);
     if (name.is_null()) return isolate_->factory()->null_value();
     return name.ToHandleChecked();
   }
