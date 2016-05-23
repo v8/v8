@@ -301,7 +301,10 @@ class Scavenger;
 class ScavengeJob;
 class WeakObjectRetainer;
 
-typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
+enum PromotionMode { FORCE_PROMOTION, DEFAULT_PROMOTION };
+
+typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to,
+                                   PromotionMode mode);
 
 // A queue of objects promoted during scavenge. Each object is accompanied
 // by it's size to avoid dereferencing a map pointer for scanning.

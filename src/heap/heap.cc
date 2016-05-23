@@ -1668,15 +1668,18 @@ void Heap::Scavenge() {
     // Copy objects reachable from the old generation.
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
     RememberedSet<OLD_TO_NEW>::Iterate(this, [this](Address addr) {
-      return Scavenger::CheckAndScavengeObject(this, addr);
+      return Scavenger::CheckAndScavengeObject(this, addr, DEFAULT_PROMOTION);
     });
 
     RememberedSet<OLD_TO_NEW>::IterateTyped(
         this, [this](SlotType type, Address addr) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
               isolate(), type, addr, [this](Object** addr) {
+                // We expect that objects referenced by code are long living.
+                // If we do not force promotion, then we need to clear
+                // old_to_new slots in dead code objects after mark-compact.
                 return Scavenger::CheckAndScavengeObject(
-                    this, reinterpret_cast<Address>(addr));
+                    this, reinterpret_cast<Address>(addr), FORCE_PROMOTION);
               });
         });
   }
@@ -4665,8 +4668,8 @@ void Heap::IteratePromotedObjectPointers(HeapObject* object, Address start,
     Object* target = *slot;
     if (target->IsHeapObject()) {
       if (Heap::InFromSpace(target)) {
-        callback(reinterpret_cast<HeapObject**>(slot),
-                 HeapObject::cast(target));
+        callback(reinterpret_cast<HeapObject**>(slot), HeapObject::cast(target),
+                 DEFAULT_PROMOTION);
         Object* new_target = *slot;
         if (InNewSpace(new_target)) {
           SLOW_DCHECK(Heap::InToSpace(new_target));
