@@ -105,6 +105,7 @@ class BytecodeGenerator final : public AstVisitor {
   void BuildKeyedSuperPropertyLoad(Register receiver, Register home_object,
                                    Register key);
 
+  void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReassignConstant(Handle<String> name);

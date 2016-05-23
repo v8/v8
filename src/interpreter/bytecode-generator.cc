@@ -657,13 +657,7 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
         .JumpIfTrue(&(targets[i]));
   }
 
-  RegisterAllocationScope register_scope(this);
-  Register reason = register_allocator()->NewRegister();
-  BailoutReason bailout_reason = BailoutReason::kInvalidJumpTableIndex;
-  builder()
-      ->LoadLiteral(Smi::FromInt(static_cast<int>(bailout_reason)))
-      .StoreAccumulatorInRegister(reason)
-      .CallRuntime(Runtime::kAbort, reason, 1);
+  BuildAbort(BailoutReason::kInvalidJumpTableIndex);
 }
 
 void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
@@ -1957,6 +1951,15 @@ void BytecodeGenerator::BuildKeyedSuperPropertyStore(Register receiver,
                                         ? Runtime::kStoreKeyedToSuper_Strict
                                         : Runtime::kStoreKeyedToSuper_Sloppy;
   builder()->CallRuntime(function_id, receiver, 4);
+}
+
+void BytecodeGenerator::BuildAbort(BailoutReason bailout_reason) {
+  RegisterAllocationScope register_scope(this);
+  Register reason = register_allocator()->NewRegister();
+  builder()
+      ->LoadLiteral(Smi::FromInt(static_cast<int>(bailout_reason)))
+      .StoreAccumulatorInRegister(reason)
+      .CallRuntime(Runtime::kAbort, reason, 1);
 }
 
 void BytecodeGenerator::BuildThrowReferenceError(Handle<String> name) {
