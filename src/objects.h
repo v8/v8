@@ -7474,6 +7474,9 @@ class JSBoundFunction : public JSObject {
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
+  static MaybeHandle<String> GetName(Isolate* isolate,
+                                     Handle<JSBoundFunction> function);
+
   // Layout description.
   static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
   static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
