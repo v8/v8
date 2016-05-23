@@ -58,8 +58,14 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSGeneratorObject::continuation() field.
   static FieldAccess ForJSGeneratorObjectContinuation();
 
+  // Provides access to JSGeneratorObject::input() field.
+  static FieldAccess ForJSGeneratorObjectInput();
+
   // Provides access to JSGeneratorObject::operand_stack() field.
   static FieldAccess ForJSGeneratorObjectOperandStack();
+
+  // Provides access to JSGeneratorObject::resume_mode() field.
+  static FieldAccess ForJSGeneratorObjectResumeMode();
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);

@@ -2301,12 +2301,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
     Register input = register_allocator()->NewRegister();
     builder()
-        ->CallRuntime(Runtime::kGeneratorGetInput, generator, 1)
+        ->CallRuntime(Runtime::kInlineGeneratorGetInput, generator, 1)
         .StoreAccumulatorInRegister(input);
 
     Register resume_mode = register_allocator()->NewRegister();
     builder()
-        ->CallRuntime(Runtime::kGeneratorGetResumeMode, generator, 1)
+        ->CallRuntime(Runtime::kInlineGeneratorGetResumeMode, generator, 1)
         .StoreAccumulatorInRegister(resume_mode);
 
     // Now dispatch on resume mode.
@@ -2333,7 +2333,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
           ->MoveRegister(input, value)
           .LoadTrue()
           .StoreAccumulatorInRegister(done)
-          .CallRuntime(Runtime::kCreateIterResultObject, value, 2);
+          .CallRuntime(Runtime::kInlineCreateIterResultObject, value, 2);
       execution_control()->ReturnAccumulator();
     }
 

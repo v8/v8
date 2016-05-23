@@ -42,6 +42,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleLo(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
+    case Runtime::kInlineGeneratorGetInput:
+      return ReduceGeneratorGetInput(node);
+    case Runtime::kInlineGeneratorGetResumeMode:
+      return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
@@ -166,6 +170,26 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   ReplaceWithValue(node, undefined, node);
   NodeProperties::RemoveType(node);
   return Change(node, op, generator, closed, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceGeneratorGetInput(Node* node) {
+  Node* const generator = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op =
+      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectInput());
+
+  return Change(node, op, generator, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceGeneratorGetResumeMode(Node* node) {
+  Node* const generator = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op =
+      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectResumeMode());
+
+  return Change(node, op, generator, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceIsInstanceType(

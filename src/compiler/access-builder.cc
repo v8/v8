@@ -153,6 +153,14 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSGeneratorObjectInput() {
+  FieldAccess access = {
+      kTaggedBase, JSGeneratorObject::kInputOffset, Handle<Name>(),
+      Type::Any(), MachineType::AnyTagged(),        kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
   FieldAccess access = {kTaggedBase,
                         JSGeneratorObject::kOperandStackOffset,
@@ -160,6 +168,18 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
                         Type::Internal(),
                         MachineType::AnyTagged(),
                         kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
+  TypeCache const& type_cache = TypeCache::Get();
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kResumeModeOffset,
+                        Handle<Name>(),
+                        type_cache.kSmi,
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
   return access;
 }
 
