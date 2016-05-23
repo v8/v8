@@ -13345,6 +13345,18 @@ Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
   return isolate->factory()->NewStringFromAsciiChecked(kNativeCodeSource);
 }
 
+// static
+MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
+                                             Handle<JSBoundFunction> function) {
+  Handle<String> prefix = isolate->factory()->bound__string();
+  if (!function->bound_target_function()->IsJSFunction()) return prefix;
+  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
+                            isolate);
+  Handle<Object> target_name = JSFunction::GetName(target);
+  if (!target_name->IsString()) return prefix;
+  Factory* factory = isolate->factory();
+  return factory->NewConsString(prefix, Handle<String>::cast(target_name));
+}
 
 // static
 Handle<String> JSFunction::ToString(Handle<JSFunction> function) {

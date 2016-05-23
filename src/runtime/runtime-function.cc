@@ -20,15 +20,16 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
   DCHECK(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  Handle<Object> result;
   if (function->IsJSBoundFunction()) {
+  Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, JSBoundFunction::GetName(
                              isolate, Handle<JSBoundFunction>::cast(function)));
+    return *result;
   } else {
-    result = JSFunction::GetName(isolate, Handle<JSFunction>::cast(function));
+    RUNTIME_ASSERT(function->IsJSFunction());
+    return Handle<JSFunction>::cast(function)->shared()->name();
   }
-  return *result;
 }
 
 
