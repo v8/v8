@@ -233,6 +233,9 @@ function JSONStringify(value, replacer, space) {
       space = TO_STRING(space);
     }
   }
+  if (!IS_CALLABLE(replacer) && !property_list) {
+    return %BasicJSONStringify(value, space);
+  }
   var gap;
   if (IS_NUMBER(space)) {
     space = MaxSimple(0, MinSimple(TO_INTEGER(space), 10));
@@ -245,9 +248,6 @@ function JSONStringify(value, replacer, space) {
     }
   } else {
     gap = "";
-  }
-  if (!IS_CALLABLE(replacer) && !property_list) {
-    return %BasicJSONStringify(value, gap);
   }
   return JSONSerialize('', {'': value}, replacer, new Stack(), "", gap);
 }

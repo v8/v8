@@ -13,17 +13,20 @@ namespace internal {
 
 class BasicJsonStringifier BASE_EMBEDDED {
  public:
-  BasicJsonStringifier(Isolate* isolate, Handle<String> gap);
+  explicit BasicJsonStringifier(Isolate* isolate);
 
   ~BasicJsonStringifier() { DeleteArray(gap_); }
 
-  MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object);
+  MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
+                                                Handle<Object> gap);
 
   MUST_USE_RESULT static MaybeHandle<Object> StringifyString(
       Isolate* isolate, Handle<String> object);
 
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION };
+
+  bool InitializeGap(Handle<Object> gap);
 
   MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
       Handle<Object> object,
@@ -104,7 +107,6 @@ class BasicJsonStringifier BASE_EMBEDDED {
   IncrementalStringBuilder builder_;
   Handle<String> tojson_string_;
   Handle<JSArray> stack_;
-  Handle<String> gap_string_;
   uc16* gap_;
   int indent_;
 

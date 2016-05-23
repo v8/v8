@@ -81,34 +81,60 @@ const char* const BasicJsonStringifier::JsonEscapeTable =
     "\370\0      \371\0      \372\0      \373\0      "
     "\374\0      \375\0      \376\0      \377\0      ";
 
-BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate, Handle<String> gap)
-    : isolate_(isolate), builder_(isolate), gap_string_(gap), indent_(0) {
+BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
+    : isolate_(isolate), builder_(isolate), gap_(nullptr), indent_(0) {
   tojson_string_ = factory()->toJSON_string();
   stack_ = factory()->NewJSArray(8);
-  int gap_length = gap->length();
-  if (gap_length != 0) {
-    gap = String::Flatten(gap);
-    if (gap->IsTwoByteRepresentation()) builder_.ChangeEncoding();
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = gap->GetFlatContent();
-    gap_ = NewArray<uc16>(gap_length + 1);
-    if (flat.IsOneByte()) {
-      CopyChars(gap_, flat.ToOneByteVector().start(), gap_length);
-    } else {
-      CopyChars(gap_, flat.ToUC16Vector().start(), gap_length);
-    }
-    gap_[gap_length] = '\0';
-  } else {
-    gap_ = nullptr;
-  }
 }
 
-MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object) {
+MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object,
+                                                    Handle<Object> gap) {
+  if (!gap->IsUndefined() && !InitializeGap(gap)) return MaybeHandle<Object>();
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();
   DCHECK(result == EXCEPTION);
   return MaybeHandle<Object>();
+}
+
+bool BasicJsonStringifier::InitializeGap(Handle<Object> gap) {
+  DCHECK_NULL(gap_);
+  HandleScope scope(isolate_);
+  if (gap->IsJSReceiver()) {
+    Handle<String> class_name(Handle<JSReceiver>::cast(gap)->class_name());
+    if (class_name.is_identical_to(factory()->String_string())) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
+                                       Object::ToString(isolate_, gap), false);
+    } else if (class_name.is_identical_to(factory()->number_string())) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap, Object::ToNumber(gap),
+                                       false);
+    }
+  }
+
+  if (gap->IsString()) {
+    Handle<String> gap_string = Handle<String>::cast(gap);
+    if (gap_string->length() > 0) {
+      int gap_length = std::min(gap_string->length(), 10);
+      gap_ = NewArray<uc16>(gap_length + 1);
+      String::WriteToFlat(*gap_string, gap_, 0, gap_length);
+      for (int i = 0; i < gap_length; i++) {
+        if (gap_[i] > String::kMaxOneByteCharCode) {
+          builder_.ChangeEncoding();
+          break;
+        }
+      }
+      gap_[gap_length] = '\0';
+    }
+  } else if (gap->IsNumber()) {
+    int num_value = DoubleToInt32(gap->Number());
+    if (num_value > 0) {
+      int gap_length = std::min(num_value, 10);
+      gap_ = NewArray<uc16>(gap_length + 1);
+      for (int i = 0; i < gap_length; i++) gap_[i] = ' ';
+      gap_[gap_length] = '\0';
+    }
+  }
+  return true;
 }
 
 MaybeHandle<Object> BasicJsonStringifier::StringifyString(
@@ -119,9 +145,8 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
       object->length() * kJsonQuoteWorstCaseBlowup + kSpaceForQuotes;
 
   if (worst_case_length > 32 * KB) {  // Slow path if too large.
-    BasicJsonStringifier stringifier(isolate,
-                                     isolate->factory()->empty_string());
-    return stringifier.Stringify(object);
+    BasicJsonStringifier stringifier(isolate);
+    return stringifier.Stringify(object, isolate->factory()->undefined_value());
   }
 
   object = String::Flatten(object);

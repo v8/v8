@@ -28,10 +28,10 @@ RUNTIME_FUNCTION(Runtime_BasicJSONStringify) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, gap, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, gap, 1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, BasicJsonStringifier(isolate, gap).Stringify(object));
+      isolate, result, BasicJsonStringifier(isolate).Stringify(object, gap));
   return *result;
 }
 
