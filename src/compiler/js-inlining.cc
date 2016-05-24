@@ -4,18 +4,20 @@
 
 #include "src/compiler/js-inlining.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-numbering.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
+#include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/type-hint-analyzer.h"
 #include "src/isolate-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
@@ -446,6 +448,15 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
+  // Run the loop assignment analyzer on the inlinee.
+  AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
+  LoopAssignmentAnalysis* loop_assignment = loop_assignment_analyzer.Analyze();
+
+  // Run the type hint analyzer on the inlinee.
+  TypeHintAnalyzer type_hint_analyzer(&zone);
+  TypeHintAnalysis* type_hint_analysis =
+      type_hint_analyzer.Analyze(handle(shared_info->code(), info.isolate()));
+
   // TODO(mstarzinger): We could use the temporary zone for the graph because
   // nodes are copied. This however leads to Zone-Types being allocated in the
   // wrong zone and makes the engine explode at high speeds. Explosion bad!
@@ -453,7 +464,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
                   jsgraph_->javascript(), jsgraph_->simplified(),
                   jsgraph_->machine());
-  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
+  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph, loop_assignment,
+                                type_hint_analysis);
   graph_builder.CreateGraph(false);
 
   CopyVisitor visitor(&graph, jsgraph_->graph(), &zone);
