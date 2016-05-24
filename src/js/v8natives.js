@@ -12,7 +12,6 @@
 var GlobalArray = global.Array;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeRangeError;
 var MakeSyntaxError;

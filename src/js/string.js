@@ -13,8 +13,6 @@ var ArrayIndexOf;
 var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
 var IsRegExp;
 var MakeRangeError;
 var MakeTypeError;

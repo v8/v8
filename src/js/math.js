@@ -16,7 +16,6 @@ define kRandomNumberStart = 2;
 var GlobalFloat64Array = global.Float64Array;
 var GlobalMath = global.Math;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
 var nextRandomIndex = 0;
 var randomNumbers = UNDEFINED;
