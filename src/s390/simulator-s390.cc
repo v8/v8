@@ -5965,6 +5965,12 @@ uintptr_t Simulator::PopAddress() {
   int r2 = AS(RREInstruction)->R2Value(); \
   int length = 4;
 
+#define DECODE_RRE_INSTRUCTION_M3(r1, r2, m3) \
+  int r1 = AS(RREInstruction)->R1Value();     \
+  int r2 = AS(RREInstruction)->R2Value();     \
+  int m3 = AS(RREInstruction)->M3Value();     \
+  int length = 4;
+
 #define DECODE_RRE_INSTRUCTION_NO_R2(r1)  \
   int r1 = AS(RREInstruction)->R1Value(); \
   int length = 4;
@@ -6376,11 +6382,23 @@ EVALUATE(BKPT) {
   return length;
 }
 
-EVALUATE(SPM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SPM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BALR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BALR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BCTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BCTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(BCR) {
   DCHECK_OPCODE(BCR);
@@ -6399,11 +6417,23 @@ EVALUATE(BCR) {
   return length;
 }
 
-EVALUATE(SVC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SVC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BSM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BSM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BASSM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BASSM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(BASR) {
   DCHECK_OPCODE(BASR);
@@ -6424,11 +6454,23 @@ EVALUATE(BASR) {
   return length;
 }
 
-EVALUATE(MVCL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLCL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLCL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LNR) {
   DCHECK_OPCODE(LNR);
@@ -6602,9 +6644,17 @@ EVALUATE(LDR) {
   return length;
 }
 
-EVALUATE(CDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LER) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LER) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STH) {
   DCHECK_OPCODE(STH);
@@ -6640,7 +6690,11 @@ EVALUATE(STC) {
   return length;
 }
 
-EVALUATE(IC_z) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IC_z) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(EX) {
   DCHECK_OPCODE(EX);
@@ -6664,11 +6718,23 @@ EVALUATE(EX) {
   return length;
 }
 
-EVALUATE(BAL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BAL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BCT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BCT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LH) {
   DCHECK_OPCODE(LH);
@@ -6684,7 +6750,11 @@ EVALUATE(LH) {
   return length;
 }
 
-EVALUATE(CH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AH) {
   DCHECK_OPCODE(AH);
@@ -6737,13 +6807,29 @@ EVALUATE(MH) {
   return length;
 }
 
-EVALUATE(BAS) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BAS) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CVD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CVB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(N) {
   DCHECK_OPCODE(N);
@@ -6850,13 +6936,29 @@ EVALUATE(S) {
   return length;
 }
 
-EVALUATE(M) { return DecodeInstructionOriginal(instr); }
+EVALUATE(M) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(D) { return DecodeInstructionOriginal(instr); }
+EVALUATE(D) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STD) {
   DCHECK_OPCODE(STD);
@@ -6880,7 +6982,11 @@ EVALUATE(LD) {
   return length;
 }
 
-EVALUATE(CD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STE) {
   DCHECK_OPCODE(STE);
@@ -6915,9 +7021,17 @@ EVALUATE(LE) {
   return length;
 }
 
-EVALUATE(BRXH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BRXH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BRXLE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BRXLE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(BXH) {
   DCHECK_OPCODE(BXH);
@@ -6947,7 +7061,11 @@ EVALUATE(BXH) {
   return length;
 }
 
-EVALUATE(BXLE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BXLE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(SRL) {
   DCHECK_OPCODE(SRL);
@@ -7060,7 +7178,11 @@ EVALUATE(SRDA) {
   return length;
 }
 
-EVALUATE(SLDA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLDA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STM) {
   DCHECK_OPCODE(STM);
@@ -7103,11 +7225,23 @@ EVALUATE(TM) {
   return length;
 }
 
-EVALUATE(MVI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TS) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TS) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CLI) {
   DCHECK_OPCODE(CLI);
@@ -7120,9 +7254,17 @@ EVALUATE(CLI) {
   return length;
 }
 
-EVALUATE(OI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(XI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LM) {
   DCHECK_OPCODE(LM);
@@ -7144,25 +7286,65 @@ EVALUATE(LM) {
   return length;
 }
 
-EVALUATE(MVCLE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCLE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLCLE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLCLE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDS) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDS) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ICM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ICM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BPRP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BPRP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BPP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BPP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MVC) {
   DCHECK_OPCODE(MVC);
@@ -7185,73 +7367,209 @@ EVALUATE(MVC) {
   return length;
 }
 
-EVALUATE(MVZ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVZ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(OC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(XC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVCP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ED) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ED) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EDMK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EDMK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PKU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PKU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(UNPKU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(UNPKU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVCIN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCIN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PKA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PKA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(UNPKA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(UNPKA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PLO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PLO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LMD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LMD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PACK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PACK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(UNPK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(UNPK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ZAP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ZAP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(UPT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(UPT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PFPO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PFPO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IIHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IIHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IIHL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IIHL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IILH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IILH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IILL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IILL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NIHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NIHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NIHL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NIHL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(NILH) {
   DCHECK_OPCODE(NILH);
@@ -7275,9 +7593,17 @@ EVALUATE(NILL) {
   return length;
 }
 
-EVALUATE(OIHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OIHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(OIHL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OIHL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(OILH) {
   DCHECK_OPCODE(OILH);
@@ -7300,15 +7626,35 @@ EVALUATE(OILL) {
   return length;
 }
 
-EVALUATE(LLIHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLIHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLIHL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLIHL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLILH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLILH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLILL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLILL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TMLH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TMLH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(TMLL) {
   DCHECK_OPCODE(TMLL);
@@ -7368,9 +7714,17 @@ EVALUATE(TMLL) {
   return length;
 }
 
-EVALUATE(TMHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TMHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TMHL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TMHL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(BRAS) {
   DCHECK_OPCODE(BRAS);
@@ -7479,7 +7833,11 @@ EVALUATE(LARL) {
   return length;
 }
 
-EVALUATE(LGFI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LGFI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(BRASL) {
   DCHECK_OPCODE(BRASL);
@@ -7710,93 +8068,269 @@ EVALUATE(CLFI) {
   return length;
 }
 
-EVALUATE(LLHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LGHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LGHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLGHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LGRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LGRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STGRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STGRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LGFRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LGFRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLGFRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGFRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EXRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EXRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PFDRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PFDRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CHRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGFRL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGFRL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ECTG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ECTG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CSST) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CSST) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPDG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPDG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BRCTH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BRCTH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AIH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AIH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALSIH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALSIH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALSIHN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALSIHN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CIH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CIH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IPM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IPM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(HSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(HSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TPI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TPI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SAL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SAL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCRW) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCRW) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCPS) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCPS) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RCHP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RCHP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SCHM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SCHM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CKSM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CKSM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SAR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SAR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EAR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EAR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MSR) {
   DCHECK_OPCODE(MSR);
@@ -7807,49 +8341,144 @@ EVALUATE(MSR) {
   return length;
 }
 
-EVALUATE(MVST) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVST) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CUSE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CUSE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRST) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRST) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(XSCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XSCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCKE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCKE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCKF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCKF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRNM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRNM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STFPC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STFPC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LFPC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LFPC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CUUTF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CUUTF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CUTFU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CUTFU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STFLE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STFLE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRNMB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRNMB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRNMT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRNMT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LFAS) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LFAS) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PPA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PPA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ETND) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ETND) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TEND) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TEND) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NIAI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NIAI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TABORT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TABORT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRAP4) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRAP4) {
+  DCHECK_OPCODE(TRAP4);
+  int length = 4;
+  // whack the space of the caller allocated stack
+  int64_t sp_addr = get_register(sp);
+  for (int i = 0; i < kCalleeRegisterSaveAreaSize / kPointerSize; ++i) {
+    // we dont want to whack the RA (r14)
+    if (i != 14) (reinterpret_cast<intptr_t*>(sp_addr))[i] = 0xdeadbabe;
+  }
+  SoftwareInterrupt(instr);
+  return length;
+}
 
 EVALUATE(LPEBR) {
   DCHECK_OPCODE(LPEBR);
@@ -7869,7 +8498,11 @@ EVALUATE(LPEBR) {
   return length;
 }
 
-EVALUATE(LNEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LNEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LTEBR) {
   DCHECK_OPCODE(LTEBR);
@@ -7881,7 +8514,11 @@ EVALUATE(LTEBR) {
   return length;
 }
 
-EVALUATE(LCEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LCEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LDEBR) {
   DCHECK_OPCODE(LDEBR);
@@ -7892,13 +8529,29 @@ EVALUATE(LDEBR) {
   return length;
 }
 
-EVALUATE(LXDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LXEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MXDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MXDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CEBR) {
   DCHECK_OPCODE(CEBR);
@@ -7938,7 +8591,11 @@ EVALUATE(SEBR) {
   return length;
 }
 
-EVALUATE(MDEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MDEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(DEBR) {
   DCHECK_OPCODE(DEBR);
@@ -7952,9 +8609,17 @@ EVALUATE(DEBR) {
   return length;
 }
 
-EVALUATE(MAEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MAEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LPDBR) {
   DCHECK_OPCODE(LPDBR);
@@ -7973,7 +8638,11 @@ EVALUATE(LPDBR) {
   return length;
 }
 
-EVALUATE(LNDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LNDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LTDBR) {
   DCHECK_OPCODE(LTDBR);
@@ -8023,7 +8692,11 @@ EVALUATE(SQDBR) {
   return length;
 }
 
-EVALUATE(SQXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SQXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MEEBR) {
   DCHECK_OPCODE(MEEBR);
@@ -8036,7 +8709,11 @@ EVALUATE(MEEBR) {
   return length;
 }
 
-EVALUATE(KDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CDBR) {
   DCHECK_OPCODE(CDBR);
@@ -8107,41 +8784,115 @@ EVALUATE(MADBR) {
   return length;
 }
 
-EVALUATE(MSDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LNXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LNXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LTXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LTXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LCXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LCXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LEDBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LEDBRA) {
+  DCHECK_OPCODE(LEDBRA);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  double r2_val = get_double_from_d_register(r2);
+  set_d_register_from_float32(r1, static_cast<float>(r2_val));
+  return length;
+}
 
-EVALUATE(LDXBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LDXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LEXBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LEXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(FIXBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(FIXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TBEDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TBEDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TBDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TBDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DIEBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DIEBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(FIEBRA) {
   DCHECK_OPCODE(FIEBRA);
@@ -8168,11 +8919,23 @@ EVALUATE(FIEBRA) {
   return length;
 }
 
-EVALUATE(THDER) { return DecodeInstructionOriginal(instr); }
+EVALUATE(THDER) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(THDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(THDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DIDBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DIDBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(FIDBRA) {
   DCHECK_OPCODE(FIDBRA);
@@ -8199,15 +8962,35 @@ EVALUATE(FIDBRA) {
   return length;
 }
 
-EVALUATE(LXR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPDFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPDFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LNDFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LNDFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LCDFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LCDFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LZER) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LZER) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LZDR) {
   DCHECK_OPCODE(LZDR);
@@ -8216,13 +8999,29 @@ EVALUATE(LZDR) {
   return length;
 }
 
-EVALUATE(LZXR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LZXR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SFPC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SFPC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SFASR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SFASR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EFPC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EFPC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CELFBR) {
   DCHECK_OPCODE(CELFBR);
@@ -8242,19 +9041,209 @@ EVALUATE(CDLFBR) {
   return length;
 }
 
-EVALUATE(CXLFBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXLFBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CEFBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CEFBRA) {
+  DCHECK_OPCODE(CEFBRA);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t fr2_val = get_low_register<int32_t>(r2);
+  float fr1_val = static_cast<float>(fr2_val);
+  set_d_register_from_float32(r1, fr1_val);
+  return length;
+}
 
-EVALUATE(CDFBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDFBRA) {
+  DCHECK_OPCODE(CDFBRA);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  double r1_val = static_cast<double>(r2_val);
+  set_d_register_from_double(r1, r1_val);
+  return length;
+}
 
-EVALUATE(CXFBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXFBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFEBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFEBRA) {
+  DCHECK_OPCODE(CFEBRA);
+  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
+  float r2_fval = get_float32_from_d_register(r2);
+  int32_t r1_val = 0;
 
-EVALUATE(CFDBRA) { return DecodeInstructionOriginal(instr); }
+  SetS390RoundConditionCode(r2_fval, INT32_MAX, INT32_MIN);
 
-EVALUATE(CFXBRA) { return DecodeInstructionOriginal(instr); }
+  switch (mask_val) {
+    case CURRENT_ROUNDING_MODE:
+    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
+      r1_val = static_cast<int32_t>(r2_fval);
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0: {
+      float ceil_val = std::ceil(r2_fval);
+      float floor_val = std::floor(r2_fval);
+      float sub_val1 = std::fabs(r2_fval - floor_val);
+      float sub_val2 = std::fabs(r2_fval - ceil_val);
+      if (sub_val1 > sub_val2) {
+        r1_val = static_cast<int32_t>(ceil_val);
+      } else if (sub_val1 < sub_val2) {
+        r1_val = static_cast<int32_t>(floor_val);
+      } else {  // round away from zero:
+        if (r2_fval > 0.0) {
+          r1_val = static_cast<int32_t>(ceil_val);
+        } else {
+          r1_val = static_cast<int32_t>(floor_val);
+        }
+      }
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
+      float ceil_val = std::ceil(r2_fval);
+      float floor_val = std::floor(r2_fval);
+      float sub_val1 = std::fabs(r2_fval - floor_val);
+      float sub_val2 = std::fabs(r2_fval - ceil_val);
+      if (sub_val1 > sub_val2) {
+        r1_val = static_cast<int32_t>(ceil_val);
+      } else if (sub_val1 < sub_val2) {
+        r1_val = static_cast<int32_t>(floor_val);
+      } else {  // check which one is even:
+        int32_t c_v = static_cast<int32_t>(ceil_val);
+        int32_t f_v = static_cast<int32_t>(floor_val);
+        if (f_v % 2 == 0)
+          r1_val = f_v;
+        else
+          r1_val = c_v;
+      }
+      break;
+    }
+    case ROUND_TOWARD_0: {
+      // check for overflow, cast r2_fval to 64bit integer
+      // then check value within the range of INT_MIN and INT_MAX
+      // and set condition code accordingly
+      int64_t temp = static_cast<int64_t>(r2_fval);
+      if (temp < INT_MIN || temp > INT_MAX) {
+        condition_reg_ = CC_OF;
+      }
+      r1_val = static_cast<int32_t>(r2_fval);
+      break;
+    }
+    case ROUND_TOWARD_PLUS_INFINITE: {
+      r1_val = static_cast<int32_t>(std::ceil(r2_fval));
+      break;
+    }
+    case ROUND_TOWARD_MINUS_INFINITE: {
+      // check for overflow, cast r2_fval to 64bit integer
+      // then check value within the range of INT_MIN and INT_MAX
+      // and set condition code accordingly
+      int64_t temp = static_cast<int64_t>(std::floor(r2_fval));
+      if (temp < INT_MIN || temp > INT_MAX) {
+        condition_reg_ = CC_OF;
+      }
+      r1_val = static_cast<int32_t>(std::floor(r2_fval));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CFDBRA) {
+  DCHECK_OPCODE(CFDBRA);
+  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
+  double r2_val = get_double_from_d_register(r2);
+  int32_t r1_val = 0;
+
+  SetS390RoundConditionCode(r2_val, INT32_MAX, INT32_MIN);
+
+  switch (mask_val) {
+    case CURRENT_ROUNDING_MODE:
+    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
+      r1_val = static_cast<int32_t>(r2_val);
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0: {
+      double ceil_val = std::ceil(r2_val);
+      double floor_val = std::floor(r2_val);
+      double sub_val1 = std::fabs(r2_val - floor_val);
+      double sub_val2 = std::fabs(r2_val - ceil_val);
+      if (sub_val1 > sub_val2) {
+        r1_val = static_cast<int32_t>(ceil_val);
+      } else if (sub_val1 < sub_val2) {
+        r1_val = static_cast<int32_t>(floor_val);
+      } else {  // round away from zero:
+        if (r2_val > 0.0) {
+          r1_val = static_cast<int32_t>(ceil_val);
+        } else {
+          r1_val = static_cast<int32_t>(floor_val);
+        }
+      }
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
+      double ceil_val = std::ceil(r2_val);
+      double floor_val = std::floor(r2_val);
+      double sub_val1 = std::fabs(r2_val - floor_val);
+      double sub_val2 = std::fabs(r2_val - ceil_val);
+      if (sub_val1 > sub_val2) {
+        r1_val = static_cast<int32_t>(ceil_val);
+      } else if (sub_val1 < sub_val2) {
+        r1_val = static_cast<int32_t>(floor_val);
+      } else {  // check which one is even:
+        int32_t c_v = static_cast<int32_t>(ceil_val);
+        int32_t f_v = static_cast<int32_t>(floor_val);
+        if (f_v % 2 == 0)
+          r1_val = f_v;
+        else
+          r1_val = c_v;
+      }
+      break;
+    }
+    case ROUND_TOWARD_0: {
+      // check for overflow, cast r2_val to 64bit integer
+      // then check value within the range of INT_MIN and INT_MAX
+      // and set condition code accordingly
+      int64_t temp = static_cast<int64_t>(r2_val);
+      if (temp < INT_MIN || temp > INT_MAX) {
+        condition_reg_ = CC_OF;
+      }
+      r1_val = static_cast<int32_t>(r2_val);
+      break;
+    }
+    case ROUND_TOWARD_PLUS_INFINITE: {
+      r1_val = static_cast<int32_t>(std::ceil(r2_val));
+      break;
+    }
+    case ROUND_TOWARD_MINUS_INFINITE: {
+      // check for overflow, cast r2_val to 64bit integer
+      // then check value within the range of INT_MIN and INT_MAX
+      // and set condition code accordingly
+      int64_t temp = static_cast<int64_t>(std::floor(r2_val));
+      if (temp < INT_MIN || temp > INT_MAX) {
+        condition_reg_ = CC_OF;
+      }
+      r1_val = static_cast<int32_t>(std::floor(r2_val));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  set_low_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CFXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CLFEBR) {
   DCHECK_OPCODE(CLFEBR);
@@ -8276,7 +9265,11 @@ EVALUATE(CLFDBR) {
   return length;
 }
 
-EVALUATE(CLFXBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLFXBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CELGBR) {
   DCHECK_OPCODE(CELGBR);
@@ -8296,19 +9289,143 @@ EVALUATE(CDLGBR) {
   return length;
 }
 
-EVALUATE(CXLGBR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXLGBR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CEGBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CEGBRA) {
+  DCHECK_OPCODE(CEGBRA);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t fr2_val = get_register(r2);
+  float fr1_val = static_cast<float>(fr2_val);
+  set_d_register_from_float32(r1, fr1_val);
+  return length;
+}
 
-EVALUATE(CDGBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDGBRA) {
+  DCHECK_OPCODE(CDGBRA);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_register(r2);
+  double r1_val = static_cast<double>(r2_val);
+  set_d_register_from_double(r1, r1_val);
+  return length;
+}
 
-EVALUATE(CXGBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXGBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGEBRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGEBRA) {
+  DCHECK_OPCODE(CGEBRA);
+  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
+  float r2_fval = get_float32_from_d_register(r2);
+  int64_t r1_val = 0;
 
-EVALUATE(CGDBRA) { return DecodeInstructionOriginal(instr); }
+  SetS390RoundConditionCode(r2_fval, INT64_MAX, INT64_MIN);
 
-EVALUATE(CGXBRA) { return DecodeInstructionOriginal(instr); }
+  switch (mask_val) {
+    case CURRENT_ROUNDING_MODE:
+    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
+    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
+      UNIMPLEMENTED();
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
+      float ceil_val = std::ceil(r2_fval);
+      float floor_val = std::floor(r2_fval);
+      if (std::abs(r2_fval - floor_val) > std::abs(r2_fval - ceil_val)) {
+        r1_val = static_cast<int64_t>(ceil_val);
+      } else if (std::abs(r2_fval - floor_val) < std::abs(r2_fval - ceil_val)) {
+        r1_val = static_cast<int64_t>(floor_val);
+      } else {  // check which one is even:
+        int64_t c_v = static_cast<int64_t>(ceil_val);
+        int64_t f_v = static_cast<int64_t>(floor_val);
+        if (f_v % 2 == 0)
+          r1_val = f_v;
+        else
+          r1_val = c_v;
+      }
+      break;
+    }
+    case ROUND_TOWARD_0: {
+      r1_val = static_cast<int64_t>(r2_fval);
+      break;
+    }
+    case ROUND_TOWARD_PLUS_INFINITE: {
+      r1_val = static_cast<int64_t>(std::ceil(r2_fval));
+      break;
+    }
+    case ROUND_TOWARD_MINUS_INFINITE: {
+      r1_val = static_cast<int64_t>(std::floor(r2_fval));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  set_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CGDBRA) {
+  DCHECK_OPCODE(CGDBRA);
+  DECODE_RRE_INSTRUCTION_M3(r1, r2, mask_val);
+  double r2_val = get_double_from_d_register(r2);
+  int64_t r1_val = 0;
+
+  SetS390RoundConditionCode(r2_val, INT64_MAX, INT64_MIN);
+
+  switch (mask_val) {
+    case CURRENT_ROUNDING_MODE:
+    case ROUND_TO_NEAREST_WITH_TIES_AWAY_FROM_0:
+    case ROUND_TO_PREPARE_FOR_SHORTER_PRECISION: {
+      UNIMPLEMENTED();
+      break;
+    }
+    case ROUND_TO_NEAREST_WITH_TIES_TO_EVEN: {
+      double ceil_val = std::ceil(r2_val);
+      double floor_val = std::floor(r2_val);
+      if (std::abs(r2_val - floor_val) > std::abs(r2_val - ceil_val)) {
+        r1_val = static_cast<int64_t>(ceil_val);
+      } else if (std::abs(r2_val - floor_val) < std::abs(r2_val - ceil_val)) {
+        r1_val = static_cast<int64_t>(floor_val);
+      } else {  // check which one is even:
+        int64_t c_v = static_cast<int64_t>(ceil_val);
+        int64_t f_v = static_cast<int64_t>(floor_val);
+        if (f_v % 2 == 0)
+          r1_val = f_v;
+        else
+          r1_val = c_v;
+      }
+      break;
+    }
+    case ROUND_TOWARD_0: {
+      r1_val = static_cast<int64_t>(r2_val);
+      break;
+    }
+    case ROUND_TOWARD_PLUS_INFINITE: {
+      r1_val = static_cast<int64_t>(std::ceil(r2_val));
+      break;
+    }
+    case ROUND_TOWARD_MINUS_INFINITE: {
+      r1_val = static_cast<int64_t>(std::floor(r2_val));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  set_register(r1, r1_val);
+  return length;
+}
+
+EVALUATE(CGXBRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CLGEBR) {
   DCHECK_OPCODE(CLGEBR);
@@ -8330,11 +9447,23 @@ EVALUATE(CLGDBR) {
   return length;
 }
 
-EVALUATE(CFER) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFER) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFXR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFXR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LDGR) {
   DCHECK_OPCODE(LDGR);
@@ -8347,11 +9476,23 @@ EVALUATE(LDGR) {
   return length;
 }
 
-EVALUATE(CGER) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGER) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGDR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGDR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGXR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGXR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LGDR) {
   DCHECK_OPCODE(LGDR);
@@ -8362,95 +9503,275 @@ EVALUATE(LGDR) {
   return length;
 }
 
-EVALUATE(MDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MDTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MDTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DDTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DDTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ADTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ADTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SDTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SDTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LDETR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LDETR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LEDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LEDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LTDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LTDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(FIDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(FIDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MXTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MXTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DXTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DXTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AXTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AXTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SXTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SXTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LXDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LDXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LDXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LTXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LTXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(FIXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(FIXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGDTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGDTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CUDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CUDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EEDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EEDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ESDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ESDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGXTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGXTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CUXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CUXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CSXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CSXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EEXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EEXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ESXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ESXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDGTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDGTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDUTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDUTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDSTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDSTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CEDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CEDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(QADTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(QADTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IEDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IEDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RRDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RRDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXGTRA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXGTRA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXUTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXUTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXSTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXSTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CEXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CEXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(QAXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(QAXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(IEXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(IEXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RRXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RRXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LNGR) {
   DCHECK_OPCODE(LNGR);
@@ -8503,9 +9824,17 @@ EVALUATE(SGR) {
   return length;
 }
 
-EVALUATE(ALGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MSGR) {
   DCHECK_OPCODE(MSGR);
@@ -8529,11 +9858,23 @@ EVALUATE(DSGR) {
   return length;
 }
 
-EVALUATE(LRVGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRVGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LNGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LNGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LTGFR) {
   DCHECK_OPCODE(LTGFR);
@@ -8558,9 +9899,20 @@ EVALUATE(LCGFR) {
   return length;
 }
 
-EVALUATE(LLGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGFR) {
+  DCHECK_OPCODE(LLGFR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  uint64_t r2_finalval = (static_cast<uint64_t>(r2_val) & 0x00000000ffffffff);
+  set_register(r1, r2_finalval);
+  return length;
+}
 
-EVALUATE(LLGTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AGFR) {
   DCHECK_OPCODE(AGFR);
@@ -8591,17 +9943,41 @@ EVALUATE(SGFR) {
   return length;
 }
 
-EVALUATE(ALGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DSGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DSGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KMAC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KMAC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LRVR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRVR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CGR) {
   DCHECK_OPCODE(CGR);
@@ -8623,49 +9999,137 @@ EVALUATE(CLGR) {
   return length;
 }
 
-EVALUATE(KMF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KMF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KMO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KMO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PCC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PCC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KMCTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KMCTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KM) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KM) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KMC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KMC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGFR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGFR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KIMD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KIMD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KLMD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KLMD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLGDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLGDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLFDTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLFDTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BCTGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BCTGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CFXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CFXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLFXTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLFXTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDFTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDFTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDLGTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDLGTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDLFTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDLFTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXFTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXFTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXLGTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXLGTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXLFTR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXLFTR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGRT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGRT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(NGR) {
   DCHECK_OPCODE(NGR);
@@ -8722,11 +10186,23 @@ EVALUATE(FLOGR) {
   return length;
 }
 
-EVALUATE(LLGCR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGCR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLGHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MLGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MLGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(DLGR) {
   DCHECK_OPCODE(DLGR);
@@ -8748,23 +10224,59 @@ EVALUATE(DLGR) {
 #endif
 }
 
-EVALUATE(ALCGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALCGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLBGR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLBGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(EPSW) { return DecodeInstructionOriginal(instr); }
+EVALUATE(EPSW) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRTT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRTT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRTO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRTO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TROT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TROT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TROO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TROO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLCR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLCR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MLR) {
   DCHECK_OPCODE(MLR);
@@ -8840,43 +10352,133 @@ EVALUATE(SLBR) {
   return length;
 }
 
-EVALUATE(CU14) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CU14) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CU24) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CU24) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CU41) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CU41) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CU42) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CU42) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRTRE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRTRE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRSTU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRSTU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TRTE) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TRTE) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AHHHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AHHHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SHHHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SHHHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALHHHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALHHHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLHHHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLHHHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CHHR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHHR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AHHLR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AHHLR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SHHLR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SHHLR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALHHLR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALHHLR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLHHLR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLHHLR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CHLR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHLR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(POPCNT_Z) { return DecodeInstructionOriginal(instr); }
+EVALUATE(POPCNT_Z) {
+  DCHECK_OPCODE(POPCNT_Z);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_register(r2);
+  int64_t r1_val = 0;
 
-EVALUATE(LOCGR) { return DecodeInstructionOriginal(instr); }
+  uint8_t* r2_val_ptr = reinterpret_cast<uint8_t*>(&r2_val);
+  uint8_t* r1_val_ptr = reinterpret_cast<uint8_t*>(&r1_val);
+  for (int i = 0; i < 8; i++) {
+    uint32_t x = static_cast<uint32_t>(r2_val_ptr[i]);
+#if defined(__GNUC__)
+    r1_val_ptr[i] = __builtin_popcount(x);
+#else
+#error unsupport __builtin_popcount
+#endif
+  }
+  set_register(r1, static_cast<uint64_t>(r1_val));
+  return length;
+}
+
+EVALUATE(LOCGR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(NGRK) {
   DCHECK_OPCODE(NGRK);
@@ -8969,7 +10571,11 @@ EVALUATE(SLGRK) {
   return length;
 }
 
-EVALUATE(LOCR) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LOCR) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(NRK) {
   DCHECK_OPCODE(NRK);
@@ -9077,7 +10683,11 @@ EVALUATE(LTG) {
   return length;
 }
 
-EVALUATE(CVBY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVBY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AG) {
   DCHECK_OPCODE(AG);
@@ -9153,11 +10763,23 @@ EVALUATE(MSG) {
   return length;
 }
 
-EVALUATE(DSG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DSG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CVBG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVBG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LRVG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LRVG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LT) {
   DCHECK_OPCODE(LT);
@@ -9195,7 +10817,11 @@ EVALUATE(LLGF) {
   return length;
 }
 
-EVALUATE(LLGT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AGF) {
   DCHECK_OPCODE(AGF);
@@ -9227,13 +10853,29 @@ EVALUATE(SGF) {
   return length;
 }
 
-EVALUATE(ALGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DSGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DSGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LRV) {
   DCHECK_OPCODE(LRV);
@@ -9284,23 +10926,59 @@ EVALUATE(CLG) {
   return length;
 }
 
-EVALUATE(NTSTG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NTSTG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CVDY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVDY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CVDG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CVDG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STRVG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STRVG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LTGF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LTGF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(PFD) { return DecodeInstructionOriginal(instr); }
+EVALUATE(PFD) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STRV) {
   DCHECK_OPCODE(STRV);
@@ -9325,7 +11003,11 @@ EVALUATE(STRVH) {
   return length;
 }
 
-EVALUATE(BCTG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BCTG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MSY) {
   DCHECK_OPCODE(MSY);
@@ -9432,7 +11114,11 @@ EVALUATE(SY) {
   return length;
 }
 
-EVALUATE(MFY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MFY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(ALY) {
   DCHECK_OPCODE(ALY);
@@ -9497,9 +11183,17 @@ EVALUATE(STCY) {
   return length;
 }
 
-EVALUATE(ICY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ICY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAEY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAEY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LB) {
   DCHECK_OPCODE(LB);
@@ -9537,7 +11231,11 @@ EVALUATE(LHY) {
   return length;
 }
 
-EVALUATE(CHY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AHY) {
   DCHECK_OPCODE(AHY);
@@ -9577,7 +11275,11 @@ EVALUATE(SHY) {
   return length;
 }
 
-EVALUATE(MHY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MHY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(NG) {
   DCHECK_OPCODE(NG);
@@ -9618,19 +11320,47 @@ EVALUATE(XG) {
   return length;
 }
 
-EVALUATE(LGAT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LGAT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MLG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DLG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALCG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALCG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLBG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLBG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STPQ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STPQ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LPQ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LPQ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LLGH) {
   DCHECK_OPCODE(LLGH);
@@ -9656,43 +11386,119 @@ EVALUATE(LLH) {
   return length;
 }
 
-EVALUATE(ML) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ML) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLGTAT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGTAT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLGFAT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLGFAT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LBH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LBH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LLHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LLHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STHH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STHH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LFHAT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LFHAT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LFH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LFH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STFH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STFH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CHF) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHF) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVCDK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCDK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVHHI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVHHI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(MVGHI) {
   DCHECK_OPCODE(MVGHI);
@@ -9714,17 +11520,41 @@ EVALUATE(MVHI) {
   return length;
 }
 
-EVALUATE(CHHSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHHSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGHSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGHSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CHSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CHSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLFHSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLFHSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TBEGIN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TBEGIN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TBEGINC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TBEGINC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LMG) {
   DCHECK_OPCODE(LMG);
@@ -9821,7 +11651,11 @@ EVALUATE(SLLG) {
   return length;
 }
 
-EVALUATE(CSY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CSY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(RLLG) {
   DCHECK_OPCODE(RLLG);
@@ -9864,21 +11698,53 @@ EVALUATE(STMG) {
   return length;
 }
 
-EVALUATE(STMH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STMH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCMH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCMH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STCMY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STCMY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDSY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDSY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDSG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDSG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BXHG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BXHG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BXLEG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BXLEG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ECAG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ECAG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(TMY) {
   DCHECK_OPCODE(TMY);
@@ -9903,9 +11769,17 @@ EVALUATE(TMY) {
   return length;
 }
 
-EVALUATE(MVIY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVIY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(NIY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(NIY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CLIY) {
   DCHECK_OPCODE(CLIY);
@@ -9920,9 +11794,17 @@ EVALUATE(CLIY) {
   return length;
 }
 
-EVALUATE(OIY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(OIY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(XIY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(XIY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(ASI) {
   DCHECK_OPCODE(ASI);
@@ -9947,7 +11829,11 @@ EVALUATE(ASI) {
   return length;
 }
 
-EVALUATE(ALSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(AGSI) {
   DCHECK_OPCODE(AGSI);
@@ -9972,15 +11858,35 @@ EVALUATE(AGSI) {
   return length;
 }
 
-EVALUATE(ALGSI) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALGSI) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ICMH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ICMH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ICMY) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ICMY) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MVCLU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MVCLU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLCLU) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLCLU) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(STMY) {
   DCHECK_OPCODE(STMY);
@@ -10003,7 +11909,11 @@ EVALUATE(STMY) {
   return length;
 }
 
-EVALUATE(LMH) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LMH) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LMY) {
   DCHECK_OPCODE(LMY);
@@ -10026,7 +11936,11 @@ EVALUATE(LMY) {
   return length;
 }
 
-EVALUATE(TP) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TP) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(SRAK) {
   DCHECK_OPCODE(SRAK);
@@ -10101,71 +12015,203 @@ EVALUATE(SLLK) {
   return length;
 }
 
-EVALUATE(LOCG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LOCG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STOCG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STOCG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LANG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LANG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAOG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAOG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAXG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAXG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAAG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAAG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAALG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAALG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LOC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LOC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(STOC) { return DecodeInstructionOriginal(instr); }
+EVALUATE(STOC) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAO) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAO) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAX) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAX) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAA) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAA) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LAAL) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LAAL) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BRXHG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BRXHG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(BRXLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(BRXLG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RISBLG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RISBLG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RNSBG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RNSBG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ROSBG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ROSBG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RXSBG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RXSBG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RISBGN) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RISBGN) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(RISBHG) { return DecodeInstructionOriginal(instr); }
+EVALUATE(RISBHG) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGRJ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGRJ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGIT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGIT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CIT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CIT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CLFIT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CLFIT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGIJ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGIJ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CIJ) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CIJ) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALHSIK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALHSIK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(ALGHSIK) { return DecodeInstructionOriginal(instr); }
+EVALUATE(ALGHSIK) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGRB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGRB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CGIB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CGIB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CIB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CIB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LDEB) {
   DCHECK_OPCODE(LDEB);
@@ -10182,35 +12228,95 @@ EVALUATE(LDEB) {
   return length;
 }
 
-EVALUATE(LXDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXDB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(LXEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(LXEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MXDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MXDB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(AEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(AEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MDEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MDEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(DEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(DEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MAEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MAEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TCEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TCEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TCDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TCDB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TCXB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TCXB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SQEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SQEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(SQDB) {
   DCHECK_OPCODE(SQDB);
@@ -10225,9 +12331,17 @@ EVALUATE(SQDB) {
   return length;
 }
 
-EVALUATE(MEEB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MEEB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(KDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(KDB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(CDB) {
   DCHECK_OPCODE(CDB);
@@ -10299,29 +12413,77 @@ EVALUATE(DDB) {
   return length;
 }
 
-EVALUATE(MADB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MADB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(MSDB) { return DecodeInstructionOriginal(instr); }
+EVALUATE(MSDB) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLDT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLDT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRDT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRDT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SLXT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SLXT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(SRXT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(SRXT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDCET) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDCET) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDGET) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDGET) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDCDT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDCDT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDGDT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDGDT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDCXT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDCXT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(TDGXT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(TDGXT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 EVALUATE(LEY) {
   DCHECK_OPCODE(LEY);
@@ -10371,13 +12533,29 @@ EVALUATE(STDY) {
   return length;
 }
 
-EVALUATE(CZDT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CZDT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CZXT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CZXT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CDZT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CDZT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
-EVALUATE(CXZT) { return DecodeInstructionOriginal(instr); }
+EVALUATE(CXZT) {
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
+}
 
 #undef EVALUATE
 
