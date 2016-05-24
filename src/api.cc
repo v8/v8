@@ -2774,12 +2774,13 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                    Local<String> gap) {
   PREPARE_FOR_EXECUTION(context, JSON, Stringify, String);
   i::Handle<i::Object> object = Utils::OpenHandle(*json_object);
+  i::Handle<i::Object> replacer = isolate->factory()->undefined_value();
   i::Handle<i::String> gap_string = gap.IsEmpty()
                                         ? isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
   i::Handle<i::Object> maybe;
   has_pending_exception = !i::BasicJsonStringifier(isolate)
-                               .Stringify(object, gap_string)
+                               .Stringify(object, replacer, gap_string)
                                .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);
   Local<String> result;

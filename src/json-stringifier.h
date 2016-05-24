@@ -18,6 +18,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   ~BasicJsonStringifier() { DeleteArray(gap_); }
 
   MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
+                                                Handle<Object> replacer,
                                                 Handle<Object> gap);
 
   MUST_USE_RESULT static MaybeHandle<Object> StringifyString(
@@ -26,6 +27,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION };
 
+  bool InitializeReplacer(Handle<Object> replacer);
   bool InitializeGap(Handle<Object> gap);
 
   MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
@@ -107,6 +109,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   IncrementalStringBuilder builder_;
   Handle<String> tojson_string_;
   Handle<JSArray> stack_;
+  Handle<FixedArray> property_list_;
   uc16* gap_;
   int indent_;
 

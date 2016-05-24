@@ -24,11 +24,12 @@ RUNTIME_FUNCTION(Runtime_QuoteJSONString) {
 
 RUNTIME_FUNCTION(Runtime_BasicJSONStringify) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, gap, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, replacer, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, gap, 2);
   RETURN_RESULT_OR_FAILURE(
-      isolate, BasicJsonStringifier(isolate).Stringify(object, gap));
+      isolate, BasicJsonStringifier(isolate).Stringify(object, replacer, gap));
 }
 
 RUNTIME_FUNCTION(Runtime_ParseJson) {

@@ -121,29 +121,15 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
-  if (IS_ARRAY(replacer)) {
-    var length = replacer.length;
-    for (var i = 0; i < length; i++) {
-      var p = replacer[i];
-      var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
-      if (!IS_UNDEFINED(strP)) {
-        var member = %QuoteJSONString(p) + ":";
-        if (gap != "") member += " ";
-        member += strP;
-        partial.push(member);
-      }
-    }
-  } else {
-    var keys = %object_keys(value);
-    for (var i = 0; i < keys.length; i++) {
-      var p = keys[i];
-      var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
-      if (!IS_UNDEFINED(strP)) {
-        var member = %QuoteJSONString(p) + ":";
-        if (gap != "") member += " ";
-        member += strP;
-        partial.push(member);
-      }
+  var keys = %object_keys(value);
+  for (var i = 0; i < keys.length; i++) {
+    var p = keys[i];
+    var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
+    if (!IS_UNDEFINED(strP)) {
+      var member = %QuoteJSONString(p) + ":";
+      if (gap != "") member += " ";
+      member += strP;
+      partial.push(member);
     }
   }
   var final;
@@ -201,29 +187,9 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 
 function JSONStringify(value, replacer, space) {
-  if (arguments.length === 1) return %BasicJSONStringify(value, "");
-  if (!IS_CALLABLE(replacer) && %is_arraylike(replacer)) {
-    var property_list = new InternalArray();
-    var seen_properties = new GlobalSet();
-    var length = TO_LENGTH(replacer.length);
-    for (var i = 0; i < length; i++) {
-      var v = replacer[i];
-      var item;
-      if (IS_STRING(v)) {
-        item = v;
-      } else if (IS_NUMBER(v)) {
-        item = %_NumberToString(v);
-      } else if (IS_STRING_WRAPPER(v) || IS_NUMBER_WRAPPER(v)) {
-        item = TO_STRING(v);
-      } else {
-        continue;
-      }
-      if (!seen_properties.has(item)) {
-        property_list.push(item);
-        seen_properties.add(item);
-      }
-    }
-    replacer = property_list;
+  if (arguments.length === 1) return %BasicJSONStringify(value, UNDEFINED, "");
+  if (!IS_CALLABLE(replacer)) {
+    return %BasicJSONStringify(value, replacer, space);
   }
   if (IS_OBJECT(space)) {
     // Unwrap 'space' if it is wrapped
@@ -232,9 +198,6 @@ function JSONStringify(value, replacer, space) {
     } else if (IS_STRING_WRAPPER(space)) {
       space = TO_STRING(space);
     }
-  }
-  if (!IS_CALLABLE(replacer) && !property_list) {
-    return %BasicJSONStringify(value, space);
   }
   var gap;
   if (IS_NUMBER(space)) {

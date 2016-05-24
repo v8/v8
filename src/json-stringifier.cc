@@ -88,7 +88,9 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
 }
 
 MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object,
+                                                    Handle<Object> replacer,
                                                     Handle<Object> gap) {
+  if (!InitializeReplacer(replacer)) return MaybeHandle<Object>();
   if (!gap->IsUndefined() && !InitializeGap(gap)) return MaybeHandle<Object>();
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
@@ -97,15 +99,64 @@ MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object,
   return MaybeHandle<Object>();
 }
 
+bool IsInList(Handle<String> key, List<Handle<String> >* list) {
+  // TODO(yangguo): This is O(n^2) for n properties in the list. Deal with this
+  // if this becomes an issue.
+  for (const Handle<String>& existing : *list) {
+    if (String::Equals(existing, key)) return true;
+  }
+  return false;
+}
+
+bool BasicJsonStringifier::InitializeReplacer(Handle<Object> replacer) {
+  DCHECK(property_list_.is_null());
+  Maybe<bool> is_array = Object::IsArray(replacer);
+  if (is_array.IsNothing()) return false;
+  if (is_array.FromJust()) {
+    HandleScope handle_scope(isolate_);
+    List<Handle<String> > list;
+    Handle<Object> length_obj;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, length_obj,
+        Object::GetLengthFromArrayLike(isolate_, replacer), false);
+    uint32_t length;
+    if (!length_obj->ToUint32(&length)) length = kMaxUInt32;
+    for (uint32_t i = 0; i < length; i++) {
+      Handle<Object> element;
+      Handle<String> key;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, element, Object::GetElement(isolate_, replacer, i), false);
+      if (element->IsNumber() || element->IsString()) {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate_, key, Object::ToString(isolate_, element), false);
+      } else if (element->IsJSValue()) {
+        Handle<Object> value(Handle<JSValue>::cast(element)->value(), isolate_);
+        if (value->IsNumber() || value->IsString()) {
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+              isolate_, key, Object::ToString(isolate_, element), false);
+        }
+      }
+      if (key.is_null()) continue;
+      if (!IsInList(key, &list)) list.Add(key);
+    }
+    property_list_ = factory()->NewUninitializedFixedArray(list.length());
+    for (int i = 0; i < list.length(); i++) {
+      property_list_->set(i, *list[i]);
+    }
+    property_list_ = handle_scope.CloseAndEscape(property_list_);
+  }
+  return true;
+}
+
 bool BasicJsonStringifier::InitializeGap(Handle<Object> gap) {
   DCHECK_NULL(gap_);
   HandleScope scope(isolate_);
-  if (gap->IsJSReceiver()) {
-    Handle<String> class_name(Handle<JSReceiver>::cast(gap)->class_name());
-    if (class_name.is_identical_to(factory()->String_string())) {
+  if (gap->IsJSValue()) {
+    Handle<Object> value(Handle<JSValue>::cast(gap)->value(), isolate_);
+    if (value->IsString()) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
-    } else if (class_name.is_identical_to(factory()->number_string())) {
+    } else if (value->IsNumber()) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap, Object::ToNumber(gap),
                                        false);
     }
@@ -146,7 +197,8 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
 
   if (worst_case_length > 32 * KB) {  // Slow path if too large.
     BasicJsonStringifier stringifier(isolate);
-    return stringifier.Stringify(object, isolate->factory()->undefined_value());
+    Handle<Object> undefined = isolate->factory()->undefined_value();
+    return stringifier.Stringify(object, undefined, undefined);
   }
 
   object = String::Flatten(object);
@@ -437,7 +489,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
 
-  if (object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+  if (property_list_.is_null() &&
+      object->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
       object->HasFastProperties() &&
       Handle<JSObject>::cast(object)->elements()->length() == 0) {
     DCHECK(object->IsJSObject());
@@ -487,10 +540,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSReceiverSlow(
     Handle<JSReceiver> object) {
-  Handle<FixedArray> contents;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, contents,
-      JSReceiver::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS), EXCEPTION);
+  Handle<FixedArray> contents = property_list_;
+  if (contents.is_null()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, contents,
+        JSReceiver::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS), EXCEPTION);
+  }
 
   builder_.AppendCharacter('{');
   Indent();
