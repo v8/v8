@@ -19,7 +19,7 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   /*   45 E> */ B(StackCheck),
-  /*   50 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   50 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Star), R(0),
   /*   57 E> */ B(New), R(0), R(0), U8(0),
   /*   68 S> */ B(Return),
@@ -41,7 +41,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   58 E> */ B(StackCheck),
-  /*   63 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*   63 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Star), R(0),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),
@@ -71,7 +71,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*  100 E> */ B(StackCheck),
-  /*  105 S> */ B(LdaGlobal), U8(0), U8(2),
+  /*  105 S> */ B(LdaGlobal), U8(0), U8(3),
                 B(Star), R(0),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),

@@ -2004,6 +2004,9 @@ class CallNew final : public Expression {
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) override {
     callnew_feedback_slot_ = spec->AddGeneralSlot();
+    // Construct calls have two slots, one right after the other.
+    // The second slot stores the call count for monomorphic calls.
+    spec->AddGeneralSlot();
   }
 
   FeedbackVectorSlot CallNewFeedbackSlot() {

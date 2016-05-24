@@ -150,6 +150,7 @@
 
   # TODO(mythria,4780): Related to type feedback support for calls.
   'test-feedback-vector/VectorCallICStates': [PASS, NO_IGNITION],
+  'test-feedback-vector/VectorCallCounts': [PASS, NO_IGNITION],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [PASS, NO_IGNITION],
   'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
   'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
@@ -553,6 +554,7 @@
 
   # TODO(mythria,4780): Related to type feedback support for calls.
   'test-feedback-vector/VectorCallICStates': [FAIL],
+  'test-feedback-vector/VectorCallCounts': [FAIL],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
   'test-heap/WeakFunctionInConstructor': [FAIL],
   'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],

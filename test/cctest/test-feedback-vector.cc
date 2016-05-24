@@ -233,6 +233,42 @@ TEST(VectorCallICStates) {
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 
+TEST(VectorCallCounts) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "function foo() { return 17; }"
+      "function f(a) { a(); } f(foo);");
+  Handle<JSFunction> f = GetFunction("f");
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+
+  CompileRun("f(foo); f(foo);");
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(3, nexus.ExtractCallCount());
+
+  CompileRun(
+      "function Foo() {}"
+      "function f(a) { new a(); } f(Foo);");
+  f = GetFunction("f");
+  // There should be one IC.
+  feedback_vector =
+      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  FeedbackVectorSlot cslot(1);
+
+  CompileRun("f(Foo); f(Foo);");
+  CHECK(feedback_vector->Get(cslot)->IsSmi());
+  CHECK_EQ(3, Smi::cast(feedback_vector->Get(cslot))->value());
+}
 
 TEST(VectorLoadICStates) {
   if (i::FLAG_always_opt) return;
