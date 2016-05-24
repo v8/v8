@@ -801,7 +801,7 @@ void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
 void Logger::HandleEvent(const char* name, Object** location) {
   if (!log_->IsEnabled() || !FLAG_log_handles) return;
   Log::MessageBuilder msg(log_);
-  msg.Append("%s,%p", name, location);
+  msg.Append("%s,%p", name, static_cast<void*>(location));
   msg.WriteToLogFile();
 }
 

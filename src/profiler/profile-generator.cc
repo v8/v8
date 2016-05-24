@@ -449,7 +449,8 @@ void CodeMap::MoveCode(Address from, Address to) {
 
 void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
-  base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+  base::OS::Print("%p %5d %s\n", static_cast<void*>(key), value.size,
+                  value.entry->name());
 }
 
 

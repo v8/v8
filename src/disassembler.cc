@@ -36,7 +36,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       code_ == NULL ? NULL : code_->GetIsolate()->builtins()->Lookup(pc);
 
   if (name != NULL) {
-    SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
+    SNPrintF(v8_buffer_, "%s  (%p)", name, static_cast<void*>(pc));
     return v8_buffer_.start();
   }
 
@@ -44,7 +44,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
+      SNPrintF(v8_buffer_, "%d  (%p)", offs, static_cast<void*>(pc));
       return v8_buffer_.start();
     }
   }
@@ -146,7 +146,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Instruction address and instruction offset.
-    out.AddFormatted("%p  %4" V8PRIdPTRDIFF "  ", prev_pc, prev_pc - begin);
+    out.AddFormatted("%p  %4" V8PRIdPTRDIFF "  ", static_cast<void*>(prev_pc),
+                     prev_pc - begin);
 
     // Instruction.
     out.AddFormatted("%s", decode_buffer.start());

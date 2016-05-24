@@ -311,8 +311,8 @@ void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
 
 void MemoryChunk::ResetLiveBytes() {
   if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n", this,
-                 live_byte_count_);
+    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n",
+                 static_cast<void*>(this), live_byte_count_);
   }
   live_byte_count_ = 0;
 }
@@ -320,9 +320,9 @@ void MemoryChunk::ResetLiveBytes() {
 void MemoryChunk::IncrementLiveBytes(int by) {
   if (IsFlagSet(BLACK_PAGE)) return;
   if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(),
-                 "live-bytes: update page=%p delta=%d %d->%d\n", this, by,
-                 live_byte_count_, live_byte_count_ + by);
+    PrintIsolate(
+        heap()->isolate(), "live-bytes: update page=%p delta=%d %d->%d\n",
+        static_cast<void*>(this), by, live_byte_count_, live_byte_count_ + by);
   }
   live_byte_count_ += by;
   DCHECK_GE(live_byte_count_, 0);

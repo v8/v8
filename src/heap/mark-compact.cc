@@ -3109,7 +3109,8 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(Page* p,
     PrintIsolate(heap()->isolate(),
                  "evacuation[%p]: page=%p new_space=%d age_mark_tag=%c "
                  "page_evacuation=%d executable=%d live_bytes=%d time=%f\n",
-                 this, p, p->InNewSpace(), age_mark_tag,
+                 static_cast<void*>(this), static_cast<void*>(p),
+                 p->InNewSpace(), age_mark_tag,
                  p->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION),
                  p->IsFlagSet(MemoryChunk::IS_EXECUTABLE), saved_live_bytes,
                  evacuation_time);
@@ -3853,7 +3854,8 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     if (p->LiveBytes() == 0) {
       if (unused_page_present) {
         if (FLAG_gc_verbose) {
-          PrintIsolate(isolate(), "sweeping: released page: %p", p);
+          PrintIsolate(isolate(), "sweeping: released page: %p",
+                       static_cast<void*>(p));
         }
         space->ReleasePage(p);
         continue;

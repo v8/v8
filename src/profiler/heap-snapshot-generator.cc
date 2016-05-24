@@ -412,10 +412,8 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
     // object is migrated.
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Move object from %p to %p old size %6d new size %6d\n",
-             from,
-             to,
-             entries_.at(from_entry_info_index).size,
-             object_size);
+             static_cast<void*>(from), static_cast<void*>(to),
+             entries_.at(from_entry_info_index).size, object_size);
     }
     entries_.at(from_entry_info_index).size = object_size;
     to_entry->value = from_value;
@@ -452,9 +450,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     entry_info.accessed = accessed;
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Update object size : %p with old size %d and new size %d\n",
-             addr,
-             entry_info.size,
-             size);
+             static_cast<void*>(addr), entry_info.size, size);
     }
     entry_info.size = size;
     return entry_info.id;
@@ -487,9 +483,8 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
     FindOrAddEntry(obj->address(), obj->Size());
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Update object      : %p %6d. Next address is %p\n",
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     }
   }
   RemoveDeadEntries();
@@ -517,20 +512,16 @@ struct HeapObjectInfo {
   void Print() const {
     if (expected_size == 0) {
       PrintF("Untracked object   : %p %6d. Next address is %p\n",
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     } else if (obj->Size() != expected_size) {
-      PrintF("Wrong size %6d: %p %6d. Next address is %p\n",
-             expected_size,
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+      PrintF("Wrong size %6d: %p %6d. Next address is %p\n", expected_size,
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     } else {
       PrintF("Good object      : %p %6d. Next address is %p\n",
-             obj->address(),
-             expected_size,
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), expected_size,
+             static_cast<void*>(obj->address() + obj->Size()));
     }
   }
 };

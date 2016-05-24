@@ -2088,15 +2088,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Call to host function at %p with args %f, %f",
-                   FUNCTION_ADDR(generic_target), dval0, dval1);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
+                   dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
             PrintF("Call to host function at %p with arg %f",
-                FUNCTION_ADDR(generic_target), dval0);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
             PrintF("Call to host function at %p with args %f, %d",
-                   FUNCTION_ADDR(generic_target), dval0, ival);
+                   static_cast<void*>(FUNCTION_ADDR(generic_target)), dval0,
+                   ival);
             break;
           default:
             UNREACHABLE();
@@ -2195,13 +2197,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         PrintF(
             "Call to host triple returning runtime function %p "
             "args %08x, %08x, %08x, %08x, %08x\n",
-            FUNCTION_ADDR(target), arg1, arg2, arg3, arg4, arg5);
+            static_cast<void*>(FUNCTION_ADDR(target)), arg1, arg2, arg3, arg4,
+            arg5);
       }
       // arg0 is a hidden argument pointing to the return location, so don't
       // pass it to the target function.
       ObjectTriple result = target(arg1, arg2, arg3, arg4, arg5);
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Returned { %p, %p, %p }\n", result.x, result.y, result.z);
+        PrintF("Returned { %p, %p, %p }\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y), static_cast<void*>(result.z));
       }
       // Return is passed back in address pointed to by hidden first argument.
       ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(arg0);
@@ -2216,13 +2220,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         PrintF(
             "Call to host function at %p "
             "args %08x, %08x, %08x, %08x, %08x, %08x\n",
-            FUNCTION_ADDR(target),
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5);
+            static_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2, arg3,
+            arg4, arg5);
       }
       int64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
       set_register(v0, static_cast<int32_t>(result));

@@ -1742,7 +1742,7 @@ inline bool AllocationSite::DigestPretenuringFeedback(
     PrintIsolate(GetIsolate(),
                  "pretenuring: AllocationSite(%p): (created, found, ratio) "
                  "(%d, %d, %f) %s => %s\n",
-                 this, create_count, found_count, ratio,
+                 static_cast<void*>(this), create_count, found_count, ratio,
                  PretenureDecisionName(current_decision),
                  PretenureDecisionName(pretenure_decision()));
   }

@@ -164,7 +164,9 @@ void Log::MessageBuilder::Append(String* str) {
   }
 }
 
-void Log::MessageBuilder::AppendAddress(Address addr) { Append("%p", addr); }
+void Log::MessageBuilder::AppendAddress(Address addr) {
+  Append("%p", static_cast<void*>(addr));
+}
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);

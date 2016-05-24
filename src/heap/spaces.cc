@@ -1265,7 +1265,8 @@ bool PagedSpace::Expand() {
     Bitmap::SetAllBits(p);
     p->SetFlag(Page::BLACK_PAGE);
     if (FLAG_trace_incremental_marking) {
-      PrintIsolate(heap()->isolate(), "Added black page %p\n", p);
+      PrintIsolate(heap()->isolate(), "Added black page %p\n",
+                   static_cast<void*>(p));
     }
   }
 
@@ -2570,10 +2571,11 @@ void FreeList::RemoveCategory(FreeListCategory* category) {
 
 void FreeList::PrintCategories(FreeListCategoryType type) {
   FreeListCategoryIterator it(this, type);
-  PrintF("FreeList[%p, top=%p, %d] ", this, categories_[type], type);
+  PrintF("FreeList[%p, top=%p, %d] ", static_cast<void*>(this),
+         static_cast<void*>(categories_[type]), type);
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
-    PrintF("%p -> ", current);
+    PrintF("%p -> ", static_cast<void*>(current));
   }
   PrintF("null\n");
 }
@@ -3218,7 +3220,7 @@ void LargeObjectSpace::CollectCodeStatistics() {
 
 void Page::Print() {
   // Make a best-effort to print the objects in the page.
-  PrintF("Page@%p in %s\n", this->address(),
+  PrintF("Page@%p in %s\n", static_cast<void*>(this->address()),
          AllocationSpaceName(this->owner()->identity()));
   printf(" --------------------------------------\n");
   HeapObjectIterator objects(this);

@@ -1092,7 +1092,7 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
   } else if (object->IsFixedArray()) {
     Print("FixedArray");
   } else {
-    Print("<unknown literal %p>", object);
+    Print("<unknown literal %p>", static_cast<void*>(object));
   }
 }
 
