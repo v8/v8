@@ -445,26 +445,6 @@
         # things when their commandline changes). Nothing should ever read this
         # define.
         'defines': ['CR_CLANG_REVISION=<!(python <(DEPTH)/tools/clang/scripts/update.py --print-revision)'],
-        'conditions': [
-          ['host_clang==1', {
-            'target_conditions': [
-              ['_toolset=="host"', {
-                'cflags+': [
-                  '-Wno-format-pedantic',
-                 ],
-              }],
-           ],
-          }],
-          ['clang==1', {
-            'target_conditions': [
-              ['_toolset=="target"', {
-                'cflags+': [
-                  '-Wno-format-pedantic',
-                 ],
-              }],
-           ],
-          }],
-        ],
       }],
       ['clang==1 and target_arch=="ia32"', {
         'cflags': ['-mstack-alignment=16', '-mstackrealign'],
