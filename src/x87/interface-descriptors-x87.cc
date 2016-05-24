@@ -257,32 +257,21 @@ void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-void ArrayConstructorConstantArgCountDescriptor::InitializePlatformSpecific(
+void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // register state
   // eax -- number of arguments
   // edi -- function
   // ebx -- allocation site with elements kind
-  Register registers[] = {edi, ebx};
+  Register registers[] = {edi, ebx, eax};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
-
 
 void ArrayConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // stack param count needs (constructor pointer, and single argument)
   Register registers[] = {edi, ebx, eax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void InternalArrayConstructorConstantArgCountDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
-  // register state
-  // eax -- number of arguments
-  // edi -- function
-  Register registers[] = {edi};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
 
