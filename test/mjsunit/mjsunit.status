@@ -530,12 +530,8 @@
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
 
-  # BUG(v8:4907)
-  'harmony/generators-turbo': [SKIP],
-
   # Ignition.
   'es6/templates': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
-  'harmony/generators': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
   'regress/regress-crbug-364374': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 

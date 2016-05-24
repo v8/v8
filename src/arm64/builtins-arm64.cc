@@ -775,9 +775,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // New-style (ignition/turbofan) generator object
   {
     __ Ldr(x0, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldr(x0,
+    __ Ldr(w0,
          FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ SmiUntag(x0);
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
