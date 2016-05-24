@@ -707,7 +707,6 @@
           '-Wall',
           '<(werror)',
           '-Wno-unused-parameter',
-          '-Wno-long-long',
           '-pthread',
           '-pedantic',
           '-Wmissing-field-initializers',
