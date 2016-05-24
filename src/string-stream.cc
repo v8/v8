@@ -529,7 +529,7 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Isolate* isolate = fun->GetIsolate();
   if (receiver->IsNull() || receiver->IsUndefined() || receiver->IsJSProxy()) {
     print_name = true;
-  } else {
+  } else if (isolate->context() != nullptr) {
     if (!receiver->IsJSObject()) {
       receiver = receiver->GetRootMap(isolate)->prototype();
     }
