@@ -187,6 +187,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   }
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
+  target_shared->set_num_literals(source_shared->num_literals());
   target_shared->set_feedback_vector(source_shared->feedback_vector());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
@@ -211,10 +212,9 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  int number_of_literals = source->NumberOfLiterals();
   Handle<LiteralsArray> literals =
       LiteralsArray::New(isolate, handle(target_shared->feedback_vector()),
-                         number_of_literals, TENURED);
+                         target_shared->num_literals(), TENURED);
   target->set_literals(*literals);
 
   if (isolate->logger()->is_logging_code_events() ||

@@ -916,6 +916,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - end position = " << end_position();
   os << "\n - debug info = " << Brief(debug_info());
   os << "\n - length = " << length();
+  os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_vector = ";
   feedback_vector()->TypeFeedbackVectorPrint(os);

@@ -139,7 +139,7 @@ TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Handle<SharedFunctionInfo> shared(isolate()->number_function()->shared());
   Reduction r =
       Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
                               context, effect, control));

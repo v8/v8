@@ -1686,11 +1686,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<JSFunction> fun = Handle<JSFunction>::cast(Utils::OpenHandle(
       *fun_template->GetFunction(v8_isolate->GetCurrentContext())
            .ToLocalChecked()));
-  const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      name, literals, FunctionKind::kNormalFunction, code,
+      name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
   shared->set_feedback_vector(fun->shared()->feedback_vector());

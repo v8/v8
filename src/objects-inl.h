@@ -6238,11 +6238,6 @@ bool JSFunction::is_compiled() {
 }
 
 
-int JSFunction::NumberOfLiterals() {
-  return literals()->length();
-}
-
-
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)

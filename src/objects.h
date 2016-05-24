@@ -7569,9 +7569,6 @@ class JSFunction: public JSObject {
   DECLARE_PRINTER(JSFunction)
   DECLARE_VERIFIER(JSFunction)
 
-  // Returns the number of allocated literals.
-  inline int NumberOfLiterals();
-
   // The function's name if it is configured, otherwise shared function info
   // debug name.
   static Handle<String> GetName(Handle<JSFunction> function);
