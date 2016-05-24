@@ -544,9 +544,9 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSReceiverSlow(
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        KeyAccumulator::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS),
-        EXCEPTION);
+        JSReceiver::GetKeys(object, OWN_ONLY, ENUMERABLE_STRINGS), EXCEPTION);
   }
+
   builder_.AppendCharacter('{');
   Indent();
   bool comma = false;

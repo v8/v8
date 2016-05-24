@@ -21,9 +21,8 @@
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate-inl.h"
 #include "src/isolate.h"
-#include "src/keys.h"
+#include "src/isolate-inl.h"
 #include "src/layout-descriptor-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
@@ -1111,12 +1110,6 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
   return GetProperty(receiver, str);
 }
 
-// static
-MUST_USE_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
-    Handle<JSReceiver> object) {
-  return KeyAccumulator::GetKeys(object, OWN_ONLY, ALL_PROPERTIES,
-                                 CONVERT_TO_STRING);
-}
 
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
@@ -6647,18 +6640,16 @@ ElementsKind JSObject::GetElementsKind() {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     Map* map = fixed_array->map();
-    if (IsFastSmiOrObjectElementsKind(kind)) {
-      DCHECK(map == GetHeap()->fixed_array_map() ||
-             map == GetHeap()->fixed_cow_array_map());
-    } else if (IsFastDoubleElementsKind(kind)) {
-      DCHECK(fixed_array->IsFixedDoubleArray() ||
-             fixed_array == GetHeap()->empty_fixed_array());
-    } else if (kind == DICTIONARY_ELEMENTS) {
-      DCHECK(fixed_array->IsFixedArray());
-      DCHECK(fixed_array->IsDictionary());
-    } else {
-      DCHECK(kind > DICTIONARY_ELEMENTS);
-    }
+    DCHECK((IsFastSmiOrObjectElementsKind(kind) &&
+            (map == GetHeap()->fixed_array_map() ||
+             map == GetHeap()->fixed_cow_array_map())) ||
+           (IsFastDoubleElementsKind(kind) &&
+            (fixed_array->IsFixedDoubleArray() ||
+             fixed_array == GetHeap()->empty_fixed_array())) ||
+           (kind == DICTIONARY_ELEMENTS &&
+            fixed_array->IsFixedArray() &&
+            fixed_array->IsDictionary()) ||
+           (kind > DICTIONARY_ELEMENTS));
     DCHECK(!IsSloppyArgumentsElements(kind) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
   }

@@ -1975,8 +1975,17 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object);
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
-  MUST_USE_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
-      Handle<JSReceiver> object);
+  MUST_USE_RESULT static MaybeHandle<FixedArray> OwnPropertyKeys(
+      Handle<JSReceiver> object) {
+    return GetKeys(object, OWN_ONLY, ALL_PROPERTIES, CONVERT_TO_STRING);
+  }
+
+  // Computes the enumerable keys for a JSObject. Used for implementing
+  // "for (n in object) { }".
+  MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
+      Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
+      GetKeysConversion keys_conversion = KEEP_NUMBERS,
+      bool filter_proxy_keys_ = true);
 
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetOwnValues(
       Handle<JSReceiver> object, PropertyFilter filter);
@@ -3971,8 +3980,6 @@ class OrderedHashSet: public OrderedHashTable<
 
   static Handle<OrderedHashSet> Add(Handle<OrderedHashSet> table,
                                     Handle<Object> value);
-  static Handle<FixedArray> ConvertToKeysArray(Handle<OrderedHashSet> table,
-                                               GetKeysConversion convert);
 };
 
 
