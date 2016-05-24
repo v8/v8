@@ -34,6 +34,7 @@
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(column_string, "column")                                       \
   V(compare_ic_string, "==")                                       \
   V(configurable_string, "configurable")                           \
   V(constructor_string, "constructor")                             \
@@ -82,6 +83,7 @@
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(last_index_string, "lastIndex")                                \
   V(length_string, "length")                                       \
+  V(line_string, "line")                                           \
   V(Map_string, "Map")                                             \
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
@@ -95,6 +97,7 @@
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
   V(ownKeys_string, "ownKeys")                                     \
+  V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
   V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
@@ -103,11 +106,13 @@
   V(Proxy_string, "Proxy")                                         \
   V(query_colon_string, "(?:)")                                    \
   V(RegExp_string, "RegExp")                                       \
+  V(script_string, "script")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
   V(source_mapping_url_string, "source_mapping_url")               \
   V(source_string, "source")                                       \
+  V(sourceText_string, "sourceText")                               \
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(strict_compare_ic_string, "===")                               \

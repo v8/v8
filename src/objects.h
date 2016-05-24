@@ -6420,14 +6420,6 @@ class Script: public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-  // Convert code offset into column number.
-  static int GetColumnNumber(Handle<Script> script, int code_offset);
-
-  // Convert code offset into (zero-based) line number.
-  // The non-handlified version does not allocate, but may be much slower.
-  static int GetLineNumber(Handle<Script> script, int code_offset);
-  int GetLineNumber(int code_pos);
-
   static Handle<Object> GetNameOrSourceURL(Handle<Script> script);
 
   // Set eval origin for stack trace formatting.
@@ -6439,6 +6431,33 @@ class Script: public Struct {
 
   // Init line_ends array with source code positions of line ends.
   static void InitLineEnds(Handle<Script> script);
+
+  // Convert code offset into column number.
+  static int GetColumnNumber(Handle<Script> script, int code_offset);
+
+  // Convert code offset into (zero-based) line number.
+  // The non-handlified version does not allocate, but may be much slower.
+  static int GetLineNumber(Handle<Script> script, int code_offset);
+  int GetLineNumber(int code_pos);
+
+  // Carries information about a source position.
+  struct PositionInfo {
+    PositionInfo() : line(-1), column(-1), line_start(-1), line_end(-1) {}
+
+    int line;        // Zero-based line number.
+    int column;      // Zero-based column number.
+    int line_start;  // Position of first character in line.
+    int line_end;    // Position of last (non-linebreak) character in line.
+  };
+
+  // Specifies whether to add offsets to position infos.
+  enum OffsetFlag { NO_OFFSET = 0, WITH_OFFSET = 1 };
+
+  // Retrieves information about the given position, optionally with an offset.
+  // Returns false on failure, and otherwise writes into the given info object
+  // on success.
+  bool GetPositionInfo(int position, PositionInfo* info,
+                       OffsetFlag offset_flag);
 
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
