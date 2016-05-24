@@ -80,7 +80,7 @@ class TestingModule : public ModuleEnv {
     instance = &instance_;
     instance->module = &module_;
     instance->globals_start = global_data;
-    instance->globals_size = kMaxGlobalsSize;
+    module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
     linker = nullptr;
@@ -112,12 +112,12 @@ class TestingModule : public ModuleEnv {
 
   template <typename T>
   T* AddGlobal(MachineType mem_type) {
-    WasmGlobal* global = AddGlobal(mem_type);
+    const WasmGlobal* global = AddGlobal(mem_type);
     return reinterpret_cast<T*>(instance->globals_start + global->offset);
   }
 
   byte AddSignature(FunctionSig* sig) {
-    module->signatures.push_back(sig);
+    module_.signatures.push_back(sig);
     size_t size = module->signatures.size();
     CHECK(size < 127);
     return static_cast<byte>(size - 1);
@@ -167,10 +167,10 @@ class TestingModule : public ModuleEnv {
     if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
-      module->functions.reserve(kMaxFunctions);
+      module_.functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module->functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
+    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -208,7 +208,7 @@ class TestingModule : public ModuleEnv {
     instance->function_table = fixed;
     DCHECK_EQ(0u, module->function_table.size());
     for (int i = 0; i < table_size; i++) {
-      module->function_table.push_back(functions[i]);
+      module_.function_table.push_back(functions[i]);
     }
   }
 
@@ -217,12 +217,13 @@ class TestingModule : public ModuleEnv {
     int table_size = static_cast<int>(module->function_table.size());
     for (int i = 0; i < table_size; i++) {
       int function_index = module->function_table[i];
-      WasmFunction* function = &module->functions[function_index];
+      const WasmFunction* function = &module->functions[function_index];
       instance->function_table->set(i, Smi::FromInt(function->sig_index));
       instance->function_table->set(i + table_size,
                                     *instance->function_code[function_index]);
     }
   }
+  WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
  private:
   WasmModule module_;
@@ -231,10 +232,10 @@ class TestingModule : public ModuleEnv {
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
 
-  WasmGlobal* AddGlobal(MachineType mem_type) {
+  const WasmGlobal* AddGlobal(MachineType mem_type) {
     byte size = WasmOpcodes::MemSize(mem_type);
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module->globals.push_back({0, 0, mem_type, global_offset, false});
+    module_.globals.push_back({0, 0, mem_type, global_offset, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -524,7 +525,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
 
   WasmFunction* function() {
     if (function_) return function_;
-    return &testing_module_->module->functions[function_index_];
+    return testing_module_->GetFunctionAt(function_index_);
   }
 
   // Set the context, such that e.g. runtime functions can be called.

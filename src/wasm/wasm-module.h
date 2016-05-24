@@ -169,6 +169,7 @@ struct WasmModule {
   ModuleOrigin origin;        // origin of the module
 
   std::vector<WasmGlobal> globals;             // globals in this module.
+  uint32_t globals_size;                       // size of globals table.
   std::vector<FunctionSig*> signatures;        // signatures in this module.
   std::vector<WasmFunction> functions;         // functions in this module.
   std::vector<WasmDataSegment> data_segments;  // data segments in this module.
@@ -202,7 +203,7 @@ struct WasmModule {
   }
 
   // Get a string stored in the module bytes representing a function name.
-  WasmName GetNameOrNull(WasmFunction* function) const {
+  WasmName GetNameOrNull(const WasmFunction* function) const {
     return GetNameOrNull(function->name_offset, function->name_length);
   }
 
@@ -214,12 +215,12 @@ struct WasmModule {
 
   // Creates a new instantiation of the module in the given isolate.
   MaybeHandle<JSObject> Instantiate(Isolate* isolate, Handle<JSReceiver> ffi,
-                                    Handle<JSArrayBuffer> memory);
+                                    Handle<JSArrayBuffer> memory) const;
 };
 
 // An instantiated WASM module, including memory, function table, etc.
 struct WasmModuleInstance {
-  WasmModule* module;  // static representation of the module.
+  const WasmModule* module;  // static representation of the module.
   // -- Heap allocated --------------------------------------------------------
   Handle<JSObject> js_object;            // JavaScript module object.
   Handle<Context> context;               // JavaScript native context.
@@ -233,14 +234,9 @@ struct WasmModuleInstance {
   size_t mem_size;  // size of the linear memory.
   // -- raw globals -----------------------------------------------------------
   byte* globals_start;  // start of the globals area.
-  size_t globals_size;  // size of the globals area.
 
-  explicit WasmModuleInstance(WasmModule* m)
-      : module(m),
-        mem_start(nullptr),
-        mem_size(0),
-        globals_start(nullptr),
-        globals_size(0) {}
+  explicit WasmModuleInstance(const WasmModule* m)
+      : module(m), mem_start(nullptr), mem_size(0), globals_start(nullptr) {}
 };
 
 // forward declaration.
@@ -249,7 +245,7 @@ class WasmLinker;
 // Interface provided to the decoder/graph builder which contains only
 // minimal information about the globals, functions, and function tables.
 struct ModuleEnv {
-  WasmModule* module;
+  const WasmModule* module;
   WasmModuleInstance* instance;
   WasmLinker* linker;
   ModuleOrigin origin;
@@ -311,7 +307,7 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-typedef Result<WasmModule*> ModuleResult;
+typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 
 // For testing. Decode, verify, and run the last exported function in the
@@ -321,7 +317,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
 // For testing. Decode, verify, and run the last exported function in the
 // given decoded module.
-int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module);
+int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module);
 
 // Extract a function name from the given wasm object.
 // Returns a null handle if the function is unnamed or the name is not a valid

@@ -156,7 +156,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     EXPECT_EQ(0, result.val->functions.size());
     EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals.back();
+    const WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(1, global->name_length);
     EXPECT_EQ(MachineType::Int32(), global->type);
@@ -262,8 +262,8 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     EXPECT_EQ(0, result.val->functions.size());
     EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* g0 = &result.val->globals[0];
-    WasmGlobal* g1 = &result.val->globals[1];
+    const WasmGlobal* g0 = &result.val->globals[0];
+    const WasmGlobal* g1 = &result.val->globals[1];
 
     EXPECT_EQ(0, g0->name_length);
     EXPECT_EQ(MachineType::Float32(), g0->type);
@@ -272,7 +272,7 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
 
     EXPECT_EQ(0, g1->name_length);
     EXPECT_EQ(MachineType::Float64(), g1->type);
-    EXPECT_EQ(0, g1->offset);
+    EXPECT_EQ(8, g1->offset);
     EXPECT_TRUE(g1->exported);
 
     if (result.val) delete result.val;
@@ -367,7 +367,7 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(0, result.val->data_segments.size());
     EXPECT_EQ(0, result.val->function_table.size());
 
-    WasmFunction* function = &result.val->functions.back();
+    const WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(37, function->name_offset);
     EXPECT_EQ(2, function->name_length);
@@ -399,7 +399,7 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_OK(result);
   EXPECT_EQ(1, result.val->functions.size());
-  WasmFunction* function = &result.val->functions.back();
+  const WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_length);
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -451,14 +451,14 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_EQ(1, result.val->functions.size());
     EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals.back();
+    const WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(0, global->name_length);
     EXPECT_EQ(MachineType::Uint8(), global->type);
     EXPECT_EQ(0, global->offset);
     EXPECT_FALSE(global->exported);
 
-    WasmFunction* function = &result.val->functions.back();
+    const WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(kNameOffset, function->name_offset);
     EXPECT_EQ(2, function->name_length);
@@ -467,7 +467,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
 
     EXPECT_FALSE(function->exported);
 
-    WasmDataSegment* segment = &result.val->data_segments.back();
+    const WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x8b3ae, segment->dest_addr);
     EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
@@ -502,7 +502,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_EQ(0, result.val->functions.size());
     EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmDataSegment* segment = &result.val->data_segments.back();
+    const WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x9bbaa, segment->dest_addr);
     EXPECT_EQ(kDataSegmentSourceOffset, segment->source_offset);
@@ -553,8 +553,8 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     EXPECT_EQ(0, result.val->functions.size());
     EXPECT_EQ(2, result.val->data_segments.size());
 
-    WasmDataSegment* s0 = &result.val->data_segments[0];
-    WasmDataSegment* s1 = &result.val->data_segments[1];
+    const WasmDataSegment* s0 = &result.val->data_segments[0];
+    const WasmDataSegment* s1 = &result.val->data_segments[1];
 
     EXPECT_EQ(0x7ffee, s0->dest_addr);
     EXPECT_EQ(kDataSegment0SourceOffset, s0->source_offset);
@@ -983,7 +983,7 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
   EXPECT_EQ(0, result.val->functions.size());
   EXPECT_EQ(0, result.val->data_segments.size());
 
-  WasmGlobal* global = &result.val->globals.back();
+  const WasmGlobal* global = &result.val->globals.back();
 
   EXPECT_EQ(0, global->name_length);
   EXPECT_EQ(MachineType::Int32(), global->type);

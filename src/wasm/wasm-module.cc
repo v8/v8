@@ -142,7 +142,7 @@ class WasmLinker {
   }
 
   void Link(Handle<FixedArray> function_table,
-            std::vector<uint16_t>& functions) {
+            const std::vector<uint16_t>& functions) {
     for (size_t i = 0; i < function_code_.size(); i++) {
       LinkFunction(function_code_[i]);
     }
@@ -203,19 +203,8 @@ const int kWasmMemArrayBuffer = 2;
 const int kWasmGlobalsArrayBuffer = 3;
 const int kWasmFunctionNamesArray = 4;
 
-size_t AllocateGlobalsOffsets(std::vector<WasmGlobal>& globals) {
-  uint32_t offset = 0;
-  if (globals.size() == 0) return 0;
-  for (WasmGlobal& global : globals) {
-    byte size = WasmOpcodes::MemSize(global.type);
-    offset = (offset + size - 1) & ~(size - 1);  // align
-    global.offset = offset;
-    offset += size;
-  }
-  return offset;
-}
-
-void LoadDataSegments(WasmModule* module, byte* mem_addr, size_t mem_size) {
+void LoadDataSegments(const WasmModule* module, byte* mem_addr,
+                      size_t mem_size) {
   for (const WasmDataSegment& segment : module->data_segments) {
     if (!segment.init) continue;
     if (!segment.source_size) continue;
@@ -228,14 +217,16 @@ void LoadDataSegments(WasmModule* module, byte* mem_addr, size_t mem_size) {
   }
 }
 
-Handle<FixedArray> BuildFunctionTable(Isolate* isolate, WasmModule* module) {
+Handle<FixedArray> BuildFunctionTable(Isolate* isolate,
+                                      const WasmModule* module) {
   if (module->function_table.size() == 0) {
     return Handle<FixedArray>::null();
   }
   int table_size = static_cast<int>(module->function_table.size());
   Handle<FixedArray> fixed = isolate->factory()->NewFixedArray(2 * table_size);
   for (int i = 0; i < table_size; i++) {
-    WasmFunction* function = &module->functions[module->function_table[i]];
+    const WasmFunction* function =
+        &module->functions[module->function_table[i]];
     fixed->set(i, Smi::FromInt(function->sig_index));
   }
   return fixed;
@@ -302,11 +293,10 @@ bool AllocateMemory(ErrorThrower* thrower, Isolate* isolate,
 
 bool AllocateGlobals(ErrorThrower* thrower, Isolate* isolate,
                      WasmModuleInstance* instance) {
-  instance->globals_size = AllocateGlobalsOffsets(instance->module->globals);
-
-  if (instance->globals_size > 0) {
-    instance->globals_buffer = NewArrayBuffer(isolate, instance->globals_size,
-                                              &instance->globals_start);
+  uint32_t globals_size = instance->module->globals_size;
+  if (globals_size > 0) {
+    instance->globals_buffer =
+        NewArrayBuffer(isolate, globals_size, &instance->globals_start);
     if (!instance->globals_start) {
       // Not enough space for backing store of globals.
       thrower->Error("Out of memory: wasm globals");
@@ -473,12 +463,10 @@ struct CodeStats {
   }
 };
 
-bool CompileWrappersToImportedFunctions(Isolate* isolate, WasmModule* module,
-                                        const Handle<JSReceiver> ffi,
-                                        WasmModuleInstance* instance,
-                                        ErrorThrower* thrower, Factory* factory,
-                                        ModuleEnv* module_env,
-                                        CodeStats& code_stats) {
+bool CompileWrappersToImportedFunctions(
+    Isolate* isolate, const WasmModule* module, const Handle<JSReceiver> ffi,
+    WasmModuleInstance* instance, ErrorThrower* thrower, Factory* factory,
+    ModuleEnv* module_env, CodeStats& code_stats) {
   uint32_t index = 0;
   if (module->import_table.size() > 0) {
     instance->import_code.reserve(module->import_table.size());
@@ -503,7 +491,7 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate, WasmModule* module,
 }
 
 void InitializeParallelCompilation(
-    Isolate* isolate, std::vector<WasmFunction>& functions,
+    Isolate* isolate, const std::vector<WasmFunction>& functions,
     std::vector<compiler::WasmCompilationUnit*>& compilation_units,
     ModuleEnv& module_env, ErrorThrower& thrower) {
   // Create a placeholder code object for all functions.
@@ -555,7 +543,6 @@ void WaitForCompilationTasks(
 }
 
 void FinishCompilationUnits(
-    WasmModule* module,
     std::queue<compiler::WasmCompilationUnit*>& executed_units,
     std::vector<Handle<Code>>& results, base::Mutex& result_mutex) {
   while (true) {
@@ -574,7 +561,7 @@ void FinishCompilationUnits(
   }
 }
 
-bool FinishCompilation(Isolate* isolate, WasmModule* module,
+bool FinishCompilation(Isolate* isolate, const WasmModule* module,
                        const Handle<JSReceiver> ffi,
                        const std::vector<Handle<Code>>& results,
                        const WasmModuleInstance& instance,
@@ -636,9 +623,9 @@ bool FinishCompilation(Isolate* isolate, WasmModule* module,
 //  * installs a named property "memory" for that buffer if exported
 //  * installs named properties on the object for exported functions
 //  * compiles wasm code to machine code
-MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
-                                              Handle<JSReceiver> ffi,
-                                              Handle<JSArrayBuffer> memory) {
+MaybeHandle<JSObject> WasmModule::Instantiate(
+    Isolate* isolate, Handle<JSReceiver> ffi,
+    Handle<JSArrayBuffer> memory) const {
   HistogramTimerScope wasm_instantiate_module_time_scope(
       isolate->counters()->wasm_instantiate_module_time());
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
@@ -775,13 +762,13 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         //      dequeues it and finishes the compilation unit. Compilation units
         //      are finished concurrently to the background threads to save
         //      memory.
-        FinishCompilationUnits(this, executed_units, results, result_mutex);
+        FinishCompilationUnits(executed_units, results, result_mutex);
       }
       // 4) After the parallel phase of all compilation units has started, the
       //    main thread waits for all {WasmCompilationTask} instances to finish.
       WaitForCompilationTasks(isolate, task_ids.get(), pending_tasks);
       // Finish the compilation of the remaining compilation units.
-      FinishCompilationUnits(this, executed_units, results, result_mutex);
+      FinishCompilationUnits(executed_units, results, result_mutex);
     }
     // 5) The main thread finishes the compilation.
     if (!FinishCompilation(isolate, this, ffi, results, instance, code_table,
@@ -881,7 +868,7 @@ compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
   DCHECK(IsValidFunction(index));
   // Always make a direct call to whatever is in the table at that location.
   // A wrapper will be generated for FFI calls.
-  WasmFunction* function = &module->functions[index];
+  const WasmFunction* function = &module->functions[index];
   return GetWasmCallDescriptor(zone, function->sig);
 }
 
@@ -910,7 +897,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   return retval;
 }
 
-int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
+int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   WasmModuleInstance instance(module);
 

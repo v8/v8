@@ -20,7 +20,8 @@ namespace wasm {
 // concatenation of all function names.
 //
 // Returns undefined if the array length would not fit in an integer value.
-Handle<Object> BuildFunctionNamesTable(Isolate* isolate, WasmModule* module) {
+Handle<Object> BuildFunctionNamesTable(Isolate* isolate,
+                                       const WasmModule* module) {
   uint64_t func_names_length = 0;
   for (auto& func : module->functions) func_names_length += func.name_length;
   int num_funcs_int = static_cast<int>(module->functions.size());
@@ -36,7 +37,7 @@ Handle<Object> BuildFunctionNamesTable(Isolate* isolate, WasmModule* module) {
   if (func_names_array.is_null()) return isolate->factory()->undefined_value();
   func_names_array->set_int(0, num_funcs_int);
   int func_index = 0;
-  for (WasmFunction& fun : module->functions) {
+  for (const WasmFunction& fun : module->functions) {
     WasmName name = module->GetNameOrNull(&fun);
     if (name.start() == nullptr) {
       func_names_array->set_int(func_index + 1, -current_offset);
