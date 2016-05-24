@@ -543,10 +543,6 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
-  # on nodes (behind --turbo_source_positions flag).
-  'test-cpu-profiler/TickLinesOptimized': [FAIL],
-
   # TODO(rmcilroy,4680): Fails to find the correct function name for the
   # anonymous function. Fails without ignition but with --no-lazy also, so seems
   # to be an issue when eagerly parsing.
@@ -576,32 +572,6 @@
 
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
-
-  # TODO(rmcilroy,4837): We don't set a LoadContextSlot for a function as
-  # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
-  'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineTwice': [FAIL],
-  'test-run-inlining/InlineSurplusArgumentsObject': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamond': [FAIL],
-  'test-run-inlining/InlineWithArguments': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedTwice': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsObject': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedOnce': [FAIL],
-  'test-run-inlining/InlineOmitArgumentsDeopt': [FAIL],
-  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [FAIL],
-  'test-run-inlining/SimpleInliningContext': [FAIL],
-  'test-run-inlining/InlineMutuallyRecursive': [FAIL],
-  'test-run-inlining/InlineLoopGuardedEmpty': [FAIL],
-  'test-run-inlining/InlineLoopGuardedOnce': [FAIL],
-  'test-run-inlining/InlineOmitArguments': [FAIL],
-  'test-run-inlining/SimpleInlining': [FAIL],
-  'test-run-inlining/InlineLoopUnguardedEmpty': [FAIL],
-  'test-run-inlining/InlineNestedBuiltin': [FAIL],
-  'test-run-inlining/InlineSurplusArguments': [FAIL],
-  'test-run-inlining/InlineBuiltin': [FAIL],
-  'test-run-inlining/InlineTwiceDependent': [FAIL],
-  'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
 
   # BUG(4751). Flaky with ignition and tsan.
   'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],

@@ -12,6 +12,7 @@ ignition generators: yes
 ---
 snippet: "
   function* f() { }
+  f();
 "
 frame size: 11
 parameter count: 1
@@ -118,6 +119,7 @@ handlers: [
 ---
 snippet: "
   function* f() { yield 42 }
+  f();
 "
 frame size: 11
 parameter count: 1
@@ -268,6 +270,7 @@ handlers: [
 ---
 snippet: "
   function* f() { for (let x of [42]) yield x }
+  f();
 "
 frame size: 17
 parameter count: 1

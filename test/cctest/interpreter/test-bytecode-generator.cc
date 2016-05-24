@@ -2232,11 +2232,14 @@ TEST(Generators) {
   printer.set_test_function_name("f");
 
   const char* snippets[] = {
-      "function* f() { }\n",
+      "function* f() { }\n"
+      "f();\n",
 
-      "function* f() { yield 42 }\n",
+      "function* f() { yield 42 }\n"
+      "f();\n",
 
-      "function* f() { for (let x of [42]) yield x }\n",
+      "function* f() { for (let x of [42]) yield x }\n"
+      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
