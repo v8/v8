@@ -99,17 +99,17 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   if (condition_value.IsJust()) {
     // If we know the condition we can discard the branch.
     if (condition_is_true == condition_value.FromJust()) {
-      // We don't to update the conditions here, because we're replacing with
-      // the {control} node that already contains the right information.
-      return Replace(control);
+      // We don't update the conditions here, because we're replacing {node}
+      // with the {control} node that already contains the right information.
+      ReplaceWithValue(node, dead(), effect, control);
     } else {
       control = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
                                  frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());
-      return Replace(dead());
     }
+    return Replace(dead());
   }
   return UpdateConditions(
       node, conditions->AddCondition(zone_, condition, condition_is_true));

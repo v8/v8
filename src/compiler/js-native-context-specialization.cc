@@ -112,8 +112,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (index != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Name()),
                                    index, jsgraph()->HeapConstant(name));
-    control = graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
-                               effect, control);
+    control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                        frame_state, effect, control);
   }
 
   // Check if {receiver} may be a number.
@@ -135,8 +135,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
     receiverissmi_effect = effect;
   } else {
-    control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
-                               effect, control);
+    control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                        frame_state, effect, control);
   }
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
@@ -159,7 +159,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     if (receiver_type->Is(Type::String())) {
       Node* check = graph()->NewNode(simplified()->ObjectIsString(), receiver);
       if (j == access_infos.size() - 1) {
-        this_control =
+        this_control = this_effect =
             graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                              this_effect, fallthrough_control);
         fallthrough_control = nullptr;
@@ -182,10 +182,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
             graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
                              receiver_map, jsgraph()->Constant(map));
         if (--num_classes == 0 && j == access_infos.size() - 1) {
-          this_controls.push_back(
+          Node* deoptimize =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
-                               this_effect, fallthrough_control));
-          this_effects.push_back(this_effect);
+                               this_effect, fallthrough_control);
+          this_controls.push_back(deoptimize);
+          this_effects.push_back(deoptimize);
           fallthrough_control = nullptr;
         } else {
           Node* branch =
@@ -237,8 +238,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       if (access_mode == AccessMode::kStore) {
         Node* check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Tagged()), value, this_value);
-        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                        frame_state, this_effect, this_control);
+        this_control = this_effect =
+            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                             this_effect, this_control);
       }
     } else {
       DCHECK(access_info.IsDataField());
@@ -263,7 +265,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                jsgraph()->Int32Constant(
                                    1 << JSArrayBuffer::WasNeutered::kShift)),
               jsgraph()->Int32Constant(0));
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
           break;
@@ -302,7 +304,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         if (field_type->Is(Type::UntaggedFloat64())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
           this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
@@ -345,7 +347,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         } else if (field_type->Is(Type::TaggedSigned())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                this_effect, this_control);
           this_value =
@@ -354,7 +356,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         } else if (field_type->Is(Type::TaggedPointer())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
                                this_effect, this_control);
           if (field_type->NumClasses() == 1) {
@@ -365,7 +367,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
             Node* check = graph()->NewNode(
                 simplified()->ReferenceEqual(Type::Internal()), this_value_map,
                 jsgraph()->Constant(field_type->Classes().Current()));
-            this_control =
+            this_control = this_effect =
                 graph()->NewNode(common()->DeoptimizeUnless(), check,
                                  frame_state, this_effect, this_control);
           } else {
@@ -556,8 +558,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   // Ensure that {receiver} is a heap object.
   Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
-                             effect, control);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
   // all (polymorphic) branches.
@@ -597,17 +599,19 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           // TODO(turbofan): This is ugly as hell! We should probably introduce
           // macro-ish operators for property access that encapsulate this whole
           // mess.
-          this_controls.push_back(graph()->NewNode(common()->DeoptimizeUnless(),
-                                                   check, frame_state, effect,
-                                                   fallthrough_control));
+          Node* deoptimize =
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               effect, fallthrough_control);
+          this_controls.push_back(deoptimize);
+          this_effects.push_back(deoptimize);
           fallthrough_control = nullptr;
         } else {
           Node* branch =
               graph()->NewNode(common()->Branch(), check, fallthrough_control);
           this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          this_effects.push_back(effect);
           fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
         }
-        this_effects.push_back(effect);
         if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
       }
 
@@ -624,7 +628,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             simplified()->ReferenceEqual(Type::Any()), receiver_map,
             jsgraph()->HeapConstant(transition_source));
         if (--num_transitions == 0 && j == access_infos.size() - 1) {
-          transition_control =
+          transition_control = transition_effect =
               graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                                transition_effect, fallthrough_control);
           fallthrough_control = nullptr;
@@ -689,8 +693,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     if (!NumberMatcher(this_index).HasValue()) {
       Node* check =
           graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
-      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, this_effect, this_control);
+      this_control = this_effect =
+          graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                           this_effect, this_control);
       this_index = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                     this_index, this_control);
     }
@@ -702,8 +707,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           graph()->NewNode(simplified()->NumberToUint32(), this_index);
       Node* check = graph()->NewNode(simplified()->NumberEqual(), this_index32,
                                      this_index);
-      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, this_effect, this_control);
+      this_control = this_effect =
+          graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                           this_effect, this_control);
       this_index = this_index32;
     }
 
@@ -725,8 +731,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       Node* check = graph()->NewNode(
           simplified()->ReferenceEqual(Type::Any()), this_elements_map,
           jsgraph()->HeapConstant(factory()->fixed_array_map()));
-      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, this_effect, this_control);
+      this_control = this_effect =
+          graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                           this_effect, this_control);
     }
 
     // Load the length of the {receiver}.
@@ -743,8 +750,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // Check that the {index} is in the valid range for the {receiver}.
     Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
                                    this_length);
-    this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                    frame_state, this_effect, this_control);
+    this_control = this_effect =
+        graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                         this_effect, this_control);
 
     // Compute the element access.
     Type* element_type = Type::Any();
@@ -808,7 +816,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               Type::Union(element_type, Type::Undefined(), graph()->zone());
         } else {
           // Deoptimize in case of the hole.
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
                                this_effect, this_control);
         }
@@ -837,7 +845,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               check, jsgraph()->UndefinedConstant(), this_value);
         } else {
           // Deoptimize in case of the hole.
-          this_control =
+          this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
                                this_effect, this_control);
         }
@@ -846,15 +854,17 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (IsFastSmiElementsKind(elements_kind)) {
         Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                        frame_state, this_effect, this_control);
+        this_control = this_effect =
+            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                             this_effect, this_control);
         this_value = graph()->NewNode(simplified()->TypeGuard(type_cache_.kSmi),
                                       this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         Node* check =
             graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                        frame_state, this_effect, this_control);
+        this_control = this_effect =
+            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                             this_effect, this_control);
         this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
                                       this_value, this_control);
       }

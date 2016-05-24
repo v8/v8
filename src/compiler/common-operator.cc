@@ -169,8 +169,8 @@ std::ostream& operator<<(std::ostream& os,
 
 #define CACHED_OP_LIST(V)                                    \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)             \
-  V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 0, 1)     \
-  V(DeoptimizeUnless, Operator::kFoldable, 2, 1, 1, 0, 0, 1) \
+  V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 1, 1)     \
+  V(DeoptimizeUnless, Operator::kFoldable, 2, 1, 1, 0, 1, 1) \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)            \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)           \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
