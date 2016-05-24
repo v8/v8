@@ -1,0 +1,9 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+declare_args() {
+  # V8 generates code for this architecture. If v8_target_arch differs from
+  # target_cpu, a simulator will be run.
+  v8_target_arch = ""
+}

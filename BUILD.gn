@@ -11,8 +11,7 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-# Because standalone V8 builds are not supported, assume this is part of a
-# Chromium build.
+import("gni/v8.gni")
 import("//build_overrides/v8.gni")
 
 import("snapshot_toolchain.gni")
@@ -70,13 +69,15 @@ declare_args() {
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
-if (is_msan) {
-  # Running the V8-generated code on an ARM simulator is a powerful hack that
-  # allows the tool to see the memory accesses from JITted code. Without this
-  # flag, JS code causes false positive reports from MSan.
-  v8_target_arch = "arm64"
-} else {
-  v8_target_arch = target_cpu
+if (v8_target_arch == "") {
+  if (is_msan) {
+    # Running the V8-generated code on an ARM simulator is a powerful hack that
+    # allows the tool to see the memory accesses from JITted code. Without this
+    # flag, JS code causes false positive reports from MSan.
+    v8_target_arch = "arm64"
+  } else {
+    v8_target_arch = target_cpu
+  }
 }
 
 if (v8_use_snapshot && v8_use_external_startup_data) {

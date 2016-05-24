@@ -4,14 +4,10 @@
 
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
+import("//gni/v8.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
-}
-
-declare_args() {
-  # V8 generates code for this architecture.
-  v8_target_arch = target_cpu
 }
 
 if (((v8_target_arch == "ia32" ||
