@@ -71,6 +71,10 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Promise/reject-function-name': [FAIL],
+  'built-ins/Promise/resolve-function-name': [FAIL],
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
@@ -147,12 +151,6 @@
   'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
   'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
   'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4633
-  'built-ins/Promise/reject-function-name': [FAIL],
-  'built-ins/Promise/resolve-function-name': [FAIL],
-  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
-  'built-ins/Promise/executor-function-name': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4634
   'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
