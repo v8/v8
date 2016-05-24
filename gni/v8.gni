@@ -2,8 +2,21 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/sanitizers/sanitizers.gni")
+
 declare_args() {
   # V8 generates code for this architecture. If v8_target_arch differs from
   # target_cpu, a simulator will be run.
   v8_target_arch = ""
+}
+
+if (v8_target_arch == "") {
+  if (is_msan) {
+    # Running the V8-generated code on an ARM simulator is a powerful hack that
+    # allows the tool to see the memory accesses from JITted code. Without this
+    # flag, JS code causes false positive reports from MSan.
+    v8_target_arch = "arm64"
+  } else {
+    v8_target_arch = target_cpu
+  }
 }

@@ -69,17 +69,6 @@ declare_args() {
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
-if (v8_target_arch == "") {
-  if (is_msan) {
-    # Running the V8-generated code on an ARM simulator is a powerful hack that
-    # allows the tool to see the memory accesses from JITted code. Without this
-    # flag, JS code causes false positive reports from MSan.
-    v8_target_arch = "arm64"
-  } else {
-    v8_target_arch = target_cpu
-  }
-}
-
 if (v8_use_snapshot && v8_use_external_startup_data) {
   snapshot_target = ":v8_external_snapshot"
 } else if (v8_use_snapshot) {
