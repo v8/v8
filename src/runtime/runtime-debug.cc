@@ -1562,6 +1562,105 @@ RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
   }
 }
 
+static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
+                                        Script::OffsetFlag offset_flag,
+                                        Isolate* isolate) {
+  Script::PositionInfo info;
+  if (!script->GetPositionInfo(position, &info, offset_flag)) {
+    return handle(isolate->heap()->null_value(), isolate);
+  }
+
+  Handle<String> source = handle(String::cast(script->source()), isolate);
+  Handle<String> sourceText =
+      isolate->factory()->NewSubString(source, info.line_start, info.line_end);
+
+  Handle<JSObject> jsinfo =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  JSObject::AddProperty(jsinfo, isolate->factory()->script_string(), script,
+                        NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->position_string(),
+                        handle(Smi::FromInt(position), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->line_string(),
+                        handle(Smi::FromInt(info.line), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->column_string(),
+                        handle(Smi::FromInt(info.column), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->sourceText_string(),
+                        sourceText, NONE);
+
+  return jsinfo;
+}
+
+// Get information on a specific source line and column possibly offset by a
+// fixed source position. This function is used to find a source position from
+// a line and column position. The fixed source position offset is typically
+// used to find a source position in a function based on a line and column in
+// the source for the function alone. The offset passed will then be the
+// start position of the source for the function within the full script source.
+// Note that incoming line and column parameters may be undefined, and are
+// assumed to be passed *with* offsets.
+RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  // Line and column are possibly undefined and we need to handle these cases,
+  // additionally subtracting corresponding offsets.
+
+  int32_t line;
+  if (args[1]->IsNull() || args[1]->IsUndefined()) {
+    line = 0;
+  } else {
+    RUNTIME_ASSERT(args[1]->IsNumber());
+    line = NumberToInt32(args[1]) - script_handle->line_offset();
+  }
+
+  int32_t column;
+  if (args[2]->IsNull() || args[2]->IsUndefined()) {
+    column = 0;
+  } else {
+    RUNTIME_ASSERT(args[2]->IsNumber());
+    column = NumberToInt32(args[2]);
+    if (line == 0) column -= script_handle->column_offset();
+  }
+
+  CONVERT_NUMBER_CHECKED(int32_t, offset_position, Int32, args[3]);
+
+  if (line < 0 || column < 0 || offset_position < 0) {
+    return isolate->heap()->null_value();
+  }
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  int position;
+  if (line == 0) {
+    position = offset_position + column;
+  } else {
+    Script::PositionInfo info;
+    if (!script_handle->GetPositionInfo(offset_position, &info,
+                                        Script::NO_OFFSET) ||
+        info.line + line >= line_count) {
+      return isolate->heap()->null_value();
+    }
+
+    const int offset_line = info.line + line;
+    const int offset_line_position =
+        (offset_line == 0)
+            ? 0
+            : Smi::cast(line_ends_array->get(offset_line - 1))->value() + 1;
+    position = offset_line_position + column;
+  }
+
+  return *GetJSPositionInfo(script_handle, position, Script::NO_OFFSET,
+                            isolate);
+}
+
 RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -1572,33 +1671,41 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   RUNTIME_ASSERT(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  Script::PositionInfo info;
   const Script::OffsetFlag offset_flag =
       with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
-  if (!script_handle->GetPositionInfo(position, &info, offset_flag)) {
+  return *GetJSPositionInfo(script_handle, position, offset_flag, isolate);
+}
+
+// Returns the given line as a string, or null if line is out of bounds.
+// The parameter line is expected to include the script's line offset.
+RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  line -= script_handle->line_offset();
+  if (line < 0 || line_count <= line) {
     return isolate->heap()->null_value();
   }
 
+  const int start =
+      (line == 0) ? 0 : Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+  const int end = Smi::cast(line_ends_array->get(line))->value();
+
   Handle<String> source =
       handle(String::cast(script_handle->source()), isolate);
-  Handle<String> sourceText =
-      isolate->factory()->NewSubString(source, info.line_start, info.line_end);
+  Handle<String> str = isolate->factory()->NewSubString(source, start, end);
 
-  Handle<JSObject> jsinfo =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  JSObject::AddProperty(jsinfo, isolate->factory()->script_string(),
-                        script_handle, NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->position_string(),
-                        handle(Smi::FromInt(position), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->line_string(),
-                        handle(Smi::FromInt(info.line), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->column_string(),
-                        handle(Smi::FromInt(info.column), isolate), NONE);
-  JSObject::AddProperty(jsinfo, isolate->factory()->sourceText_string(),
-                        sourceText, NONE);
-
-  return *jsinfo;
+  return *str;
 }
 
 // Set one shot breakpoints for the callback function that is passed to a

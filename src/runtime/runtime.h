@@ -184,7 +184,9 @@ namespace internal {
   F(ScriptLineCount, 1, 1)                     \
   F(ScriptLineStartPosition, 2, 1)             \
   F(ScriptLineEndPosition, 2, 1)               \
+  F(ScriptLocationFromLine, 4, 1)              \
   F(ScriptPositionInfo, 3, 1)                  \
+  F(ScriptSourceLine, 2, 1)                    \
   F(DebugPrepareStepInIfStepping, 1, 1)        \
   F(DebugPushPromise, 2, 1)                    \
   F(DebugPopPromise, 0, 1)                     \

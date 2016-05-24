@@ -41,7 +41,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringIndexOf;
-var StringSubstring;
 var SymbolToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var Uint16x8ToString;
@@ -59,7 +58,6 @@ utils.Import(function(from) {
   Int8x16ToString = from.Int8x16ToString;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringIndexOf = from.StringIndexOf;
-  StringSubstring = from.StringSubstring;
   SymbolToString = from.SymbolToString;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
@@ -219,18 +217,6 @@ function GetSourceLine(message) {
 
 
 /**
- * Find a line number given a specific source position.
- * @param {number} position The source position.
- * @return {number} 0 if input too small, -1 if input too large,
-       else the line number.
- */
-function ScriptLineFromPosition(position) {
-  var info = %ScriptPositionInfo(this, position, false);
-  return (info == null) ? -1 : info.line;
-}
-
-
-/**
  * Get information on a specific source position.
  * Returns an object with the following following properties:
  *   script     : script object for the source
@@ -246,124 +232,6 @@ function ScriptLineFromPosition(position) {
 function ScriptLocationFromPosition(position,
                                     include_resource_offset) {
   return %ScriptPositionInfo(this, position, !!include_resource_offset);
-}
-
-
-/**
- * Get information on a specific source line and column possibly offset by a
- * fixed source position. This function is used to find a source position from
- * a line and column position. The fixed source position offset is typically
- * used to find a source position in a function based on a line and column in
- * the source for the function alone. The offset passed will then be the
- * start position of the source for the function within the full script source.
- * @param {number} opt_line The line within the source. Default value is 0
- * @param {number} opt_column The column in within the line. Default value is 0
- * @param {number} opt_offset_position The offset from the begining of the
- *     source from where the line and column calculation starts.
- *     Default value is 0
- * @return If line is negative or not in the source null is returned.
- */
-function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
-  // Default is the first line in the script. Lines in the script is relative
-  // to the offset within the resource.
-  var line = 0;
-  if (!IS_UNDEFINED(opt_line)) {
-    line = opt_line - this.line_offset;
-  }
-
-  // Default is first column. If on the first line add the offset within the
-  // resource.
-  var column = opt_column || 0;
-  if (line == 0) {
-    column -= this.column_offset;
-  }
-
-  var offset_position = opt_offset_position || 0;
-  if (line < 0 || column < 0 || offset_position < 0) return null;
-  if (line == 0) {
-    return this.locationFromPosition(offset_position + column, false);
-  } else {
-    // Find the line where the offset position is located.
-    var offset_line = this.lineFromPosition(offset_position);
-
-    if (offset_line == -1 || offset_line + line >= this.lineCount()) {
-      return null;
-    }
-
-    return this.locationFromPosition(
-        %ScriptLineStartPosition(this, offset_line + line) + column);
-  }
-}
-
-
-/**
- * Get a slice of source code from the script. The boundaries for the slice is
- * specified in lines.
- * @param {number} opt_from_line The first line (zero bound) in the slice.
- *     Default is 0
- * @param {number} opt_to_column The last line (zero bound) in the slice (non
- *     inclusive). Default is the number of lines in the script
- * @return {SourceSlice} The source slice or null of the parameters where
- *     invalid
- */
-function ScriptSourceSlice(opt_from_line, opt_to_line) {
-  var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset
-                                              : opt_from_line;
-  var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount()
-                                          : opt_to_line;
-
-  // Adjust according to the offset within the resource.
-  from_line -= this.line_offset;
-  to_line -= this.line_offset;
-  if (from_line < 0) from_line = 0;
-  if (to_line > this.lineCount()) to_line = this.lineCount();
-
-  // Check parameters.
-  if (from_line >= this.lineCount() ||
-      to_line < 0 ||
-      from_line > to_line) {
-    return null;
-  }
-
-  var from_position = %ScriptLineStartPosition(this, from_line);
-  var to_position = %ScriptLineStartPosition(this, to_line);
-
-  // Return a source slice with line numbers re-adjusted to the resource.
-  return new SourceSlice(this,
-                         from_line + this.line_offset,
-                         to_line + this.line_offset,
-                         from_position, to_position);
-}
-
-
-function ScriptSourceLine(opt_line) {
-  // Default is the first line in the script. Lines in the script are relative
-  // to the offset within the resource.
-  var line = 0;
-  if (!IS_UNDEFINED(opt_line)) {
-    line = opt_line - this.line_offset;
-  }
-
-  // Check parameter.
-  if (line < 0 || this.lineCount() <= line) {
-    return null;
-  }
-
-  // Return the source line.
-  var start = %ScriptLineStartPosition(this, line);
-  var end = %ScriptLineEndPosition(this, line);
-  return %_Call(StringSubstring, this.source, start, end);
-}
-
-
-/**
- * Returns the number of source lines.
- * @return {number}
- *     Number of source lines.
- */
-function ScriptLineCount() {
-  // Return number of source lines.
-  return %ScriptLineCount(this);
 }
 
 
@@ -391,58 +259,9 @@ utils.SetUpLockedPrototype(Script, [
     "line_offset",
     "column_offset"
   ], [
-    "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
-    "locationFromLine", ScriptLocationFromLine,
-    "sourceSlice", ScriptSourceSlice,
-    "sourceLine", ScriptSourceLine,
-    "lineCount", ScriptLineCount,
     "nameOrSourceURL", ScriptNameOrSourceURL,
   ]
-);
-
-
-/**
- * Class for a source slice. A source slice is a part of a script source with
- * the following properties:
- *   script        : script object for the source
- *   from_line     : line number for the first line in the slice
- *   to_line       : source line number for the last line in the slice
- *   from_position : position of the first character in the slice
- *   to_position   : position of the last character in the slice
- * The to_line and to_position are not included in the slice, that is the lines
- * in the slice are [from_line, to_line[. Likewise the characters in the slice
- * are [from_position, to_position[.
- * @param {Script} script The Script object for the source slice
- * @param {number} from_line
- * @param {number} to_line
- * @param {number} from_position
- * @param {number} to_position
- * @constructor
- */
-function SourceSlice(script, from_line, to_line, from_position, to_position) {
-  this.script = script;
-  this.from_line = from_line;
-  this.to_line = to_line;
-  this.from_position = from_position;
-  this.to_position = to_position;
-}
-
-/**
- * Get the source text for a SourceSlice
- * @return {String} Source text for this slice. The last line will include
- *     the line terminating characters (if any)
- */
-function SourceSliceSourceText() {
-  return %_Call(StringSubstring,
-                this.script.source,
-                this.from_position,
-                this.to_position);
-}
-
-utils.SetUpLockedPrototype(SourceSlice,
-  ["script", "from_line", "to_line", "from_position", "to_position"],
-  ["sourceText", SourceSliceSourceText]
 );
 
 

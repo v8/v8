@@ -361,7 +361,7 @@ ScriptBreakPoint.prototype.matchesScript = function(script) {
   } else {
     // We might want to account columns here as well.
     if (!(script.line_offset <= this.line_  &&
-          this.line_ < script.line_offset + script.lineCount())) {
+          this.line_ < script.line_offset + %ScriptLineCount(script))) {
       return false;
     }
     if (this.type_ == Debug.ScriptBreakPointType.ScriptName) {
@@ -383,11 +383,11 @@ ScriptBreakPoint.prototype.set = function (script) {
   // first piece of breakable code on the line try to find the column on the
   // line which contains some source.
   if (IS_UNDEFINED(column)) {
-    var source_line = script.sourceLine(this.line());
+    var source_line = %ScriptSourceLine(script, line || script.line_offset);
 
     // Allocate array for caching the columns where the actual source starts.
     if (!script.sourceColumnStart_) {
-      script.sourceColumnStart_ = new GlobalArray(script.lineCount());
+      script.sourceColumnStart_ = new GlobalArray(%ScriptLineCount(script));
     }
 
     // Fill cache if needed and get column where the actual source starts.
@@ -536,14 +536,14 @@ Debug.sourcePosition = function(f) {
 Debug.findFunctionSourceLocation = function(func, opt_line, opt_column) {
   var script = %FunctionGetScript(func);
   var script_offset = %FunctionGetScriptSourcePosition(func);
-  return script.locationFromLine(opt_line, opt_column, script_offset);
+  return %ScriptLocationFromLine(script, opt_line, opt_column, script_offset);
 };
 
 
 // Returns the character position in a script based on a line number and an
 // optional position within that line.
 Debug.findScriptSourcePosition = function(script, opt_line, opt_column) {
-  var location = script.locationFromLine(opt_line, opt_column);
+  var location = %ScriptLocationFromLine(script, opt_line, opt_column, 0);
   return location ? location.position : null;
 };
 
@@ -2085,18 +2085,34 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
     return response.failed('No source');
   }
 
-  // Get the source slice and fill it into the response.
-  var slice = script.sourceSlice(from_line, to_line);
-  if (!slice) {
+  var raw_script = script.value();
+
+  // Sanitize arguments and remove line offset.
+  var line_offset = raw_script.line_offset;
+  var line_count = %ScriptLineCount(raw_script);
+  from_line = IS_UNDEFINED(from_line) ? 0 : from_line - line_offset;
+  to_line = IS_UNDEFINED(to_line) ? line_count : to_line - line_offset;
+
+  if (from_line < 0) from_line = 0;
+  if (to_line > line_count) to_line = line_count;
+
+  if (from_line >= line_count || to_line < 0 || from_line > to_line) {
     return response.failed('Invalid line interval');
   }
+
+  // Fill in the response.
+
   response.body = {};
-  response.body.source = slice.sourceText();
-  response.body.fromLine = slice.from_line;
-  response.body.toLine = slice.to_line;
-  response.body.fromPosition = slice.from_position;
-  response.body.toPosition = slice.to_position;
-  response.body.totalLines = script.lineCount();
+  response.body.fromLine = from_line + line_offset;
+  response.body.toLine = to_line + line_offset;
+  response.body.fromPosition = %ScriptLineStartPosition(raw_script, from_line);
+  response.body.toPosition =
+    (to_line == 0) ? 0 : %ScriptLineEndPosition(raw_script, to_line - 1);
+  response.body.totalLines = %ScriptLineCount(raw_script);
+
+  response.body.source = %_SubString(raw_script.source,
+                                     response.body.fromPosition,
+                                     response.body.toPosition);
 };
 
 
