@@ -434,6 +434,11 @@ bool UseIgnition(CompilationInfo* info) {
     return false;
   }
 
+  // Since we can't OSR from Ignition, skip Ignition for asm.js functions.
+  if (info->shared_info()->asm_function()) {
+    return false;
+  }
+
   // Checks whether top level functions should be passed by the filter.
   if (info->shared_info()->is_toplevel()) {
     Vector<const char> filter = CStrVector(FLAG_ignition_filter);
