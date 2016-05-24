@@ -12,8 +12,7 @@ namespace v8 {
 namespace internal {
 
 typedef void (*ScavengingCallback)(Map* map, HeapObject** slot,
-                                   HeapObject* object,
-                                   PromotionMode promotion_mode);
+                                   HeapObject* object);
 
 class Scavenger {
  public:
@@ -26,15 +25,12 @@ class Scavenger {
   // necessary, the object might be promoted to an old space.  The caller must
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.
-  static inline void ScavengeObject(
-      HeapObject** p, HeapObject* object,
-      PromotionMode promotion_mode = DEFAULT_PROMOTION);
-  static inline SlotCallbackResult CheckAndScavengeObject(
-      Heap* heap, Address slot_address, PromotionMode promotion_mode);
+  static inline void ScavengeObject(HeapObject** p, HeapObject* object);
+  static inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
+                                                          Address slot_address);
 
   // Slow part of {ScavengeObject} above.
-  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object,
-                                 PromotionMode promotion_mode);
+  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Chooses an appropriate static visitor table depending on the current state
   // of the heap (i.e. incremental marking, logging and profiling).
