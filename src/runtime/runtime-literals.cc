@@ -263,9 +263,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   MaybeHandle<Object> maybe_copy =
       JSObject::DeepCopy(boilerplate, &usage_context);
   usage_context.ExitScope(site, boilerplate);
-  Handle<Object> copy;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, copy, maybe_copy);
-  return *copy;
+  RETURN_RESULT_OR_FAILURE(isolate, maybe_copy);
 }
 
 MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
@@ -333,12 +331,10 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
-  Handle<JSObject> result;
   Handle<LiteralsArray> literals(closure->literals(), isolate);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, CreateArrayLiteralImpl(isolate, literals, literals_index,
-                                              elements, flags));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, CreateArrayLiteralImpl(isolate, literals, literals_index,
+                                      elements, flags));
 }
 
 
@@ -349,13 +345,11 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  Handle<JSObject> result;
   Handle<LiteralsArray> literals(closure->literals(), isolate);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
                              ArrayLiteral::kShallowElements));
-  return *result;
 }
 
 }  // namespace internal

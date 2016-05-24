@@ -89,7 +89,8 @@ void EncodePair(uc16 cc1, uc16 cc2, List<uint8_t>* buffer) {
 
 }  // anonymous namespace
 
-Object* Uri::Encode(Isolate* isolate, Handle<String> uri, bool is_uri) {
+MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
+                                bool is_uri) {
   uri = String::Flatten(uri);
   int uri_length = uri->length();
   List<uint8_t> buffer(uri_length);
@@ -120,15 +121,11 @@ Object* Uri::Encode(Isolate* isolate, Handle<String> uri, bool is_uri) {
       }
 
       AllowHeapAllocation allocate_error_and_return;
-      THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewURIError());
+      THROW_NEW_ERROR(isolate, NewURIError(), String);
     }
   }
 
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      isolate->factory()->NewStringFromOneByte(buffer.ToConstVector()));
-  return *result;
+  return isolate->factory()->NewStringFromOneByte(buffer.ToConstVector());
 }
 
 }  // namespace internal

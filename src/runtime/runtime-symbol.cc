@@ -52,9 +52,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
     builder.AppendString(handle(String::cast(symbol->name()), isolate));
   }
   builder.AppendCharacter(')');
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.Finish());
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
 

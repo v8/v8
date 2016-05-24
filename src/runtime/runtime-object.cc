@@ -230,10 +230,7 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     JSReceiver::GetPrototype(isolate, obj));
-  return *prototype;
+  RETURN_RESULT_OR_FAILURE(isolate, JSReceiver::GetPrototype(isolate, obj));
 }
 
 
@@ -305,9 +302,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
     script_context->set(slot, isolate->heap()->empty_property_cell());
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
 
 
@@ -376,10 +371,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::GetObjectProperty(isolate, object, key));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Runtime::GetObjectProperty(isolate, object, key));
 }
 
 
@@ -391,10 +384,8 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key_obj, 1);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
 }
 
 
@@ -416,11 +407,8 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   RUNTIME_ASSERT(!it.IsFound());
 #endif
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetOwnPropertyIgnoreAttributes(object, name, value, attrs));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                        object, name, value, attrs));
 }
 
 
@@ -450,11 +438,8 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
   }
 #endif
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetOwnElementIgnoreAttributes(object, index, value, NONE));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnElementIgnoreAttributes(
+                                        object, index, value, NONE));
 }
 
 
@@ -468,9 +453,8 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
   uint32_t index;
   CHECK(array->length()->ToArrayIndex(&index));
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::AddDataElement(array, index, value, NONE));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::AddDataElement(array, index, value, NONE));
   JSObject::ValidateElements(array);
   return *array;
 }
@@ -486,11 +470,9 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 3);
   LanguageMode language_mode = language_mode_arg;
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-  return *result;
 }
 
 
@@ -629,10 +611,7 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
-  Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::New(target, new_target));
 }
 
 
@@ -836,10 +815,7 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-  return *receiver;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToObject(isolate, object));
 }
 
 
@@ -847,10 +823,7 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToPrimitive(input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToPrimitive(input));
 }
 
 
@@ -858,10 +831,8 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
 }
 
 
@@ -869,10 +840,8 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kString));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kString));
 }
 
 
@@ -880,9 +849,7 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::ToNumber(input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumber(input));
 }
 
 
@@ -890,10 +857,7 @@ RUNTIME_FUNCTION(Runtime_ToInteger) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToInteger(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToInteger(isolate, input));
 }
 
 
@@ -901,10 +865,7 @@ RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToLength(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToLength(isolate, input));
 }
 
 
@@ -912,10 +873,7 @@ RUNTIME_FUNCTION(Runtime_ToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToString(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, input));
 }
 
 
@@ -923,10 +881,7 @@ RUNTIME_FUNCTION(Runtime_ToName) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToName(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToName(isolate, input));
 }
 
 

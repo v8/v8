@@ -382,13 +382,10 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   icu::UnicodeString result;
   date_format->format(value->Number(), result);
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -410,12 +407,9 @@ RUNTIME_FUNCTION(Runtime_InternalDateParse) {
   UDate date = date_format->parse(u_date, status);
   if (U_FAILURE(status)) return isolate->heap()->undefined_value();
 
-  Handle<JSDate> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSDate::New(isolate->date_function(), isolate->date_function(),
-                  static_cast<double>(date)));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDate::New(isolate->date_function(), isolate->date_function(),
+                           static_cast<double>(date)));
 }
 
 
@@ -476,13 +470,10 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   icu::UnicodeString result;
   number_format->format(value->Number(), result);
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -647,13 +638,10 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
     return isolate->heap()->undefined_value();
   }
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -848,13 +836,11 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
       // If no change is made, just return |s|.
       if (converted.getBuffer() == src) return *s;
     }
-    Handle<String> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
         isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
             reinterpret_cast<const uint16_t*>(converted.getBuffer()),
             converted.length())));
-    return *result;
   }
 
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;

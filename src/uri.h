@@ -13,12 +13,12 @@ namespace internal {
 
 class Uri : public AllStatic {
  public:
-  static Object* EncodeUri(Isolate* isolate, Handle<String> uri) {
+  static MaybeHandle<String> EncodeUri(Isolate* isolate, Handle<String> uri) {
     return Encode(isolate, uri, true);
   }
 
-  static Object* EncodeUriComponent(Isolate* isolate,
-                                    Handle<String> component) {
+  static MaybeHandle<String> EncodeUriComponent(Isolate* isolate,
+                                                Handle<String> component) {
     return Encode(isolate, component, false);
   }
 
@@ -28,7 +28,8 @@ class Uri : public AllStatic {
   // unescape
 
  private:
-  static Object* Encode(Isolate* isolate, Handle<String> uri, bool is_uri);
+  static MaybeHandle<String> Encode(Isolate* isolate, Handle<String> uri,
+                                    bool is_uri);
   // decode
 };
 

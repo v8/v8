@@ -313,10 +313,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
-  Handle<JSArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::GetInternalProperties(isolate, obj));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Runtime::GetInternalProperties(isolate, obj));
 }
 
 
@@ -764,10 +762,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
-  Handle<JSObject> details;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     it.MaterializeScopeDetails());
-  return *details;
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
 
@@ -856,10 +851,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
     return isolate->heap()->undefined_value();
   }
 
-  Handle<JSObject> details;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     it.MaterializeScopeDetails());
-  return *details;
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
 
@@ -1141,12 +1133,9 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
-                           disable_break, context_extension));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
+                                    disable_break, context_extension));
 }
 
 
@@ -1163,11 +1152,9 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 3);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       DebugEvaluate::Global(isolate, source, disable_break, context_extension));
-  return *result;
 }
 
 
@@ -1313,12 +1300,9 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  Handle<Object> prototype;
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     JSReceiver::GetPrototype(isolate, obj));
-  return *prototype;
+  RETURN_RESULT_OR_FAILURE(isolate, JSReceiver::GetPrototype(isolate, obj));
 }
 
 
@@ -1359,15 +1343,13 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
-  Handle<Object> name;
   if (function->IsJSBoundFunction()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, name, JSBoundFunction::GetName(
-                           isolate, Handle<JSBoundFunction>::cast(function)));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSBoundFunction::GetName(
+                     isolate, Handle<JSBoundFunction>::cast(function)));
   } else {
-    name = JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
+    return *JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   }
-  return *name;
 }
 
 
@@ -1423,12 +1405,9 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
     return isolate->heap()->exception();
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function, handle(function->global_proxy()), 0,
-                      NULL));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::Call(isolate, function,
+                               handle(function->global_proxy()), 0, NULL));
 }
 
 

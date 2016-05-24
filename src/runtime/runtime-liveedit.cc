@@ -70,10 +70,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
   RUNTIME_ASSERT(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  Handle<JSArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LiveEdit::GatherCompileInfo(script_handle, source));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LiveEdit::GatherCompileInfo(script_handle, source));
 }
 
 

@@ -544,9 +544,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   RegExpImpl::SetLastMatchInfo(last_match_info, subject, capture_count,
                                global_cache.LastSuccessfulMatch());
 
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.ToString());
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, builder.ToString());
 }
 
 
@@ -779,11 +777,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
   isolate->counters()->regexp_entry_runtime()->Increment();
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      RegExpImpl::Exec(regexp, subject, index, last_match_info));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, RegExpImpl::Exec(regexp, subject, index, last_match_info));
 }
 
 

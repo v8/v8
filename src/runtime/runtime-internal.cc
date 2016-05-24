@@ -369,12 +369,9 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   CONVERT_ARG_HANDLE_CHECKED(String, arg0, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, arg1, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, arg2, 3);
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      MessageTemplate::FormatMessage(template_index, arg0, arg1, arg2));
   isolate->native_context()->IncrementErrorsThrown();
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, MessageTemplate::FormatMessage(
+                                        template_index, arg0, arg1, arg2));
 }
 
 #define CALLSITE_GET(NAME, RETURN)                                  \
@@ -515,11 +512,8 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Handle<FixedArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::CreateListFromArrayLike(isolate, object, ElementTypes::kAll));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::CreateListFromArrayLike(
+                                        isolate, object, ElementTypes::kAll));
 }
 
 
@@ -597,10 +591,8 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, callable, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::OrdinaryHasInstance(isolate, callable, object));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::OrdinaryHasInstance(isolate, callable, object));
 }
 
 }  // namespace internal

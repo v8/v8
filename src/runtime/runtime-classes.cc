@@ -186,11 +186,9 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   CONVERT_SMI_ARG_CHECKED(start_position, 2);
   CONVERT_SMI_ARG_CHECKED(end_position, 3);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DefineClass(isolate, super_class, constructor,
-                                   start_position, end_position));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DefineClass(isolate, super_class, constructor, start_position,
+                           end_position));
 }
 
 
@@ -247,10 +245,8 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadFromSuper(isolate, receiver, home_object, name));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadFromSuper(isolate, receiver, home_object, name));
 }
 
 
@@ -262,13 +258,10 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
 
   uint32_t index = 0;
-  Handle<Object> result;
 
   if (key->ToArrayIndex(&index)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        LoadElementFromSuper(isolate, receiver, home_object, index));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
   }
 
   Handle<Name> name;
@@ -276,14 +269,11 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
                                      Object::ToName(isolate, key));
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        LoadElementFromSuper(isolate, receiver, home_object, index));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
   }
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadFromSuper(isolate, receiver, home_object, name));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadFromSuper(isolate, receiver, home_object, name));
 }
 
 

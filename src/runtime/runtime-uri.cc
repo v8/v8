@@ -264,12 +264,10 @@ RUNTIME_FUNCTION(Runtime_URIEscape) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
                                      Object::ToString(isolate, input));
   source = String::Flatten(source);
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, source->IsOneByteRepresentationUnderneath()
-                           ? URIEscape::Escape<uint8_t>(isolate, source)
-                           : URIEscape::Escape<uc16>(isolate, source));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           source->IsOneByteRepresentationUnderneath()
+                               ? URIEscape::Escape<uint8_t>(isolate, source)
+                               : URIEscape::Escape<uc16>(isolate, source));
 }
 
 
@@ -281,12 +279,10 @@ RUNTIME_FUNCTION(Runtime_URIUnescape) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
                                      Object::ToString(isolate, input));
   source = String::Flatten(source);
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, source->IsOneByteRepresentationUnderneath()
-                           ? URIUnescape::Unescape<uint8_t>(isolate, source)
-                           : URIUnescape::Unescape<uc16>(isolate, source));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           source->IsOneByteRepresentationUnderneath()
+                               ? URIUnescape::Unescape<uint8_t>(isolate, source)
+                               : URIUnescape::Unescape<uc16>(isolate, source));
 }
 
 }  // namespace internal

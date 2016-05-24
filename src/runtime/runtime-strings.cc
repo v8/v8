@@ -313,10 +313,8 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewConsString(str1, str2));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           isolate->factory()->NewConsString(str1, str2));
 }
 
 
@@ -1140,15 +1138,13 @@ RUNTIME_FUNCTION(Runtime_NewString) {
   CONVERT_INT32_ARG_CHECKED(length, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
   if (length == 0) return isolate->heap()->empty_string();
-  Handle<String> result;
   if (is_one_byte) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawOneByteString(length));
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             isolate->factory()->NewRawOneByteString(length));
   } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, isolate->factory()->NewRawTwoByteString(length));
+    RETURN_RESULT_OR_FAILURE(isolate,
+                             isolate->factory()->NewRawTwoByteString(length));
   }
-  return *result;
 }
 
 

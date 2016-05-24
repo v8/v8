@@ -162,10 +162,8 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
 
   Handle<JSGlobalObject> global(isolate->context()->global_object());
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::SetProperty(global, name, value, language_mode));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::SetProperty(global, name, value, language_mode));
 }
 
 
@@ -923,10 +921,8 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR));
-  return *value;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadLookupSlot(name, Object::THROW_ON_ERROR));
 }
 
 
@@ -934,10 +930,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, value, LoadLookupSlot(name, Object::DONT_THROW));
-  return *value;
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, Object::DONT_THROW));
 }
 
 
@@ -1021,9 +1014,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     StoreLookupSlot(name, value, SLOPPY));
-  return *value;
+  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, SLOPPY));
 }
 
 
@@ -1032,9 +1023,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     StoreLookupSlot(name, value, STRICT));
-  return *value;
+  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, STRICT));
 }
 
 }  // namespace internal

@@ -2259,7 +2259,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
-  Handle<Object> result;
 
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
@@ -2272,16 +2271,15 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC,
               vector->GetKind(vector_slot));
     KeyedLoadICNexus nexus(vector, vector_slot);
     KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   }
-  return *result;
 }
 
 
@@ -2292,7 +2290,6 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
-  Handle<Object> result;
 
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
@@ -2301,8 +2298,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
 
 
@@ -2312,7 +2308,6 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
-  Handle<Object> result;
 
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
@@ -2321,9 +2316,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
-
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
 
 
@@ -2335,7 +2328,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Object> result;
 
   DCHECK(args.length() == 5 || args.length() == 6);
   Handle<Smi> slot = args.at<Smi>(3);
@@ -2345,18 +2337,15 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       ic.Store(receiver, key, value));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC,
               vector->GetKind(vector_slot));
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       ic.Store(receiver, key, value));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   }
-  return *result;
 }
 
 
@@ -2367,7 +2356,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Object> result;
 
   int length = args.length();
   DCHECK(length == 5 || length == 6);
@@ -2397,18 +2385,15 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       ic.Store(receiver, key, value));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC,
               vector->GetKind(vector_slot));
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       ic.Store(receiver, key, value));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   }
-  return *result;
 }
 
 
@@ -2420,7 +2405,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Object> result;
 
   DCHECK(args.length() == 5);
   Handle<Smi> slot = args.at<Smi>(3);
@@ -2429,9 +2413,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     ic.Store(receiver, key, value));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
 
@@ -2442,7 +2424,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  Handle<Object> result;
 
   DCHECK(args.length() == 5);
   Handle<Smi> slot = args.at<Smi>(3);
@@ -2451,9 +2432,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     ic.Store(receiver, key, value));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
 
@@ -2467,11 +2446,9 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Slow) {
   StoreICNexus nexus(isolate);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   language_mode = ic.language_mode();
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-  return *result;
 }
 
 
@@ -2485,11 +2462,9 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   KeyedStoreICNexus nexus(isolate);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   language_mode = ic.language_mode();
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-  return *result;
 }
 
 
@@ -2512,11 +2487,9 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
   }
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-  return *result;
 }
 
 
@@ -2645,11 +2618,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
   Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
   Handle<Object> right = args.at<Object>(BinaryOpICStub::kRight);
   BinaryOpIC ic(isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      ic.Transition(Handle<AllocationSite>::null(), left, right));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, ic.Transition(Handle<AllocationSite>::null(), left, right));
 }
 
 
@@ -2664,10 +2634,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   Handle<Object> right =
       args.at<Object>(BinaryOpWithAllocationSiteStub::kRight);
   BinaryOpIC ic(isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, ic.Transition(allocation_site, left, right));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           ic.Transition(allocation_site, left, right));
 }
 
 Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
@@ -2965,7 +2933,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
-  Handle<Object> result;
 
   DCHECK(args.length() == 4);
   Handle<Smi> slot = args.at<Smi>(2);
@@ -2978,17 +2945,15 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC,
               vector->GetKind(vector_slot));
     KeyedLoadICNexus nexus(vector, vector_slot);
     KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   }
-
-  return *result;
 }
 }  // namespace internal
 }  // namespace v8

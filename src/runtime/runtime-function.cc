@@ -21,15 +21,13 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
   DCHECK(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  Handle<Object> result;
   if (function->IsJSBoundFunction()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, JSBoundFunction::GetName(
-                             isolate, Handle<JSBoundFunction>::cast(function)));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSBoundFunction::GetName(
+                     isolate, Handle<JSBoundFunction>::cast(function)));
   } else {
-    result = JSFunction::GetName(isolate, Handle<JSFunction>::cast(function));
+    return *JSFunction::GetName(isolate, Handle<JSFunction>::cast(function));
   }
-  return *result;
 }
 
 
@@ -276,11 +274,8 @@ RUNTIME_FUNCTION(Runtime_Call) {
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at<Object>(2 + i);
   }
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, target, receiver, argc, argv.start()));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
 }
 
 

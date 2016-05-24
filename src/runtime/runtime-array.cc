@@ -504,11 +504,8 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, original_array, 0);
-  Handle<Object> constructor;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, constructor,
-      Object::ArraySpeciesConstructor(isolate, original_array));
-  return *constructor;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::ArraySpeciesConstructor(isolate, original_array));
 }
 
 }  // namespace internal

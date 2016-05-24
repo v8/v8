@@ -46,11 +46,9 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
     for (int i = 0; i < arguments_length; ++i) {
       argv[i] = args.at<Object>(i + 1);
     }
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, Execution::Call(isolate, target, receiver,
-                                         arguments_length, argv.start()));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Execution::Call(isolate, target, receiver, arguments_length,
+                                 argv.start()));
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
@@ -63,12 +61,10 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
     }
   }
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
-  Handle<Object> trap_result;
   Handle<Object> trap_args[] = {target, receiver, arg_array};
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, trap_result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Execution::Call(isolate, trap, handler, arraysize(trap_args), trap_args));
-  return *trap_result;
 }
 
 
@@ -106,11 +102,9 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
     for (int i = 0; i < arguments_length; ++i) {
       argv[i] = args.at<Object>(i + 1);
     }
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, Execution::New(isolate, target, new_target,
-                                        arguments_length, argv.start()));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Execution::New(isolate, target, new_target, arguments_length,
+                                argv.start()));
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
