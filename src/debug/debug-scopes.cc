@@ -768,7 +768,7 @@ void ScopeIterator::CopyContextExtensionToScopeObject(
   if (context->extension_object() == nullptr) return;
   Handle<JSObject> extension(context->extension_object());
   Handle<FixedArray> keys =
-      JSReceiver::GetKeys(extension, type, ENUMERABLE_STRINGS)
+      KeyAccumulator::GetKeys(extension, type, ENUMERABLE_STRINGS)
           .ToHandleChecked();
 
   for (int i = 0; i < keys->length(); i++) {

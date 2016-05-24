@@ -1628,7 +1628,7 @@ BUILTIN(ObjectAssign) {
     Handle<FixedArray> keys;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
-        JSReceiver::GetKeys(from, OWN_ONLY, ALL_PROPERTIES, KEEP_NUMBERS));
+        KeyAccumulator::GetKeys(from, OWN_ONLY, ALL_PROPERTIES, KEEP_NUMBERS));
     // 4c. Repeat for each element nextKey of keys in List order,
     for (int j = 0; j < keys->length(); ++j) {
       Handle<Object> next_key(keys->get(j), isolate);
@@ -1901,7 +1901,7 @@ Object* GetOwnPropertyKeys(Isolate* isolate,
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      JSReceiver::GetKeys(receiver, OWN_ONLY, filter, CONVERT_TO_STRING));
+      KeyAccumulator::GetKeys(receiver, OWN_ONLY, filter, CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -1997,8 +1997,8 @@ BUILTIN(ObjectKeys) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
-        JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
-                            CONVERT_TO_STRING));
+        KeyAccumulator::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
+                                CONVERT_TO_STRING));
   }
   return *isolate->factory()->NewJSArrayWithElements(keys, FAST_ELEMENTS);
 }
@@ -2040,8 +2040,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ALL_PROPERTIES,
-                                         CONVERT_TO_STRING));
+      isolate, keys, KeyAccumulator::GetKeys(receiver, OWN_ONLY, ALL_PROPERTIES,
+                                             CONVERT_TO_STRING));
 
   Handle<JSObject> descriptors =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -2708,8 +2708,8 @@ BUILTIN(ReflectOwnKeys) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      JSReceiver::GetKeys(Handle<JSReceiver>::cast(target), OWN_ONLY,
-                          ALL_PROPERTIES, CONVERT_TO_STRING));
+      KeyAccumulator::GetKeys(Handle<JSReceiver>::cast(target), OWN_ONLY,
+                              ALL_PROPERTIES, CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 

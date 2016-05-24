@@ -2270,33 +2270,34 @@ THREADED_TEST(Enumerators) {
   // This order is not mandated by the spec, so this test is just
   // documenting our behavior.
   CHECK_EQ(17u, result->Length());
-  // Indexed properties + indexed interceptor properties in numerical order.
-  CHECK(v8_str("0")
+  // Indexed properties.
+  CHECK(v8_str("5")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 0))
                          .ToLocalChecked())
             .FromJust());
-  CHECK(v8_str("1")
+  CHECK(v8_str("10")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 1))
                          .ToLocalChecked())
             .FromJust());
-  CHECK(v8_str("5")
+  CHECK(v8_str("140000")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 2))
                          .ToLocalChecked())
             .FromJust());
-  CHECK(v8_str("10")
+  CHECK(v8_str("4294967294")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 3))
                          .ToLocalChecked())
             .FromJust());
-  CHECK(v8_str("140000")
+  // Indexed Interceptor properties
+  CHECK(v8_str("0")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 4))
                          .ToLocalChecked())
             .FromJust());
-  CHECK(v8_str("4294967294")
+  CHECK(v8_str("1")
             ->Equals(context.local(),
                      result->Get(context.local(), v8::Integer::New(isolate, 5))
                          .ToLocalChecked())

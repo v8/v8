@@ -3872,9 +3872,9 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Object, GetPropertyNames, Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
-  has_pending_exception =
-      !i::JSReceiver::GetKeys(self, i::INCLUDE_PROTOS, i::ENUMERABLE_STRINGS)
-           .ToHandle(&value);
+  has_pending_exception = !i::KeyAccumulator::GetKeys(self, i::INCLUDE_PROTOS,
+                                                      i::ENUMERABLE_STRINGS)
+                               .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map()->EnumLength() == 0 ||
@@ -3905,8 +3905,8 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
   has_pending_exception =
-      !i::JSReceiver::GetKeys(self, i::OWN_ONLY,
-                              static_cast<i::PropertyFilter>(filter))
+      !i::KeyAccumulator::GetKeys(self, i::OWN_ONLY,
+                                  static_cast<i::PropertyFilter>(filter))
            .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||

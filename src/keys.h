@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX, PROXY_MAGIC };
+enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
 // This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
 // GetKeys needs to sort keys per prototype level, first showing the integer
@@ -36,36 +36,33 @@ class KeyAccumulator final BASE_EMBEDDED {
       : isolate_(isolate), type_(type), filter_(filter) {}
   ~KeyAccumulator();
 
-  static MaybeHandle<FixedArray> GetKeys(Handle<JSReceiver> object,
-                                         KeyCollectionType type,
-                                         PropertyFilter filter,
-                                         GetKeysConversion keys_conversion,
-                                         bool filter_proxy_keys);
+  static MaybeHandle<FixedArray> GetKeys(
+      Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
+      GetKeysConversion keys_conversion = KEEP_NUMBERS,
+      bool filter_proxy_keys = true, bool is_for_in = false);
   Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
                           Handle<JSReceiver> object);
-  void CollectOwnElementIndices(Handle<JSObject> object);
-  void CollectOwnPropertyNames(Handle<JSObject> object);
+  Maybe<bool> CollectOwnElementIndices(Handle<JSReceiver> receiver,
+                                       Handle<JSObject> object);
+  Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
+                                      Handle<JSObject> object);
 
   static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
                                                 Handle<JSObject> object);
 
-  bool AddKey(uint32_t key);
-  bool AddKey(Object* key, AddKeyConversion convert);
-  bool AddKey(Handle<Object> key, AddKeyConversion convert);
+  void AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
+  void AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
-  void AddKeys(Handle<JSObject> array, AddKeyConversion convert);
-  void AddElementKeysFromInterceptor(Handle<JSObject> array);
+  void AddKeys(Handle<JSObject> array_like, AddKeyConversion convert);
 
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
-  void NextPrototype();
-  // Sort the integer indices in the last list in |elements_|
-  void SortCurrentElementsList();
-  int length() { return length_; }
   Isolate* isolate() { return isolate_; }
   PropertyFilter filter() { return filter_; }
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
+  void set_is_for_in(bool value) { is_for_in_ = value; }
+  void set_skip_indices(bool value) { skip_indices_ = value; }
 
  private:
   Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
@@ -78,35 +75,17 @@ class KeyAccumulator final BASE_EMBEDDED {
   Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
                                  Handle<FixedArray> keys);
 
-  bool AddIntegerKey(uint32_t key);
-  bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
-  bool AddSymbolKey(Handle<Object> array);
-  void SortCurrentElementsListRemoveDuplicates();
+  Handle<OrderedHashSet> keys() { return Handle<OrderedHashSet>::cast(keys_); }
 
   Isolate* isolate_;
+  // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy
+  // keys a Handle<FixedArray>.
+  Handle<FixedArray> keys_;
   KeyCollectionType type_;
   PropertyFilter filter_;
   bool filter_proxy_keys_ = true;
-  // |elements_| contains the sorted element keys (indices) per level.
-  std::vector<std::vector<uint32_t>*> elements_;
-  // |protoLengths_| contains the total number of keys (elements + properties)
-  // per level. Negative values mark counts for a level with keys from a proxy.
-  std::vector<int> level_lengths_;
-  // |string_properties_| contains the unique String property keys for all
-  // levels in insertion order per level.
-  Handle<OrderedHashSet> string_properties_;
-  // |symbol_properties_| contains the unique Symbol property keys for all
-  // levels in insertion order per level.
-  Handle<OrderedHashSet> symbol_properties_;
-  Handle<FixedArray> ownProxyKeys_;
-  // |length_| keeps track of the total number of all element and property keys.
-  int length_ = 0;
-  // |levelLength_| keeps track of the number of String keys in the current
-  // level.
-  int level_string_length_ = 0;
-  // |levelSymbolLength_| keeps track of the number of Symbol keys in the
-  // current level.
-  int level_symbol_length_ = 0;
+  bool is_for_in_ = false;
+  bool skip_indices_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(KeyAccumulator);
 };
@@ -125,6 +104,7 @@ class FastKeyAccumulator {
   bool is_receiver_simple_enum() { return is_receiver_simple_enum_; }
   bool has_empty_prototype() { return has_empty_prototype_; }
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
+  void set_is_for_in(bool value) { is_for_in_ = value; }
 
   MaybeHandle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
 
@@ -138,6 +118,7 @@ class FastKeyAccumulator {
   KeyCollectionType type_;
   PropertyFilter filter_;
   bool filter_proxy_keys_ = true;
+  bool is_for_in_ = false;
   bool is_receiver_simple_enum_ = false;
   bool has_empty_prototype_ = false;
 

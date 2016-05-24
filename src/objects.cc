@@ -6179,7 +6179,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
   // 5. ReturnIfAbrupt(keys).
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(props, OWN_ONLY, ALL_PROPERTIES),
+      isolate, keys, KeyAccumulator::GetKeys(props, OWN_ONLY, ALL_PROPERTIES),
       Object);
   // 6. Let descriptors be an empty List.
   int capacity = keys->length();
@@ -7858,8 +7858,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       PropertyFilter filter = static_cast<PropertyFilter>(
           ONLY_WRITABLE | ONLY_ENUMERABLE | ONLY_CONFIGURABLE);
       KeyAccumulator accumulator(isolate, OWN_ONLY, filter);
-      accumulator.NextPrototype();
-      accumulator.CollectOwnPropertyNames(copy);
+      accumulator.CollectOwnPropertyNames(copy, copy);
       Handle<FixedArray> names = accumulator.GetKeys();
       for (int i = 0; i < names->length(); i++) {
         DCHECK(names->get(i)->IsName());
@@ -8162,15 +8161,6 @@ bool Map::OnlyHasSimpleProperties() {
   return !IsStringWrapperElementsKind(elements_kind()) &&
          instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
          !has_hidden_prototype() && !is_dictionary_map();
-}
-
-MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
-                                            KeyCollectionType type,
-                                            PropertyFilter filter,
-                                            GetKeysConversion keys_conversion,
-                                            bool filter_proxy_keys) {
-  return KeyAccumulator::GetKeys(object, type, filter, keys_conversion,
-                                 filter_proxy_keys);
 }
 
 MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
@@ -17189,9 +17179,23 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     std::sort(start, start + array_size, cmp);
   }
 
+  bool has_seen_symbol = false;
   for (int i = 0; i < array_size; i++) {
     int index = Smi::cast(array->get(i))->value();
-    keys->AddKey(dictionary->KeyAt(index), DO_NOT_CONVERT);
+    Object* key = dictionary->KeyAt(index);
+    if (key->IsSymbol()) {
+      has_seen_symbol = true;
+      continue;
+    }
+    keys->AddKey(key, DO_NOT_CONVERT);
+  }
+  if (has_seen_symbol) {
+    for (int i = 0; i < array_size; i++) {
+      int index = Smi::cast(array->get(i))->value();
+      Object* key = dictionary->KeyAt(index);
+      if (!key->IsSymbol()) continue;
+      keys->AddKey(key, DO_NOT_CONVERT);
+    }
   }
 }
 
@@ -17491,6 +17495,26 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
   return table;
 }
 
+Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
+    Handle<OrderedHashSet> table, GetKeysConversion convert) {
+  Isolate* isolate = table->GetIsolate();
+  int length = table->NumberOfElements();
+  int nof_buckets = table->NumberOfBuckets();
+  // Convert the dictionary to a linear list.
+  Handle<FixedArray> result = Handle<FixedArray>::cast(table);
+  // From this point on table is no longer a valid OrderedHashSet.
+  result->set_map_no_write_barrier(isolate->heap()->fixed_array_map());
+  for (int i = 0; i < length; i++) {
+    int index = kHashTableStartIndex + nof_buckets + (i * kEntrySize);
+    Object* key = table->get(index);
+    if (convert == CONVERT_TO_STRING && key->IsNumber()) {
+      key = *isolate->factory()->NumberToString(handle(key, isolate));
+    }
+    result->set(i, key);
+  }
+  result->Shrink(length);
+  return result;
+}
 
 template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
