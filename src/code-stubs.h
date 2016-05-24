@@ -57,7 +57,6 @@ namespace internal {
   V(VectorKeyedStoreIC)                     \
   /* HydrogenCodeStubs */                   \
   V(ArrayNArgumentsConstructor)             \
-  V(ArraySingleArgumentConstructor)         \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
   V(CreateAllocationSite)                   \
@@ -74,7 +73,6 @@ namespace internal {
   V(FastNewStrictArguments)                 \
   V(GrowArrayElements)                      \
   V(InternalArrayNArgumentsConstructor)     \
-  V(InternalArraySingleArgumentConstructor) \
   V(KeyedLoadGeneric)                       \
   V(LoadGlobalViaContext)                   \
   V(LoadScriptContextField)                 \
@@ -104,6 +102,7 @@ namespace internal {
   V(AllocateUint8x16)                       \
   V(AllocateBool8x16)                       \
   V(ArrayNoArgumentConstructor)             \
+  V(ArraySingleArgumentConstructor)         \
   V(StringLength)                           \
   V(Add)                                    \
   V(Subtract)                               \
@@ -118,6 +117,7 @@ namespace internal {
   V(BitwiseXor)                             \
   V(Inc)                                    \
   V(InternalArrayNoArgumentConstructor)     \
+  V(InternalArraySingleArgumentConstructor) \
   V(Dec)                                    \
   V(FastCloneShallowObject)                 \
   V(InstanceOf)                             \
@@ -2911,25 +2911,39 @@ class InternalArrayNoArgumentConstructorStub
                             CommonArrayConstructorStub);
 };
 
-class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
+class ArraySingleArgumentConstructorStub : public CommonArrayConstructorStub {
  public:
   ArraySingleArgumentConstructorStub(
-      Isolate* isolate,
-      ElementsKind kind,
+      Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(isolate, kind, override_mode) {
-  }
+      : CommonArrayConstructorStub(isolate, kind, override_mode) {}
 
  private:
   void PrintName(std::ostream& os) const override {  // NOLINT
-    BasePrintName(os, "ArraySingleArgumentConstructorStub");
+    os << "ArraySingleArgumentConstructorStub";
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
-  DEFINE_HYDROGEN_CODE_STUB(ArraySingleArgumentConstructor,
-                            ArrayConstructorStubBase);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArraySingleArgumentConstructor);
+  DEFINE_TURBOFAN_CODE_STUB(ArraySingleArgumentConstructor,
+                            CommonArrayConstructorStub);
 };
 
+class InternalArraySingleArgumentConstructorStub
+    : public CommonArrayConstructorStub {
+ public:
+  InternalArraySingleArgumentConstructorStub(Isolate* isolate,
+                                             ElementsKind kind)
+      : CommonArrayConstructorStub(isolate, kind, DONT_OVERRIDE) {}
+
+ private:
+  void PrintName(std::ostream& os) const override {  // NOLINT
+    os << "InternalArraySingleArgumentConstructorStub";
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArraySingleArgumentConstructor);
+  DEFINE_TURBOFAN_CODE_STUB(InternalArraySingleArgumentConstructor,
+                            CommonArrayConstructorStub);
+};
 
 class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
  public:
@@ -2971,19 +2985,6 @@ class InternalArrayConstructorStubBase : public HydrogenCodeStub {
   class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
 
   DEFINE_CODE_STUB_BASE(InternalArrayConstructorStubBase, HydrogenCodeStub);
-};
-
-
-class InternalArraySingleArgumentConstructorStub : public
-    InternalArrayConstructorStubBase {
- public:
-  InternalArraySingleArgumentConstructorStub(Isolate* isolate,
-                                             ElementsKind kind)
-      : InternalArrayConstructorStubBase(isolate, kind) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructor);
-  DEFINE_HYDROGEN_CODE_STUB(InternalArraySingleArgumentConstructor,
-                            InternalArrayConstructorStubBase);
 };
 
 

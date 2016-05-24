@@ -4509,6 +4509,101 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
   assembler->Return(array);
 }
 
+namespace {
+
+void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
+                                     ElementsKind elements_kind,
+                                     compiler::Node* array_map,
+                                     compiler::Node* allocation_site,
+                                     Runtime::FunctionId runtime_fallback,
+                                     AllocationSiteMode mode) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Label ok(assembler);
+  Label smi_size(assembler);
+  Label small_smi_size(assembler);
+  Label call_runtime(assembler, Label::kDeferred);
+
+  Node* size = assembler->Parameter(
+      ArraySingleArgumentConstructorDescriptor::kArraySizeSmiParameterIndex);
+  assembler->Branch(assembler->WordIsSmi(size), &smi_size, &call_runtime);
+
+  assembler->Bind(&smi_size);
+  int element_size =
+      IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
+  int max_fast_elements =
+      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
+       JSArray::kSize - AllocationMemento::kSize) /
+      element_size;
+  assembler->Branch(
+      assembler->SmiAboveOrEqual(
+          size, assembler->SmiConstant(Smi::FromInt(max_fast_elements))),
+      &call_runtime, &small_smi_size);
+
+  assembler->Bind(&small_smi_size);
+  {
+    Node* array = assembler->AllocateJSArray(
+        elements_kind, array_map, size, size,
+        mode == DONT_TRACK_ALLOCATION_SITE ? nullptr : allocation_site,
+        CodeStubAssembler::SMI_PARAMETERS);
+    assembler->Return(array);
+  }
+
+  assembler->Bind(&call_runtime);
+  {
+    Node* context = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kContextIndex);
+    Node* constructor = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
+    Node* argument_count = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kArgumentsCountIndex);
+    Node* argument_base_offset = assembler->IntPtrAdd(
+        assembler->IntPtrConstant(CommonFrameConstants::kFixedFrameSizeAboveFp -
+                                  kPointerSize),
+        assembler->Word32Shl(argument_count,
+                             assembler->IntPtrConstant(kPointerSizeLog2)));
+    Node* argument_base = assembler->IntPtrAdd(assembler->LoadFramePointer(),
+                                               argument_base_offset);
+    Node* array = assembler->CallRuntime(
+        runtime_fallback, context, constructor, argument_base,
+        assembler->SmiTag(argument_count), allocation_site);
+    assembler->Return(array);
+  }
+}
+}  // namespace
+
+void ArraySingleArgumentConstructorStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* function = assembler->Parameter(
+      ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
+  Node* native_context =
+      assembler->LoadObjectField(function, JSFunction::kContextOffset);
+  Node* array_map =
+      assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
+  AllocationSiteMode mode = override_mode() == DISABLE_ALLOCATION_SITES
+                                ? DONT_TRACK_ALLOCATION_SITE
+                                : AllocationSite::GetMode(elements_kind());
+  Node* allocation_site = assembler->Parameter(
+      ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex);
+  SingleArgumentConstructorCommon(
+      assembler, elements_kind(), array_map, allocation_site,
+      Runtime::kArraySingleArgumentConstructor, mode);
+}
+
+void InternalArraySingleArgumentConstructorStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* function = assembler->Parameter(
+      ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
+  Node* array_map = assembler->LoadObjectField(
+      function, JSFunction::kPrototypeOrInitialMapOffset);
+  SingleArgumentConstructorCommon(
+      assembler, elements_kind(), array_map, assembler->UndefinedConstant(),
+      Runtime::kArraySingleArgumentConstructor, DONT_TRACK_ALLOCATION_SITE);
+}
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {
   minor_key_ = ArgumentCountBits::encode(ANY);

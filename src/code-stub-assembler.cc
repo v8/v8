@@ -726,8 +726,49 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       }
     }
   } else {
-    // TODO(danno): Add a loop for initialization
-    UNIMPLEMENTED();
+    Variable current(this, MachineRepresentation::kTagged);
+    Label test(this);
+    Label decrement(this, &current);
+    Label done(this);
+    Node* limit = IntPtrAdd(elements, IntPtrConstant(first_element_offset));
+    current.Bind(
+        IntPtrAdd(limit, ElementOffsetFromIndex(capacity_node, kind, mode, 0)));
+
+    Branch(WordEqual(current.value(), limit), &done, &decrement);
+
+    Bind(&decrement);
+    current.Bind(IntPtrSub(
+        current.value(),
+        Int32Constant(IsFastDoubleElementsKind(kind) ? kDoubleSize
+                                                     : kPointerSize)));
+    if (is_double) {
+      // Don't use doubles to store the hole double, since manipulating the
+      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
+      // change its value on ia32 (the x87 stack is used to return values
+      // and stores to the stack silently clear the signalling bit).
+      //
+      // TODO(danno): When we have a Float32/Float64 wrapper class that
+      // preserves double bits during manipulation, remove this code/change
+      // this to an indexed Float64 store.
+      if (Is64()) {
+        StoreNoWriteBarrier(MachineRepresentation::kWord64, current.value(),
+                            double_hole);
+      } else {
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, current.value(),
+                            double_hole);
+        StoreNoWriteBarrier(
+            MachineRepresentation::kWord32,
+            IntPtrAdd(current.value(), Int32Constant(kPointerSize)),
+            double_hole);
+      }
+    } else {
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, current.value(),
+                          hole);
+    }
+    Node* compare = WordNotEqual(current.value(), limit);
+    Branch(compare, &decrement, &done);
+
+    Bind(&done);
   }
 
   return array;

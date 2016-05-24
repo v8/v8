@@ -81,21 +81,13 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildPushElement(HValue* object, HValue* argc,
                            HValue* argument_elements, ElementsKind kind);
 
-  enum ArgumentClass {
-    NONE,
-    SINGLE,
-    MULTIPLE
-  };
-
   HValue* UnmappedCase(HValue* elements, HValue* key, HValue* value);
   HValue* EmitKeyedSloppyArguments(HValue* receiver, HValue* key,
                                    HValue* value);
 
   HValue* BuildArrayConstructor(ElementsKind kind,
-                                AllocationSiteOverrideMode override_mode,
-                                ArgumentClass argument_class);
-  HValue* BuildInternalArrayConstructor(ElementsKind kind,
-                                        ArgumentClass argument_class);
+                                AllocationSiteOverrideMode override_mode);
+  HValue* BuildInternalArrayConstructor(ElementsKind kind);
 
   HValue* BuildToString(HValue* input, bool convert);
   HValue* BuildToPrimitive(HValue* input, HValue* input_map);
@@ -1292,55 +1284,20 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
 }
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
-    ElementsKind kind,
-    AllocationSiteOverrideMode override_mode,
-    ArgumentClass argument_class) {
+    ElementsKind kind, AllocationSiteOverrideMode override_mode) {
   HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
   HValue* alloc_site = GetParameter(ArrayConstructorStubBase::kAllocationSite);
   JSArrayBuilder array_builder(this, kind, alloc_site, constructor,
                                override_mode);
-  HValue* result = NULL;
-  switch (argument_class) {
-    case NONE:
-      // This stub is very performance sensitive, the generated code must be
-      // tuned so that it doesn't build and eager frame.
-      info()->MarkMustNotHaveEagerFrame();
-      result = array_builder.AllocateEmptyArray();
-      break;
-    case SINGLE:
-      result = BuildArraySingleArgumentConstructor(&array_builder);
-      break;
-    case MULTIPLE:
-      result = BuildArrayNArgumentsConstructor(&array_builder, kind);
-      break;
-  }
-
-  return result;
+  return BuildArrayNArgumentsConstructor(&array_builder, kind);
 }
 
-
 HValue* CodeStubGraphBuilderBase::BuildInternalArrayConstructor(
-    ElementsKind kind, ArgumentClass argument_class) {
+    ElementsKind kind) {
   HValue* constructor = GetParameter(
       InternalArrayConstructorStubBase::kConstructor);
   JSArrayBuilder array_builder(this, kind, constructor);
-
-  HValue* result = NULL;
-  switch (argument_class) {
-    case NONE:
-      // This stub is very performance sensitive, the generated code must be
-      // tuned so that it doesn't build and eager frame.
-      info()->MarkMustNotHaveEagerFrame();
-      result = array_builder.AllocateEmptyArray();
-      break;
-    case SINGLE:
-      result = BuildArraySingleArgumentConstructor(&array_builder);
-      break;
-    case MULTIPLE:
-      result = BuildArrayNArgumentsConstructor(&array_builder, kind);
-      break;
-  }
-  return result;
+  return BuildArrayNArgumentsConstructor(&array_builder, kind);
 }
 
 
@@ -1403,31 +1360,10 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
 
 
 template <>
-HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, NONE);
-}
-
-template <>
-HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, SINGLE);
-}
-
-
-Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
   AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, MULTIPLE);
+  return BuildArrayConstructor(kind, override_mode);
 }
 
 
@@ -1437,31 +1373,10 @@ Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<InternalArrayNoArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, NONE);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<InternalArraySingleArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, SINGLE);
-}
-
-
-Handle<Code> InternalArraySingleArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<InternalArrayNArgumentsConstructorStub>::
     BuildCodeStub() {
   ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, MULTIPLE);
+  return BuildInternalArrayConstructor(kind);
 }
 
 

@@ -444,6 +444,20 @@ ArrayNoArgumentConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
+FunctionType* ArraySingleArgumentConstructorDescriptor::
+    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
+                                             int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
+  function->InitParameter(0, Type::Receiver());  // JSFunction
+  function->InitParameter(1, AnyTagged(zone));
+  function->InitParameter(2, UntaggedIntegral32(zone));
+  function->InitParameter(3, AnyTagged(zone));
+  function->InitParameter(4, AnyTagged(zone));
+  return function;
+}
+
 FunctionType*
 ArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
