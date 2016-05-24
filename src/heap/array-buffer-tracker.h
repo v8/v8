@@ -15,105 +15,61 @@ namespace internal {
 
 // Forward declarations.
 class Heap;
-class Page;
 class JSArrayBuffer;
-
-// LocalArrayBufferTracker is tracker for live and dead JSArrayBuffer objects.
-//
-// It consists of two sets, a live, and a not yet discovered set of buffers.
-// Upon registration (in the ArrayBufferTracker) the buffers are added to both
-// sets. When a buffer is encountered as live (or added is live) it is removed
-// from the not yet discovered set. Finally, after each round (sometime during
-// GC) the left over not yet discovered buffers are cleaned up. Upon starting
-// a new round the not yet discovered buffers are initialized from the live set.
-//
-// Caveats:
-// - Between cleaning up the buffers using |Free| we always need a |Reset| and
-//   thus another marking phase.
-class LocalArrayBufferTracker {
- public:
-  typedef std::pair<void*, size_t> Value;
-  typedef JSArrayBuffer* Key;
-
-  enum LivenessIndicator { kForwardingPointer, kMarkBit };
-  enum CallbackResult { kKeepEntry, kKeepAndUpdateEntry, kRemoveEntry };
-
-  explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap), started_(false) {}
-  ~LocalArrayBufferTracker();
-
-  void Add(Key key, const Value& value);
-  void AddLive(Key key, const Value& value);
-  Value Remove(Key key);
-  void MarkLive(Key key);
-  bool IsEmpty();
-
-  // Resets the tracking set, i.e., not yet discovered buffers are initialized
-  // from the remaining live set of buffers.
-  void Reset();
-
-  // Frees up any dead backing stores of not yet discovered array buffers.
-  // Requires that the buffers have been properly marked using MarkLive.
-  void FreeDead();
-
-  // Scans the whole tracker and decides based on liveness_indicator whether
-  // a JSArrayBuffer is still considered live.
-  template <LivenessIndicator liveness_indicator>
-  inline void ScanAndFreeDead();
-
-  bool IsTracked(Key key) { return live_.find(key) != live_.end(); }
-
- private:
-  // TODO(mlippautz): Switch to unordered_map once it is supported on all
-  // platforms.
-  typedef std::map<Key, Value> TrackingMap;
-
-  // Processes buffers one by one. The CallbackResult decides whether the buffer
-  // will be dropped or not.
-  //
-  // Callback should be of type:
-  //   CallbackResult fn(JSArrayBuffer*, JSArrayBuffer**);
-  template <typename Callback>
-  inline void Process(Callback callback);
-
-  Heap* heap_;
-
-  // |live_| maps tracked JSArrayBuffers to the internally allocated backing
-  // store and length. For each GC round |not_yet_discovered_| is initialized
-  // as a copy of |live_|. Upon finding a JSArrayBuffer during GC, the buffer
-  // is removed from |not_yet_discovered_|. At the end of a GC, we free up the
-  // remaining JSArrayBuffers in |not_yet_discovered_|.
-  TrackingMap live_;
-  TrackingMap not_yet_discovered_;
-
-  bool started_;
-};
 
 class ArrayBufferTracker {
  public:
   explicit ArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~ArrayBufferTracker();
 
+  inline Heap* heap() { return heap_; }
+
   // The following methods are used to track raw C++ pointers to externally
   // allocated memory used as backing store in live array buffers.
 
-  // Register/unregister a new JSArrayBuffer |buffer| for tracking.
-  // |track_live| indicates whether marking will still visit the buffer and we
-  // can delay marking it as live.
-  void RegisterNew(JSArrayBuffer* buffer, bool track_live);
+  // A new ArrayBuffer was created with |data| as backing store.
+  void RegisterNew(JSArrayBuffer* buffer);
+
+  // The backing store |data| is no longer owned by V8.
   void Unregister(JSArrayBuffer* buffer);
 
-  // Frees all backing store pointers for dead JSArrayBuffers in new space.
-  void FreeDeadInNewSpace();
-
-  void ResetTrackersInOldSpace();
-
-  // A live JSArrayBuffer was discovered during marking.
+  // A live ArrayBuffer was discovered during marking/scavenge.
   void MarkLive(JSArrayBuffer* buffer);
 
- private:
-  Heap* heap_;
-};
+  // Frees all backing store pointers that weren't discovered in the previous
+  // marking or scavenge phase.
+  void FreeDead(bool from_scavenge);
 
+  // Prepare for a new scavenge phase. A new marking phase is implicitly
+  // prepared by finishing the previous one.
+  void PrepareDiscoveryInNewSpace();
+
+  // An ArrayBuffer moved from new space to old space.
+  void Promote(JSArrayBuffer* buffer);
+
+ private:
+  base::Mutex mutex_;
+  Heap* heap_;
+
+  // |live_array_buffers_| maps externally allocated memory used as backing
+  // store for ArrayBuffers to the length of the respective memory blocks.
+  //
+  // At the beginning of mark/compact, |not_yet_discovered_array_buffers_| is
+  // a copy of |live_array_buffers_| and we remove pointers as we discover live
+  // ArrayBuffer objects during marking. At the end of mark/compact, the
+  // remaining memory blocks can be freed.
+  std::map<void*, size_t> live_array_buffers_;
+  std::map<void*, size_t> not_yet_discovered_array_buffers_;
+
+  // To be able to free memory held by ArrayBuffers during scavenge as well, we
+  // have a separate list of allocated memory held by ArrayBuffers in new space.
+  //
+  // Since mark/compact also evacuates the new space, all pointers in the
+  // |live_array_buffers_for_scavenge_| list are also in the
+  // |live_array_buffers_| list.
+  std::map<void*, size_t> live_array_buffers_for_scavenge_;
+  std::map<void*, size_t> not_yet_discovered_array_buffers_for_scavenge_;
+};
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_HEAP_ARRAY_BUFFER_TRACKER_H_

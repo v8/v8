@@ -1626,6 +1626,8 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
+  array_buffer_tracker()->PrepareDiscoveryInNewSpace();
+
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();
@@ -1742,7 +1744,7 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  array_buffer_tracker()->FreeDeadInNewSpace();
+  array_buffer_tracker()->FreeDead(true);
 
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
@@ -2022,8 +2024,7 @@ HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
 
 
 void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
-  const bool track_live = Marking::IsBlack(Marking::MarkBitFrom(buffer));
-  return array_buffer_tracker()->RegisterNew(buffer, track_live);
+  return array_buffer_tracker()->RegisterNew(buffer);
 }
 
 

@@ -141,21 +141,6 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   space->ClearStats();
 }
 
-void AbandonCurrentlyFreeMemory(PagedSpace* space) {
-  space->EmptyAllocationInfo();
-  PageIterator pit(space);
-  while (pit.has_next()) {
-    pit.next()->MarkNeverAllocateForTesting();
-  }
-}
-
-void GcAndSweep(Heap* heap, AllocationSpace space) {
-  heap->CollectGarbage(space);
-  if (heap->mark_compact_collector()->sweeping_in_progress()) {
-    heap->mark_compact_collector()->EnsureSweepingCompleted();
-  }
-}
-
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

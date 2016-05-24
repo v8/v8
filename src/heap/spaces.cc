@@ -518,7 +518,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   Bitmap::Clear(chunk);
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
-  chunk->local_tracker_ = nullptr;
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
@@ -1040,11 +1039,6 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (old_to_old_slots_ != nullptr) ReleaseOldToOldSlots();
   if (typed_old_to_new_slots_ != nullptr) ReleaseTypedOldToNewSlots();
   if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
-
-  if (local_tracker_ != nullptr) {
-    delete local_tracker_;
-    local_tracker_ = nullptr;
-  }
 }
 
 static SlotSet* AllocateSlotSet(size_t size, Address page_start) {

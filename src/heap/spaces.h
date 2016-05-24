@@ -14,7 +14,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/hashmap.h"
-#include "src/heap/array-buffer-tracker.h"
 #include "src/list.h"
 #include "src/objects.h"
 #include "src/utils.h"
@@ -524,8 +523,7 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue next_chunk_
       + kPointerSize      // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
-      + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize;  // LocalArrayBufferTracker tracker_
+      + FreeListCategory::kSize * kNumberOfCategories;
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -826,8 +824,6 @@ class MemoryChunk {
 
   FreeListCategory categories_[kNumberOfCategories];
 
-  LocalArrayBufferTracker* local_tracker_;
-
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
 
@@ -956,40 +952,6 @@ class Page : public MemoryChunk {
   intptr_t available_in_free_list() { return available_in_free_list_.Value(); }
   void add_available_in_free_list(intptr_t available) {
     available_in_free_list_.Increment(available);
-  }
-
-  LocalArrayBufferTracker* local_tracker() {
-    if (local_tracker_ == nullptr) {
-      local_tracker_ = new LocalArrayBufferTracker(heap_);
-    }
-    return local_tracker_;
-  }
-
-  void FreeDeadArrayBuffers() {
-    if (local_tracker_ != nullptr) {
-      local_tracker_->FreeDead();
-      if (local_tracker_->IsEmpty()) {
-        delete local_tracker_;
-        local_tracker_ = nullptr;
-      }
-    }
-  }
-
-  template <LocalArrayBufferTracker::LivenessIndicator liveness_indicator>
-  void ScanAndFreeDeadArrayBuffers() {
-    if (local_tracker_ != nullptr) {
-      local_tracker_->ScanAndFreeDead<liveness_indicator>();
-      if (local_tracker_->IsEmpty()) {
-        delete local_tracker_;
-        local_tracker_ = nullptr;
-      }
-    }
-  }
-
-  void ResetTracker() {
-    if (local_tracker_ != nullptr) {
-      local_tracker_->Reset();
-    }
   }
 
 #ifdef DEBUG
@@ -2332,16 +2294,6 @@ class PagedSpace : public Space {
 
   inline void UnlinkFreeListCategories(Page* page);
   inline intptr_t RelinkFreeListCategories(Page* page);
-
-  // Callback signature:
-  //   void Callback(Page*);
-  template <typename Callback>
-  void ForAllPages(Callback callback) {
-    PageIterator it(this);
-    while (it.has_next()) {
-      callback(it.next());
-    }
-  }
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
