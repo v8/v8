@@ -233,20 +233,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4902
-  'built-ins/TypedArray/prototype/byteLength/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/every/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/every/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/fill/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/find/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/indexOf/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/lastIndexOf/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/length/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/some/get-length-uses-internal-arraylength': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
   'language/statements/try/early-catch-lex': [FAIL],

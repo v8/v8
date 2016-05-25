@@ -827,12 +827,11 @@ utils.InstallFunctions(TypedArray, DONT_ENUM, [
   "of", TypedArrayOf
 ]);
 utils.InstallGetter(TypedArray.prototype, "buffer", TypedArrayGetBuffer);
-utils.InstallGetter(TypedArray.prototype, "byteOffset", TypedArrayGetByteOffset,
-                    DONT_ENUM | DONT_DELETE);
+utils.InstallGetter(TypedArray.prototype, "byteOffset",
+                    TypedArrayGetByteOffset);
 utils.InstallGetter(TypedArray.prototype, "byteLength",
-                    TypedArrayGetByteLength, DONT_ENUM | DONT_DELETE);
-utils.InstallGetter(TypedArray.prototype, "length", TypedArrayGetLength,
-                    DONT_ENUM | DONT_DELETE);
+                    TypedArrayGetByteLength);
+utils.InstallGetter(TypedArray.prototype, "length", TypedArrayGetLength);
 utils.InstallGetter(TypedArray.prototype, toStringTagSymbol,
                     TypedArrayGetToStringTag);
 utils.InstallFunctions(TypedArray.prototype, DONT_ENUM, [
