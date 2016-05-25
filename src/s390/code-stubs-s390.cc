@@ -1854,11 +1854,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r4 : feedback vector
   // r5 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
+  Label done_initialize_count, done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
   DCHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->uninitialized_symbol());
+
+  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
 
   // Load the cache state into r7.
   __ SmiToPtrArrayOffset(r7, r5);
@@ -1874,9 +1877,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register weak_value = r9;
   __ LoadP(weak_value, FieldMemOperand(r7, WeakCell::kValueOffset));
   __ CmpP(r3, weak_value);
-  __ beq(&done);
+  __ beq(&done_increment_count, Label::kNear);
   __ CompareRoot(r7, Heap::kmegamorphic_symbolRootIndex);
-  __ beq(&done);
+  __ beq(&done, Label::kNear);
   __ LoadP(feedback_map, FieldMemOperand(r7, HeapObject::kMapOffset));
   __ CompareRoot(feedback_map, Heap::kWeakCellMapRootIndex);
   __ bne(&check_allocation_site);
@@ -1897,7 +1900,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r7);
   __ CmpP(r3, r7);
   __ bne(&megamorphic);
-  __ b(&done);
+  __ b(&done_increment_count, Label::kNear);
 
   __ bind(&miss);
 
@@ -1927,12 +1930,31 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ b(&done);
+  __ b(&done_initialize_count, Label::kNear);
 
   __ bind(&not_array_function);
 
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
+
+  __ bind(&done_initialize_count);
+  // Initialize the call counter.
+  __ LoadSmiLiteral(r7, Smi::FromInt(1));
+  __ SmiToPtrArrayOffset(r6, r5);
+  __ AddP(r6, r4, r6);
+  __ StoreP(r7, FieldMemOperand(r6, count_offset), r0);
+  __ b(&done, Label::kNear);
+
+  __ bind(&done_increment_count);
+
+  // Increment the call count for monomorphic function calls.
+  __ SmiToPtrArrayOffset(r7, r5);
+  __ AddP(r7, r4, r7);
+
+  __ LoadP(r6, FieldMemOperand(r7, count_offset));
+  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
+  __ StoreP(r6, FieldMemOperand(r7, count_offset), r0);
+
   __ bind(&done);
 }
 
