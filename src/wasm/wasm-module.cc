@@ -774,6 +774,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
     if (!FinishCompilation(isolate, this, ffi, results, instance, code_table,
                            thrower, factory, module_env, code_stats, desc)) {
       instance.js_object = Handle<JSObject>::null();
+      return instance.js_object;
     }
 
     // Patch all direct call sites.
