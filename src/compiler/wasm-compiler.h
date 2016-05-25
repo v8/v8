@@ -9,6 +9,7 @@
 // Do not include anything from src/compiler here!
 #include "src/compiler.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-result.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -21,18 +22,19 @@ class JSGraph;
 class Graph;
 class Operator;
 class SourcePositionTable;
-}
+}  // namespace compiler
 
 namespace wasm {
 // Forward declarations for some WASM data structures.
 struct ModuleEnv;
 struct WasmFunction;
 class ErrorThrower;
+struct Tree;
 
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::JSGraph TFGraph;
-}
+}  // namespace wasm
 
 namespace compiler {
 class WasmCompilationUnit final {
@@ -57,6 +59,8 @@ class WasmCompilationUnit final {
   }
 
  private:
+  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
+
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
   wasm::ModuleEnv* module_env_;
@@ -68,6 +72,7 @@ class WasmCompilationUnit final {
   CompilationInfo info_;
   base::SmartPointer<CompilationJob> job_;
   uint32_t index_;
+  wasm::Result<wasm::Tree*> graph_construction_result_;
   bool ok_;
 };
 

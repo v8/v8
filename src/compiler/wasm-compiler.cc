@@ -3123,9 +3123,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   return code;
 }
 
-std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
-    JSGraph* jsgraph, wasm::ErrorThrower* thrower, Isolate* isolate,
-    wasm::ModuleEnv*& module_env, const wasm::WasmFunction* function,
+SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     double* decode_ms) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
@@ -3133,47 +3131,41 @@ std::pair<JSGraph*, SourcePositionTable*> BuildGraphForWasmFunction(
   }
   // Create a TF graph during decoding.
 
-  Graph* graph = jsgraph->graph();
-  CommonOperatorBuilder* common = jsgraph->common();
-  MachineOperatorBuilder* machine = jsgraph->machine();
+  Graph* graph = jsgraph_->graph();
+  CommonOperatorBuilder* common = jsgraph_->common();
+  MachineOperatorBuilder* machine = jsgraph_->machine();
   SourcePositionTable* source_position_table =
-      new (jsgraph->zone()) SourcePositionTable(graph);
-  WasmGraphBuilder builder(jsgraph->zone(), jsgraph, function->sig,
+      new (jsgraph_->zone()) SourcePositionTable(graph);
+  WasmGraphBuilder builder(jsgraph_->zone(), jsgraph_, function_->sig,
                            source_position_table);
   wasm::FunctionBody body = {
-      module_env, function->sig, module_env->module->module_start,
-      module_env->module->module_start + function->code_start_offset,
-      module_env->module->module_start + function->code_end_offset};
-  wasm::TreeResult result =
-      wasm::BuildTFGraph(isolate->allocator(), &builder, body);
+      module_env_, function_->sig, module_env_->module->module_start,
+      module_env_->module->module_start + function_->code_start_offset,
+      module_env_->module->module_start + function_->code_end_offset};
+  graph_construction_result_ =
+      wasm::BuildTFGraph(isolate_->allocator(), &builder, body);
+
+  if (graph_construction_result_.failed()) {
+    if (FLAG_trace_wasm_compiler) {
+      OFStream os(stdout);
+      os << "Compilation failed: " << graph_construction_result_ << std::endl;
+    }
+    return nullptr;
+  }
 
   if (machine->Is32()) {
-    Int64Lowering r(graph, machine, common, jsgraph->zone(), function->sig);
+    Int64Lowering r(graph, machine, common, jsgraph_->zone(), function_->sig);
     r.LowerGraph();
   }
 
-  if (result.failed()) {
-    if (FLAG_trace_wasm_compiler) {
-      OFStream os(stdout);
-      os << "Compilation failed: " << result << std::endl;
-    }
-    // Add the function as another context for the exception
-    ScopedVector<char> buffer(128);
-    wasm::WasmName name = module_env->module->GetName(function->name_offset,
-                                                      function->name_length);
-    SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
-             function->func_index, name.length(), name.start());
-    thrower->Failed(buffer.start(), result);
-    return std::make_pair(nullptr, nullptr);
-  }
-  int index = static_cast<int>(function->func_index);
+  int index = static_cast<int>(function_->func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
-    PrintAst(isolate->allocator(), body);
+    PrintAst(isolate_->allocator(), body);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
-  return std::make_pair(jsgraph, source_position_table);
+  return source_position_table;
 }
 
 WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
@@ -3221,32 +3213,32 @@ void WasmCompilationUnit::ExecuteCompilation() {
   size_t node_count = 0;
 
   base::SmartPointer<Zone> graph_zone(graph_zone_.Detach());
-  std::pair<JSGraph*, SourcePositionTable*> graph_result =
-      BuildGraphForWasmFunction(jsgraph_, thrower_, isolate_, module_env_,
-                                function_, &decode_ms);
-  JSGraph* jsgraph = graph_result.first;
-  SourcePositionTable* source_positions = graph_result.second;
+  SourcePositionTable* source_positions = BuildGraphForWasmFunction(&decode_ms);
 
-  if (jsgraph == nullptr) {
+  if (graph_construction_result_.failed()) {
     ok_ = false;
     return;
   }
 
   base::ElapsedTimer pipeline_timer;
   if (FLAG_trace_wasm_decode_time) {
-    node_count = jsgraph->graph()->NodeCount();
+    node_count = jsgraph_->graph()->NodeCount();
     pipeline_timer.Start();
   }
 
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
       &compilation_zone_, function_->sig);
-  if (jsgraph->machine()->Is32()) {
+  if (jsgraph_->machine()->Is32()) {
     descriptor =
         module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
   }
-  job_.Reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph->graph(),
+  job_.Reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_->graph(),
                                              descriptor, source_positions));
+
+  // The function name {OptimizeGraph()} is misleading but necessary because we
+  // want to use the CompilationJob interface. A better name would be
+  // ScheduleGraphAndSelectInstructions.
   ok_ = job_->OptimizeGraph() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.
@@ -3267,6 +3259,16 @@ void WasmCompilationUnit::ExecuteCompilation() {
 
 Handle<Code> WasmCompilationUnit::FinishCompilation() {
   if (!ok_) {
+    if (graph_construction_result_.failed()) {
+      // Add the function as another context for the exception
+      ScopedVector<char> buffer(128);
+      wasm::WasmName name = module_env_->module->GetName(
+          function_->name_offset, function_->name_length);
+      SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
+               function_->func_index, name.length(), name.start());
+      thrower_->Failed(buffer.start(), graph_construction_result_);
+    }
+
     return Handle<Code>::null();
   }
   if (job_->GenerateCode() != CompilationJob::SUCCEEDED) {

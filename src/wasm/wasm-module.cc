@@ -569,10 +569,10 @@ bool FinishCompilation(Isolate* isolate, const WasmModule* module,
                        ErrorThrower& thrower, Factory* factory,
                        ModuleEnv& module_env, CodeStats& code_stats,
                        PropertyDescriptor& desc) {
+  if (thrower.error()) return false;
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
        i < module->functions.size(); i++) {
     const WasmFunction& func = module->functions[i];
-    if (thrower.error()) break;
 
     DCHECK_EQ(i, func.func_index);
     WasmName str = module->GetName(func.name_offset, func.name_length);
