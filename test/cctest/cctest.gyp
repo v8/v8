@@ -102,7 +102,6 @@
         'heap/heap-utils.cc',
         'heap/heap-utils.h',
         'heap/test-alloc.cc',
-        'heap/test-array-buffer-tracker.cc',
         'heap/test-compaction.cc',
         'heap/test-heap.cc',
         'heap/test-incremental-marking.cc',
