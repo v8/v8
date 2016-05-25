@@ -19,6 +19,10 @@ namespace base {
 class Semaphore;
 }
 
+namespace sampler {
+class Sampler;
+}
+
 namespace internal {
 
 // Logger is used for collecting logging information from V8 during
@@ -141,7 +145,6 @@ class JitLogger;
 class PerfBasicLogger;
 class LowLevelLogger;
 class PerfJitLogger;
-class Sampler;
 
 class Logger {
  public:
@@ -161,7 +164,7 @@ class Logger {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  Sampler* sampler();
+  sampler::Sampler* sampler();
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,

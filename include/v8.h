@@ -6331,6 +6331,12 @@ class V8_EXPORT Isolate {
    */
   void VisitWeakHandles(PersistentHandleVisitor* visitor);
 
+  /**
+   * Check if this isolate is in use.
+   * True if at least one thread Enter'ed this isolate.
+   */
+  bool IsInUse();
+
  private:
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;

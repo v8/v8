@@ -1,9 +1,9 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROFILER_SAMPLER_H_
-#define V8_PROFILER_SAMPLER_H_
+#ifndef V8_LIBSAMPLER_SAMPLER_H_
+#define V8_LIBSAMPLER_SAMPLER_H_
 
 #include "include/v8.h"
 
@@ -11,10 +11,7 @@
 #include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
-
-class Isolate;
-struct TickSample;
+namespace sampler {
 
 // ----------------------------------------------------------------------------
 // Sampler
@@ -25,19 +22,23 @@ struct TickSample;
 
 class Sampler {
  public:
+  static const int kMaxFramesCountLog2 = 8;
+  static const unsigned kMaxFramesCount = (1u << kMaxFramesCountLog2) - 1;
+
   // Initializes the Sampler support. Called once at VM startup.
   static void SetUp();
   static void TearDown();
 
   // Initialize sampler.
-  Sampler(Isolate* isolate, int interval);
+  explicit Sampler(Isolate* isolate);
   virtual ~Sampler();
 
   Isolate* isolate() const { return isolate_; }
-  int interval() const { return interval_; }
 
   // Performs stack sampling.
-  void SampleStack(const v8::RegisterState& regs);
+  // Clients should override this method in order to do something on samples,
+  // for example buffer samples in a queue.
+  virtual void SampleStack(const v8::RegisterState& regs) = 0;
 
   // Start and stop sampler.
   void Start();
@@ -60,8 +61,7 @@ class Sampler {
   bool IsRegistered() const { return base::NoBarrier_Load(&registered_); }
 
   void DoSample();
-  // If true next sample must be initiated on the profiler event processor
-  // thread right after latest sample is processed.
+
   void SetHasProcessingThread(bool value) {
     base::NoBarrier_Store(&has_processing_thread_, value);
   }
@@ -79,30 +79,25 @@ class Sampler {
   PlatformData* platform_data() const { return data_; }
 
  protected:
-  // This method is called for each sampling period with the current
-  // program counter.
-  virtual void Tick(TickSample* sample) = 0;
+  // Counts stack samples taken in various VM states.
+  bool is_counting_samples_;
+  unsigned js_sample_count_;
+  unsigned external_sample_count_;
 
  private:
   void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
-
   void SetRegistered(bool value) { base::NoBarrier_Store(&registered_, value); }
 
   Isolate* isolate_;
-  const int interval_;
   base::Atomic32 profiling_;
   base::Atomic32 has_processing_thread_;
   base::Atomic32 active_;
   base::Atomic32 registered_;
   PlatformData* data_;  // Platform specific data.
-  // Counts stack samples taken in various VM states.
-  bool is_counting_samples_;
-  unsigned js_sample_count_;
-  unsigned external_sample_count_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
-}  // namespace internal
+}  // namespace sampler
 }  // namespace v8
 
-#endif  // V8_PROFILER_SAMPLER_H_
+#endif  // V8_LIBSAMPLER_SAMPLER_H_

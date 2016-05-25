@@ -7793,6 +7793,12 @@ void Isolate::VisitExternalResources(ExternalResourceVisitor* visitor) {
 }
 
 
+bool Isolate::IsInUse() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->IsInUse();
+}
+
+
 class VisitorAdapter : public i::ObjectVisitor {
  public:
   explicit VisitorAdapter(PersistentHandleVisitor* visitor)
