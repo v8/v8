@@ -804,7 +804,9 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &call_reducer);
-    AddReducer(data, &graph_reducer, &inlining);
+    if (!data->info()->is_optimizing_from_bytecode()) {
+      AddReducer(data, &graph_reducer, &inlining);
+    }
     graph_reducer.ReduceGraph();
   }
 };

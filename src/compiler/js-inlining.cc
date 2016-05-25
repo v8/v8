@@ -8,7 +8,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/compiler.h"
-#include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler/common-operator.h"
@@ -74,63 +73,6 @@ class JSCallAccessor {
 
  private:
   Node* call_;
-};
-
-
-class CopyVisitor {
- public:
-  CopyVisitor(Graph* source_graph, Graph* target_graph, Zone* temp_zone)
-      : sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, "Sentinel", 0, 0,
-                     0, 0, 0, 0),
-        sentinel_(target_graph->NewNode(&sentinel_op_)),
-        copies_(source_graph->NodeCount(), sentinel_, temp_zone),
-        source_graph_(source_graph),
-        target_graph_(target_graph),
-        temp_zone_(temp_zone) {}
-
-  Node* GetCopy(Node* orig) { return copies_[orig->id()]; }
-
-  void CopyGraph() {
-    NodeVector inputs(temp_zone_);
-    // TODO(bmeurer): AllNodes should be turned into something like
-    // Graph::CollectNodesReachableFromEnd() and the gray set stuff should be
-    // removed since it's only needed by the visualizer.
-    AllNodes all(temp_zone_, source_graph_);
-    // Copy all nodes reachable from end.
-    for (Node* orig : all.live) {
-      Node* copy = GetCopy(orig);
-      if (copy != sentinel_) {
-        // Mapping already exists.
-        continue;
-      }
-      // Copy the node.
-      inputs.clear();
-      for (Node* input : orig->inputs()) inputs.push_back(copies_[input->id()]);
-      copy = target_graph_->NewNode(orig->op(), orig->InputCount(),
-                                    inputs.empty() ? nullptr : &inputs[0]);
-      copies_[orig->id()] = copy;
-    }
-    // For missing inputs.
-    for (Node* orig : all.live) {
-      Node* copy = copies_[orig->id()];
-      for (int i = 0; i < copy->InputCount(); ++i) {
-        Node* input = copy->InputAt(i);
-        if (input == sentinel_) {
-          copy->ReplaceInput(i, GetCopy(orig->InputAt(i)));
-        }
-      }
-    }
-  }
-
-  const NodeVector& copies() const { return copies_; }
-
- private:
-  Operator const sentinel_op_;
-  Node* const sentinel_;
-  NodeVector copies_;
-  Graph* const source_graph_;
-  Graph* const target_graph_;
-  Zone* const temp_zone_;
 };
 
 
@@ -448,69 +390,71 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
-  // Run the loop assignment analyzer on the inlinee.
-  AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
-  LoopAssignmentAnalysis* loop_assignment = loop_assignment_analyzer.Analyze();
+  // Create the subgraph for the inlinee.
+  Node* start;
+  Node* end;
+  {
+    // Run the loop assignment analyzer on the inlinee.
+    AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
+    LoopAssignmentAnalysis* loop_assignment =
+        loop_assignment_analyzer.Analyze();
 
-  // Run the type hint analyzer on the inlinee.
-  TypeHintAnalyzer type_hint_analyzer(&zone);
-  TypeHintAnalysis* type_hint_analysis =
-      type_hint_analyzer.Analyze(handle(shared_info->code(), info.isolate()));
+    // Run the type hint analyzer on the inlinee.
+    TypeHintAnalyzer type_hint_analyzer(&zone);
+    TypeHintAnalysis* type_hint_analysis =
+        type_hint_analyzer.Analyze(handle(shared_info->code(), info.isolate()));
 
-  // TODO(mstarzinger): We could use the temporary zone for the graph because
-  // nodes are copied. This however leads to Zone-Types being allocated in the
-  // wrong zone and makes the engine explode at high speeds. Explosion bad!
-  Graph graph(jsgraph_->zone());
-  JSGraph jsgraph(info.isolate(), &graph, jsgraph_->common(),
-                  jsgraph_->javascript(), jsgraph_->simplified(),
-                  jsgraph_->machine());
-  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph, loop_assignment,
-                                type_hint_analysis);
-  graph_builder.CreateGraph(false);
+    // Run the AstGraphBuilder to create the subgraph.
+    Graph::SubgraphScope scope(graph());
+    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), loop_assignment,
+                                  type_hint_analysis);
+    graph_builder.CreateGraph(false);
 
-  CopyVisitor visitor(&graph, jsgraph_->graph(), &zone);
-  visitor.CopyGraph();
+    // Extract the inlinee start/end nodes.
+    start = graph()->start();
+    end = graph()->end();
+  }
 
-  Node* start = visitor.GetCopy(graph.start());
-  Node* end = visitor.GetCopy(graph.end());
   Node* frame_state = call.frame_state_after();
   Node* new_target = jsgraph_->UndefinedConstant();
 
-  // Insert nodes around the call that model the behavior required for a
-  // constructor dispatch (allocate implicit receiver and check return value).
-  // This models the behavior usually accomplished by our {JSConstructStub}.
-  // Note that the context has to be the callers context (input to call node).
-  Node* receiver = jsgraph_->UndefinedConstant();  // Implicit receiver.
-  if (node->opcode() == IrOpcode::kJSCallConstruct &&
-      NeedsImplicitReceiver(shared_info)) {
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* context = NodeProperties::GetContextInput(node);
-    Node* create = jsgraph_->graph()->NewNode(
-        jsgraph_->javascript()->Create(), call.target(), call.new_target(),
-        context, call.frame_state_before(), effect);
-    NodeProperties::ReplaceEffectInput(node, create);
-    // Insert a check of the return value to determine whether the return value
-    // or the implicit receiver should be selected as a result of the call.
-    Node* check = jsgraph_->graph()->NewNode(
-        jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1),
-        node, context, node, start);
-    Node* select = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->Select(MachineRepresentation::kTagged), check, node,
-        create);
-    NodeProperties::ReplaceUses(node, select, check, node, node);
-    NodeProperties::ReplaceValueInput(select, node, 1);
-    NodeProperties::ReplaceValueInput(check, node, 0);
-    NodeProperties::ReplaceEffectInput(check, node);
-    receiver = create;  // The implicit receiver.
-  }
-
-  // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to a
-  // normal {JSCallFunction} node so that the rest of the inlining machinery
-  // behaves as if we were dealing with a regular function invocation.
+  // Inline {JSCallConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSCallConstruct) {
+    // Insert nodes around the call that model the behavior required for a
+    // constructor dispatch (allocate implicit receiver and check return value).
+    // This models the behavior usually accomplished by our {JSConstructStub}.
+    // Note that the context has to be the callers context (input to call node).
+    Node* receiver = jsgraph_->UndefinedConstant();  // Implicit receiver.
+    if (NeedsImplicitReceiver(shared_info)) {
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* context = NodeProperties::GetContextInput(node);
+      Node* create = jsgraph_->graph()->NewNode(
+          jsgraph_->javascript()->Create(), call.target(), call.new_target(),
+          context, call.frame_state_before(), effect);
+      NodeProperties::ReplaceEffectInput(node, create);
+      // Insert a check of the return value to determine whether the return
+      // value
+      // or the implicit receiver should be selected as a result of the call.
+      Node* check = jsgraph_->graph()->NewNode(
+          jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1),
+          node, context, node, start);
+      Node* select = jsgraph_->graph()->NewNode(
+          jsgraph_->common()->Select(MachineRepresentation::kTagged), check,
+          node, create);
+      NodeProperties::ReplaceUses(node, select, check, node, node);
+      NodeProperties::ReplaceValueInput(select, node, 1);
+      NodeProperties::ReplaceValueInput(check, node, 0);
+      NodeProperties::ReplaceEffectInput(check, node);
+      receiver = create;  // The implicit receiver.
+    }
+
+    // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to a
+    // normal {JSCallFunction} node so that the rest of the inlining machinery
+    // behaves as if we were dealing with a regular function invocation.
     new_target = call.new_target();  // Retrieve new target value input.
     node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
     node->InsertInput(jsgraph_->graph()->zone(), 1, receiver);
+
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
@@ -569,6 +513,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   return InlineCall(node, new_target, context, frame_state, start, end);
 }
+
+Graph* JSInliner::graph() const { return jsgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal

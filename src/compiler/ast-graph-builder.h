@@ -106,6 +106,9 @@ class AstGraphBuilder : public AstVisitor {
   // Optimization to cache loaded feedback vector.
   SetOncePointer<Node> feedback_vector_;
 
+  // Optimization to cache empty frame state.
+  SetOncePointer<Node> empty_frame_state_;
+
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
 
@@ -166,6 +169,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Get or create the node that represents the incoming new target value.
   Node* GetNewTarget();
+
+  // Get or create the node that represents the empty frame state.
+  Node* GetEmptyFrameState();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {

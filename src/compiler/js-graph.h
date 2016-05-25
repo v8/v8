@@ -127,6 +127,10 @@ class JSGraph : public ZoneObject {
   // cannot deopt.
   Node* EmptyFrameState();
 
+  // Creates an empty StateValues node, used when we don't have any concrete
+  // values for a certain part of the frame state.
+  Node* EmptyStateValues();
+
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
@@ -159,6 +163,7 @@ class JSGraph : public ZoneObject {
     kOneConstant,
     kNaNConstant,
     kEmptyFrameState,
+    kEmptyStateValues,
     kDead,
     kNumCachedNodes  // Must remain last.
   };

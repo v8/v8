@@ -416,7 +416,7 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
   FrameStateBeforeAndAfter(AstGraphBuilder* builder, BailoutId id_before)
       : builder_(builder), frame_state_before_(nullptr) {
     frame_state_before_ = id_before == BailoutId::None()
-                              ? builder_->jsgraph()->EmptyFrameState()
+                              ? builder_->GetEmptyFrameState()
                               : builder_->environment()->Checkpoint(id_before);
   }
 
@@ -435,7 +435,7 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 
       Node* frame_state_after =
           id_after == BailoutId::None()
-              ? builder_->jsgraph()->EmptyFrameState()
+              ? builder_->GetEmptyFrameState()
               : builder_->environment()->Checkpoint(id_after, combine,
                                                     node_has_exception);
 
@@ -539,6 +539,18 @@ Node* AstGraphBuilder::GetNewTarget() {
   return new_target_.get();
 }
 
+Node* AstGraphBuilder::GetEmptyFrameState() {
+  if (!empty_frame_state_.is_set()) {
+    const Operator* op = common()->FrameState(
+        BailoutId::None(), OutputFrameStateCombine::Ignore(), nullptr);
+    Node* node = graph()->NewNode(
+        op, jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
+        jsgraph()->EmptyStateValues(), jsgraph()->NoContextConstant(),
+        jsgraph()->UndefinedConstant(), graph()->start());
+    empty_frame_state_.set(node);
+  }
+  return empty_frame_state_.get();
+}
 
 bool AstGraphBuilder::CreateGraph(bool stack_check) {
   Scope* scope = info()->scope();
@@ -875,7 +887,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
                                                OutputFrameStateCombine combine,
                                                bool owner_has_exception) {
   if (!builder()->info()->is_deoptimization_enabled()) {
-    return builder()->jsgraph()->EmptyFrameState();
+    return builder()->GetEmptyFrameState();
   }
 
   UpdateStateValues(&parameters_node_, 0, parameters_count());
