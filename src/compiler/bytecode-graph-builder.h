@@ -218,10 +218,6 @@ class BytecodeGraphBuilder {
   const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
 
-  // Indicates whether deoptimization support is enabled for this compilation
-  // and whether valid frame states need to be attached to deoptimizing nodes.
-  bool deoptimization_enabled_;
-
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
   // values from all predecessors of the merge in question.

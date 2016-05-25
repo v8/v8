@@ -355,9 +355,6 @@ void BytecodeGraphBuilder::Environment::PrepareForLoop() {
 
 bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
     Node** state_values, int offset, int count) {
-  if (!builder()->deoptimization_enabled_) {
-    return false;
-  }
   if (*state_values == nullptr) {
     return true;
   }
@@ -385,10 +382,6 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine) {
-  if (!builder()->deoptimization_enabled_) {
-    return builder()->jsgraph()->EmptyFrameState();
-  }
-
   // TODO(rmcilroy): Consider using StateValuesCache for some state values.
   UpdateStateValues(&parameters_state_values_, 0, parameter_count());
   UpdateStateValues(&registers_state_values_, register_base(),
@@ -423,7 +416,6 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
 
 bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
     int output_poke_offset, int output_poke_count) {
-  if (!builder()->deoptimization_enabled_) return true;
   // Poke offset is relative to the top of the stack (i.e., the accumulator).
   int output_poke_start = accumulator_base() - output_poke_offset;
   int output_poke_end = output_poke_start + output_poke_count;
@@ -449,7 +441,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),
           bytecode_array()->register_count(), info->shared_info())),
-      deoptimization_enabled_(info->is_deoptimization_enabled()),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
