@@ -5591,7 +5591,7 @@ TEST(Regress507979) {
 
 UNINITIALIZED_TEST(PromotionQueue) {
   i::FLAG_expose_gc = true;
-  i::FLAG_max_semi_space_size = 2 * (Page::kPageSize / MB);
+  i::FLAG_max_semi_space_size = 2 * Page::kPageSize / MB;
   i::FLAG_min_semi_space_size = i::FLAG_max_semi_space_size;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
