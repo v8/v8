@@ -15,12 +15,11 @@
 #include "src/global-handles.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/libsampler/v8-sampler.h"
 #include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
-#include "src/profiler/cpu-profiler-inl.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
@@ -540,31 +539,6 @@ void JitLogger::EndCodePosInfoEvent(AbstractCode* code,
 }
 
 
-// TODO(lpy): Keeping sampling thread inside V8 is a workaround currently,
-// the reason is to reduce code duplication during migration to sampler library,
-// sampling thread, as well as the sampler, will be moved to D8 eventually.
-class SamplingThread : public base::Thread {
- public:
-  static const int kSamplingThreadStackSize = 64 * KB;
-
-  SamplingThread(sampler::Sampler* sampler, int interval)
-      : base::Thread(base::Thread::Options("SamplingThread",
-                                           kSamplingThreadStackSize)),
-        sampler_(sampler),
-        interval_(interval) {}
-  void Run() override {
-    while (sampler_->IsProfiling()) {
-      sampler_->DoSample();
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
-    }
-  }
-
- private:
-  sampler::Sampler* sampler_;
-  const int interval_;
-};
-
-
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
@@ -637,16 +611,16 @@ class Profiler: public base::Thread {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-class Ticker: public sampler::Sampler {
+class Ticker: public Sampler {
  public:
   Ticker(Isolate* isolate, int interval):
-      sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
-      profiler_(NULL),
-      sampling_thread_(new SamplingThread(this, interval)) {}
+      Sampler(isolate, interval),
+      profiler_(NULL) {}
 
-  ~Ticker() {
-    if (IsActive()) Stop();
-    delete sampling_thread_;
+  ~Ticker() { if (IsActive()) Stop(); }
+
+  virtual void Tick(TickSample* sample) {
+    if (profiler_) profiler_->Insert(sample);
   }
 
   void SetProfiler(Profiler* profiler) {
@@ -654,40 +628,16 @@ class Ticker: public sampler::Sampler {
     profiler_ = profiler;
     IncreaseProfilingDepth();
     if (!IsActive()) Start();
-    sampling_thread_->StartSynchronously();
   }
 
   void ClearProfiler() {
     profiler_ = NULL;
     if (IsActive()) Stop();
     DecreaseProfilingDepth();
-    sampling_thread_->Join();
-  }
-
-  void SampleStack(const v8::RegisterState& state) override {
-    v8::Isolate* v8_isolate = isolate();
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-#if defined(USE_SIMULATOR)
-    SimulatorHelper::FillRegisters(isolate,
-                                   const_cast<v8::RegisterState*>(&state));
-#endif
-    TickSample* sample = isolate->cpu_profiler()->StartTickSample();
-    TickSample sample_obj;
-    if (sample == NULL) sample = &sample_obj;
-    sample->Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
-    if (is_counting_samples_ && !sample->timestamp.IsNull()) {
-      if (sample->state == JS) ++js_sample_count_;
-      if (sample->state == EXTERNAL) ++external_sample_count_;
-    }
-    if (profiler_) profiler_->Insert(sample);
-    if (sample != &sample_obj) {
-      isolate->cpu_profiler()->FinishTickSample();
-    }
   }
 
  private:
   Profiler* profiler_;
-  SamplingThread* sampling_thread_;
 };
 
 
@@ -1860,7 +1810,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
 }
 
 
-sampler::Sampler* Logger::sampler() {
+Sampler* Logger::sampler() {
   return ticker_;
 }
 

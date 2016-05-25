@@ -108,7 +108,6 @@
         'heap/test-lab.cc',
         'heap/test-mark-compact.cc',
         'heap/test-spaces.cc',
-        'libsampler/test-sampler.cc',
         'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',

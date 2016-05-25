@@ -105,11 +105,6 @@ config("libplatform_config") {
   include_dirs = [ "include" ]
 }
 
-# This config should be applied to code using the libsampler.
-config("libsampler_config") {
-  include_dirs = [ "include" ]
-}
-
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
@@ -1334,6 +1329,8 @@ v8_source_set("v8_base") {
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.cc",
     "src/profiler/profile-generator.h",
+    "src/profiler/sampler.cc",
+    "src/profiler/sampler.h",
     "src/profiler/sampling-heap-profiler.cc",
     "src/profiler/sampling-heap-profiler.h",
     "src/profiler/strings-storage.cc",
@@ -1819,7 +1816,6 @@ v8_source_set("v8_base") {
   defines = []
   deps = [
     ":v8_libbase",
-    ":v8_libsampler",
   ]
 
   if (is_win) {
@@ -1968,23 +1964,6 @@ v8_source_set("v8_libplatform") {
   configs = [ ":internal_config_base" ]
 
   public_configs = [ ":libplatform_config" ]
-
-  deps = [
-    ":v8_libbase",
-  ]
-}
-
-v8_source_set("v8_libsampler") {
-  sources = [
-    "src/libsampler/hashmap.h",
-    "src/libsampler/utils.h",
-    "src/libsampler/v8-sampler.cc",
-    "src/libsampler/v8-sampler.h",
-  ]
-
-  configs = [ ":internal_config_base" ]
-
-  public_configs = [ ":libsampler_config" ]
 
   deps = [
     ":v8_libbase",

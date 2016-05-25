@@ -14,9 +14,9 @@
 #include "src/elements.h"
 #include "src/frames.h"
 #include "src/isolate.h"
-#include "src/libsampler/v8-sampler.h"
 #include "src/objects.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/profiler/sampler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -48,7 +48,7 @@ void V8::TearDown() {
   ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
-  sampler::Sampler::TearDown();
+  Sampler::TearDown();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
 }
 
@@ -76,7 +76,7 @@ void V8::InitializeOncePerProcessImpl() {
 
   Isolate::InitializeOncePerProcess();
 
-  sampler::Sampler::SetUp();
+  Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();

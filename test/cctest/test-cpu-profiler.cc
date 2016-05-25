@@ -422,7 +422,7 @@ static v8::CpuProfile* RunProfiler(v8::Local<v8::Context> env,
   cpu_profiler->SetSamplingInterval(100);
   cpu_profiler->StartProfiling(profile_name, collect_samples);
 
-  v8::sampler::Sampler* sampler =
+  i::Sampler* sampler =
       reinterpret_cast<i::Isolate*>(env->GetIsolate())->logger()->sampler();
   sampler->StartCountingSamples();
   do {

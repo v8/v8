@@ -381,7 +381,6 @@
       'type': 'static_library',
       'dependencies': [
         'v8_libbase',
-        'v8_libsampler',
       ],
       'variables': {
         'optimize': 'max',
@@ -1002,6 +1001,8 @@
         'profiler/profile-generator-inl.h',
         'profiler/profile-generator.cc',
         'profiler/profile-generator.h',
+        'profiler/sampler.cc',
+        'profiler/sampler.h',
         'profiler/sampling-heap-profiler.cc',
         'profiler/sampling-heap-profiler.h',
         'profiler/strings-storage.cc',
@@ -1924,38 +1925,6 @@
         'libplatform/task-queue.h',
         'libplatform/worker-thread.cc',
         'libplatform/worker-thread.h',
-      ],
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }],
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '../include',
-        ],
-      },
-    },
-    {
-      'target_name': 'v8_libsampler',
-      'type': 'static_library',
-      'variables': {
-        'optimize': 'max',
-      },
-      'dependencies': [
-        'v8_libbase',
-      ],
-      'include_dirs+': [
-        '..',
-        '../include',
-      ],
-      'sources': [
-        'libsampler/hashmap.h',
-        'libsampler/utils.h',
-        'libsampler/v8-sampler.cc',
-        'libsampler/v8-sampler.h'
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
