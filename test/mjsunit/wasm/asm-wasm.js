@@ -682,6 +682,7 @@ function TestModDoubleNegative() {
 
 assertWasm(28, TestModDoubleNegative);
 
+
 (function () {
 function TestNamedFunctions() {
   "use asm";
@@ -706,6 +707,7 @@ var module = Wasm.instantiateModuleFromAsm(TestNamedFunctions.toString());
 module.init();
 assertEquals(77.5, module.add());
 })();
+
 
 (function () {
 function TestGlobalsWithInit() {
@@ -1355,6 +1357,38 @@ assertWasm(1, TestXor);
 
   var m = Wasm.instantiateModuleFromAsm(Module.toString());
   assertEquals(7, m.func());
+})();
+
+
+(function TestBadAssignDoubleFromIntish() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    function func() {
+      var a = 1;
+      var b = 3.0;
+      b = a;
+    }
+    return {func: func};
+  }
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm(Module.toString());
+  });
+})();
+
+
+(function TestBadAssignIntFromDouble() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    function func() {
+      var a = 1;
+      var b = 3.0;
+      a = b;
+    }
+    return {func: func};
+  }
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm(Module.toString());
+  });
 })();
 
 
