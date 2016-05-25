@@ -17,7 +17,7 @@ namespace internal {
 // A Visitor over a CompilationInfo's AST that invokes
 // VisitExpression on each expression node.
 
-class AstExpressionVisitor : public AstVisitor {
+class AstExpressionVisitor : public AstTraversalVisitor {
  public:
   AstExpressionVisitor(Isolate* isolate, Expression* root);
   AstExpressionVisitor(uintptr_t stack_limit, Expression* root);
@@ -25,20 +25,13 @@ class AstExpressionVisitor : public AstVisitor {
 
  protected:
   virtual void VisitExpression(Expression* expression) = 0;
-  int depth() { return depth_; }
-
-  void VisitDeclarations(ZoneList<Declaration*>* d) override;
-  void VisitStatements(ZoneList<Statement*>* s) override;
 
  private:
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
 #define DECLARE_VISIT(type) void Visit##type(type* node) override;
-  AST_NODE_LIST(DECLARE_VISIT)
+  EXPRESSION_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   Expression* root_;
-  int depth_;
 
   DISALLOW_COPY_AND_ASSIGN(AstExpressionVisitor);
 };
